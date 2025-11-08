@@ -1,4 +1,4 @@
-### Go template
+## Go template
 # If you prefer the allow list template instead of the deny list, see community template:
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
@@ -21,9 +21,22 @@
 # Go workspace file
 go.work
 
-## Custom
-
-# SBOM files
+## SBOM files
 sbom/
 *.sbom.json
 *.cdx.json
+
+## IDE
+
+.idea/
+.vscode/
+
+## Custom
+
+playground/
+.env*
+
+## Documentation build artifacts
+
+.venv/
+site/
