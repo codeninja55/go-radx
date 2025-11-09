@@ -97,7 +97,7 @@ func run() error {
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(*outputDir, 0755); err != nil {
+	if err := os.MkdirAll(*outputDir, 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 
@@ -108,7 +108,7 @@ func run() error {
 			fmt.Printf("Writing %s\n", outputPath)
 		}
 
-		if err := os.WriteFile(outputPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(content), 0o644); err != nil {
 			return fmt.Errorf("write file %s: %w", outputPath, err)
 		}
 	}

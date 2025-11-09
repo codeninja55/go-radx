@@ -98,11 +98,11 @@ func (b *Builder) BuildResource(def *model.StructureDefinition) (string, error) 
 		IsAbstract: def.Abstract,
 	}
 
-	// Prepend nested types (they need to be defined before the main type)
-	allTypes := append(nestedTypes, mainType)
+	// Append main type after nested types (nested types need to be defined first)
+	nestedTypes = append(nestedTypes, mainType)
 
 	// Generate Go code with all types
-	return b.generator.GenerateFile(allTypes)
+	return b.generator.GenerateFile(nestedTypes)
 }
 
 // getEmbeddedBaseType returns the base type to embed, or empty string if no embedding.
@@ -192,15 +192,15 @@ func (b *Builder) BuildComplexType(def *model.StructureDefinition) (string, erro
 		IsAbstract: def.Abstract,
 	}
 
-	// Prepend nested types (they need to be defined before the main type)
-	allTypes := append(nestedTypes, mainType)
+	// Append main type after nested types (nested types need to be defined first)
+	nestedTypes = append(nestedTypes, mainType)
 
 	// Generate Go code with all types
-	return b.generator.GenerateFile(allTypes)
+	return b.generator.GenerateFile(nestedTypes)
 }
 
 // extractFieldsAndTypes extracts struct fields and nested type definitions from element definitions.
-func (b *Builder) extractFieldsAndTypes(def *model.StructureDefinition, parentPath string, prefix string) ([]model.Field, []model.TypeDefinition, error) {
+func (b *Builder) extractFieldsAndTypes(def *model.StructureDefinition, parentPath, prefix string) ([]model.Field, []model.TypeDefinition, error) {
 	var fields []model.Field
 	var nestedTypes []model.TypeDefinition
 

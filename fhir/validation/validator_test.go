@@ -596,7 +596,7 @@ func TestFHIRValidator_ChoiceTypeNested(t *testing.T) {
 // TestFHIRValidator_ChoiceTypeWithOtherValidation tests choice validation combined with other rules.
 func TestFHIRValidator_ChoiceTypeWithOtherValidation(t *testing.T) {
 	type MedicationRequest struct {
-		Status              *string `json:"status,omitempty" fhir:"cardinality=1..1,required,enum=active|completed|cancelled"`
+		Status              *string `json:"status,omitempty" fhir:"cardinality=1..1,required,enum=active|completed|canceled"`
 		DosageInstruction   *string `json:"dosageInstruction,omitempty" fhir:"cardinality=0..1"`
 		MedicationReference *string `json:"medicationReference,omitempty" fhir:"cardinality=0..1,choice=medication"`
 		MedicationCodeable  *string `json:"medicationCodeableConcept,omitempty" fhir:"cardinality=0..1,choice=medication"`

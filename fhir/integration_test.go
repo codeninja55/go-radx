@@ -373,7 +373,7 @@ func TestIntegration_BundleOperationsEndToEnd(t *testing.T) {
 
 	bundle.Entry = []resources.BundleEntry{
 		{
-			FullUrl: testutil.StringPtr("Patient/patient-1"),
+			FullUrl:  testutil.StringPtr("Patient/patient-1"),
 			Resource: json.RawMessage(patientJSON),
 			Request: &resources.BundleEntryRequest{
 				Method: "POST",
@@ -589,7 +589,7 @@ func TestIntegration_ErrorCasesAndValidationFailures(t *testing.T) {
 			Type: "searchset",
 			Entry: []resources.BundleEntry{
 				{
-					FullUrl: testutil.StringPtr("InvalidReference"),
+					FullUrl:  testutil.StringPtr("InvalidReference"),
 					Resource: json.RawMessage(`{"invalid": "json"}`),
 				},
 			},

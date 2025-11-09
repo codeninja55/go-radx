@@ -97,16 +97,17 @@ func (tm *TypeMapper) MapElementToField(elem model.ElementDefinition, parentPath
 
 	// Map type(s) first to determine the Go type
 	var goType string
-	if len(elem.Types) == 0 {
+	switch {
+	case len(elem.Types) == 0:
 		// BackboneElement - will be generated as nested struct
 		goType = field.Name
-	} else if len(elem.Types) == 1 {
+	case len(elem.Types) == 1:
 		// Single type
 		goType = tm.MapType(elem.Types[0].Code)
-	} else if IsChoiceType(elem.Path) {
+	case IsChoiceType(elem.Path):
 		// Choice type - will be expanded to multiple fields in builder
 		goType = tm.MapType(elem.Types[0].Code)
-	} else {
+	default:
 		// Non-choice polymorphic types - use json.RawMessage for lazy deserialization
 		// This handles rare cases where multiple types exist without [x] suffix
 		goType = "json.RawMessage"
@@ -224,7 +225,7 @@ func ToPascalCase(s string) string {
 
 	var result strings.Builder
 	for _, part := range parts {
-		if len(part) == 0 {
+		if part == "" {
 			continue
 		}
 		// Capitalize first letter, keep rest as-is
