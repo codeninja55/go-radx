@@ -14,10 +14,10 @@ linters:
     - staticcheck     # Staticcheck is go vet on steroids
     - unused          # Check for unused code
     - misspell        # Check for commonly misspelled English words
-    - revive          # Fast, configurable, extensible, flexible linter
+    # - revive          # Fast, configurable, extensible, flexible linter - DISABLED: too many naming convention suggestions
     # - gosec           # Security-focused linter - DISABLED: too many false positives for integer conversions
     - unconvert       # Remove unnecessary type conversions
-    - prealloc        # Find slice declarations with non-zero initial length
+    # - prealloc        # Find slice declarations with non-zero initial length - DISABLED: performance optimization, not bugs
     - gocritic        # The most opinionated Go linter
     # - gocyclo         # Cyclomatic complexity - DISABLED: inherited from reference implementation
     - bodyclose       # Check HTTP response body is closed

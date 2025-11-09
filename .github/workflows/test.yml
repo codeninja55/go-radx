@@ -30,9 +30,14 @@ jobs:
 
       - name: Download dependencies
         run: go mod download
+        env:
+          GOTOOLCHAIN: local
 
       - name: Run all tests
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        env:
+          CGO_ENABLED: 0
+          GOTOOLCHAIN: local
 
       - name: Generate coverage report
         run: go tool cover -html=coverage.out -o coverage.html
@@ -69,9 +74,14 @@ jobs:
 
       - name: Download dependencies
         run: go mod download
+        env:
+          GOTOOLCHAIN: local
 
       - name: Run tests with coverage
         run: go test -coverprofile=coverage.out ./...
+        env:
+          CGO_ENABLED: 0
+          GOTOOLCHAIN: local
 
       - name: Check coverage threshold
         run: |
