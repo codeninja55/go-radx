@@ -442,8 +442,13 @@ Remember: Quality tools are guardrails that help you, not barriers that block yo
 - Create a detailed message of what changed. Focus on the high level description of
   the problem it tries to solve, and how it is solved. Don't go into the specifics of the
   code unless it adds clarity.
-- Always add `@harrison-ai/lumineers` as reviewer(s).
+- Always add `codeninja55` as reviewer.
 - NEVER ever mention a `co-authored-by` or similar aspects. In particular, never mention the tool used to create the commit message or PR.
+- **IMPORTANT**: After creating a pull request, ALWAYS update the CHANGELOG.md file:
+  - Move changes from `[Unreleased]` section to a new version section if appropriate
+  - Add the PR number and link to each relevant change entry
+  - Follow Keep a Changelog format: `- Description (#123)` where #123 is the PR number
+  - Commit the CHANGELOG.md update with message: `docs: update CHANGELOG for PR #123`
 
 ## Other things
 
