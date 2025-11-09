@@ -65,20 +65,6 @@ jobs:
           sarif_file: gosec-results.sarif
         if: always()
 
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate
-
   trivy:
     name: Trivy Vulnerability Scanner
     runs-on: ubuntu-latest

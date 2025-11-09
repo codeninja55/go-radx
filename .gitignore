@@ -35,6 +35,7 @@ sbom/
 
 playground/
 .env*
+notes.md
 
 ## Documentation build artifacts
 
