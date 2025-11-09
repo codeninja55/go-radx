@@ -19,7 +19,7 @@ import (
 // TestParseDirectory_FlatDirectory tests parsing a flat directory with DICOM files.
 func TestParseDirectory_FlatDirectory(t *testing.T) {
 	// Use testdata root which has several .dcm files at top level
-	testDir := filepath.Join("..", "testdata")
+	testDir := filepath.Join("..", "testdata", "dicom")
 
 	result, err := ParseDirectory(testDir)
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestParseDirectory_FlatDirectory(t *testing.T) {
 // TestParseDirectory_NestedStructure tests parsing a nested directory structure.
 func TestParseDirectory_NestedStructure(t *testing.T) {
 	// Use a nested testdata directory - CTC_2 contains nested series directories
-	testDir := filepath.Join("..", "testdata", "CTC_2", "1.2.36.1.2001.1005.78.60.688816850355740435.7")
+	testDir := filepath.Join("..", "testdata", "dicom", "nested", "series_7")
 
 	result, err := ParseDirectory(testDir)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestParseDirectory_NonExistent(t *testing.T) {
 // TestParseDirectory_FileNotDirectory tests providing a file path instead of directory.
 func TestParseDirectory_FileNotDirectory(t *testing.T) {
 	// Use a known file instead of directory
-	testFile := filepath.Join("..", "testdata", "1.dcm")
+	testFile := filepath.Join("..", "testdata", "dicom", "1.dcm")
 
 	_, err := ParseDirectory(testFile)
 	assert.Error(t, err)
@@ -111,7 +111,7 @@ func TestParseDirectoryWithOptions_WorkerCount(t *testing.T) {
 		{"eight workers", 8},
 	}
 
-	testDir := filepath.Join("..", "testdata", "CTC_2", "1.2.36.1.2001.1005.78.60.688816850355740435.7")
+	testDir := filepath.Join("..", "testdata", "dicom", "nested", "series_7")
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -131,7 +131,7 @@ func TestParseDirectoryWithOptions_WorkerCount(t *testing.T) {
 
 // TestParseDirectoryWithOptions_NonRecursive tests non-recursive traversal.
 func TestParseDirectoryWithOptions_NonRecursive(t *testing.T) {
-	testDir := filepath.Join("..", "testdata")
+	testDir := filepath.Join("..", "testdata", "dicom")
 
 	recursive := false
 	opts := ParseDirectoryOptions{
@@ -151,7 +151,7 @@ func TestParseDirectoryWithOptions_NonRecursive(t *testing.T) {
 
 // TestParseDirectoryWithOptions_Recursive tests recursive traversal (default).
 func TestParseDirectoryWithOptions_Recursive(t *testing.T) {
-	testDir := filepath.Join("..", "testdata")
+	testDir := filepath.Join("..", "testdata", "dicom")
 
 	recursive := true
 	opts := ParseDirectoryOptions{
@@ -180,7 +180,7 @@ func TestParseDirectoryWithOptions_FilePattern(t *testing.T) {
 		{"numbered pattern", "[1-3].dcm", true, 3},
 	}
 
-	testDir := filepath.Join("..", "testdata")
+	testDir := filepath.Join("..", "testdata", "dicom")
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -206,7 +206,7 @@ func TestParseDirectoryWithOptions_FilePattern(t *testing.T) {
 
 // TestParseDirectoryWithOptions_ProgressCallback tests progress reporting.
 func TestParseDirectoryWithOptions_ProgressCallback(t *testing.T) {
-	testDir := filepath.Join("..", "testdata")
+	testDir := filepath.Join("..", "testdata", "dicom")
 	recursive := false
 
 	var callbackCount int32
@@ -250,7 +250,7 @@ func TestParseDirectoryWithOptions_ErrorCallback(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Copy a valid DICOM file
-	validSource := filepath.Join("..", "testdata", "1.dcm")
+	validSource := filepath.Join("..", "testdata", "dicom", "1.dcm")
 	validDest := filepath.Join(tmpDir, "valid.dcm")
 	validData, err := os.ReadFile(validSource)
 	require.NoError(t, err)
@@ -346,7 +346,7 @@ func TestParseDirectoryWithOptions_FailFast(t *testing.T) {
 
 // TestParseDirectoryWithOptions_Context tests context cancellation.
 func TestParseDirectoryWithOptions_Context(t *testing.T) {
-	testDir := filepath.Join("..", "testdata", "CTC_2", "1.2.36.1.2001.1005.78.60.688816850355740435.7")
+	testDir := filepath.Join("..", "testdata", "dicom", "nested", "series_7")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -374,7 +374,7 @@ func TestParseDirectoryWithOptions_Context(t *testing.T) {
 
 // TestParseResult_Metadata tests that ParseResult contains correct metadata.
 func TestParseResult_Metadata(t *testing.T) {
-	testDir := filepath.Join("..", "testdata")
+	testDir := filepath.Join("..", "testdata", "dicom")
 	recursive := false
 	opts := ParseDirectoryOptions{
 		Recursive: &recursive,
@@ -401,7 +401,7 @@ func TestParseResult_Metadata(t *testing.T) {
 
 // TestParseDirectory_DataSetCollection tests that datasets are correctly added to collection.
 func TestParseDirectory_DataSetCollection(t *testing.T) {
-	testDir := filepath.Join("..", "testdata")
+	testDir := filepath.Join("..", "testdata", "dicom")
 	recursive := false
 	opts := ParseDirectoryOptions{
 		Recursive: &recursive,
@@ -432,7 +432,7 @@ func TestParseDirectory_DataSetCollection(t *testing.T) {
 
 // TestParseDirectory_ConcurrentSafety tests thread-safety of concurrent parsing.
 func TestParseDirectory_ConcurrentSafety(t *testing.T) {
-	testDir := filepath.Join("..", "testdata", "CTC_2", "1.2.36.1.2001.1005.78.60.688816850355740435.7")
+	testDir := filepath.Join("..", "testdata", "dicom", "nested", "series_7")
 
 	// Run with high concurrency
 	opts := ParseDirectoryOptions{
@@ -452,7 +452,7 @@ func TestParseDirectory_ConcurrentSafety(t *testing.T) {
 // TestParseDirectory_MixedContent tests directory with mixed DICOM and non-DICOM files.
 func TestParseDirectory_MixedContent(t *testing.T) {
 	// testdata has .dcm files, .json files, and .md files
-	testDir := filepath.Join("..", "testdata")
+	testDir := filepath.Join("..", "testdata", "dicom")
 	recursive := false
 	opts := ParseDirectoryOptions{
 		Recursive: &recursive,
@@ -538,7 +538,7 @@ func TestValidateDirectory(t *testing.T) {
 	}{
 		{
 			name:        "valid directory",
-			path:        filepath.Join("..", "testdata"),
+			path:        filepath.Join("..", "testdata", "dicom"),
 			expectError: false,
 		},
 		{
@@ -549,7 +549,7 @@ func TestValidateDirectory(t *testing.T) {
 		},
 		{
 			name:        "file instead of directory",
-			path:        filepath.Join("..", "testdata", "1.dcm"),
+			path:        filepath.Join("..", "testdata", "dicom", "1.dcm"),
 			expectError: true,
 			errorMsg:    "not a directory",
 		},
@@ -579,7 +579,7 @@ func TestDiscoverFiles(t *testing.T) {
 	}{
 		{
 			name: "recursive discovery",
-			path: filepath.Join("..", "testdata"),
+			path: filepath.Join("..", "testdata", "dicom"),
 			opts: ParseDirectoryOptions{
 				Recursive:   func() *bool { b := true; return &b }(),
 				FilePattern: "*.dcm",
@@ -589,7 +589,7 @@ func TestDiscoverFiles(t *testing.T) {
 		},
 		{
 			name: "non-recursive discovery",
-			path: filepath.Join("..", "testdata"),
+			path: filepath.Join("..", "testdata", "dicom"),
 			opts: ParseDirectoryOptions{
 				Recursive:   func() *bool { b := false; return &b }(),
 				FilePattern: "*.dcm",
@@ -599,7 +599,7 @@ func TestDiscoverFiles(t *testing.T) {
 		},
 		{
 			name: "custom pattern",
-			path: filepath.Join("..", "testdata"),
+			path: filepath.Join("..", "testdata", "dicom"),
 			opts: ParseDirectoryOptions{
 				Recursive:   func() *bool { b := false; return &b }(),
 				FilePattern: "[1-3].dcm",
@@ -641,7 +641,7 @@ func TestDiscoverFiles(t *testing.T) {
 
 // BenchmarkParseDirectory benchmarks directory parsing performance.
 func BenchmarkParseDirectory(b *testing.B) {
-	testDir := filepath.Join("..", "testdata", "CTC_2", "1.2.36.1.2001.1005.78.60.688816850355740435.7")
+	testDir := filepath.Join("..", "testdata", "dicom", "nested", "series_7")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -657,7 +657,7 @@ func BenchmarkParseDirectory(b *testing.B) {
 
 // BenchmarkParseDirectory_Parallel benchmarks with different worker counts.
 func BenchmarkParseDirectory_Parallel(b *testing.B) {
-	testDir := filepath.Join("..", "testdata", "CTC_2", "1.2.36.1.2001.1005.78.60.688816850355740435.7")
+	testDir := filepath.Join("..", "testdata", "dicom", "nested", "series_7")
 
 	workerCounts := []int{1, 2, 4, 8, 16}
 
