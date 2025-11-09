@@ -181,7 +181,7 @@ type ParametersParameter struct {
 	// If parameter is a data type - Meta option
 	ValueMeta *Meta `json:"valueMeta,omitempty" fhir:"cardinality=0..1,summary,choice=value"`
 	// If parameter is a whole resource
-	Resource *json.RawMessage `json:"resource,omitempty" fhir:"cardinality=0..1,summary"`
+	Resource json.RawMessage `json:"resource" fhir:"cardinality=0..1,summary"`
 	// Extension for Resource
 	ResourceExt *primitives.PrimitiveExtension `json:"_resource,omitempty" fhir:"cardinality=0..1"`
 	// Named part of a multi-part parameter

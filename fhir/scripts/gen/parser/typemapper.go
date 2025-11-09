@@ -95,8 +95,25 @@ func (tm *TypeMapper) MapElementToField(elem model.ElementDefinition, parentPath
 	// Determine if field is an array
 	field.IsArray = elem.Max == "*"
 
+	// Map type(s) first to determine the Go type
+	var goType string
+	if len(elem.Types) == 0 {
+		// BackboneElement - will be generated as nested struct
+		goType = field.Name
+	} else if len(elem.Types) == 1 {
+		// Single type
+		goType = tm.MapType(elem.Types[0].Code)
+	} else if IsChoiceType(elem.Path) {
+		// Choice type - will be expanded to multiple fields in builder
+		goType = tm.MapType(elem.Types[0].Code)
+	} else {
+		// Multiple types - use interface{}
+		goType = "any"
+	}
+
 	// Determine if field is optional (pointer)
-	field.IsPointer = elem.Min == 0 && elem.Max == "1"
+	// json.RawMessage should not use pointers since it's already a reference type ([]byte)
+	field.IsPointer = elem.Min == 0 && elem.Max == "1" && goType != "json.RawMessage"
 
 	// Extract enum values from binding if present
 	if elem.Binding != nil && elem.Binding.Strength == "required" {
@@ -106,21 +123,12 @@ func (tm *TypeMapper) MapElementToField(elem model.ElementDefinition, parentPath
 		// TODO: Implement ValueSet parsing for enum validation
 	}
 
-	// Map type(s)
-	if len(elem.Types) == 0 {
-		// BackboneElement - will be generated as nested struct
-		field.GoType = field.Name
-	} else if len(elem.Types) == 1 && !field.IsChoice {
-		// Single type
-		field.GoType = tm.MapType(elem.Types[0].Code)
-	} else if field.IsChoice {
-		// Choice type - will be expanded to multiple fields in builder
-		// Store the first type here, builder will create additional fields
-		field.GoType = tm.MapType(elem.Types[0].Code)
+	// Set the Go type that we already determined above
+	field.GoType = goType
+
+	// For choice types, set the choice suffix
+	if field.IsChoice {
 		field.ChoiceSuffix = ToPascalCase(elem.Types[0].Code)
-	} else {
-		// Multiple types - use interface{}
-		field.GoType = "any"
 	}
 
 	return field, nil

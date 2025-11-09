@@ -1,6 +1,11 @@
 package fhir
 
-import "github.com/codeninja55/go-radx/fhir/primitives"
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/codeninja55/go-radx/fhir/primitives"
+)
 
 // Resource is the base type for all FHIR resources.
 // All FHIR resources inherit these common fields.
@@ -35,8 +40,8 @@ type Resource struct {
 type DomainResource struct {
 	Resource
 
-	// Contained, inline Resources
-	Contained []interface{} `json:"contained,omitempty" fhir:"cardinality=0..*"`
+	// Contained, inline Resources stored as raw JSON for lazy deserialization
+	Contained []json.RawMessage `json:"contained,omitempty" fhir:"cardinality=0..*"`
 
 	// Additional content defined by implementations
 	Extension []Extension `json:"extension,omitempty" fhir:"cardinality=0..*"`
@@ -46,6 +51,62 @@ type DomainResource struct {
 
 	// Text summary of the resource, for human interpretation
 	Text *Narrative `json:"text,omitempty" fhir:"cardinality=0..1"`
+}
+
+// UnmarshalContainedResource unmarshals a contained resource at the specified index.
+// Returns the unmarshaled resource of type T and any error encountered.
+//
+// Example:
+//
+//	patient, err := fhir.UnmarshalContainedResource[resources.Patient](domainResource.Contained, 0)
+func UnmarshalContainedResource[T any](contained []json.RawMessage, idx int) (T, error) {
+	var zero T
+	if idx < 0 || idx >= len(contained) {
+		return zero, fmt.Errorf("index %d out of range for contained resources (length: %d)", idx, len(contained))
+	}
+
+	var result T
+	if err := json.Unmarshal(contained[idx], &result); err != nil {
+		return zero, fmt.Errorf("unmarshal contained resource at index %d: %w", idx, err)
+	}
+	return result, nil
+}
+
+// AddContainedResource marshals a resource and appends it to the contained resources slice.
+// Returns the updated slice and any error encountered.
+//
+// Example:
+//
+//	domainResource.Contained, err = fhir.AddContainedResource(domainResource.Contained, patient)
+func AddContainedResource[T any](contained []json.RawMessage, resource T) ([]json.RawMessage, error) {
+	raw, err := json.Marshal(resource)
+	if err != nil {
+		return contained, fmt.Errorf("marshal contained resource: %w", err)
+	}
+	return append(contained, raw), nil
+}
+
+// GetContainedResourceByID finds and returns a contained resource by its ID.
+// Returns the raw JSON for the matching resource, or an error if not found.
+//
+// Example:
+//
+//	raw, err := fhir.GetContainedResourceByID(domainResource.Contained, "patient-123")
+//	patient, err := fhir.UnmarshalResource[resources.Patient](raw)
+func GetContainedResourceByID(contained []json.RawMessage, id string) (json.RawMessage, error) {
+	for _, raw := range contained {
+		// Unmarshal just the id field to check
+		var idCheck struct {
+			ID *string `json:"id"`
+		}
+		if err := json.Unmarshal(raw, &idCheck); err != nil {
+			continue // Skip malformed entries
+		}
+		if idCheck.ID != nil && *idCheck.ID == id {
+			return raw, nil
+		}
+	}
+	return nil, fmt.Errorf("contained resource with id %q not found", id)
 }
 
 // Meta represents metadata about a resource.
@@ -154,6 +215,22 @@ type Extension struct {
 
 	// More complex value types can be added as needed
 	// ValueCoding, ValueCodeableConcept, ValueReference, etc.
+}
+
+// UnmarshalResource unmarshals a json.RawMessage into a specific resource type.
+// This is a generic helper function for working with Bundle entries and other
+// polymorphic resource fields.
+//
+// Example:
+//
+//	patient, err := fhir.UnmarshalResource[resources.Patient](entry.Resource)
+//	serviceRequest, err := fhir.UnmarshalResource[resources.ServiceRequest](entry.Resource)
+func UnmarshalResource[T any](raw json.RawMessage) (T, error) {
+	var result T
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return result, fmt.Errorf("unmarshal resource: %w", err)
+	}
+	return result, nil
 }
 
 // Coding represents a code defined by a terminology system.

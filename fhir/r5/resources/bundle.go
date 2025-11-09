@@ -121,7 +121,7 @@ type BundleEntryResponse struct {
 	// Extension for LastModified
 	LastModifiedExt *primitives.PrimitiveExtension `json:"_lastModified,omitempty" fhir:"cardinality=0..1"`
 	// OperationOutcome with hints and warnings (for batch/transaction)
-	Outcome *json.RawMessage `json:"outcome,omitempty" fhir:"cardinality=0..1,summary"`
+	Outcome json.RawMessage `json:"outcome" fhir:"cardinality=0..1,summary"`
 	// Extension for Outcome
 	OutcomeExt *primitives.PrimitiveExtension `json:"_outcome,omitempty" fhir:"cardinality=0..1"`
 }
@@ -143,7 +143,7 @@ type BundleEntry struct {
 	// Extension for FullUrl
 	FullUrlExt *primitives.PrimitiveExtension `json:"_fullUrl,omitempty" fhir:"cardinality=0..1"`
 	// A resource in the bundle
-	Resource *json.RawMessage `json:"resource,omitempty" fhir:"cardinality=0..1,summary"`
+	Resource json.RawMessage `json:"resource" fhir:"cardinality=0..1,summary"`
 	// Extension for Resource
 	ResourceExt *primitives.PrimitiveExtension `json:"_resource,omitempty" fhir:"cardinality=0..1"`
 	// Search related information
@@ -178,7 +178,7 @@ type Bundle struct {
 	// Digital Signature
 	Signature *Signature `json:"signature,omitempty" fhir:"cardinality=0..1,summary"`
 	// Issues with the Bundle
-	Issues *json.RawMessage `json:"issues,omitempty" fhir:"cardinality=0..1,summary"`
+	Issues json.RawMessage `json:"issues" fhir:"cardinality=0..1,summary"`
 	// Extension for Issues
 	IssuesExt *primitives.PrimitiveExtension `json:"_issues,omitempty" fhir:"cardinality=0..1"`
 }
