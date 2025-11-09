@@ -45,6 +45,9 @@ jobs:
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
         env:
           GOTOOLCHAIN: local
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+          TESTCONTAINERS_RYUK_DISABLED: false
 
       - name: Generate coverage report
         run: go tool cover -html=coverage.out -o coverage.html
