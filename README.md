@@ -5,6 +5,11 @@ DIMSE networking protocols.
 
 [![Go Version](https://img.shields.io/badge/Go-1.25.4+-00ADD8?style=flat&logo=go)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Tests](https://github.com/codeninja55/go-radx/actions/workflows/test.yml/badge.svg)](https://github.com/codeninja55/go-radx/actions/workflows/test.yml)
+[![Lint](https://github.com/codeninja55/go-radx/actions/workflows/lint.yml/badge.svg)](https://github.com/codeninja55/go-radx/actions/workflows/lint.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/codeninja55/go-radx.svg)](https://pkg.go.dev/github.com/codeninja55/go-radx)
+[![Go Report Card](https://goreportcard.com/badge/github.com/codeninja55/go-radx)](https://goreportcard.com/report/github.com/codeninja55/go-radx)
+[![codecov](https://codecov.io/gh/codeninja55/go-radx/branch/main/graph/badge.svg)](https://codecov.io/gh/codeninja55/go-radx)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://codeninja55.github.io/go-radx/)
 
 ## Overview

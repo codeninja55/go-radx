@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This document provides context for AI assistants working on the `codeninj55/go-radx` project.
+This document provides context for AI assistants working on the `codeninja55/go-radx` project.
 
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
@@ -21,6 +21,36 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
+## Configuration File Preferences
+
+**CRITICAL**: Follow these configuration file naming and format conventions:
+
+### Mise Configuration
+- **ALWAYS** use `mise.toml` (NOT `.mise.toml`)
+- The project uses `mise.toml` in the root directory
+- Never create `.mise.toml` - it's incorrect for this project
+
+### Configuration Format Preferences
+1. **First choice**: YAML (`.yml` or `.yaml`)
+   - Examples: `.golangci.yml`, `.pre-commit-config.yaml`, `.yamllint.yml`
+   - YAML is preferred for readability and human editing
+2. **Second choice**: TOML
+   - Examples: `mise.toml`, `pyproject.toml`
+   - Used when YAML is not supported or TOML is more idiomatic
+3. **Third choice**: JSON, JavaScript, or TypeScript
+   - Examples: `renovate.json`, `.markdownlint.json`
+   - Only when YAML/TOML are not options
+
+### Existing Configuration Files
+- `mise.toml` - Task runner and tool version management (NOT `.mise.toml`)
+- `.golangci.yml` - Linter configuration
+- `.pre-commit-config.yaml` - Pre-commit hooks
+- `renovate.json` - Dependency updates
+- `.yamllint.yml` - YAML linting rules
+- `.markdownlint.json` - Markdown linting rules
+- `.secrets.baseline` - Secret detection baseline
+
+**Always check for existing configuration files before creating new ones.**
 
 ## Project Overview
 
@@ -314,6 +344,41 @@ You must understand these healthcare standards and workflows:
 - Maintain consistency. Use consistent terminology, formatting, and language variety throughout all documentation.
 - Valid technical references. Ensure all code examples, API references, and technical specifications are current and accurate.
 
+## Pre-Commit Workflow
+
+**CRITICAL**: Before every commit, you MUST run the following checks in order:
+
+1. **Formatting**: `mise run fmt` - Format all Go code
+2. **Linting**: `mise run lint` - Run golangci-lint with all configured linters
+3. **Type Checking**: Verify Go builds without errors
+4. **All Tests**: `mise run test` - Run the complete test suite
+
+**Workflow:**
+```bash
+# 1. Format code
+mise run fmt
+
+# 2. Run linter
+mise run lint
+
+# 3. Run all tests
+mise run test
+
+# 4. Only commit if all checks pass
+git commit -m "..."
+```
+
+**Never commit code that:**
+- Has formatting issues
+- Fails linting checks
+- Has type errors
+- Has failing tests
+
+**If checks fail:**
+- Fix all issues before committing
+- Never use `--no-verify` to bypass pre-commit hooks
+- Never commit broken code with the intention to "fix it later"
+
 ## Thoughts on git
 
 ### 1. Mandatory Pre-Commit Failure Protocol
@@ -377,8 +442,13 @@ Remember: Quality tools are guardrails that help you, not barriers that block yo
 - Create a detailed message of what changed. Focus on the high level description of
   the problem it tries to solve, and how it is solved. Don't go into the specifics of the
   code unless it adds clarity.
-- Always add `@harrison-ai/lumineers` as reviewer(s).
+- Always add `codeninja55` as reviewer.
 - NEVER ever mention a `co-authored-by` or similar aspects. In particular, never mention the tool used to create the commit message or PR.
+- **IMPORTANT**: After creating a pull request, ALWAYS update the CHANGELOG.md file:
+  - Move changes from `[Unreleased]` section to a new version section if appropriate
+  - Add the PR number and link to each relevant change entry
+  - Follow Keep a Changelog format: `- Description (#123)` where #123 is the PR number
+  - Commit the CHANGELOG.md update with message: `docs: update CHANGELOG for PR #123`
 
 ## Other things
 
