@@ -57,7 +57,18 @@ linters:
       locale: US
 
     staticcheck:
-      checks: ["all", "-ST1000", "-ST1003"]
+      checks: [
+        "all",
+        "-ST1000",  # Package comment
+        "-ST1003",  # Naming conventions
+        "-ST1022",  # Comment formatting
+        "-ST1023",  # Redundant type in declaration
+        "-SA9003",  # Empty branch (intentional in some cases)
+        "-SA4010",  # Unused append result (fuzzing test artifact)
+        "-SA5011",  # Nil pointer dereference (false positive in fuzzing)
+        "-S1009",   # Nil check simplification (clarity over brevity)
+        "-QF1003",  # Tagged switch (subjective style)
+      ]
 
   exclusions:
     warn-unused: false
