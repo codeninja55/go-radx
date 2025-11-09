@@ -18,7 +18,6 @@ func TestIntegration_PatientFullWorkflow(t *testing.T) {
 	birthDate := primitives.MustDate("1974-12-25")
 
 	patient := &resources.Patient{
-		ID:     testutil.StringPtr("example"),
 		Active: &active,
 		Name: []resources.HumanName{
 			{
@@ -30,6 +29,8 @@ func TestIntegration_PatientFullWorkflow(t *testing.T) {
 		Gender:    testutil.StringPtr("male"),
 		BirthDate: &birthDate,
 	}
+	patient.ID = testutil.StringPtr("example")
+	patient.ResourceType = "Patient"
 
 	// 2. Validate the patient
 	validator := validation.NewFHIRValidator()
@@ -120,9 +121,10 @@ func TestIntegration_ValidationErrors(t *testing.T) {
 
 	// Observation with missing required field (status is required)
 	obs := &resources.Observation{
-		ID: testutil.StringPtr("obs-1"),
 		// Missing Status - required field
 	}
+	obs.ID = testutil.StringPtr("obs-1")
+	obs.ResourceType = "Observation"
 	err := validator.Validate(obs)
 	// Note: validation might pass if status has a zero value, this test is informational
 	if err != nil {
@@ -134,7 +136,6 @@ func TestIntegration_ValidationErrors(t *testing.T) {
 func TestIntegration_SummaryMode(t *testing.T) {
 	// Create a patient
 	patient := &resources.Patient{
-		ID:     testutil.StringPtr("example"),
 		Active: testutil.BoolPtr(true),
 		Name: []resources.HumanName{
 			{
@@ -151,6 +152,8 @@ func TestIntegration_SummaryMode(t *testing.T) {
 			},
 		},
 	}
+	patient.ID = testutil.StringPtr("example")
+	patient.ResourceType = "Patient"
 
 	// Full JSON
 	fullJSON, err := json.Marshal(patient)
@@ -216,11 +219,11 @@ func TestIntegration_PrimitivesHandling(t *testing.T) {
 // TestIntegration_ResourceInheritance tests resource inheritance
 func TestIntegration_ResourceInheritance(t *testing.T) {
 	// Patient extends DomainResource
-	patient := &resources.Patient{
-		ID: testutil.StringPtr("example"),
-		Meta: &resources.Meta{
-			VersionId: testutil.StringPtr("1"),
-		},
+	patient := &resources.Patient{}
+	patient.ID = testutil.StringPtr("example")
+	patient.ResourceType = "Patient"
+	patient.Meta = &fhir.Meta{
+		VersionID: testutil.StringPtr("1"),
 	}
 
 	// Marshal and check meta is at root level (not nested)

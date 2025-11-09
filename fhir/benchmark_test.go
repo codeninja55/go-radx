@@ -141,7 +141,6 @@ func BenchmarkObservation_Create(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		obs := &resources.Observation{
-			ID:     stringPtr("obs-001"),
 			Status: "final",
 			Code: resources.CodeableConcept{
 				Coding: []resources.Coding{
@@ -153,6 +152,8 @@ func BenchmarkObservation_Create(b *testing.B) {
 				},
 			},
 		}
+		obs.ID = stringPtr("obs-001")
+		obs.ResourceType = "Observation"
 		runtime.KeepAlive(obs)
 	}
 }
@@ -162,7 +163,6 @@ func BenchmarkObservation_WithComponents(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		obs := &resources.Observation{
-			ID:     stringPtr("obs-bp-001"),
 			Status: "final",
 			Code: resources.CodeableConcept{
 				Coding: []resources.Coding{
@@ -198,6 +198,8 @@ func BenchmarkObservation_WithComponents(b *testing.B) {
 				},
 			},
 		}
+		obs.ID = stringPtr("obs-bp-001")
+		obs.ResourceType = "Observation"
 		runtime.KeepAlive(obs)
 	}
 }
@@ -205,8 +207,7 @@ func BenchmarkObservation_WithComponents(b *testing.B) {
 // Helper functions
 func createTestPatient() *resources.Patient {
 	birthDate := primitives.MustDate("1974-12-25")
-	return &resources.Patient{
-		ID:     stringPtr("example"),
+	patient := &resources.Patient{
 		Active: boolPtr(true),
 		Name: []resources.HumanName{
 			{
@@ -232,6 +233,10 @@ func createTestPatient() *resources.Patient {
 			},
 		},
 	}
+	// Set ID on embedded Resource struct
+	patient.ID = stringPtr("example")
+	patient.ResourceType = "Patient"
+	return patient
 }
 
 func createTestBundle(size int) *fhir.Bundle {
