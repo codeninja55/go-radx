@@ -84,7 +84,7 @@ func TestJPEG2000Decoder_Decode_EmptyData(t *testing.T) {
 
 func TestJPEG2000Decoder_Decode_InvalidData(t *testing.T) {
 	t.Skip("Skipping test that causes signal handler conflicts in CGo JPEG2000 decoder with invalid data")
-	
+
 	decoder := NewJPEG2000Decoder("1.2.840.10008.1.2.4.90", false)
 
 	info := &PixelInfo{
@@ -111,7 +111,7 @@ func TestJPEG2000Decoder_Decode_InvalidData(t *testing.T) {
 
 func TestJPEG2000Decoder_HTJ2K_Decode_InvalidData(t *testing.T) {
 	t.Skip("Skipping test that hangs in CGo JPEG2000 decoder with invalid HTJ2K data")
-	
+
 	decoder := NewJPEG2000Decoder("1.2.840.10008.1.2.4.201", true)
 
 	info := &PixelInfo{
@@ -138,7 +138,7 @@ func TestJPEG2000Decoder_HTJ2K_Decode_InvalidData(t *testing.T) {
 
 func TestJPEG2000Decoder_MemorySafety(t *testing.T) {
 	t.Skip("Skipping test that hangs in CGo JPEG2000 decoder with invalid data")
-	
+
 	// Test that CGo memory management doesn't leak
 	// Run multiple decompression attempts with invalid data
 	decoder := NewJPEG2000Decoder("1.2.840.10008.1.2.4.90", false)
@@ -166,7 +166,7 @@ func TestJPEG2000Decoder_MemorySafety(t *testing.T) {
 
 func TestJPEG2000Decoder_HTJ2K_MemorySafety(t *testing.T) {
 	t.Skip("Skipping test that hangs in CGo JPEG2000 decoder with invalid HTJ2K data")
-	
+
 	// Test HTJ2K memory safety
 	decoder := NewJPEG2000Decoder("1.2.840.10008.1.2.4.201", true)
 

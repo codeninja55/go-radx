@@ -18,14 +18,15 @@ import (
 //
 // Structure created:
 // testdata/dicom/nested/
-//   ├── series_1/ (2 files)
-//   ├── series_2/ (58 files)
-//   ├── series_3/ (56 files)
-//   ├── series_4/ (184 files)
-//   ├── series_5/ (69 files)
-//   ├── series_6/ (69 files)
-//   ├── series_7/ (688 files) - main test target
-//   └── series_8/ (69 files)
+//
+//	├── series_1/ (2 files)
+//	├── series_2/ (58 files)
+//	├── series_3/ (56 files)
+//	├── series_4/ (184 files)
+//	├── series_5/ (69 files)
+//	├── series_6/ (69 files)
+//	├── series_7/ (688 files) - main test target
+//	└── series_8/ (69 files)
 //
 // Total: ~1195 files across 8 series directories
 func main() {
