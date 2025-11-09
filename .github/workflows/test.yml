@@ -12,11 +12,7 @@ permissions:
 jobs:
   test:
     name: Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        go-version: ['1.25.4']
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -25,15 +21,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.25.4'
           cache: true
 
-      - name: Install CGO dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: brew install openjpeg jpeg
-
-      - name: Install CGO dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Install CGO dependencies
         run: sudo apt-get update && sudo apt-get install -y libjpeg-dev libopenjp2-7-dev
 
       - name: Download dependencies
@@ -41,20 +32,13 @@ jobs:
         env:
           GOTOOLCHAIN: local
 
-      - name: Run all tests (Linux - with integration tests)
-        if: runner.os == 'Linux'
+      - name: Run all tests
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
         env:
           GOTOOLCHAIN: local
           DOCKER_HOST: unix:///var/run/docker.sock
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
           TESTCONTAINERS_RYUK_DISABLED: false
-
-      - name: Run all tests (macOS - skip integration tests)
-        if: runner.os == 'macOS'
-        run: go test -v -short -race -coverprofile=coverage.out -covermode=atomic ./...
-        env:
-          GOTOOLCHAIN: local
 
       - name: Generate coverage report
         run: go tool cover -html=coverage.out -o coverage.html
@@ -64,13 +48,13 @@ jobs:
         with:
           file: ./coverage.out
           flags: unittests
-          name: codecov-${{ matrix.os }}-go${{ matrix.go-version }}
+          name: codecov-ubuntu-go1.25.4
           fail_ci_if_error: false
 
       - name: Archive coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-${{ matrix.os }}-go${{ matrix.go-version }}
+          name: coverage-report-ubuntu-go1.25.4
           path: coverage.html
           retention-days: 30
 

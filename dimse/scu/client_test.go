@@ -100,7 +100,7 @@ func (h *mockMoveHandler) HandleMove(ctx context.Context, req *scp.MoveRequest) 
 
 // TestCEchoSCU tests C-ECHO operation from SCU perspective
 func TestCEchoSCU(t *testing.T) {
-	server, addr := startTestSCP(t, 11120, &mockEchoHandler{}, nil, nil, nil, nil)
+	server, addr := startTestSCP(t, &mockEchoHandler{}, nil, nil, nil, nil)
 	defer server.Shutdown(context.Background())
 
 	client := createTestSCU(t, addr, []string{"1.2.840.10008.1.1"})
@@ -118,7 +118,7 @@ func TestCEchoSCU(t *testing.T) {
 // TestCStoreSCU tests C-STORE operation from SCU perspective
 func TestCStoreSCU(t *testing.T) {
 	storeHandler := &mockStoreHandler{}
-	server, addr := startTestSCP(t, 11121, nil, storeHandler, nil, nil, nil)
+	server, addr := startTestSCP(t, nil, storeHandler, nil, nil, nil)
 	defer server.Shutdown(context.Background())
 
 	ds := dicom.NewDataSet()
@@ -148,7 +148,7 @@ func TestCStoreSCU(t *testing.T) {
 // TestCFindSCU tests C-FIND operation from SCU perspective
 func TestCFindSCU(t *testing.T) {
 	findHandler := &mockFindHandler{resultCount: 3}
-	server, addr := startTestSCP(t, 11122, nil, nil, findHandler, nil, nil)
+	server, addr := startTestSCP(t, nil, nil, findHandler, nil, nil)
 	defer server.Shutdown(context.Background())
 
 	client := createTestSCU(t, addr, []string{"1.2.840.10008.5.1.4.1.2.1.1"})
@@ -178,7 +178,7 @@ func TestCFindSCU(t *testing.T) {
 // TestCMoveSCU tests C-MOVE operation from SCU perspective
 func TestCMoveSCU(t *testing.T) {
 	moveHandler := &mockMoveHandler{}
-	server, addr := startTestSCP(t, 11123, nil, nil, nil, nil, moveHandler)
+	server, addr := startTestSCP(t, nil, nil, nil, nil, moveHandler)
 	defer server.Shutdown(context.Background())
 
 	client := createTestSCU(t, addr, []string{"1.2.840.10008.5.1.4.1.2.1.2"})
@@ -199,7 +199,7 @@ func TestCMoveSCU(t *testing.T) {
 // TestCGetSCU tests C-GET operation from SCU perspective
 func TestCGetSCU(t *testing.T) {
 	getHandler := &mockGetHandler{resultCount: 3}
-	server, addr := startTestSCP(t, 11124, nil, nil, nil, getHandler, nil)
+	server, addr := startTestSCP(t, nil, nil, nil, getHandler, nil)
 	defer server.Shutdown(context.Background())
 
 	// Client needs presentation contexts for both C-GET and CT Image Storage
@@ -259,7 +259,7 @@ func TestOperationWithoutConnection(t *testing.T) {
 
 // TestContextTimeout tests SCU behavior when context times out
 func TestContextTimeout(t *testing.T) {
-	server, addr := startTestSCP(t, 11126, &mockEchoHandler{}, nil, nil, nil, nil)
+	server, addr := startTestSCP(t, &mockEchoHandler{}, nil, nil, nil, nil)
 	defer server.Shutdown(context.Background())
 
 	client := createTestSCU(t, addr, []string{"1.2.840.10008.1.1"})
@@ -276,7 +276,7 @@ func TestContextTimeout(t *testing.T) {
 // TestFindWithEmptyResults tests C-FIND with no results
 func TestFindWithEmptyResults(t *testing.T) {
 	findHandler := &mockFindHandler{resultCount: 0}
-	server, addr := startTestSCP(t, 11127, nil, nil, findHandler, nil, nil)
+	server, addr := startTestSCP(t, nil, nil, findHandler, nil, nil)
 	defer server.Shutdown(context.Background())
 
 	client := createTestSCU(t, addr, []string{"1.2.840.10008.5.1.4.1.2.1.1"})
@@ -303,7 +303,7 @@ func TestFindWithEmptyResults(t *testing.T) {
 // TestGetWithEmptyResults tests C-GET with no results
 func TestGetWithEmptyResults(t *testing.T) {
 	getHandler := &mockGetHandler{resultCount: 0}
-	server, addr := startTestSCP(t, 11128, nil, nil, nil, getHandler, nil)
+	server, addr := startTestSCP(t, nil, nil, nil, getHandler, nil)
 	defer server.Shutdown(context.Background())
 
 	client := createTestSCU(t, addr, []string{
@@ -333,17 +333,14 @@ func TestGetWithEmptyResults(t *testing.T) {
 
 // Helper functions
 
-func startTestSCP(t *testing.T, port int, echo scp.EchoHandler, store scp.StoreHandler,
+func startTestSCP(t *testing.T, echo scp.EchoHandler, store scp.StoreHandler,
 	find scp.FindHandler, get scp.GetHandler, move scp.MoveHandler) (*scp.Server, string) {
 	t.Helper()
 
-	// Use a fixed port for testing (similar to existing SCP tests)
-	// Each test should use a different port to avoid conflicts
-	listenAddr := fmt.Sprintf("127.0.0.1:%d", port)
-
+	// Use port 0 for OS-assigned dynamic port to avoid conflicts when tests run in parallel
 	config := scp.Config{
 		AETitle:      "TEST_SCP",
-		ListenAddr:   listenAddr,
+		ListenAddr:   "127.0.0.1:0",
 		MaxPDULength: 16384,
 		EchoHandler:  echo,
 		StoreHandler: store,
@@ -369,7 +366,10 @@ func startTestSCP(t *testing.T, port int, echo scp.EchoHandler, store scp.StoreH
 	// Small delay to ensure server is listening
 	time.Sleep(100 * time.Millisecond)
 
-	return server, listenAddr
+	// Get the actual bound address
+	actualAddr := server.Addr().String()
+
+	return server, actualAddr
 }
 
 func createTestSCU(t *testing.T, addr string, abstractSyntaxes []string) *scu.Client {

@@ -40,7 +40,7 @@ func TestCFindSCP(t *testing.T) {
 
 	serverConfig := scp.Config{
 		AETitle:    "FIND_SCP",
-		ListenAddr: "127.0.0.1:11119",
+		ListenAddr: "127.0.0.1:0", // Use OS-assigned port to avoid conflicts
 		SupportedContexts: map[string][]string{
 			"1.2.840.10008.1.1":           {"1.2.840.10008.1.2"}, // Verification
 			"1.2.840.10008.5.1.4.1.2.1.1": {"1.2.840.10008.1.2"}, // Patient Root Q/R - FIND
@@ -62,12 +62,15 @@ func TestCFindSCP(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
+	// Get actual bound address
+	serverAddr := server.Addr().String()
+
 	sopClassUID := "1.2.840.10008.5.1.4.1.2.1.1" // Patient Root Q/R - FIND
 
 	clientConfig := scu.Config{
 		CallingAETitle: "FIND_SCU",
 		CalledAETitle:  "FIND_SCP",
-		RemoteAddr:     "127.0.0.1:11119",
+		RemoteAddr:     serverAddr,
 		PresentationContexts: []dul.PresentationContextRQ{
 			{
 				ID:             1,
@@ -129,7 +132,7 @@ func TestCFindSCP_NoResults(t *testing.T) {
 
 	serverConfig := scp.Config{
 		AETitle:    "FIND_SCP",
-		ListenAddr: "127.0.0.1:11120",
+		ListenAddr: "127.0.0.1:0", // Use OS-assigned port to avoid conflicts
 		SupportedContexts: map[string][]string{
 			"1.2.840.10008.1.1":           {"1.2.840.10008.1.2"},
 			"1.2.840.10008.5.1.4.1.2.1.1": {"1.2.840.10008.1.2"},
@@ -149,12 +152,15 @@ func TestCFindSCP_NoResults(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
+	// Get actual bound address
+	serverAddr := server.Addr().String()
+
 	sopClassUID := "1.2.840.10008.5.1.4.1.2.1.1"
 
 	clientConfig := scu.Config{
 		CallingAETitle: "FIND_SCU",
 		CalledAETitle:  "FIND_SCP",
-		RemoteAddr:     "127.0.0.1:11120",
+		RemoteAddr:     serverAddr,
 		PresentationContexts: []dul.PresentationContextRQ{
 			{
 				ID:             1,
@@ -216,7 +222,7 @@ func TestCFindSCP_LargeResultSet(t *testing.T) {
 
 	serverConfig := scp.Config{
 		AETitle:    "FIND_SCP",
-		ListenAddr: "127.0.0.1:11121",
+		ListenAddr: "127.0.0.1:0", // Use OS-assigned port to avoid conflicts
 		SupportedContexts: map[string][]string{
 			"1.2.840.10008.1.1":           {"1.2.840.10008.1.2"},
 			"1.2.840.10008.5.1.4.1.2.1.1": {"1.2.840.10008.1.2"},
@@ -236,12 +242,15 @@ func TestCFindSCP_LargeResultSet(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
+	// Get actual bound address
+	serverAddr := server.Addr().String()
+
 	sopClassUID := "1.2.840.10008.5.1.4.1.2.1.1"
 
 	clientConfig := scu.Config{
 		CallingAETitle: "FIND_SCU",
 		CalledAETitle:  "FIND_SCP",
-		RemoteAddr:     "127.0.0.1:11121",
+		RemoteAddr:     serverAddr,
 		PresentationContexts: []dul.PresentationContextRQ{
 			{
 				ID:             1,
@@ -301,7 +310,7 @@ func TestCFindSCP_CallbackError(t *testing.T) {
 
 	serverConfig := scp.Config{
 		AETitle:    "FIND_SCP",
-		ListenAddr: "127.0.0.1:11122",
+		ListenAddr: "127.0.0.1:0", // Use OS-assigned port to avoid conflicts
 		SupportedContexts: map[string][]string{
 			"1.2.840.10008.1.1":           {"1.2.840.10008.1.2"},
 			"1.2.840.10008.5.1.4.1.2.1.1": {"1.2.840.10008.1.2"},
@@ -321,12 +330,15 @@ func TestCFindSCP_CallbackError(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
+	// Get actual bound address
+	serverAddr := server.Addr().String()
+
 	sopClassUID := "1.2.840.10008.5.1.4.1.2.1.1"
 
 	clientConfig := scu.Config{
 		CallingAETitle: "FIND_SCU",
 		CalledAETitle:  "FIND_SCP",
-		RemoteAddr:     "127.0.0.1:11122",
+		RemoteAddr:     serverAddr,
 		PresentationContexts: []dul.PresentationContextRQ{
 			{
 				ID:             1,

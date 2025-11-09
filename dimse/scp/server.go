@@ -167,6 +167,15 @@ func (s *Server) Listen(ctx context.Context) error {
 	return nil
 }
 
+// Addr returns the actual network address the server is listening on.
+// This is useful when ListenAddr is set to ":0" to get the OS-assigned port.
+func (s *Server) Addr() net.Addr {
+	if s.listener == nil {
+		return nil
+	}
+	return s.listener.Addr()
+}
+
 // acceptLoop accepts incoming connections
 func (s *Server) acceptLoop(ctx context.Context) {
 	for {
