@@ -25,8 +25,8 @@ type BundleLink struct {
 // BundleEntry represents an entry in a bundle.
 type BundleEntry struct {
 	Link     []BundleLink         `json:"link,omitempty" fhir:"cardinality=0..*"`
-	FullURL  *string              `json:"fullUrl,omitempty" fhir:"cardinality=0..1,summary"`
 	Resource json.RawMessage      `json:"resource,omitempty" fhir:"cardinality=0..1,summary"`
+	FullURL  *string              `json:"fullUrl,omitempty" fhir:"cardinality=0..1,summary"`
 	Search   *BundleEntrySearch   `json:"search,omitempty" fhir:"cardinality=0..1,summary"`
 	Request  *BundleEntryRequest  `json:"request,omitempty" fhir:"cardinality=0..1,summary"`
 	Response *BundleEntryResponse `json:"response,omitempty" fhir:"cardinality=0..1,summary"`
@@ -40,12 +40,12 @@ type BundleEntrySearch struct {
 
 // BundleEntryRequest represents request information in a bundle entry.
 type BundleEntryRequest struct {
-	Method          string  `json:"method" fhir:"cardinality=1..1,required,summary"`
-	URL             string  `json:"url" fhir:"cardinality=1..1,required,summary"`
 	IfNoneMatch     *string `json:"ifNoneMatch,omitempty" fhir:"cardinality=0..1,summary"`
 	IfModifiedSince *string `json:"ifModifiedSince,omitempty" fhir:"cardinality=0..1,summary"`
 	IfMatch         *string `json:"ifMatch,omitempty" fhir:"cardinality=0..1,summary"`
 	IfNoneExist     *string `json:"ifNoneExist,omitempty" fhir:"cardinality=0..1,summary"`
+	Method          string  `json:"method" fhir:"cardinality=1..1,required,summary"`
+	URL             string  `json:"url" fhir:"cardinality=1..1,required,summary"`
 }
 
 // BundleEntryResponse represents response information in a bundle entry.

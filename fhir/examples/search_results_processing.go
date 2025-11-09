@@ -240,11 +240,3 @@ func readBundleFromFile(filename string) (*fhir.Bundle, error) {
 
 	return &bundle, nil
 }
-
-func testutil.StringPtr(s string) *string {
-	return &s
-}
-
-func testutil.IntPtr(i int) *int {
-	return &i
-}

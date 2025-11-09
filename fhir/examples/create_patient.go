@@ -125,15 +125,6 @@ func createPatient() resources.Patient {
 	}
 }
 
-// Helper functions for pointer types
-func testutil.StringPtr(s string) *string {
-	return &s
-}
-
-func testutil.IntPtr(i int) *int {
-	return &i
-}
-
 func datetimePtr(s string) *primitives.DateTime {
 	dt := primitives.MustDateTime(s)
 	return &dt

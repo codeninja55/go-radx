@@ -60,7 +60,7 @@ func (e *Errors) Error() string {
 	return sb.String()
 }
 
-// Errors returns the list of validation errors.
+// List returns the list of validation errors.
 func (e *Errors) List() []*Error {
 	return e.errors
 }

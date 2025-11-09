@@ -13,29 +13,31 @@ type PrimitiveExtension struct {
 
 // Extension represents a FHIR extension.
 type Extension struct {
-	// Unique id for inter-element referencing
-	ID *string `json:"id,omitempty"`
-
 	// Additional extensions
 	Extension []Extension `json:"extension,omitempty"`
+
+	// Value of extension - complex types
+	ValueDate     *Date     `json:"valueDate,omitempty"`
+	ValueDateTime *DateTime `json:"valueDateTime,omitempty"`
+	ValueTime     *Time     `json:"valueTime,omitempty"`
+	ValueInstant  *Instant  `json:"valueInstant,omitempty"`
+
+	// Unique id for inter-element referencing
+	ID *string `json:"id,omitempty"`
 
 	// Identifies the meaning of the extension
 	URL string `json:"url"`
 
-	// Value of extension - one of these
-	ValueBoolean      *bool     `json:"valueBoolean,omitempty"`
-	ValueInteger      *int      `json:"valueInteger,omitempty"`
-	ValueString       *string   `json:"valueString,omitempty"`
-	ValueDecimal      *float64  `json:"valueDecimal,omitempty"`
-	ValueUri          *string   `json:"valueUri,omitempty"`
-	ValueUrl          *string   `json:"valueUrl,omitempty"`
-	ValueCanonical    *string   `json:"valueCanonical,omitempty"`
-	ValueBase64Binary *string   `json:"valueBase64Binary,omitempty"`
-	ValueCode         *string   `json:"valueCode,omitempty"`
-	ValueDate         *Date     `json:"valueDate,omitempty"`
-	ValueDateTime     *DateTime `json:"valueDateTime,omitempty"`
-	ValueTime         *Time     `json:"valueTime,omitempty"`
-	ValueInstant      *Instant  `json:"valueInstant,omitempty"`
+	// Value of extension - primitive types
+	ValueBoolean      *bool    `json:"valueBoolean,omitempty"`
+	ValueInteger      *int     `json:"valueInteger,omitempty"`
+	ValueString       *string  `json:"valueString,omitempty"`
+	ValueDecimal      *float64 `json:"valueDecimal,omitempty"`
+	ValueUri          *string  `json:"valueUri,omitempty"`
+	ValueUrl          *string  `json:"valueUrl,omitempty"`
+	ValueCanonical    *string  `json:"valueCanonical,omitempty"`
+	ValueBase64Binary *string  `json:"valueBase64Binary,omitempty"`
+	ValueCode         *string  `json:"valueCode,omitempty"`
 	// ... more value types can be added as needed
 }
 

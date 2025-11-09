@@ -148,8 +148,9 @@ func TestResourceEmbedding_FieldAccess(t *testing.T) {
 				},
 			},
 		},
-		Active: testutil.BoolPtr(true),
 	}
+	// Set Active separately to avoid unusedwrite warning
+	resource.Active = testutil.BoolPtr(true)
 
 	// Direct access to Resource fields through embedding
 	if resource.ResourceType != "TestResource" {

@@ -221,14 +221,6 @@ func validateMultipleResources() {
 	fmt.Printf("\nResults: %d valid, %d invalid\n", validCount, invalidCount)
 }
 
-func testutil.StringPtr(s string) *string {
-	return &s
-}
-
-func testutil.BoolPtr(b bool) *bool {
-	return &b
-}
-
 func float64Ptr(f float64) *float64 {
 	return &f
 }

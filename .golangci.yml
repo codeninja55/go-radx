@@ -33,6 +33,7 @@ linters:
       enable-all: true
       disable:
         - shadow  # Can be too noisy for some codebases
+        - fieldalignment  # Disabled globally, re-enabled for production code only
 
     gocyclo:
       min-complexity: 15
@@ -70,6 +71,7 @@ linters:
           - gosec
           - gocritic
           - revive
+          - govet
 
       # Exclude example code from strict checks
       - path: "fhir/examples/.*\\.go$"
