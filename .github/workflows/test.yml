@@ -41,13 +41,20 @@ jobs:
         env:
           GOTOOLCHAIN: local
 
-      - name: Run all tests
+      - name: Run all tests (Linux - with integration tests)
+        if: runner.os == 'Linux'
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
         env:
           GOTOOLCHAIN: local
           DOCKER_HOST: unix:///var/run/docker.sock
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
           TESTCONTAINERS_RYUK_DISABLED: false
+
+      - name: Run all tests (macOS - skip integration tests)
+        if: runner.os == 'macOS'
+        run: go test -v -short -race -coverprofile=coverage.out -covermode=atomic ./...
+        env:
+          GOTOOLCHAIN: local
 
       - name: Generate coverage report
         run: go tool cover -html=coverage.out -o coverage.html
