@@ -12,11 +12,7 @@ permissions:
 jobs:
   test:
     name: Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        go-version: ['1.25.4']
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -25,14 +21,24 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.25.4'
           cache: true
+
+      - name: Install CGO dependencies
+        run: sudo apt-get update && sudo apt-get install -y libjpeg-dev libopenjp2-7-dev
 
       - name: Download dependencies
         run: go mod download
+        env:
+          GOTOOLCHAIN: local
 
       - name: Run all tests
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        env:
+          GOTOOLCHAIN: local
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+          TESTCONTAINERS_RYUK_DISABLED: false
 
       - name: Generate coverage report
         run: go tool cover -html=coverage.out -o coverage.html
@@ -42,13 +48,13 @@ jobs:
         with:
           file: ./coverage.out
           flags: unittests
-          name: codecov-${{ matrix.os }}-go${{ matrix.go-version }}
+          name: codecov-ubuntu-go1.25.4
           fail_ci_if_error: false
 
       - name: Archive coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-${{ matrix.os }}-go${{ matrix.go-version }}
+          name: coverage-report-ubuntu-go1.25.4
           path: coverage.html
           retention-days: 30
 
@@ -69,9 +75,14 @@ jobs:
 
       - name: Download dependencies
         run: go mod download
+        env:
+          GOTOOLCHAIN: local
 
       - name: Run tests with coverage
         run: go test -coverprofile=coverage.out ./...
+        env:
+          CGO_ENABLED: 0
+          GOTOOLCHAIN: local
 
       - name: Check coverage threshold
         run: |

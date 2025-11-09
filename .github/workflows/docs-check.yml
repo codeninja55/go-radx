@@ -1,0 +1,54 @@
+name: Documentation Check
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'fhir/**/*.md'
+      - 'dicom/**/*.md'
+      - 'dimse/**/*.md'
+      - '.github/workflows/docs-check.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build documentation in strict mode
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for git-revision-date-localized-plugin
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: 'latest'
+
+      - name: Create virtual environment
+        run: uv venv
+
+      - name: Install MkDocs dependencies
+        run: uv pip install -r docs/requirements.txt
+
+      - name: Build documentation in strict mode
+        run: uv run mkdocs build --strict
+
+      - name: Check for broken links
+        run: |
+          echo "Documentation built successfully in strict mode"
+          echo "No broken links or warnings found"

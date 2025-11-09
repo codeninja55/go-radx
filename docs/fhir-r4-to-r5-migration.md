@@ -243,7 +243,7 @@ func ConvertPatientR4ToR5(r4Patient *r4.Patient) *r5.Patient {
 - [FHIR R4 Specification](https://hl7.org/fhir/R4/)
 - [FHIR R5 Specification](https://hl7.org/fhir/R5/)
 - [R4/R5 Conversion Spec](https://hl7.org/fhir/R5/diff.html)
-- [go-radx FHIR Documentation](../fhir/README.md)
+- [go-radx FHIR Documentation](user-guide/fhir/index.md)
 
 ## Need Help?
 

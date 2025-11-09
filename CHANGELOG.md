@@ -24,17 +24,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - fhir/validation package: 84.1% coverage
   - fhir/primitives package: 90.9% coverage
 - Automatic SemVer tagging and release workflow
+- **DICOM Core Implementation** (#9):
+  - Complete DICOM Part 10 file format support (read/write)
+  - Full DICOM data dictionary with tag lookup
+  - Support for all Value Representation (VR) types
+  - Dataset operations and manipulation API
+  - Transfer syntax support (Explicit VR LE, Implicit VR LE, Deflated)
+  - Comprehensive UID generation following ISO 8824 standard
+  - Directory reader for batch DICOM file processing
+- **DIMSE Networking Protocol (DICOM Part 7 & 8)** (#9):
+  - Association management (A-ASSOCIATE, A-RELEASE, A-ABORT)
+  - Presentation context negotiation
+  - Protocol Data Unit (PDU) encoding/decoding
+  - DIMSE message services (C-ECHO, C-STORE, C-FIND, C-GET, C-MOVE)
+  - Service Class User (SCU) implementation
+  - Service Class Provider (SCP) implementation with configurable handlers
+  - Message fragmentation and reassembly
+  - State machine for association lifecycle
+  - Integration tests against Orthanc PACS
+  - Fuzz testing for protocol robustness (21 fuzz tests covering PDU, DIMSE, DUL layers)
+- **DICOM Test Infrastructure** (#9):
+  - Synthetic DICOM test data generator (testdata/generate_nested_dicom.go)
+  - PHI-free test fixtures with ~1,195 generated files
+  - Organized testdata structure (testdata/dicom/ with nested series)
+  - Fuzz test corpora for PDU and DIMSE message fuzzing
+- **Benchmark Suite and CI/CD** (#9):
+  - Comprehensive benchmark suite for DICOM operations (anonymize, dataset, LUT)
+  - Comparative benchmarks for optimization validation
+  - Memory profiling benchmarks for allocation analysis
+  - GitHub Actions benchmark CI/CD workflow
+  - Automated performance regression detection (>20% threshold)
+  - Benchmark result comparison and PR comments
+  - Baseline tracking for main branch
 
 ### Changed
 - Updated Go version to 1.25.4
 - Updated golangci-lint to v2.4.0 for Go 1.25 compatibility
 - Coverage threshold set to informational only (not blocking)
 - Improved CI/CD workflows for better reliability
+- **Test data reorganization** (#9): Moved all DICOM files to testdata/dicom/ subdirectory
+- **Benchmark improvements** (#9):
+  - Fixed sub-benchmark naming for readable output
+  - Optimized dataset creation using Copy() instead of recreation
+  - Added throughput reporting (MB/s) for data-intensive operations
+  - Improved benchmark accuracy by eliminating setup overhead
 
 ### Fixed
 - golangci-lint compatibility with Go 1.25.4
 - Test compilation errors in summary and validation tests
 - Coverage calculation to exclude generated resource definitions
+- **Security fix** (#9): PDU size limit validation to prevent DoS via memory exhaustion (dimse/pdu/data.go)
+
+### Security
+- Added PDU size limit enforcement in DIMSE protocol decoder (#9)
+- Removed potentially PHI-containing test data (CTC_2 directory) (#9)
+- All test data is now clearly marked as synthetic and PHI-free (#9)
 
 ## [0.1.0] - 2025-01-09
 

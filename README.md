@@ -516,8 +516,9 @@ func main() {
 go-radx is under active development. Current implementation status:
 
 - ✅ **FHIR R5** - Complete (158 resources, validation, bundles, primitives)
-- 🚧 **DICOM Core** - In progress (file I/O, data dictionary)
-- 🚧 **DIMSE** - In progress (association, C-ECHO, C-STORE)
+- ✅ **DICOM Core** - Complete (file I/O, data dictionary, dataset operations, UID generation)
+- ✅ **DIMSE Networking** - Complete (association management, C-ECHO, C-STORE, C-FIND, C-GET, C-MOVE, SCU/SCP)
+- 🚧 **DIMSE Testing** - In progress (21 fuzz tests, Orthanc integration tests, benchmark suite)
 - 📋 **DICOMweb** - Planned (WADO-RS, STOW-RS, QIDO-RS client and CLI)
 - 📋 **SMART on FHIR** - Planned (OAuth2, app launch, backend services)
 - 📋 **HL7 v2** - Planned

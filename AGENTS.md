@@ -460,6 +460,69 @@ Remember: Quality tools are guardrails that help you, not barriers that block yo
 - WHEN encountering character literal errors in templates, move JavaScript to static files
 - WHEN facing template issues, debug the actual problem rather than creating workarounds
 
+## Documentation Format and Standards
+
+### File Naming Conventions
+
+- **Use lowercase with hyphens**: `fhir-r4-to-r5-migration.md`, `performance-benchmarks.md`
+- **NOT uppercase with underscores**: ~~`CGO_TROUBLESHOOTING.md`~~, ~~`DOCKER_DEVELOPMENT.md`~~
+- **Exception**: Project root files use UPPERCASE: `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE`
+
+### Documentation Structure
+
+```
+docs/
+├── index.md                    # Main documentation index
+├── installation/               # Installation guides
+│   ├── index.md
+│   ├── prerequisites.md
+│   ├── quickstart.md
+│   └── troubleshooting.md
+├── user-guide/                 # User-facing guides
+│   └── fhir/                   # FHIR-specific guides
+├── examples/                   # Code examples
+├── development/                # Developer guides
+│   ├── contributing.md
+│   └── testing.md
+├── community/                  # Community resources
+└── [topic].md                  # Topic-specific docs at root
+```
+
+### Content Standards
+
+#### Header Structure
+- Use sentence case: "Quick start" not "Quick Start"
+- Start with H1 title and brief introduction
+- Use hierarchical heading structure (H1 → H2 → H3)
+
+#### Code Examples
+- Always include language tags: ` ```go`, ` ```bash`
+- Provide complete, runnable examples
+- Include necessary imports
+- Show expected output when helpful
+
+#### Standard Helper Functions (Go)
+```go
+func stringPtr(s string) *string       { return &s }
+func boolPtr(b bool) *bool             { return &b }
+func intPtr(i int) *int                { return &i }
+func int64Ptr(i int64) *int64          { return &i }
+func float64Ptr(f float64) *float64    { return &f }
+```
+
+#### Cross-References
+- Use relative paths: `[FHIR User Guide](../user-guide/fhir/index.md)`
+- Include "Next Steps" or "See Also" sections
+
+### Testing Documentation
+
+Before committing documentation:
+- Build docs locally: `mise docs:build` or `mkdocs build`
+- Preview docs: `mise docs:serve` or `mkdocs serve`
+- Verify all links work
+- Check formatting renders correctly
+- Ensure no broken cross-references
+
 ## Reference documentation
 
 - [DICOM](https://dicom.nema.org/medical/dicom/current/output/html/part03.html)
