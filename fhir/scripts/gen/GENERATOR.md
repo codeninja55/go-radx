@@ -13,6 +13,18 @@ The generator reads FHIR StructureDefinition JSON files and generates type-safe 
 
 ## Installation
 
+### Using mise tasks (Recommended)
+
+```bash
+# Build the generator
+mise gen:build
+
+# Download R5 schemas
+mise schema:download
+```
+
+### Manual Build
+
 ```bash
 cd fhir/scripts/gen
 go build -o bin/fhirgen .
@@ -20,34 +32,45 @@ go build -o bin/fhirgen .
 
 ## Usage
 
-### Basic Usage
+### Using mise tasks (Recommended)
 
 ```bash
-# Generate Patient resource
-./bin/fhirgen -version r5 \
-  -input /path/to/profiles-resources.json \
-  -output /path/to/output \
-  -resources Patient
+# Generate all R5 code (resources + types)
+mise gen:r5-all
 
-# Generate multiple resources
-./bin/fhirgen -version r5 \
-  -input /path/to/profiles-resources.json \
-  -output /path/to/output \
-  -resources Patient,Observation,Practitioner
+# Or generate individually
+mise gen:r5-resources  # Just resources
+mise gen:r5-types      # Just complex types
+
+# Verify generated code compiles and passes tests
+mise gen:verify
+
+# Clean generated code
+mise gen:clean
 ```
 
-### Generate All Resources
+### Manual Usage
 
 ```bash
 # Generate all R5 resources (146 resources)
 ./bin/fhirgen -version r5 \
-  -input fhir_schemas/profiles-resources.json \
-  -output fhir/r5/resources
+  -input fhir_schemas/r5/profiles-resources.json \
+  -output fhir/r5/resources \
+  -verbose
 
 # Generate all R5 complex types
 ./bin/fhirgen -version r5 \
-  -input fhir_schemas/profiles-types.json \
-  -output fhir/r5/types
+  -input fhir_schemas/r5/profiles-types.json \
+  -output fhir/r5/types \
+  -verbose
+
+# Generate specific resources only
+./bin/fhirgen -version r5 \
+  -input fhir_schemas/r5/profiles-resources.json \
+  -output fhir/r5/resources \
+  -filter Patient \
+  -filter Observation \
+  -verbose
 ```
 
 ### Command-Line Options
@@ -357,37 +380,68 @@ Generated Patient is missing 'name' field
 
 ## Examples
 
-### Generate R5 Resources
+### Complete R5 Generation Workflow (Recommended)
+
+Using mise tasks for the complete workflow:
 
 ```bash
-# Complete R5 resource generation
+# Download R5 schemas
+mise schema:download
+
+# Generate all R5 code (resources + types)
+mise gen:r5-all
+
+# Verify generated code compiles and passes tests
+mise gen:verify
+```
+
+### Generate R5 Resources Only
+
+```bash
+# Using mise (recommended)
+mise gen:r5-resources
+
+# Or manually
 cd fhir/scripts/gen
 go build -o bin/fhirgen .
-
 ./bin/fhirgen -version r5 \
-  -input ../../fhir_schemas/profiles-resources.json \
+  -input ../../fhir_schemas/r5/profiles-resources.json \
   -output ../../r5/resources \
   -verbose
 ```
 
-### Generate R4 Resources
+### Generate R5 Complex Types Only
 
 ```bash
-# Complete R4 resource generation
-./bin/fhirgen -version r4 \
-  -input ../../fhir_schemas/r4/profiles-resources.json \
-  -output ../../r4/resources \
+# Using mise (recommended)
+mise gen:r5-types
+
+# Or manually
+./fhir/scripts/gen/bin/fhirgen -version r5 \
+  -input fhir_schemas/r5/profiles-types.json \
+  -output fhir/r5/types \
   -verbose
 ```
 
 ### Generate Specific Resources for Testing
 
 ```bash
-# Generate minimal set for testing
-./bin/fhirgen -version r5 \
-  -input ../../fhir_schemas/profiles-resources.json \
+# Build generator first
+mise gen:build
+
+# Generate minimal set manually
+./fhir/scripts/gen/bin/fhirgen -version r5 \
+  -input fhir_schemas/r5/profiles-resources.json \
   -output /tmp/fhir-test \
-  -resources Patient,Observation,Practitioner
+  -resources Patient,Observation,Practitioner \
+  -verbose
+```
+
+### Clean Generated Code
+
+```bash
+# Remove all generated files
+mise gen:clean
 ```
 
 ## Future Enhancements

@@ -107,8 +107,9 @@ func (tm *TypeMapper) MapElementToField(elem model.ElementDefinition, parentPath
 		// Choice type - will be expanded to multiple fields in builder
 		goType = tm.MapType(elem.Types[0].Code)
 	} else {
-		// Multiple types - use interface{}
-		goType = "any"
+		// Non-choice polymorphic types - use json.RawMessage for lazy deserialization
+		// This handles rare cases where multiple types exist without [x] suffix
+		goType = "json.RawMessage"
 	}
 
 	// Determine if field is optional (pointer)
