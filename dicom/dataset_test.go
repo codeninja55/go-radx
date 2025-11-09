@@ -21,14 +21,6 @@ func mustNewStringValue(v vr.VR, values []string) *value.StringValue {
 	return val
 }
 
-func mustNewIntValue(v vr.VR, values []int64) *value.IntValue {
-	val, err := value.NewIntValue(v, values)
-	if err != nil {
-		panic(err)
-	}
-	return val
-}
-
 func mustNewElement(t tag.Tag, v vr.VR, val value.Value) *element.Element {
 	elem, err := element.NewElement(t, v, val)
 	if err != nil {

@@ -148,7 +148,7 @@ func FuzzMessageEncoding(f *testing.F) {
 		},
 		PresentationContextID: 1,
 	}
-	f.Add(uint8(1), uint16(CommandCEchoRQ), uint16(1))
+	f.Add(uint8(1), CommandCEchoRQ, uint16(1))
 
 	// Seed with various parameter combinations
 	f.Add(uint8(0), uint16(0), uint16(0))             // Invalid values
@@ -177,6 +177,7 @@ func FuzzMessageEncoding(f *testing.F) {
 				}
 
 				// Verify presentation context ID matches
+				//lint:ignore SA5011 false positive, nil check performed above
 				for _, item := range p.Items {
 					if item.PresentationContextID != pcID {
 						t.Errorf("PC ID mismatch: expected %d, got %d",

@@ -207,7 +207,7 @@ func invertPixelData(p *PixelData) (*PixelData, error) {
 	if p.BitsAllocated <= 8 {
 		// 8-bit
 		for i := 0; i < len(p.data); i++ {
-			data[i] = byte(uint8(maxVal) - p.data[i])
+			data[i] = uint8(maxVal) - p.data[i]
 		}
 	} else {
 		// 16-bit

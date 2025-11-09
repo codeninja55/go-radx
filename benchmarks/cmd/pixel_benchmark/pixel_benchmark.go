@@ -73,7 +73,7 @@ func benchmark(filePath string) BenchmarkResult {
 	result.PixelHash = hashPixels(data)
 
 	// Get image shape
-	numFrames := int(pixelData.NumberOfFrames)
+	numFrames := pixelData.NumberOfFrames
 	rows := int(pixelData.Rows)
 	cols := int(pixelData.Columns)
 	samplesPerPixel := int(pixelData.SamplesPerPixel)

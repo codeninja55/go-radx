@@ -243,7 +243,7 @@ func ApplyModalityLUT(p *PixelData, slope, intercept float64) (*PixelData, error
 				if needsSigned {
 					data[i] = byte(int8(output))
 				} else {
-					data[i] = byte(uint8(output))
+					data[i] = byte(output)
 				}
 			} else {
 				// 16-bit output

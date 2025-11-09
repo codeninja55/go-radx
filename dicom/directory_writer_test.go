@@ -488,16 +488,6 @@ func createTestDatasetWithUIDs(t *testing.T, sopInstanceUID, sopClassUID, studyI
 	return ds
 }
 
-// Helper: createDatasetMissingTag creates a dataset missing a specific tag.
-func createDatasetMissingTag(t *testing.T, missingTag tag.Tag) *DataSet {
-	ds := createTestDatasetWithUIDs(t, "1.2.3.99", "1.2.840.10008.5.1.4.1.1.1", "1.2.3.4", "1.2.3.5", "PAT999")
-
-	// Remove the specified tag
-	ds.Remove(missingTag)
-
-	return ds
-}
-
 // TestSanitizePathComponent tests path sanitization.
 func TestSanitizePathComponent(t *testing.T) {
 	tests := []struct {

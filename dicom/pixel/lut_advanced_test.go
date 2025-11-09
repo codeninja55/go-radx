@@ -90,7 +90,7 @@ func TestInvertPixelData(t *testing.T) {
 
 		// Verify inversion
 		for i := 0; i < len(pixelData.data); i++ {
-			expected := byte(255 - pixelData.data[i])
+			expected := 255 - pixelData.data[i]
 			assert.Equal(t, expected, result.data[i])
 		}
 	})

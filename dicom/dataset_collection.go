@@ -385,11 +385,11 @@ func (c *DataSetCollection) Remove(sopInstanceUID string) error {
 
 	// Extract UIDs for index cleanup
 	seriesInstanceUID, _ := c.extractStringValue(ds, tag.New(0x0020, 0x000E), "SeriesInstanceUID") //nolint:errcheck // Dataset already validated during Add
-	studyInstanceUID, _ := c.extractStringValue(ds, tag.New(0x0020, 0x000D), "StudyInstanceUID")     //nolint:errcheck // Dataset already validated during Add
-	patientID, _ := c.extractStringValue(ds, tag.New(0x0010, 0x0020), "PatientID")                   //nolint:errcheck // Dataset already validated during Add
-	sopClassUID, _ := c.extractStringValue(ds, tag.New(0x0008, 0x0016), "SOPClassUID")               //nolint:errcheck // Dataset already validated during Add
-	accessionNumber, _ := c.extractOptionalStringValue(ds, tag.New(0x0008, 0x0050))                  //nolint:errcheck // Optional field
-	seriesNumber, _ := c.extractOptionalIntValue(ds, tag.New(0x0020, 0x0011))                        //nolint:errcheck // Optional field
+	studyInstanceUID, _ := c.extractStringValue(ds, tag.New(0x0020, 0x000D), "StudyInstanceUID")   //nolint:errcheck // Dataset already validated during Add
+	patientID, _ := c.extractStringValue(ds, tag.New(0x0010, 0x0020), "PatientID")                 //nolint:errcheck // Dataset already validated during Add
+	sopClassUID, _ := c.extractStringValue(ds, tag.New(0x0008, 0x0016), "SOPClassUID")             //nolint:errcheck // Dataset already validated during Add
+	accessionNumber, _ := c.extractOptionalStringValue(ds, tag.New(0x0008, 0x0050))                //nolint:errcheck // Optional field
+	seriesNumber, _ := c.extractOptionalIntValue(ds, tag.New(0x0020, 0x0011))                      //nolint:errcheck // Optional field
 
 	// Remove from primary storage
 	delete(c.datasets, sopInstanceUID)

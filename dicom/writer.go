@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/codeninja55/go-radx/dicom/element"
 	"github.com/codeninja55/go-radx/dicom/tag"
@@ -135,7 +136,7 @@ func validateRequiredElements(ds *DataSet) error {
 	if err != nil {
 		return fmt.Errorf("missing required element SOPClassUID (0008,0016): %w", err)
 	}
-	sopClassUID := sopClassUIDElem.Value().String()
+	sopClassUID := extractUIDString(sopClassUIDElem)
 	if sopClassUID == "" {
 		return fmt.Errorf("SOPClassUID (0008,0016) is empty")
 	}
@@ -145,7 +146,7 @@ func validateRequiredElements(ds *DataSet) error {
 	if err != nil {
 		return fmt.Errorf("missing required element SOPInstanceUID (0008,0018): %w", err)
 	}
-	sopInstanceUID := sopInstanceUIDElem.Value().String()
+	sopInstanceUID := extractUIDString(sopInstanceUIDElem)
 	if sopInstanceUID == "" {
 		return fmt.Errorf("SOPInstanceUID (0008,0018) is empty")
 	}
@@ -159,6 +160,24 @@ func validateRequiredElements(ds *DataSet) error {
 	}
 
 	return nil
+}
+
+// extractUIDString extracts a UID string from an element value.
+// Handles both string values (VR=UI) and bytes values (VR=UN/OB with ASCII text).
+func extractUIDString(elem *element.Element) string {
+	val := elem.Value()
+
+	// Handle BytesValue - decode bytes to string
+	if bytesVal, ok := val.(*value.BytesValue); ok {
+		// UID is stored as bytes, decode to string
+		data := bytesVal.Bytes()
+		// Trim null padding and spaces
+		uidStr := strings.TrimRight(string(data), "\x00 ")
+		return strings.TrimSpace(uidStr)
+	}
+
+	// Handle normal string values
+	return strings.TrimSpace(val.String())
 }
 
 // isValidUID performs basic UID validation.

@@ -171,7 +171,7 @@ func (b *PixelDataBuilder) Build() (*PixelData, error) {
 		return nil, fmt.Errorf("dimensions not set (rows=%d, columns=%d)", b.rows, b.columns)
 	}
 
-	if b.data == nil || len(b.data) == 0 {
+	if len(b.data) == 0 {
 		return nil, fmt.Errorf("pixel data not set")
 	}
 
