@@ -399,3 +399,280 @@ func TestCardinalityValidation(t *testing.T) {
 		})
 	}
 }
+
+// TestFHIRValidator_ChoiceType tests choice type mutual exclusion validation.
+func TestFHIRValidator_ChoiceType(t *testing.T) {
+	// Define test structures with choice types
+	type PatientDeceased struct {
+		DeceasedBoolean  *bool   `json:"deceasedBoolean,omitempty" fhir:"cardinality=0..1,summary,choice=deceased"`
+		DeceasedDateTime *string `json:"deceasedDateTime,omitempty" fhir:"cardinality=0..1,summary,choice=deceased"`
+	}
+
+	type ObservationValue struct {
+		ValueQuantity        *string `json:"valueQuantity,omitempty" fhir:"cardinality=0..1,choice=value"`
+		ValueCodeableConcept *string `json:"valueCodeableConcept,omitempty" fhir:"cardinality=0..1,choice=value"`
+		ValueString          *string `json:"valueString,omitempty" fhir:"cardinality=0..1,choice=value"`
+	}
+
+	validator := NewFHIRValidator()
+
+	trueBool := true
+	dateTime := "2023-01-15"
+	quantity := "10 mg"
+	codeableConcept := "test-code"
+	stringValue := "test-string"
+
+	tests := []struct {
+		name    string
+		input   any
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid - only deceasedBoolean set",
+			input: &PatientDeceased{
+				DeceasedBoolean: &trueBool,
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid - only deceasedDateTime set",
+			input: &PatientDeceased{
+				DeceasedDateTime: &dateTime,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "valid - no choice fields set",
+			input:   &PatientDeceased{},
+			wantErr: false,
+		},
+		{
+			name: "invalid - both deceased fields set",
+			input: &PatientDeceased{
+				DeceasedBoolean:  &trueBool,
+				DeceasedDateTime: &dateTime,
+			},
+			wantErr: true,
+			errMsg:  "choice type 'deceased' has multiple fields set",
+		},
+		{
+			name: "valid - only valueQuantity set",
+			input: &ObservationValue{
+				ValueQuantity: &quantity,
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid - only valueCodeableConcept set",
+			input: &ObservationValue{
+				ValueCodeableConcept: &codeableConcept,
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid - two value fields set",
+			input: &ObservationValue{
+				ValueQuantity: &quantity,
+				ValueString:   &stringValue,
+			},
+			wantErr: true,
+			errMsg:  "choice type 'value' has multiple fields set",
+		},
+		{
+			name: "invalid - all three value fields set",
+			input: &ObservationValue{
+				ValueQuantity:        &quantity,
+				ValueCodeableConcept: &codeableConcept,
+				ValueString:          &stringValue,
+			},
+			wantErr: true,
+			errMsg:  "choice type 'value' has multiple fields set",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.Validate(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err != nil {
+				if !contains(err.Error(), tt.errMsg) {
+					t.Errorf("Validate() error = %v, want error containing %q", err, tt.errMsg)
+				}
+			}
+		})
+	}
+}
+
+// TestFHIRValidator_ChoiceTypeNested tests choice type validation in nested structs.
+func TestFHIRValidator_ChoiceTypeNested(t *testing.T) {
+	type Component struct {
+		ValueQuantity *string `json:"valueQuantity,omitempty" fhir:"cardinality=0..1,choice=value"`
+		ValueString   *string `json:"valueString,omitempty" fhir:"cardinality=0..1,choice=value"`
+	}
+
+	type Observation struct {
+		Component []Component `json:"component,omitempty" fhir:"cardinality=0..*"`
+	}
+
+	validator := NewFHIRValidator()
+
+	quantity := "10 mg"
+	stringValue := "test"
+
+	tests := []struct {
+		name    string
+		input   *Observation
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid - single component with valueQuantity",
+			input: &Observation{
+				Component: []Component{
+					{ValueQuantity: &quantity},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid - multiple components each with one value",
+			input: &Observation{
+				Component: []Component{
+					{ValueQuantity: &quantity},
+					{ValueString: &stringValue},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid - component with multiple values set",
+			input: &Observation{
+				Component: []Component{
+					{
+						ValueQuantity: &quantity,
+						ValueString:   &stringValue,
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "choice type 'value' has multiple fields set",
+		},
+		{
+			name: "invalid - second component violates choice constraint",
+			input: &Observation{
+				Component: []Component{
+					{ValueQuantity: &quantity}, // valid
+					{
+						ValueQuantity: &quantity,
+						ValueString:   &stringValue, // invalid - both set
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "choice type 'value' has multiple fields set",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.Validate(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err != nil {
+				if !contains(err.Error(), tt.errMsg) {
+					t.Errorf("Validate() error = %v, want error containing %q", err, tt.errMsg)
+				}
+			}
+		})
+	}
+}
+
+// TestFHIRValidator_ChoiceTypeWithOtherValidation tests choice validation combined with other rules.
+func TestFHIRValidator_ChoiceTypeWithOtherValidation(t *testing.T) {
+	type MedicationRequest struct {
+		Status              *string `json:"status,omitempty" fhir:"cardinality=1..1,required,enum=active|completed|cancelled"`
+		DosageInstruction   *string `json:"dosageInstruction,omitempty" fhir:"cardinality=0..1"`
+		MedicationReference *string `json:"medicationReference,omitempty" fhir:"cardinality=0..1,choice=medication"`
+		MedicationCodeable  *string `json:"medicationCodeableConcept,omitempty" fhir:"cardinality=0..1,choice=medication"`
+	}
+
+	validator := NewFHIRValidator()
+
+	activeStatus := "active"
+	invalidStatus := "pending"
+	reference := "Medication/123"
+	codeable := "code-123"
+
+	tests := []struct {
+		name    string
+		input   *MedicationRequest
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid - required field and one choice field set",
+			input: &MedicationRequest{
+				Status:              &activeStatus,
+				MedicationReference: &reference,
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid - missing required status",
+			input: &MedicationRequest{
+				MedicationReference: &reference,
+			},
+			wantErr: true,
+			errMsg:  "required field is missing",
+		},
+		{
+			name: "invalid - invalid enum value",
+			input: &MedicationRequest{
+				Status:              &invalidStatus,
+				MedicationReference: &reference,
+			},
+			wantErr: true,
+			errMsg:  "invalid enum value",
+		},
+		{
+			name: "invalid - both choice fields set",
+			input: &MedicationRequest{
+				Status:              &activeStatus,
+				MedicationReference: &reference,
+				MedicationCodeable:  &codeable,
+			},
+			wantErr: true,
+			errMsg:  "choice type 'medication' has multiple fields set",
+		},
+		{
+			name: "invalid - multiple errors (missing required and choice violation)",
+			input: &MedicationRequest{
+				MedicationReference: &reference,
+				MedicationCodeable:  &codeable,
+			},
+			wantErr: true,
+			// Either error message is acceptable
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.Validate(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err != nil && tt.errMsg != "" {
+				if !contains(err.Error(), tt.errMsg) {
+					t.Errorf("Validate() error = %v, want error containing %q", err, tt.errMsg)
+				}
+			}
+		})
+	}
+}

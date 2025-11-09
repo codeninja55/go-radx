@@ -414,14 +414,34 @@ func (fv *FHIRValidator) validateChoice(fl validator.FieldLevel) bool {
 }
 
 // validateChoiceTypes validates that only one field in each choice group is set.
+// This method uses comprehensive recursive validation to handle nested structures,
+// arrays, and maps.
 func (fv *FHIRValidator) validateChoiceTypes(v reflect.Value, path string, errs *Errors) {
 	v = fv.dereferenceValue(v)
-	if v.Kind() != reflect.Struct {
-		return
-	}
 
-	choiceGroups := fv.collectChoiceGroups(v, path, errs)
-	fv.validateChoiceGroups(choiceGroups, errs)
+	// Handle different kinds of values
+	switch v.Kind() {
+	case reflect.Struct:
+		// Validate choice groups at this struct level
+		choiceGroups := fv.collectChoiceGroups(v, path, errs)
+		fv.validateChoiceGroups(choiceGroups, errs)
+
+	case reflect.Slice, reflect.Array:
+		// Recurse into each element of the slice/array
+		for i := 0; i < v.Len(); i++ {
+			elem := v.Index(i)
+			elemPath := fmt.Sprintf("%s[%d]", path, i)
+			fv.validateChoiceTypes(elem, elemPath, errs)
+		}
+
+	case reflect.Map:
+		// Recurse into map values (rare in FHIR but handled for completeness)
+		for _, key := range v.MapKeys() {
+			mapValue := v.MapIndex(key)
+			mapPath := fmt.Sprintf("%s[%v]", path, key.Interface())
+			fv.validateChoiceTypes(mapValue, mapPath, errs)
+		}
+	}
 }
 
 // dereferenceValue dereferences pointer values until a non-pointer is found.
@@ -483,16 +503,11 @@ func (fv *FHIRValidator) processChoiceField(field reflect.StructField, fieldValu
 	}
 }
 
-// recurseIntoStruct recursively validates nested struct fields.
+// recurseIntoStruct recursively validates nested fields.
+// This now delegates to validateChoiceTypes which handles all kinds of nested structures.
 func (fv *FHIRValidator) recurseIntoStruct(fieldType reflect.Type, fieldValue reflect.Value, fieldPath string, errs *Errors) {
-	if isStructType(fieldType) {
-		fv.validateChoiceTypes(fieldValue, fieldPath, errs)
-	}
-}
-
-// isStructType checks if a type is a struct or pointer to struct.
-func isStructType(t reflect.Type) bool {
-	return t.Kind() == reflect.Struct || (t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct)
+	// Delegate to validateChoiceTypes which now handles structs, slices, arrays, and maps
+	fv.validateChoiceTypes(fieldValue, fieldPath, errs)
 }
 
 // validateChoiceGroups checks that each choice group has at most one field set.
