@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/codeninja55/go-radx/dicom/element"
 	"github.com/codeninja55/go-radx/dicom/tag"
@@ -126,6 +127,9 @@ func TestWriteFile_Overwrite(t *testing.T) {
 	// Get original file info
 	originalInfo, err := os.Stat(outputPath)
 	require.NoError(t, err)
+
+	// Sleep to ensure modification time will differ
+	time.Sleep(10 * time.Millisecond)
 
 	// Write second time with Overwrite: true
 	opts := WriteOptions{
