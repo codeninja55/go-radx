@@ -99,6 +99,12 @@ linters:
           - misspell
           - govet
 
+      # Exclude rangeValCopy for code generator files (performance not critical)
+      - path: "fhir/scripts/gen/.*\\.go$"
+        text: "rangeValCopy"
+        linters:
+          - gocritic
+
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0

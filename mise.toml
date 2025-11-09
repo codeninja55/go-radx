@@ -373,6 +373,85 @@ echo "✓ Documentation cleaned"
 """
 
 # ----------------------------------------------------------------------------
+# FHIR Code Generation Tasks
+# ----------------------------------------------------------------------------
+
+[tasks."gen:build"]
+description = "Build the FHIR code generator (fhirgen)"
+run = """
+echo "Building fhirgen code generator..."
+cd fhir/scripts/gen
+go build -v -o bin/fhirgen .
+echo "✓ fhirgen built: fhir/scripts/gen/bin/fhirgen"
+"""
+
+[tasks."schema:download"]
+description = "Download FHIR R5 schemas from HL7 official site"
+run = """
+echo "Downloading FHIR R5 schemas..."
+./fhir/scripts/download_r5_schemas.sh
+echo "✓ R5 schemas downloaded to fhir_schemas/r5/"
+"""
+
+[tasks."gen:r5-resources"]
+description = "Generate R5 resource structs (Patient, Observation, etc.)"
+depends = ["gen:build"]
+run = """
+echo "Generating R5 resources..."
+./fhir/scripts/gen/bin/fhirgen \\
+  -version r5 \\
+  -input fhir_schemas/r5/profiles-resources.json \\
+  -output fhir/r5/resources \\
+  -verbose
+echo "✓ R5 resources generated in fhir/r5/resources/"
+"""
+
+[tasks."gen:r5-types"]
+description = "Generate R5 complex type structs (CodeableConcept, etc.)"
+depends = ["gen:build"]
+run = """
+echo "Generating R5 complex types..."
+./fhir/scripts/gen/bin/fhirgen \\
+  -version r5 \\
+  -input fhir_schemas/r5/profiles-types.json \\
+  -output fhir/r5/types \\
+  -verbose
+echo "✓ R5 complex types generated in fhir/r5/types/"
+"""
+
+[tasks."gen:r5-all"]
+description = "Generate all R5 code (resources + types)"
+depends = ["gen:r5-resources", "gen:r5-types"]
+run = """
+echo "✓ All R5 code generated successfully"
+echo "  Resources: fhir/r5/resources/"
+echo "  Types: fhir/r5/types/"
+"""
+
+[tasks."gen:clean"]
+description = "Remove all generated code"
+run = """
+echo "Cleaning generated code..."
+rm -rf fhir/r5/resources/*.go
+rm -rf fhir/r5/types/*.go
+echo "✓ Generated code cleaned"
+"""
+
+[tasks."gen:verify"]
+description = "Verify generated code compiles and passes tests"
+depends = ["gen:r5-all"]
+run = """
+echo "Verifying generated code..."
+echo "Building..."
+go build ./fhir/r5/resources
+go build ./fhir/r5/types
+echo "Running tests..."
+go test ./fhir/r5/resources
+go test ./fhir/validation
+echo "✓ Generated code verified"
+"""
+
+# ----------------------------------------------------------------------------
 # Tool Installation Tasks
 # ----------------------------------------------------------------------------
 

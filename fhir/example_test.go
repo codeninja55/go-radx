@@ -15,7 +15,6 @@ func ExamplePatient() {
 	birthDate := primitives.MustDate("1974-12-25")
 
 	patient := &resources.Patient{
-		ID:     stringPtr("example-patient"),
 		Active: boolPtr(true),
 		Name: []resources.HumanName{
 			{
@@ -34,6 +33,8 @@ func ExamplePatient() {
 			},
 		},
 	}
+	patient.ID = stringPtr("example-patient")
+	patient.ResourceType = "Patient"
 
 	// Marshal to JSON
 	data, _ := json.MarshalIndent(patient, "", "  ")
@@ -44,7 +45,6 @@ func ExamplePatient() {
 // for vital signs (heart rate).
 func ExampleObservation() {
 	obs := &resources.Observation{
-		ID:     stringPtr("heart-rate-example"),
 		Status: "final",
 		Code: resources.CodeableConcept{
 			Coding: []resources.Coding{
@@ -61,6 +61,8 @@ func ExampleObservation() {
 			Display:   stringPtr("John Doe"),
 		},
 	}
+	obs.ID = stringPtr("heart-rate-example")
+	obs.ResourceType = "Observation"
 
 	data, _ := json.MarshalIndent(obs, "", "  ")
 	fmt.Printf("Created observation: %s\n", *obs.ID)
@@ -78,7 +80,6 @@ func ExampleBundle_searchset() {
 
 	// Add a patient
 	patient := &resources.Patient{
-		ID:     stringPtr("patient-1"),
 		Active: boolPtr(true),
 		Name: []resources.HumanName{
 			{
@@ -87,6 +88,8 @@ func ExampleBundle_searchset() {
 			},
 		},
 	}
+	patient.ID = stringPtr("patient-1")
+	patient.ResourceType = "Patient"
 
 	_ = helper.AddEntry(patient, stringPtr("Patient/patient-1"))
 
@@ -121,7 +124,6 @@ func ExampleBundleHelper_GetPatients() {
 // ExampleMarshalSummaryJSON demonstrates FHIR summary mode serialization.
 func ExampleMarshalSummaryJSON() {
 	patient := &resources.Patient{
-		ID:     stringPtr("example"),
 		Active: boolPtr(true),
 		Name: []resources.HumanName{
 			{
@@ -130,6 +132,8 @@ func ExampleMarshalSummaryJSON() {
 			},
 		},
 	}
+	patient.ID = stringPtr("example")
+	patient.ResourceType = "Patient"
 
 	// Marshal with summary mode (only summary elements)
 	summaryData, _ := fhir.MarshalSummaryJSON(patient)
@@ -143,7 +147,6 @@ func ExampleFHIRValidator() {
 	validator := validation.NewFHIRValidator()
 
 	patient := &resources.Patient{
-		ID:     stringPtr("valid-patient"),
 		Active: boolPtr(true),
 		Name: []resources.HumanName{
 			{
@@ -151,6 +154,8 @@ func ExampleFHIRValidator() {
 			},
 		},
 	}
+	patient.ID = stringPtr("valid-patient")
+	patient.ResourceType = "Patient"
 
 	err := validator.Validate(patient)
 	if err != nil {

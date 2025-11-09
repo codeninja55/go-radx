@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **FHIR R5 Type Safety Refactoring** (#10):
+  - Generic helper functions for type-safe resource operations
+  - `UnmarshalResource[T]()` for type-safe unmarshaling of polymorphic fields
+  - `AddContainedResource[T]()` for type-safe addition of contained resources
+  - `GetContainedResourceByID()` for resource retrieval by ID
+  - Comprehensive recursive validation for nested array choice types
+  - Generated code headers with metadata (FHIR version, timestamp, generator version)
+  - R5 schema download script for reproducible builds
+  - Comprehensive generator testing (12 test functions for type mapper, 5 for code generator)
+  - Choice type serialization tests (14 test cases covering Patient, Observation)
+  - Bundle operation tests (11 test cases for entry/outcome/issues handling)
+  - Validation framework tests (80+ test cases, 100% pass rate)
 - CODE_OF_CONDUCT.md using Contributor Covenant v2.1
 - SUPPORT.md for community support guidance
 - Comprehensive pkg.go.dev examples for FHIR resources
@@ -58,6 +70,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Baseline tracking for main branch
 
 ### Changed
+- **BREAKING: FHIR R5 Type Safety** (#10):
+  - `DomainResource.Contained` changed from `[]interface{}` to `[]json.RawMessage`
+  - `Bundle.entry.resource` changed from `*any` to `json.RawMessage`
+  - `BundleEntryResponse.outcome` changed from `*any` to `json.RawMessage`
+  - `Bundle.issues` changed from `*any` to `json.RawMessage`
+  - Regenerated all 158 R5 resources with updated generator
+  - Regenerated all 44 R5 complex types with updated generator
+  - Code generator now maps `Resource` type to `json.RawMessage` instead of `any`
+  - Non-choice polymorphic types use `json.RawMessage` as fallback (was `any`)
 - Updated Go version to 1.25.4
 - Updated golangci-lint to v2.4.0 for Go 1.25 compatibility
 - Coverage threshold set to informational only (not blocking)

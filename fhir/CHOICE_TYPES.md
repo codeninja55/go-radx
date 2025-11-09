@@ -63,20 +63,27 @@ err := validator.Validate(patient)
 Only set **one** of the options:
 
 ```go
-import "github.com/codeninja55/go-radx/fhir/primitives"
+import (
+    "github.com/codeninja55/go-radx/fhir/primitives"
+    "github.com/codeninja55/go-radx/fhir/r5/resources"
+)
 
 // Option 1: Boolean
-patient := &Patient{
+patient := &resources.Patient{
     DeceasedBoolean: boolPtr(true),
 }
+patient.ID = stringPtr("example")
+patient.ResourceType = "Patient"
 
 // Option 2: DateTime
-patient := &Patient{
+patient := &resources.Patient{
     DeceasedDateTime: &primitives.DateTime{Time: time.Now()},
 }
+patient.ID = stringPtr("example")
+patient.ResourceType = "Patient"
 
 // INVALID: Setting both
-patient := &Patient{
+patient := &resources.Patient{
     DeceasedBoolean:  boolPtr(true),
     DeceasedDateTime: &primitives.DateTime{Time: time.Now()},  // Validation error!
 }
@@ -102,10 +109,11 @@ Choice fields serialize to JSON with their specific field names:
 
 ```go
 // Go struct
-patient := &Patient{
-    ID:              stringPtr("example"),
+patient := &resources.Patient{
     DeceasedBoolean: boolPtr(true),
 }
+patient.ID = stringPtr("example")
+patient.ResourceType = "Patient"
 
 // JSON output
 {
@@ -115,10 +123,11 @@ patient := &Patient{
 }
 
 // Alternative choice
-patient := &Patient{
-    ID:               stringPtr("example"),
+patient := &resources.Patient{
     DeceasedDateTime: primitives.MustDateTime("2024-01-01T10:00:00Z"),
 }
+patient.ID = stringPtr("example")
+patient.ResourceType = "Patient"
 
 // JSON output
 {
@@ -162,6 +171,134 @@ json.Unmarshal([]byte(jsonData), &patient)
 ### Medication Resource
 
 - **ingredient.item[x]**: `itemCodeableConcept`, `itemReference`
+
+## Working with json.RawMessage Choice Types (R5)
+
+Some choice types are truly polymorphic and can hold many different types of values. In these cases, the field uses `json.RawMessage` for type-safe lazy deserialization instead of being expanded into multiple fields.
+
+### Examples of json.RawMessage Choice Types
+
+**Extension.value[x]**:
+```go
+type Extension struct {
+    URL   string            `json:"url"`
+    Value json.RawMessage   `json:"value,omitempty"`  // Can be any FHIR type
+}
+```
+
+**Parameters.parameter.value[x]**:
+```go
+type ParametersParameter struct {
+    Name  string            `json:"name"`
+    Value json.RawMessage   `json:"value,omitempty"`  // Can be any FHIR type
+}
+```
+
+**UsageContext.value[x]**:
+```go
+type UsageContext struct {
+    Code  CodeableConcept   `json:"code"`
+    Value json.RawMessage   `json:"value,omitempty"`  // CodeableConcept, Quantity, Range, or Reference
+}
+```
+
+### Using Generic Helper Functions
+
+Use `fhir.UnmarshalResource[T]()` to unmarshal json.RawMessage choice types in a type-safe way:
+
+```go
+import (
+    "github.com/codeninja55/go-radx/fhir"
+    "github.com/codeninja55/go-radx/fhir/r5/types"
+)
+
+// Unmarshal Extension value as a string
+ext := &types.Extension{
+    URL:   "http://example.org/extension",
+    Value: json.RawMessage(`{"valueString": "example value"}`),
+}
+
+// Type-safe unmarshaling with compile-time checking
+var stringValue struct {
+    ValueString string `json:"valueString"`
+}
+err := json.Unmarshal(ext.Value, &stringValue)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Extension value: %s\n", stringValue.ValueString)
+```
+
+### Creating json.RawMessage Choice Values
+
+Marshal the value first, then assign to the json.RawMessage field:
+
+```go
+// Create a CodeableConcept value
+concept := &types.CodeableConcept{
+    Text: stringPtr("Example concept"),
+    Coding: []types.Coding{
+        {
+            System: stringPtr("http://example.org"),
+            Code:   stringPtr("example"),
+        },
+    },
+}
+
+// Marshal to json.RawMessage
+conceptJSON, err := json.Marshal(map[string]interface{}{
+    "valueCodeableConcept": concept,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+// Assign to Extension
+ext := &types.Extension{
+    URL:   "http://example.org/extension",
+    Value: conceptJSON,
+}
+```
+
+### Type Checking json.RawMessage Choice Values
+
+To determine which type a json.RawMessage contains, unmarshal to a map and check for type indicators:
+
+```go
+// Check which type the Extension value contains
+var valueMap map[string]interface{}
+if err := json.Unmarshal(ext.Value, &valueMap); err != nil {
+    log.Fatal(err)
+}
+
+switch {
+case valueMap["valueString"] != nil:
+    var v struct{ ValueString string `json:"valueString"` }
+    json.Unmarshal(ext.Value, &v)
+    fmt.Printf("String value: %s\n", v.ValueString)
+
+case valueMap["valueCodeableConcept"] != nil:
+    var v struct{ ValueCodeableConcept types.CodeableConcept `json:"valueCodeableConcept"` }
+    json.Unmarshal(ext.Value, &v)
+    fmt.Printf("Concept: %s\n", *v.ValueCodeableConcept.Text)
+
+case valueMap["valueInteger"] != nil:
+    var v struct{ ValueInteger int `json:"valueInteger"` }
+    json.Unmarshal(ext.Value, &v)
+    fmt.Printf("Integer value: %d\n", v.ValueInteger)
+
+default:
+    fmt.Println("Unknown value type")
+}
+```
+
+### Benefits of json.RawMessage for Choice Types
+
+1. **Type Safety**: Compile-time type checking when unmarshaling
+2. **Lazy Deserialization**: Only unmarshal when needed
+3. **Memory Efficiency**: Store as bytes until accessed
+4. **Flexibility**: Can handle any FHIR type without code generation for every combination
+5. **Forward Compatibility**: New types can be added without regenerating code
 
 ## Validation Details
 
@@ -362,20 +499,48 @@ New implementation (multiple fields):
 
 ```go
 type Patient struct {
+    fhir.DomainResource
     DeceasedBoolean  *bool     `json:"deceasedBoolean,omitempty" fhir:"choice=deceased"`
     DeceasedDateTime *DateTime `json:"deceasedDateTime,omitempty" fhir:"choice=deceased"`
 }
 
 // Usage is type-safe and clear
-patient.DeceasedBoolean = boolPtr(true)
+patient := &Patient{
+    DeceasedBoolean: boolPtr(true),
+}
+patient.ID = stringPtr("example")
+patient.ResourceType = "Patient"
+```
+
+### From R4 to R5 Struct Initialization
+
+Old R4 pattern:
+
+```go
+patient := &resources.Patient{
+    ID:              stringPtr("example"),  // ❌ Error in R5
+    DeceasedBoolean: boolPtr(true),
+}
+```
+
+New R5 pattern with embedding:
+
+```go
+patient := &resources.Patient{
+    DeceasedBoolean: boolPtr(true),
+}
+patient.ID = stringPtr("example")           // ✅ Set after initialization
+patient.ResourceType = "Patient"
 ```
 
 ### Updating Code
 
 1. **Identify choice fields** in your code (fields using `any` or `interface{}`)
-2. **Replace with specific fields** based on FHIR spec
-3. **Update JSON tags** to use specific names (e.g., `deceasedBoolean`)
-4. **Add validation** to ensure mutual exclusion
+2. **Replace with specific fields** based on FHIR spec (for simple choice types)
+3. **Use json.RawMessage** for truly polymorphic fields (Extension.value[x], etc.)
+4. **Update JSON tags** to use specific names (e.g., `deceasedBoolean`)
+5. **Add validation** to ensure mutual exclusion
+6. **Update struct initialization** to use R5 embedding pattern (set ID/ResourceType after creation)
 
 ## Error Messages
 

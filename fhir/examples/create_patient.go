@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	// Create a Patient resource programmatically
+	// Example 1: Create a living patient
 	patient := createPatient()
 
 	// Marshal to JSON with indentation
@@ -23,7 +23,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Print the JSON
+	fmt.Println("=== Living Patient ===")
+	fmt.Println(string(data))
+
+	// Example 2: Create a patient with deceased[x] choice type (boolean)
+	deceasedPatient := createDeceasedPatient()
+
+	data, err = json.MarshalIndent(deceasedPatient, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error marshaling deceased patient: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("\n=== Deceased Patient (using deceasedBoolean choice) ===")
+	fmt.Println(string(data))
+
+	// Example 3: Patient with deceased date/time
+	deceasedWithDate := createDeceasedPatientWithDate()
+
+	data, err = json.MarshalIndent(deceasedWithDate, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error marshaling deceased patient with date: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("\n=== Deceased Patient (using deceasedDateTime choice) ===")
 	fmt.Println(string(data))
 }
 
@@ -128,4 +152,51 @@ func createPatient() resources.Patient {
 func datetimePtr(s string) *primitives.DateTime {
 	dt := primitives.MustDateTime(s)
 	return &dt
+}
+
+// createDeceasedPatient demonstrates using the deceasedBoolean choice type field.
+// This shows type-safe handling of FHIR choice types.
+func createDeceasedPatient() resources.Patient {
+	active := false
+	birthDate := primitives.MustDate("1950-03-15")
+	deceased := true // Using boolean choice
+
+	return resources.Patient{
+		ID:              testutil.StringPtr("deceased-example"),
+		Active:          &active,
+		DeceasedBoolean: &deceased, // One of the deceased[x] choices
+		Name: []resources.HumanName{
+			{
+				Use:    testutil.StringPtr("official"),
+				Family: testutil.StringPtr("Smith"),
+				Given:  []string{"John"},
+			},
+		},
+		Gender:    testutil.StringPtr("male"),
+		BirthDate: &birthDate,
+	}
+}
+
+// createDeceasedPatientWithDate demonstrates using the deceasedDateTime choice type field.
+// This shows how to choose a different type for the same choice type field.
+// NOTE: Only ONE of deceasedBoolean or deceasedDateTime should be set.
+func createDeceasedPatientWithDate() resources.Patient {
+	active := false
+	birthDate := primitives.MustDate("1950-03-15")
+	deceasedDate := primitives.MustDateTime("2023-06-15T14:30:00Z") // Using dateTime choice
+
+	return resources.Patient{
+		ID:               testutil.StringPtr("deceased-date-example"),
+		Active:           &active,
+		DeceasedDateTime: &deceasedDate, // Different choice from deceasedBoolean
+		Name: []resources.HumanName{
+			{
+				Use:    testutil.StringPtr("official"),
+				Family: testutil.StringPtr("Johnson"),
+				Given:  []string{"Mary"},
+			},
+		},
+		Gender:    testutil.StringPtr("female"),
+		BirthDate: &birthDate,
+	}
 }
