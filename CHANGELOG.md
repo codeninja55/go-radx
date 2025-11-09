@@ -48,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - PHI-free test fixtures with ~1,195 generated files
   - Organized testdata structure (testdata/dicom/ with nested series)
   - Fuzz test corpora for PDU and DIMSE message fuzzing
+- **Benchmark Suite and CI/CD**:
+  - Comprehensive benchmark suite for DICOM operations (anonymize, dataset, LUT)
+  - Comparative benchmarks for optimization validation
+  - Memory profiling benchmarks for allocation analysis
+  - GitHub Actions benchmark CI/CD workflow
+  - Automated performance regression detection (>20% threshold)
+  - Benchmark result comparison and PR comments
+  - Baseline tracking for main branch
 
 ### Changed
 - Updated Go version to 1.25.4
@@ -55,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage threshold set to informational only (not blocking)
 - Improved CI/CD workflows for better reliability
 - **Test data reorganization**: Moved all DICOM files to testdata/dicom/ subdirectory
+- **Benchmark improvements**:
+  - Fixed sub-benchmark naming for readable output
+  - Optimized dataset creation using Copy() instead of recreation
+  - Added throughput reporting (MB/s) for data-intensive operations
+  - Improved benchmark accuracy by eliminating setup overhead
 
 ### Fixed
 - golangci-lint compatibility with Go 1.25.4

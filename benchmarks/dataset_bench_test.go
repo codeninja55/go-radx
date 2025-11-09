@@ -94,20 +94,21 @@ func BenchmarkDataSetWalkModify(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("%d_elements", size), func(b *testing.B) {
-			b.ReportAllocs()
+			// Create dataset once, copy for each iteration
+			template := setupLargeDataSet(b, size)
 
+			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ds := setupLargeDataSet(b, size)
-				b.StartTimer()
-			_ = ds.WalkModify(func(elem *element.Element) (bool, error) {
-				if elem.VR() == vr.PersonName {
-					newVal, _ := value.NewStringValue(vr.PersonName, []string{"ANONYMOUS"})
-					_ = elem.SetValue(newVal)
-					return true, nil
-				}
-				return false, nil
-			})
-				b.StopTimer()
+				ds := template.Copy()
+				_ = ds.WalkModify(func(elem *element.Element) (bool, error) {
+					if elem.VR() == vr.PersonName {
+						newVal, _ := value.NewStringValue(vr.PersonName, []string{"ANONYMOUS"})
+						_ = elem.SetValue(newVal)
+						return true, nil
+					}
+					return false, nil
+				})
 			}
 		})
 	}
@@ -154,25 +155,27 @@ func BenchmarkDataSetModifyTags(b *testing.B) {
 
 // BenchmarkDataSetRemovePrivateTags measures private tag removal
 func BenchmarkDataSetRemovePrivateTags(b *testing.B) {
-	b.ReportAllocs()
+	// Create dataset once, copy for each iteration
+	template := setupDataSetWithPrivateTags(b, 100, 50)
 
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ds := setupDataSetWithPrivateTags(b, 100, 50)
-		b.StartTimer()
+		ds := template.Copy()
 		_ = ds.RemovePrivateTags()
-		b.StopTimer()
 	}
 }
 
 // BenchmarkDataSetRemoveGroupTags measures group tag removal
 func BenchmarkDataSetRemoveGroupTags(b *testing.B) {
-	b.ReportAllocs()
+	// Create dataset once, copy for each iteration
+	template := setupLargeDataSet(b, 100)
 
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ds := setupLargeDataSet(b, 100)
-		b.StartTimer()
+		ds := template.Copy()
 		_ = ds.RemoveGroupTags(0x0010) // Remove patient group
-		b.StopTimer()
 	}
 }
 

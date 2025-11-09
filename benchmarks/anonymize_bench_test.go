@@ -131,13 +131,14 @@ func BenchmarkDataSetAnonymizeBasic(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("%d_elements", size), func(b *testing.B) {
-			b.ReportAllocs()
+			// Create dataset once, copy for each iteration
+			template := setupAnonymizableDataSet(b, size)
 
+			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ds := setupAnonymizableDataSet(b, size)
-				b.StartTimer()
+				ds := template.Copy()
 				_ = ds.AnonymizeBasic()
-				b.StopTimer()
 			}
 		})
 	}
