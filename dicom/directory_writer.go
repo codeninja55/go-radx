@@ -345,24 +345,14 @@ func extractSOPInstanceUID(ds *DataSet) string {
 
 // generateFlatPath generates output path for flat directory structure.
 func generateFlatPath(baseDir string, ds *DataSet, opts DirectoryWriteOptions) (string, error) {
-	var filename string
-
-	if opts.FileNaming == FileNamingSOPInstanceUID {
-		sopInstanceUID := extractSOPInstanceUID(ds)
-		if sopInstanceUID == "unknown" {
-			return "", fmt.Errorf("missing SOPInstanceUID required for filename")
-		}
-		filename = sopInstanceUID + ".dcm"
-	} else {
-		// FileNamingOriginal: use original filename if available
-		// TODO(human): Implement source path tracking
-		// For now, fall back to SOPInstanceUID
-		sopInstanceUID := extractSOPInstanceUID(ds)
-		if sopInstanceUID == "unknown" {
-			return "", fmt.Errorf("missing SOPInstanceUID required for filename")
-		}
-		filename = sopInstanceUID + ".dcm"
+	// FileNamingOriginal: use original filename if available
+	// TODO(human): Implement source path tracking
+	// For now, both naming options use SOPInstanceUID
+	sopInstanceUID := extractSOPInstanceUID(ds)
+	if sopInstanceUID == "unknown" {
+		return "", fmt.Errorf("missing SOPInstanceUID required for filename")
 	}
+	filename := sopInstanceUID + ".dcm"
 
 	return filepath.Join(baseDir, filename), nil
 }

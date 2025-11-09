@@ -93,7 +93,7 @@ func WriteFileWithOptions(path string, ds *DataSet, opts WriteOptions) error {
 	// Create parent directories if needed
 	if opts.CreateDirs {
 		parentDir := filepath.Dir(path)
-		if err := os.MkdirAll(parentDir, 0755); err != nil {
+		if err := os.MkdirAll(parentDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create parent directories: %w", err)
 		}
 	}
@@ -195,18 +195,21 @@ func writeFileAtomic(path string, ds *DataSet, opts WriteOptions) error {
 
 	// Ensure temp file is cleaned up on error
 	defer func() {
+		//nolint:errcheck // Best-effort cleanup of temp file
 		// If temp file still exists (write failed), remove it
 		os.Remove(tempPath)
 	}()
 
 	// Write to temp file
 	if err := writeDICOMFile(tempFile, ds, opts); err != nil {
+		//nolint:errcheck // Error path cleanup, primary error already captured
 		tempFile.Close()
 		return fmt.Errorf("failed to write DICOM data: %w", err)
 	}
 
 	// Sync to disk
 	if err := tempFile.Sync(); err != nil {
+		//nolint:errcheck // Error path cleanup, primary error already captured
 		tempFile.Close()
 		return fmt.Errorf("failed to sync file: %w", err)
 	}
@@ -232,12 +235,16 @@ func writeFileAtomic(path string, ds *DataSet, opts WriteOptions) error {
 }
 
 // writeFileDirect writes the file directly without atomic guarantees.
-func writeFileDirect(path string, ds *DataSet, opts WriteOptions) error {
+func writeFileDirect(path string, ds *DataSet, opts WriteOptions) (err error) {
 	file, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close file: %w", closeErr)
+		}
+	}()
 
 	if err := writeDICOMFile(file, ds, opts); err != nil {
 		return fmt.Errorf("failed to write DICOM data: %w", err)

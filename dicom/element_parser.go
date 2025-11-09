@@ -583,13 +583,11 @@ func (p *ElementParser) skipUndefinedLengthSequence(sequenceTag tag.Tag) (value.
 				if err != nil {
 					return nil, fmt.Errorf("failed to skip undefined length item: %w", err)
 				}
-			} else {
+			} else if elemLength > 0 {
 				// Item with defined length - skip the content
-				if elemLength > 0 {
-					_, err := p.reader.ReadBytes(int(elemLength))
-					if err != nil {
-						return nil, fmt.Errorf("failed to skip item content: %w", err)
-					}
+				_, err := p.reader.ReadBytes(int(elemLength))
+				if err != nil {
+					return nil, fmt.Errorf("failed to skip item content: %w", err)
 				}
 			}
 
@@ -746,8 +744,7 @@ func (p *ElementParser) skipEncapsulatedPixelData(pixelDataTag tag.Tag, pixelVR 
 			}
 
 			// Add sequence delimitation tag to encapsulated data
-			encapsulatedData = append(encapsulatedData, 0xFE, 0xFF, 0xDD, 0xE0)
-			encapsulatedData = append(encapsulatedData, 0x00, 0x00, 0x00, 0x00) // length = 0
+			encapsulatedData = append(encapsulatedData, 0xFE, 0xFF, 0xDD, 0xE0, 0x00, 0x00, 0x00, 0x00) // length = 0
 
 			// Return bytes value with all encapsulated data
 			return value.NewBytesValue(pixelVR, encapsulatedData)
@@ -764,11 +761,9 @@ func (p *ElementParser) skipEncapsulatedPixelData(pixelDataTag tag.Tag, pixelVR 
 			return nil, fmt.Errorf("failed to read item length: %w", err)
 		}
 
-		// Add item tag to encapsulated data
-		encapsulatedData = append(encapsulatedData, 0xFE, 0xFF, 0x00, 0xE0)
-
-		// Add item length (little-endian uint32)
+		// Add item tag and length (little-endian uint32) to encapsulated data
 		encapsulatedData = append(encapsulatedData,
+			0xFE, 0xFF, 0x00, 0xE0,
 			byte(itemLength&0xFF),
 			byte((itemLength>>8)&0xFF),
 			byte((itemLength>>16)&0xFF),

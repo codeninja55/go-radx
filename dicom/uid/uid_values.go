@@ -150,7 +150,7 @@ var uidMap = map[string]Info{
 	"1.2.840.10008.2.16.10":            {UID: "1.2.840.10008.2.16.10", Name: "Dublin Core", Type: TypeCodingScheme, Info: "", Retired: false},
 	"1.2.840.10008.2.16.11":            {UID: "1.2.840.10008.2.16.11", Name: "New York University Melanoma Clinical Cooperative Group", Type: TypeCodingScheme, Info: "", Retired: false},
 	"1.2.840.10008.2.16.12":            {UID: "1.2.840.10008.2.16.12", Name: "Mayo Clinic Non-radiological Images Specific Body Structure Anatomical Surface Region Guide", Type: TypeCodingScheme, Info: "", Retired: false},
-	"1.2.840.10008.2.16.13":            {UID: "1.2.840.10008.2.16.13", Name: "Image Biomarker Standardisation Initiative", Type: TypeCodingScheme, Info: "", Retired: false},
+	"1.2.840.10008.2.16.13":            {UID: "1.2.840.10008.2.16.13", Name: "Image Biomarker Standardization Initiative", Type: TypeCodingScheme, Info: "", Retired: false},
 	"1.2.840.10008.2.16.14":            {UID: "1.2.840.10008.2.16.14", Name: "Radiomics Ontology", Type: TypeCodingScheme, Info: "", Retired: false},
 	"1.2.840.10008.2.16.15":            {UID: "1.2.840.10008.2.16.15", Name: "RadElement", Type: TypeCodingScheme, Info: "", Retired: false},
 	"1.2.840.10008.2.16.16":            {UID: "1.2.840.10008.2.16.16", Name: "ICD-11", Type: TypeCodingScheme, Info: "", Retired: false},

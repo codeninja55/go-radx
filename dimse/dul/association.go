@@ -120,6 +120,7 @@ func (a *Association) RequestAssociation(ctx context.Context, pcReqs []Presentat
 		return nil
 
 	case *pdu.AssociateRJ:
+		//nolint:errcheck // State machine event in error path, primary error is association rejection
 		_, _ = a.conn.sm.ProcessEvent(AE7)
 		return fmt.Errorf("association rejected: result=%d source=%d reason=%d",
 			p.Result, p.Source, p.Reason)

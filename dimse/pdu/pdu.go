@@ -163,7 +163,7 @@ func PadAETitle(title string) [16]byte {
 func TrimAETitle(title [16]byte) string {
 	s := string(title[:])
 	// Trim trailing spaces
-	for len(s) > 0 && s[len(s)-1] == ' ' {
+	for s != "" && s[len(s)-1] == ' ' {
 		s = s[:len(s)-1]
 	}
 	return s

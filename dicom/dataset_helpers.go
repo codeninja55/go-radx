@@ -251,7 +251,10 @@ func (ds *DataSet) GenerateNewUIDs() error {
 
 	// Also update Media Storage SOP Instance UID if present in File Meta Information
 	if ds.Contains(tag.MediaStorageSOPInstanceUID) {
-		sopElem, _ := ds.Get(tag.SOPInstanceUID)
+		sopElem, err := ds.Get(tag.SOPInstanceUID)
+		if err != nil {
+			return fmt.Errorf("failed to get SOP Instance UID: %w", err)
+		}
 		sopUID := sopElem.Value().String()
 
 		val, err := value.NewStringValue(vr.UniqueIdentifier, []string{sopUID})
@@ -370,8 +373,12 @@ func (ds *DataSet) Walk(fn func(*element.Element) error) error {
 
 // WalkFunc is a function type for walking through dataset elements.
 //
+// WalkFunc is a function that can modify or signal removal of an element.
 // Return true to modify the element, false to keep it unchanged.
 type WalkFunc func(elem *element.Element) (modified bool, err error)
+
+// ErrRemoveElement is returned by WalkFunc to signal that an element should be removed.
+var ErrRemoveElement = fmt.Errorf("remove element")
 
 // WalkModify iterates through all elements, allowing modification or removal.
 //
@@ -392,8 +399,6 @@ type WalkFunc func(elem *element.Element) (modified bool, err error)
 //	    }
 //	    return false, nil
 //	})
-var ErrRemoveElement = fmt.Errorf("remove element")
-
 func (ds *DataSet) WalkModify(fn WalkFunc) error {
 	toRemove := []tag.Tag{}
 
@@ -610,6 +615,7 @@ func (ds *DataSet) AnonymizeBasic() error {
 
 	for _, t := range institutionTags {
 		if ds.Contains(t) {
+			//nolint:errcheck // Best-effort removal, element existence already verified
 			_ = ds.Remove(t)
 		}
 	}

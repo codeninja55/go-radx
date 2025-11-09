@@ -76,11 +76,11 @@ func newFormatError(vr, reason string) error {
 }
 
 // newRangeError creates a new RangeError with the given component, value, and valid range.
-func newRangeError(component string, value, min, max int) error {
+func newRangeError(component string, value, minVal, maxVal int) error {
 	return &RangeError{
 		Component: component,
 		Value:     value,
-		Min:       min,
-		Max:       max,
+		Min:       minVal,
+		Max:       maxVal,
 	}
 }

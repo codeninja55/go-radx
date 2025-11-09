@@ -190,7 +190,8 @@ func (s *Server) acceptLoop(ctx context.Context) {
 
 		// Check max associations
 		if atomic.LoadInt32(&s.activeConns) >= int32(s.config.MaxAssociations) {
-			conn.Close()
+			//nolint:errcheck // Connection rejection, error not critical
+			_ = conn.Close()
 			continue
 		}
 
@@ -202,7 +203,8 @@ func (s *Server) acceptLoop(ctx context.Context) {
 // handleConnection handles a single connection
 func (s *Server) handleConnection(ctx context.Context, netConn net.Conn) {
 	defer s.wg.Done()
-	defer netConn.Close()
+	//nolint:errcheck // Connection close in defer
+	defer func() { _ = netConn.Close() }()
 
 	atomic.AddInt32(&s.activeConns, 1)
 	defer atomic.AddInt32(&s.activeConns, -1)
@@ -266,7 +268,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		close(s.shutdownCh)
 
 		if s.listener != nil {
-			s.listener.Close()
+			//nolint:errcheck // Listener close during shutdown, error not critical
+			_ = s.listener.Close()
 		}
 
 		// Wait for active connections with timeout
@@ -317,11 +320,14 @@ func (h *associationHandler) handleMessages(ctx context.Context) {
 			}
 
 		case *pdu.ReleaseRQ:
+			//nolint:errcheck // State machine event during release
 			// Trigger A-RELEASE indication (AE-12)
 			_, _ = h.conn.StateMachine().ProcessEvent(dul.AE12)
 
+			//nolint:errcheck // State machine event during release
 			// Send A-RELEASE-RP (trigger AE-14)
 			_, _ = h.conn.StateMachine().ProcessEvent(dul.AE14)
+			//nolint:errcheck // PDU send during release
 			_ = h.conn.SendPDU(ctx, &pdu.ReleaseRP{})
 			return
 

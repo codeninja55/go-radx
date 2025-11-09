@@ -156,8 +156,8 @@ func (c *DataSetCollection) Add(ds *DataSet) error {
 	}
 
 	// Extract optional fields
-	accessionNumber, _ := c.extractOptionalStringValue(ds, tag.New(0x0008, 0x0050))
-	seriesNumber, _ := c.extractOptionalIntValue(ds, tag.New(0x0020, 0x0011))
+	accessionNumber, _ := c.extractOptionalStringValue(ds, tag.New(0x0008, 0x0050)) //nolint:errcheck // Optional field
+	seriesNumber, _ := c.extractOptionalIntValue(ds, tag.New(0x0020, 0x0011))       //nolint:errcheck // Optional field
 
 	// Add to primary storage
 	c.datasets[sopInstanceUID] = ds
@@ -384,12 +384,12 @@ func (c *DataSetCollection) Remove(sopInstanceUID string) error {
 	}
 
 	// Extract UIDs for index cleanup
-	seriesInstanceUID, _ := c.extractStringValue(ds, tag.New(0x0020, 0x000E), "SeriesInstanceUID")
-	studyInstanceUID, _ := c.extractStringValue(ds, tag.New(0x0020, 0x000D), "StudyInstanceUID")
-	patientID, _ := c.extractStringValue(ds, tag.New(0x0010, 0x0020), "PatientID")
-	sopClassUID, _ := c.extractStringValue(ds, tag.New(0x0008, 0x0016), "SOPClassUID")
-	accessionNumber, _ := c.extractOptionalStringValue(ds, tag.New(0x0008, 0x0050))
-	seriesNumber, _ := c.extractOptionalIntValue(ds, tag.New(0x0020, 0x0011))
+	seriesInstanceUID, _ := c.extractStringValue(ds, tag.New(0x0020, 0x000E), "SeriesInstanceUID") //nolint:errcheck // Dataset already validated during Add
+	studyInstanceUID, _ := c.extractStringValue(ds, tag.New(0x0020, 0x000D), "StudyInstanceUID")     //nolint:errcheck // Dataset already validated during Add
+	patientID, _ := c.extractStringValue(ds, tag.New(0x0010, 0x0020), "PatientID")                   //nolint:errcheck // Dataset already validated during Add
+	sopClassUID, _ := c.extractStringValue(ds, tag.New(0x0008, 0x0016), "SOPClassUID")               //nolint:errcheck // Dataset already validated during Add
+	accessionNumber, _ := c.extractOptionalStringValue(ds, tag.New(0x0008, 0x0050))                  //nolint:errcheck // Optional field
+	seriesNumber, _ := c.extractOptionalIntValue(ds, tag.New(0x0020, 0x0011))                        //nolint:errcheck // Optional field
 
 	// Remove from primary storage
 	delete(c.datasets, sopInstanceUID)
@@ -457,7 +457,9 @@ func (c *DataSetCollection) DataSets() []*DataSet {
 
 	// Sort by SOPInstanceUID for deterministic behavior
 	sort.Slice(result, func(i, j int) bool {
+		//nolint:errcheck // Used for sorting only, error indicates missing tag
 		sopI, _ := c.extractStringValue(result[i], tag.New(0x0008, 0x0018), "SOPInstanceUID")
+		//nolint:errcheck // Used for sorting only, error indicates missing tag
 		sopJ, _ := c.extractStringValue(result[j], tag.New(0x0008, 0x0018), "SOPInstanceUID")
 		return sopI < sopJ
 	})
@@ -508,7 +510,7 @@ func (c *DataSetCollection) extractOptionalIntValue(ds *DataSet, t tag.Tag) (int
 // removeFromSlice removes a dataset from a slice and returns the modified slice.
 func (c *DataSetCollection) removeFromSlice(slice []*DataSet, ds *DataSet) []*DataSet {
 	if slice == nil {
-		return slice
+		return nil
 	}
 
 	for i, d := range slice {

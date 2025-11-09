@@ -233,8 +233,7 @@ func (sm *StateMachine) transition(state State, event Event) (State, Action) {
 		}
 
 	case Sta13: // Awaiting transport connection close
-		switch event {
-		case AE17: // Transport closed
+		if event == AE17 { // Transport closed
 			return Sta1, ActionNone
 		}
 	}

@@ -55,6 +55,7 @@ func (c *Client) Connect(ctx context.Context) error {
 
 	// Request association
 	if err := c.assoc.RequestAssociation(ctx, c.config.PresentationContexts); err != nil {
+		//nolint:errcheck // Connection cleanup in error path
 		c.conn.Close()
 		return fmt.Errorf("request association: %w", err)
 	}

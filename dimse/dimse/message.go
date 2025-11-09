@@ -134,7 +134,7 @@ func Decode(pdus []*pdu.DataTF) (*Message, error) {
 // fragmentData fragments data into P-DATA-TF PDUs
 // isCommand: true if this is command data, false if dataset data
 // markAsLast: true if this is the last fragment of the entire DIMSE message
-func fragmentData(data []byte, pcID uint8, isCommand bool, markAsLast bool, maxPDULength uint32) ([]*pdu.DataTF, error) {
+func fragmentData(data []byte, pcID uint8, isCommand, markAsLast bool, maxPDULength uint32) ([]*pdu.DataTF, error) {
 	var pdus []*pdu.DataTF
 
 	// Handle empty data - must still create a PDU with zero-length data

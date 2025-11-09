@@ -170,7 +170,7 @@ func (a Age) String() string {
 	// Handle singular vs plural
 	if a.Value == 1 {
 		// Remove trailing 's' for singular
-		if len(unitStr) > 0 && unitStr[len(unitStr)-1] == 's' {
+		if unitStr != "" && unitStr[len(unitStr)-1] == 's' {
 			unitStr = unitStr[:len(unitStr)-1]
 		}
 	}

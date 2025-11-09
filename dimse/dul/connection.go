@@ -59,6 +59,7 @@ func (c *Connection) SendPDU(ctx context.Context, p pdu.PDU) error {
 		if err := c.conn.SetWriteDeadline(time.Now().Add(c.writeDeadline)); err != nil {
 			return fmt.Errorf("set write deadline: %w", err)
 		}
+		//nolint:errcheck // Deadline reset in defer, error not critical
 		defer c.conn.SetWriteDeadline(time.Time{})
 	}
 
@@ -80,6 +81,7 @@ func (c *Connection) ReadPDU(ctx context.Context) (pdu.PDU, error) {
 		if err := c.conn.SetReadDeadline(time.Now().Add(c.readDeadline)); err != nil {
 			return nil, fmt.Errorf("set read deadline: %w", err)
 		}
+		//nolint:errcheck // Deadline reset in defer, error not critical
 		defer c.conn.SetReadDeadline(time.Time{})
 	}
 
@@ -87,6 +89,7 @@ func (c *Connection) ReadPDU(ctx context.Context) (pdu.PDU, error) {
 	p, err := pdu.ReadPDU(c.conn)
 	if err != nil {
 		if err == io.EOF {
+			//nolint:errcheck // State machine event in error path
 			// Connection closed
 			_, _ = c.sm.ProcessEvent(AE17)
 		}
@@ -103,6 +106,7 @@ func (c *Connection) Close() error {
 
 	if c.conn != nil {
 		err := c.conn.Close()
+		//nolint:errcheck // State machine event during close, error not critical
 		_, _ = c.sm.ProcessEvent(AE17)
 		return err
 	}
@@ -157,6 +161,7 @@ func Dial(ctx context.Context, network, address string) (*Connection, error) {
 	}
 
 	c := NewConnection(conn)
+	//nolint:errcheck // State machine initialization event, error not critical
 	// Trigger transport connect confirmation event
 	_, _ = c.sm.ProcessEvent(AE1)
 

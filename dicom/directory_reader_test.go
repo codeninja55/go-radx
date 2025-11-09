@@ -368,7 +368,7 @@ func TestParseDirectoryWithOptions_Context(t *testing.T) {
 	require.NotNil(t, result)
 
 	// Cancellation timing is non-deterministic, but we should have processed something
-	// or the context was cancelled very early
+	// or the context was canceled very early
 	t.Logf("Parsed %d files before cancellation", result.Parsed)
 }
 

@@ -102,7 +102,7 @@ func (oc *OrthancContainer) HTTPBaseURL() string {
 func (oc *OrthancContainer) GetInstances(ctx context.Context) ([]string, error) {
 	url := fmt.Sprintf("%s/instances", oc.HTTPBaseURL())
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -111,10 +111,11 @@ func (oc *OrthancContainer) GetInstances(ctx context.Context) ([]string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get instances: %w", err)
 	}
-	defer resp.Body.Close()
+	//nolint:errcheck // HTTP response body close in defer
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck // Error reading body for error message is not critical
 		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -130,7 +131,7 @@ func (oc *OrthancContainer) GetInstances(ctx context.Context) ([]string, error) 
 func (oc *OrthancContainer) GetStudies(ctx context.Context) ([]string, error) {
 	url := fmt.Sprintf("%s/studies", oc.HTTPBaseURL())
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -139,10 +140,11 @@ func (oc *OrthancContainer) GetStudies(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get studies: %w", err)
 	}
-	defer resp.Body.Close()
+	//nolint:errcheck // HTTP response body close in defer
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck // Error reading body for error message is not critical
 		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -164,7 +166,7 @@ func (oc *OrthancContainer) DeleteAllContent(ctx context.Context) error {
 
 	for _, instanceID := range instances {
 		url := fmt.Sprintf("%s/instances/%s", oc.HTTPBaseURL(), instanceID)
-		req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+		req, err := http.NewRequestWithContext(ctx, "DELETE", url, http.NoBody)
 		if err != nil {
 			return fmt.Errorf("failed to create delete request: %w", err)
 		}
@@ -173,14 +175,15 @@ func (oc *OrthancContainer) DeleteAllContent(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to delete instance: %w", err)
 		}
-		resp.Body.Close()
+		//nolint:errcheck // HTTP response body close
+		_ = resp.Body.Close()
 	}
 
 	return nil
 }
 
 // ConfigureModality configures a DICOM modality in Orthanc
-func (oc *OrthancContainer) ConfigureModality(ctx context.Context, aet string, host string, port int) error {
+func (oc *OrthancContainer) ConfigureModality(ctx context.Context, aet, host string, port int) error {
 	url := fmt.Sprintf("%s/modalities/%s", oc.HTTPBaseURL(), aet)
 
 	config := map[string]any{
@@ -204,10 +207,11 @@ func (oc *OrthancContainer) ConfigureModality(ctx context.Context, aet string, h
 	if err != nil {
 		return fmt.Errorf("failed to configure modality: %w", err)
 	}
-	defer resp.Body.Close()
+	//nolint:errcheck // HTTP response body close in defer
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(resp.Body) //nolint:errcheck // Error reading body for error message is not critical
 		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
 	}
 
@@ -215,7 +219,7 @@ func (oc *OrthancContainer) ConfigureModality(ctx context.Context, aet string, h
 }
 
 // SendToModality sends an instance to a configured modality
-func (oc *OrthancContainer) SendToModality(ctx context.Context, modality string, instanceID string) error {
+func (oc *OrthancContainer) SendToModality(ctx context.Context, modality, instanceID string) error {
 	url := fmt.Sprintf("%s/modalities/%s/store", oc.HTTPBaseURL(), modality)
 
 	body, err := json.Marshal([]string{instanceID})
@@ -233,10 +237,11 @@ func (oc *OrthancContainer) SendToModality(ctx context.Context, modality string,
 	if err != nil {
 		return fmt.Errorf("failed to send to modality: %w", err)
 	}
-	defer resp.Body.Close()
+	//nolint:errcheck // HTTP response body close in defer
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(resp.Body) //nolint:errcheck // Error reading body for error message is not critical
 		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
 	}
 

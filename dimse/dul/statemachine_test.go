@@ -22,7 +22,7 @@ func TestStateMachine_AssociationEstablishment(t *testing.T) {
 	assert.Equal(t, dul.Sta1, sm.CurrentState())
 
 	// AE-1: Transport connection confirmation
-	action, err := sm.ProcessEvent(dul.AE1)
+	_, err := sm.ProcessEvent(dul.AE1)
 	require.NoError(t, err)
 	assert.Equal(t, dul.Sta4, sm.CurrentState())
 
@@ -30,13 +30,13 @@ func TestStateMachine_AssociationEstablishment(t *testing.T) {
 	// For this test, we'll simulate the sequence
 
 	// AE-3: A-ASSOCIATE request
-	action, err = sm.ProcessEvent(dul.AE3)
+	action, err := sm.ProcessEvent(dul.AE3)
 	require.NoError(t, err)
 	assert.Equal(t, dul.ActionSendAssociateRQ, action)
 	assert.Equal(t, dul.Sta5, sm.CurrentState())
 
 	// AE-6: A-ASSOCIATE-AC received
-	action, err = sm.ProcessEvent(dul.AE6)
+	_, err = sm.ProcessEvent(dul.AE6)
 	require.NoError(t, err)
 	assert.Equal(t, dul.Sta6, sm.CurrentState()) // Association established
 }
@@ -49,17 +49,17 @@ func TestStateMachine_AssociationAcceptance(t *testing.T) {
 	assert.Equal(t, dul.Sta1, sm.CurrentState())
 
 	// AE-2: Transport connection indication
-	action, err := sm.ProcessEvent(dul.AE2)
+	_, err := sm.ProcessEvent(dul.AE2)
 	require.NoError(t, err)
 	assert.Equal(t, dul.Sta2, sm.CurrentState())
 
 	// AE-8: A-ASSOCIATE indication (received A-ASSOCIATE-RQ)
-	action, err = sm.ProcessEvent(dul.AE8)
+	_, err = sm.ProcessEvent(dul.AE8)
 	require.NoError(t, err)
 	assert.Equal(t, dul.Sta3, sm.CurrentState())
 
 	// AE-4: A-ASSOCIATE response (accept)
-	action, err = sm.ProcessEvent(dul.AE4)
+	action, err := sm.ProcessEvent(dul.AE4)
 	require.NoError(t, err)
 	assert.Equal(t, dul.ActionSendAssociateAC, action)
 	assert.Equal(t, dul.Sta6, sm.CurrentState()) // Association established
@@ -98,7 +98,7 @@ func TestStateMachine_AssociationRelease(t *testing.T) {
 	assert.Equal(t, dul.Sta7, sm.CurrentState())
 
 	// AE-13: A-RELEASE-RP received
-	action, err = sm.ProcessEvent(dul.AE13)
+	_, err = sm.ProcessEvent(dul.AE13)
 	require.NoError(t, err)
 	assert.Equal(t, dul.Sta1, sm.CurrentState()) // Back to idle
 }
@@ -139,7 +139,7 @@ func TestStateMachine_DataTransfer(t *testing.T) {
 	assert.Equal(t, dul.Sta6, sm.CurrentState()) // Remain in Sta6
 
 	// AE-10: P-DATA indication (received data)
-	action, err = sm.ProcessEvent(dul.AE10)
+	_, err = sm.ProcessEvent(dul.AE10)
 	require.NoError(t, err)
 	assert.Equal(t, dul.Sta6, sm.CurrentState()) // Remain in Sta6
 }

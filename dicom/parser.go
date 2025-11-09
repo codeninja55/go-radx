@@ -56,7 +56,8 @@ func ParseFile(path string) (*DataSet, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	//nolint:errcheck // File close in defer for read-only operation
+	defer func() { _ = file.Close() }()
 
 	// Parse from reader
 	return ParseReader(file)
@@ -119,7 +120,8 @@ func ParseReader(r io.Reader) (*DataSet, error) {
 		// Create a flate reader that decompresses from the current position
 		// flate.NewReader returns io.ReadCloser for raw DEFLATE streams
 		flateReader := flate.NewReader(parser.rawReader)
-		defer flateReader.Close()
+		//nolint:errcheck // Decompression reader close, error not critical for reading
+		defer func() { _ = flateReader.Close() }()
 
 		// Create a new Reader wrapping the decompressed stream
 		// Keep the same byte order that was configured for the dataset
@@ -136,7 +138,7 @@ func ParseReader(r io.Reader) (*DataSet, error) {
 	// Merge File Meta and main dataset
 	// Add all File Meta elements first
 	for _, elem := range metaInfo.Elements() {
-		mainDS.Add(elem)
+		_ = mainDS.Add(elem) //nolint:errcheck // Element from parsed dataset, guaranteed non-nil
 	}
 
 	return mainDS, nil
@@ -218,7 +220,7 @@ func (p *Parser) readFileMetaInformation() (*DataSet, error) {
 		return nil, fmt.Errorf("failed to read first File Meta element: %w", err)
 	}
 
-	ds.Add(firstElem)
+	_ = ds.Add(firstElem) //nolint:errcheck // Element just parsed, guaranteed non-nil
 
 	// Check if this is the Group Length element
 	groupLengthTag := tag.New(0x0002, 0x0000)
@@ -254,7 +256,7 @@ func (p *Parser) readFileMetaInformation() (*DataSet, error) {
 				return nil, fmt.Errorf("failed to read File Meta element: %w", err)
 			}
 
-			ds.Add(elem)
+			_ = ds.Add(elem) //nolint:errcheck // Element just parsed, guaranteed non-nil
 
 			// Update bytes read
 			currentPos := p.reader.Position()
@@ -281,7 +283,7 @@ func (p *Parser) readFileMetaInformation() (*DataSet, error) {
 			}
 
 			// Add element to dataset
-			ds.Add(elem)
+			_ = ds.Add(elem) //nolint:errcheck // Element just parsed, guaranteed non-nil
 		}
 	}
 
@@ -468,7 +470,7 @@ func (p *Parser) readDataset() (*DataSet, error) {
 
 	// If we have a buffered element from File Meta parsing, add it first
 	if p.bufferedElem != nil {
-		ds.Add(p.bufferedElem)
+		_ = ds.Add(p.bufferedElem) //nolint:errcheck // Element from File Meta parsing, guaranteed non-nil
 		p.bufferedElem = nil
 	}
 
@@ -491,7 +493,7 @@ func (p *Parser) readDataset() (*DataSet, error) {
 		}
 
 		// Add element to dataset
-		ds.Add(elem)
+		_ = ds.Add(elem) //nolint:errcheck // Element just parsed, guaranteed non-nil
 	}
 
 	return ds, nil
