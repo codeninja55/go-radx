@@ -1,2 +1,455 @@
+# Mise configuration for go-radx
+# See: https://mise.jdx.dev
+
+# ============================================================================
+# Tools
+# ============================================================================
 [tools]
 go = "1.25.4"
+python = "3.14"  # For MkDocs and documentation tools
+uv = "latest"    # Fast Python package manager
+
+# ============================================================================
+# Environment Variables
+# ============================================================================
+[env]
+CGO_ENABLED = "1"
+GOFLAGS = "-buildvcs=false"
+
+# ============================================================================
+# Tasks
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Code Quality Tasks
+# ----------------------------------------------------------------------------
+
+[tasks.fmt]
+description = "Format Go code with gofmt"
+run = """
+echo "Running gofmt..."
+gofmt -w -s .
+echo "✓ Code formatted"
+"""
+
+[tasks."fmt:check"]
+description = "Check if code is formatted"
+run = """
+echo "Checking code formatting..."
+if [ -n "$(gofmt -l .)" ]; then
+    echo "Code is not formatted. Run 'mise fmt'"
+    exit 1
+fi
+echo "✓ Code formatting check passed"
+"""
+
+[tasks.lint]
+description = "Run golangci-lint"
+run = """
+echo "Running golangci-lint..."
+if ! command -v golangci-lint &> /dev/null; then
+    echo "golangci-lint not installed. Run: mise tools:lint"
+    exit 1
+fi
+golangci-lint run ./...
+echo "✓ Linting passed"
+"""
+
+# ----------------------------------------------------------------------------
+# Testing Tasks
+# ----------------------------------------------------------------------------
+
+[tasks.test]
+description = "Run all tests"
+run = """
+echo "Running tests..."
+go test -v -timeout 10m ./...
+echo "✓ Tests passed"
+"""
+
+[tasks."test:short"]
+description = "Run short tests only"
+run = """
+echo "Running short tests..."
+go test -v -short -timeout 10m ./...
+echo "✓ Short tests passed"
+"""
+
+[tasks."test:coverage"]
+description = "Run tests with coverage"
+run = """
+echo "Running tests with coverage..."
+go test -v -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
+echo "✓ Tests passed with coverage"
+"""
+
+[tasks."coverage:html"]
+description = "Generate HTML coverage report"
+depends = ["test:coverage"]
+run = """
+echo "Generating HTML coverage report..."
+go tool cover -html=coverage.out -o coverage.html
+echo "✓ Coverage report generated: coverage.html"
+"""
+
+[tasks."coverage:report"]
+description = "Display coverage report in terminal"
+depends = ["test:coverage"]
+run = """
+echo "Coverage report:"
+go tool cover -func=coverage.out
+"""
+
+# ----------------------------------------------------------------------------
+# Module Management Tasks
+# ----------------------------------------------------------------------------
+
+[tasks.tidy]
+description = "Tidy Go modules"
+run = """
+echo "Tidying Go modules..."
+go mod tidy
+echo "✓ Go modules tidied"
+"""
+
+[tasks.verify]
+description = "Verify Go modules"
+run = """
+echo "Verifying Go modules..."
+go mod verify
+echo "✓ Go modules verified"
+"""
+
+[tasks.download]
+description = "Download Go module dependencies"
+run = """
+echo "Downloading dependencies..."
+go mod download
+echo "✓ Dependencies downloaded"
+"""
+
+# ----------------------------------------------------------------------------
+# CGo Dependency Tasks
+# ----------------------------------------------------------------------------
+
+[tasks."deps:check"]
+description = "Check CGo dependencies (C compiler, libraries)"
+run = """
+echo "Checking CGo dependencies..."
+
+# Check CGO_ENABLED
+if [ "$(go env CGO_ENABLED)" != "1" ]; then
+    echo "✗ CGO_ENABLED is not set to 1"
+    echo "  Run: export CGO_ENABLED=1"
+    exit 1
+fi
+echo "✓ CGO_ENABLED=1"
+
+# Check C compiler
+if ! command -v gcc &> /dev/null && ! command -v clang &> /dev/null; then
+    echo "✗ No C compiler found (gcc or clang required)"
+    echo "  macOS: xcode-select --install"
+    echo "  Linux: apt-get install build-essential (or equivalent)"
+    exit 1
+fi
+echo "✓ C compiler available"
+
+# Check pkg-config
+if ! command -v pkg-config &> /dev/null; then
+    echo "✗ pkg-config not found"
+    echo "  macOS: brew install pkg-config"
+    echo "  Linux: apt-get install pkg-config"
+    exit 1
+fi
+echo "✓ pkg-config available"
+
+# Check libjpeg
+if ! pkg-config --exists libjpeg 2>/dev/null; then
+    echo "✗ libjpeg-turbo not found"
+    echo "  macOS: brew install jpeg-turbo"
+    echo "  Ubuntu/Debian: apt-get install libturbojpeg0-dev"
+    echo "  Fedora/RHEL: yum install turbojpeg-devel"
+    exit 1
+fi
+echo "✓ libjpeg-turbo installed (version: $(pkg-config --modversion libjpeg))"
+
+# Check OpenJPEG
+if ! pkg-config --exists libopenjp2 2>/dev/null; then
+    echo "✗ OpenJPEG not found"
+    echo "  macOS: brew install openjpeg"
+    echo "  Ubuntu/Debian: apt-get install libopenjp2-7-dev"
+    echo "  Fedora/RHEL: yum install openjpeg2-devel"
+    exit 1
+fi
+echo "✓ OpenJPEG installed (version: $(pkg-config --modversion libopenjp2))"
+echo "✓ All CGo dependencies satisfied"
+"""
+
+[tasks."deps:install"]
+description = "Install CGo dependencies (macOS/Linux only)"
+run = """
+echo "Installing CGo dependencies..."
+
+UNAME_S=$(uname -s)
+
+if [ "$UNAME_S" = "Darwin" ]; then
+    # macOS with Homebrew
+    if command -v brew &> /dev/null; then
+        echo "Installing via Homebrew..."
+        brew install jpeg-turbo openjpeg pkg-config
+    else
+        echo "✗ Homebrew not found. Install from https://brew.sh"
+        exit 1
+    fi
+elif [ "$UNAME_S" = "Linux" ]; then
+    # Linux - try apt, then yum/dnf
+    if command -v apt-get &> /dev/null; then
+        echo "Installing via apt-get..."
+        sudo apt-get update
+        sudo apt-get install -y libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
+    elif command -v dnf &> /dev/null; then
+        echo "Installing via dnf..."
+        sudo dnf groupinstall -y "Development Tools"
+        sudo dnf install -y turbojpeg-devel openjpeg2-devel pkg-config
+    elif command -v yum &> /dev/null; then
+        echo "Installing via yum..."
+        sudo yum groupinstall -y "Development Tools"
+        sudo yum install -y turbojpeg-devel openjpeg2-devel pkgconfig
+    else
+        echo "✗ Unsupported package manager. Please install manually:"
+        echo "  - libjpeg-turbo"
+        echo "  - OpenJPEG 2.5+"
+        exit 1
+    fi
+else
+    echo "✗ Unsupported platform: $UNAME_S"
+    echo "  Only macOS and Linux are supported"
+    exit 1
+fi
+
+echo "✓ CGo dependencies installed"
+echo "Run 'mise deps:check' to verify installation"
+"""
+
+# ----------------------------------------------------------------------------
+# Build Tasks
+# ----------------------------------------------------------------------------
+
+[tasks.build]
+description = "Build the project with CGo enabled"
+run = """
+echo "Building with CGo..."
+CGO_ENABLED=1 go build -v ./...
+echo "✓ Build complete"
+"""
+
+[tasks."build:cli"]
+description = "Build the dicomutil CLI tool"
+run = """
+echo "Building dicomutil CLI..."
+mkdir -p ./bin
+CGO_ENABLED=1 go build -v -o ./bin/go-dicom ./cmd/dicomutil
+echo "✓ CLI built: ./bin/go-dicom"
+"""
+
+# ----------------------------------------------------------------------------
+# SBOM Tasks
+# ----------------------------------------------------------------------------
+
+[tasks.sbom]
+description = "Generate CycloneDX SBOM (packages only)"
+run = """
+echo "Generating CycloneDX v1.6 SBOM..."
+mkdir -p ./sbom
+if ! command -v trivy &> /dev/null; then
+    echo "Trivy not installed. Run 'mise tools:sbom'"
+    exit 1
+fi
+trivy fs --format cyclonedx --output ./sbom/go-dicom.sbom.json .
+echo "✓ SBOM generated: ./sbom/go-dicom.sbom.json"
+"""
+
+[tasks."sbom:vuln"]
+description = "Generate CycloneDX SBOM with vulnerabilities"
+run = """
+echo "Generating CycloneDX v1.6 SBOM with vulnerabilities..."
+mkdir -p ./sbom
+if ! command -v trivy &> /dev/null; then
+    echo "Trivy not installed. Run 'mise tools:sbom'"
+    exit 1
+fi
+trivy fs --format cyclonedx --scanners vuln --output ./sbom/go-dicom.sbom-with-vulns.json .
+echo "✓ SBOM with vulnerabilities generated: ./sbom/go-dicom.sbom-with-vulns.json"
+"""
+
+[tasks."sbom:full"]
+description = "Generate CycloneDX SBOM with vulnerabilities and licenses"
+run = """
+echo "Generating comprehensive CycloneDX v1.6 SBOM..."
+mkdir -p ./sbom
+if ! command -v trivy &> /dev/null; then
+    echo "Trivy not installed. Run 'mise tools:sbom'"
+    exit 1
+fi
+trivy fs --format cyclonedx --scanners vuln,license --list-all-pkgs --output ./sbom/go-dicom.sbom-full.json .
+echo "✓ Comprehensive SBOM generated: ./sbom/go-dicom.sbom-full.json"
+echo "  Includes: packages, vulnerabilities, and licenses"
+"""
+
+[tasks."sbom:validate"]
+description = "Validate generated SBOM files"
+run = """
+echo "Validating SBOM files..."
+if [ -f ./sbom/go-dicom.sbom.json ]; then
+    echo "Checking ./sbom/go-dicom.sbom.json..."
+    trivy sbom ./sbom/go-dicom.sbom.json --quiet && echo "✓ ./sbom/go-dicom.sbom.json is valid"
+fi
+if [ -f ./sbom/go-dicom.sbom-with-vulns.json ]; then
+    echo "Checking ./sbom/go-dicom.sbom-with-vulns.json..."
+    trivy sbom ./sbom/go-dicom.sbom-with-vulns.json --quiet && echo "✓ ./sbom/go-dicom.sbom-with-vulns.json is valid"
+fi
+if [ -f ./sbom/go-dicom.sbom-full.json ]; then
+    echo "Checking ./sbom/go-dicom.sbom-full.json..."
+    trivy sbom ./sbom/go-dicom.sbom-full.json --quiet && echo "✓ ./sbom/go-dicom.sbom-full.json is valid"
+fi
+echo "✓ SBOM validation complete"
+"""
+
+[tasks."sbom:scan"]
+description = "Scan the generated SBOM for vulnerabilities"
+depends = ["sbom:full"]
+run = """
+echo "Scanning SBOM for vulnerabilities..."
+trivy sbom --scanners vuln ./sbom/go-dicom.sbom-full.json
+echo "✓ SBOM vulnerability scan complete"
+"""
+
+# ----------------------------------------------------------------------------
+# Documentation Tasks
+# ----------------------------------------------------------------------------
+
+[tasks."docs:install"]
+description = "Install MkDocs and dependencies"
+run = """
+echo "Installing MkDocs and dependencies with uv..."
+# Create virtual environment if it doesn't exist
+if [ ! -d ".venv" ]; then
+    echo "Creating Python virtual environment..."
+    uv venv
+fi
+uv pip install -r docs/requirements.txt
+echo "✓ MkDocs dependencies installed"
+"""
+
+[tasks."docs:serve"]
+description = "Serve documentation locally"
+depends = ["docs:install"]
+run = "uv run mkdocs serve"
+
+[tasks."docs:build"]
+description = "Build documentation site"
+depends = ["docs:install"]
+run = """
+echo "Building documentation..."
+uv run mkdocs build
+echo "✓ Documentation built to ./site/"
+"""
+
+[tasks."docs:deploy"]
+description = "Deploy documentation to GitHub Pages"
+depends = ["docs:install"]
+run = """
+echo "Deploying documentation to GitHub Pages..."
+uv run mkdocs gh-deploy --force
+echo "✓ Documentation deployed"
+"""
+
+[tasks."docs:clean"]
+description = "Clean documentation build artifacts"
+run = """
+echo "Cleaning documentation artifacts..."
+rm -rf site/
+echo "✓ Documentation cleaned"
+"""
+
+# ----------------------------------------------------------------------------
+# Tool Installation Tasks
+# ----------------------------------------------------------------------------
+
+[tasks."tools:lint"]
+description = "Install linting tools (golangci-lint)"
+run = """
+echo "Installing golangci-lint..."
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+echo "✓ golangci-lint installed at $(go env GOPATH)/bin/golangci-lint"
+golangci-lint version
+"""
+
+[tasks."tools:sbom"]
+description = "Install SBOM tools (Trivy)"
+run = """
+echo "Installing Trivy..."
+if command -v brew &> /dev/null; then
+    brew install trivy
+else
+    echo "Installing Trivy via install script..."
+    curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b $(go env GOPATH)/bin
+fi
+echo "✓ Trivy installed"
+trivy version
+"""
+
+[tasks."tools:install"]
+description = "Install all development tools"
+depends = ["tools:lint", "tools:sbom"]
+
+# ----------------------------------------------------------------------------
+# Clean Tasks
+# ----------------------------------------------------------------------------
+
+[tasks.clean]
+description = "Remove build artifacts, coverage files, and SBOMs"
+run = """
+echo "Cleaning..."
+go clean
+rm -f coverage.out coverage.html
+rm -rf ./bin
+rm -rf ./sbom
+echo "✓ Cleaned"
+"""
+
+# ----------------------------------------------------------------------------
+# Composite Tasks
+# ----------------------------------------------------------------------------
+
+[tasks.check]
+description = "Run all checks (format, lint, CGo deps, test)"
+depends = ["fmt:check", "lint", "deps:check", "test"]
+run = """
+echo "✓ All checks passed"
+"""
+
+[tasks.all]
+description = "Clean, tidy, format, lint, and test"
+run = """
+mise clean
+mise tidy
+mise fmt
+mise lint
+mise test
+echo "✓ All tasks completed"
+"""
+
+[tasks.setup]
+description = "Setup complete development environment"
+depends = ["deps:check", "tools:install", "docs:install", "download"]
+run = """
+echo "✓ Development environment setup complete"
+"""
+
+[tasks.ci]
+description = "Run CI checks locally"
+depends = ["fmt:check", "lint", "test"]
+run = """
+echo "✓ CI checks passed"
+"""
