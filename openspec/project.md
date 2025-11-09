@@ -233,6 +233,17 @@ go test -bench=. ./... # Run benchmarks
 - Bundle types: document, message, transaction, collection, searchset
 - Summary mode for bandwidth optimization
 
+**SMART on FHIR**
+- OAuth2-based authorization framework for FHIR applications
+- EHR launch flow - Launch FHIR apps from within EHR systems
+- Standalone launch flow - Independent application launch
+- Scopes and permissions - Fine-grained access control (patient/*, user/*, system/*)
+- SMART Backend Services - System-to-system authorization with JWT assertions
+- Token management - Automatic refresh, caching, PKCE support
+- Context resolution - Patient, encounter, location, and user context
+- Conformance - SMART App Launch 2.0 specification, OpenID Connect integration
+- Enables third-party app integration with EHR systems
+
 **DICOM (Digital Imaging and Communications in Medicine)**
 - Medical imaging standard (NEMA PS3 series)
 - Part 10: File format (.dcm files)
@@ -244,6 +255,17 @@ go test -bench=. ./... # Run benchmarks
 - Association establishment and management
 - DIMSE services: C-ECHO, C-STORE, C-FIND, C-GET, C-MOVE
 - Normalized services: N-CREATE, N-SET, N-GET, N-DELETE, N-ACTION, N-EVENT-REPORT
+
+**DICOM Structured Reporting (SR)**
+- DICOM Part 3 Annex C - Structured Reporting
+- Content tree structure - Hierarchical organization of report content
+- Content items - Containers, text, numeric measurements, coded concepts, image references
+- Templates (TIDs) - Standardized report structures (TID 1500, TID 1501, etc.)
+- Measurement reports - Quantitative analysis results
+- CAD results - Computer-Aided Detection findings
+- Key image notes - Selected images with annotations
+- SR ↔ FHIR mapping - Bidirectional conversion to DiagnosticReport + Observations
+- Preserves coded terminology and relationships
 
 **HL7 v2.x (Health Level Seven)**
 - Legacy messaging standard (still widely used)
@@ -288,7 +310,9 @@ go test -bench=. ./... # Run benchmarks
 - EMR (Electronic Medical Record) ↔ RIS via HL7 v2
 - Clinical systems ↔ FHIR API
 - DICOM metadata → FHIR ImagingStudy conversion
+- DICOM SR ↔ FHIR DiagnosticReport + Observations (bidirectional)
 - HL7 ADT → FHIR Patient/Encounter conversion
+- SMART on FHIR apps ↔ EHR systems via OAuth2
 
 ## Important Constraints
 
@@ -444,8 +468,10 @@ go test -bench=. ./... # Run benchmarks
 - CLI utilities (`radx` command)
 
 ### Long-Term (v1.1.0+)
-- DICOM ↔ FHIR integration
-- HL7 ↔ FHIR integration
-- Advanced image processing
+- SMART on FHIR implementation (OAuth2, app launch, backend services)
+- DICOM SR ↔ FHIR DiagnosticReport + Observations mapping
+- DICOM metadata ↔ FHIR ImagingStudy conversion
+- HL7 ↔ FHIR integration (ADT, ORM, ORU messages)
+- Advanced image processing (segmentation, presentation states)
 - Performance optimizations
 - Production hardening

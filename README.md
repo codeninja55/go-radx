@@ -40,6 +40,38 @@ Complete implementation of HL7 FHIR Release 5 specification:
 - **Summary Mode** - 40-70% payload reduction for bandwidth-constrained scenarios
 - **JSON Serialization** - Full compatibility with FHIR JSON format
 
+#### SMART on FHIR
+
+OAuth2-based authorization framework for FHIR applications:
+
+- **SMART App Launch** - Full SMART on FHIR launch framework support:
+  - EHR launch flow - Launch from within EHR systems
+  - Standalone launch flow - Independent application launch
+  - OAuth2 authorization code flow
+  - Token introspection and refresh
+- **Scopes and Permissions** - Fine-grained access control:
+  - Patient context scopes (`patient/*.read`, `patient/*.write`)
+  - User context scopes (`user/*.read`, `user/*.write`)
+  - System context scopes (`system/*.read`, `system/*.write`)
+  - Launch context (`launch`, `launch/patient`, `launch/encounter`)
+- **SMART Backend Services** - Backend system-to-system authorization:
+  - Client credentials flow with JWT assertions
+  - Bulk data access authorization
+  - Asymmetric key authentication (RS384)
+- **Token Management** - Comprehensive token handling:
+  - Automatic token refresh
+  - Token caching and storage
+  - Secure token management
+  - PKCE (Proof Key for Code Exchange) support
+- **Context Resolution** - Automatic resolution of launch context:
+  - Patient context from launch parameters
+  - Encounter context for visit-based apps
+  - Location and user context
+- **Conformance** - Standards-compliant implementation:
+  - SMART App Launch 2.0 specification
+  - FHIR R5 OAuth endpoints
+  - OpenID Connect integration
+
 ### DICOM Support
 
 #### Core DICOM Features
@@ -202,10 +234,23 @@ radx dicomweb metadata --series 1.2.840... pacs.example.com     # Retrieve metad
   - Patient demographic mapping
   - Series and instance references
   - Endpoint configuration for WADO-RS
+  - **DICOM SR to FHIR DiagnosticReport** - Comprehensive structured report mapping:
+    - Convert DICOM Structured Reports to FHIR DiagnosticReport resources
+    - Map SR content tree to FHIR Observations
+    - Support for measurement reports, CAD results, key image notes
+    - Preserve coded concepts and relationships
+    - Handle numeric measurements with units
+    - Map image references to ImagingSelection
+    - Bidirectional conversion with validation
 - **FHIR to DICOM**:
   - Generate DICOM from FHIR resources
   - Patient mapping to DICOM tags
-  - Observation to DICOM SR conversion
+  - **FHIR DiagnosticReport to DICOM SR** - Reverse mapping:
+    - Convert FHIR DiagnosticReport and Observations to DICOM SR
+    - Generate compliant SR content trees
+    - Map coded values to DICOM terminology
+    - Support for various SR templates (TID 1500, TID 1501, etc.)
+    - Preserve provenance and authorship
 - **HL7 to FHIR**:
   - ADT messages to Patient/Encounter resources
   - ORM/ORU to ServiceRequest/DiagnosticReport
@@ -469,9 +514,10 @@ go-radx is under active development. Current implementation status:
 - 🚧 **DICOM Core** - In progress (file I/O, data dictionary)
 - 🚧 **DIMSE** - In progress (association, C-ECHO, C-STORE)
 - 📋 **DICOMweb** - Planned (WADO-RS, STOW-RS, QIDO-RS client and CLI)
+- 📋 **SMART on FHIR** - Planned (OAuth2, app launch, backend services)
 - 📋 **HL7 v2** - Planned
 - 📋 **CLI Tools** - Planned (radx command)
-- 📋 **Integration** - Planned (DICOM↔FHIR, HL7↔FHIR)
+- 📋 **Integration** - Planned (DICOM SR↔FHIR DiagnosticReport, HL7↔FHIR)
 
 See the [Changelog](https://codeninja55.github.io/go-radx/community/changelog/) for recent updates and
 [Roadmap](https://github.com/codeninja55/go-radx/projects) for planned features.
