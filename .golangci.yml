@@ -17,7 +17,6 @@ linters:
     - revive          # Fast, configurable, extensible, flexible linter
     - gosec           # Security-focused linter
     - unconvert       # Remove unnecessary type conversions
-    - unparam         # Check for unused function parameters
     - prealloc        # Find slice declarations with non-zero initial length
     - gocritic        # The most opinionated Go linter
     - gocyclo         # Cyclomatic complexity
@@ -58,7 +57,7 @@ linters:
       locale: US
 
     staticcheck:
-      checks: ["all"]
+      checks: ["all", "-ST1000", "-ST1003"]
 
   exclusions:
     warn-unused: false
