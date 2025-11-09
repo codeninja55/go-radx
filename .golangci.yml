@@ -71,6 +71,13 @@ issues:
         - errcheck
         - gosec
         - gocritic
+        - revive
+
+    # Exclude example code from strict checks
+    - path: "fhir/examples/.*\\.go$"
+      linters:
+        - errcheck
+        - gosec
 
     # Exclude linters for generated FHIR resource files
     - path: "fhir/r[45]/resources/.*\\.go$"
@@ -79,6 +86,7 @@ issues:
         - revive
         - gocritic
         - funlen
+        - misspell
 
 output:
   formats:

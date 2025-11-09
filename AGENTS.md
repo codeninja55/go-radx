@@ -52,7 +52,6 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 **Always check for existing configuration files before creating new ones.**
 
-
 ## Project Overview
 
 go-radx is a comprehensive Go library for medical imaging and healthcare interoperability standards. This project provides robust, production-ready implementations of FHIR R5, DICOM, HL7 v2.x, and DIMSE networking protocols with a focus on type safety, performance, and developer experience.
@@ -344,6 +343,41 @@ You must understand these healthcare standards and workflows:
 - Verify all links. Every link, both internal and external, must be tested and functional before publication.
 - Maintain consistency. Use consistent terminology, formatting, and language variety throughout all documentation.
 - Valid technical references. Ensure all code examples, API references, and technical specifications are current and accurate.
+
+## Pre-Commit Workflow
+
+**CRITICAL**: Before every commit, you MUST run the following checks in order:
+
+1. **Formatting**: `mise run fmt` - Format all Go code
+2. **Linting**: `mise run lint` - Run golangci-lint with all configured linters
+3. **Type Checking**: Verify Go builds without errors
+4. **All Tests**: `mise run test` - Run the complete test suite
+
+**Workflow:**
+```bash
+# 1. Format code
+mise run fmt
+
+# 2. Run linter
+mise run lint
+
+# 3. Run all tests
+mise run test
+
+# 4. Only commit if all checks pass
+git commit -m "..."
+```
+
+**Never commit code that:**
+- Has formatting issues
+- Fails linting checks
+- Has type errors
+- Has failing tests
+
+**If checks fail:**
+- Fix all issues before committing
+- Never use `--no-verify` to bypass pre-commit hooks
+- Never commit broken code with the intention to "fix it later"
 
 ## Thoughts on git
 

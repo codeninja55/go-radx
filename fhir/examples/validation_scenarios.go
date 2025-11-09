@@ -104,8 +104,8 @@ func main() {
 	deceasedDateTime := primitives.MustDateTime("2024-01-01T00:00:00Z")
 	invalidChoice := &resources.Patient{
 		ID:               stringPtr("patient-invalid-choice"),
-		DeceasedBoolean:  boolPtr(false),     // First choice
-		DeceasedDateTime: &deceasedDateTime,  // Second choice - INVALID!
+		DeceasedBoolean:  boolPtr(false),    // First choice
+		DeceasedDateTime: &deceasedDateTime, // Second choice - INVALID!
 	}
 	if err := validator.Validate(invalidChoice); err != nil {
 		fmt.Printf("   ❌ Expected validation error: %v\n", err)

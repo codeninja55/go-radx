@@ -1,42 +1,5 @@
 # Notes
 
-## Open Source Best Practices
-
-Essential Files to Add:
-
-1. LICENSE - You need a license file. Based on the README stating "MIT License", you
-   should add a proper MIT LICENSE file:
-   MIT License
-
-Copyright (c) 2025 Andru Manuel-Che
-
-[standard MIT license text]
-2. CONTRIBUTING.md - Detailed contribution guidelines:
-   - How to set up development environment
-   - Code style requirements (reference to Uber Go Guide)
-   - Testing requirements
-   - PR process and review expectations
-   - Commit message conventions
-   - How to report bugs
-   - How to request features
-3. CODE_OF_CONDUCT.md - Adopt Contributor Covenant or similar
-4. SECURITY.md - Security policy:
-   - How to report security vulnerabilities privately
-   - Security update policy
-   - Supported versions
-   - CRITICAL for healthcare software
-5. GitHub Templates:
-   - .github/ISSUE_TEMPLATE/bug_report.md
-   - .github/ISSUE_TEMPLATE/feature_request.md
-   - .github/PULL_REQUEST_TEMPLATE.md
-   - .github/FUNDING.yml (if accepting sponsorship)
-6. .github/workflows/ - CI/CD pipelines:
-   - test.yml - Run tests on all PRs
-   - lint.yml - Run golangci-lint
-   - security.yml - govulncheck and dependency scanning
-   - release.yml - Automated releases with goreleaser
-   - conformance.yml - FHIR/DICOM conformance testing
-
 Documentation Enhancements
 
 Add These Documentation Sections:
