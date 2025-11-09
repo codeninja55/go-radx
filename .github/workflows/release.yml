@@ -1,0 +1,29 @@
+name: Tag and Release
+
+permissions:
+  id-token: write
+  contents: write
+  actions: read
+  packages: write
+  statuses: write
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+        with:
+          fetch-depth: 0
+      - name: Fetch existing tags
+        run: git fetch --force --tags
+      - name: Bump version and push tag
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          release_branches: main
+          tag_prefix: v
+          github_token: ${{ secrets.GITHUB_TOKEN }}
