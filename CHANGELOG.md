@@ -24,17 +24,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - fhir/validation package: 84.1% coverage
   - fhir/primitives package: 90.9% coverage
 - Automatic SemVer tagging and release workflow
+- **DICOM Core Implementation**:
+  - Complete DICOM Part 10 file format support (read/write)
+  - Full DICOM data dictionary with tag lookup
+  - Support for all Value Representation (VR) types
+  - Dataset operations and manipulation API
+  - Transfer syntax support (Explicit VR LE, Implicit VR LE, Deflated)
+  - Comprehensive UID generation following ISO 8824 standard
+  - Directory reader for batch DICOM file processing
+- **DIMSE Networking Protocol (DICOM Part 7 & 8)**:
+  - Association management (A-ASSOCIATE, A-RELEASE, A-ABORT)
+  - Presentation context negotiation
+  - Protocol Data Unit (PDU) encoding/decoding
+  - DIMSE message services (C-ECHO, C-STORE, C-FIND, C-GET, C-MOVE)
+  - Service Class User (SCU) implementation
+  - Service Class Provider (SCP) implementation with configurable handlers
+  - Message fragmentation and reassembly
+  - State machine for association lifecycle
+  - Integration tests against Orthanc PACS
+  - Fuzz testing for protocol robustness (21 fuzz tests covering PDU, DIMSE, DUL layers)
+- **DICOM Test Infrastructure**:
+  - Synthetic DICOM test data generator (testdata/generate_nested_dicom.go)
+  - PHI-free test fixtures with ~1,195 generated files
+  - Organized testdata structure (testdata/dicom/ with nested series)
+  - Fuzz test corpora for PDU and DIMSE message fuzzing
 
 ### Changed
 - Updated Go version to 1.25.4
 - Updated golangci-lint to v2.4.0 for Go 1.25 compatibility
 - Coverage threshold set to informational only (not blocking)
 - Improved CI/CD workflows for better reliability
+- **Test data reorganization**: Moved all DICOM files to testdata/dicom/ subdirectory
 
 ### Fixed
 - golangci-lint compatibility with Go 1.25.4
 - Test compilation errors in summary and validation tests
 - Coverage calculation to exclude generated resource definitions
+- **Security fix**: PDU size limit validation to prevent DoS via memory exhaustion (dimse/pdu/data.go)
+
+### Security
+- Added PDU size limit enforcement in DIMSE protocol decoder
+- Removed potentially PHI-containing test data (CTC_2 directory)
+- All test data is now clearly marked as synthetic and PHI-free
 
 ## [0.1.0] - 2025-01-09
 
