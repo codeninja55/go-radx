@@ -27,6 +27,7 @@ func TestOfficialFHIRExamples(t *testing.T) {
 		resourceType string
 		validate     bool
 	}{
+		// Core Resources
 		{
 			name:         "Official Patient Example",
 			filename:     "patient-example.json",
@@ -43,6 +44,69 @@ func TestOfficialFHIRExamples(t *testing.T) {
 			name:         "Official Bundle Example",
 			filename:     "bundle-example.json",
 			resourceType: "Bundle",
+			validate:     true,
+		},
+		// Radiology-Specific Resources
+		{
+			name:         "Official DiagnosticReport Example",
+			filename:     "diagnosticreport-example-f201-brainct.json",
+			resourceType: "DiagnosticReport",
+			validate:     true,
+		},
+		{
+			name:         "Official ImagingStudy Example",
+			filename:     "imagingstudy-example.json",
+			resourceType: "ImagingStudy",
+			validate:     true,
+		},
+		// Clinical Workflow Resources
+		{
+			name:         "Official Encounter Example",
+			filename:     "encounter-example.json",
+			resourceType: "Encounter",
+			validate:     true,
+		},
+		{
+			name:         "Official Condition Example",
+			filename:     "condition-example.json",
+			resourceType: "Condition",
+			validate:     true,
+		},
+		{
+			name:         "Official Procedure Example",
+			filename:     "procedure-example.json",
+			resourceType: "Procedure",
+			validate:     true,
+		},
+		{
+			name:         "Official MedicationRequest Example",
+			filename:     "medicationrequest-example.json",
+			resourceType: "MedicationRequest",
+			validate:     true,
+		},
+		{
+			name:         "Official ServiceRequest Example",
+			filename:     "servicerequest-example.json",
+			resourceType: "ServiceRequest",
+			validate:     true,
+		},
+		// Administrative Resources
+		{
+			name:         "Official Organization Example",
+			filename:     "organization-example.json",
+			resourceType: "Organization",
+			validate:     true,
+		},
+		{
+			name:         "Official Practitioner Example",
+			filename:     "practitioner-example.json",
+			resourceType: "Practitioner",
+			validate:     true,
+		},
+		{
+			name:         "Official Location Example",
+			filename:     "location-example.json",
+			resourceType: "Location",
 			validate:     true,
 		},
 	}
@@ -150,6 +214,206 @@ func TestOfficialFHIRExamples(t *testing.T) {
 				count := helper.Count()
 
 				t.Logf("Successfully processed Bundle with %d entries", count)
+
+			case "DiagnosticReport":
+				var resource resources.DiagnosticReport
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal DiagnosticReport: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal DiagnosticReport: %v", err)
+				}
+				var roundTrip resources.DiagnosticReport
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip DiagnosticReport: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed DiagnosticReport with ID: %v", resource.ID)
+
+			case "ImagingStudy":
+				var resource resources.ImagingStudy
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal ImagingStudy: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal ImagingStudy: %v", err)
+				}
+				var roundTrip resources.ImagingStudy
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip ImagingStudy: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed ImagingStudy with ID: %v", resource.ID)
+
+			case "Encounter":
+				var resource resources.Encounter
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal Encounter: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal Encounter: %v", err)
+				}
+				var roundTrip resources.Encounter
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip Encounter: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed Encounter with ID: %v", resource.ID)
+
+			case "Condition":
+				var resource resources.Condition
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal Condition: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal Condition: %v", err)
+				}
+				var roundTrip resources.Condition
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip Condition: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed Condition with ID: %v", resource.ID)
+
+			case "Procedure":
+				var resource resources.Procedure
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal Procedure: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal Procedure: %v", err)
+				}
+				var roundTrip resources.Procedure
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip Procedure: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed Procedure with ID: %v", resource.ID)
+
+			case "MedicationRequest":
+				var resource resources.MedicationRequest
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal MedicationRequest: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal MedicationRequest: %v", err)
+				}
+				var roundTrip resources.MedicationRequest
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip MedicationRequest: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed MedicationRequest with ID: %v", resource.ID)
+
+			case "ServiceRequest":
+				var resource resources.ServiceRequest
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal ServiceRequest: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal ServiceRequest: %v", err)
+				}
+				var roundTrip resources.ServiceRequest
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip ServiceRequest: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed ServiceRequest with ID: %v", resource.ID)
+
+			case "Organization":
+				var resource resources.Organization
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal Organization: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal Organization: %v", err)
+				}
+				var roundTrip resources.Organization
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip Organization: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed Organization with ID: %v", resource.ID)
+
+			case "Practitioner":
+				var resource resources.Practitioner
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal Practitioner: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal Practitioner: %v", err)
+				}
+				var roundTrip resources.Practitioner
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip Practitioner: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed Practitioner with ID: %v", resource.ID)
+
+			case "Location":
+				var resource resources.Location
+				if err := json.Unmarshal(data, &resource); err != nil {
+					t.Fatalf("Failed to unmarshal Location: %v", err)
+				}
+				roundTripData, err := json.Marshal(resource)
+				if err != nil {
+					t.Fatalf("Failed to marshal Location: %v", err)
+				}
+				var roundTrip resources.Location
+				if err := json.Unmarshal(roundTripData, &roundTrip); err != nil {
+					t.Fatalf("Failed to unmarshal round-trip Location: %v", err)
+				}
+				if tt.validate {
+					if err := validator.Validate(&resource); err != nil {
+						t.Logf("Validation warning for %s: %v", tt.filename, err)
+					}
+				}
+				t.Logf("Successfully processed Location with ID: %v", resource.ID)
 			}
 		})
 	}
