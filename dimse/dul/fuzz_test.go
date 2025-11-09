@@ -257,7 +257,8 @@ func FuzzStateMachineTransitionInvariants(f *testing.F) {
 			}
 
 			afterState := sm.CurrentState()
-			stateHistory = append(stateHistory, afterState)
+			//lint:ignore SA4010 fuzzing test artifact, state history for debugging
+		stateHistory = append(stateHistory, afterState)
 
 			// Check invariant: Certain actions only valid in certain states
 			switch action {

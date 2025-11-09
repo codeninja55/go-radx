@@ -371,7 +371,7 @@ func (h *associationHandler) handleDataPDU(ctx context.Context, dataPDU *pdu.Dat
 // handleCEcho handles C-ECHO-RQ
 func (h *associationHandler) handleCEcho(ctx context.Context, msg *dimse.Message) error {
 	// Call handler if configured
-	var status uint16 = dimse.StatusSuccess
+	status := dimse.StatusSuccess
 	if h.server.config.EchoHandler != nil {
 		req := &EchoRequest{
 			CallingAE: h.assoc.CallingAETitle(),
@@ -396,7 +396,7 @@ func (h *associationHandler) handleCEcho(ctx context.Context, msg *dimse.Message
 // handleCStore handles C-STORE-RQ
 func (h *associationHandler) handleCStore(ctx context.Context, msg *dimse.Message) error {
 	// Call handler if configured
-	var status uint16 = dimse.StatusSuccess
+	status := dimse.StatusSuccess
 	if h.server.config.StoreHandler != nil {
 		req := &StoreRequest{
 			CallingAE:      h.assoc.CallingAETitle(),
@@ -426,7 +426,7 @@ func (h *associationHandler) handleCStore(ctx context.Context, msg *dimse.Messag
 func (h *associationHandler) handleCFind(ctx context.Context, msg *dimse.Message) error {
 	// Call handler if configured
 	var results []*dicom.DataSet
-	var status uint16 = dimse.StatusSuccess
+	status := dimse.StatusSuccess
 
 	if h.server.config.FindHandler != nil {
 		req := &FindRequest{
@@ -471,7 +471,7 @@ func (h *associationHandler) handleCFind(ctx context.Context, msg *dimse.Message
 func (h *associationHandler) handleCGet(ctx context.Context, msg *dimse.Message) error {
 	// Call handler if configured
 	var instances []*dicom.DataSet
-	var status uint16 = dimse.StatusSuccess
+	status := dimse.StatusSuccess
 
 	if h.server.config.GetHandler != nil {
 		req := &GetRequest{
@@ -581,7 +581,7 @@ func (h *associationHandler) handleCGet(ctx context.Context, msg *dimse.Message)
 // handleCMove handles C-MOVE-RQ
 func (h *associationHandler) handleCMove(ctx context.Context, msg *dimse.Message) error {
 	// Call handler if configured
-	var status uint16 = dimse.StatusSuccess
+	status := dimse.StatusSuccess
 	var completed, failed, warning uint16
 
 	if h.server.config.MoveHandler != nil {
