@@ -99,9 +99,15 @@ func ExampleBundleHelper_GetPatients() {
 	bundle := &fhir.Bundle{Type: "searchset"}
 	helper := fhir.NewBundleHelper(bundle)
 
-	// Add multiple resources
-	patient1 := &resources.Patient{ID: stringPtr("patient-1")}
-	patient2 := &resources.Patient{ID: stringPtr("patient-2")}
+	// Add multiple resources (using maps with resourceType until struct support is added)
+	patient1 := map[string]interface{}{
+		"resourceType": "Patient",
+		"id":           "patient-1",
+	}
+	patient2 := map[string]interface{}{
+		"resourceType": "Patient",
+		"id":           "patient-2",
+	}
 
 	_ = helper.AddEntry(patient1, stringPtr("Patient/patient-1"))
 	_ = helper.AddEntry(patient2, stringPtr("Patient/patient-2"))
@@ -170,5 +176,14 @@ func ExampleValidateReference() {
 	}
 	// Output:
 	// Valid reference
-	// Invalid reference: subject: invalid reference format: must be ResourceType/id or full URL
+	// Invalid reference: subject: invalid reference format: patient123 (expected 'ResourceType/id')
+}
+
+// Helper functions for examples
+func stringPtr(s string) *string {
+	return &s
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }
