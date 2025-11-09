@@ -178,7 +178,7 @@ func FuzzMessageEncoding(f *testing.F) {
 
 				// Verify presentation context ID matches
 				//lint:ignore SA5011 false positive, nil check performed above
-			for _, item := range p.Items {
+				for _, item := range p.Items {
 					if item.PresentationContextID != pcID {
 						t.Errorf("PC ID mismatch: expected %d, got %d",
 							pcID, item.PresentationContextID)

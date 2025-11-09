@@ -28,6 +28,10 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
+      - name: Install CGO dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install openjpeg jpeg
+
       - name: Download dependencies
         run: go mod download
         env:
