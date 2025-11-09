@@ -71,11 +71,11 @@ type Validator interface {
 }
 
 // ValidateCardinality checks if a slice meets the cardinality requirements.
-// min: minimum number of elements (0 for optional)
-// max: maximum number of elements (-1 for unlimited)
-func ValidateCardinality(field string, count, min, max int) *Error {
-	if min > 0 && count < min {
-		if min == 1 {
+// minCount: minimum number of elements (0 for optional)
+// maxCount: maximum number of elements (-1 for unlimited)
+func ValidateCardinality(field string, count, minCount, maxCount int) *Error {
+	if minCount > 0 && count < minCount {
+		if minCount == 1 {
 			return &Error{
 				Field:   field,
 				Message: "required field is missing",
@@ -83,14 +83,14 @@ func ValidateCardinality(field string, count, min, max int) *Error {
 		}
 		return &Error{
 			Field:   field,
-			Message: fmt.Sprintf("requires at least %d element(s), got %d", min, count),
+			Message: fmt.Sprintf("requires at least %d element(s), got %d", minCount, count),
 		}
 	}
 
-	if max >= 0 && count > max {
+	if maxCount >= 0 && count > maxCount {
 		return &Error{
 			Field:   field,
-			Message: fmt.Sprintf("requires at most %d element(s), got %d", max, count),
+			Message: fmt.Sprintf("requires at most %d element(s), got %d", maxCount, count),
 		}
 	}
 
@@ -140,7 +140,7 @@ func ValidateReference(field, ref string) error {
 
 	// First part should be a valid resource type name (starts with uppercase)
 	resourceType := parts[0]
-	if len(resourceType) == 0 || resourceType[0] < 'A' || resourceType[0] > 'Z' {
+	if resourceType == "" || resourceType[0] < 'A' || resourceType[0] > 'Z' {
 		return &Error{
 			Field:   field,
 			Message: fmt.Sprintf("invalid resource type in reference: %s", resourceType),
@@ -162,9 +162,15 @@ func NewFHIRValidator() *FHIRValidator {
 	fv := &FHIRValidator{validate: v}
 
 	// Register custom validators
-	_ = v.RegisterValidation("fhir_cardinality", fv.validateCardinality)
-	_ = v.RegisterValidation("fhir_enum", fv.validateEnum)
-	_ = v.RegisterValidation("fhir_choice", fv.validateChoice)
+	if err := v.RegisterValidation("fhir_cardinality", fv.validateCardinality); err != nil {
+		panic(fmt.Sprintf("failed to register fhir_cardinality validator: %v", err))
+	}
+	if err := v.RegisterValidation("fhir_enum", fv.validateEnum); err != nil {
+		panic(fmt.Sprintf("failed to register fhir_enum validator: %v", err))
+	}
+	if err := v.RegisterValidation("fhir_choice", fv.validateChoice); err != nil {
+		panic(fmt.Sprintf("failed to register fhir_choice validator: %v", err))
+	}
 
 	return fv
 }
@@ -265,12 +271,13 @@ func (fv *FHIRValidator) validateFHIRTag(v reflect.Value, path, tag string, errs
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 
-		if part == "required" {
+		switch {
+		case part == "required":
 			fv.checkRequired(v, path, errs)
-		} else if strings.HasPrefix(part, "cardinality=") {
+		case strings.HasPrefix(part, "cardinality="):
 			cardStr := strings.TrimPrefix(part, "cardinality=")
 			fv.checkCardinality(v, path, cardStr, errs)
-		} else if strings.HasPrefix(part, "enum=") {
+		case strings.HasPrefix(part, "enum="):
 			enumStr := strings.TrimPrefix(part, "enum=")
 			fv.checkEnum(v, path, enumStr, errs)
 		}
@@ -296,7 +303,7 @@ func (fv *FHIRValidator) checkRequired(v reflect.Value, path string, errs *Error
 	}
 }
 
-// checkCardinality validates field cardinality (min..max).
+// checkCardinality validates field cardinality (minCount..maxCount).
 func (fv *FHIRValidator) checkCardinality(v reflect.Value, path, cardinalityStr string, errs *Errors) {
 	parts := strings.Split(cardinalityStr, "..")
 	if len(parts) != 2 {
@@ -304,17 +311,17 @@ func (fv *FHIRValidator) checkCardinality(v reflect.Value, path, cardinalityStr 
 		return
 	}
 
-	min, err := strconv.Atoi(parts[0])
+	minCount, err := strconv.Atoi(parts[0])
 	if err != nil {
 		errs.Addf(path, "invalid cardinality min: %s", parts[0])
 		return
 	}
 
-	var max int
+	var maxCount int
 	if parts[1] == "*" {
-		max = -1 // unlimited
+		maxCount = -1 // unlimited
 	} else {
-		max, err = strconv.Atoi(parts[1])
+		maxCount, err = strconv.Atoi(parts[1])
 		if err != nil {
 			errs.Addf(path, "invalid cardinality max: %s", parts[1])
 			return
@@ -338,16 +345,16 @@ func (fv *FHIRValidator) checkCardinality(v reflect.Value, path, cardinalityStr 
 	}
 
 	// Validate
-	if min > 0 && count < min {
-		if min == 1 {
+	if minCount > 0 && count < minCount {
+		if minCount == 1 {
 			errs.Add(path, "required field is missing")
 		} else {
-			errs.Addf(path, "requires at least %d element(s), got %d", min, count)
+			errs.Addf(path, "requires at least %d element(s), got %d", minCount, count)
 		}
 	}
 
-	if max >= 0 && count > max {
-		errs.Addf(path, "requires at most %d element(s), got %d", max, count)
+	if maxCount >= 0 && count > maxCount {
+		errs.Addf(path, "requires at most %d element(s), got %d", maxCount, count)
 	}
 }
 
@@ -408,64 +415,88 @@ func (fv *FHIRValidator) validateChoice(fl validator.FieldLevel) bool {
 
 // validateChoiceTypes validates that only one field in each choice group is set.
 func (fv *FHIRValidator) validateChoiceTypes(v reflect.Value, path string, errs *Errors) {
-	// Dereference pointers
-	for v.Kind() == reflect.Ptr {
-		if v.IsNil() {
-			return
-		}
-		v = v.Elem()
-	}
-
+	v = fv.dereferenceValue(v)
 	if v.Kind() != reflect.Struct {
 		return
 	}
 
-	t := v.Type()
+	choiceGroups := fv.collectChoiceGroups(v, path, errs)
+	fv.validateChoiceGroups(choiceGroups, errs)
+}
 
-	// Group fields by choice group
-	choiceGroups := make(map[string][]string) // choiceGroup -> list of field paths with non-nil values
+// dereferenceValue dereferences pointer values until a non-pointer is found.
+func (fv *FHIRValidator) dereferenceValue(v reflect.Value) reflect.Value {
+	for v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return reflect.Value{}
+		}
+		v = v.Elem()
+	}
+	return v
+}
+
+// collectChoiceGroups collects all fields by their choice group.
+func (fv *FHIRValidator) collectChoiceGroups(v reflect.Value, path string, errs *Errors) map[string][]string {
+	choiceGroups := make(map[string][]string)
+	t := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
 		field := t.Field(i)
-		fieldValue := v.Field(i)
-
-		// Skip unexported fields
 		if !field.IsExported() {
 			continue
 		}
 
-		fieldPath := field.Name
-		if path != "" {
-			fieldPath = path + "." + field.Name
-		}
+		fieldValue := v.Field(i)
+		fieldPath := fv.buildFieldPath(path, field.Name)
 
-		// Get FHIR struct tag
-		fhirTag := field.Tag.Get("fhir")
-		if fhirTag == "" {
-			// Recurse into nested structs
-			if field.Type.Kind() == reflect.Struct || (field.Type.Kind() == reflect.Ptr && field.Type.Elem().Kind() == reflect.Struct) {
-				fv.validateChoiceTypes(fieldValue, fieldPath, errs)
-			}
-			continue
-		}
-
-		// Parse choice group from tag
-		choiceGroup := getChoiceGroup(fhirTag)
-		if choiceGroup == "" {
-			// Not a choice type, but recurse into nested structs
-			if field.Type.Kind() == reflect.Struct || (field.Type.Kind() == reflect.Ptr && field.Type.Elem().Kind() == reflect.Struct) {
-				fv.validateChoiceTypes(fieldValue, fieldPath, errs)
-			}
-			continue
-		}
-
-		// Check if field is set (non-nil and non-zero)
-		if isFieldSet(fieldValue) {
-			choiceGroups[choiceGroup] = append(choiceGroups[choiceGroup], fieldPath)
-		}
+		fv.processChoiceField(field, fieldValue, fieldPath, choiceGroups, errs)
 	}
 
-	// Check that each choice group has at most one field set
+	return choiceGroups
+}
+
+// buildFieldPath constructs the full field path.
+func (fv *FHIRValidator) buildFieldPath(basePath, fieldName string) string {
+	if basePath == "" {
+		return fieldName
+	}
+	return basePath + "." + fieldName
+}
+
+// processChoiceField processes a single field for choice validation.
+func (fv *FHIRValidator) processChoiceField(field reflect.StructField, fieldValue reflect.Value, fieldPath string, choiceGroups map[string][]string, errs *Errors) {
+	fhirTag := field.Tag.Get("fhir")
+
+	if fhirTag == "" {
+		fv.recurseIntoStruct(field.Type, fieldValue, fieldPath, errs)
+		return
+	}
+
+	choiceGroup := getChoiceGroup(fhirTag)
+	if choiceGroup == "" {
+		fv.recurseIntoStruct(field.Type, fieldValue, fieldPath, errs)
+		return
+	}
+
+	if isFieldSet(fieldValue) {
+		choiceGroups[choiceGroup] = append(choiceGroups[choiceGroup], fieldPath)
+	}
+}
+
+// recurseIntoStruct recursively validates nested struct fields.
+func (fv *FHIRValidator) recurseIntoStruct(fieldType reflect.Type, fieldValue reflect.Value, fieldPath string, errs *Errors) {
+	if isStructType(fieldType) {
+		fv.validateChoiceTypes(fieldValue, fieldPath, errs)
+	}
+}
+
+// isStructType checks if a type is a struct or pointer to struct.
+func isStructType(t reflect.Type) bool {
+	return t.Kind() == reflect.Struct || (t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct)
+}
+
+// validateChoiceGroups checks that each choice group has at most one field set.
+func (fv *FHIRValidator) validateChoiceGroups(choiceGroups map[string][]string, errs *Errors) {
 	for choiceGroup, fields := range choiceGroups {
 		if len(fields) > 1 {
 			errs.Addf(strings.Join(fields, ", "),

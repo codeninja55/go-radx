@@ -85,13 +85,14 @@ func PaginatedSearchExample(baseURL string) error {
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
 
 		// Parse bundle
 		var bundle fhir.Bundle
 		if err := json.NewDecoder(resp.Body).Decode(&bundle); err != nil {
+			resp.Body.Close()
 			return err
 		}
+		resp.Body.Close()
 
 		helper := fhir.NewBundleHelper(&bundle)
 
