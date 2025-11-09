@@ -172,8 +172,8 @@ func extractUIDString(elem *element.Element) string {
 		// UID is stored as bytes, decode to string
 		data := bytesVal.Bytes()
 		// Trim null padding and spaces
-		uid := strings.TrimRight(string(data), "\x00 ")
-		return strings.TrimSpace(uid)
+		uidStr := strings.TrimRight(string(data), "\x00 ")
+		return strings.TrimSpace(uidStr)
 	}
 
 	// Handle normal string values
