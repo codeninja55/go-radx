@@ -161,6 +161,9 @@ nav:
   - Development:
       - Contributing: development/contributing.md
       - Testing: development/testing.md
+  - Advanced:
+      - FHIR R4 to R5 Migration: fhir-r4-to-r5-migration.md
+      - Performance Benchmarks: performance-benchmarks.md
   - Community:
       - Support: community/support.md
       - Changelog: community/changelog.md
