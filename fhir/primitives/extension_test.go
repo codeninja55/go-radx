@@ -2,8 +2,8 @@ package primitives
 
 import (
 	"encoding/json"
-	"testing"
 	"github.com/codeninja55/go-radx/fhir/internal/testutil"
+	"testing"
 )
 
 func TestPrimitiveExtension_Marshal(t *testing.T) {

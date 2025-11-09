@@ -143,14 +143,14 @@ type Extension struct {
 	URL string `json:"url" fhir:"cardinality=1..1,required"`
 
 	// Value of extension - primitive types
-	ValueBoolean  *bool    `json:"valueBoolean,omitempty" fhir:"cardinality=0..1,choice=value"`
-	ValueInteger  *int     `json:"valueInteger,omitempty" fhir:"cardinality=0..1,choice=value"`
-	ValueString   *string  `json:"valueString,omitempty" fhir:"cardinality=0..1,choice=value"`
-	ValueDecimal  *float64 `json:"valueDecimal,omitempty" fhir:"cardinality=0..1,choice=value"`
-	ValueUri      *string  `json:"valueUri,omitempty" fhir:"cardinality=0..1,choice=value"`
-	ValueUrl      *string  `json:"valueUrl,omitempty" fhir:"cardinality=0..1,choice=value"`
-	ValueCanonical *string `json:"valueCanonical,omitempty" fhir:"cardinality=0..1,choice=value"`
-	ValueCode     *string  `json:"valueCode,omitempty" fhir:"cardinality=0..1,choice=value"`
+	ValueBoolean   *bool    `json:"valueBoolean,omitempty" fhir:"cardinality=0..1,choice=value"`
+	ValueInteger   *int     `json:"valueInteger,omitempty" fhir:"cardinality=0..1,choice=value"`
+	ValueString    *string  `json:"valueString,omitempty" fhir:"cardinality=0..1,choice=value"`
+	ValueDecimal   *float64 `json:"valueDecimal,omitempty" fhir:"cardinality=0..1,choice=value"`
+	ValueUri       *string  `json:"valueUri,omitempty" fhir:"cardinality=0..1,choice=value"`
+	ValueUrl       *string  `json:"valueUrl,omitempty" fhir:"cardinality=0..1,choice=value"`
+	ValueCanonical *string  `json:"valueCanonical,omitempty" fhir:"cardinality=0..1,choice=value"`
+	ValueCode      *string  `json:"valueCode,omitempty" fhir:"cardinality=0..1,choice=value"`
 
 	// More complex value types can be added as needed
 	// ValueCoding, ValueCodeableConcept, ValueReference, etc.

@@ -3,11 +3,11 @@ package resources
 import (
 	"testing"
 
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 	"github.com/codeninja55/go-radx/fhir/primitives"
 	"github.com/codeninja55/go-radx/fhir/validation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func TestPatient_Validate_Valid(t *testing.T) {

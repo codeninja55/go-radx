@@ -1,9 +1,9 @@
 package validation
 
 import (
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 	"strings"
 	"testing"
-	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func TestChoiceTypeValidation(t *testing.T) {

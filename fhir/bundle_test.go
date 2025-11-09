@@ -2,8 +2,8 @@ package fhir
 
 import (
 	"encoding/json"
-	"testing"
 	"github.com/codeninja55/go-radx/fhir/internal/testutil"
+	"testing"
 )
 
 func createTestBundle() *Bundle {

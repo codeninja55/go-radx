@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 	"github.com/codeninja55/go-radx/fhir/primitives"
 	"github.com/codeninja55/go-radx/fhir/r4/resources"
-	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func main() {

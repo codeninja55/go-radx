@@ -2,9 +2,9 @@ package fhir
 
 import (
 	"encoding/json"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 	"strings"
 	"testing"
-	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 // TestPatient is a simplified patient structure for testing

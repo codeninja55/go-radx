@@ -9,8 +9,8 @@ import (
 	"os"
 
 	"github.com/codeninja55/go-radx/fhir"
-	"github.com/codeninja55/go-radx/fhir/r5/resources"
 	"github.com/codeninja55/go-radx/fhir/internal/testutil"
+	"github.com/codeninja55/go-radx/fhir/r5/resources"
 )
 
 // Example: Processing FHIR search results from a server

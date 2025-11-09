@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 	"github.com/codeninja55/go-radx/fhir/primitives"
 	"github.com/codeninja55/go-radx/fhir/r5/resources"
 	"github.com/codeninja55/go-radx/fhir/validation"
-	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 // Example: Various validation scenarios
@@ -105,8 +105,8 @@ func main() {
 	deceasedDateTime := primitives.MustDateTime("2024-01-01T00:00:00Z")
 	invalidChoice := &resources.Patient{
 		ID:               testutil.StringPtr("patient-invalid-choice"),
-		DeceasedBoolean:  testutil.BoolPtr(false),    // First choice
-		DeceasedDateTime: &deceasedDateTime, // Second choice - INVALID!
+		DeceasedBoolean:  testutil.BoolPtr(false), // First choice
+		DeceasedDateTime: &deceasedDateTime,       // Second choice - INVALID!
 	}
 	if err := validator.Validate(invalidChoice); err != nil {
 		fmt.Printf("   ❌ Expected validation error: %v\n", err)
