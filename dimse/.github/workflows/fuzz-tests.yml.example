@@ -1,0 +1,97 @@
+# Example GitHub Actions workflow for running fuzz tests
+# Copy this to .github/workflows/fuzz-tests.yml to enable
+#
+# This workflow runs fuzz tests on:
+# - Pull requests (short duration for quick feedback)
+# - Scheduled runs (extended duration for thorough testing)
+# - Manual dispatch (configurable duration)
+
+name: Fuzz Tests
+
+on:
+  pull_request:
+    paths:
+      - 'dimse/**/*.go'
+      - '.github/workflows/fuzz-tests.yml'
+  schedule:
+    # Run extended fuzz tests nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      fuzz_duration:
+        description: 'Fuzz duration per test (e.g., 30s, 1m, 5m)'
+        required: false
+        default: '1m'
+
+jobs:
+  fuzz:
+    name: Fuzz Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Determine fuzz duration
+        id: config
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "duration=30s" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "duration=5m" >> $GITHUB_OUTPUT
+          else
+            echo "duration=${{ github.event.inputs.fuzz_duration }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run fuzz tests
+        env:
+          FUZZ_TIME: ${{ steps.config.outputs.duration }}
+          VERBOSE: 'true'
+        run: |
+          cd dimse
+          ./scripts/run-fuzz-tests.sh
+
+      - name: Upload fuzz test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-failures
+          path: |
+            **/testdata/fuzz/**
+          retention-days: 30
+
+  security-check:
+    name: Security Fuzz Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Run security-focused fuzz tests
+        run: |
+          cd dimse
+          # Focus on security-critical tests
+          go test -fuzz=FuzzPDUSizeLimit -fuzztime=2m ./pdu
+          go test -fuzz=FuzzReassemblerAddPDU -fuzztime=2m ./dimse
+          go test -fuzz=FuzzStateMachineConcurrent -fuzztime=2m ./dul
+
+      - name: Check for corpus growth
+        run: |
+          # Verify that fuzzing is discovering new interesting inputs
+          cd dimse
+          find . -path '*/testdata/fuzz/*' -type f | wc -l
