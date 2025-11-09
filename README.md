@@ -102,6 +102,39 @@ Full implementation of DICOM Message Service Element protocol for network commun
   - OpenJPEG for JPEG 2000 support
   - Optional CGo - library works without image decompression
 
+#### DICOMweb Support
+
+Modern RESTful web services for DICOM:
+
+- **WADO-RS (Web Access to DICOM Objects)**:
+  - Retrieve studies, series, and instances via HTTP/HTTPS
+  - Support for rendered image formats (JPEG, PNG)
+  - Metadata retrieval in JSON/XML
+  - Multi-part responses for bulk retrieval
+  - Frame-level access for multi-frame images
+- **STOW-RS (Store Over the Web)**:
+  - Store DICOM instances via HTTP POST
+  - Multi-part/related content type support
+  - Bulk upload capabilities
+  - Store response with success/failure details
+- **QIDO-RS (Query based on ID for DICOM Objects)**:
+  - RESTful search for studies, series, and instances
+  - Query parameter support (patient name, study date, modality, etc.)
+  - Fuzzy matching and wildcards
+  - Pagination support
+  - Response in JSON or XML format
+- **DICOMweb Client Library**:
+  - Type-safe Go API for all DICOMweb services
+  - Connection pooling and retry logic
+  - Automatic authentication (OAuth2, API keys)
+  - Progress tracking for large transfers
+  - Configurable timeouts and error handling
+- **DICOMweb CLI Tool**:
+  - Command-line interface for DICOMweb operations
+  - Retrieve, store, and query commands
+  - Batch operations for multiple files
+  - Integration with radx command suite
+
 ### HL7 v2 Support
 
 Implementation of HL7 Version 2.x messaging standard:
@@ -154,6 +187,12 @@ radx dicom worklist --config worklist.yaml   # Worklist SCP
 radx dicom to-fhir image.dcm                 # DICOM to FHIR ImagingStudy
 radx dicom anonymize input.dcm output.dcm    # Anonymize DICOM files
 radx dicom compress input.dcm --syntax jpeg  # Compress pixel data
+
+# DICOMweb operations
+radx dicomweb retrieve --study 1.2.840.113... pacs.example.com  # WADO-RS retrieve study
+radx dicomweb store *.dcm https://pacs.example.com/dicomweb     # STOW-RS store
+radx dicomweb search --patient "Doe^John" pacs.example.com      # QIDO-RS search
+radx dicomweb metadata --series 1.2.840... pacs.example.com     # Retrieve metadata
 ```
 
 ### Integration & Utilities
@@ -325,6 +364,58 @@ func main() {
 }
 ```
 
+### DICOMweb Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/codeninja55/go-radx/dicomweb"
+)
+
+func main() {
+    // Create DICOMweb client
+    client := dicomweb.NewClient(dicomweb.Config{
+        BaseURL: "https://pacs.example.com/dicomweb",
+        Auth: dicomweb.OAuth2("client_id", "client_secret"),
+    })
+
+    ctx := context.Background()
+
+    // QIDO-RS: Search for studies
+    studies, err := client.SearchStudies(ctx, dicomweb.SearchParams{
+        PatientName: "Doe^John",
+        StudyDate:   "20240101-20241231",
+        Modality:    "CT",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Found %d studies\n", len(studies))
+
+    // WADO-RS: Retrieve study
+    for _, study := range studies {
+        instances, err := client.RetrieveStudy(ctx, study.StudyInstanceUID)
+        if err != nil {
+            log.Fatal(err)
+        }
+        fmt.Printf("Retrieved %d instances\n", len(instances))
+    }
+
+    // STOW-RS: Store DICOM files
+    files := []string{"image1.dcm", "image2.dcm"}
+    response, err := client.Store(ctx, files)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Stored %d instances successfully\n", response.SuccessCount)
+}
+```
+
 ### HL7 Example
 
 ```go
@@ -377,8 +468,9 @@ go-radx is under active development. Current implementation status:
 - ✅ **FHIR R5** - Complete (158 resources, validation, bundles, primitives)
 - 🚧 **DICOM Core** - In progress (file I/O, data dictionary)
 - 🚧 **DIMSE** - In progress (association, C-ECHO, C-STORE)
+- 📋 **DICOMweb** - Planned (WADO-RS, STOW-RS, QIDO-RS client and CLI)
 - 📋 **HL7 v2** - Planned
-- 📋 **CLI Tools** - Planned
+- 📋 **CLI Tools** - Planned (radx command)
 - 📋 **Integration** - Planned (DICOM↔FHIR, HL7↔FHIR)
 
 See the [Changelog](https://codeninja55.github.io/go-radx/community/changelog/) for recent updates and
@@ -403,6 +495,10 @@ go-radx/
 │   ├── scp/       # Service Class Providers
 │   ├── scu/       # Service Class Users
 │   └── pdu/       # Protocol Data Units
+├── dicomweb/      # DICOMweb RESTful services
+│   ├── wado/      # WADO-RS client
+│   ├── stow/      # STOW-RS client
+│   └── qido/      # QIDO-RS client
 ├── hl7/           # HL7 v2.x
 │   ├── message/   # Message parsing
 │   ├── segment/   # Segment handling

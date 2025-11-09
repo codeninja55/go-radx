@@ -24,6 +24,156 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ## Project Overview
 
+go-radx is a comprehensive Go library for medical imaging and healthcare interoperability standards. This project provides robust, production-ready implementations of FHIR R5, DICOM, HL7 v2.x, and DIMSE networking protocols with a focus on type safety, performance, and developer experience.
+
+### Purpose and Goals
+
+**Primary Goals:**
+- Provide type-safe, idiomatic Go implementations of healthcare standards
+- Enable seamless integration between FHIR, DICOM, and HL7 systems
+- Support radiology workflows, clinical systems integration, and medical imaging applications
+- Deliver production-ready libraries with comprehensive validation and error handling
+- Create developer-friendly APIs with excellent documentation and examples
+
+**Target Users:**
+- Healthcare software developers building clinical systems
+- Radiology workflow automation engineers
+- Medical imaging application developers
+- PACS and RIS system integrators
+- Healthcare interoperability specialists
+
+### Current Implementation Status
+
+- ✅ **FHIR R5** - Complete (158 resources, validation, bundles, primitives)
+- 🚧 **DICOM Core** - In progress (file I/O, data dictionary)
+- 🚧 **DIMSE** - In progress (association, C-ECHO, C-STORE)
+- 📋 **DICOMweb** - Planned (WADO-RS, STOW-RS, QIDO-RS client and CLI)
+- 📋 **HL7 v2** - Planned
+- 📋 **CLI Tools** - Planned (radx command)
+- 📋 **Integration** - Planned (DICOM↔FHIR, HL7↔FHIR)
+
+### Architecture
+
+The project is organized into focused packages:
+
+```
+go-radx/
+├── fhir/          # FHIR R5 implementation
+│   ├── r5/        # Generated R5 resources (158 resource types)
+│   ├── primitives/# FHIR primitive types with validation
+│   ├── validation/# Validation framework
+│   └── bundle/    # Bundle utilities and navigation
+├── dicom/         # DICOM core (Part 10 file format)
+│   ├── dataset/   # Dataset operations
+│   ├── transfer/  # Transfer syntaxes (JPEG, JPEG 2000, RLE)
+│   └── tag/       # Data dictionary
+├── dimse/         # DIMSE networking (Part 7 & 8)
+│   ├── scp/       # Service Class Providers
+│   ├── scu/       # Service Class Users
+│   └── pdu/       # Protocol Data Units
+├── dicomweb/      # DICOMweb RESTful services
+│   ├── wado/      # WADO-RS client
+│   ├── stow/      # STOW-RS client
+│   └── qido/      # QIDO-RS client
+├── hl7/           # HL7 v2.x
+│   ├── message/   # Message parsing (ADT, ORM, ORU)
+│   ├── segment/   # Segment handling
+│   └── mllp/      # MLLP protocol
+└── cmd/           # CLI utilities
+    └── radx/      # Main CLI tool
+```
+
+### Domain Context
+
+You must understand these healthcare standards and workflows:
+
+**FHIR (Fast Healthcare Interoperability Resources)**
+- HL7 FHIR R5 specification with 158 resource types
+- RESTful API design with JSON/XML serialization
+- Cardinality constraints (0..1, 1..1, 0..*, 1..*)
+- Choice types (polymorphic fields with `[x]` suffix)
+- Bundle types: document, message, transaction, collection, searchset
+- Reference integrity between resources
+
+**DICOM (Digital Imaging and Communications in Medicine)**
+- Medical imaging standard (NEMA PS3 series)
+- Part 10: File format (.dcm files)
+- Part 7 & 8: DIMSE networking protocol
+- Data Elements with VR (Value Representation)
+- Transfer Syntaxes (compression methods)
+- Service-Object Pairs (SOP Classes)
+
+**DIMSE Protocol Concepts**
+- Application Entity (AE) - DICOM network endpoint
+- Association - Network connection between AEs
+- Presentation Context - Agreement on what data can be sent
+- SCP (Service Class Provider) - Receives DICOM services
+- SCU (Service Class User) - Initiates DICOM services
+- DIMSE services: C-ECHO, C-STORE, C-FIND, C-GET, C-MOVE
+- Normalized services: N-CREATE, N-SET, N-GET, N-DELETE, N-ACTION, N-EVENT-REPORT
+
+**DICOMweb (RESTful DICOM Services)**
+- Modern web-based DICOM services using HTTP/HTTPS
+- WADO-RS (Web Access to DICOM Objects) - RESTful retrieval
+- STOW-RS (Store Over the Web) - RESTful storage via HTTP POST
+- QIDO-RS (Query based on ID) - RESTful search and query
+- Firewall-friendly, standard HTTP, OAuth2 authentication support
+- JSON/XML metadata responses, multi-part/related for bulk transfers
+- Complements traditional DIMSE networking
+
+**HL7 v2.x (Health Level Seven)**
+- Legacy messaging standard (still widely used)
+- Pipe-delimited format: `|^~\\&` delimiters
+- Message types: ADT (admissions), ORM (orders), ORU (results)
+- Segments: MSH (header), PID (patient), OBX (observation)
+- MLLP (Minimal Lower Layer Protocol) for transport
+- ACK/NACK acknowledgment messages
+
+**Radiology Workflow Integration:**
+1. Order placed (HL7 ORM message or FHIR ServiceRequest)
+2. Modality worklist query (DIMSE C-FIND)
+3. Image acquisition (DICOM instance creation)
+4. Image storage (DIMSE C-STORE to PACS)
+5. Image viewing (WADO-RS or DIMSE C-GET/C-MOVE)
+6. Report creation (FHIR DiagnosticReport)
+7. Results delivery (HL7 ORU message)
+
+**Key System Integrations:**
+- RIS (Radiology Information System) ↔ PACS via DIMSE
+- EMR (Electronic Medical Record) ↔ RIS via HL7 v2
+- Clinical systems ↔ FHIR API
+- DICOM metadata → FHIR ImagingStudy conversion
+- HL7 ADT → FHIR Patient/Encounter conversion
+
+### Critical Constraints
+
+**Medical Device Considerations:**
+- Code may be used in medical device software
+- Must be deterministic and testable
+- Comprehensive validation required
+- Audit trail for data modifications
+- Error handling must be explicit and safe
+
+**Data Privacy & Security:**
+- **NEVER** log PHI (Protected Health Information)
+- Support for DICOM anonymization
+- Secure handling of patient data
+- No telemetry or data collection
+- Input validation for all external data
+
+**Standards Compliance:**
+- FHIR R5 specification conformance
+- DICOM standard (NEMA PS3) conformance
+- HL7 v2.x specification conformance
+- Must pass conformance testing tools
+
+**Performance & Reliability:**
+- Minimize allocations in hot paths
+- Streaming for large files where possible
+- Concurrent-safe APIs
+- No global mutable state
+- Memory efficient implementations
+
 
 ## Our relationship
 
