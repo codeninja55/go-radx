@@ -1,0 +1,17 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/codeninja55/go-radx/fhir
+cpu: Apple M4 Pro
+BenchmarkPatient_Marshal-14               	 1401488	       850.8 ns/op	     320 B/op	       3 allocs/op
+BenchmarkPatient_Unmarshal-14             	  503590	      2329 ns/op	    1489 B/op	      38 allocs/op
+BenchmarkPatient_RoundTrip-14             	  371490	      3265 ns/op	    1812 B/op	      41 allocs/op
+BenchmarkPatient_Validation-14            	  379276	      3212 ns/op	     704 B/op	      39 allocs/op
+BenchmarkPatient_SummaryMode-14           	  563372	      2097 ns/op	    1216 B/op	      31 allocs/op
+BenchmarkBundle_Create-14                 	   91228	     13669 ns/op	   15529 B/op	     226 allocs/op
+BenchmarkBundle_GetResourceByID-14        	    5288	    225319 ns/op	  228800 B/op	    7100 allocs/op
+BenchmarkBundle_ResolveReference-14       	    5181	    226281 ns/op	  228832 B/op	    7101 allocs/op
+BenchmarkBundle_GetPatients-14            	    5322	    225988 ns/op	  228800 B/op	    7100 allocs/op
+BenchmarkObservation_Create-14            	1000000000	         0.4932 ns/op	       0 B/op	       0 allocs/op
+BenchmarkObservation_WithComponents-14    	143520940	         8.321 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/codeninja55/go-radx/fhir	15.280s
