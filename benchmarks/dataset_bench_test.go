@@ -1,6 +1,7 @@
 package benchmarks
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -69,8 +70,12 @@ func BenchmarkDataSetWalk(b *testing.B) {
 	sizes := []int{10, 50, 100, 500, 1000}
 
 	for _, size := range sizes {
-		b.Run(string(rune(size))+"_elements", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d_elements", size), func(b *testing.B) {
 			ds := setupLargeDataSet(b, size)
+
+			// Estimate bytes per element (tag + VR + value)
+			avgBytesPerElement := int64(100)
+			b.SetBytes(int64(size) * avgBytesPerElement)
 
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -88,7 +93,7 @@ func BenchmarkDataSetWalkModify(b *testing.B) {
 	sizes := []int{10, 50, 100, 500}
 
 	for _, size := range sizes {
-		b.Run(string(rune(size))+"_elements", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d_elements", size), func(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {

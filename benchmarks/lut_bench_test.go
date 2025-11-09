@@ -1,6 +1,7 @@
 package benchmarks
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -27,7 +28,7 @@ func BenchmarkApplyWindowLevel(b *testing.B) {
 
 	for _, size := range imageSizes {
 		for _, bits := range bitDepths {
-			b.Run(size.name+"_"+string(rune(bits))+"bit", func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s_%dbit", size.name, bits), func(b *testing.B) {
 				pixelData := setupGrayscalePixelData(b, size.rows, size.cols, bits)
 
 				// Typical lung window for CT
@@ -201,7 +202,7 @@ func BenchmarkSegmentedLUTExpansion(b *testing.B) {
 	sizes := []int{256, 4096, 65536}
 
 	for _, size := range sizes {
-		b.Run(string(rune(size))+"_entries", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d_entries", size), func(b *testing.B) {
 			segmentedLUT := setupSegmentedLUT(b, size)
 
 			b.ReportAllocs()

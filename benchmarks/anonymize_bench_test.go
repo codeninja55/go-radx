@@ -1,6 +1,7 @@
 package benchmarks
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -21,7 +22,7 @@ func BenchmarkAnonymizerCreation(b *testing.B) {
 	}
 
 	for _, profile := range profiles {
-		b.Run(string(rune(profile)), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d", profile), func(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -38,8 +39,12 @@ func BenchmarkAnonymizeBasicDataSet(b *testing.B) {
 	sizes := []int{10, 50, 100, 500}
 
 	for _, size := range sizes {
-		b.Run(string(rune(size))+"_elements", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d_elements", size), func(b *testing.B) {
 			ds := setupAnonymizableDataSet(b, size)
+
+			// Estimate bytes per element (tag + VR + value)
+			avgBytesPerElement := int64(100)
+			b.SetBytes(int64(size) * avgBytesPerElement)
 
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -125,7 +130,7 @@ func BenchmarkDataSetAnonymizeBasic(b *testing.B) {
 	sizes := []int{10, 50, 100}
 
 	for _, size := range sizes {
-		b.Run(string(rune(size))+"_elements", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d_elements", size), func(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
@@ -190,7 +195,7 @@ func BenchmarkAnonymizeMemory(b *testing.B) {
 	sizes := []int{100, 500, 1000}
 
 	for _, size := range sizes {
-		b.Run(string(rune(size))+"_elements", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d_elements", size), func(b *testing.B) {
 			ds := setupAnonymizableDataSet(b, size)
 
 			b.ReportAllocs()
