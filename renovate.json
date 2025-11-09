@@ -1,0 +1,52 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":automergeDigest",
+    ":automergePatch",
+    ":automergeBranchPush"
+  ],
+  "labels": ["dependencies"],
+  "schedule": ["before 3am on Monday"],
+  "timezone": "UTC",
+  "prConcurrentLimit": 3,
+  "packageRules": [
+    {
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "major-update"]
+    },
+    {
+      "matchPackagePatterns": ["^github.com/stretchr/testify"],
+      "groupName": "test dependencies"
+    },
+    {
+      "matchPackagePatterns": ["^github.com/go-playground/validator"],
+      "groupName": "validation dependencies"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch"]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  "osvVulnerabilityAlerts": true,
+  "separateMajorMinor": true,
+  "separateMinorPatch": false,
+  "ignoreTests": false,
+  "respectLatest": true,
+  "stabilityDays": 3,
+  "prCreation": "not-pending"
+}

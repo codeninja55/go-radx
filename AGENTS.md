@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This document provides context for AI assistants working on the `codeninj55/go-radx` project.
+This document provides context for AI assistants working on the `codeninja55/go-radx` project.
 
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
@@ -20,6 +20,37 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
+
+## Configuration File Preferences
+
+**CRITICAL**: Follow these configuration file naming and format conventions:
+
+### Mise Configuration
+- **ALWAYS** use `mise.toml` (NOT `.mise.toml`)
+- The project uses `mise.toml` in the root directory
+- Never create `.mise.toml` - it's incorrect for this project
+
+### Configuration Format Preferences
+1. **First choice**: YAML (`.yml` or `.yaml`)
+   - Examples: `.golangci.yml`, `.pre-commit-config.yaml`, `.yamllint.yml`
+   - YAML is preferred for readability and human editing
+2. **Second choice**: TOML
+   - Examples: `mise.toml`, `pyproject.toml`
+   - Used when YAML is not supported or TOML is more idiomatic
+3. **Third choice**: JSON, JavaScript, or TypeScript
+   - Examples: `renovate.json`, `.markdownlint.json`
+   - Only when YAML/TOML are not options
+
+### Existing Configuration Files
+- `mise.toml` - Task runner and tool version management (NOT `.mise.toml`)
+- `.golangci.yml` - Linter configuration
+- `.pre-commit-config.yaml` - Pre-commit hooks
+- `renovate.json` - Dependency updates
+- `.yamllint.yml` - YAML linting rules
+- `.markdownlint.json` - Markdown linting rules
+- `.secrets.baseline` - Secret detection baseline
+
+**Always check for existing configuration files before creating new ones.**
 
 
 ## Project Overview
