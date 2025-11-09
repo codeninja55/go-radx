@@ -615,10 +615,17 @@ func (h *associationHandler) handleCMove(ctx context.Context, msg *dimse.Message
 
 // sendResponse sends a DIMSE response message
 func (h *associationHandler) sendResponse(ctx context.Context, cmd *dimse.CommandSet, ds *dicom.DataSet, pcID uint8) error {
+	// Look up transfer syntax from presentation context
+	transferSyntax := ""
+	if pc, ok := h.assoc.GetPresentationContext(pcID); ok {
+		transferSyntax = pc.TransferSyntax
+	}
+
 	msg := &dimse.Message{
 		CommandSet:            cmd,
 		DataSet:               ds,
 		PresentationContextID: pcID,
+		TransferSyntax:        transferSyntax,
 	}
 
 	pdus, err := msg.Encode(h.conn.GetMaxPDULength())

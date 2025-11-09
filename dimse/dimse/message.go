@@ -16,6 +16,7 @@ type Message struct {
 	CommandSet            *CommandSet
 	DataSet               *dicom.DataSet
 	PresentationContextID uint8
+	TransferSyntax        string // Transfer syntax UID for dataset encoding
 }
 
 // Encode encodes the message into P-DATA-TF PDUs
@@ -48,7 +49,8 @@ func (m *Message) Encode(maxPDULength uint32) ([]*pdu.DataTF, error) {
 	// Encode dataset if present
 	if hasDataset {
 		var dsBuf bytes.Buffer
-		if err := encodeDataSetImplicitVR(m.DataSet, &dsBuf); err != nil {
+		// Use the negotiated transfer syntax for dataset encoding
+		if err := encodeDataSetByTransferSyntax(m.DataSet, &dsBuf, m.TransferSyntax); err != nil {
 			return nil, fmt.Errorf("serialize dataset: %w", err)
 		}
 
@@ -336,4 +338,86 @@ func (r *MessageReassembler) AddPDU(dataPDU *pdu.DataTF) (*Message, error) {
 	}
 
 	return nil, nil // Message not yet complete
+}
+
+// encodeDataSetExplicitVR encodes a dataset using Explicit VR Little Endian.
+func encodeDataSetExplicitVR(ds *dicom.DataSet, w io.Writer) error {
+	elements := ds.Elements()
+
+	for _, elem := range elements {
+		t := elem.Tag()
+		v := elem.VR()
+		val := elem.Value()
+
+		// Write tag (group, element)
+		if err := binary.Write(w, binary.LittleEndian, t.Group); err != nil {
+			return fmt.Errorf("failed to write tag group: %w", err)
+		}
+		if err := binary.Write(w, binary.LittleEndian, t.Element); err != nil {
+			return fmt.Errorf("failed to write tag element: %w", err)
+		}
+
+		// Write VR (2 bytes)
+		vrBytes := []byte(v.String())
+		if len(vrBytes) != 2 {
+			return fmt.Errorf("invalid VR length: %s", v.String())
+		}
+		if _, err := w.Write(vrBytes); err != nil {
+			return fmt.Errorf("failed to write VR: %w", err)
+		}
+
+		// Get value bytes
+		valueBytes := val.Bytes()
+		valueLength := uint32(len(valueBytes))
+
+		// Check if VR needs 4-byte length (OB, OD, OF, OL, OW, SQ, UC, UN, UR, UT)
+		needsLongLength := v.String() == "OB" || v.String() == "OD" || v.String() == "OF" || v.String() == "OL" ||
+			v.String() == "OW" || v.String() == "SQ" || v.String() == "UC" || v.String() == "UN" ||
+			v.String() == "UR" || v.String() == "UT"
+
+		if needsLongLength {
+			// Write 2 reserved bytes (0x0000)
+			if err := binary.Write(w, binary.LittleEndian, uint16(0)); err != nil {
+				return fmt.Errorf("failed to write reserved bytes: %w", err)
+			}
+			// Write 4-byte length
+			if err := binary.Write(w, binary.LittleEndian, valueLength); err != nil {
+				return fmt.Errorf("failed to write value length: %w", err)
+			}
+		} else {
+			// Write 2-byte length
+			if valueLength > 0xFFFF {
+				return fmt.Errorf("value length %d exceeds 2-byte limit for VR %s", valueLength, v.String())
+			}
+			if err := binary.Write(w, binary.LittleEndian, uint16(valueLength)); err != nil {
+				return fmt.Errorf("failed to write value length: %w", err)
+			}
+		}
+
+		// Write value bytes
+		if len(valueBytes) > 0 {
+			if _, err := w.Write(valueBytes); err != nil {
+				return fmt.Errorf("failed to write value bytes: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// encodeDataSetByTransferSyntax encodes a dataset using the specified transfer syntax.
+func encodeDataSetByTransferSyntax(ds *dicom.DataSet, w io.Writer, transferSyntax string) error {
+	// Determine if transfer syntax is explicit VR
+	// Common transfer syntaxes:
+	// 1.2.840.10008.1.2     - Implicit VR Little Endian
+	// 1.2.840.10008.1.2.1   - Explicit VR Little Endian
+	// 1.2.840.10008.1.2.2   - Explicit VR Big Endian (not supported in DIMSE)
+
+	// Default to Implicit VR if transfer syntax is empty or Implicit VR
+	if transferSyntax == "" || transferSyntax == "1.2.840.10008.1.2" {
+		return encodeDataSetImplicitVR(ds, w)
+	}
+
+	// Use Explicit VR for other transfer syntaxes
+	return encodeDataSetExplicitVR(ds, w)
 }

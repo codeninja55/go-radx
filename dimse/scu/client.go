@@ -91,6 +91,7 @@ func (c *Client) Echo(ctx context.Context) error {
 	msg := &dimse.Message{
 		CommandSet:            cmd,
 		PresentationContextID: pc.ID,
+		TransferSyntax:        "", // No dataset in C-ECHO-RQ
 	}
 
 	if err := c.sendMessage(ctx, msg); err != nil {
@@ -133,6 +134,7 @@ func (c *Client) Store(ctx context.Context, ds *dicom.DataSet, sopClassUID, sopI
 		CommandSet:            cmd,
 		DataSet:               ds,
 		PresentationContextID: pc.ID,
+		TransferSyntax:        pc.TransferSyntax,
 	}
 
 	if err := c.sendMessage(ctx, msg); err != nil {
@@ -174,6 +176,7 @@ func (c *Client) Find(ctx context.Context, queryLevel, sopClassUID string, query
 		CommandSet:            cmd,
 		DataSet:               query,
 		PresentationContextID: pc.ID,
+		TransferSyntax:        pc.TransferSyntax,
 	}
 
 	if err := c.sendMessage(ctx, msg); err != nil {
@@ -231,6 +234,7 @@ func (c *Client) Get(ctx context.Context, sopClassUID string, query *dicom.DataS
 		CommandSet:            cmd,
 		DataSet:               query,
 		PresentationContextID: pc.ID,
+		TransferSyntax:        pc.TransferSyntax,
 	}
 
 	if err := c.sendMessage(ctx, msg); err != nil {
@@ -266,6 +270,7 @@ func (c *Client) Get(ctx context.Context, sopClassUID string, query *dicom.DataS
 			storeRspMsg := &dimse.Message{
 				CommandSet:            storeRsp,
 				PresentationContextID: rsp.PresentationContextID,
+				TransferSyntax:        "", // No dataset in C-STORE-RSP
 			}
 
 			if err := c.sendMessage(ctx, storeRspMsg); err != nil {
@@ -311,6 +316,7 @@ func (c *Client) Move(ctx context.Context, sopClassUID, destination string, quer
 		CommandSet:            cmd,
 		DataSet:               query,
 		PresentationContextID: pc.ID,
+		TransferSyntax:        pc.TransferSyntax,
 	}
 
 	if err := c.sendMessage(ctx, msg); err != nil {
