@@ -7,28 +7,29 @@ import (
 	"github.com/codeninja55/go-radx/fhir/validation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func TestPatient_Validate_Valid(t *testing.T) {
 	// Create a valid patient
 	birthDate := primitives.MustDate("1974-12-25")
 	patient := Patient{
-		ID:     stringPtr("example"),
-		Active: boolPtr(true),
+		ID:     testutil.StringPtr("example"),
+		Active: testutil.BoolPtr(true),
 		Name: []HumanName{
 			{
-				Use:    stringPtr("official"),
-				Family: stringPtr("Chalmers"),
+				Use:    testutil.StringPtr("official"),
+				Family: testutil.StringPtr("Chalmers"),
 				Given:  []string{"Peter", "James"},
 			},
 		},
-		Gender:    stringPtr("male"),
+		Gender:    testutil.StringPtr("male"),
 		BirthDate: &birthDate,
 		Telecom: []ContactPoint{
 			{
-				System: stringPtr("phone"),
-				Value:  stringPtr("(03) 5555 6473"),
-				Use:    stringPtr("work"),
+				System: testutil.StringPtr("phone"),
+				Value:  testutil.StringPtr("(03) 5555 6473"),
+				Use:    testutil.StringPtr("work"),
 			},
 		},
 	}
@@ -39,8 +40,8 @@ func TestPatient_Validate_Valid(t *testing.T) {
 
 func TestPatient_Validate_InvalidGender(t *testing.T) {
 	patient := Patient{
-		ID:     stringPtr("example"),
-		Gender: stringPtr("invalid"),
+		ID:     testutil.StringPtr("example"),
+		Gender: testutil.StringPtr("invalid"),
 	}
 
 	err := patient.Validate()
@@ -57,9 +58,9 @@ func TestPatient_Validate_InvalidGender(t *testing.T) {
 
 func TestPatient_Validate_InvalidReference(t *testing.T) {
 	patient := Patient{
-		ID: stringPtr("example"),
+		ID: testutil.StringPtr("example"),
 		ManagingOrganization: &Reference{
-			Reference: stringPtr("invalid-ref"),
+			Reference: testutil.StringPtr("invalid-ref"),
 		},
 	}
 
@@ -77,11 +78,11 @@ func TestPatient_Validate_InvalidReference(t *testing.T) {
 
 func TestPatient_Validate_InvalidHumanNameUse(t *testing.T) {
 	patient := Patient{
-		ID: stringPtr("example"),
+		ID: testutil.StringPtr("example"),
 		Name: []HumanName{
 			{
-				Use:    stringPtr("invalid-use"),
-				Family: stringPtr("Doe"),
+				Use:    testutil.StringPtr("invalid-use"),
+				Family: testutil.StringPtr("Doe"),
 			},
 		},
 	}
@@ -101,11 +102,11 @@ func TestPatient_Validate_InvalidHumanNameUse(t *testing.T) {
 
 func TestPatient_Validate_InvalidContactPointSystem(t *testing.T) {
 	patient := Patient{
-		ID: stringPtr("example"),
+		ID: testutil.StringPtr("example"),
 		Telecom: []ContactPoint{
 			{
-				System: stringPtr("invalid-system"),
-				Value:  stringPtr("123"),
+				System: testutil.StringPtr("invalid-system"),
+				Value:  testutil.StringPtr("123"),
 			},
 		},
 	}
@@ -125,11 +126,11 @@ func TestPatient_Validate_InvalidContactPointSystem(t *testing.T) {
 
 func TestPatient_Validate_InvalidLinkType(t *testing.T) {
 	patient := Patient{
-		ID: stringPtr("example"),
+		ID: testutil.StringPtr("example"),
 		Link: []PatientLink{
 			{
 				Other: Reference{
-					Reference: stringPtr("Patient/123"),
+					Reference: testutil.StringPtr("Patient/123"),
 				},
 				Type: "invalid-type",
 			},
@@ -151,11 +152,11 @@ func TestPatient_Validate_InvalidLinkType(t *testing.T) {
 
 func TestPatient_Validate_ValidLink(t *testing.T) {
 	patient := Patient{
-		ID: stringPtr("example"),
+		ID: testutil.StringPtr("example"),
 		Link: []PatientLink{
 			{
 				Other: Reference{
-					Reference: stringPtr("Patient/123"),
+					Reference: testutil.StringPtr("Patient/123"),
 				},
 				Type: "seealso",
 			},
@@ -168,17 +169,17 @@ func TestPatient_Validate_ValidLink(t *testing.T) {
 
 func TestPatient_Validate_MultipleErrors(t *testing.T) {
 	patient := Patient{
-		ID:     stringPtr("example"),
-		Gender: stringPtr("invalid-gender"),
+		ID:     testutil.StringPtr("example"),
+		Gender: testutil.StringPtr("invalid-gender"),
 		Name: []HumanName{
 			{
-				Use:    stringPtr("invalid-use"),
-				Family: stringPtr("Doe"),
+				Use:    testutil.StringPtr("invalid-use"),
+				Family: testutil.StringPtr("Doe"),
 			},
 		},
 		Telecom: []ContactPoint{
 			{
-				System: stringPtr("invalid-system"),
+				System: testutil.StringPtr("invalid-system"),
 			},
 		},
 	}
@@ -193,10 +194,4 @@ func TestPatient_Validate_MultipleErrors(t *testing.T) {
 	// Should have 3 errors: gender, name use, and telecom system
 	errList := valErrs.List()
 	assert.Len(t, errList, 3)
-}
-
-// Helper functions
-
-func boolPtr(b bool) *bool {
-	return &b
 }

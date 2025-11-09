@@ -3,6 +3,7 @@ package primitives
 import (
 	"encoding/json"
 	"testing"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func TestPrimitiveExtension_Marshal(t *testing.T) {
@@ -20,19 +21,19 @@ func TestPrimitiveExtension_Marshal(t *testing.T) {
 		{
 			name: "primitive without extension",
 			resource: TestResource{
-				Active: boolPtr(true),
+				Active: testutil.BoolPtr(true),
 			},
 			want: `{"active":true}`,
 		},
 		{
 			name: "primitive with extension",
 			resource: TestResource{
-				Active: boolPtr(true),
+				Active: testutil.BoolPtr(true),
 				ActiveExt: &PrimitiveExtension{
 					Extension: []Extension{
 						{
 							URL:         "http://example.org/ext",
-							ValueString: stringPtr("test"),
+							ValueString: testutil.StringPtr("test"),
 						},
 					},
 				},
@@ -46,7 +47,7 @@ func TestPrimitiveExtension_Marshal(t *testing.T) {
 					Extension: []Extension{
 						{
 							URL:         "http://example.org/ext",
-							ValueString: stringPtr("test"),
+							ValueString: testutil.StringPtr("test"),
 						},
 					},
 				},
@@ -84,19 +85,19 @@ func TestPrimitiveExtension_Unmarshal(t *testing.T) {
 			name: "primitive without extension",
 			json: `{"active":true}`,
 			want: TestResource{
-				Active: boolPtr(true),
+				Active: testutil.BoolPtr(true),
 			},
 		},
 		{
 			name: "primitive with extension",
 			json: `{"active":true,"_active":{"extension":[{"url":"http://example.org/ext","valueString":"test"}]}}`,
 			want: TestResource{
-				Active: boolPtr(true),
+				Active: testutil.BoolPtr(true),
 				ActiveExt: &PrimitiveExtension{
 					Extension: []Extension{
 						{
 							URL:         "http://example.org/ext",
-							ValueString: stringPtr("test"),
+							ValueString: testutil.StringPtr("test"),
 						},
 					},
 				},
@@ -110,7 +111,7 @@ func TestPrimitiveExtension_Unmarshal(t *testing.T) {
 					Extension: []Extension{
 						{
 							URL:         "http://example.org/ext",
-							ValueString: stringPtr("test"),
+							ValueString: testutil.StringPtr("test"),
 						},
 					},
 				},
@@ -160,16 +161,16 @@ func TestPrimitiveExtension_RoundTrip(t *testing.T) {
 	}
 
 	original := TestResource{
-		ID: stringPtr("123"),
+		ID: testutil.StringPtr("123"),
 		IDExt: &PrimitiveExtension{
 			Extension: []Extension{
 				{
 					URL:         "http://example.org/ext",
-					ValueString: stringPtr("id-extension"),
+					ValueString: testutil.StringPtr("id-extension"),
 				},
 			},
 		},
-		Active: boolPtr(true),
+		Active: testutil.BoolPtr(true),
 	}
 
 	// Marshal
@@ -206,8 +207,8 @@ func TestPrimitiveExtension_RoundTrip(t *testing.T) {
 func TestPrimitiveExtension_Helpers(t *testing.T) {
 	ext := &PrimitiveExtension{
 		Extension: []Extension{
-			{URL: "http://example.org/ext1", ValueString: stringPtr("value1")},
-			{URL: "http://example.org/ext2", ValueString: stringPtr("value2")},
+			{URL: "http://example.org/ext1", ValueString: testutil.StringPtr("value1")},
+			{URL: "http://example.org/ext2", ValueString: testutil.StringPtr("value2")},
 		},
 	}
 
@@ -238,17 +239,9 @@ func TestPrimitiveExtension_Helpers(t *testing.T) {
 	// Test AddExtension
 	ext.AddExtension(Extension{
 		URL:         "http://example.org/ext3",
-		ValueString: stringPtr("value3"),
+		ValueString: testutil.StringPtr("value3"),
 	})
 	if len(ext.Extension) != 3 {
 		t.Errorf("After AddExtension, length = %v, want 3", len(ext.Extension))
 	}
-}
-
-func boolPtr(b bool) *bool {
-	return &b
-}
-
-func stringPtr(s string) *string {
-	return &s
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/codeninja55/go-radx/fhir/primitives"
 	"github.com/codeninja55/go-radx/fhir/r4/resources"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func main() {
@@ -29,15 +30,15 @@ func createBloodPressureObservation() resources.Observation {
 	effectiveDateTime := primitives.MustDateTime("2024-01-15T10:30:00Z")
 
 	return resources.Observation{
-		ID:     stringPtr("blood-pressure"),
+		ID:     testutil.StringPtr("blood-pressure"),
 		Status: "final",
 		Category: []resources.CodeableConcept{
 			{
 				Coding: []resources.Coding{
 					{
-						System:  stringPtr("http://terminology.hl7.org/CodeSystem/observation-category"),
-						Code:    stringPtr("vital-signs"),
-						Display: stringPtr("Vital Signs"),
+						System:  testutil.StringPtr("http://terminology.hl7.org/CodeSystem/observation-category"),
+						Code:    testutil.StringPtr("vital-signs"),
+						Display: testutil.StringPtr("Vital Signs"),
 					},
 				},
 			},
@@ -45,15 +46,15 @@ func createBloodPressureObservation() resources.Observation {
 		Code: resources.CodeableConcept{
 			Coding: []resources.Coding{
 				{
-					System:  stringPtr("http://loinc.org"),
-					Code:    stringPtr("85354-9"),
-					Display: stringPtr("Blood pressure panel"),
+					System:  testutil.StringPtr("http://loinc.org"),
+					Code:    testutil.StringPtr("85354-9"),
+					Display: testutil.StringPtr("Blood pressure panel"),
 				},
 			},
-			Text: stringPtr("Blood pressure systolic & diastolic"),
+			Text: testutil.StringPtr("Blood pressure systolic & diastolic"),
 		},
 		Subject: resources.Reference{
-			Reference: stringPtr("Patient/example"),
+			Reference: testutil.StringPtr("Patient/example"),
 		},
 		EffectiveDateTime: &effectiveDateTime,
 		Component: []resources.ObservationComponent{
@@ -61,34 +62,34 @@ func createBloodPressureObservation() resources.Observation {
 				Code: resources.CodeableConcept{
 					Coding: []resources.Coding{
 						{
-							System:  stringPtr("http://loinc.org"),
-							Code:    stringPtr("8480-6"),
-							Display: stringPtr("Systolic blood pressure"),
+							System:  testutil.StringPtr("http://loinc.org"),
+							Code:    testutil.StringPtr("8480-6"),
+							Display: testutil.StringPtr("Systolic blood pressure"),
 						},
 					},
 				},
 				ValueQuantity: &resources.Quantity{
 					Value:  float64Ptr(120),
-					Unit:   stringPtr("mmHg"),
-					System: stringPtr("http://unitsofmeasure.org"),
-					Code:   stringPtr("mm[Hg]"),
+					Unit:   testutil.StringPtr("mmHg"),
+					System: testutil.StringPtr("http://unitsofmeasure.org"),
+					Code:   testutil.StringPtr("mm[Hg]"),
 				},
 			},
 			{
 				Code: resources.CodeableConcept{
 					Coding: []resources.Coding{
 						{
-							System:  stringPtr("http://loinc.org"),
-							Code:    stringPtr("8462-4"),
-							Display: stringPtr("Diastolic blood pressure"),
+							System:  testutil.StringPtr("http://loinc.org"),
+							Code:    testutil.StringPtr("8462-4"),
+							Display: testutil.StringPtr("Diastolic blood pressure"),
 						},
 					},
 				},
 				ValueQuantity: &resources.Quantity{
 					Value:  float64Ptr(80),
-					Unit:   stringPtr("mmHg"),
-					System: stringPtr("http://unitsofmeasure.org"),
-					Code:   stringPtr("mm[Hg]"),
+					Unit:   testutil.StringPtr("mmHg"),
+					System: testutil.StringPtr("http://unitsofmeasure.org"),
+					Code:   testutil.StringPtr("mm[Hg]"),
 				},
 			},
 		},
@@ -96,9 +97,9 @@ func createBloodPressureObservation() resources.Observation {
 			{
 				Coding: []resources.Coding{
 					{
-						System:  stringPtr("http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"),
-						Code:    stringPtr("N"),
-						Display: stringPtr("Normal"),
+						System:  testutil.StringPtr("http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"),
+						Code:    testutil.StringPtr("N"),
+						Display: testutil.StringPtr("Normal"),
 					},
 				},
 			},
@@ -106,7 +107,7 @@ func createBloodPressureObservation() resources.Observation {
 	}
 }
 
-func stringPtr(s string) *string {
+func testutil.StringPtr(s string) *string {
 	return &s
 }
 

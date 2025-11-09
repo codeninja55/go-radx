@@ -3,6 +3,7 @@ package validation
 import (
 	"strings"
 	"testing"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func TestChoiceTypeValidation(t *testing.T) {
@@ -28,22 +29,22 @@ func TestChoiceTypeValidation(t *testing.T) {
 		{
 			name: "only boolean set - valid",
 			resource: &TestResource{
-				DeceasedBoolean: boolPtr(true),
+				DeceasedBoolean: testutil.BoolPtr(true),
 			},
 			wantError: false,
 		},
 		{
 			name: "only dateTime set - valid",
 			resource: &TestResource{
-				DeceasedDateTime: stringPtr("2024-01-01"),
+				DeceasedDateTime: testutil.StringPtr("2024-01-01"),
 			},
 			wantError: false,
 		},
 		{
 			name: "both fields set - invalid",
 			resource: &TestResource{
-				DeceasedBoolean:  boolPtr(true),
-				DeceasedDateTime: stringPtr("2024-01-01"),
+				DeceasedBoolean:  testutil.BoolPtr(true),
+				DeceasedDateTime: testutil.StringPtr("2024-01-01"),
 			},
 			wantError: true,
 			errorMsg:  "deceased",
@@ -92,17 +93,17 @@ func TestChoiceTypeValidation_MultipleGroups(t *testing.T) {
 		{
 			name: "one from each group - valid",
 			resource: &TestResource{
-				DeceasedBoolean:      boolPtr(true),
-				MultipleBirthBoolean: boolPtr(false),
+				DeceasedBoolean:      testutil.BoolPtr(true),
+				MultipleBirthBoolean: testutil.BoolPtr(false),
 			},
 			wantError: false,
 		},
 		{
 			name: "multiple from first group - invalid",
 			resource: &TestResource{
-				DeceasedBoolean:      boolPtr(true),
-				DeceasedDateTime:     stringPtr("2024-01-01"),
-				MultipleBirthBoolean: boolPtr(false),
+				DeceasedBoolean:      testutil.BoolPtr(true),
+				DeceasedDateTime:     testutil.StringPtr("2024-01-01"),
+				MultipleBirthBoolean: testutil.BoolPtr(false),
 			},
 			wantError: true,
 			errorMsg:  "deceased",
@@ -110,9 +111,9 @@ func TestChoiceTypeValidation_MultipleGroups(t *testing.T) {
 		{
 			name: "multiple from second group - invalid",
 			resource: &TestResource{
-				DeceasedBoolean:      boolPtr(true),
-				MultipleBirthBoolean: boolPtr(false),
-				MultipleBirthInteger: intPtr(2),
+				DeceasedBoolean:      testutil.BoolPtr(true),
+				MultipleBirthBoolean: testutil.BoolPtr(false),
+				MultipleBirthInteger: testutil.IntPtr(2),
 			},
 			wantError: true,
 			errorMsg:  "multipleBirth",
@@ -120,10 +121,10 @@ func TestChoiceTypeValidation_MultipleGroups(t *testing.T) {
 		{
 			name: "multiple from both groups - invalid",
 			resource: &TestResource{
-				DeceasedBoolean:      boolPtr(true),
-				DeceasedDateTime:     stringPtr("2024-01-01"),
-				MultipleBirthBoolean: boolPtr(false),
-				MultipleBirthInteger: intPtr(2),
+				DeceasedBoolean:      testutil.BoolPtr(true),
+				DeceasedDateTime:     testutil.StringPtr("2024-01-01"),
+				MultipleBirthBoolean: testutil.BoolPtr(false),
+				MultipleBirthInteger: testutil.IntPtr(2),
 			},
 			wantError: true,
 			// Should report errors for both groups
@@ -173,7 +174,7 @@ func TestChoiceTypeValidation_NestedStructs(t *testing.T) {
 			resource: &Outer{
 				Name: "test",
 				Inner: &Inner{
-					ValueBoolean: boolPtr(true),
+					ValueBoolean: testutil.BoolPtr(true),
 				},
 			},
 			wantError: false,
@@ -183,8 +184,8 @@ func TestChoiceTypeValidation_NestedStructs(t *testing.T) {
 			resource: &Outer{
 				Name: "test",
 				Inner: &Inner{
-					ValueBoolean: boolPtr(true),
-					ValueString:  stringPtr("test"),
+					ValueBoolean: testutil.BoolPtr(true),
+					ValueString:  testutil.StringPtr("test"),
 				},
 			},
 			wantError: true,
@@ -262,16 +263,4 @@ func TestChoiceTypeValidation_ZeroValues(t *testing.T) {
 			}
 		})
 	}
-}
-
-func boolPtr(b bool) *bool {
-	return &b
-}
-
-func stringPtr(s string) *string {
-	return &s
-}
-
-func intPtr(i int) *int {
-	return &i
 }

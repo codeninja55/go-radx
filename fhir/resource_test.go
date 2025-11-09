@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 	"github.com/codeninja55/go-radx/fhir/primitives"
 )
 
@@ -19,11 +20,11 @@ func TestResourceEmbedding_JSONSerialization(t *testing.T) {
 		DomainResource: DomainResource{
 			Resource: Resource{
 				ResourceType: "TestResource",
-				ID:           stringPtr("123"),
+				ID:           testutil.StringPtr("123"),
 				Meta: &Meta{
-					VersionID: stringPtr("1"),
+					VersionID: testutil.StringPtr("1"),
 				},
-				Language: stringPtr("en"),
+				Language: testutil.StringPtr("en"),
 			},
 			Text: &Narrative{
 				Status: "generated",
@@ -32,11 +33,11 @@ func TestResourceEmbedding_JSONSerialization(t *testing.T) {
 			Extension: []Extension{
 				{
 					URL:         "http://example.org/ext",
-					ValueString: stringPtr("test-value"),
+					ValueString: testutil.StringPtr("test-value"),
 				},
 			},
 		},
-		Active: boolPtr(true),
+		Active: testutil.BoolPtr(true),
 	}
 
 	// Marshal to JSON
@@ -141,13 +142,13 @@ func TestResourceEmbedding_FieldAccess(t *testing.T) {
 		DomainResource: DomainResource{
 			Resource: Resource{
 				ResourceType: "TestResource",
-				ID:           stringPtr("789"),
+				ID:           testutil.StringPtr("789"),
 				Meta: &Meta{
-					VersionID: stringPtr("1"),
+					VersionID: testutil.StringPtr("1"),
 				},
 			},
 		},
-		Active: boolPtr(true),
+		Active: testutil.BoolPtr(true),
 	}
 
 	// Direct access to Resource fields through embedding
@@ -163,7 +164,7 @@ func TestResourceEmbedding_FieldAccess(t *testing.T) {
 
 	// Modify embedded fields
 	resource.ResourceType = "Modified"
-	resource.ID = stringPtr("updated")
+	resource.ID = testutil.StringPtr("updated")
 
 	if resource.ResourceType != "Modified" {
 		t.Error("ResourceType modification failed")
@@ -174,7 +175,7 @@ func TestResourceEmbedding_FieldAccess(t *testing.T) {
 
 	// Access DomainResource fields
 	resource.Extension = []Extension{
-		{URL: "http://example.org/ext", ValueString: stringPtr("value")},
+		{URL: "http://example.org/ext", ValueString: testutil.StringPtr("value")},
 	}
 	if len(resource.Extension) != 1 {
 		t.Error("Extension modification failed")
@@ -186,9 +187,9 @@ func TestResourceEmbedding_RoundTrip(t *testing.T) {
 		DomainResource: DomainResource{
 			Resource: Resource{
 				ResourceType:  "TestResource",
-				ID:            stringPtr("round-trip"),
-				Language:      stringPtr("en-US"),
-				ImplicitRules: stringPtr("http://example.org/rules"),
+				ID:            testutil.StringPtr("round-trip"),
+				Language:      testutil.StringPtr("en-US"),
+				ImplicitRules: testutil.StringPtr("http://example.org/rules"),
 			},
 			Text: &Narrative{
 				Status: "generated",
@@ -197,17 +198,17 @@ func TestResourceEmbedding_RoundTrip(t *testing.T) {
 			Extension: []Extension{
 				{
 					URL:         "http://example.org/ext1",
-					ValueString: stringPtr("value1"),
+					ValueString: testutil.StringPtr("value1"),
 				},
 			},
 			ModifierExtension: []Extension{
 				{
 					URL:          "http://example.org/modifier",
-					ValueBoolean: boolPtr(true),
+					ValueBoolean: testutil.BoolPtr(true),
 				},
 			},
 		},
-		Active: boolPtr(true),
+		Active: testutil.BoolPtr(true),
 	}
 
 	// Marshal
@@ -256,21 +257,21 @@ func TestPrimitiveExtensions_OnBaseTypes(t *testing.T) {
 		DomainResource: DomainResource{
 			Resource: Resource{
 				ResourceType: "TestResource",
-				ID:           stringPtr("ext-test"),
+				ID:           testutil.StringPtr("ext-test"),
 				IDExt: &primitives.PrimitiveExtension{
 					Extension: []primitives.Extension{
 						{
 							URL:         "http://example.org/id-ext",
-							ValueString: stringPtr("id-extension-value"),
+							ValueString: testutil.StringPtr("id-extension-value"),
 						},
 					},
 				},
-				Language: stringPtr("en"),
+				Language: testutil.StringPtr("en"),
 				LanguageExt: &primitives.PrimitiveExtension{
 					Extension: []primitives.Extension{
 						{
 							URL:         "http://example.org/lang-ext",
-							ValueString: stringPtr("language-extension-value"),
+							ValueString: testutil.StringPtr("language-extension-value"),
 						},
 					},
 				},
@@ -311,12 +312,4 @@ func TestPrimitiveExtensions_OnBaseTypes(t *testing.T) {
 	}
 
 	t.Logf("JSON with extensions: %s", string(data))
-}
-
-func stringPtr(s string) *string {
-	return &s
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }

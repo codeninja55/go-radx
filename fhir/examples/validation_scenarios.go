@@ -9,6 +9,7 @@ import (
 	"github.com/codeninja55/go-radx/fhir/primitives"
 	"github.com/codeninja55/go-radx/fhir/r5/resources"
 	"github.com/codeninja55/go-radx/fhir/validation"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 // Example: Various validation scenarios
@@ -21,8 +22,8 @@ func main() {
 	// Example 1: Valid patient (all required fields present)
 	fmt.Println("1. Valid Patient:")
 	validPatient := &resources.Patient{
-		ID:     stringPtr("valid-patient"),
-		Active: boolPtr(true),
+		ID:     testutil.StringPtr("valid-patient"),
+		Active: testutil.BoolPtr(true),
 	}
 	if err := validator.Validate(validPatient); err != nil {
 		fmt.Printf("   ❌ Validation failed: %v\n", err)
@@ -33,8 +34,8 @@ func main() {
 	// Example 2: Patient with invalid gender enum
 	fmt.Println("\n2. Patient with Invalid Gender:")
 	invalidGender := &resources.Patient{
-		ID:     stringPtr("invalid-gender"),
-		Gender: stringPtr("invalid-value"), // Should be: male, female, other, unknown
+		ID:     testutil.StringPtr("invalid-gender"),
+		Gender: testutil.StringPtr("invalid-value"), // Should be: male, female, other, unknown
 	}
 	if err := validator.Validate(invalidGender); err != nil {
 		fmt.Printf("   ❌ Expected validation error: %v\n", err)
@@ -46,23 +47,23 @@ func main() {
 	fmt.Println("\n3. Valid Observation:")
 	effectiveDateTime := primitives.MustDateTime("2024-01-15T10:30:00Z")
 	validObservation := &resources.Observation{
-		ID:     stringPtr("obs-1"),
+		ID:     testutil.StringPtr("obs-1"),
 		Status: "final", // Required field
 		Code: resources.CodeableConcept{ // Required field
 			Coding: []resources.Coding{
 				{
-					System:  stringPtr("http://loinc.org"),
-					Code:    stringPtr("8867-4"),
-					Display: stringPtr("Heart rate"),
+					System:  testutil.StringPtr("http://loinc.org"),
+					Code:    testutil.StringPtr("8867-4"),
+					Display: testutil.StringPtr("Heart rate"),
 				},
 			},
 		},
 		EffectiveDateTime: &effectiveDateTime,
 		ValueQuantity: &resources.Quantity{
 			Value:  float64Ptr(72),
-			Unit:   stringPtr("beats/minute"),
-			System: stringPtr("http://unitsofmeasure.org"),
-			Code:   stringPtr("/min"),
+			Unit:   testutil.StringPtr("beats/minute"),
+			System: testutil.StringPtr("http://unitsofmeasure.org"),
+			Code:   testutil.StringPtr("/min"),
 		},
 	}
 	if err := validator.Validate(validObservation); err != nil {
@@ -74,10 +75,10 @@ func main() {
 	// Example 4: Observation missing required status
 	fmt.Println("\n4. Observation Missing Required Status:")
 	invalidObservation := &resources.Observation{
-		ID: stringPtr("obs-2"),
+		ID: testutil.StringPtr("obs-2"),
 		// Missing Status (required field)
 		Code: resources.CodeableConcept{
-			Text: stringPtr("Heart rate"),
+			Text: testutil.StringPtr("Heart rate"),
 		},
 	}
 	if err := validator.Validate(invalidObservation); err != nil {
@@ -89,8 +90,8 @@ func main() {
 	// Example 5: Choice type validation (deceased[x])
 	fmt.Println("\n5. Valid Choice Type (deceasedBoolean):")
 	patientDeceased := &resources.Patient{
-		ID:              stringPtr("patient-deceased"),
-		DeceasedBoolean: boolPtr(false),
+		ID:              testutil.StringPtr("patient-deceased"),
+		DeceasedBoolean: testutil.BoolPtr(false),
 		// Only one deceased[x] field should be set
 	}
 	if err := validator.Validate(patientDeceased); err != nil {
@@ -103,8 +104,8 @@ func main() {
 	fmt.Println("\n6. Invalid Choice Type (multiple deceased[x] fields):")
 	deceasedDateTime := primitives.MustDateTime("2024-01-01T00:00:00Z")
 	invalidChoice := &resources.Patient{
-		ID:               stringPtr("patient-invalid-choice"),
-		DeceasedBoolean:  boolPtr(false),    // First choice
+		ID:               testutil.StringPtr("patient-invalid-choice"),
+		DeceasedBoolean:  testutil.BoolPtr(false),    // First choice
 		DeceasedDateTime: &deceasedDateTime, // Second choice - INVALID!
 	}
 	if err := validator.Validate(invalidChoice); err != nil {
@@ -116,8 +117,8 @@ func main() {
 	// Example 7: Reference validation
 	fmt.Println("\n7. Valid Reference:")
 	validReference := &resources.Reference{
-		Reference: stringPtr("Patient/123"),
-		Display:   stringPtr("John Doe"),
+		Reference: testutil.StringPtr("Patient/123"),
+		Display:   testutil.StringPtr("John Doe"),
 	}
 	if err := validation.ValidateReference(validReference); err != nil {
 		fmt.Printf("   ❌ Validation failed: %v\n", err)
@@ -128,7 +129,7 @@ func main() {
 	// Example 8: Invalid reference format
 	fmt.Println("\n8. Invalid Reference Format:")
 	invalidReference := &resources.Reference{
-		Reference: stringPtr("invalid-format"), // Should be ResourceType/id
+		Reference: testutil.StringPtr("invalid-format"), // Should be ResourceType/id
 	}
 	if err := validation.ValidateReference(invalidReference); err != nil {
 		fmt.Printf("   ❌ Expected validation error: %v\n", err)
@@ -140,15 +141,15 @@ func main() {
 	fmt.Println("\n9. Cardinality Validation:")
 	// Testing cardinality for identifiers (0..*)
 	patientWithIdentifiers := &resources.Patient{
-		ID: stringPtr("patient-identifiers"),
+		ID: testutil.StringPtr("patient-identifiers"),
 		Identifier: []resources.Identifier{
 			{
-				System: stringPtr("http://hospital.example.org"),
-				Value:  stringPtr("MRN12345"),
+				System: testutil.StringPtr("http://hospital.example.org"),
+				Value:  testutil.StringPtr("MRN12345"),
 			},
 			{
-				System: stringPtr("http://hl7.org/fhir/sid/us-ssn"),
-				Value:  stringPtr("123-45-6789"),
+				System: testutil.StringPtr("http://hl7.org/fhir/sid/us-ssn"),
+				Value:  testutil.StringPtr("123-45-6789"),
 			},
 		},
 	}
@@ -161,8 +162,8 @@ func main() {
 	// Example 10: Custom validation function
 	fmt.Println("\n10. Custom Business Rules:")
 	patient := &resources.Patient{
-		ID:     stringPtr("patient-business-rules"),
-		Active: boolPtr(true),
+		ID:     testutil.StringPtr("patient-business-rules"),
+		Active: testutil.BoolPtr(true),
 	}
 
 	// Add custom business logic validation
@@ -198,9 +199,9 @@ func validateMultipleResources() {
 	validator := validation.NewFHIRValidator()
 
 	patients := []*resources.Patient{
-		{ID: stringPtr("p1"), Active: boolPtr(true)},
-		{ID: stringPtr("p2"), Gender: stringPtr("male")},
-		{ID: stringPtr("p3"), Gender: stringPtr("invalid")}, // This will fail
+		{ID: testutil.StringPtr("p1"), Active: testutil.BoolPtr(true)},
+		{ID: testutil.StringPtr("p2"), Gender: testutil.StringPtr("male")},
+		{ID: testutil.StringPtr("p3"), Gender: testutil.StringPtr("invalid")}, // This will fail
 	}
 
 	fmt.Println("\n=== Batch Validation ===")
@@ -220,11 +221,11 @@ func validateMultipleResources() {
 	fmt.Printf("\nResults: %d valid, %d invalid\n", validCount, invalidCount)
 }
 
-func stringPtr(s string) *string {
+func testutil.StringPtr(s string) *string {
 	return &s
 }
 
-func boolPtr(b bool) *bool {
+func testutil.BoolPtr(b bool) *bool {
 	return &b
 }
 

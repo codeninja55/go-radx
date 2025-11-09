@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 // TestPatient is a simplified patient structure for testing
@@ -21,15 +22,15 @@ func TestMarshalSummaryJSON(t *testing.T) {
 	patient := &TestPatient{
 		Resource: Resource{
 			ResourceType: "Patient",
-			ID:           stringPtr("example"),
+			ID:           testutil.StringPtr("example"),
 			Meta: &Meta{
-				VersionID: stringPtr("1"),
+				VersionID: testutil.StringPtr("1"),
 			},
 		},
-		Active:              boolPtr(true),
-		BirthDate:           stringPtr("1990-01-01"),
-		Photo:               stringPtr("photo-url"),
-		GeneralPractitioner: stringPtr("Practitioner/123"),
+		Active:              testutil.BoolPtr(true),
+		BirthDate:           testutil.StringPtr("1990-01-01"),
+		Photo:               testutil.StringPtr("photo-url"),
+		GeneralPractitioner: testutil.StringPtr("Practitioner/123"),
 	}
 
 	// Marshal with summary mode
@@ -76,11 +77,11 @@ func TestMarshalWithSummaryMode_All(t *testing.T) {
 	patient := &TestPatient{
 		Resource: Resource{
 			ResourceType: "Patient",
-			ID:           stringPtr("example"),
+			ID:           testutil.StringPtr("example"),
 		},
-		Active:    boolPtr(true),
-		BirthDate: stringPtr("1990-01-01"),
-		Photo:     stringPtr("photo-url"),
+		Active:    testutil.BoolPtr(true),
+		BirthDate: testutil.StringPtr("1990-01-01"),
+		Photo:     testutil.StringPtr("photo-url"),
 	}
 
 	data, err := MarshalWithSummaryMode(patient, SummaryModeAll)
@@ -106,12 +107,12 @@ func TestMarshalWithSummaryMode_False(t *testing.T) {
 	patient := &TestPatient{
 		Resource: Resource{
 			ResourceType: "Patient",
-			ID:           stringPtr("example"),
+			ID:           testutil.StringPtr("example"),
 		},
-		Active:              boolPtr(true),
-		BirthDate:           stringPtr("1990-01-01"),
-		Photo:               stringPtr("photo-url"),
-		GeneralPractitioner: stringPtr("Practitioner/123"),
+		Active:              testutil.BoolPtr(true),
+		BirthDate:           testutil.StringPtr("1990-01-01"),
+		Photo:               testutil.StringPtr("photo-url"),
+		GeneralPractitioner: testutil.StringPtr("Practitioner/123"),
 	}
 
 	data, err := MarshalWithSummaryMode(patient, SummaryModeFalse)
@@ -152,14 +153,14 @@ func TestMarshalWithSummaryMode_Text(t *testing.T) {
 	patient := &TestResourceWithText{
 		Resource: Resource{
 			ResourceType: "Patient",
-			ID:           stringPtr("example"),
+			ID:           testutil.StringPtr("example"),
 		},
 		Text: &Narrative{
 			Status: "generated",
 			Div:    "<div>Test</div>",
 		},
-		Active:    boolPtr(true),
-		BirthDate: stringPtr("1990-01-01"),
+		Active:    testutil.BoolPtr(true),
+		BirthDate: testutil.StringPtr("1990-01-01"),
 	}
 
 	data, err := MarshalWithSummaryMode(patient, SummaryModeText)
@@ -203,14 +204,14 @@ func TestMarshalWithSummaryMode_Data(t *testing.T) {
 	patient := &TestResourceWithText{
 		Resource: Resource{
 			ResourceType: "Patient",
-			ID:           stringPtr("example"),
+			ID:           testutil.StringPtr("example"),
 		},
 		Text: &Narrative{
 			Status: "generated",
 			Div:    "<div>Test</div>",
 		},
-		Active:    boolPtr(true),
-		BirthDate: stringPtr("1990-01-01"),
+		Active:    testutil.BoolPtr(true),
+		BirthDate: testutil.StringPtr("1990-01-01"),
 	}
 
 	data, err := MarshalWithSummaryMode(patient, SummaryModeData)
@@ -283,16 +284,16 @@ func TestSummary_WithEmbeddedStruct(t *testing.T) {
 		DomainResource: DomainResource{
 			Resource: Resource{
 				ResourceType: "Patient",
-				ID:           stringPtr("example"),
+				ID:           testutil.StringPtr("example"),
 			},
 			Text: &Narrative{
 				Status: "generated",
 				Div:    "<div>Test</div>",
 			},
 		},
-		Active:    boolPtr(true),
-		BirthDate: stringPtr("1990-01-01"),
-		Photo:     stringPtr("photo-url"),
+		Active:    testutil.BoolPtr(true),
+		BirthDate: testutil.StringPtr("1990-01-01"),
+		Photo:     testutil.StringPtr("photo-url"),
 	}
 
 	data, err := MarshalSummaryJSON(patient)
@@ -328,7 +329,7 @@ func TestSummary_NilValues(t *testing.T) {
 	patient := &TestPatient{
 		Resource: Resource{
 			ResourceType: "Patient",
-			ID:           stringPtr("example"),
+			ID:           testutil.StringPtr("example"),
 		},
 		// All optional fields are nil
 	}
@@ -361,12 +362,12 @@ func TestSummary_Comparison(t *testing.T) {
 	patient := &TestPatient{
 		Resource: Resource{
 			ResourceType: "Patient",
-			ID:           stringPtr("example"),
+			ID:           testutil.StringPtr("example"),
 		},
-		Active:              boolPtr(true),
-		BirthDate:           stringPtr("1990-01-01"),
-		Photo:               stringPtr("photo-url"),
-		GeneralPractitioner: stringPtr("Practitioner/123"),
+		Active:              testutil.BoolPtr(true),
+		BirthDate:           testutil.StringPtr("1990-01-01"),
+		Photo:               testutil.StringPtr("photo-url"),
+		GeneralPractitioner: testutil.StringPtr("Practitioner/123"),
 	}
 
 	// Full JSON

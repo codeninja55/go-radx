@@ -178,12 +178,3 @@ func ExampleValidateReference() {
 	// Valid reference
 	// Invalid reference: subject: invalid reference format: patient123 (expected 'ResourceType/id')
 }
-
-// Helper functions for examples
-func stringPtr(s string) *string {
-	return &s
-}
-
-func boolPtr(b bool) *bool {
-	return &b
-}

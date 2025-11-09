@@ -9,6 +9,7 @@ import (
 
 	"github.com/codeninja55/go-radx/fhir/primitives"
 	"github.com/codeninja55/go-radx/fhir/r4/resources"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func main() {
@@ -31,43 +32,43 @@ func createPatient() resources.Patient {
 	birthDate := primitives.MustDate("1974-12-25")
 
 	return resources.Patient{
-		ID:     stringPtr("example"),
+		ID:     testutil.StringPtr("example"),
 		Active: &active,
 		Name: []resources.HumanName{
 			{
-				Use:    stringPtr("official"),
-				Family: stringPtr("Chalmers"),
+				Use:    testutil.StringPtr("official"),
+				Family: testutil.StringPtr("Chalmers"),
 				Given:  []string{"Peter", "James"},
 			},
 			{
-				Use:   stringPtr("usual"),
+				Use:   testutil.StringPtr("usual"),
 				Given: []string{"Jim"},
 			},
 		},
-		Gender:    stringPtr("male"),
+		Gender:    testutil.StringPtr("male"),
 		BirthDate: &birthDate,
 		Telecom: []resources.ContactPoint{
 			{
-				System: stringPtr("phone"),
-				Value:  stringPtr("(03) 5555 6473"),
-				Use:    stringPtr("work"),
-				Rank:   intPtr(1),
+				System: testutil.StringPtr("phone"),
+				Value:  testutil.StringPtr("(03) 5555 6473"),
+				Use:    testutil.StringPtr("work"),
+				Rank:   testutil.IntPtr(1),
 			},
 			{
-				System: stringPtr("phone"),
-				Value:  stringPtr("(03) 3410 5613"),
-				Use:    stringPtr("mobile"),
-				Rank:   intPtr(2),
+				System: testutil.StringPtr("phone"),
+				Value:  testutil.StringPtr("(03) 3410 5613"),
+				Use:    testutil.StringPtr("mobile"),
+				Rank:   testutil.IntPtr(2),
 			},
 		},
 		Address: []resources.Address{
 			{
-				Use:        stringPtr("home"),
-				Type:       stringPtr("both"),
+				Use:        testutil.StringPtr("home"),
+				Type:       testutil.StringPtr("both"),
 				Line:       []string{"534 Erewhon St"},
-				City:       stringPtr("PleasantVille"),
-				State:      stringPtr("Vic"),
-				PostalCode: stringPtr("3999"),
+				City:       testutil.StringPtr("PleasantVille"),
+				State:      testutil.StringPtr("Vic"),
+				PostalCode: testutil.StringPtr("3999"),
 				Period: &resources.Period{
 					Start: datetimePtr("1974-12-25"),
 				},
@@ -76,9 +77,9 @@ func createPatient() resources.Patient {
 		MaritalStatus: &resources.CodeableConcept{
 			Coding: []resources.Coding{
 				{
-					System:  stringPtr("http://terminology.hl7.org/CodeSystem/v3-MaritalStatus"),
-					Code:    stringPtr("M"),
-					Display: stringPtr("Married"),
+					System:  testutil.StringPtr("http://terminology.hl7.org/CodeSystem/v3-MaritalStatus"),
+					Code:    testutil.StringPtr("M"),
+					Display: testutil.StringPtr("Married"),
 				},
 			},
 		},
@@ -88,34 +89,34 @@ func createPatient() resources.Patient {
 					{
 						Coding: []resources.Coding{
 							{
-								System: stringPtr("http://terminology.hl7.org/CodeSystem/v2-0131"),
-								Code:   stringPtr("N"),
+								System: testutil.StringPtr("http://terminology.hl7.org/CodeSystem/v2-0131"),
+								Code:   testutil.StringPtr("N"),
 							},
 						},
 					},
 				},
 				Name: &resources.HumanName{
-					Family: stringPtr("du Marché"),
+					Family: testutil.StringPtr("du Marché"),
 					Given:  []string{"Bénédicte"},
 				},
 				Telecom: []resources.ContactPoint{
 					{
-						System: stringPtr("phone"),
-						Value:  stringPtr("+33 (237) 998327"),
+						System: testutil.StringPtr("phone"),
+						Value:  testutil.StringPtr("+33 (237) 998327"),
 					},
 				},
 				Address: &resources.Address{
-					Use:        stringPtr("home"),
-					Type:       stringPtr("both"),
+					Use:        testutil.StringPtr("home"),
+					Type:       testutil.StringPtr("both"),
 					Line:       []string{"534 Erewhon St"},
-					City:       stringPtr("PleasantVille"),
-					State:      stringPtr("Vic"),
-					PostalCode: stringPtr("3999"),
+					City:       testutil.StringPtr("PleasantVille"),
+					State:      testutil.StringPtr("Vic"),
+					PostalCode: testutil.StringPtr("3999"),
 					Period: &resources.Period{
 						Start: datetimePtr("1974-12-25"),
 					},
 				},
-				Gender: stringPtr("female"),
+				Gender: testutil.StringPtr("female"),
 				Period: &resources.Period{
 					Start: datetimePtr("2012"),
 				},
@@ -125,11 +126,11 @@ func createPatient() resources.Patient {
 }
 
 // Helper functions for pointer types
-func stringPtr(s string) *string {
+func testutil.StringPtr(s string) *string {
 	return &s
 }
 
-func intPtr(i int) *int {
+func testutil.IntPtr(i int) *int {
 	return &i
 }
 

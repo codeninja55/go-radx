@@ -85,6 +85,7 @@ linters:
           - gocritic
           - funlen
           - misspell
+          - govet
 
 issues:
   max-issues-per-linter: 0

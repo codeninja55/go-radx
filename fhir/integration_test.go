@@ -8,6 +8,7 @@ import (
 	"github.com/codeninja55/go-radx/fhir/primitives"
 	"github.com/codeninja55/go-radx/fhir/r5/resources"
 	"github.com/codeninja55/go-radx/fhir/validation"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 // TestIntegration_PatientFullWorkflow tests complete patient lifecycle
@@ -17,16 +18,16 @@ func TestIntegration_PatientFullWorkflow(t *testing.T) {
 	birthDate := primitives.MustDate("1974-12-25")
 
 	patient := &resources.Patient{
-		ID:     stringPtrIntegration("example"),
+		ID:     testutil.StringPtr("example"),
 		Active: &active,
 		Name: []resources.HumanName{
 			{
-				Use:    stringPtrIntegration("official"),
-				Family: stringPtrIntegration("Doe"),
+				Use:    testutil.StringPtr("official"),
+				Family: testutil.StringPtr("Doe"),
 				Given:  []string{"John"},
 			},
 		},
-		Gender:    stringPtrIntegration("male"),
+		Gender:    testutil.StringPtr("male"),
 		BirthDate: &birthDate,
 	}
 
@@ -68,13 +69,13 @@ func TestIntegration_BundleBasics(t *testing.T) {
 	// Create a simple bundle
 	bundle := &fhir.Bundle{
 		Type:  "searchset",
-		Total: intPtrIntegration(2),
+		Total: testutil.IntPtr(2),
 		Entry: []fhir.BundleEntry{
 			{
-				FullURL: stringPtrIntegration("Patient/1"),
+				FullURL: testutil.StringPtr("Patient/1"),
 			},
 			{
-				FullURL: stringPtrIntegration("Patient/2"),
+				FullURL: testutil.StringPtr("Patient/2"),
 			},
 		},
 	}
@@ -119,7 +120,7 @@ func TestIntegration_ValidationErrors(t *testing.T) {
 
 	// Observation with missing required field (status is required)
 	obs := &resources.Observation{
-		ID: stringPtrIntegration("obs-1"),
+		ID: testutil.StringPtr("obs-1"),
 		// Missing Status - required field
 	}
 	err := validator.Validate(obs)
@@ -133,20 +134,20 @@ func TestIntegration_ValidationErrors(t *testing.T) {
 func TestIntegration_SummaryMode(t *testing.T) {
 	// Create a patient
 	patient := &resources.Patient{
-		ID:     stringPtrIntegration("example"),
-		Active: boolPtrIntegration(true),
+		ID:     testutil.StringPtr("example"),
+		Active: testutil.BoolPtr(true),
 		Name: []resources.HumanName{
 			{
-				Use:    stringPtrIntegration("official"),
-				Family: stringPtrIntegration("Doe"),
+				Use:    testutil.StringPtr("official"),
+				Family: testutil.StringPtr("Doe"),
 				Given:  []string{"John"},
 			},
 		},
-		Gender: stringPtrIntegration("male"),
+		Gender: testutil.StringPtr("male"),
 		Address: []resources.Address{
 			{
 				Line: []string{"123 Main St"},
-				City: stringPtrIntegration("Springfield"),
+				City: testutil.StringPtr("Springfield"),
 			},
 		},
 	}
@@ -216,9 +217,9 @@ func TestIntegration_PrimitivesHandling(t *testing.T) {
 func TestIntegration_ResourceInheritance(t *testing.T) {
 	// Patient extends DomainResource
 	patient := &resources.Patient{
-		ID: stringPtrIntegration("example"),
+		ID: testutil.StringPtr("example"),
 		Meta: &resources.Meta{
-			VersionId: stringPtrIntegration("1"),
+			VersionId: testutil.StringPtr("1"),
 		},
 	}
 
@@ -237,17 +238,4 @@ func TestIntegration_ResourceInheritance(t *testing.T) {
 	if _, ok := raw["meta"]; !ok {
 		t.Error("Meta should be at root level")
 	}
-}
-
-// Helper functions
-func stringPtrIntegration(s string) *string {
-	return &s
-}
-
-func boolPtrIntegration(b bool) *bool {
-	return &b
-}
-
-func intPtrIntegration(i int) *int {
-	return &i
 }

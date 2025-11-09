@@ -3,6 +3,7 @@ package fhir
 import (
 	"encoding/json"
 	"testing"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func createTestBundle() *Bundle {
@@ -38,15 +39,15 @@ func createTestBundle() *Bundle {
 		Total: &total,
 		Entry: []BundleEntry{
 			{
-				FullURL:  stringPtr("http://example.org/Patient/patient-1"),
+				FullURL:  testutil.StringPtr("http://example.org/Patient/patient-1"),
 				Resource: patient1JSON,
 			},
 			{
-				FullURL:  stringPtr("http://example.org/Patient/patient-2"),
+				FullURL:  testutil.StringPtr("http://example.org/Patient/patient-2"),
 				Resource: patient2JSON,
 			},
 			{
-				FullURL:  stringPtr("http://example.org/Observation/obs-1"),
+				FullURL:  testutil.StringPtr("http://example.org/Observation/obs-1"),
 				Resource: obs1JSON,
 			},
 		},
@@ -192,7 +193,7 @@ func TestBundleHelper_AddEntry(t *testing.T) {
 		"active":       true,
 	}
 
-	err := helper.AddEntry(patient, stringPtr("http://example.org/Patient/new-patient"))
+	err := helper.AddEntry(patient, testutil.StringPtr("http://example.org/Patient/new-patient"))
 	if err != nil {
 		t.Fatalf("AddEntry() error = %v", err)
 	}
@@ -412,13 +413,13 @@ func TestBundleHelper_RoundTrip(t *testing.T) {
 		"resourceType": "Patient",
 		"id":           "test-1",
 	}
-	_ = helper.AddEntry(patient, stringPtr("Patient/test-1"))
+	_ = helper.AddEntry(patient, testutil.StringPtr("Patient/test-1"))
 
 	observation := map[string]interface{}{
 		"resourceType": "Observation",
 		"id":           "obs-1",
 	}
-	_ = helper.AddEntry(observation, stringPtr("Observation/obs-1"))
+	_ = helper.AddEntry(observation, testutil.StringPtr("Observation/obs-1"))
 
 	// Marshal bundle
 	data, err := json.Marshal(bundle)

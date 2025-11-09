@@ -2,6 +2,8 @@ package validation
 
 import (
 	"testing"
+
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 func TestValidateRequired(t *testing.T) {
@@ -256,9 +258,9 @@ func TestCheckRequired(t *testing.T) {
 		{
 			name: "all required fields present",
 			input: &TestStruct{
-				RequiredField:    stringPtr("value"),
-				RequiredNonNil:   stringPtr("value"),
-				RequiredWithCard: stringPtr("value"),
+				RequiredField:    testutil.StringPtr("value"),
+				RequiredNonNil:   testutil.StringPtr("value"),
+				RequiredWithCard: testutil.StringPtr("value"),
 			},
 			wantErr: false,
 		},
@@ -266,8 +268,8 @@ func TestCheckRequired(t *testing.T) {
 			name: "missing required field",
 			input: &TestStruct{
 				RequiredField:    nil,
-				RequiredNonNil:   stringPtr("value"),
-				RequiredWithCard: stringPtr("value"),
+				RequiredNonNil:   testutil.StringPtr("value"),
+				RequiredWithCard: testutil.StringPtr("value"),
 			},
 			wantErr: true,
 			errMsg:  "RequiredField",
@@ -304,16 +306,16 @@ func TestCheckEnum(t *testing.T) {
 		{
 			name: "valid enum values",
 			input: &TestStruct{
-				Status: stringPtr("active"),
-				Type:   stringPtr("typeA"),
+				Status: testutil.StringPtr("active"),
+				Type:   testutil.StringPtr("typeA"),
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid enum value",
 			input: &TestStruct{
-				Status: stringPtr("invalid"),
-				Type:   stringPtr("typeA"),
+				Status: testutil.StringPtr("invalid"),
+				Type:   testutil.StringPtr("typeA"),
 			},
 			wantErr: true,
 		},
@@ -321,7 +323,7 @@ func TestCheckEnum(t *testing.T) {
 			name: "nil enum field",
 			input: &TestStruct{
 				Status: nil,
-				Type:   stringPtr("typeB"),
+				Type:   testutil.StringPtr("typeB"),
 			},
 			wantErr: false,
 		},
@@ -357,10 +359,10 @@ func TestCardinalityValidation(t *testing.T) {
 		{
 			name: "all cardinalities satisfied",
 			input: &TestStruct{
-				OneToOne:   stringPtr("value"),
+				OneToOne:   testutil.StringPtr("value"),
 				ZeroToMany: []string{"a", "b"},
 				OneToThree: []string{"x"},
-				ZeroToOne:  stringPtr("z"),
+				ZeroToOne:  testutil.StringPtr("z"),
 			},
 			wantErr: false,
 		},
@@ -377,7 +379,7 @@ func TestCardinalityValidation(t *testing.T) {
 		{
 			name: "too many items in 1..3 field",
 			input: &TestStruct{
-				OneToOne:   stringPtr("value"),
+				OneToOne:   testutil.StringPtr("value"),
 				OneToThree: []string{"a", "b", "c", "d"},
 			},
 			wantErr: true,

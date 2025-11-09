@@ -10,6 +10,7 @@ import (
 
 	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r5/resources"
+	"github.com/codeninja55/go-radx/fhir/internal/testutil"
 )
 
 // Example: Processing FHIR search results from a server
@@ -142,7 +143,7 @@ func loadSearchBundle() *fhir.Bundle {
 	// For this example, we create a mock bundle
 	bundle := &fhir.Bundle{
 		Type:  "searchset",
-		Total: intPtr(5),
+		Total: testutil.IntPtr(5),
 		Link: []fhir.BundleLink{
 			{
 				Relation: "self",
@@ -209,15 +210,15 @@ func loadSearchBundle() *fhir.Bundle {
 
 	bundle.Entry = []fhir.BundleEntry{
 		{
-			FullURL:  stringPtr("Patient/patient-123"),
+			FullURL:  testutil.StringPtr("Patient/patient-123"),
 			Resource: patientJSON,
 		},
 		{
-			FullURL:  stringPtr("Observation/obs-1"),
+			FullURL:  testutil.StringPtr("Observation/obs-1"),
 			Resource: obs1JSON,
 		},
 		{
-			FullURL:  stringPtr("Observation/obs-2"),
+			FullURL:  testutil.StringPtr("Observation/obs-2"),
 			Resource: obs2JSON,
 		},
 	}
@@ -240,10 +241,10 @@ func readBundleFromFile(filename string) (*fhir.Bundle, error) {
 	return &bundle, nil
 }
 
-func stringPtr(s string) *string {
+func testutil.StringPtr(s string) *string {
 	return &s
 }
 
-func intPtr(i int) *int {
+func testutil.IntPtr(i int) *int {
 	return &i
 }
