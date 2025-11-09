@@ -402,3 +402,193 @@ func TestSummary_Comparison(t *testing.T) {
 	t.Logf("Summary JSON size: %d bytes", len(summaryData))
 	t.Logf("Reduction: %.1f%%", float64(len(fullData)-len(summaryData))/float64(len(fullData))*100)
 }
+
+// TestFilterMap tests the filterMap function for map filtering
+func TestFilterMap(t *testing.T) {
+	type TestStruct struct {
+		SummaryMap    map[string]string `json:"summaryMap,omitempty" fhir:"summary"`
+		NonSummaryMap map[string]int    `json:"nonSummaryMap,omitempty"`
+		EmptyMap      map[string]bool   `json:"emptyMap,omitempty" fhir:"summary"`
+	}
+
+	tests := []struct {
+		name     string
+		input    *TestStruct
+		mode     SummaryMode
+		wantKeys []string
+	}{
+		{
+			name: "summary mode filters non-summary maps",
+			input: &TestStruct{
+				SummaryMap:    map[string]string{"key1": "value1"},
+				NonSummaryMap: map[string]int{"key2": 2},
+			},
+			mode:     SummaryModeTrue,
+			wantKeys: []string{"summaryMap"},
+		},
+		{
+			name: "data mode filters summary maps",
+			input: &TestStruct{
+				SummaryMap:    map[string]string{"key1": "value1"},
+				NonSummaryMap: map[string]int{"key2": 2},
+			},
+			mode:     SummaryModeData,
+			wantKeys: []string{"nonSummaryMap"},
+		},
+		{
+			name: "empty maps are filtered out",
+			input: &TestStruct{
+				EmptyMap: map[string]bool{},
+			},
+			mode:     SummaryModeTrue,
+			wantKeys: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := MarshalWithSummaryMode(tt.input, tt.mode)
+			if err != nil {
+				t.Fatalf("MarshalWithSummaryMode() error = %v", err)
+			}
+
+			var result map[string]interface{}
+			if err := json.Unmarshal(data, &result); err != nil {
+				t.Fatalf("Unmarshal error = %v", err)
+			}
+
+			for _, key := range tt.wantKeys {
+				if _, ok := result[key]; !ok {
+					t.Errorf("expected key %q to be present", key)
+				}
+			}
+		})
+	}
+}
+
+// TestFilterSlice tests the filterSlice function for slice filtering
+func TestFilterSlice(t *testing.T) {
+	type NestedItem struct {
+		Value string `json:"value,omitempty" fhir:"summary"`
+	}
+
+	type TestStruct struct {
+		SummarySlice    []string     `json:"summarySlice,omitempty" fhir:"summary"`
+		NonSummarySlice []int        `json:"nonSummarySlice,omitempty"`
+		NestedSlice     []NestedItem `json:"nestedSlice,omitempty" fhir:"summary"`
+		EmptySlice      []string     `json:"emptySlice,omitempty" fhir:"summary"`
+	}
+
+	tests := []struct {
+		name     string
+		input    *TestStruct
+		mode     SummaryMode
+		wantKeys []string
+	}{
+		{
+			name: "summary mode includes summary slices",
+			input: &TestStruct{
+				SummarySlice:    []string{"item1", "item2"},
+				NonSummarySlice: []int{1, 2, 3},
+			},
+			mode:     SummaryModeTrue,
+			wantKeys: []string{"summarySlice"},
+		},
+		{
+			name: "nested slices are filtered correctly",
+			input: &TestStruct{
+				NestedSlice: []NestedItem{{Value: "test"}},
+			},
+			mode:     SummaryModeTrue,
+			wantKeys: []string{"nestedSlice"},
+		},
+		{
+			name: "empty slices are filtered out",
+			input: &TestStruct{
+				EmptySlice: []string{},
+			},
+			mode:     SummaryModeTrue,
+			wantKeys: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := MarshalWithSummaryMode(tt.input, tt.mode)
+			if err != nil {
+				t.Fatalf("MarshalWithSummaryMode() error = %v", err)
+			}
+
+			var result map[string]interface{}
+			if err := json.Unmarshal(data, &result); err != nil {
+				t.Fatalf("Unmarshal error = %v", err)
+			}
+
+			for _, key := range tt.wantKeys {
+				if _, ok := result[key]; !ok {
+					t.Errorf("expected key %q to be present", key)
+				}
+			}
+		})
+	}
+}
+
+// TestIsZeroValue tests the isZeroValue function for various types
+func TestIsZeroValue(t *testing.T) {
+	type TestStruct struct {
+		NilPointer     *string           `json:"nilPointer,omitempty"`
+		NonNilPointer  *string           `json:"nonNilPointer,omitempty"`
+		EmptyString    string            `json:"emptyString,omitempty"`
+		NonEmptyString string            `json:"nonEmptyString,omitempty"`
+		ZeroInt        int               `json:"zeroInt,omitempty"`
+		NonZeroInt     int               `json:"nonZeroInt,omitempty"`
+		EmptySlice     []string          `json:"emptySlice,omitempty"`
+		NonEmptySlice  []string          `json:"nonEmptySlice,omitempty"`
+		EmptyMap       map[string]string `json:"emptyMap,omitempty"`
+		NonEmptyMap    map[string]string `json:"nonEmptyMap,omitempty"`
+		FalseBool      bool              `json:"falseBool,omitempty"`
+		TrueBool       bool              `json:"trueBool,omitempty"`
+	}
+
+	str := "test"
+	input := &TestStruct{
+		NilPointer:     nil,
+		NonNilPointer:  &str,
+		EmptyString:    "",
+		NonEmptyString: "value",
+		ZeroInt:        0,
+		NonZeroInt:     42,
+		EmptySlice:     []string{},
+		NonEmptySlice:  []string{"item"},
+		EmptyMap:       map[string]string{},
+		NonEmptyMap:    map[string]string{"key": "value"},
+		FalseBool:      false,
+		TrueBool:       true,
+	}
+
+	data, err := json.Marshal(input)
+	if err != nil {
+		t.Fatalf("Marshal error = %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("Unmarshal error = %v", err)
+	}
+
+	// Zero values should be omitted due to omitempty
+	zeroFields := []string{"nilPointer", "emptyString", "zeroInt", "emptySlice", "emptyMap", "falseBool"}
+	for _, field := range zeroFields {
+		if _, ok := result[field]; ok {
+			t.Errorf("zero value field %q should be omitted", field)
+		}
+	}
+
+	// Non-zero values should be present
+	nonZeroFields := []string{"nonNilPointer", "nonEmptyString", "nonZeroInt", "nonEmptySlice", "nonEmptyMap", "trueBool"}
+	for _, field := range nonZeroFields {
+		if _, ok := result[field]; !ok {
+			t.Errorf("non-zero value field %q should be present", field)
+		}
+	}
+}
