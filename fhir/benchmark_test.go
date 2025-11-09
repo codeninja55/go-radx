@@ -2,6 +2,7 @@ package fhir_test
 
 import (
 	"encoding/json"
+	"runtime"
 	"testing"
 
 	"github.com/codeninja55/go-radx/fhir"
@@ -145,7 +146,7 @@ func BenchmarkObservation_Create(b *testing.B) {
 				},
 			},
 		}
-		_ = obs
+		runtime.KeepAlive(obs)
 	}
 }
 
@@ -190,7 +191,7 @@ func BenchmarkObservation_WithComponents(b *testing.B) {
 				},
 			},
 		}
-		_ = obs
+		runtime.KeepAlive(obs)
 	}
 }
 
