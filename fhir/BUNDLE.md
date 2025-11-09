@@ -34,6 +34,144 @@ fmt.Printf("Found %d patients\n", len(patients))
 patient, _ := helper.GetResourceByID("Patient", "example")
 ```
 
+## Working with R5 Bundles (Type-Safe Approach)
+
+R5 Bundle resources use `json.RawMessage` for polymorphic fields, enabling lazy deserialization and compile-time type safety through Go generics.
+
+### Unmarshaling Bundle Entries
+
+Use the generic `fhir.UnmarshalResource[T]()` function to safely extract typed resources from Bundle entries:
+
+```go
+import (
+    "github.com/codeninja55/go-radx/fhir"
+    "github.com/codeninja55/go-radx/fhir/r5/resources"
+)
+
+// Parse a bundle
+var bundle resources.Bundle
+json.Unmarshal(data, &bundle)
+
+// Extract first entry as a Patient with compile-time type safety
+patient, err := fhir.UnmarshalResource[resources.Patient](bundle.Entry[0].Resource)
+if err != nil {
+    log.Fatal(err)
+}
+
+// patient is now a resources.Patient, not interface{}
+fmt.Printf("Patient ID: %s\n", *patient.ID)
+fmt.Printf("Active: %v\n", *patient.Active)
+```
+
+### Iterating Over Bundle Entries
+
+Process different resource types in a Bundle:
+
+```go
+for i, entry := range bundle.Entry {
+    // Check resourceType in the raw JSON to determine type
+    var typeCheck struct {
+        ResourceType string `json:"resourceType"`
+    }
+
+    if err := json.Unmarshal(entry.Resource, &typeCheck); err != nil {
+        continue
+    }
+
+    switch typeCheck.ResourceType {
+    case "Patient":
+        patient, err := fhir.UnmarshalResource[resources.Patient](entry.Resource)
+        if err == nil {
+            fmt.Printf("Entry %d: Patient %s\n", i, *patient.ID)
+        }
+
+    case "Observation":
+        obs, err := fhir.UnmarshalResource[resources.Observation](entry.Resource)
+        if err == nil {
+            fmt.Printf("Entry %d: Observation %s (status: %s)\n", i, *obs.ID, obs.Status)
+        }
+
+    case "ServiceRequest":
+        sr, err := fhir.UnmarshalResource[resources.ServiceRequest](entry.Resource)
+        if err == nil {
+            fmt.Printf("Entry %d: ServiceRequest %s\n", i, *sr.ID)
+        }
+    }
+}
+```
+
+### Working with Bundle Responses
+
+Extract OperationOutcome from transaction responses:
+
+```go
+// Get response from a transaction bundle entry
+if bundle.Entry[0].Response != nil {
+    response := bundle.Entry[0].Response
+
+    // Unmarshal the outcome if present
+    if response.Outcome != nil && len(response.Outcome) > 0 {
+        outcome, err := fhir.UnmarshalResource[resources.OperationOutcome](response.Outcome)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        for _, issue := range outcome.Issue {
+            fmt.Printf("Issue: %s - %s\n", issue.Severity, *issue.Diagnostics)
+        }
+    }
+}
+```
+
+### Bundle-Level Issues
+
+Process bundle-level OperationOutcome:
+
+```go
+if bundle.Issues != nil && len(bundle.Issues) > 0 {
+    issues, err := fhir.UnmarshalResource[resources.OperationOutcome](bundle.Issues)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, issue := range issues.Issue {
+        fmt.Printf("Bundle issue: %s (%s)\n", issue.Code, issue.Severity)
+    }
+}
+```
+
+### Creating R5 Bundle Entries
+
+Add resources to a Bundle using `json.Marshal`:
+
+```go
+// Create a patient
+patient := &resources.Patient{
+    Active: boolPtr(true),
+    Gender: stringPtr("female"),
+}
+patient.ID = stringPtr("patient-123")
+patient.ResourceType = "Patient"
+
+// Marshal to json.RawMessage
+patientJSON, err := json.Marshal(patient)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Create or update bundle
+bundle := &resources.Bundle{
+    Type: "searchset",
+    Entry: []resources.BundleEntry{
+        {
+            FullUrl:  stringPtr("Patient/patient-123"),
+            Resource: patientJSON,
+        },
+    },
+}
+bundle.ResourceType = "Bundle"
+```
+
 ## BundleHelper Methods
 
 ### Finding Resources

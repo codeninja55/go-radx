@@ -146,6 +146,7 @@ nav:
           - user-guide/fhir/index.md
           - Overview: user-guide/fhir/overview.md
           - Resources: user-guide/fhir/resources.md
+          - Resource Inheritance: user-guide/fhir/inheritance.md
           - Bundles: user-guide/fhir/bundles.md
           - Validation: user-guide/fhir/validation.md
           - Primitives: user-guide/fhir/primitives.md

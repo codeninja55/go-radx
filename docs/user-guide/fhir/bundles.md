@@ -34,6 +34,157 @@ fmt.Printf("Found %d patients\n", len(patients))
 patient, _ := helper.GetResourceByID("Patient", "example")
 ```
 
+## Working with R5 Bundles (Type-Safe Approach)
+
+In FHIR R5, Bundle entries use `json.RawMessage` for type-safe lazy deserialization. This approach provides compile-time type safety while maintaining flexibility for polymorphic resources.
+
+### Type-Safe Unmarshaling
+
+Use the generic `fhir.UnmarshalResource[T]()` function to unmarshal Bundle entries with compile-time type checking:
+
+```go
+import (
+    "github.com/harrison-ai/go-radx/fhir"
+    "github.com/harrison-ai/go-radx/fhir/r5/resources"
+)
+
+// Unmarshal a Patient resource from a bundle entry
+patient, err := fhir.UnmarshalResource[resources.Patient](bundle.Entry[0].Resource)
+if err != nil {
+    log.Fatal(err)
+}
+
+// patient is now a resources.Patient with full type safety
+fmt.Printf("Patient ID: %s\n", *patient.ID)
+fmt.Printf("Active: %v\n", *patient.Active)
+```
+
+### Iterating Over Bundle Entries
+
+Process all resources in a bundle with type checking:
+
+```go
+for i, entry := range bundle.Entry {
+    // First, determine the resource type
+    var typeMap map[string]interface{}
+    if err := json.Unmarshal(entry.Resource, &typeMap); err != nil {
+        continue
+    }
+
+    resourceType, ok := typeMap["resourceType"].(string)
+    if !ok {
+        continue
+    }
+
+    // Unmarshal based on type
+    switch resourceType {
+    case "Patient":
+        patient, err := fhir.UnmarshalResource[resources.Patient](entry.Resource)
+        if err != nil {
+            log.Printf("Failed to unmarshal patient: %v", err)
+            continue
+        }
+        processPatient(patient)
+
+    case "Observation":
+        obs, err := fhir.UnmarshalResource[resources.Observation](entry.Resource)
+        if err != nil {
+            log.Printf("Failed to unmarshal observation: %v", err)
+            continue
+        }
+        processObservation(obs)
+
+    default:
+        log.Printf("Unknown resource type: %s", resourceType)
+    }
+}
+```
+
+### Working with Bundle Responses
+
+Transaction and batch bundles include responses with `OperationOutcome`:
+
+```go
+for _, entry := range bundle.Entry {
+    if entry.Response != nil && entry.Response.Outcome != nil {
+        // Unmarshal the OperationOutcome
+        outcome, err := fhir.UnmarshalResource[resources.OperationOutcome](entry.Response.Outcome)
+        if err != nil {
+            log.Printf("Failed to unmarshal outcome: %v", err)
+            continue
+        }
+
+        // Check for errors
+        for _, issue := range outcome.Issue {
+            if issue.Severity == "error" {
+                log.Printf("Error: %s", *issue.Diagnostics)
+            }
+        }
+    }
+}
+```
+
+### Bundle-Level Issues
+
+R5 Bundles can include bundle-level issues:
+
+```go
+if bundle.Issues != nil {
+    issues, err := fhir.UnmarshalResource[resources.OperationOutcome](bundle.Issues)
+    if err != nil {
+        log.Printf("Failed to unmarshal bundle issues: %v", err)
+    } else {
+        for _, issue := range issues.Issue {
+            log.Printf("[%s] %s: %s", issue.Severity, issue.Code, *issue.Diagnostics)
+        }
+    }
+}
+```
+
+### Creating Bundle Entries
+
+To add resources to a bundle, marshal them to `json.RawMessage`:
+
+```go
+// Create a patient
+patient := &resources.Patient{
+    Active: boolPtr(true),
+    Gender: stringPtr("female"),
+}
+patient.ID = stringPtr("patient-123")
+patient.ResourceType = "Patient"
+
+// Marshal to json.RawMessage
+patientJSON, err := json.Marshal(patient)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Create bundle with the entry
+bundle := &resources.Bundle{
+    Type: "transaction",
+    Entry: []resources.BundleEntry{
+        {
+            FullUrl:  stringPtr("Patient/patient-123"),
+            Resource: patientJSON,
+            Request: &resources.BundleEntryRequest{
+                Method: "POST",
+                URL:    "Patient",
+            },
+        },
+    },
+}
+bundle.ResourceType = "Bundle"
+```
+
+### Benefits of json.RawMessage in Bundles
+
+1. **Type Safety**: Compile-time type checking when unmarshaling
+2. **Lazy Deserialization**: Only unmarshal resources when needed
+3. **Memory Efficiency**: Store as bytes until accessed
+4. **Flexibility**: Bundle can contain any resource type
+5. **Error Handling**: Clear error messages for deserialization failures
+
 ## BundleHelper Methods
 
 ### Finding Resources
