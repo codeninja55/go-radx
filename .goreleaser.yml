@@ -1,0 +1,174 @@
+# GoReleaser configuration for radx CLI
+# See: https://goreleaser.com
+
+version: 2
+
+# Project metadata
+project_name: radx
+
+# Build configuration
+builds:
+  - id: radx
+    main: ./cmd/radx
+    binary: radx
+
+    # Build for multiple platforms
+    goos:
+      - linux
+      - darwin
+
+    goarch:
+      - amd64
+      - arm64
+
+    # Environment variables for build
+    env:
+      - CGO_ENABLED=0
+
+    # Linker flags for version injection
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+      - -X main.Commit={{.Commit}}
+      - -X main.Date={{.Date}}
+
+    # Build tags
+    flags:
+      - -trimpath
+
+# Archive configuration
+archives:
+  - id: radx
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+
+    # Files to include in archive
+    files:
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+      - docs/*
+
+    # Format overrides
+    format_overrides:
+      - goos: windows
+        format: zip
+
+# Checksum configuration
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+  algorithm: sha256
+
+# Snapshot configuration (for non-tagged builds)
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+# Changelog configuration
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - '^build:'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+  groups:
+    - title: 'New Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance Improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: 'Refactors'
+      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: 'Other Changes'
+      order: 999
+
+# Release configuration
+release:
+  github:
+    owner: codeninja55
+    name: go-radx
+
+  draft: false
+  prerelease: auto
+  mode: replace
+
+  # Release notes
+  header: |
+    ## RadX DICOM Utility CLI {{ .Tag }}
+
+    Release date: {{ .Date }}
+
+    ### Installation
+
+    Download the appropriate binary for your platform below and extract it to a location in your PATH.
+
+    #### macOS (Apple Silicon)
+    ```bash
+    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Tag }}_darwin_arm64.tar.gz
+    tar -xzf radx_{{ .Tag }}_darwin_arm64.tar.gz
+    sudo mv radx /usr/local/bin/
+    ```
+
+    #### macOS (Intel)
+    ```bash
+    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Tag }}_darwin_amd64.tar.gz
+    tar -xzf radx_{{ .Tag }}_darwin_amd64.tar.gz
+    sudo mv radx /usr/local/bin/
+    ```
+
+    #### Linux (x86-64)
+    ```bash
+    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Tag }}_linux_amd64.tar.gz
+    tar -xzf radx_{{ .Tag }}_linux_amd64.tar.gz
+    sudo mv radx /usr/local/bin/
+    ```
+
+    #### Linux (ARM64)
+    ```bash
+    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Tag }}_linux_arm64.tar.gz
+    tar -xzf radx_{{ .Tag }}_linux_arm64.tar.gz
+    sudo mv radx /usr/local/bin/
+    ```
+
+    ### Verify Installation
+    ```bash
+    radx --version
+    ```
+
+  footer: |
+    **Full Changelog**: https://github.com/codeninja55/go-radx/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+# Homebrew tap (optional - for future use)
+# Uncomment when ready to publish to Homebrew
+# brews:
+#   - name: radx
+#     repository:
+#       owner: codeninja55
+#       name: homebrew-tap
+#     folder: Formula
+#     homepage: https://github.com/codeninja55/go-radx
+#     description: "DICOM utility CLI for go-radx"
+#     license: MIT
+#     test: |
+#       system "#{bin}/radx --version"
+
+# Announce to various platforms (optional)
+# announce:
+#   skip: '{{gt .Patch 0}}'
