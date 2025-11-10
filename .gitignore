@@ -41,3 +41,8 @@ notes.md
 
 .venv/
 site/
+
+## Build artifacts
+
+bin/
+dist/
