@@ -157,6 +157,11 @@ nav:
       - radx/README.md
       - Commands:
           - dump: radx/dump.md
+          - echo: radx/echo.md
+          - store: radx/store.md
+          - modify: radx/modify.md
+          - organize: radx/organize.md
+          - scp: radx/scp.md
           - catalogue: radx/catalogue.md
           - lookup: radx/lookup.md
   - Examples:
