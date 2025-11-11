@@ -153,6 +153,12 @@ nav:
           - Extensions: user-guide/fhir/extensions.md
           - Choice Types: user-guide/fhir/choice-types.md
           - Summary Mode: user-guide/fhir/summary-mode.md
+  - RadX CLI:
+      - radx/README.md
+      - Commands:
+          - dump: radx/dump.md
+          - catalogue: radx/catalogue.md
+          - lookup: radx/lookup.md
   - Examples:
       - examples/index.md
       - FHIR Examples: examples/fhir-examples.md
