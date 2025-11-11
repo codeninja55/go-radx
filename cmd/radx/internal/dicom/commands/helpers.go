@@ -73,7 +73,7 @@ func isDICOMFile(path string) bool {
 	if err != nil {
 		return false
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Read first 132 bytes (128 byte preamble + "DICM")
 	buf := make([]byte, 132)
@@ -162,7 +162,7 @@ func createOutputDirectory(path string) error {
 	}
 
 	if os.IsNotExist(err) {
-		err = os.MkdirAll(path, 0755)
+		err = os.MkdirAll(path, 0o755)
 		if err != nil {
 			return fmt.Errorf("failed to create output directory: %w", err)
 		}

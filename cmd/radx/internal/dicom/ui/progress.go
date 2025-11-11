@@ -36,18 +36,18 @@ func (p *ProgressBar) Print(message string) {
 	percentage := float64(p.current) / float64(p.total) * 100
 	progressText := fmt.Sprintf("[%d/%d] %.1f%%", p.current, p.total, percentage)
 
-	style := InfoStyle.Copy().Bold(true)
+	style := InfoStyle.Bold(true)
 	if p.current == p.total {
-		style = SuccessStyle.Copy()
+		style = SuccessStyle
 	}
 
-	fmt.Fprintf(p.writer, "\r%s %s - %s",
+	_, _ = fmt.Fprintf(p.writer, "\r%s %s - %s",
 		p.prefix,
 		style.Render(progressText),
 		message)
 
 	if p.current == p.total {
-		fmt.Fprintln(p.writer) // New line when complete
+		_, _ = fmt.Fprintln(p.writer) // New line when complete
 	}
 }
 
@@ -80,10 +80,10 @@ func (s *Spinner) Tick(message string) {
 	s.index++
 
 	style := lipgloss.NewStyle().Foreground(TertiaryColor)
-	fmt.Fprintf(s.writer, "\r%s %s %s", s.prefix, style.Render(frame), message)
+	_, _ = fmt.Fprintf(s.writer, "\r%s %s %s", s.prefix, style.Render(frame), message)
 }
 
 // Stop stops the spinner and clears the line.
 func (s *Spinner) Stop() {
-	fmt.Fprintf(s.writer, "\r%s\r", "                                                  ")
+	_, _ = fmt.Fprintf(s.writer, "\r%s\r", "                                                  ")
 }

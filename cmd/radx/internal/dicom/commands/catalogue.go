@@ -113,7 +113,11 @@ func (c *CatalogueCmd) Run(cfg *config.GlobalConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.Error("Failed to close database", "error", err)
+		}
+	}()
 
 	// Rebuild database if requested
 	if c.Rebuild {
@@ -173,7 +177,7 @@ func (c *CatalogueCmd) openDatabase(logger *log.Logger) (*sql.DB, error) {
 
 	// Create tables
 	if _, err := db.Exec(createTableSQL); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to create tables: %w", err)
 	}
 
@@ -204,7 +208,11 @@ func (c *CatalogueCmd) indexFiles(db *sql.DB, files []DICOMFile, logger *log.Log
 		logger.Error("Failed to prepare statement", "error", err)
 		return 0, 0, len(files)
 	}
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error("Failed to close statement", "error", err)
+		}
+	}()
 
 	for _, file := range files {
 		progress.Increment(fmt.Sprintf("Indexing %s", file.Name))
@@ -354,7 +362,11 @@ func (c *CatalogueCmd) queryDatabase(db *sql.DB, logger *log.Logger) ([]*DICOMMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			logger.Error("Failed to close rows", "error", err)
+		}
+	}()
 
 	// Parse results
 	results := make([]*DICOMMetadata, 0)
@@ -538,29 +550,40 @@ func (c *CatalogueCmd) displaySummary(db *sql.DB, logger *log.Logger) {
 
 	// Count total files
 	var totalFiles int
-	db.QueryRow("SELECT COUNT(*) FROM dicom_metadata").Scan(&totalFiles)
+	_ = db.QueryRow("SELECT COUNT(*) FROM dicom_metadata").Scan(&totalFiles)
 
 	// Count unique patients
 	var uniquePatients int
-	db.QueryRow("SELECT COUNT(DISTINCT patient_id) FROM dicom_metadata WHERE patient_id != ''").Scan(&uniquePatients)
+	_ = db.QueryRow("SELECT COUNT(DISTINCT patient_id) FROM dicom_metadata WHERE patient_id != ''").Scan(&uniquePatients)
 
 	// Count unique studies
 	var uniqueStudies int
-	db.QueryRow("SELECT COUNT(DISTINCT study_instance_uid) FROM dicom_metadata WHERE study_instance_uid != ''").Scan(&uniqueStudies)
+	_ = db.QueryRow("SELECT COUNT(DISTINCT study_instance_uid) FROM dicom_metadata WHERE study_instance_uid != ''").Scan(&uniqueStudies)
 
 	// Count unique series
 	var uniqueSeries int
-	db.QueryRow("SELECT COUNT(DISTINCT series_instance_uid) FROM dicom_metadata WHERE series_instance_uid != ''").Scan(&uniqueSeries)
+	_ = db.QueryRow("SELECT COUNT(DISTINCT series_instance_uid) FROM dicom_metadata WHERE series_instance_uid != ''").Scan(&uniqueSeries)
 
 	// Get modality breakdown
-	rows, _ := db.Query("SELECT modality, COUNT(*) as count FROM dicom_metadata WHERE modality != '' GROUP BY modality ORDER BY count DESC LIMIT 10")
-	defer rows.Close()
+	rows, err := db.Query("SELECT modality, COUNT(*) as count FROM dicom_metadata WHERE modality != '' GROUP BY modality ORDER BY count DESC LIMIT 10")
+	if err != nil {
+		logger.Warn("Failed to query modality breakdown", "error", err)
+		return
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			logger.Error("Failed to close rows", "error", err)
+		}
+	}()
 
 	modalities := make(map[string]int)
 	for rows.Next() {
 		var modality string
 		var count int
-		rows.Scan(&modality, &count)
+		if err := rows.Scan(&modality, &count); err != nil {
+			logger.Warn("Failed to scan modality row", "error", err)
+			continue
+		}
 		modalities[modality] = count
 	}
 

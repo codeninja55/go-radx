@@ -109,7 +109,7 @@ func (h *storeHandler) HandleStore(ctx context.Context, req *scp.StoreRequest) *
 
 	// Create output directory
 	outputDir := filepath.Dir(outputPath)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		h.logger.Error("Failed to create output directory", "dir", outputDir, "error", err)
 		h.failCount.Add(1)
 		return &scp.StoreResponse{Status: dimse.StatusOutOfResources}
@@ -324,10 +324,10 @@ func extractOrganizationUIDs(dataset *dicom.DataSet) (studyUID, seriesUID string
 	}
 
 	if studyUID == "" {
-		return "", "", fmt.Errorf("Study Instance UID (0020,000D) not found")
+		return "", "", fmt.Errorf("study instance UID (0020,000D) not found")
 	}
 	if seriesUID == "" {
-		return "", "", fmt.Errorf("Series Instance UID (0020,000E) not found")
+		return "", "", fmt.Errorf("series instance UID (0020,000E) not found")
 	}
 
 	return studyUID, seriesUID, nil

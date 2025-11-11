@@ -103,7 +103,7 @@ func (c *DumpCmd) Run(cfg *config.GlobalConfig) error {
 
 		// Add separator for table format when processing multiple files
 		if cfg.Format == config.FormatTable && i < len(files)-1 {
-			fmt.Fprintln(os.Stdout, "\n"+ui.SubtleStyle.Render("---"))
+			_, _ = fmt.Fprintln(os.Stdout, "\n"+ui.SubtleStyle.Render("---"))
 		}
 	}
 

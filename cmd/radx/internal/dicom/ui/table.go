@@ -45,5 +45,5 @@ func PrintTable(table *simpletable.Table, w io.Writer) {
 	if w == nil {
 		w = os.Stdout
 	}
-	fmt.Fprintln(w, table.String())
+	_, _ = fmt.Fprintln(w, table.String())
 }

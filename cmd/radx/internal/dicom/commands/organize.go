@@ -178,10 +178,10 @@ func (c *OrganizeCmd) analyzeFile(path string, logger *log.Logger) (organizedFil
 
 	// Validate required UIDs
 	if studyUID == "" {
-		return organizedFile{}, fmt.Errorf("Study Instance UID (0020,000D) not found")
+		return organizedFile{}, fmt.Errorf("study instance UID (0020,000D) not found")
 	}
 	if seriesUID == "" {
-		return organizedFile{}, fmt.Errorf("Series Instance UID (0020,000E) not found")
+		return organizedFile{}, fmt.Errorf("series instance UID (0020,000E) not found")
 	}
 	if instanceUID == "" {
 		return organizedFile{}, fmt.Errorf("SOP Instance UID (0008,0018) not found")
@@ -228,7 +228,7 @@ func (c *OrganizeCmd) organizeFile(orgFile organizedFile, logger *log.Logger) er
 
 	// Create destination directory
 	destDir := filepath.Dir(destPath)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
@@ -268,14 +268,14 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
-	defer srcFile.Close()
+	defer func() { _ = srcFile.Close() }()
 
 	// Create destination file
 	dstFile, err := os.Create(dst)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer dstFile.Close()
+	defer func() { _ = dstFile.Close() }()
 
 	// Copy contents
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
