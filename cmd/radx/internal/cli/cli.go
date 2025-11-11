@@ -26,12 +26,14 @@ type CLI struct {
 
 // DicomCmd is the parent command for all DICOM utilities.
 type DicomCmd struct {
-	Dump     commands.DumpCmd     `cmd:"" name:"dump" help:"Inspect DICOM file contents"`
-	Echo     commands.CEchoCmd    `cmd:"" name:"echo" help:"Verify DICOM connectivity (C-ECHO)"`
-	Store    commands.CStoreCmd   `cmd:"" name:"store" help:"Send DICOM files to server (C-STORE)"`
-	Modify   commands.ModifyCmd   `cmd:"" name:"modify" help:"Modify DICOM file tags"`
-	Organize commands.OrganizeCmd `cmd:"" name:"organize" help:"Reorganize DICOM files by UID structure"`
-	SCP      commands.SCPCmd      `cmd:"" name:"scp" help:"Run DICOM SCP server"`
+	Dump      commands.DumpCmd      `cmd:"" name:"dump" help:"Inspect DICOM file contents"`
+	Echo      commands.CEchoCmd     `cmd:"" name:"echo" help:"Verify DICOM connectivity (C-ECHO)"`
+	Store     commands.CStoreCmd    `cmd:"" name:"store" help:"Send DICOM files to server (C-STORE)"`
+	Modify    commands.ModifyCmd    `cmd:"" name:"modify" help:"Modify DICOM file tags"`
+	Organize  commands.OrganizeCmd  `cmd:"" name:"organize" help:"Reorganize DICOM files by UID structure"`
+	SCP       commands.SCPCmd       `cmd:"" name:"scp" help:"Run DICOM SCP server"`
+	Lookup    commands.LookupCmd    `cmd:"" name:"lookup" help:"Look up DICOM tag information"`
+	Catalogue commands.CatalogueCmd `cmd:"" name:"catalogue" help:"Build and query DICOM file catalogue database"`
 }
 
 // Run executes the radx CLI with the provided build info.
