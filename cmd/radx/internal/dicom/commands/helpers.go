@@ -179,6 +179,21 @@ func generateUID() string {
 	return fmt.Sprintf("1.2.840.113619.2.5.%d.%d", timestamp/1000000, timestamp%1000000)
 }
 
+// normalizeTagFilter normalizes a tag filter string for comparison.
+// Supports formats: (GGGG,EEEE), GGGGEEEE, or keyword (e.g., PatientName)
+func normalizeTagFilter(filter string) string {
+	// Remove common formatting characters
+	normalized := strings.ReplaceAll(filter, "(", "")
+	normalized = strings.ReplaceAll(normalized, ")", "")
+	normalized = strings.ReplaceAll(normalized, ",", "")
+	normalized = strings.ReplaceAll(normalized, " ", "")
+
+	// Convert to lowercase for case-insensitive matching
+	normalized = strings.ToLower(normalized)
+
+	return normalized
+}
+
 // Output formatting functions
 
 // renderAsJSON renders DICOM tags as JSON to the given writer.

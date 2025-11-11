@@ -18,6 +18,7 @@ type DumpCmd struct {
 	Recursive        bool     `name:"recursive" short:"R" help:"Recursively search directories"`
 	ProcessPixelData bool     `name:"process-pixel-data" help:"Process pixel data elements"`
 	StorePixelData   bool     `name:"store-pixel-data" help:"Extract and store pixel data to files"`
+	Tags             []string `name:"tag" short:"t" help:"Filter specific tags (format: (GGGG,EEEE), GGGGEEEE, or keyword)"`
 }
 
 // Run executes the dump command.
@@ -108,6 +109,16 @@ func (c *DumpCmd) Run(cfg *config.GlobalConfig) error {
 
 	progress.Complete("Complete")
 
+	// Filter tags if specific tags are requested
+	if len(c.Tags) > 0 {
+		filteredTags, err := c.filterTags(allTags, logger)
+		if err != nil {
+			return fmt.Errorf("failed to filter tags: %w", err)
+		}
+		allTags = filteredTags
+		logger.Debug("Filtered tags", "filter_count", len(c.Tags), "result_count", len(allTags))
+	}
+
 	// Render output
 	logger.Debug("Rendering output", "format", cfg.Format, "tags", len(allTags))
 
@@ -154,6 +165,32 @@ func (c *DumpCmd) parseDicomFile(file DICOMFile, logger *log.Logger) ([]DICOMTag
 	logger.Debug("Extracted tags", "file", file.Name, "count", len(tags))
 
 	return tags, nil
+}
+
+// filterTags filters tags based on the specified tag filters.
+func (c *DumpCmd) filterTags(tags []DICOMTag, logger *log.Logger) ([]DICOMTag, error) {
+	// Build normalized filter set
+	filters := make(map[string]bool)
+	for _, tagFilter := range c.Tags {
+		normalized := normalizeTagFilter(tagFilter)
+		filters[normalized] = true
+		logger.Debug("Tag filter", "input", tagFilter, "normalized", normalized)
+	}
+
+	// Filter tags
+	filteredTags := make([]DICOMTag, 0)
+	for _, tag := range tags {
+		// Check if tag matches any filter
+		// Support matching by tag notation (GGGG,EEEE), tag code (GGGGEEEE), or keyword
+		tagNotation := normalizeTagFilter(tag.Tag)      // (0010,0010) -> 00100010
+		tagName := normalizeTagFilter(tag.Name)         // PatientName -> patientname
+
+		if filters[tagNotation] || filters[tagName] {
+			filteredTags = append(filteredTags, tag)
+		}
+	}
+
+	return filteredTags, nil
 }
 
 // extractPixelData extracts pixel data from a DICOM file to a separate file.
