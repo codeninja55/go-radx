@@ -182,8 +182,8 @@ func (c *DumpCmd) filterTags(tags []DICOMTag, logger *log.Logger) ([]DICOMTag, e
 	for _, tag := range tags {
 		// Check if tag matches any filter
 		// Support matching by tag notation (GGGG,EEEE), tag code (GGGGEEEE), or keyword
-		tagNotation := normalizeTagFilter(tag.Tag)      // (0010,0010) -> 00100010
-		tagName := normalizeTagFilter(tag.Name)         // PatientName -> patientname
+		tagNotation := normalizeTagFilter(tag.Tag) // (0010,0010) -> 00100010
+		tagName := normalizeTagFilter(tag.Name)    // PatientName -> patientname
 
 		if filters[tagNotation] || filters[tagName] {
 			filteredTags = append(filteredTags, tag)

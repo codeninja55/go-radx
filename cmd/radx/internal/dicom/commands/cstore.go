@@ -240,9 +240,9 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 func (c *CStoreCmd) buildPresentationContexts(files []DICOMFile, logger *log.Logger) []dul.PresentationContextRQ {
 	// Common transfer syntaxes
 	transferSyntaxes := []string{
-		"1.2.840.10008.1.2",     // Implicit VR Little Endian
-		"1.2.840.10008.1.2.1",   // Explicit VR Little Endian
-		"1.2.840.10008.1.2.2",   // Explicit VR Big Endian
+		"1.2.840.10008.1.2",      // Implicit VR Little Endian
+		"1.2.840.10008.1.2.1",    // Explicit VR Little Endian
+		"1.2.840.10008.1.2.2",    // Explicit VR Big Endian
 		"1.2.840.10008.1.2.4.90", // JPEG 2000 Lossless
 		"1.2.840.10008.1.2.4.91", // JPEG 2000
 	}

@@ -34,9 +34,9 @@ type SCPCmd struct {
 
 // echoHandler implements scp.EchoHandler.
 type echoHandler struct {
-	logger        *log.Logger
-	requestCount  atomic.Uint32
-	acceptEcho    bool
+	logger       *log.Logger
+	requestCount atomic.Uint32
+	acceptEcho   bool
 }
 
 // HandleEcho handles C-ECHO requests.
@@ -58,12 +58,12 @@ func (h *echoHandler) HandleEcho(ctx context.Context, req *scp.EchoRequest) *scp
 
 // storeHandler implements scp.StoreHandler.
 type storeHandler struct {
-	logger        *log.Logger
-	outputDir     string
-	organize      bool
-	sopClasses    map[string]bool
-	storeCount    atomic.Uint32
-	failCount     atomic.Uint32
+	logger     *log.Logger
+	outputDir  string
+	organize   bool
+	sopClasses map[string]bool
+	storeCount atomic.Uint32
+	failCount  atomic.Uint32
 }
 
 // HandleStore handles C-STORE requests.
@@ -273,9 +273,9 @@ func (c *SCPCmd) Run(cfg *config.GlobalConfig) error {
 // buildSupportedContexts creates the supported presentation contexts map.
 func (c *SCPCmd) buildSupportedContexts() map[string][]string {
 	transferSyntaxes := []string{
-		"1.2.840.10008.1.2",     // Implicit VR Little Endian
-		"1.2.840.10008.1.2.1",   // Explicit VR Little Endian
-		"1.2.840.10008.1.2.2",   // Explicit VR Big Endian
+		"1.2.840.10008.1.2",      // Implicit VR Little Endian
+		"1.2.840.10008.1.2.1",    // Explicit VR Little Endian
+		"1.2.840.10008.1.2.2",    // Explicit VR Big Endian
 		"1.2.840.10008.1.2.4.90", // JPEG 2000 Lossless
 		"1.2.840.10008.1.2.4.91", // JPEG 2000
 	}
