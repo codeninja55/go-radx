@@ -58,7 +58,7 @@ jobs:
             ./benchmarks | tee current.txt
 
       - name: Upload current benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-current
           path: current.txt
@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload base benchmark results
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-base
           path: base.txt
@@ -167,7 +167,7 @@ jobs:
 
       - name: Upload benchmark history
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-history-${{ github.sha }}
           path: benchmark-history/
