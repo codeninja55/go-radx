@@ -253,6 +253,101 @@ echo "✓ CLI built: ./bin/go-dicom"
 """
 
 # ----------------------------------------------------------------------------
+# Radx CLI Tasks
+# ----------------------------------------------------------------------------
+
+[tasks."radx:build"]
+description = "Build the radx DICOM CLI tool"
+run = """
+echo "Building radx CLI..."
+mkdir -p ./bin
+VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "develop")
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${BUILD_DATE}"
+cd cmd/radx && CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -v -o ../../bin/radx .
+echo "✓ radx CLI built: ./bin/radx"
+echo "  Version: ${VERSION}"
+echo "  Commit: ${COMMIT}"
+echo "  Build Date: ${BUILD_DATE}"
+"""
+
+[tasks."radx:install"]
+description = "Install radx CLI to GOPATH/bin"
+run = """
+echo "Installing radx CLI..."
+VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "develop")
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${BUILD_DATE}"
+cd cmd/radx && CGO_ENABLED=0 go install -ldflags="${LDFLAGS}" -v .
+echo "✓ radx installed to $(go env GOPATH)/bin/radx"
+"""
+
+[tasks."radx:test"]
+description = "Run tests for radx CLI"
+run = """
+echo "Running radx CLI tests..."
+go test -v -timeout 5m ./cmd/radx/...
+echo "✓ radx CLI tests passed"
+"""
+
+[tasks."radx:clean"]
+description = "Clean radx CLI build artifacts"
+run = """
+echo "Cleaning radx CLI artifacts..."
+rm -f ./bin/radx
+rm -f ./bin/radx-*
+echo "✓ radx CLI cleaned"
+"""
+
+[tasks."radx:compile"]
+description = "Build radx CLI for multiple platforms (darwin-arm64, darwin-amd64, linux-amd64, linux-arm64)"
+run = """
+echo "Building radx CLI for multiple platforms..."
+mkdir -p ./bin
+
+VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "develop")
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${BUILD_DATE}"
+
+echo "Build info:"
+echo "  Version: ${VERSION}"
+echo "  Commit: ${COMMIT}"
+echo "  Build Date: ${BUILD_DATE}"
+echo ""
+
+# Darwin ARM64 (Apple Silicon)
+echo "Building darwin-arm64..."
+cd cmd/radx && GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -v -o ../../bin/radx-darwin-arm64 .
+cd ../..
+echo "✓ darwin-arm64 built: ./bin/radx-darwin-arm64"
+
+# Darwin AMD64 (Intel Mac)
+echo "Building darwin-amd64..."
+cd cmd/radx && GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -v -o ../../bin/radx-darwin-amd64 .
+cd ../..
+echo "✓ darwin-amd64 built: ./bin/radx-darwin-amd64"
+
+# Linux AMD64
+echo "Building linux-amd64..."
+cd cmd/radx && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -v -o ../../bin/radx-linux-amd64 .
+cd ../..
+echo "✓ linux-amd64 built: ./bin/radx-linux-amd64"
+
+# Linux ARM64
+echo "Building linux-arm64..."
+cd cmd/radx && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -v -o ../../bin/radx-linux-arm64 .
+cd ../..
+echo "✓ linux-arm64 built: ./bin/radx-linux-arm64"
+
+echo ""
+echo "✓ All platforms built successfully:"
+ls -lh ./bin/radx-*
+"""
+
+# ----------------------------------------------------------------------------
 # SBOM Tasks
 # ----------------------------------------------------------------------------
 
