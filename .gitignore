@@ -41,3 +41,15 @@ notes.md
 
 .venv/
 site/
+
+## Build artifacts
+
+bin/
+dist/
+
+## DICOM catalogue databases
+
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
