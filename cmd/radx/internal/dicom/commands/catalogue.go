@@ -17,11 +17,12 @@ import (
 
 // CatalogueCmd implements the DICOM catalogue command with SQLite database.
 type CatalogueCmd struct {
-	Dir       string   `arg:"" required:"" type:"existingdir" help:"Directory containing DICOM files to catalogue"`
+	Dir       string   `arg:"" optional:"" type:"existingdir" help:"Directory containing DICOM files to catalogue"`
 	Database  string   `name:"database" short:"d" default:"dicom-catalogue.db" help:"SQLite database path"`
 	Rebuild   bool     `name:"rebuild" help:"Rebuild database from scratch"`
 	Recursive bool     `name:"recursive" short:"R" help:"Recursively search directories" default:"true"`
 	Query     []string `name:"query" short:"q" help:"Query tags (format: tag=(GGGG,EEEE), keyword=value, or text search)"`
+	SQL       string   `name:"sql" help:"Execute raw SQL query (read-only, safe queries only)"`
 }
 
 // DICOMMetadata represents the key metadata stored for each DICOM file.
@@ -118,6 +119,19 @@ func (c *CatalogueCmd) Run(cfg *config.GlobalConfig) error {
 			logger.Error("Failed to close database", "error", err)
 		}
 	}()
+
+	// If SQL query is provided, execute it and return
+	if c.SQL != "" {
+		logger.Info("Executing SQL query")
+		return c.executeSQLQuery(db, logger)
+	}
+
+	// Validate directory is provided for indexing operations
+	if c.Dir == "" {
+		logger.Info("No directory provided, displaying database summary")
+		c.displaySummary(db, logger)
+		return nil
+	}
 
 	// Rebuild database if requested
 	if c.Rebuild {
@@ -411,6 +425,104 @@ func (c *CatalogueCmd) queryDatabase(db *sql.DB, logger *log.Logger) ([]*DICOMMe
 	return results, nil
 }
 
+// executeSQLQuery executes a raw SQL query safely and displays results.
+func (c *CatalogueCmd) executeSQLQuery(db *sql.DB, logger *log.Logger) error {
+	// Validate query is read-only (only SELECT statements allowed)
+	trimmedSQL := strings.TrimSpace(strings.ToUpper(c.SQL))
+	if !strings.HasPrefix(trimmedSQL, "SELECT") {
+		return fmt.Errorf("only SELECT queries are allowed for safety (got: %s)", strings.Fields(trimmedSQL)[0])
+	}
+
+	// Additional safety check: prevent dangerous keywords
+	dangerousKeywords := []string{"DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE", "REPLACE"}
+	for _, keyword := range dangerousKeywords {
+		if strings.Contains(trimmedSQL, keyword) {
+			return fmt.Errorf("query contains dangerous keyword: %s", keyword)
+		}
+	}
+
+	logger.Debug("Executing SQL query", "sql", c.SQL)
+
+	// Execute query
+	rows, err := db.Query(c.SQL)
+	if err != nil {
+		return fmt.Errorf("failed to execute SQL query: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			logger.Error("Failed to close rows", "error", err)
+		}
+	}()
+
+	// Get column names
+	columns, err := rows.Columns()
+	if err != nil {
+		return fmt.Errorf("failed to get column names: %w", err)
+	}
+
+	// Display results in table format
+	fmt.Println()
+	fmt.Printf("%s\n\n", ui.InfoStyle.Render("SQL Query Results"))
+
+	table := ui.NewTable()
+
+	// Set headers
+	headerCells := make([]*simpletable.Cell, len(columns))
+	for i, col := range columns {
+		headerCells[i] = &simpletable.Cell{
+			Align: simpletable.AlignLeft,
+			Text:  col,
+		}
+	}
+	table.Header = &simpletable.Header{Cells: headerCells}
+
+	// Read and display rows
+	rowCount := 0
+	for rows.Next() {
+		// Create slice of interface{} to hold each column value
+		values := make([]interface{}, len(columns))
+		valuePtrs := make([]interface{}, len(columns))
+		for i := range columns {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			logger.Warn("Failed to scan row", "error", err)
+			continue
+		}
+
+		// Convert values to strings for display
+		rowCells := make([]*simpletable.Cell, len(columns))
+		for i, val := range values {
+			var strVal string
+			if val == nil {
+				strVal = ui.SubtleStyle.Render("NULL")
+			} else {
+				strVal = fmt.Sprintf("%v", val)
+				// Truncate long values
+				if len(strVal) > 50 {
+					strVal = strVal[:47] + "..."
+				}
+			}
+			rowCells[i] = &simpletable.Cell{Text: strVal}
+		}
+		table.Body.Cells = append(table.Body.Cells, rowCells)
+		rowCount++
+
+		// Limit results to prevent overwhelming output
+		if rowCount >= 1000 {
+			logger.Warn("Result set limited to 1000 rows")
+			break
+		}
+	}
+
+	ui.PrintTable(table, os.Stdout)
+	fmt.Println()
+	fmt.Printf("%s %s\n\n", ui.SubtleStyle.Render("Rows returned:"), ui.InfoStyle.Render(fmt.Sprintf("%d", rowCount)))
+
+	return nil
+}
+
 // buildWhereClause builds a WHERE clause for a query filter.
 func (c *CatalogueCmd) buildWhereClause(filter string) (string, []interface{}) {
 	// Parse filter format: tag=(value), keyword=value, or text search
@@ -448,29 +560,29 @@ func (c *CatalogueCmd) mapFieldToColumn(field string) string {
 	normalized := strings.ToLower(strings.ReplaceAll(field, " ", "_"))
 
 	mapping := map[string]string{
-		"patientname":           "patient_name",
-		"patient_name":          "patient_name",
-		"patientid":             "patient_id",
-		"patient_id":            "patient_id",
-		"studyinstanceuid":      "study_instance_uid",
-		"study_instance_uid":    "study_instance_uid",
-		"studyuid":              "study_instance_uid",
-		"seriesinstanceuid":     "series_instance_uid",
-		"series_instance_uid":   "series_instance_uid",
-		"seriesuid":             "series_instance_uid",
-		"sopinstanceuid":        "sop_instance_uid",
-		"sop_instance_uid":      "sop_instance_uid",
-		"instanceuid":           "sop_instance_uid",
-		"modality":              "modality",
-		"manufacturer":          "manufacturer",
-		"institution":           "institution_name",
-		"institution_name":      "institution_name",
-		"accessionnumber":       "accession_number",
-		"accession_number":      "accession_number",
-		"studydescription":      "study_description",
-		"study_description":     "study_description",
-		"seriesdescription":     "series_description",
-		"series_description":    "series_description",
+		"patientname":         "patient_name",
+		"patient_name":        "patient_name",
+		"patientid":           "patient_id",
+		"patient_id":          "patient_id",
+		"studyinstanceuid":    "study_instance_uid",
+		"study_instance_uid":  "study_instance_uid",
+		"studyuid":            "study_instance_uid",
+		"seriesinstanceuid":   "series_instance_uid",
+		"series_instance_uid": "series_instance_uid",
+		"seriesuid":           "series_instance_uid",
+		"sopinstanceuid":      "sop_instance_uid",
+		"sop_instance_uid":    "sop_instance_uid",
+		"instanceuid":         "sop_instance_uid",
+		"modality":            "modality",
+		"manufacturer":        "manufacturer",
+		"institution":         "institution_name",
+		"institution_name":    "institution_name",
+		"accessionnumber":     "accession_number",
+		"accession_number":    "accession_number",
+		"studydescription":    "study_description",
+		"study_description":   "study_description",
+		"seriesdescription":   "series_description",
+		"series_description":  "series_description",
 	}
 
 	if col, ok := mapping[normalized]; ok {
