@@ -29,10 +29,13 @@ output formats (table, JSON, CSV) and can filter specific tags for focused inspe
 |------|-------|---------|-------------|
 | `--recursive` | `-R` | false | Recursively search directories |
 | `--tag` | `-t` | | Filter specific tags (can be specified multiple times) |
+| `--group` | `-g` | | Filter by group tags (can be specified multiple times) |
 | `--process-pixel-data` | | false | Process pixel data elements |
 | `--store-pixel-data` | | false | Extract and store pixel data to files |
 
-## Tag Filter Formats
+## Filter Formats
+
+### Tag Filters
 
 The `--tag` flag accepts multiple formats:
 
@@ -41,6 +44,26 @@ The `--tag` flag accepts multiple formats:
 | (GGGG,EEEE) | `(0010,0010)` | Standard DICOM notation |
 | GGGGEEEE | `00100010` | Compact hex notation |
 | Keyword | `PatientName` | Tag keyword (case-insensitive) |
+
+### Group Filters
+
+The `--group` flag accepts multiple formats:
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| GGGG | `0010` | Group number in hex |
+| Named | `patient` | Predefined group name |
+
+#### Supported Group Names
+
+| Name | Group | Description |
+|------|-------|-------------|
+| `patient` | 0010 | Patient Information |
+| `study`, `series` | 0020 | Study/Series Information |
+| `image` | 0028 | Image Information |
+| `pixel` | 7FE0 | Pixel Data |
+| `metadata`, `meta` | 0002 | File Meta Information |
+| `overlay` | 6000 | Overlay Data |
 
 ## Usage Examples
 
@@ -96,26 +119,75 @@ Mix formats:
 radx dicom dump file.dcm -t PatientName -t "(0020,000D)" -t 00080060
 ```
 
+### Group Filtering
+
+Filter by group number:
+
+```bash
+# Show all Patient Information tags (group 0010)
+radx dicom dump file.dcm --group 0010
+```
+
+Filter by named group:
+
+```bash
+# Show all patient tags using named group
+radx dicom dump file.dcm --group patient
+
+# Show all study/series tags
+radx dicom dump file.dcm --group study
+```
+
+Multiple groups:
+
+```bash
+# Show patient and study information
+radx dicom dump file.dcm --group 0010,0020
+
+# Using named groups
+radx dicom dump file.dcm -g patient -g study
+```
+
+### Combined Filtering
+
+Group and tag filtering (AND logic):
+
+```bash
+# Show only PatientName from Patient group
+radx dicom dump file.dcm --group patient --tag PatientName
+
+# Show specific tags from multiple groups
+radx dicom dump file.dcm -g 0010 -g 0020 -t PatientName -t StudyDate
+```
+
 ### Common Tag Filters
 
 Patient information:
 
 ```bash
+# Using tag filters
 radx dicom dump file.dcm \
   -t PatientName \
   -t PatientID \
   -t PatientBirthDate \
   -t PatientSex
+
+# Or use group filter for all patient tags
+radx dicom dump file.dcm --group patient
 ```
 
 Study information:
 
 ```bash
+# Using tag filters
 radx dicom dump file.dcm \
   -t StudyInstanceUID \
   -t StudyDate \
   -t StudyTime \
   -t StudyDescription
+
+# Or use group filter for all study tags
+radx dicom dump file.dcm --group study
 ```
 
 Series information:
@@ -140,11 +212,15 @@ radx dicom dump file.dcm \
 Image dimensions:
 
 ```bash
+# Using tag filters
 radx dicom dump file.dcm \
   -t Rows \
   -t Columns \
   -t BitsAllocated \
   -t PhotometricInterpretation
+
+# Or use group filter for all image tags
+radx dicom dump file.dcm --group image
 ```
 
 ### Output Formats
