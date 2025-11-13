@@ -60,4 +60,4 @@ jobs:
         with:
           name: release-artifacts
           path: dist/*
-          retention-days: 30
+          retention-days: 7
