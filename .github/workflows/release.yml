@@ -38,7 +38,6 @@ jobs:
         with:
           release_branches: main
           tag_prefix: v
-          # Use PAT if available, otherwise fallback to GITHUB_TOKEN
           github_token: ${{ secrets.GITHUB_TOKEN }}
           create_annotated_tag: true
           default_bump: patch
@@ -57,27 +56,6 @@ jobs:
           echo "**Tag:** \`${{ steps.tag_version.outputs.new_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Previous Tag:** \`${{ steps.tag_version.outputs.previous_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [[ "${{ secrets.GH_PAT }}" != "" ]]; then
-            echo "✅ **GoReleaser will trigger automatically** (PAT configured)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **Manual Action Required**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "GoReleaser workflow will NOT trigger automatically without a PAT." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**To create the release:**" >> $GITHUB_STEP_SUMMARY
-            echo "1. Go to [Actions → GoReleaser](https://github.com/${{ github.repository }}/actions/workflows/goreleaser.yml)" >> $GITHUB_STEP_SUMMARY
-            echo "2. Click 'Run workflow'" >> $GITHUB_STEP_SUMMARY
-            echo "3. Enter tag: \`${{ steps.tag_version.outputs.new_tag }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "4. Click 'Run workflow'" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📝 Changelog" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.tag_version.outputs.changelog }}" >> $GITHUB_STEP_SUMMARY
-
-      - name: Check if GoReleaser needs manual trigger
-        if: steps.tag_version.outputs.new_tag != '' && !secrets.GH_PAT
-        run: |
-          echo "::warning title=Manual Release Required::A new tag ${{ steps.tag_version.outputs.new_tag }} was created, but GoReleaser won't trigger automatically without a Personal Access Token. Please manually run the GoReleaser workflow with this tag."
