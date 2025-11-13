@@ -1,11 +1,7 @@
-name: Tag and Release
+name: Tag on Main
 
 permissions:
-  id-token: write
   contents: write
-  actions: read
-  packages: write
-  statuses: write
 
 on:
   push:
@@ -17,18 +13,27 @@ on:
       - 'mkdocs.yml'
 
 jobs:
-  tag-and-release:
-    name: Tag and Release
+  create-tag:
+    name: Create Tag
     runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          # IMPORTANT: To trigger other workflows, you need to use a Personal Access Token
-          # Create a PAT with 'contents:write' and 'actions:write' permissions
-          # Add it as a secret named GH_PAT in your repository settings
-          # If GH_PAT is not available, it will fall back to GITHUB_TOKEN
+          # IMPORTANT: To trigger the GoReleaser workflow, you MUST use a Personal Access Token
+          # The default GITHUB_TOKEN cannot trigger other workflows (GitHub security feature)
+          #
+          # Setup Instructions:
+          # 1. Create a PAT at https://github.com/settings/tokens with 'repo' scope
+          # 2. Add it as a secret named GH_PAT in Settings → Secrets → Actions
+          # 3. The tag created with this PAT will trigger the GoReleaser workflow
+          #
+          # Without GH_PAT, the tag will be created but GoReleaser won't run automatically.
+          # You'll need to manually trigger it from Actions → GoReleaser → Run workflow
           token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Fetch existing tags
@@ -40,51 +45,46 @@ jobs:
         with:
           release_branches: main
           tag_prefix: v
+          # Use PAT if available, otherwise fallback to GITHUB_TOKEN
           github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           create_annotated_tag: true
           default_bump: patch
+          # Configure commit message conventions for automatic version bumping
+          # feat: minor version bump
+          # fix: patch version bump
+          # BREAKING CHANGE or !: major version bump
+          custom_release_rules: |
+            feat:minor,fix:patch,perf:patch,docs:patch,style:patch,refactor:patch,test:patch,build:patch,ci:patch,chore:patch
 
-      - name: Set up Go
-        if: steps.tag_version.outputs.new_tag != ''
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.25.4'
-
-      - name: Set up QEMU
-        if: steps.tag_version.outputs.new_tag != ''
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        if: steps.tag_version.outputs.new_tag != ''
-        uses: docker/setup-buildx-action@v3
-
-      - name: Run GoReleaser
-        if: steps.tag_version.outputs.new_tag != ''
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser-cross
-          version: '~> v1.25'
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_CURRENT_TAG: ${{ steps.tag_version.outputs.new_tag }}
-
-      - name: Upload artifacts
-        if: steps.tag_version.outputs.new_tag != ''
-        uses: actions/upload-artifact@v5
-        with:
-          name: release-artifacts
-          path: dist/*
-          retention-days: 30
-
-      - name: Create GitHub Release Summary
+      - name: Create Summary
         if: steps.tag_version.outputs.new_tag != ''
         run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🏷️ New Tag Created" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Tag:** ${{ steps.tag_version.outputs.new_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Previous Tag:** ${{ steps.tag_version.outputs.previous_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** \`${{ steps.tag_version.outputs.new_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Previous Tag:** \`${{ steps.tag_version.outputs.previous_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Changelog" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ secrets.GH_PAT }}" != "" ]]; then
+            echo "✅ **GoReleaser will trigger automatically** (PAT configured)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Manual Action Required**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "GoReleaser workflow will NOT trigger automatically without a PAT." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**To create the release:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Go to [Actions → GoReleaser](https://github.com/${{ github.repository }}/actions/workflows/goreleaser.yml)" >> $GITHUB_STEP_SUMMARY
+            echo "2. Click 'Run workflow'" >> $GITHUB_STEP_SUMMARY
+            echo "3. Enter tag: \`${{ steps.tag_version.outputs.new_tag }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "4. Click 'Run workflow'" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 Changelog" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.tag_version.outputs.changelog }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check if GoReleaser needs manual trigger
+        if: steps.tag_version.outputs.new_tag != '' && !secrets.GH_PAT
+        run: |
+          echo "::warning title=Manual Release Required::A new tag ${{ steps.tag_version.outputs.new_tag }} was created, but GoReleaser won't trigger automatically without a Personal Access Token. Please manually run the GoReleaser workflow with this tag."
