@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/codeninja55/go-radx/cmd/radx/internal/config"
 	"github.com/codeninja55/go-radx/cmd/radx/internal/dicom/ui"
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/dicom/tag"
 )
 
 // DumpCmd implements the DICOM dump command.
@@ -19,6 +21,7 @@ type DumpCmd struct {
 	ProcessPixelData bool     `name:"process-pixel-data" help:"Process pixel data elements"`
 	StorePixelData   bool     `name:"store-pixel-data" help:"Extract and store pixel data to files"`
 	Tags             []string `name:"tag" short:"t" help:"Filter specific tags (format: (GGGG,EEEE), GGGGEEEE, or keyword)"`
+	Groups           []string `name:"group" short:"g" help:"Filter by group tags (format: GGGG or group name, e.g., 0010 or patient)"`
 }
 
 // Run executes the dump command.
@@ -109,7 +112,17 @@ func (c *DumpCmd) Run(cfg *config.GlobalConfig) error {
 
 	progress.Complete("Complete")
 
-	// Filter tags if specific tags are requested
+	// Filter by groups if specified
+	if len(c.Groups) > 0 {
+		filteredTags, err := c.filterByGroups(allTags, logger)
+		if err != nil {
+			return fmt.Errorf("failed to filter by groups: %w", err)
+		}
+		allTags = filteredTags
+		logger.Debug("Filtered by groups", "filter_count", len(c.Groups), "result_count", len(allTags))
+	}
+
+	// Filter by specific tags if requested
 	if len(c.Tags) > 0 {
 		filteredTags, err := c.filterTags(allTags, logger)
 		if err != nil {
@@ -148,8 +161,15 @@ func (c *DumpCmd) parseDicomFile(file DICOMFile, logger *log.Logger) ([]DICOMTag
 		tagStr := fmt.Sprintf("(%04X,%04X)", elemTag.Group, elemTag.Element)
 		vr := elem.VR().String()
 
-		// Get tag name from dictionary
-		name := elemTag.String()
+		// Get tag name from dictionary - use Keyword for readable name
+		var name string
+		if tagInfo, err := tag.Find(elemTag); err == nil {
+			// Use Keyword which is the human-readable identifier (e.g., "PatientName")
+			name = tagInfo.Keyword
+		} else {
+			// Fallback to tag notation if not found in dictionary
+			name = elemTag.String()
+		}
 
 		// Format value - use the String() method which gives human-readable output
 		valueStr := elem.Value().String()
@@ -187,6 +207,34 @@ func (c *DumpCmd) filterTags(tags []DICOMTag, logger *log.Logger) ([]DICOMTag, e
 
 		if filters[tagNotation] || filters[tagName] {
 			filteredTags = append(filteredTags, tag)
+		}
+	}
+
+	return filteredTags, nil
+}
+
+// filterByGroups filters tags based on the specified group filters.
+func (c *DumpCmd) filterByGroups(tags []DICOMTag, logger *log.Logger) ([]DICOMTag, error) {
+	// Build normalized group filter set
+	groupFilters := make(map[string]bool)
+	for _, groupFilter := range c.Groups {
+		normalized := normalizeGroupFilter(groupFilter)
+		groupFilters[normalized] = true
+		logger.Debug("Group filter", "input", groupFilter, "normalized", normalized)
+	}
+
+	// Filter tags by group
+	filteredTags := make([]DICOMTag, 0)
+	for _, tag := range tags {
+		// Extract group from tag notation (GGGG,EEEE)
+		// Tag format is "(GGGG,EEEE)" so we extract the group part
+		if len(tag.Tag) >= 6 {
+			groupPart := tag.Tag[1:5] // Extract GGGG from (GGGG,EEEE)
+			normalizedGroup := strings.ToLower(groupPart)
+
+			if groupFilters[normalizedGroup] {
+				filteredTags = append(filteredTags, tag)
+			}
 		}
 	}
 

@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **RadX CLI Enhancements**:
+  - Group filtering for DICOM dump command (`--group`/`-g` flag)
+  - Named group aliases (patient, study, image, pixel, metadata, overlay)
+  - Combined group and tag filtering support
+  - Improved tag name display using DICOM dictionary keywords instead of tag notation
 - **FHIR R5 Type Safety Refactoring** (#10):
   - Generic helper functions for type-safe resource operations
   - `UnmarshalResource[T]()` for type-safe unmarshaling of polymorphic fields

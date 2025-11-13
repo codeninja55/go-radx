@@ -194,6 +194,45 @@ func normalizeTagFilter(filter string) string {
 	return normalized
 }
 
+// normalizeGroupFilter normalizes a group filter string for comparison.
+// Supports formats: GGGG, (GGGG), 0xGGGG, or common group names
+func normalizeGroupFilter(filter string) string {
+	// Remove common formatting characters
+	normalized := strings.ReplaceAll(filter, "(", "")
+	normalized = strings.ReplaceAll(normalized, ")", "")
+	normalized = strings.ReplaceAll(normalized, " ", "")
+	normalized = strings.ReplaceAll(normalized, "0x", "")
+	normalized = strings.ReplaceAll(normalized, "0X", "")
+
+	// Convert to lowercase for case-insensitive matching
+	normalized = strings.ToLower(normalized)
+
+	// Map common group names to their hex values
+	groupNameMap := map[string]string{
+		"patient":  "0010",
+		"study":    "0020",
+		"series":   "0020",
+		"image":    "0028",
+		"overlay":  "6000",
+		"pixel":    "7fe0",
+		"metadata": "0002",
+		"meta":     "0002",
+	}
+
+	// Check if the filter matches a known group name
+	if groupHex, exists := groupNameMap[normalized]; exists {
+		return groupHex
+	}
+
+	// If it's already a 4-character hex string, return as-is
+	// Otherwise, pad with zeros if needed
+	if len(normalized) < 4 {
+		normalized = strings.Repeat("0", 4-len(normalized)) + normalized
+	}
+
+	return normalized
+}
+
 // Output formatting functions
 
 // renderAsJSON renders DICOM tags as JSON to the given writer.
