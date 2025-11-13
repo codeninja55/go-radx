@@ -8,11 +8,12 @@ project_name: radx
 
 # Build configuration
 builds:
+  # Build for Linux and macOS with CGO support
   - id: radx
     main: ./cmd/radx
     binary: radx
 
-    # Build for multiple platforms
+    # Target platforms
     goos:
       - linux
       - darwin
@@ -21,9 +22,14 @@ builds:
       - amd64
       - arm64
 
+    # Build matrix exclusions (if needed)
+    ignore:
+      - goos: windows
+        goarch: arm64
+
     # Environment variables for build
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
 
     # Linker flags for version injection
     ldflags:
@@ -33,13 +39,19 @@ builds:
       - -X main.Date={{.Date}}
 
     # Build tags
+    tags:
+      - cgo
+
+    # Build flags
     flags:
       - -trimpath
+
+    # Note: goreleaser-cross will automatically handle the cross-compilation
+    # environment variables for each target platform
 
 # Archive configuration
 archives:
   - id: radx
-    format: tar.gz
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -54,10 +66,6 @@ archives:
       - CHANGELOG*
       - docs/*
 
-    # Format overrides
-    format_overrides:
-      - goos: windows
-        format: zip
 
 # Checksum configuration
 checksum:
@@ -66,7 +74,7 @@ checksum:
 
 # Snapshot configuration (for non-tagged builds)
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 # Changelog configuration
 changelog:
@@ -114,6 +122,14 @@ release:
     ## RadX DICOM Utility CLI {{ .Tag }}
 
     Release date: {{ .Date }}
+
+    ### Important Note
+
+    This release includes binaries with CGO support for JPEG and JPEG 2000 decompression.
+    If you encounter issues with image decompression, ensure you have the required libraries installed:
+
+    - **macOS**: `brew install jpeg-turbo openjpeg`
+    - **Linux**: `sudo apt-get install libjpeg-turbo8 libopenjp2-7`
 
     ### Installation
 
