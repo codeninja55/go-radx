@@ -10,20 +10,35 @@ permissions:
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/**'
+      - '*.md'
+      - 'docs/**'
+      - 'mkdocs.yml'
 
 jobs:
   release:
     name: release
     runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
     steps:
       - uses: actions/checkout@main
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Fetch existing tags
         run: git fetch --force --tags
       - name: Bump version and push tag
+        id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
           release_branches: main
           tag_prefix: v
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Trigger GoReleaser
+        if: steps.tag_version.outputs.new_tag != ''
+        run: |
+          echo "New tag created: ${{ steps.tag_version.outputs.new_tag }}"
+          git push origin ${{ steps.tag_version.outputs.new_tag }}
