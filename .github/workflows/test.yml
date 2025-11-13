@@ -24,24 +24,32 @@ jobs:
           go-version: '1.25.4'
           cache: true
 
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          version: latest
+
       - name: Install CGO dependencies
-        run: sudo apt-get update && sudo apt-get install -y libjpeg-dev libopenjp2-7-dev
+        run: mise deps:install
+
+      - name: Check CGO dependencies
+        run: mise deps:check
 
       - name: Download dependencies
-        run: go mod download
+        run: mise download
         env:
           GOTOOLCHAIN: local
 
-      - name: Run all tests
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Run all tests with coverage
+        run: mise test:coverage
         env:
           GOTOOLCHAIN: local
           DOCKER_HOST: unix:///var/run/docker.sock
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
           TESTCONTAINERS_RYUK_DISABLED: false
 
-      - name: Generate coverage report
-        run: go tool cover -html=coverage.out -o coverage.html
+      - name: Generate HTML coverage report
+        run: mise coverage:html
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

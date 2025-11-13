@@ -27,14 +27,19 @@ jobs:
           go-version: '1.25.4'
           cache: true
 
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          version: latest
+
       - name: Download dependencies
-        run: go mod download
+        run: mise download
+
+      - name: Install linting tools
+        run: mise tools:lint
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.4.0
-          args: --timeout=5m
+        run: mise lint
 
   gofmt:
     name: gofmt
@@ -49,14 +54,13 @@ jobs:
         with:
           go-version: '1.25.4'
 
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          version: latest
+
       - name: Check formatting
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "The following files are not formatted:"
-            echo "$unformatted"
-            exit 1
-          fi
+        run: mise fmt:check
 
   go-vet:
     name: go vet

@@ -420,6 +420,202 @@ echo "✓ SBOM vulnerability scan complete"
 """
 
 # ----------------------------------------------------------------------------
+# GoReleaser Tasks
+# ----------------------------------------------------------------------------
+
+[tasks."release:install"]
+description = "Install GoReleaser"
+run = """
+echo "Installing GoReleaser..."
+if command -v brew &> /dev/null; then
+    echo "Installing via Homebrew..."
+    brew install goreleaser
+else
+    echo "Installing via install script..."
+    curl -sL https://git.io/goreleaser | bash -s -- -b $(go env GOPATH)/bin
+fi
+echo "✓ GoReleaser installed"
+goreleaser --version
+"""
+
+[tasks."release:check"]
+description = "Validate GoReleaser configuration"
+run = """
+echo "Checking GoReleaser configuration..."
+if ! command -v goreleaser &> /dev/null; then
+    echo "GoReleaser not installed. Run 'mise release:install'"
+    exit 1
+fi
+goreleaser check
+echo "✓ GoReleaser configuration is valid"
+"""
+
+[tasks."release:snapshot"]
+description = "Build snapshot release (for testing, no Git tag required)"
+depends = ["release:check", "deps:check"]
+run = """
+echo "Building snapshot release with GoReleaser..."
+echo "This will create a local build without publishing..."
+rm -rf dist/
+goreleaser release --snapshot --clean
+echo "✓ Snapshot release built in ./dist/"
+echo ""
+echo "Built artifacts:"
+ls -lh dist/*.tar.gz 2>/dev/null || echo "No archives found"
+ls -lh dist/*.zip 2>/dev/null || echo "No zip files found"
+echo ""
+echo "Checksums:"
+cat dist/*_checksums.txt 2>/dev/null || echo "No checksums file found"
+"""
+
+[tasks."release:build"]
+description = "Build binaries only (no archives, no publish)"
+depends = ["release:check", "deps:check"]
+run = """
+echo "Building binaries with GoReleaser..."
+rm -rf dist/
+goreleaser build --clean
+echo "✓ Binaries built in ./dist/"
+echo ""
+echo "Built binaries:"
+find dist -type f -name "radx*" -perm +111 | while read -r binary; do
+    echo "  $(basename "$binary"): $(file -b "$binary" | cut -d, -f1)"
+done
+"""
+
+[tasks."release:dry-run"]
+description = "Perform a dry run of the release process (requires clean Git state)"
+depends = ["release:check", "deps:check", "test", "lint"]
+run = """
+echo "Running GoReleaser in dry-run mode..."
+echo "Note: This requires a clean Git working directory and a tag"
+echo ""
+
+# Check for clean git state
+if [ -n "$(git status --porcelain)" ]; then
+    echo "✗ Git working directory is not clean"
+    echo "  Please commit or stash your changes first"
+    exit 1
+fi
+
+# Check for tag
+if ! git describe --exact-match --tags HEAD 2>/dev/null; then
+    echo "⚠️  No tag found at current commit"
+    echo "  For a real release, you would need to create a tag:"
+    echo "    git tag -a v0.0.1 -m 'Release v0.0.1'"
+    echo ""
+    echo "  Running snapshot instead..."
+    goreleaser release --snapshot --clean --skip=publish
+else
+    TAG=$(git describe --exact-match --tags HEAD)
+    echo "Found tag: $TAG"
+    goreleaser release --clean --skip=publish
+fi
+
+echo "✓ Dry run complete"
+echo ""
+echo "Review the output in ./dist/ before running the actual release"
+"""
+
+[tasks."release:publish"]
+description = "Create and publish a release to GitHub (requires Git tag)"
+depends = ["release:check", "deps:check", "test", "lint"]
+run = """
+echo "Creating GitHub release with GoReleaser..."
+echo ""
+
+# Check for clean git state
+if [ -n "$(git status --porcelain)" ]; then
+    echo "✗ Git working directory is not clean"
+    echo "  Please commit or stash your changes first"
+    exit 1
+fi
+
+# Check for tag
+if ! git describe --exact-match --tags HEAD 2>/dev/null; then
+    echo "✗ No tag found at current commit"
+    echo ""
+    echo "To create a release:"
+    echo "  1. Create a tag: git tag -a v0.0.1 -m 'Release v0.0.1'"
+    echo "  2. Push the tag: git push origin v0.0.1"
+    echo "  3. Run this command again"
+    exit 1
+fi
+
+TAG=$(git describe --exact-match --tags HEAD)
+echo "🚀 Releasing version: $TAG"
+echo ""
+
+# Check for GITHUB_TOKEN
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo "✗ GITHUB_TOKEN environment variable not set"
+    echo "  Set it with: export GITHUB_TOKEN=your_token"
+    echo "  Or create one at: https://github.com/settings/tokens"
+    exit 1
+fi
+
+echo "This will create a GitHub release for tag: $TAG"
+echo "Press Ctrl+C to cancel, or wait 5 seconds to continue..."
+sleep 5
+
+goreleaser release --clean
+echo "✓ Release $TAG published to GitHub"
+echo "  View at: https://github.com/codeninja55/go-radx/releases/tag/$TAG"
+"""
+
+[tasks."release:clean"]
+description = "Clean GoReleaser build artifacts"
+run = """
+echo "Cleaning GoReleaser artifacts..."
+rm -rf dist/
+echo "✓ GoReleaser artifacts cleaned"
+"""
+
+[tasks."release:info"]
+description = "Show information about the current release state"
+run = """
+echo "Release Information:"
+echo "===================="
+echo ""
+
+# Current version from git
+if git describe --exact-match --tags HEAD 2>/dev/null; then
+    echo "Current tag: $(git describe --exact-match --tags HEAD)"
+else
+    echo "Current version: $(git describe --tags --always --dirty 2>/dev/null || echo 'no version')"
+    echo "No tag at current commit"
+fi
+
+echo "Latest tag: $(git describe --tags --abbrev=0 2>/dev/null || echo 'no tags')"
+echo ""
+
+# Git status
+if [ -n "$(git status --porcelain)" ]; then
+    echo "⚠️  Git working directory has uncommitted changes"
+else
+    echo "✓ Git working directory is clean"
+fi
+
+# GoReleaser status
+if command -v goreleaser &> /dev/null; then
+    echo "✓ GoReleaser installed: $(goreleaser --version | head -1)"
+else
+    echo "✗ GoReleaser not installed"
+fi
+
+# Check for GitHub token
+if [ -n "$GITHUB_TOKEN" ]; then
+    echo "✓ GITHUB_TOKEN is set"
+else
+    echo "✗ GITHUB_TOKEN not set (required for publishing)"
+fi
+
+echo ""
+echo "Recent tags:"
+git tag -l --sort=-version:refname | head -5 | sed 's/^/  - /'
+"""
+
+# ----------------------------------------------------------------------------
 # Documentation Tasks
 # ----------------------------------------------------------------------------
 
@@ -575,7 +771,7 @@ trivy version
 
 [tasks."tools:install"]
 description = "Install all development tools"
-depends = ["tools:lint", "tools:sbom"]
+depends = ["tools:lint", "tools:sbom", "release:install"]
 
 # ----------------------------------------------------------------------------
 # Clean Tasks
@@ -589,6 +785,7 @@ go clean
 rm -f coverage.out coverage.html
 rm -rf ./bin
 rm -rf ./sbom
+rm -rf ./dist
 echo "✓ Cleaned"
 """
 

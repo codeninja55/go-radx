@@ -1,0 +1,101 @@
+name: CI (Mise)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: CI Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          version: latest
+
+      - name: Install CGO dependencies
+        run: mise deps:install
+
+      - name: Check CGO dependencies
+        run: mise deps:check
+
+      - name: Download dependencies
+        run: mise download
+
+      - name: Run CI checks
+        run: mise ci
+        env:
+          GOTOOLCHAIN: local
+
+      - name: Generate coverage report
+        run: |
+          go test -coverprofile=coverage.out ./...
+          go tool cover -html=coverage.out -o coverage.html
+
+      - name: Archive test results
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-results
+          path: |
+            coverage.out
+            coverage.html
+          retention-days: 30
+        if: always()
+
+  release-check:
+    name: Release Readiness Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          version: latest
+
+      - name: Install release tools
+        run: mise release:install
+
+      - name: Check GoReleaser configuration
+        run: mise release:check
+
+      - name: Get release information
+        run: mise release:info
+
+      - name: Test snapshot build
+        run: mise release:snapshot
+
+      - name: Upload snapshot artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: snapshot-build
+          path: dist/*
+          retention-days: 7
+        if: always()
