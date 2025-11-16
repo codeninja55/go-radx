@@ -27,7 +27,7 @@ jobs:
       - name: Install mise
         uses: jdx/mise-action@v3
         with:
-          version: 2025-11-5
+          version: 2025.11.5
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install CGO dependencies
