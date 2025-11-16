@@ -47,7 +47,7 @@ echo "✓ Code formatting check passed"
 description = "Run golangci-lint"
 run = """
 echo "Running golangci-lint..."
-if ! command -v golangci-lint &> /dev/null; then
+if ! command -v golangci-lint >/dev/null 2>&1; then
     echo "golangci-lint not installed. Run: mise tools:lint"
     exit 1
 fi
@@ -146,16 +146,30 @@ fi
 echo "✓ CGO_ENABLED=1"
 
 # Check C compiler
-if ! command -v gcc &> /dev/null && ! command -v clang &> /dev/null; then
+HAS_GCC=0
+HAS_CLANG=0
+if command -v gcc >/dev/null 2>&1; then
+    HAS_GCC=1
+fi
+if command -v clang >/dev/null 2>&1; then
+    HAS_CLANG=1
+fi
+
+if [ "$HAS_GCC" = "0" ] && [ "$HAS_CLANG" = "0" ]; then
     echo "✗ No C compiler found (gcc or clang required)"
     echo "  macOS: xcode-select --install"
     echo "  Linux: apt-get install build-essential (or equivalent)"
     exit 1
 fi
-echo "✓ C compiler available"
+
+if [ "$HAS_GCC" = "1" ]; then
+    echo "✓ C compiler available: gcc"
+elif [ "$HAS_CLANG" = "1" ]; then
+    echo "✓ C compiler available: clang"
+fi
 
 # Check pkg-config
-if ! command -v pkg-config &> /dev/null; then
+if ! command -v pkg-config >/dev/null 2>&1; then
     echo "✗ pkg-config not found"
     echo "  macOS: brew install pkg-config"
     echo "  Linux: apt-get install pkg-config"
@@ -194,7 +208,7 @@ UNAME_S=$(uname -s)
 
 if [ "$UNAME_S" = "Darwin" ]; then
     # macOS with Homebrew
-    if command -v brew &> /dev/null; then
+    if command -v brew >/dev/null 2>&1; then
         echo "Installing via Homebrew..."
         brew install jpeg-turbo openjpeg pkg-config
     else
@@ -203,15 +217,15 @@ if [ "$UNAME_S" = "Darwin" ]; then
     fi
 elif [ "$UNAME_S" = "Linux" ]; then
     # Linux - try apt, then yum/dnf
-    if command -v apt-get &> /dev/null; then
+    if command -v apt-get >/dev/null 2>&1; then
         echo "Installing via apt-get..."
         sudo apt-get update
         sudo apt-get install -y libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
-    elif command -v dnf &> /dev/null; then
+    elif command -v dnf >/dev/null 2>&1; then
         echo "Installing via dnf..."
         sudo dnf groupinstall -y "Development Tools"
         sudo dnf install -y turbojpeg-devel openjpeg2-devel pkg-config
-    elif command -v yum &> /dev/null; then
+    elif command -v yum >/dev/null 2>&1; then
         echo "Installing via yum..."
         sudo yum groupinstall -y "Development Tools"
         sudo yum install -y turbojpeg-devel openjpeg2-devel pkgconfig
@@ -356,7 +370,7 @@ description = "Generate CycloneDX SBOM (packages only)"
 run = """
 echo "Generating CycloneDX v1.6 SBOM..."
 mkdir -p ./sbom
-if ! command -v trivy &> /dev/null; then
+if ! command -v trivy >/dev/null 2>&1; then
     echo "Trivy not installed. Run 'mise tools:sbom'"
     exit 1
 fi
@@ -369,7 +383,7 @@ description = "Generate CycloneDX SBOM with vulnerabilities"
 run = """
 echo "Generating CycloneDX v1.6 SBOM with vulnerabilities..."
 mkdir -p ./sbom
-if ! command -v trivy &> /dev/null; then
+if ! command -v trivy >/dev/null 2>&1; then
     echo "Trivy not installed. Run 'mise tools:sbom'"
     exit 1
 fi
@@ -382,7 +396,7 @@ description = "Generate CycloneDX SBOM with vulnerabilities and licenses"
 run = """
 echo "Generating comprehensive CycloneDX v1.6 SBOM..."
 mkdir -p ./sbom
-if ! command -v trivy &> /dev/null; then
+if ! command -v trivy >/dev/null 2>&1; then
     echo "Trivy not installed. Run 'mise tools:sbom'"
     exit 1
 fi
@@ -427,7 +441,7 @@ echo "✓ SBOM vulnerability scan complete"
 description = "Install GoReleaser"
 run = """
 echo "Installing GoReleaser..."
-if command -v brew &> /dev/null; then
+if command -v brew >/dev/null 2>&1; then
     echo "Installing via Homebrew..."
     brew install goreleaser
 else
@@ -442,7 +456,7 @@ goreleaser --version
 description = "Validate GoReleaser configuration"
 run = """
 echo "Checking GoReleaser configuration..."
-if ! command -v goreleaser &> /dev/null; then
+if ! command -v goreleaser >/dev/null 2>&1; then
     echo "GoReleaser not installed. Run 'mise release:install'"
     exit 1
 fi
@@ -597,7 +611,7 @@ else
 fi
 
 # GoReleaser status
-if command -v goreleaser &> /dev/null; then
+if command -v goreleaser >/dev/null 2>&1; then
     echo "✓ GoReleaser installed: $(goreleaser --version | head -1)"
 else
     echo "✗ GoReleaser not installed"
@@ -759,7 +773,7 @@ golangci-lint version
 description = "Install SBOM tools (Trivy)"
 run = """
 echo "Installing Trivy..."
-if command -v brew &> /dev/null; then
+if command -v brew >/dev/null 2>&1; then
     brew install trivy
 else
     echo "Installing Trivy via install script..."
