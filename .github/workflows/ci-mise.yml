@@ -30,7 +30,9 @@ jobs:
           version: 2025.11.5
 
       - name: Install CGO dependencies
-        run: mise deps:install
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
 
       - name: Check CGO dependencies
         run: mise deps:check
