@@ -146,29 +146,29 @@ release:
 
     #### macOS (Apple Silicon)
     ```bash
-    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Tag }}_darwin_arm64.tar.gz
-    tar -xzf radx_{{ .Tag }}_darwin_arm64.tar.gz
+    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Version }}_darwin_arm64.tar.gz
+    tar -xzf radx_{{ .Version }}_darwin_arm64.tar.gz
     sudo mv radx /usr/local/bin/
     ```
 
     #### macOS (Intel)
     ```bash
-    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Tag }}_darwin_amd64.tar.gz
-    tar -xzf radx_{{ .Tag }}_darwin_amd64.tar.gz
+    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Version }}_darwin_amd64.tar.gz
+    tar -xzf radx_{{ .Version }}_darwin_amd64.tar.gz
     sudo mv radx /usr/local/bin/
     ```
 
     #### Linux (x86-64)
     ```bash
-    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Tag }}_linux_amd64.tar.gz
-    tar -xzf radx_{{ .Tag }}_linux_amd64.tar.gz
+    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Version }}_linux_amd64.tar.gz
+    tar -xzf radx_{{ .Version }}_linux_amd64.tar.gz
     sudo mv radx /usr/local/bin/
     ```
 
     #### Linux (ARM64)
     ```bash
-    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Tag }}_linux_arm64.tar.gz
-    tar -xzf radx_{{ .Tag }}_linux_arm64.tar.gz
+    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Version }}_linux_arm64.tar.gz
+    tar -xzf radx_{{ .Version }}_linux_arm64.tar.gz
     sudo mv radx /usr/local/bin/
     ```
 
