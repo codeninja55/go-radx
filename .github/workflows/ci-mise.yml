@@ -40,6 +40,9 @@ jobs:
       - name: Download dependencies
         run: mise download
 
+      - name: Install linting tools
+        run: mise tools:lint
+
       - name: Run CI checks
         run: mise ci
         env:

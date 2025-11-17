@@ -15,7 +15,7 @@ jobs:
     name: golangci-lint
     runs-on: ubuntu-latest
     env:
-      CGO_ENABLED: 0
+      CGO_ENABLED: 1
 
     steps:
       - name: Checkout code
@@ -32,6 +32,14 @@ jobs:
         with:
           version: 2025.11.5
 
+      - name: Install CGO dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libjpeg-turbo8-dev libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
+
+      - name: Check CGO dependencies
+        run: mise deps:check
+
       - name: Download dependencies
         run: mise download
 
@@ -40,6 +48,8 @@ jobs:
 
       - name: Run golangci-lint
         run: mise lint
+        env:
+          GOTOOLCHAIN: local
 
   gofmt:
     name: gofmt
