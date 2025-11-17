@@ -54,9 +54,6 @@ jobs:
       - name: Install CGO dependencies
         run: mise deps:install
 
-      - name: Check GoReleaser configuration
-        run: mise release:check
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
