@@ -17,7 +17,8 @@ builds:
     # Target platforms
     goos:
       - linux
-      - darwin
+      # darwin disabled temporarily - CGO cross-compilation from Linux to macOS requires macOS SDK
+      # - darwin
 
     goarch:
       - amd64
