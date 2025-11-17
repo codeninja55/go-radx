@@ -6,6 +6,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
+  schedule:
+    # Run security scans weekly on Mondays at 00:00 UTC
+    - cron: '0 0 * * 1'
   workflow_dispatch:
     inputs:
       benchtime:
@@ -20,6 +23,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  security-events: write
 
 jobs:
   # Job 1: Formatting and linting checks
@@ -357,4 +361,108 @@ jobs:
           name: snapshot-build
           path: dist/*
           retention-days: 7
+        if: always()
+  # Job 6: Go Vulnerability Check
+  govulncheck:
+    name: Go Vulnerability Check
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: 0
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  # Job 7: Security Scanning (gosec)
+  gosec:
+    name: Security Scanning (gosec)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run gosec
+        uses: securego/gosec@master
+        with:
+          args: '-no-fail -fmt sarif -out gosec-results.sarif ./...'
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: gosec-results.sarif
+        if: always()
+
+  # Job 8: Trivy Vulnerability Scanner
+  trivy:
+    name: Trivy Vulnerability Scanner
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.11.5
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install SBOM tools
+        run: mise tools:sbom
+
+      - name: Generate SBOM with vulnerabilities
+        run: mise sbom:full
+
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: 'trivy-results.sarif'
+        if: always()
+
+      - name: Archive SBOM
+        uses: actions/upload-artifact@v5
+        with:
+          name: sbom-full
+          path: ./sbom/go-dicom.sbom-full.json
+          retention-days: 30
         if: always()
