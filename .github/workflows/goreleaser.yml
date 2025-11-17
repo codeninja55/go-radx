@@ -54,15 +54,17 @@ jobs:
       - name: Install CGO dependencies
         run: mise deps:install
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser-cross
-          version: '~> v1.21'
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_CURRENT_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      - name: Run GoReleaser with goreleaser-cross
+        run: |
+          docker run --rm \
+            -e CGO_ENABLED=1 \
+            -e GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" \
+            -e GORELEASER_CURRENT_TAG="${{ github.event.inputs.tag || github.ref_name }}" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $(pwd):/go/src/github.com/codeninja55/go-radx \
+            -w /go/src/github.com/codeninja55/go-radx \
+            ghcr.io/goreleaser/goreleaser-cross:v1.21 \
+            release --clean
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
