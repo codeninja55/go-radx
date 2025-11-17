@@ -45,6 +45,7 @@ linters:
       disabled-checks:
         - unnamedResult  # Allow unnamed returns for short functions
         - hugeParam      # May flag FHIR/DICOM structs with many fields
+        - dupImport      # False positive on cgo import "C" statements
 
     revive:
       rules:
