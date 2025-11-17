@@ -1,4 +1,6 @@
 // Package dicom provides DICOM file parsing and manipulation.
+// This package implements comprehensive DICOM (Digital Imaging and Communications in Medicine)
+// file format support with robust error handling.
 package dicom
 
 import "errors"
