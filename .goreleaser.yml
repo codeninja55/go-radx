@@ -22,8 +22,7 @@ builds:
 
     goarch:
       - amd64
-      # arm64 disabled temporarily - CGO cross-compilation needs configuration
-      # - arm64
+      - arm64
 
     # Build matrix exclusions (if needed)
     ignore:
@@ -33,6 +32,13 @@ builds:
     # Environment variables for build
     env:
       - CGO_ENABLED=1
+      # ARM64 cross-compilation toolchain (conditional)
+      - >-
+        {{- if eq .Arch "arm64" }}CC=aarch64-linux-gnu-gcc{{- end }}
+      - >-
+        {{- if eq .Arch "arm64" }}CXX=aarch64-linux-gnu-g++{{- end }}
+      - >-
+        {{- if eq .Arch "arm64" }}PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig{{- end }}
 
     # Linker flags for version injection
     ldflags:
