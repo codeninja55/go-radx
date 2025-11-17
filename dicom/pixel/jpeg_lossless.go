@@ -4,7 +4,7 @@
 package pixel
 
 /*
-#cgo pkg-config: libturbojpeg
+#cgo pkg-config: libjpeg
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
