@@ -111,12 +111,10 @@ issues:
   max-same-issues: 0
 
 output:
-  formats:
-    text:
-      path: stdout
-      print-linter-name: true
-      print-issued-lines: true
-      colors: true
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: false
   sort-results: true
   sort-order:
     - linter
