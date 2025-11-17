@@ -1,5 +1,4 @@
 //go:build ignore
-// +build ignore
 
 // This program generates constant exports for all Transfer Syntax and SOP Class UIDs.
 // Run with: go run generate_constants.go
