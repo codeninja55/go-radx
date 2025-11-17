@@ -33,7 +33,7 @@ jobs:
       - name: Install CGO dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
+          sudo apt-get install -y libjpeg-turbo8-dev libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
 
       - name: Check CGO dependencies
         run: mise deps:check

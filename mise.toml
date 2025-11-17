@@ -223,7 +223,7 @@ elif [ "$UNAME_S" = "Linux" ]; then
     if command -v apt-get >/dev/null 2>&1; then
         echo "Installing via apt-get..."
         sudo apt-get update
-        sudo apt-get install -y libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
+        sudo apt-get install -y libjpeg-turbo8-dev libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
     elif command -v dnf >/dev/null 2>&1; then
         echo "Installing via dnf..."
         sudo dnf groupinstall -y "Development Tools"
