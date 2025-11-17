@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Fetch existing tags
         run: git fetch --force --tags
@@ -38,7 +38,7 @@ jobs:
         with:
           release_branches: main
           tag_prefix: v
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           create_annotated_tag: true
           default_bump: patch
           # Configure commit message conventions for automatic version bumping

@@ -1,0 +1,359 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      benchtime:
+        description: 'Benchmark duration (e.g., 1s, 5s, 10s)'
+        required: false
+        default: '1s'
+      count:
+        description: 'Number of benchmark runs'
+        required: false
+        default: '5'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Job 1: Formatting and linting checks
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.11.5
+
+      - name: Install CGO dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libjpeg-turbo8-dev libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
+
+      - name: Check CGO dependencies
+        run: mise deps:check
+
+      - name: Download dependencies
+        run: mise download
+        env:
+          GOTOOLCHAIN: local
+
+      - name: Install linting tools
+        run: mise tools:lint
+
+      - name: Run formatting check
+        run: mise fmt:check
+
+      - name: Run linting
+        run: mise lint
+        env:
+          GOTOOLCHAIN: local
+
+  # Job 2: Tests with coverage
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.11.5
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install CGO dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libjpeg-turbo8-dev libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
+
+      - name: Check CGO dependencies
+        run: mise deps:check
+
+      - name: Download dependencies
+        run: mise download
+        env:
+          GOTOOLCHAIN: local
+
+      - name: Run all tests with coverage
+        run: mise test:coverage
+        env:
+          GOTOOLCHAIN: local
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+          TESTCONTAINERS_RYUK_DISABLED: false
+
+      - name: Generate HTML coverage report
+        run: mise coverage:html
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-ubuntu-go1.25.4
+          fail_ci_if_error: false
+
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.html
+          retention-days: 30
+
+  # Job 3: Coverage threshold check (no CGO for portability)
+  coverage-check:
+    name: Coverage Check
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+        env:
+          GOTOOLCHAIN: local
+
+      - name: Run tests with coverage (no CGO)
+        run: go test -coverprofile=coverage.out ./...
+        env:
+          CGO_ENABLED: 0
+          GOTOOLCHAIN: local
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: ${COVERAGE}%"
+          echo "Coverage check disabled - informational only"
+
+  # Job 4: Benchmarks
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    # Only run benchmarks on PRs or when code changes affect performance-critical paths
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Install CGO dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libjpeg-turbo8-dev libturbojpeg0-dev libopenjp2-7-dev build-essential pkg-config
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
+
+      - name: Run benchmarks on current branch
+        run: |
+          BENCHTIME="${{ github.event.inputs.benchtime || '1s' }}"
+          COUNT="${{ github.event.inputs.count || '5' }}"
+
+          go test -bench=. -benchmem -benchtime="$BENCHTIME" -count="$COUNT" \
+            ./benchmarks | tee current.txt
+
+      - name: Upload current benchmark results
+        uses: actions/upload-artifact@v5
+        with:
+          name: benchmark-current
+          path: current.txt
+          retention-days: 30
+
+      - name: Checkout base branch for comparison
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git checkout origin/${{ github.base_ref }}
+
+      - name: Run benchmarks on base branch
+        if: github.event_name == 'pull_request'
+        run: |
+          BENCHTIME="${{ github.event.inputs.benchtime || '1s' }}"
+          COUNT="${{ github.event.inputs.count || '5' }}"
+
+          go test -bench=. -benchmem -benchtime="$BENCHTIME" -count="$COUNT" \
+            ./benchmarks | tee base.txt
+
+      - name: Upload base benchmark results
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v5
+        with:
+          name: benchmark-base
+          path: base.txt
+          retention-days: 30
+
+      - name: Compare benchmark results
+        if: github.event_name == 'pull_request'
+        id: compare
+        run: |
+          echo "## Benchmark Comparison" > comparison.md
+          echo "" >> comparison.md
+          echo "Comparing current PR against base branch \`${{ github.base_ref }}\`" >> comparison.md
+          echo "" >> comparison.md
+          echo '```' >> comparison.md
+          benchstat base.txt current.txt | tee -a comparison.md
+          echo '```' >> comparison.md
+
+          # Check for significant regressions (>20% slower or >20% more memory)
+          if benchstat -delta-test=ttest base.txt current.txt | grep -E '\+[2-9][0-9]\.[0-9]+%|^\+[1-9][0-9][0-9]\.[0-9]+%'; then
+            echo "REGRESSION_DETECTED=true" >> $GITHUB_OUTPUT
+            echo "" >> comparison.md
+            echo "⚠️ **Performance regression detected!**" >> comparison.md
+            echo "" >> comparison.md
+            echo "Some benchmarks show >20% performance degradation." >> comparison.md
+          else
+            echo "REGRESSION_DETECTED=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR with benchmark results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const comparison = fs.readFileSync('comparison.md', 'utf8');
+
+            // Find existing benchmark comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Benchmark Comparison')
+            );
+
+            const commentBody = comparison;
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+      - name: Check for regression threshold
+        if: github.event_name == 'pull_request' && steps.compare.outputs.REGRESSION_DETECTED == 'true'
+        run: |
+          echo "::warning::Performance regression detected (>20% slower or more memory usage)"
+          echo "::warning::Review the benchmark comparison above"
+          # Note: We don't fail the build, just warn
+          # Uncomment the line below to make regressions fail the build:
+          # exit 1
+
+      - name: Store benchmark baseline (main branch only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p benchmark-history
+          cp current.txt "benchmark-history/$(date +%Y%m%d-%H%M%S).txt"
+
+      - name: Upload benchmark history
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v5
+        with:
+          name: benchmark-history-${{ github.sha }}
+          path: benchmark-history/
+          retention-days: 90
+
+  # Job 5: Release readiness check (PR only)
+  release-check:
+    name: Release Readiness
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.11.5
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install release tools
+        run: mise release:install
+
+      - name: Check GoReleaser configuration
+        run: mise release:check
+
+      - name: Get release information
+        run: mise release:info
+
+      - name: Test snapshot build
+        run: mise release:snapshot
+
+      - name: Upload snapshot artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: snapshot-build
+          path: dist/*
+          retention-days: 7
+        if: always()
