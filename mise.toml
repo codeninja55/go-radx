@@ -177,15 +177,18 @@ if ! command -v pkg-config >/dev/null 2>&1; then
 fi
 echo "✓ pkg-config available"
 
-# Check libjpeg
-if ! pkg-config --exists libjpeg 2>/dev/null; then
+# Check libjpeg (accept either libjpeg or libturbojpeg)
+if pkg-config --exists libjpeg 2>/dev/null; then
+    echo "✓ libjpeg-turbo installed (version: $(pkg-config --modversion libjpeg))"
+elif pkg-config --exists libturbojpeg 2>/dev/null; then
+    echo "✓ libjpeg-turbo installed (version: $(pkg-config --modversion libturbojpeg))"
+else
     echo "✗ libjpeg-turbo not found"
     echo "  macOS: brew install jpeg-turbo"
     echo "  Ubuntu/Debian: apt-get install libturbojpeg0-dev"
     echo "  Fedora/RHEL: yum install turbojpeg-devel"
     exit 1
 fi
-echo "✓ libjpeg-turbo installed (version: $(pkg-config --modversion libjpeg))"
 
 # Check OpenJPEG
 if ! pkg-config --exists libopenjp2 2>/dev/null; then
