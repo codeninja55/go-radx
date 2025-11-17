@@ -10,7 +10,8 @@ project_name: radx
 builds:
   # Build for Linux and macOS with CGO support
   - id: radx
-    main: ./cmd/radx
+    dir: ./cmd/radx
+    main: .
     binary: radx
 
     # Target platforms
