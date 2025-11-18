@@ -11,7 +11,7 @@ before:
   hooks:
     # Install CGO dependencies for all builds
     # This runs once in the container before any builds start
-    - apt-get update && apt-get install -y pkg-config libopenjp2-7-dev libopenjp2-7-dev:arm64
+    - apt-get update && apt-get install -y pkg-config libopenjp2-7-dev libopenjp2-7-dev:arm64 libjpeg-dev libjpeg-dev:arm64
 
 # Build configuration
 builds:
@@ -39,6 +39,9 @@ builds:
     # Environment variables for build
     env:
       - CGO_ENABLED=1
+      # PKG_CONFIG_PATH for architecture-specific library locations
+      - >-
+        {{- if eq .Arch "amd64" }}PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig{{- end }}
       # ARM64 cross-compilation toolchain (conditional)
       - >-
         {{- if eq .Arch "arm64" }}CC=aarch64-linux-gnu-gcc{{- end }}
