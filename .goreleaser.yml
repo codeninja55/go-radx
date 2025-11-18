@@ -29,6 +29,12 @@ builds:
       - goos: windows
         goarch: arm64
 
+    # Build hooks to install CGO dependencies
+    hooks:
+      pre:
+        # Install pkg-config and OpenJPEG development libraries for both amd64 and arm64
+        - apt-get update && apt-get install -y pkg-config libopenjp2-7-dev libopenjp2-7-dev:arm64
+
     # Environment variables for build
     env:
       - CGO_ENABLED=1
