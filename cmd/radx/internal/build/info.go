@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Info contains build-time metadata about the radx CLI.
@@ -59,8 +61,34 @@ func (i Info) JSON() (string, error) {
 	return string(data), nil
 }
 
-// PrintBuildInfo prints build information to stdout.
+// PrintBuildInfo prints build information to stdout in a formatted layout.
 func PrintBuildInfo() {
 	i := Get()
-	fmt.Println(i.String())
+
+	// Define styles for output
+	primaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#5436bd"))
+	secondaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#d6cfef"))
+
+	// Truncate commit to first 6 characters
+	commit := i.Commit
+	if commit != "" && len(commit) > 6 {
+		commit = commit[:6]
+	}
+
+	// Print formatted build info
+	fmt.Printf("%s", primaryStyle.Render("Server version:  "))
+	fmt.Println(secondaryStyle.Render(i.Version))
+
+	fmt.Printf("%s", primaryStyle.Render("commit:          "))
+	fmt.Println(secondaryStyle.Render(commit))
+
+	fmt.Printf("%s", primaryStyle.Render("buildDate:       "))
+	fmt.Println(secondaryStyle.Render(i.BuildDate))
+
+	fmt.Printf("%s", primaryStyle.Render("goVersion:       "))
+	fmt.Println(secondaryStyle.Render(i.GoVersion))
+
+	fmt.Printf("%s", primaryStyle.Render("platform:        "))
+	fmt.Println(secondaryStyle.Render(i.Platform))
+	fmt.Println()
 }

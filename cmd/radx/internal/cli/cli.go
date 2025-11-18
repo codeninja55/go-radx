@@ -21,7 +21,7 @@ type CLI struct {
 	config.GlobalConfig
 
 	// DICOM subcommand group
-	Dicom DicomCmd `cmd:"" help:"DICOM utilities"`
+	Dicom DicomCmd `cmd:"" optional:"" help:"DICOM utilities"`
 }
 
 // DicomCmd is the parent command for all DICOM utilities.
@@ -41,6 +41,15 @@ func Run(version, commit, date string) error {
 	// Set build info
 	build.SetBuildInfo(version, commit, date)
 
+	// Check for --version or -V flag before Kong parsing
+	// This allows version flag to work without requiring a command
+	for _, arg := range os.Args[1:] {
+		if arg == "--version" || arg == "-V" {
+			build.PrintBuildInfo()
+			return nil
+		}
+	}
+
 	// Parse command-line arguments
 	cli := &CLI{}
 	ctx := kong.Parse(cli,
@@ -56,6 +65,12 @@ func Run(version, commit, date string) error {
 			"date":    date,
 		},
 	)
+
+	// If no command was selected, show help
+	if ctx.Command() == "" {
+		_ = ctx.PrintUsage(false)
+		return fmt.Errorf("no command specified")
+	}
 
 	// Setup logging
 	logger := setupLogger(&cli.GlobalConfig)
