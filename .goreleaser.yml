@@ -40,15 +40,16 @@ builds:
     env:
       - CGO_ENABLED=1
       # PKG_CONFIG_PATH for architecture-specific library locations
+      # Include multiple search paths: arch-specific, then common locations
       - >-
-        {{- if eq .Arch "amd64" }}PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig{{- end }}
+        {{- if eq .Arch "amd64" }}PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig{{- end }}
       # ARM64 cross-compilation toolchain (conditional)
       - >-
         {{- if eq .Arch "arm64" }}CC=aarch64-linux-gnu-gcc{{- end }}
       - >-
         {{- if eq .Arch "arm64" }}CXX=aarch64-linux-gnu-g++{{- end }}
       - >-
-        {{- if eq .Arch "arm64" }}PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig{{- end }}
+        {{- if eq .Arch "arm64" }}PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig{{- end }}
 
     # Linker flags for version injection
     ldflags:
