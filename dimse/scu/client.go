@@ -71,6 +71,11 @@ func (c *Client) Close(ctx context.Context) error {
 	return nil
 }
 
+// GetAssociation returns the current association (for accessing negotiation results)
+func (c *Client) GetAssociation() *dul.Association {
+	return c.assoc
+}
+
 // Echo performs C-ECHO
 func (c *Client) Echo(ctx context.Context) error {
 	// Create C-ECHO-RQ command
@@ -126,6 +131,22 @@ func (c *Client) Store(ctx context.Context, ds *dicom.DataSet, sopClassUID, sopI
 	// Find presentation context
 	pc, ok := c.assoc.FindPresentationContext(sopClassUID)
 	if !ok {
+		// Check if context was proposed but rejected
+		exists, _, result := c.assoc.GetPresentationContextResult(sopClassUID)
+		if exists {
+			switch result {
+			case pdu.PresentationContextAbstractSyntaxNotSupported:
+				return fmt.Errorf("server does not support SOP Class %s (abstract syntax rejected)", sopClassUID)
+			case pdu.PresentationContextTransferSyntaxesNotSupported:
+				return fmt.Errorf("server does not support any transfer syntax for SOP Class %s", sopClassUID)
+			case pdu.PresentationContextUserRejection:
+				return fmt.Errorf("server rejected SOP Class %s (user rejection)", sopClassUID)
+			case pdu.PresentationContextProviderRejection:
+				return fmt.Errorf("server rejected SOP Class %s (provider rejection)", sopClassUID)
+			default:
+				return fmt.Errorf("presentation context rejected for %s (result=0x%02X)", sopClassUID, result)
+			}
+		}
 		return fmt.Errorf("no presentation context for %s", sopClassUID)
 	}
 

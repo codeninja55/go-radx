@@ -28,6 +28,9 @@ type CStoreCmd struct {
 	Timeout    time.Duration `name:"timeout" default:"5m" help:"Operation timeout"`
 	MaxPDUSize uint32        `name:"max-pdu" default:"16384" help:"Maximum PDU size in bytes"`
 
+	// Error handling options
+	ContinueOnError bool `name:"continue-on-error" help:"Continue storing files even if some fail due to unsupported SOP classes"`
+
 	// Rate limiting options
 	RateLimit      float64 `name:"rate-limit" help:"Rate limit in files/second (0 = unlimited)" default:"0"`
 	RateLimitBytes float64 `name:"rate-limit-bytes" help:"Rate limit in MB/second (0 = unlimited)" default:"0"`
@@ -149,6 +152,67 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 	spinner.Stop()
 	logger.Info("Association established successfully")
 
+	// Validate that all files have accepted presentation contexts
+	logger.Debug("Validating presentation contexts for all files")
+	sopClassMap := make(map[string]struct{})
+	var rejectedSOPs []string
+
+	for _, file := range files {
+		dataset, err := dicom.ParseFile(file.Path)
+		if err != nil {
+			logger.Warn("Failed to parse file for validation", "file", file.Path, "error", err)
+			continue
+		}
+
+		sopClassUID, _, err := extractSOPIdentifiers(dataset)
+		if err != nil {
+			logger.Warn("Failed to extract SOP Class UID for validation", "file", file.Path, "error", err)
+			continue
+		}
+
+		// Track unique SOP classes and check if they're accepted
+		if _, seen := sopClassMap[sopClassUID]; !seen {
+			sopClassMap[sopClassUID] = struct{}{}
+			exists, accepted, result := client.GetAssociation().GetPresentationContextResult(sopClassUID)
+			if exists && !accepted {
+				// Log detailed rejection reason at debug level
+				var reason string
+				switch result {
+				case 3: // PresentationContextAbstractSyntaxNotSupported
+					reason = "abstract syntax not supported"
+				case 4: // PresentationContextTransferSyntaxesNotSupported
+					reason = "transfer syntaxes not supported"
+				case 1: // PresentationContextUserRejection
+					reason = "user rejection"
+				case 2: // PresentationContextProviderRejection
+					reason = "provider rejection"
+				default:
+					reason = fmt.Sprintf("unknown reason (result=0x%02X)", result)
+				}
+				logger.Debug("Presentation context rejected",
+					"sop_class_uid", sopClassUID,
+					"reason", reason,
+					"result_code", result)
+				rejectedSOPs = append(rejectedSOPs, sopClassUID)
+			} else if exists && accepted {
+				logger.Debug("Presentation context accepted", "sop_class_uid", sopClassUID)
+			}
+		}
+	}
+
+	if len(rejectedSOPs) > 0 {
+		if c.ContinueOnError {
+			logger.Warn("Server does not support some SOP Classes, but continuing due to --continue-on-error flag",
+				"unsupported_sop_classes", rejectedSOPs,
+				"note", "Files with unsupported SOP Classes will be skipped")
+		} else {
+			logger.Error("Server does not support required SOP Classes", "unsupported_sop_classes", rejectedSOPs)
+			return fmt.Errorf("association succeeded but server does not support required SOP Classes: %v (use --continue-on-error to skip unsupported files)", rejectedSOPs)
+		}
+	} else {
+		logger.Debug("All presentation contexts validated successfully")
+	}
+
 	// Store files with progress tracking
 	progress := ui.NewProgressBar(len(files), "Storing")
 	var successCount, failCount atomic.Uint32
@@ -233,7 +297,7 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 		"elapsed", elapsed,
 	)
 
-	if failCount.Load() > 0 {
+	if failCount.Load() > 0 && !c.ContinueOnError {
 		return fmt.Errorf("C-STORE completed with %d failures", failCount.Load())
 	}
 

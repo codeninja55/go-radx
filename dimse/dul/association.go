@@ -290,6 +290,20 @@ func (a *Association) FindPresentationContext(abstractSyntax string) (*Presentat
 	return nil, false
 }
 
+// GetPresentationContextResult returns the result of presentation context negotiation for an abstract syntax.
+// Returns: exists (whether context was proposed), accepted (whether it was accepted), result (PDU result code)
+func (a *Association) GetPresentationContextResult(abstractSyntax string) (exists bool, accepted bool, result uint8) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	for _, pc := range a.presentationContexts {
+		if pc.AbstractSyntax == abstractSyntax {
+			return true, pc.Accepted, pc.Result
+		}
+	}
+	return false, false, 0
+}
+
 // negotiatePresentationContext negotiates a single presentation context
 func (a *Association) negotiatePresentationContext(rq pdu.PresentationContextRQ, supported map[string][]string) *PresentationContext {
 	pc := &PresentationContext{
