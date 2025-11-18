@@ -31,7 +31,7 @@ type CStoreCmd struct {
 	MaxPDUSize uint32        `name:"max-pdu" default:"16384" help:"Maximum PDU size in bytes"`
 
 	// Error handling options
-	ContinueOnError bool `name:"continue-on-error" help:"Continue storing files even if some fail due to unsupported SOP classes"`
+	FailFast bool `name:"fail-fast" help:"Exit immediately if any files have unsupported SOP classes instead of attempting all files"`
 
 	// Rate limiting options
 	RateLimit      float64 `name:"rate-limit" help:"Rate limit in files/second (0 = unlimited)" default:"0"`
@@ -203,13 +203,13 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 	}
 
 	if len(rejectedSOPs) > 0 {
-		if c.ContinueOnError {
-			logger.Warn("Server does not support some SOP Classes, but continuing due to --continue-on-error flag",
-				"unsupported_sop_classes", rejectedSOPs,
-				"note", "Files with unsupported SOP Classes will be skipped")
-		} else {
+		if c.FailFast {
 			logger.Error("Server does not support required SOP Classes", "unsupported_sop_classes", rejectedSOPs)
-			return fmt.Errorf("association succeeded but server does not support required SOP Classes: %v (use --continue-on-error to skip unsupported files)", rejectedSOPs)
+			return fmt.Errorf("association succeeded but server does not support required SOP Classes: %v", rejectedSOPs)
+		} else {
+			logger.Warn("Some files have unsupported SOP Classes and will fail during transfer",
+				"rejected_classes", rejectedSOPs,
+				"action", "Will attempt all files (use --fail-fast to exit early)")
 		}
 	} else {
 		logger.Debug("All presentation contexts validated successfully")
@@ -369,7 +369,7 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 		"elapsed", elapsed,
 	)
 
-	if failCount.Load() > 0 && !c.ContinueOnError {
+	if failCount.Load() > 0 && c.FailFast {
 		return fmt.Errorf("C-STORE completed with %d failures", failCount.Load())
 	}
 
