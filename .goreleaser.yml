@@ -6,6 +6,13 @@ version: 2
 # Project metadata
 project_name: radx
 
+# Global hooks (run once before all builds)
+before:
+  hooks:
+    # Install CGO dependencies for all builds
+    # This runs once in the container before any builds start
+    - apt-get update && apt-get install -y pkg-config libopenjp2-7-dev libopenjp2-7-dev:arm64
+
 # Build configuration
 builds:
   # Build for Linux and macOS with CGO support
@@ -28,12 +35,6 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
-
-    # Build hooks to install CGO dependencies
-    hooks:
-      pre:
-        # Install pkg-config and OpenJPEG development libraries for both amd64 and arm64
-        - apt-get update && apt-get install -y pkg-config libopenjp2-7-dev libopenjp2-7-dev:arm64
 
     # Environment variables for build
     env:
