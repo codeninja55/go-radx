@@ -72,9 +72,6 @@ func Run(version, commit, date string) error {
 		return fmt.Errorf("no command specified")
 	}
 
-	// Print compact build info at start of command execution
-	build.PrintCompactBuildInfo()
-
 	// Setup logging
 	logger := setupLogger(&cli.GlobalConfig)
 

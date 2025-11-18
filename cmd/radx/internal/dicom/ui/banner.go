@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/codeninja55/go-radx/cmd/radx/internal/build"
 	"github.com/common-nighthawk/go-figure"
 )
 
@@ -13,10 +14,11 @@ var BannerStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("#5436bd")).
 	Bold(true)
 
-// PrintBanner prints the "RadX DICOM" ASCII art banner to stderr.
+// PrintBanner prints the "RadX" ASCII art banner and build info to stderr.
 func PrintBanner() {
-	banner := figure.NewFigure("RadX DICOM", "banner3", true)
+	banner := figure.NewFigure("RadX", "banner3", true)
 
 	fmt.Fprintln(os.Stderr, BannerStyle.Render(banner.String()))
+	build.PrintCompactBuildInfo()
 	fmt.Fprintln(os.Stderr)
 }
