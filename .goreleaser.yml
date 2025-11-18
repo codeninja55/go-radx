@@ -73,7 +73,6 @@ archives:
       - LICENSE*
       - README*
       - CHANGELOG*
-      - docs/*
 
 
 # Checksum configuration
