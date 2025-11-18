@@ -2,9 +2,11 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -215,7 +217,7 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 
 	// Store files with progress tracking
 	progress := ui.NewProgressBar(len(files), "Storing")
-	var successCount, failCount atomic.Uint32
+	var successCount, failCount, reconnectCount atomic.Uint32
 	startTime := time.Now()
 
 	for i, file := range files {
@@ -255,15 +257,45 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 			continue
 		}
 
-		// Perform C-STORE
-		if err := client.Store(ctx, dataset, sopClassUID, sopInstanceUID); err != nil {
-			logger.Error("C-STORE failed", "file", file.Path, "error", err)
-			failCount.Add(1)
-			continue
-		}
+		// Perform C-STORE with automatic reconnection on connection errors
+		maxRetries := 1 // One retry after reconnection
+		var storeErr error
+		for attempt := 0; attempt <= maxRetries; attempt++ {
+			storeErr = client.Store(ctx, dataset, sopClassUID, sopInstanceUID)
+			if storeErr == nil {
+				// Success
+				successCount.Add(1)
+				logger.Debug("Stored file", "file", file.Name, "index", i+1, "total", len(files))
+				break
+			}
 
-		successCount.Add(1)
-		logger.Debug("Stored file", "file", file.Name, "index", i+1, "total", len(files))
+			// Check if error is a connection error
+			if !isConnectionError(storeErr) {
+				// Not a connection error, don't retry
+				logger.Error("C-STORE failed", "file", file.Path, "error", storeErr)
+				failCount.Add(1)
+				break
+			}
+
+			// Connection error - attempt to reconnect if we haven't exceeded retries
+			if attempt < maxRetries {
+				logger.Warn("Connection error detected, attempting reconnection", "file", file.Path, "error", storeErr)
+				newClient, err := c.reconnectClient(ctx, client, clientConfig, logger, remoteAddr)
+				if err != nil {
+					logger.Error("Reconnection failed, skipping file", "file", file.Path, "error", err)
+					failCount.Add(1)
+					break
+				}
+				client = newClient
+				reconnectCount.Add(1)
+				logger.Info("Retrying file after reconnection", "file", file.Path)
+				continue
+			}
+
+			// Exceeded retries
+			logger.Error("C-STORE failed after reconnection attempt", "file", file.Path, "error", storeErr)
+			failCount.Add(1)
+		}
 	}
 
 	progress.Complete("Complete")
@@ -283,6 +315,9 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 	if failCount.Load() > 0 {
 		fmt.Printf("  %s %s\n", ui.SubtleStyle.Render("Failed:"), ui.ErrorStyle.Render(fmt.Sprintf("%d", failCount.Load())))
 	}
+	if reconnectCount.Load() > 0 {
+		fmt.Printf("  %s %s\n", ui.SubtleStyle.Render("Reconnections:"), ui.WarnStyle.Render(fmt.Sprintf("%d", reconnectCount.Load())))
+	}
 	fmt.Printf("  %s %s\n", ui.SubtleStyle.Render("Duration:"), ui.InfoStyle.Render(elapsed.Round(time.Millisecond).String()))
 	if successCount.Load() > 0 {
 		throughput := float64(successCount.Load()) / elapsed.Seconds()
@@ -294,6 +329,7 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 		"total", len(files),
 		"success", successCount.Load(),
 		"failed", failCount.Load(),
+		"reconnections", reconnectCount.Load(),
 		"elapsed", elapsed,
 	)
 
@@ -371,4 +407,55 @@ func extractSOPIdentifiers(dataset *dicom.DataSet) (sopClassUID, sopInstanceUID 
 	}
 
 	return sopClassUID, sopInstanceUID, nil
+}
+
+// isConnectionError checks if an error indicates a broken connection that requires reconnection.
+func isConnectionError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+	// Check for connection-related error messages
+	return strings.Contains(errStr, "broken pipe") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "aborted association") ||
+		strings.Contains(errStr, "EOF") ||
+		strings.Contains(errStr, "connection refused") ||
+		errors.Is(err, context.Canceled) ||
+		errors.Is(err, context.DeadlineExceeded)
+}
+
+// reconnectClient attempts to reconnect the DICOM client.
+func (c *CStoreCmd) reconnectClient(ctx context.Context, client *scu.Client, clientConfig scu.Config, logger *log.Logger, remoteAddr string) (*scu.Client, error) {
+	logger.Info("Connection lost, attempting to reconnect", "address", remoteAddr)
+
+	// Close existing connection (ignore errors)
+	_ = client.Close(ctx)
+
+	// Create new client
+	newClient := scu.NewClient(clientConfig)
+
+	// Attempt to connect with retries
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		logger.Debug("Reconnection attempt", "attempt", attempt, "max", maxRetries)
+
+		if err := newClient.Connect(ctx); err != nil {
+			logger.Warn("Reconnection attempt failed", "attempt", attempt, "error", err)
+			if attempt < maxRetries {
+				// Exponential backoff: 1s, 2s, 4s
+				backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+				logger.Debug("Waiting before retry", "backoff", backoff)
+				time.Sleep(backoff)
+				continue
+			}
+			return nil, fmt.Errorf("failed to reconnect after %d attempts: %w", maxRetries, err)
+		}
+
+		logger.Info("Reconnection successful", "attempt", attempt)
+		return newClient, nil
+	}
+
+	return nil, fmt.Errorf("failed to reconnect after %d attempts", maxRetries)
 }

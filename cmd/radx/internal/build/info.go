@@ -76,7 +76,7 @@ func PrintBuildInfo() {
 	}
 
 	// Print formatted build info
-	fmt.Printf("%s", primaryStyle.Render("Server version:  "))
+	fmt.Printf("%s", primaryStyle.Render("version:         "))
 	fmt.Println(secondaryStyle.Render(i.Version))
 
 	fmt.Printf("%s", primaryStyle.Render("commit:          "))
@@ -91,4 +91,29 @@ func PrintBuildInfo() {
 	fmt.Printf("%s", primaryStyle.Render("platform:        "))
 	fmt.Println(secondaryStyle.Render(i.Platform))
 	fmt.Println()
+}
+
+// PrintCompactBuildInfo prints a single-line build info for command output.
+func PrintCompactBuildInfo() {
+	i := Get()
+
+	// Define styles for output
+	primaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#5436bd"))
+	secondaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#d6cfef"))
+
+	// Truncate commit to first 6 characters
+	commit := i.Commit
+	if commit != "" && len(commit) > 6 {
+		commit = commit[:6]
+	}
+
+	// Print compact single-line build info
+	fmt.Printf("%s %s %s %s %s %s\n",
+		primaryStyle.Render("radx"),
+		secondaryStyle.Render(i.Version),
+		primaryStyle.Render("commit:"),
+		secondaryStyle.Render(commit),
+		primaryStyle.Render("buildDate:"),
+		secondaryStyle.Render(i.BuildDate),
+	)
 }
