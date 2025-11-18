@@ -397,6 +397,37 @@ func (c *Client) receiveMessage(ctx context.Context) (*dimse.Message, error) {
 			return nil, err
 		}
 
+		// Check if we received an ABORT PDU
+		if abortPDU, ok := pduItem.(*pdu.Abort); ok {
+			var source, reason string
+
+			switch abortPDU.Source {
+			case pdu.AbortSourceServiceUser:
+				source = "service-user (SCP application)"
+			case pdu.AbortSourceServiceProvider:
+				source = "service-provider (SCP DICOM stack)"
+			default:
+				source = fmt.Sprintf("unknown (0x%02X)", abortPDU.Source)
+			}
+
+			switch abortPDU.Reason {
+			case pdu.AbortReasonNotSpecified:
+				reason = "not specified"
+			case pdu.AbortReasonUnrecognizedPDU:
+				reason = "unrecognized PDU"
+			case pdu.AbortReasonUnexpectedPDU:
+				reason = "unexpected PDU"
+			case pdu.AbortReasonUnexpectedPDUParameter:
+				reason = "unexpected PDU parameter"
+			case pdu.AbortReasonInvalidPDUParameter:
+				reason = "invalid PDU parameter"
+			default:
+				reason = fmt.Sprintf("unknown (0x%02X)", abortPDU.Reason)
+			}
+
+			return nil, fmt.Errorf("SCP aborted association: source=%s, reason=%s", source, reason)
+		}
+
 		dataPDU, ok := pduItem.(*pdu.DataTF)
 		if !ok {
 			return nil, fmt.Errorf("expected P-DATA-TF, got %T", pduItem)

@@ -47,6 +47,17 @@ func listDicomFiles(dirPath string, recursive bool) ([]DICOMFile, error) {
 			return nil
 		}
 
+		// Skip DICOMDIR files (special directory index files, not for C-STORE)
+		filename := filepath.Base(path)
+		if strings.ToUpper(filename) == "DICOMDIR" {
+			return nil
+		}
+
+		// Skip database files
+		if strings.HasSuffix(strings.ToLower(filename), ".db") {
+			return nil
+		}
+
 		// Check if file has .dcm extension or starts with DICM magic
 		if strings.HasSuffix(strings.ToLower(path), ".dcm") || isDICOMFile(path) {
 			files = append(files, DICOMFile{
