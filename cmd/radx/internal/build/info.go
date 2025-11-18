@@ -108,8 +108,7 @@ func PrintCompactBuildInfo() {
 	}
 
 	// Print compact single-line build info
-	fmt.Printf("%s %s %s %s %s %s\n",
-		primaryStyle.Render("radx"),
+	fmt.Printf("%s %s %s %s %s\n",
 		secondaryStyle.Render(i.Version),
 		primaryStyle.Render("commit:"),
 		secondaryStyle.Render(commit),
