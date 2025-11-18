@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/codeninja55/go-radx/cmd/radx/internal/config"
 	"github.com/codeninja55/go-radx/cmd/radx/internal/dicom/ui"
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/dicom/pixel"
 	"github.com/codeninja55/go-radx/dimse/dul"
 	"github.com/codeninja55/go-radx/dimse/scu"
 	"golang.org/x/time/rate"
@@ -28,18 +30,239 @@ type CStoreCmd struct {
 	CalledAE   string        `name:"called-ae" default:"ANY-SCP" help:"Called AE Title (server)"`
 	CallingAE  string        `name:"calling-ae" default:"RADX" help:"Calling AE Title (client)"`
 	Timeout    time.Duration `name:"timeout" default:"5m" help:"Operation timeout"`
-	MaxPDUSize uint32        `name:"max-pdu" default:"16384" help:"Maximum PDU size in bytes"`
+	MaxPDUSize uint32        `name:"max-pdu" default:"65536" help:"Maximum PDU size in bytes (max: 131072)"`
 
 	// Error handling options
 	FailFast bool `name:"fail-fast" help:"Exit immediately if any files have unsupported SOP classes instead of attempting all files"`
 
 	// Rate limiting options
-	RateLimit      float64 `name:"rate-limit" help:"Rate limit in files/second (0 = unlimited)" default:"5"`
-	RateLimitBytes float64 `name:"rate-limit-bytes" help:"Rate limit in MB/second (0 = unlimited)" default:"50"`
+	RateLimit      float64 `name:"rate-limit" help:"Rate limit in files/second (0 = unlimited)" default:"0"`
+	RateLimitBytes float64 `name:"rate-limit-bytes" help:"Rate limit in MB/second (0 = unlimited)" default:"0"`
 	BurstSize      int     `name:"burst" help:"Burst size for rate limiting" default:"10"`
 
 	// Connection recovery options
 	ReconnectDelay time.Duration `name:"reconnect-delay" help:"Delay after reconnection before retry" default:"2s"`
+
+	// Connection pooling options
+	Workers int `name:"workers" default:"4" help:"Number of concurrent worker connections (1-128)"`
+
+	// Transcoding options
+	Transcode bool `name:"transcode" default:"true" help:"Automatically transcode uncompressed images to JPEG 2000 Lossless for SCP compatibility"`
+}
+
+// fileJob represents a file to be processed by a worker.
+type fileJob struct {
+	file  DICOMFile
+	index int
+}
+
+// workerState holds shared state and configuration for workers.
+type workerState struct {
+	// Configuration
+	cmd          *CStoreCmd
+	clientConfig scu.Config
+	remoteAddr   string
+	logger       *log.Logger
+	maxAbortsPerFile int
+
+	// Shared state (atomic counters)
+	successCount   *atomic.Uint32
+	failCount      *atomic.Uint32
+	reconnectCount *atomic.Uint32
+	skippedCount   *atomic.Uint32
+
+	// Shared state (mutex-protected)
+	abortCounts    map[string]int
+	abortCountsMux *sync.Mutex
+	progress       *ui.ProgressBar
+	progressMux    *sync.Mutex
+
+	// Rate limiters (thread-safe by design)
+	fileLimiter *rate.Limiter
+	byteLimiter *rate.Limiter
+
+	// Job distribution
+	jobs chan fileJob
+	ctx  context.Context
+}
+
+// worker processes files from the job channel using a dedicated DICOM connection.
+// Each worker maintains its own persistent association for all files it processes.
+func worker(id int, state *workerState) {
+	logger := state.logger.With("worker_id", id)
+	logger.Debug("Worker starting")
+
+	// Create dedicated client for this worker
+	client := scu.NewClient(state.clientConfig)
+
+	// Establish connection
+	if err := client.Connect(state.ctx); err != nil {
+		logger.Error("Worker failed to connect", "error", err)
+		// Drain remaining jobs and mark as failed
+		for job := range state.jobs {
+			state.failCount.Add(1)
+			state.progressMux.Lock()
+			state.progress.Increment(fmt.Sprintf("Storing %s (worker connection failed)", job.file.Name))
+			state.progressMux.Unlock()
+		}
+		return
+	}
+
+	// Ensure connection is closed when worker exits
+	defer func() {
+		if err := client.Close(state.ctx); err != nil {
+			logger.Warn("Worker failed to close connection", "error", err)
+		}
+		logger.Debug("Worker stopped")
+	}()
+
+	logger.Debug("Worker connection established")
+
+	// Process jobs from channel
+	for job := range state.jobs {
+		state.processFile(id, client, job, logger)
+	}
+}
+
+// processFile handles a single file transfer with automatic transcoding if needed.
+func (state *workerState) processFile(workerID int, client *scu.Client, job fileJob, logger *log.Logger) {
+	file := job.file
+
+	// Update progress
+	state.progressMux.Lock()
+	state.progress.Increment(fmt.Sprintf("Storing %s", file.Name))
+	state.progressMux.Unlock()
+
+	// Apply rate limiting
+	if state.fileLimiter != nil {
+		if err := state.fileLimiter.Wait(state.ctx); err != nil {
+			logger.Error("Rate limiter error", "file", file.Path, "error", err)
+			state.failCount.Add(1)
+			return
+		}
+	}
+
+	if state.byteLimiter != nil {
+		if err := state.byteLimiter.WaitN(state.ctx, int(file.Size)); err != nil {
+			logger.Error("Byte rate limiter error", "file", file.Path, "error", err)
+			state.failCount.Add(1)
+			return
+		}
+	}
+
+	// Check if file has exceeded ABORT threshold
+	state.abortCountsMux.Lock()
+	abortCount := state.abortCounts[file.Path]
+	state.abortCountsMux.Unlock()
+
+	if abortCount >= state.maxAbortsPerFile {
+		logger.Warn("Skipping file that consistently causes SCP to abort",
+			"file", file.Path,
+			"abort_count", abortCount,
+			"reason", "File may be malformed or unsupported by SCP")
+		state.skippedCount.Add(1)
+		state.failCount.Add(1)
+		return
+	}
+
+	// Parse DICOM file
+	dataset, err := dicom.ParseFile(file.Path)
+	if err != nil {
+		logger.Error("Failed to parse DICOM file", "file", file.Path, "error", err)
+		state.failCount.Add(1)
+		return
+	}
+
+	// Apply transcoding if enabled and needed
+	if state.cmd.Transcode {
+		transcoded, err := pixel.TranscodeToJPEG2000Lossless(dataset)
+		if err != nil {
+			logger.Error("Failed to transcode file", "file", file.Path, "error", err)
+			state.failCount.Add(1)
+			return
+		}
+		if transcoded {
+			logger.Debug("Transcoded file to JPEG 2000 Lossless", "file", file.Path)
+		}
+	}
+
+	// Extract SOP identifiers
+	sopClassUID, sopInstanceUID, err := extractSOPIdentifiers(dataset)
+	if err != nil {
+		logger.Error("Failed to extract SOP identifiers", "file", file.Path, "error", err)
+		state.failCount.Add(1)
+		return
+	}
+
+	// Perform C-STORE with retry logic
+	maxRetries := 1
+	var storeErr error
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		storeErr = client.Store(state.ctx, dataset, sopClassUID, sopInstanceUID)
+
+		if storeErr == nil {
+			// Success
+			state.successCount.Add(1)
+			logger.Debug("Stored file", "file", file.Name, "index", job.index+1)
+			return
+		}
+
+		// Track ABORT errors
+		if isAbortError(storeErr) {
+			state.abortCountsMux.Lock()
+			state.abortCounts[file.Path]++
+			currentAborts := state.abortCounts[file.Path]
+			state.abortCountsMux.Unlock()
+
+			logger.Debug("File caused SCP ABORT", "file", file.Path, "abort_count", currentAborts)
+
+			// Check if threshold exceeded
+			if currentAborts >= state.maxAbortsPerFile {
+				logger.Warn("File consistently causes SCP to abort, skipping",
+					"file", file.Path,
+					"abort_count", currentAborts,
+					"error", storeErr)
+				state.failCount.Add(1)
+				state.skippedCount.Add(1)
+				return
+			}
+		}
+
+		// Check if error is connection error
+		if !isConnectionError(storeErr) {
+			// Not a connection error, don't retry
+			logger.Error("C-STORE failed", "file", file.Path, "error", storeErr)
+			state.failCount.Add(1)
+			return
+		}
+
+		// Connection error - attempt reconnection if retries remain
+		if attempt < maxRetries {
+			logger.Warn("Connection error, attempting reconnection", "file", file.Path, "error", storeErr)
+			newClient, err := state.cmd.reconnectClient(state.ctx, client, state.clientConfig, logger, state.remoteAddr)
+			if err != nil {
+				logger.Error("Reconnection failed, skipping file", "file", file.Path, "error", err)
+				state.failCount.Add(1)
+				return
+			}
+			client = newClient
+			state.reconnectCount.Add(1)
+
+			// Wait before retry
+			if state.cmd.ReconnectDelay > 0 {
+				logger.Debug("Waiting before retry", "delay", state.cmd.ReconnectDelay)
+				time.Sleep(state.cmd.ReconnectDelay)
+			}
+
+			logger.Info("Retrying file after reconnection", "file", file.Path)
+			continue
+		}
+
+		// Exceeded retries
+		logger.Error("C-STORE failed after reconnection", "file", file.Path, "error", storeErr)
+		state.failCount.Add(1)
+	}
 }
 
 // Run executes the C-STORE command.
@@ -121,10 +344,18 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 		logger.Info("Byte rate limiting enabled", "mb_per_sec", c.RateLimitBytes, "burst_mb", c.BurstSize)
 	}
 
+	// Validate workers count
+	if c.Workers < 1 || c.Workers > 128 {
+		logger.Error("Invalid workers count", "workers", c.Workers)
+		return fmt.Errorf("workers must be between 1 and 128, got %d", c.Workers)
+	}
+
+	logger.Info("Worker configuration", "workers", c.Workers, "transcode", c.Transcode)
+
 	// Create presentation contexts for common SOP Classes
 	presentationContexts := c.buildPresentationContexts(files, logger)
 
-	// Create SCU client
+	// Create SCU client config (used by all workers)
 	clientConfig := scu.Config{
 		CallingAETitle:       c.CallingAE,
 		CalledAETitle:        c.CalledAE,
@@ -133,213 +364,71 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 		PresentationContexts: presentationContexts,
 	}
 
-	client := scu.NewClient(clientConfig)
-
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
-	// Connect to server
-	logger.Info("Connecting to DICOM server", "address", remoteAddr)
-	spinner := ui.NewSpinner("Connecting")
-	spinner.Tick("Establishing association...")
-
-	if err := client.Connect(ctx); err != nil {
-		spinner.Stop()
-		logger.Error("Failed to connect", "error", err)
-		return fmt.Errorf("failed to connect to server: %w", err)
-	}
-	defer func() {
-		if err := client.Close(ctx); err != nil {
-			logger.Warn("Failed to close connection", "error", err)
-		}
-	}()
-
-	spinner.Stop()
-	logger.Info("Association established successfully")
-
-	// Validate that all files have accepted presentation contexts
-	logger.Debug("Validating presentation contexts for all files")
-	sopClassMap := make(map[string]struct{})
-	var rejectedSOPs []string
-
-	for _, file := range files {
-		dataset, err := dicom.ParseFile(file.Path)
-		if err != nil {
-			logger.Warn("Failed to parse file for validation", "file", file.Path, "error", err)
-			continue
-		}
-
-		sopClassUID, _, err := extractSOPIdentifiers(dataset)
-		if err != nil {
-			logger.Warn("Failed to extract SOP Class UID for validation", "file", file.Path, "error", err)
-			continue
-		}
-
-		// Track unique SOP classes and check if they're accepted
-		if _, seen := sopClassMap[sopClassUID]; !seen {
-			sopClassMap[sopClassUID] = struct{}{}
-			exists, accepted, result := client.GetAssociation().GetPresentationContextResult(sopClassUID)
-			if exists && !accepted {
-				// Log detailed rejection reason at debug level
-				var reason string
-				switch result {
-				case 3: // PresentationContextAbstractSyntaxNotSupported
-					reason = "abstract syntax not supported"
-				case 4: // PresentationContextTransferSyntaxesNotSupported
-					reason = "transfer syntaxes not supported"
-				case 1: // PresentationContextUserRejection
-					reason = "user rejection"
-				case 2: // PresentationContextProviderRejection
-					reason = "provider rejection"
-				default:
-					reason = fmt.Sprintf("unknown reason (result=0x%02X)", result)
-				}
-				logger.Debug("Presentation context rejected",
-					"sop_class_uid", sopClassUID,
-					"reason", reason,
-					"result_code", result)
-				rejectedSOPs = append(rejectedSOPs, sopClassUID)
-			} else if exists && accepted {
-				logger.Debug("Presentation context accepted", "sop_class_uid", sopClassUID)
-			}
-		}
-	}
-
-	if len(rejectedSOPs) > 0 {
-		if c.FailFast {
-			logger.Error("Server does not support required SOP Classes", "unsupported_sop_classes", rejectedSOPs)
-			return fmt.Errorf("association succeeded but server does not support required SOP Classes: %v", rejectedSOPs)
-		} else {
-			logger.Warn("Some files have unsupported SOP Classes and will fail during transfer",
-				"rejected_classes", rejectedSOPs,
-				"action", "Will attempt all files (use --fail-fast to exit early)")
-		}
-	} else {
-		logger.Debug("All presentation contexts validated successfully")
-	}
-
-	// Store files with progress tracking
+	// Initialize shared state
 	progress := ui.NewProgressBar(len(files), "Storing")
 	var successCount, failCount, reconnectCount, skippedCount atomic.Uint32
+	abortCounts := make(map[string]int)
+	abortCountsMux := &sync.Mutex{}
+	progressMux := &sync.Mutex{}
+	const maxAbortsPerFile = 2
+
+	// Create job channel (buffered to avoid blocking)
+	jobs := make(chan fileJob, len(files))
+
+	// Create worker state
+	state := &workerState{
+		cmd:              c,
+		clientConfig:     clientConfig,
+		remoteAddr:       remoteAddr,
+		logger:           logger,
+		maxAbortsPerFile: maxAbortsPerFile,
+		successCount:     &successCount,
+		failCount:        &failCount,
+		reconnectCount:   &reconnectCount,
+		skippedCount:     &skippedCount,
+		abortCounts:      abortCounts,
+		abortCountsMux:   abortCountsMux,
+		progress:         progress,
+		progressMux:      progressMux,
+		fileLimiter:      fileLimiter,
+		byteLimiter:      byteLimiter,
+		jobs:             jobs,
+		ctx:              ctx,
+	}
+
+	// Start workers
+	logger.Info("Starting worker pool", "workers", c.Workers)
+	var wg sync.WaitGroup
 	startTime := time.Now()
 
-	// Track ABORT counts per file to avoid infinite retry loops
-	abortCounts := make(map[string]int)
-	const maxAbortsPerFile = 2 // Maximum ABORTs before skipping a file
+	for workerID := 1; workerID <= c.Workers; workerID++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			worker(id, state)
+		}(workerID)
+	}
 
+	// Send jobs to workers
+	logger.Debug("Distributing files to workers", "file_count", len(files))
 	for i, file := range files {
-		progress.Increment(fmt.Sprintf("Storing %s", file.Name))
-
-		// Apply rate limiting
-		if fileLimiter != nil {
-			if err := fileLimiter.Wait(ctx); err != nil {
-				logger.Error("Rate limiter error", "error", err)
-				failCount.Add(1)
-				continue
-			}
-		}
-
-		if byteLimiter != nil {
-			// Reserve tokens for file size
-			if err := byteLimiter.WaitN(ctx, int(file.Size)); err != nil {
-				logger.Error("Byte rate limiter error", "error", err)
-				failCount.Add(1)
-				continue
-			}
-		}
-
-		// Parse DICOM file
-		dataset, err := dicom.ParseFile(file.Path)
-		if err != nil {
-			logger.Error("Failed to parse DICOM file", "file", file.Path, "error", err)
-			failCount.Add(1)
-			continue
-		}
-
-		// Extract SOP Class UID and SOP Instance UID
-		sopClassUID, sopInstanceUID, err := extractSOPIdentifiers(dataset)
-		if err != nil {
-			logger.Error("Failed to extract SOP identifiers", "file", file.Path, "error", err)
-			failCount.Add(1)
-			continue
-		}
-
-		// Check if this file has exceeded ABORT threshold
-		if abortCounts[file.Path] >= maxAbortsPerFile {
-			logger.Warn("Skipping file that consistently causes SCP to abort",
-				"file", file.Path,
-				"abort_count", abortCounts[file.Path],
-				"reason", "File may be malformed or unsupported by SCP")
-			skippedCount.Add(1)
-			failCount.Add(1)
-			continue
-		}
-
-		// Perform C-STORE with automatic reconnection on connection errors
-		maxRetries := 1 // One retry after reconnection
-		var storeErr error
-		for attempt := 0; attempt <= maxRetries; attempt++ {
-			storeErr = client.Store(ctx, dataset, sopClassUID, sopInstanceUID)
-			if storeErr == nil {
-				// Success
-				successCount.Add(1)
-				logger.Debug("Stored file", "file", file.Name, "index", i+1, "total", len(files))
-				break
-			}
-
-			// Track if this is an ABORT error
-			if isAbortError(storeErr) {
-				abortCounts[file.Path]++
-				logger.Debug("File caused SCP ABORT", "file", file.Path, "abort_count", abortCounts[file.Path])
-			}
-
-			// Check if error is a connection error
-			if !isConnectionError(storeErr) {
-				// Not a connection error, don't retry
-				logger.Error("C-STORE failed", "file", file.Path, "error", storeErr)
-				failCount.Add(1)
-				break
-			}
-
-			// Check if this file has now exceeded ABORT threshold after this error
-			if abortCounts[file.Path] >= maxAbortsPerFile {
-				logger.Warn("File consistently causes SCP to abort, skipping further attempts",
-					"file", file.Path,
-					"abort_count", abortCounts[file.Path],
-					"error", storeErr)
-				failCount.Add(1)
-				skippedCount.Add(1)
-				break
-			}
-
-			// Connection error - attempt to reconnect if we haven't exceeded retries
-			if attempt < maxRetries {
-				logger.Warn("Connection error detected, attempting reconnection", "file", file.Path, "error", storeErr)
-				newClient, err := c.reconnectClient(ctx, client, clientConfig, logger, remoteAddr)
-				if err != nil {
-					logger.Error("Reconnection failed, skipping file", "file", file.Path, "error", err)
-					failCount.Add(1)
-					break
-				}
-				client = newClient
-				reconnectCount.Add(1)
-
-				// Wait before retrying to give SCP time to stabilize
-				if c.ReconnectDelay > 0 {
-					logger.Debug("Waiting before retry", "delay", c.ReconnectDelay)
-					time.Sleep(c.ReconnectDelay)
-				}
-
-				logger.Info("Retrying file after reconnection", "file", file.Path)
-				continue
-			}
-
-			// Exceeded retries
-			logger.Error("C-STORE failed after reconnection attempt", "file", file.Path, "error", storeErr)
-			failCount.Add(1)
+		jobs <- fileJob{
+			file:  file,
+			index: i,
 		}
 	}
+
+	// Close job channel to signal workers to exit after completing their work
+	close(jobs)
+	logger.Debug("All jobs distributed, waiting for workers to complete")
+
+	// Wait for all workers to finish
+	wg.Wait()
+	logger.Debug("All workers completed")
 
 	progress.Complete("Complete")
 	elapsed := time.Since(startTime)

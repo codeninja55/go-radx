@@ -265,10 +265,256 @@ cleanup:
 
     return result;
 }
+
+// ============================================================================
+// JPEG 2000 COMPRESSION (ENCODER)
+// ============================================================================
+
+// Memory write stream structure for writing to dynamically allocated buffer
+typedef struct {
+    OPJ_UINT8* data;
+    OPJ_SIZE_T size;
+    OPJ_SIZE_T capacity;
+} memory_write_stream_t;
+
+// Write callback for compression output stream
+static OPJ_SIZE_T stream_write(void* p_buffer, OPJ_SIZE_T p_nb_bytes, void* p_user_data) {
+    memory_write_stream_t* stream = (memory_write_stream_t*)p_user_data;
+
+    // Ensure capacity
+    if (stream->size + p_nb_bytes > stream->capacity) {
+        OPJ_SIZE_T new_capacity = stream->capacity * 2;
+        if (new_capacity < stream->size + p_nb_bytes) {
+            new_capacity = stream->size + p_nb_bytes;
+        }
+
+        OPJ_UINT8* new_data = (OPJ_UINT8*)realloc(stream->data, new_capacity);
+        if (new_data == NULL) {
+            return 0; // Allocation failed
+        }
+
+        stream->data = new_data;
+        stream->capacity = new_capacity;
+    }
+
+    // Write data
+    memcpy(stream->data + stream->size, p_buffer, p_nb_bytes);
+    stream->size += p_nb_bytes;
+
+    return p_nb_bytes;
+}
+
+// Skip callback for compression output stream
+static OPJ_OFF_T stream_write_skip(OPJ_OFF_T p_nb_bytes, void* p_user_data) {
+    memory_write_stream_t* stream = (memory_write_stream_t*)p_user_data;
+
+    // Ensure capacity for skip (fill with zeros)
+    if (stream->size + p_nb_bytes > stream->capacity) {
+        OPJ_SIZE_T new_capacity = stream->capacity * 2;
+        if (new_capacity < stream->size + p_nb_bytes) {
+            new_capacity = stream->size + p_nb_bytes;
+        }
+
+        OPJ_UINT8* new_data = (OPJ_UINT8*)realloc(stream->data, new_capacity);
+        if (new_data == NULL) {
+            return -1;
+        }
+
+        stream->data = new_data;
+        stream->capacity = new_capacity;
+    }
+
+    // Fill skipped bytes with zeros
+    memset(stream->data + stream->size, 0, p_nb_bytes);
+    stream->size += p_nb_bytes;
+
+    return p_nb_bytes;
+}
+
+// Seek callback for compression output stream
+static OPJ_BOOL stream_write_seek(OPJ_OFF_T p_nb_bytes, void* p_user_data) {
+    memory_write_stream_t* stream = (memory_write_stream_t*)p_user_data;
+
+    if (p_nb_bytes < 0 || (OPJ_SIZE_T)p_nb_bytes > stream->size) {
+        return OPJ_FALSE;
+    }
+
+    stream->size = (OPJ_SIZE_T)p_nb_bytes;
+    return OPJ_TRUE;
+}
+
+// Compress pixel data to JPEG 2000 Lossless format
+// Returns 0 on success, non-zero on error
+// Output data is allocated by this function and must be freed by caller
+int compress_jpeg2000_lossless(
+    unsigned char* input_data,
+    unsigned long input_size,
+    int width,
+    int height,
+    int components,
+    int precision,
+    unsigned char** output_data,
+    unsigned long* output_size,
+    char* error_message,
+    int error_message_size
+) {
+    opj_cparameters_t parameters;
+    opj_codec_t* codec = NULL;
+    opj_image_t* image = NULL;
+    opj_stream_t* stream = NULL;
+    memory_write_stream_t write_stream;
+    int result = -1;
+
+    // Initialize write stream
+    write_stream.capacity = input_size; // Start with input size as estimate
+    write_stream.size = 0;
+    write_stream.data = (OPJ_UINT8*)malloc(write_stream.capacity);
+    if (write_stream.data == NULL) {
+        snprintf(error_message, error_message_size, "Failed to allocate output buffer");
+        return -1;
+    }
+
+    // Initialize encoder parameters with defaults
+    opj_set_default_encoder_parameters(&parameters);
+
+    // Set lossless compression parameters
+    parameters.tcp_numlayers = 1;
+    parameters.cp_disto_alloc = 1;
+    parameters.tcp_rates[0] = 0; // 0 = lossless
+    parameters.irreversible = 0; // 0 = reversible 5-3 wavelet (lossless)
+
+    // Create image color space
+    OPJ_COLOR_SPACE color_space = (components == 1) ? OPJ_CLRSPC_GRAY : OPJ_CLRSPC_SRGB;
+
+    // Create image component parameters
+    opj_image_cmptparm_t* cmptparms = (opj_image_cmptparm_t*)calloc(components, sizeof(opj_image_cmptparm_t));
+    if (cmptparms == NULL) {
+        snprintf(error_message, error_message_size, "Failed to allocate component parameters");
+        free(write_stream.data);
+        return -1;
+    }
+
+    for (int i = 0; i < components; i++) {
+        cmptparms[i].dx = 1;
+        cmptparms[i].dy = 1;
+        cmptparms[i].w = width;
+        cmptparms[i].h = height;
+        cmptparms[i].x0 = 0;
+        cmptparms[i].y0 = 0;
+        cmptparms[i].prec = precision;
+        cmptparms[i].bpp = precision;
+        cmptparms[i].sgnd = 0; // Unsigned
+    }
+
+    // Create image
+    image = opj_image_create(components, cmptparms, color_space);
+    free(cmptparms);
+
+    if (image == NULL) {
+        snprintf(error_message, error_message_size, "Failed to create OpenJPEG image");
+        free(write_stream.data);
+        return -1;
+    }
+
+    // Set image offset and reference grid
+    image->x0 = 0;
+    image->y0 = 0;
+    image->x1 = width;
+    image->y1 = height;
+
+    // Copy pixel data to image components
+    int bytes_per_sample = (precision <= 8) ? 1 : 2;
+    int pixels_per_frame = width * height;
+
+    for (int comp = 0; comp < components; comp++) {
+        unsigned char* src = input_data + (comp * pixels_per_frame * bytes_per_sample);
+        OPJ_INT32* dst = image->comps[comp].data;
+
+        if (bytes_per_sample == 1) {
+            // 8-bit data
+            for (int i = 0; i < pixels_per_frame; i++) {
+                dst[i] = (OPJ_INT32)src[i];
+            }
+        } else {
+            // 16-bit data (little-endian)
+            for (int i = 0; i < pixels_per_frame; i++) {
+                dst[i] = (OPJ_INT32)(src[i * 2] | (src[i * 2 + 1] << 8));
+            }
+        }
+    }
+
+    // Create encoder
+    codec = opj_create_compress(OPJ_CODEC_J2K);
+    if (codec == NULL) {
+        snprintf(error_message, error_message_size, "Failed to create encoder");
+        goto cleanup;
+    }
+
+    // Setup encoder
+    if (!opj_setup_encoder(codec, &parameters, image)) {
+        snprintf(error_message, error_message_size, "Failed to setup encoder");
+        goto cleanup;
+    }
+
+    // Create output stream
+    stream = opj_stream_create(OPJ_J2K_STREAM_CHUNK_SIZE, OPJ_FALSE); // OPJ_FALSE = output stream
+    if (stream == NULL) {
+        snprintf(error_message, error_message_size, "Failed to create output stream");
+        goto cleanup;
+    }
+
+    // Set stream callbacks
+    opj_stream_set_write_function(stream, stream_write);
+    opj_stream_set_skip_function(stream, stream_write_skip);
+    opj_stream_set_seek_function(stream, stream_write_seek);
+    opj_stream_set_user_data(stream, &write_stream, NULL);
+
+    // Encode image
+    if (!opj_start_compress(codec, image, stream)) {
+        snprintf(error_message, error_message_size, "Failed to start compression");
+        goto cleanup;
+    }
+
+    if (!opj_encode(codec, stream)) {
+        snprintf(error_message, error_message_size, "Failed to encode image");
+        goto cleanup;
+    }
+
+    if (!opj_end_compress(codec, stream)) {
+        snprintf(error_message, error_message_size, "Failed to end compression");
+        goto cleanup;
+    }
+
+    // Success - transfer ownership of output data to caller
+    *output_data = write_stream.data;
+    *output_size = write_stream.size;
+    result = 0;
+
+cleanup:
+    if (result != 0) {
+        // On error, free the output buffer
+        if (write_stream.data != NULL) {
+            free(write_stream.data);
+        }
+    }
+
+    if (image != NULL) {
+        opj_image_destroy(image);
+    }
+    if (codec != NULL) {
+        opj_destroy_codec(codec);
+    }
+    if (stream != NULL) {
+        opj_stream_destroy(stream);
+    }
+
+    return result;
+}
 */
 import "C"
 import (
 	"fmt"
+	"unsafe"
 )
 
 // JPEG2000Decoder implements JPEG 2000 decompression using OpenJPEG via CGo.
@@ -394,6 +640,105 @@ func (d *JPEG2000Decoder) Decode(encapsulated []byte, info *PixelInfo) ([]byte, 
 // TransferSyntaxUID returns the transfer syntax UID this decoder handles.
 func (d *JPEG2000Decoder) TransferSyntaxUID() string {
 	return d.transferSyntaxUID
+}
+
+// JPEG2000Encoder implements JPEG 2000 lossless compression using OpenJPEG via CGo.
+//
+// This encoder produces JPEG 2000 Lossless Only format (1.2.840.10008.1.2.4.90)
+// using the reversible 5-3 wavelet transform.
+//
+// The encoder:
+//   - Accepts uncompressed pixel data with image parameters
+//   - Uses OpenJPEG 2.5+ for compression
+//   - Produces DICOM-compliant JPEG 2000 codestreams
+//   - Supports 8-bit, 12-bit, and 16-bit precision
+//   - Handles grayscale and RGB images
+type JPEG2000Encoder struct{}
+
+// NewJPEG2000Encoder creates a new JPEG 2000 lossless encoder.
+func NewJPEG2000Encoder() *JPEG2000Encoder {
+	return &JPEG2000Encoder{}
+}
+
+// Encode compresses uncompressed pixel data to JPEG 2000 Lossless format.
+//
+// This function:
+//  1. Validates input parameters
+//  2. Allocates C memory for input data
+//  3. Calls the C compression function
+//  4. Returns the compressed JPEG 2000 codestream
+//  5. Cleans up all C memory
+func (e *JPEG2000Encoder) Encode(pixelData []byte, info *PixelInfo) ([]byte, error) {
+	if len(pixelData) == 0 {
+		return nil, fmt.Errorf("empty pixel data")
+	}
+
+	// Validate pixel info
+	if info.Columns == 0 || info.Rows == 0 {
+		return nil, fmt.Errorf("invalid image dimensions: %dx%d", info.Columns, info.Rows)
+	}
+
+	if info.SamplesPerPixel == 0 {
+		return nil, fmt.Errorf("invalid samples per pixel: %d", info.SamplesPerPixel)
+	}
+
+	if info.BitsAllocated == 0 {
+		return nil, fmt.Errorf("invalid bits allocated: %d", info.BitsAllocated)
+	}
+
+	// Calculate expected input size
+	expectedSize := CalculateExpectedSize(info)
+	if len(pixelData) != int(expectedSize) {
+		return nil, fmt.Errorf("pixel data size mismatch: got %d bytes, expected %d bytes",
+			len(pixelData), expectedSize)
+	}
+
+	// Allocate C memory for input data
+	inputData := C.CBytes(pixelData)
+	defer C.free(inputData)
+
+	// Variables for output
+	var outputData *C.uchar
+	var outputSize C.ulong
+
+	// Error message buffer
+	const errorMessageSize = 512
+	errorMessage := C.malloc(errorMessageSize)
+	defer C.free(errorMessage)
+
+	// Call C compression function
+	result := C.compress_jpeg2000_lossless(
+		(*C.uchar)(inputData),
+		C.ulong(len(pixelData)),
+		C.int(info.Columns),
+		C.int(info.Rows),
+		C.int(info.SamplesPerPixel),
+		C.int(info.BitsAllocated),
+		&outputData,
+		&outputSize,
+		(*C.char)(errorMessage),
+		errorMessageSize,
+	)
+
+	if result != 0 {
+		// Compression failed
+		errMsg := C.GoString((*C.char)(errorMessage))
+		return nil, fmt.Errorf("OpenJPEG compression failed: %s", errMsg)
+	}
+
+	// Copy compressed data from C memory to Go slice
+	// NOTE: The C function allocates outputData, so we must free it
+	compressedData := C.GoBytes(unsafe.Pointer(outputData), C.int(outputSize))
+	C.free(unsafe.Pointer(outputData))
+
+	return compressedData, nil
+}
+
+// EncodeJPEG2000Lossless is a convenience function that encodes pixel data
+// to JPEG 2000 Lossless format.
+func EncodeJPEG2000Lossless(pixelData []byte, info *PixelInfo) ([]byte, error) {
+	encoder := NewJPEG2000Encoder()
+	return encoder.Encode(pixelData, info)
 }
 
 func init() {
