@@ -34,9 +34,12 @@ type CStoreCmd struct {
 	FailFast bool `name:"fail-fast" help:"Exit immediately if any files have unsupported SOP classes instead of attempting all files"`
 
 	// Rate limiting options
-	RateLimit      float64 `name:"rate-limit" help:"Rate limit in files/second (0 = unlimited)" default:"0"`
-	RateLimitBytes float64 `name:"rate-limit-bytes" help:"Rate limit in MB/second (0 = unlimited)" default:"0"`
+	RateLimit      float64 `name:"rate-limit" help:"Rate limit in files/second (0 = unlimited)" default:"5"`
+	RateLimitBytes float64 `name:"rate-limit-bytes" help:"Rate limit in MB/second (0 = unlimited)" default:"50"`
 	BurstSize      int     `name:"burst" help:"Burst size for rate limiting" default:"10"`
+
+	// Connection recovery options
+	ReconnectDelay time.Duration `name:"reconnect-delay" help:"Delay after reconnection before retry" default:"2s"`
 }
 
 // Run executes the C-STORE command.
@@ -99,6 +102,7 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 		"rate_limit", c.RateLimit,
 		"rate_limit_bytes", c.RateLimitBytes,
 		"burst", c.BurstSize,
+		"reconnect_delay", c.ReconnectDelay,
 	)
 
 	// Create rate limiters
@@ -320,6 +324,13 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 				}
 				client = newClient
 				reconnectCount.Add(1)
+
+				// Wait before retrying to give SCP time to stabilize
+				if c.ReconnectDelay > 0 {
+					logger.Debug("Waiting before retry", "delay", c.ReconnectDelay)
+					time.Sleep(c.ReconnectDelay)
+				}
+
 				logger.Info("Retrying file after reconnection", "file", file.Path)
 				continue
 			}
