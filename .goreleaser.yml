@@ -12,6 +12,11 @@ before:
     # Install CGO dependencies for all builds
     # This runs once in the container before any builds start
     - apt-get update && apt-get install -y pkg-config libopenjp2-7-dev libopenjp2-7-dev:arm64 libjpeg-dev libjpeg-dev:arm64
+    # Debug: Show what .pc files are available
+    - find /usr -name "*.pc" 2>/dev/null | grep -E "(jpeg|openjp2)" || echo "No jpeg/openjp2 .pc files found"
+    - echo "PKG_CONFIG_PATH locations:"
+    - ls -la /usr/lib/x86_64-linux-gnu/pkgconfig/ 2>/dev/null | grep -E "(jpeg|openjp2)" || echo "No files in x86_64 pkgconfig"
+    - ls -la /usr/lib/pkgconfig/ 2>/dev/null | grep -E "(jpeg|openjp2)" || echo "No files in /usr/lib/pkgconfig"
 
 # Build configuration
 builds:
