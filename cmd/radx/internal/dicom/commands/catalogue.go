@@ -21,38 +21,51 @@ import (
 // CatalogueCmd implements the DICOM catalogue command with SQLite database.
 type CatalogueCmd struct {
 	Dir       string   `arg:"" optional:"" type:"existingdir" help:"Directory containing DICOM files to catalogue"`
-	Database  string   `name:"database" short:"d" default:"dicom-catalogue.db" help:"SQLite database path"`
-	Rebuild   bool     `name:"rebuild" help:"Rebuild database from scratch"`
+	Database  string   `name:"database" short:"d" default:"dicom-catalogue.db" help:"SQLite database path. Example: --database my-files.db"`
+	Rebuild   bool     `name:"rebuild" help:"Rebuild database from scratch (drops existing data)"`
 	Recursive bool     `name:"recursive" short:"R" help:"Recursively search directories" default:"true"`
-	Query     []string `name:"query" short:"q" help:"Query tags (format: tag=(GGGG,EEEE), keyword=value, or text search)"`
-	SQL       string   `name:"sql" help:"Execute raw SQL query (read-only, safe queries only)"`
-	Mode      string   `name:"mode" short:"m" default:"table" help:"Output mode for SQL queries (table, csv, json, jsonl, list, tabs, html, markdown, insert, line)"`
+	Query     []string `name:"query" short:"q" help:"Query tags. Examples: --query modality=CR, --query transfer_syntax=1.2.840.10008.1.2.4.90, --query 'patient_id=12345'"`
+	SQL       string   `name:"sql" help:"Execute raw SQL query (SELECT only). Examples: --sql 'SELECT modality, COUNT(*) FROM dicom_metadata GROUP BY modality', --sql 'SELECT * FROM dicom_metadata WHERE transfer_syntax_uid LIKE \"%JPEG%\"'"`
+	Mode      string   `name:"mode" short:"m" default:"table" help:"Output mode for SQL queries: table (default), csv, json, jsonl, list, tabs, html, markdown, insert, line"`
+	Schema    bool     `name:"schema" help:"Display database schema with column names, DICOM tags, and descriptions. Use this to understand the database structure for building SQL queries"`
 }
 
 // DICOMMetadata represents the key metadata stored for each DICOM file.
 type DICOMMetadata struct {
-	FilePath                string
-	FileName                string
-	FileSize                int64
-	PatientName             string
-	PatientID               string
-	PatientBirthDate        string
-	PatientSex              string
-	StudyInstanceUID        string
-	StudyDate               string
-	StudyDescription        string
-	SeriesInstanceUID       string
-	SeriesNumber            string
-	SeriesDescription       string
-	SOPInstanceUID          string
-	SOPClassUID             string
-	InstanceNumber          string
-	Modality                string
-	Manufacturer            string
-	InstitutionName         string
-	AccessionNumber         string
-	ReferringPhysicianName  string
-	PerformingPhysicianName string
+	FilePath                  string
+	FileName                  string
+	FileSize                  int64
+	PatientName               string
+	PatientID                 string
+	PatientBirthDate          string
+	PatientSex                string
+	StudyInstanceUID          string
+	StudyDate                 string
+	StudyDescription          string
+	SeriesInstanceUID         string
+	SeriesNumber              string
+	SeriesDescription         string
+	SOPInstanceUID            string
+	SOPClassUID               string
+	InstanceNumber            string
+	Modality                  string
+	Manufacturer              string
+	InstitutionName           string
+	AccessionNumber           string
+	ReferringPhysicianName    string
+	PerformingPhysicianName   string
+	TransferSyntaxUID         string
+	AcquisitionDate           string
+	AcquisitionTime           string
+	ContentDate               string
+	ContentTime               string
+	ImageType                 string
+	ViewPosition              string
+	Rows                      string
+	Columns                   string
+	BitsAllocated             string
+	PhotometricInterpretation string
+	SamplesPerPixel           string
 }
 
 const (
@@ -82,6 +95,18 @@ const (
 		accession_number TEXT,
 		referring_physician_name TEXT,
 		performing_physician_name TEXT,
+		transfer_syntax_uid TEXT,
+		acquisition_date TEXT,
+		acquisition_time TEXT,
+		content_date TEXT,
+		content_time TEXT,
+		image_type TEXT,
+		view_position TEXT,
+		rows TEXT,
+		columns TEXT,
+		bits_allocated TEXT,
+		photometric_interpretation TEXT,
+		samples_per_pixel TEXT,
 		indexed_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -90,6 +115,8 @@ const (
 	CREATE INDEX IF NOT EXISTS idx_series_uid ON dicom_metadata(series_instance_uid);
 	CREATE INDEX IF NOT EXISTS idx_sop_uid ON dicom_metadata(sop_instance_uid);
 	CREATE INDEX IF NOT EXISTS idx_modality ON dicom_metadata(modality);
+	CREATE INDEX IF NOT EXISTS idx_transfer_syntax ON dicom_metadata(transfer_syntax_uid);
+	CREATE INDEX IF NOT EXISTS idx_sop_class ON dicom_metadata(sop_class_uid);
 	`
 
 	insertMetadataSQL = `
@@ -100,8 +127,11 @@ const (
 		series_instance_uid, series_number, series_description,
 		sop_instance_uid, sop_class_uid, instance_number,
 		modality, manufacturer, institution_name,
-		accession_number, referring_physician_name, performing_physician_name
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		accession_number, referring_physician_name, performing_physician_name,
+		transfer_syntax_uid, acquisition_date, acquisition_time,
+		content_date, content_time, image_type, view_position,
+		rows, columns, bits_allocated, photometric_interpretation, samples_per_pixel
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 )
 
@@ -123,6 +153,12 @@ func (c *CatalogueCmd) Run(cfg *config.GlobalConfig) error {
 			logger.Error("Failed to close database", "error", err)
 		}
 	}()
+
+	// If schema flag is provided, display schema and return
+	if c.Schema {
+		c.displaySchema()
+		return nil
+	}
 
 	// If SQL query is provided, execute it and return
 	if c.SQL != "" {
@@ -322,6 +358,30 @@ func (c *CatalogueCmd) extractMetadata(file DICOMFile, logger *log.Logger) (*DIC
 			metadata.ReferringPhysicianName = value
 		case tag.Group == 0x0008 && tag.Element == 0x1050: // Performing Physician Name
 			metadata.PerformingPhysicianName = value
+		case tag.Group == 0x0002 && tag.Element == 0x0010: // Transfer Syntax UID
+			metadata.TransferSyntaxUID = value
+		case tag.Group == 0x0008 && tag.Element == 0x0022: // Acquisition Date
+			metadata.AcquisitionDate = value
+		case tag.Group == 0x0008 && tag.Element == 0x0032: // Acquisition Time
+			metadata.AcquisitionTime = value
+		case tag.Group == 0x0008 && tag.Element == 0x0023: // Content Date
+			metadata.ContentDate = value
+		case tag.Group == 0x0008 && tag.Element == 0x0033: // Content Time
+			metadata.ContentTime = value
+		case tag.Group == 0x0008 && tag.Element == 0x0008: // Image Type
+			metadata.ImageType = value
+		case tag.Group == 0x0018 && tag.Element == 0x5101: // View Position
+			metadata.ViewPosition = value
+		case tag.Group == 0x0028 && tag.Element == 0x0010: // Rows
+			metadata.Rows = value
+		case tag.Group == 0x0028 && tag.Element == 0x0011: // Columns
+			metadata.Columns = value
+		case tag.Group == 0x0028 && tag.Element == 0x0100: // Bits Allocated
+			metadata.BitsAllocated = value
+		case tag.Group == 0x0028 && tag.Element == 0x0004: // Photometric Interpretation
+			metadata.PhotometricInterpretation = value
+		case tag.Group == 0x0028 && tag.Element == 0x0002: // Samples Per Pixel
+			metadata.SamplesPerPixel = value
 		}
 	}
 
@@ -353,6 +413,18 @@ func (c *CatalogueCmd) insertMetadata(stmt *sql.Stmt, metadata *DICOMMetadata) e
 		metadata.AccessionNumber,
 		metadata.ReferringPhysicianName,
 		metadata.PerformingPhysicianName,
+		metadata.TransferSyntaxUID,
+		metadata.AcquisitionDate,
+		metadata.AcquisitionTime,
+		metadata.ContentDate,
+		metadata.ContentTime,
+		metadata.ImageType,
+		metadata.ViewPosition,
+		metadata.Rows,
+		metadata.Columns,
+		metadata.BitsAllocated,
+		metadata.PhotometricInterpretation,
+		metadata.SamplesPerPixel,
 	)
 	return err
 }
@@ -417,6 +489,18 @@ func (c *CatalogueCmd) queryDatabase(db *sql.DB, logger *log.Logger) ([]*DICOMMe
 			&metadata.AccessionNumber,
 			&metadata.ReferringPhysicianName,
 			&metadata.PerformingPhysicianName,
+			&metadata.TransferSyntaxUID,
+			&metadata.AcquisitionDate,
+			&metadata.AcquisitionTime,
+			&metadata.ContentDate,
+			&metadata.ContentTime,
+			&metadata.ImageType,
+			&metadata.ViewPosition,
+			&metadata.Rows,
+			&metadata.Columns,
+			&metadata.BitsAllocated,
+			&metadata.PhotometricInterpretation,
+			&metadata.SamplesPerPixel,
 			&indexedAt,
 		)
 		if err != nil {
@@ -970,4 +1054,97 @@ func (c *CatalogueCmd) outputLine(columns []string, rows [][]interface{}) error 
 	}
 
 	return nil
+}
+
+// displaySchema displays the database schema in a formatted table.
+func (c *CatalogueCmd) displaySchema() {
+	fmt.Println()
+	fmt.Println(ui.SuccessStyle.Render("✓ Database Schema: dicom_metadata"))
+	fmt.Println()
+
+	// Define schema columns with descriptions
+	type schemaColumn struct {
+		Name        string
+		Type        string
+		Tag         string
+		Description string
+	}
+
+	columns := []schemaColumn{
+		{"id", "INTEGER", "", "Primary key (auto-increment)"},
+		{"file_path", "TEXT", "", "Full path to DICOM file (UNIQUE)"},
+		{"file_name", "TEXT", "", "File name"},
+		{"file_size", "INTEGER", "", "File size in bytes"},
+		{"patient_name", "TEXT", "(0010,0010)", "Patient's Name"},
+		{"patient_id", "TEXT", "(0010,0020)", "Patient ID"},
+		{"patient_birth_date", "TEXT", "(0010,0030)", "Patient's Birth Date"},
+		{"patient_sex", "TEXT", "(0010,0040)", "Patient's Sex"},
+		{"study_instance_uid", "TEXT", "(0020,000D)", "Study Instance UID"},
+		{"study_date", "TEXT", "(0008,0020)", "Study Date"},
+		{"study_description", "TEXT", "(0008,1030)", "Study Description"},
+		{"series_instance_uid", "TEXT", "(0020,000E)", "Series Instance UID"},
+		{"series_number", "TEXT", "(0020,0011)", "Series Number"},
+		{"series_description", "TEXT", "(0008,103E)", "Series Description"},
+		{"sop_instance_uid", "TEXT", "(0008,0018)", "SOP Instance UID"},
+		{"sop_class_uid", "TEXT", "(0008,0016)", "SOP Class UID"},
+		{"instance_number", "TEXT", "(0020,0013)", "Instance Number"},
+		{"modality", "TEXT", "(0008,0060)", "Modality"},
+		{"manufacturer", "TEXT", "(0008,0070)", "Manufacturer"},
+		{"institution_name", "TEXT", "(0008,0080)", "Institution Name"},
+		{"accession_number", "TEXT", "(0008,0050)", "Accession Number"},
+		{"referring_physician_name", "TEXT", "(0008,0090)", "Referring Physician's Name"},
+		{"performing_physician_name", "TEXT", "(0008,1050)", "Performing Physician's Name"},
+		{"transfer_syntax_uid", "TEXT", "(0002,0010)", "Transfer Syntax UID"},
+		{"acquisition_date", "TEXT", "(0008,0022)", "Acquisition Date"},
+		{"acquisition_time", "TEXT", "(0008,0032)", "Acquisition Time"},
+		{"content_date", "TEXT", "(0008,0023)", "Content Date"},
+		{"content_time", "TEXT", "(0008,0033)", "Content Time"},
+		{"image_type", "TEXT", "(0008,0008)", "Image Type"},
+		{"view_position", "TEXT", "(0018,5101)", "View Position"},
+		{"rows", "TEXT", "(0028,0010)", "Rows"},
+		{"columns", "TEXT", "(0028,0011)", "Columns"},
+		{"bits_allocated", "TEXT", "(0028,0100)", "Bits Allocated"},
+		{"photometric_interpretation", "TEXT", "(0028,0004)", "Photometric Interpretation"},
+		{"samples_per_pixel", "TEXT", "(0028,0002)", "Samples Per Pixel"},
+		{"indexed_at", "DATETIME", "", "Timestamp when record was indexed"},
+	}
+
+	// Create table
+	table := ui.NewTable()
+	table.Header = &simpletable.Header{
+		Cells: []*simpletable.Cell{
+			{Align: simpletable.AlignLeft, Text: "Column Name"},
+			{Align: simpletable.AlignCenter, Text: "Type"},
+			{Align: simpletable.AlignCenter, Text: "DICOM Tag"},
+			{Align: simpletable.AlignLeft, Text: "Description"},
+		},
+	}
+
+	for _, col := range columns {
+		table.Body.Cells = append(table.Body.Cells, []*simpletable.Cell{
+			{Text: ui.InfoStyle.Render(col.Name)},
+			{Text: ui.SubtleStyle.Render(col.Type)},
+			{Text: ui.SuccessStyle.Render(col.Tag)},
+			{Text: col.Description},
+		})
+	}
+
+	ui.PrintTable(table, os.Stdout)
+	fmt.Println()
+
+	// Display indexes
+	fmt.Println(ui.SubtleStyle.Render("  Indexes:"))
+	indexes := []string{
+		"idx_patient_id ON patient_id",
+		"idx_study_uid ON study_instance_uid",
+		"idx_series_uid ON series_instance_uid",
+		"idx_sop_uid ON sop_instance_uid",
+		"idx_modality ON modality",
+		"idx_transfer_syntax ON transfer_syntax_uid",
+		"idx_sop_class ON sop_class_uid",
+	}
+	for _, idx := range indexes {
+		fmt.Printf("    • %s\n", idx)
+	}
+	fmt.Println()
 }

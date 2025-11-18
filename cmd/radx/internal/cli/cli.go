@@ -33,7 +33,7 @@ type DicomCmd struct {
 	Organize  commands.OrganizeCmd  `cmd:"" name:"organize" help:"Reorganize DICOM files by UID structure"`
 	SCP       commands.SCPCmd       `cmd:"" name:"scp" help:"Run DICOM SCP server"`
 	Lookup    commands.LookupCmd    `cmd:"" name:"lookup" help:"Look up DICOM tag information"`
-	Catalogue commands.CatalogueCmd `cmd:"" name:"catalogue" help:"Build and query DICOM file catalogue database"`
+	Catalogue commands.CatalogueCmd `cmd:"" name:"catalogue" help:"Build and query DICOM file catalogue database. Examples: 'radx dicom catalogue /path' (index), 'radx dicom catalogue --schema' (show schema), 'radx dicom catalogue --query modality=CR' (query), 'radx dicom catalogue --sql \"SELECT * FROM dicom_metadata WHERE modality='CR'\" --mode csv' (SQL export)"`
 }
 
 // Run executes the radx CLI with the provided build info.
