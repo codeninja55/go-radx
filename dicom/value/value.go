@@ -43,23 +43,27 @@ type StringValue struct {
 	values []string
 }
 
-// maxLengths defines maximum character lengths for string VRs per DICOM standard
+// maxLengths defines maximum character lengths for string VRs.
+// These limits are more permissive than the strict DICOM standard to accommodate
+// real-world DICOM files that may violate the standard length constraints.
+// The limits are set high enough to accept most non-conformant files while still
+// preventing unreasonably large values that could cause memory issues.
 var maxLengths = map[vr.VR]int{
-	vr.ApplicationEntity:           16,    // AE
-	vr.AgeString:                   4,     // AS
-	vr.CodeString:                  16,    // CS
-	vr.Date:                        8,     // DA
-	vr.DecimalString:               16,    // DS
-	vr.DateTime:                    26,    // DT
-	vr.IntegerString:               12,    // IS
-	vr.LongString:                  64,    // LO
-	vr.LongText:                    10240, // LT
-	vr.PersonName:                  64,    // PN (per component group)
-	vr.ShortString:                 16,    // SH
-	vr.ShortText:                   1024,  // ST
-	vr.Time:                        14,    // TM
+	vr.ApplicationEntity:           256,   // AE (standard: 16)
+	vr.AgeString:                   16,    // AS (standard: 4)
+	vr.CodeString:                  256,   // CS (standard: 16)
+	vr.Date:                        32,    // DA (standard: 8)
+	vr.DecimalString:               256,   // DS (standard: 16)
+	vr.DateTime:                    64,    // DT (standard: 26)
+	vr.IntegerString:               256,   // IS (standard: 12)
+	vr.LongString:                  1024,  // LO (standard: 64)
+	vr.LongText:                    65536, // LT (standard: 10240)
+	vr.PersonName:                  1024,  // PN (standard: 64 per component group)
+	vr.ShortString:                 1024,  // SH (standard: 16)
+	vr.ShortText:                   65536, // ST (standard: 1024)
+	vr.Time:                        32,    // TM (standard: 14)
 	vr.UnlimitedCharacters:         0,     // UC (unlimited)
-	vr.UniqueIdentifier:            64,    // UI
+	vr.UniqueIdentifier:            256,   // UI (standard: 64)
 	vr.UniversalResourceIdentifier: 0,     // UR (unlimited, but practical limit)
 	vr.UnlimitedText:               0,     // UT (unlimited)
 }
@@ -73,6 +77,10 @@ func isStringVR(v vr.VR) bool {
 // NewStringValue creates a new StringValue with the specified VR and values.
 // Returns an error if the VR is not a string type or if values exceed the maximum length.
 //
+// Note: Length validation is more permissive than the strict DICOM standard to accommodate
+// real-world DICOM files that may violate standard length constraints. This allows parsing
+// of non-conformant files while still preventing unreasonably large values.
+//
 // DICOM Standard Reference:
 // https://dicom.nema.org/medical/dicom/current/output/html/part05.html#sect_6.2
 func NewStringValue(v vr.VR, values []string) (*StringValue, error) {
@@ -82,10 +90,11 @@ func NewStringValue(v vr.VR, values []string) (*StringValue, error) {
 	}
 
 	// Validate lengths if there's a max length defined
+	// Uses lenient limits to accommodate non-conformant files
 	if maxLen, ok := maxLengths[v]; ok && maxLen > 0 {
 		for _, val := range values {
 			if len(val) > maxLen {
-				return nil, fmt.Errorf("value %q exceeds maximum length %d for VR %s", val, maxLen, v.String())
+				return nil, fmt.Errorf("value exceeds maximum length %d for VR %s (length: %d)", maxLen, v.String(), len(val))
 			}
 		}
 	}
