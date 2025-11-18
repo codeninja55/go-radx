@@ -2,7 +2,10 @@ package commands
 
 import (
 	"database/sql"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +26,7 @@ type CatalogueCmd struct {
 	Recursive bool     `name:"recursive" short:"R" help:"Recursively search directories" default:"true"`
 	Query     []string `name:"query" short:"q" help:"Query tags (format: tag=(GGGG,EEEE), keyword=value, or text search)"`
 	SQL       string   `name:"sql" help:"Execute raw SQL query (read-only, safe queries only)"`
+	Mode      string   `name:"mode" short:"m" default:"table" help:"Output mode for SQL queries (table, csv, json, jsonl, list, tabs, html, markdown, insert, line)"`
 }
 
 // DICOMMetadata represents the key metadata stored for each DICOM file.
@@ -441,7 +445,7 @@ func (c *CatalogueCmd) executeSQLQuery(db *sql.DB, logger *log.Logger) error {
 		}
 	}
 
-	logger.Debug("Executing SQL query", "sql", c.SQL)
+	logger.Debug("Executing SQL query", "sql", c.SQL, "mode", c.Mode)
 
 	// Execute query
 	rows, err := db.Query(c.SQL)
@@ -460,26 +464,10 @@ func (c *CatalogueCmd) executeSQLQuery(db *sql.DB, logger *log.Logger) error {
 		return fmt.Errorf("failed to get column names: %w", err)
 	}
 
-	// Display results in table format
-	fmt.Println()
-	fmt.Printf("%s\n\n", ui.InfoStyle.Render("SQL Query Results"))
-
-	table := ui.NewTable()
-
-	// Set headers
-	headerCells := make([]*simpletable.Cell, len(columns))
-	for i, col := range columns {
-		headerCells[i] = &simpletable.Cell{
-			Align: simpletable.AlignLeft,
-			Text:  col,
-		}
-	}
-	table.Header = &simpletable.Header{Cells: headerCells}
-
-	// Read and display rows
+	// Collect all rows
+	var allRows [][]interface{}
 	rowCount := 0
 	for rows.Next() {
-		// Create slice of interface{} to hold each column value
 		values := make([]interface{}, len(columns))
 		valuePtrs := make([]interface{}, len(columns))
 		for i := range columns {
@@ -491,36 +479,41 @@ func (c *CatalogueCmd) executeSQLQuery(db *sql.DB, logger *log.Logger) error {
 			continue
 		}
 
-		// Convert values to strings for display
-		rowCells := make([]*simpletable.Cell, len(columns))
-		for i, val := range values {
-			var strVal string
-			if val == nil {
-				strVal = ui.SubtleStyle.Render("NULL")
-			} else {
-				strVal = fmt.Sprintf("%v", val)
-				// Truncate long values
-				if len(strVal) > 50 {
-					strVal = strVal[:47] + "..."
-				}
-			}
-			rowCells[i] = &simpletable.Cell{Text: strVal}
-		}
-		table.Body.Cells = append(table.Body.Cells, rowCells)
+		allRows = append(allRows, values)
 		rowCount++
 
-		// Limit results to prevent overwhelming output
-		if rowCount >= 1000 {
-			logger.Warn("Result set limited to 1000 rows")
+		// Limit results to prevent overwhelming output (except for specific modes)
+		if rowCount >= 10000 && c.Mode != "csv" && c.Mode != "json" && c.Mode != "jsonl" {
+			logger.Warn("Result set limited to 10000 rows")
 			break
 		}
 	}
 
-	ui.PrintTable(table, os.Stdout)
-	fmt.Println()
-	fmt.Printf("%s %s\n\n", ui.SubtleStyle.Render("Rows returned:"), ui.InfoStyle.Render(fmt.Sprintf("%d", rowCount)))
-
-	return nil
+	// Format output based on mode
+	switch strings.ToLower(c.Mode) {
+	case "csv":
+		return c.outputCSV(columns, allRows)
+	case "json":
+		return c.outputJSON(columns, allRows)
+	case "jsonl", "ndjson":
+		return c.outputJSONL(columns, allRows)
+	case "list":
+		return c.outputList(columns, allRows)
+	case "tabs", "tsv":
+		return c.outputTabs(columns, allRows)
+	case "html":
+		return c.outputHTML(columns, allRows)
+	case "markdown", "md":
+		return c.outputMarkdown(columns, allRows)
+	case "insert":
+		return c.outputInsert(columns, allRows, "dicom_metadata")
+	case "line":
+		return c.outputLine(columns, allRows)
+	case "table", "column":
+		return c.outputTable(columns, allRows, rowCount)
+	default:
+		return fmt.Errorf("unknown output mode: %s (supported: table, csv, json, jsonl, list, tabs, html, markdown, insert, line)", c.Mode)
+	}
 }
 
 // buildWhereClause builds a WHERE clause for a query filter.
@@ -717,4 +710,264 @@ func (c *CatalogueCmd) displaySummary(db *sql.DB, logger *log.Logger) {
 	fmt.Println()
 	fmt.Println(ui.SubtleStyle.Render("  Use --query to search the catalogue"))
 	fmt.Println()
+}
+
+// Output formatter functions
+
+// outputTable outputs results in table format (default)
+func (c *CatalogueCmd) outputTable(columns []string, rows [][]interface{}, rowCount int) error {
+	fmt.Println()
+	fmt.Printf("%s\n\n", ui.InfoStyle.Render("SQL Query Results"))
+
+	table := ui.NewTable()
+
+	// Set headers
+	headerCells := make([]*simpletable.Cell, len(columns))
+	for i, col := range columns {
+		headerCells[i] = &simpletable.Cell{
+			Align: simpletable.AlignLeft,
+			Text:  col,
+		}
+	}
+	table.Header = &simpletable.Header{Cells: headerCells}
+
+	// Add rows
+	for _, row := range rows {
+		rowCells := make([]*simpletable.Cell, len(columns))
+		for i, val := range row {
+			var strVal string
+			if val == nil {
+				strVal = ui.SubtleStyle.Render("NULL")
+			} else {
+				strVal = fmt.Sprintf("%v", val)
+				// Truncate long values for table display
+				if len(strVal) > 50 {
+					strVal = strVal[:47] + "..."
+				}
+			}
+			rowCells[i] = &simpletable.Cell{Text: strVal}
+		}
+		table.Body.Cells = append(table.Body.Cells, rowCells)
+	}
+
+	ui.PrintTable(table, os.Stdout)
+	fmt.Println()
+	fmt.Printf("%s %s\n\n", ui.SubtleStyle.Render("Rows returned:"), ui.InfoStyle.Render(fmt.Sprintf("%d", rowCount)))
+
+	return nil
+}
+
+// outputCSV outputs results in CSV format
+func (c *CatalogueCmd) outputCSV(columns []string, rows [][]interface{}) error {
+	writer := csv.NewWriter(os.Stdout)
+	defer writer.Flush()
+
+	// Write header
+	if err := writer.Write(columns); err != nil {
+		return fmt.Errorf("failed to write CSV header: %w", err)
+	}
+
+	// Write rows
+	for _, row := range rows {
+		strRow := make([]string, len(row))
+		for i, val := range row {
+			if val == nil {
+				strRow[i] = ""
+			} else {
+				strRow[i] = fmt.Sprintf("%v", val)
+			}
+		}
+		if err := writer.Write(strRow); err != nil {
+			return fmt.Errorf("failed to write CSV row: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// outputJSON outputs results in JSON array format
+func (c *CatalogueCmd) outputJSON(columns []string, rows [][]interface{}) error {
+	// Convert rows to map array
+	result := make([]map[string]interface{}, len(rows))
+	for i, row := range rows {
+		rowMap := make(map[string]interface{})
+		for j, col := range columns {
+			rowMap[col] = row[j]
+		}
+		result[i] = rowMap
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(result)
+}
+
+// outputJSONL outputs results in JSON Lines format (newline-delimited JSON)
+func (c *CatalogueCmd) outputJSONL(columns []string, rows [][]interface{}) error {
+	encoder := json.NewEncoder(os.Stdout)
+	for _, row := range rows {
+		rowMap := make(map[string]interface{})
+		for j, col := range columns {
+			rowMap[col] = row[j]
+		}
+		if err := encoder.Encode(rowMap); err != nil {
+			return fmt.Errorf("failed to encode JSON line: %w", err)
+		}
+	}
+	return nil
+}
+
+// outputList outputs results in list format (pipe-delimited by default)
+func (c *CatalogueCmd) outputList(columns []string, rows [][]interface{}) error {
+	// Header
+	fmt.Println(strings.Join(columns, "|"))
+
+	// Rows
+	for _, row := range rows {
+		strRow := make([]string, len(row))
+		for i, val := range row {
+			if val == nil {
+				strRow[i] = ""
+			} else {
+				strRow[i] = fmt.Sprintf("%v", val)
+			}
+		}
+		fmt.Println(strings.Join(strRow, "|"))
+	}
+
+	return nil
+}
+
+// outputTabs outputs results in tab-separated format
+func (c *CatalogueCmd) outputTabs(columns []string, rows [][]interface{}) error {
+	// Header
+	fmt.Println(strings.Join(columns, "\t"))
+
+	// Rows
+	for _, row := range rows {
+		strRow := make([]string, len(row))
+		for i, val := range row {
+			if val == nil {
+				strRow[i] = ""
+			} else {
+				strRow[i] = fmt.Sprintf("%v", val)
+			}
+		}
+		fmt.Println(strings.Join(strRow, "\t"))
+	}
+
+	return nil
+}
+
+// outputHTML outputs results in HTML table format
+func (c *CatalogueCmd) outputHTML(columns []string, rows [][]interface{}) error {
+	fmt.Println("<table>")
+	fmt.Println("  <thead>")
+	fmt.Println("    <tr>")
+	for _, col := range columns {
+		fmt.Printf("      <th>%s</th>\n", html.EscapeString(col))
+	}
+	fmt.Println("    </tr>")
+	fmt.Println("  </thead>")
+	fmt.Println("  <tbody>")
+
+	for _, row := range rows {
+		fmt.Println("    <tr>")
+		for _, val := range row {
+			var strVal string
+			if val == nil {
+				strVal = ""
+			} else {
+				strVal = fmt.Sprintf("%v", val)
+			}
+			fmt.Printf("      <td>%s</td>\n", html.EscapeString(strVal))
+		}
+		fmt.Println("    </tr>")
+	}
+
+	fmt.Println("  </tbody>")
+	fmt.Println("</table>")
+
+	return nil
+}
+
+// outputMarkdown outputs results in Markdown table format
+func (c *CatalogueCmd) outputMarkdown(columns []string, rows [][]interface{}) error {
+	// Header
+	fmt.Print("| ")
+	fmt.Print(strings.Join(columns, " | "))
+	fmt.Println(" |")
+
+	// Separator
+	fmt.Print("|")
+	for range columns {
+		fmt.Print(" --- |")
+	}
+	fmt.Println()
+
+	// Rows
+	for _, row := range rows {
+		fmt.Print("| ")
+		strRow := make([]string, len(row))
+		for i, val := range row {
+			if val == nil {
+				strRow[i] = ""
+			} else {
+				strRow[i] = fmt.Sprintf("%v", val)
+			}
+		}
+		fmt.Print(strings.Join(strRow, " | "))
+		fmt.Println(" |")
+	}
+
+	return nil
+}
+
+// outputInsert outputs results as SQL INSERT statements
+func (c *CatalogueCmd) outputInsert(columns []string, rows [][]interface{}, tableName string) error {
+	for _, row := range rows {
+		fmt.Printf("INSERT INTO %s (", tableName)
+		fmt.Print(strings.Join(columns, ", "))
+		fmt.Print(") VALUES (")
+
+		values := make([]string, len(row))
+		for i, val := range row {
+			if val == nil {
+				values[i] = "NULL"
+			} else {
+				// Quote string values
+				switch val.(type) {
+				case string, []byte:
+					values[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(fmt.Sprintf("%v", val), "'", "''"))
+				default:
+					values[i] = fmt.Sprintf("%v", val)
+				}
+			}
+		}
+
+		fmt.Print(strings.Join(values, ", "))
+		fmt.Println(");")
+	}
+
+	return nil
+}
+
+// outputLine outputs results with one value per line (key: value format)
+func (c *CatalogueCmd) outputLine(columns []string, rows [][]interface{}) error {
+	for rowNum, row := range rows {
+		if rowNum > 0 {
+			fmt.Println() // Blank line between records
+		}
+		for i, col := range columns {
+			var strVal string
+			if row[i] == nil {
+				strVal = ""
+			} else {
+				strVal = fmt.Sprintf("%v", row[i])
+			}
+			fmt.Printf("%s = %s\n", col, strVal)
+		}
+	}
+
+	return nil
 }
