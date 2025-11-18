@@ -217,8 +217,12 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 
 	// Store files with progress tracking
 	progress := ui.NewProgressBar(len(files), "Storing")
-	var successCount, failCount, reconnectCount atomic.Uint32
+	var successCount, failCount, reconnectCount, skippedCount atomic.Uint32
 	startTime := time.Now()
+
+	// Track ABORT counts per file to avoid infinite retry loops
+	abortCounts := make(map[string]int)
+	const maxAbortsPerFile = 2 // Maximum ABORTs before skipping a file
 
 	for i, file := range files {
 		progress.Increment(fmt.Sprintf("Storing %s", file.Name))
@@ -257,6 +261,17 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 			continue
 		}
 
+		// Check if this file has exceeded ABORT threshold
+		if abortCounts[file.Path] >= maxAbortsPerFile {
+			logger.Warn("Skipping file that consistently causes SCP to abort",
+				"file", file.Path,
+				"abort_count", abortCounts[file.Path],
+				"reason", "File may be malformed or unsupported by SCP")
+			skippedCount.Add(1)
+			failCount.Add(1)
+			continue
+		}
+
 		// Perform C-STORE with automatic reconnection on connection errors
 		maxRetries := 1 // One retry after reconnection
 		var storeErr error
@@ -269,11 +284,28 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 				break
 			}
 
+			// Track if this is an ABORT error
+			if isAbortError(storeErr) {
+				abortCounts[file.Path]++
+				logger.Debug("File caused SCP ABORT", "file", file.Path, "abort_count", abortCounts[file.Path])
+			}
+
 			// Check if error is a connection error
 			if !isConnectionError(storeErr) {
 				// Not a connection error, don't retry
 				logger.Error("C-STORE failed", "file", file.Path, "error", storeErr)
 				failCount.Add(1)
+				break
+			}
+
+			// Check if this file has now exceeded ABORT threshold after this error
+			if abortCounts[file.Path] >= maxAbortsPerFile {
+				logger.Warn("File consistently causes SCP to abort, skipping further attempts",
+					"file", file.Path,
+					"abort_count", abortCounts[file.Path],
+					"error", storeErr)
+				failCount.Add(1)
+				skippedCount.Add(1)
 				break
 			}
 
@@ -315,6 +347,9 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 	if failCount.Load() > 0 {
 		fmt.Printf("  %s %s\n", ui.SubtleStyle.Render("Failed:"), ui.ErrorStyle.Render(fmt.Sprintf("%d", failCount.Load())))
 	}
+	if skippedCount.Load() > 0 {
+		fmt.Printf("  %s %s\n", ui.SubtleStyle.Render("Skipped (ABORT):"), ui.WarnStyle.Render(fmt.Sprintf("%d", skippedCount.Load())))
+	}
 	if reconnectCount.Load() > 0 {
 		fmt.Printf("  %s %s\n", ui.SubtleStyle.Render("Reconnections:"), ui.WarnStyle.Render(fmt.Sprintf("%d", reconnectCount.Load())))
 	}
@@ -329,6 +364,7 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 		"total", len(files),
 		"success", successCount.Load(),
 		"failed", failCount.Load(),
+		"skipped_abort", skippedCount.Load(),
 		"reconnections", reconnectCount.Load(),
 		"elapsed", elapsed,
 	)
@@ -424,6 +460,14 @@ func isConnectionError(err error) bool {
 		strings.Contains(errStr, "connection refused") ||
 		errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded)
+}
+
+// isAbortError checks if an error is specifically an SCP-initiated ABORT.
+func isAbortError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "aborted association")
 }
 
 // reconnectClient attempts to reconnect the DICOM client.
