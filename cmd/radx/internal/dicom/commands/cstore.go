@@ -19,8 +19,7 @@ import (
 
 // CStoreCmd implements the DICOM C-STORE command.
 type CStoreCmd struct {
-	Paths      []string      `arg:"" optional:"" type:"existingfile" help:"DICOM files to store" group:"Input"`
-	Dir        string        `name:"dir" type:"existingdir" help:"Directory containing DICOM files" group:"Input" xor:"Input"`
+	Paths      []string      `arg:"" optional:"" type:"path" help:"DICOM files or directories to store"`
 	Recursive  bool          `name:"recursive" short:"R" help:"Recursively search directories"`
 	Host       string        `name:"host" required:"" help:"DICOM server hostname or IP address"`
 	Port       int           `name:"port" default:"11112" help:"DICOM server port"`
@@ -45,29 +44,34 @@ func (c *CStoreCmd) Run(cfg *config.GlobalConfig) error {
 
 	// Collect DICOM files
 	var files []DICOMFile
-	var err error
 
-	if c.Dir != "" {
-		logger.Debug("Scanning directory", "path", c.Dir, "recursive", c.Recursive)
-		files, err = listDicomFiles(c.Dir, c.Recursive)
+	if len(c.Paths) == 0 {
+		return fmt.Errorf("no input paths specified")
+	}
+
+	logger.Debug("Processing paths", "count", len(c.Paths))
+	for _, path := range c.Paths {
+		info, err := os.Stat(path)
 		if err != nil {
-			return fmt.Errorf("failed to list DICOM files: %w", err)
+			return fmt.Errorf("failed to stat path %s: %w", path, err)
 		}
-	} else if len(c.Paths) > 0 {
-		logger.Debug("Processing files", "count", len(c.Paths))
-		for _, path := range c.Paths {
-			info, err := os.Stat(path)
+
+		if info.IsDir() {
+			// Path is a directory - scan for DICOM files
+			logger.Debug("Scanning directory", "path", path, "recursive", c.Recursive)
+			dirFiles, err := listDicomFiles(path, c.Recursive)
 			if err != nil {
-				return fmt.Errorf("failed to stat file %s: %w", path, err)
+				return fmt.Errorf("failed to list DICOM files in %s: %w", path, err)
 			}
+			files = append(files, dirFiles...)
+		} else {
+			// Path is a file - add directly
 			files = append(files, DICOMFile{
 				Path: path,
 				Name: filepath.Base(path),
 				Size: info.Size(),
 			})
 		}
-	} else {
-		return fmt.Errorf("no input files specified (use paths or --dir)")
 	}
 
 	if len(files) == 0 {
