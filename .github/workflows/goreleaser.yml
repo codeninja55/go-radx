@@ -1,4 +1,4 @@
-name: GoReleaser
+name: Release
 
 on:
   push:
@@ -16,8 +16,112 @@ permissions:
   packages: write
 
 jobs:
-  goreleaser:
-    name: GoReleaser
+  # Build natively on amd64 Linux
+  build-linux-amd64:
+    name: Build Linux AMD64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Checkout specific tag (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git fetch --force --tags
+          git checkout ${{ github.event.inputs.tag }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+
+      - name: Install CGO dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenjp2-7-dev libjpeg-turbo8-dev
+
+      - name: Build binary
+        env:
+          CGO_ENABLED: 1
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          VERSION="${{ github.event.inputs.tag || github.ref_name }}"
+          COMMIT="${{ github.sha }}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          cd cmd/radx
+          go build \
+            -tags cgo \
+            -trimpath \
+            -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${DATE}" \
+            -o ../../dist/radx-linux-amd64 \
+            .
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: radx-linux-amd64
+          path: dist/radx-linux-amd64
+          retention-days: 1
+
+  # Build natively on arm64 Linux
+  build-linux-arm64:
+    name: Build Linux ARM64
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Checkout specific tag (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git fetch --force --tags
+          git checkout ${{ github.event.inputs.tag }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+
+      - name: Install CGO dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenjp2-7-dev libjpeg-turbo8-dev
+
+      - name: Build binary
+        env:
+          CGO_ENABLED: 1
+          GOOS: linux
+          GOARCH: arm64
+        run: |
+          VERSION="${{ github.event.inputs.tag || github.ref_name }}"
+          COMMIT="${{ github.sha }}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          cd cmd/radx
+          go build \
+            -tags cgo \
+            -trimpath \
+            -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${DATE}" \
+            -o ../../dist/radx-linux-arm64 \
+            .
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: radx-linux-arm64
+          path: dist/radx-linux-arm64
+          retention-days: 1
+
+  # Create GitHub release with binaries
+  release:
+    name: Create Release
+    needs: [build-linux-amd64, build-linux-arm64]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,41 +138,117 @@ jobs:
       - name: Fetch all tags
         run: git fetch --force --tags
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.25.4'
 
-      - name: Install mise
-        uses: jdx/mise-action@v3
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
         with:
-          version: 2025.11.5
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/
 
-      - name: Install CGO dependencies
-        run: mise deps:install
-
-      - name: Run GoReleaser with goreleaser-cross
+      - name: Create release archives
         run: |
-          docker run --rm \
-            -e CGO_ENABLED=1 \
-            -e GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" \
-            -e GORELEASER_CURRENT_TAG="${{ github.event.inputs.tag || github.ref_name }}" \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v $(pwd):/workspace \
-            -w /workspace \
-            ghcr.io/goreleaser/goreleaser-cross:latest \
-            release --clean
+          # Get version from tag
+          VERSION="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION_NO_V="${VERSION#v}"
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v5
+          # Create archives directory
+          mkdir -p archives
+
+          # Package Linux AMD64
+          mkdir -p radx_${VERSION_NO_V}_linux_amd64
+          cp dist/radx-linux-amd64/radx-linux-amd64 radx_${VERSION_NO_V}_linux_amd64/radx
+          chmod +x radx_${VERSION_NO_V}_linux_amd64/radx
+          [ -f LICENSE ] && cp LICENSE radx_${VERSION_NO_V}_linux_amd64/
+          [ -f README.md ] && cp README.md radx_${VERSION_NO_V}_linux_amd64/
+          [ -f CHANGELOG.md ] && cp CHANGELOG.md radx_${VERSION_NO_V}_linux_amd64/
+          tar -czf archives/radx_${VERSION_NO_V}_linux_amd64.tar.gz radx_${VERSION_NO_V}_linux_amd64
+
+          # Package Linux ARM64
+          mkdir -p radx_${VERSION_NO_V}_linux_arm64
+          cp dist/radx-linux-arm64/radx-linux-arm64 radx_${VERSION_NO_V}_linux_arm64/radx
+          chmod +x radx_${VERSION_NO_V}_linux_arm64/radx
+          [ -f LICENSE ] && cp LICENSE radx_${VERSION_NO_V}_linux_arm64/
+          [ -f README.md ] && cp README.md radx_${VERSION_NO_V}_linux_arm64/
+          [ -f CHANGELOG.md ] && cp CHANGELOG.md radx_${VERSION_NO_V}_linux_arm64/
+          tar -czf archives/radx_${VERSION_NO_V}_linux_arm64.tar.gz radx_${VERSION_NO_V}_linux_arm64
+
+          # Create checksums
+          cd archives
+          sha256sum *.tar.gz > radx_${VERSION_NO_V}_checksums.txt
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ github.event.inputs.tag || github.ref_name }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 ${VERSION}^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "changelog=Initial release" >> $GITHUB_OUTPUT
+          else
+            CHANGELOG=$(git log ${PREV_TAG}..${VERSION} --pretty=format:"- %s (%h)" --no-merges | grep -v "^- docs:" | grep -v "^- test:" | grep -v "^- ci:" | grep -v "^- chore:" | head -n 20)
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGELOG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: archives/*
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: RadX ${{ github.event.inputs.tag || github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            ## RadX DICOM Utility CLI ${{ github.event.inputs.tag || github.ref_name }}
+
+            Release date: $(date -u +%Y-%m-%d)
+
+            ### Important Note
+
+            This release includes binaries with CGO support for JPEG and JPEG 2000 decompression.
+            If you encounter issues with image decompression, ensure you have the required libraries installed:
+
+            - **Linux**: `sudo apt-get install libjpeg-turbo8 libopenjp2-7`
+
+            ### Installation
+
+            Download the appropriate binary for your platform below and extract it to a location in your PATH.
+
+            #### Linux (x86-64)
+            ```bash
+            curl -LO https://github.com/codeninja55/go-radx/releases/download/${{ github.event.inputs.tag || github.ref_name }}/radx_${{ github.event.inputs.tag || github.ref_name }}_linux_amd64.tar.gz
+            tar -xzf radx_${{ github.event.inputs.tag || github.ref_name }}_linux_amd64.tar.gz
+            cd radx_*/
+            sudo mv radx /usr/local/bin/
+            ```
+
+            #### Linux (ARM64)
+            ```bash
+            curl -LO https://github.com/codeninja55/go-radx/releases/download/${{ github.event.inputs.tag || github.ref_name }}/radx_${{ github.event.inputs.tag || github.ref_name }}_linux_arm64.tar.gz
+            tar -xzf radx_${{ github.event.inputs.tag || github.ref_name }}_linux_arm64.tar.gz
+            cd radx_*/
+            sudo mv radx /usr/local/bin/
+            ```
+
+            ### Verify Installation
+            ```bash
+            radx --version
+            ```
+
+            ### Changes
+            ${{ steps.changelog.outputs.changelog }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
-          path: dist/*
+          path: archives/*
           retention-days: 7

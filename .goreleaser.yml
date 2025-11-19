@@ -1,83 +1,22 @@
 # GoReleaser configuration for radx CLI
 # See: https://goreleaser.com
+#
+# This configuration uses prebuilt binaries from GitHub Actions native runners
+# instead of cross-compilation to avoid CGO dependency issues.
 
 version: 2
 
 # Project metadata
 project_name: radx
 
-# Global hooks (run once before all builds)
-before:
-  hooks:
-    # Install CGO dependencies for all builds
-    # This runs once in the container before any builds start
-    # Use libjpeg62-turbo-dev instead of generic libjpeg-dev for proper .pc files
-    - apt-get update && apt-get install -y pkg-config libopenjp2-7-dev libopenjp2-7-dev:arm64 libjpeg62-turbo-dev libjpeg62-turbo-dev:arm64
-    - "bash -c 'OPENJP2_DIR=$(find /usr/include -type d -name \"openjpeg-*\" 2>/dev/null | head -n 1); if [ -n \"$OPENJP2_DIR\" ]; then ln -sf $OPENJP2_DIR/openjpeg.h /usr/include/openjpeg.h && echo \"Symlink created\"; fi'"
-
-# Build configuration
+# Use prebuilt binaries - skip building
 builds:
-  # Build for Linux and macOS with CGO support
-  - id: radx
-    dir: ./cmd/radx
-    main: .
-    binary: radx
+  - skip: true
 
-    # Target platforms
-    goos:
-      - linux
-      # darwin disabled temporarily - CGO cross-compilation from Linux to macOS requires macOS SDK
-      # - darwin
-
-    goarch:
-      - amd64
-      - arm64
-
-    # Build matrix exclusions (if needed)
-    ignore:
-      - goos: windows
-        goarch: arm64
-
-    # Environment variables for build
-    env:
-      - CGO_ENABLED=1
-      # Bypass pkg-config and manually specify CGO flags for OpenJPEG and JPEG libraries
-      # This is more reliable than relying on .pc files which may not be installed correctly
-      - >-
-        {{- if eq .Arch "amd64" }}CGO_CFLAGS=-I/usr/include -I/usr/include/openjpeg-2.5{{- end }}
-      - >-
-        {{- if eq .Arch "amd64" }}CGO_LDFLAGS=-L/usr/lib/x86_64-linux-gnu -lopenjp2 -ljpeg{{- end }}
-      # ARM64 cross-compilation toolchain (conditional)
-      - >-
-        {{- if eq .Arch "arm64" }}CC=aarch64-linux-gnu-gcc{{- end }}
-      - >-
-        {{- if eq .Arch "arm64" }}CXX=aarch64-linux-gnu-g++{{- end }}
-      - >-
-        {{- if eq .Arch "arm64" }}CGO_CFLAGS=-I/usr/include -I/usr/include/openjpeg-2.5{{- end }}
-      - >-
-        {{- if eq .Arch "arm64" }}CGO_LDFLAGS=-L/usr/lib/aarch64-linux-gnu -lopenjp2 -ljpeg{{- end }}
-
-    # Linker flags for version injection
-    ldflags:
-      - -s -w
-      - -X main.Version={{.Version}}
-      - -X main.Commit={{.Commit}}
-      - -X main.Date={{.Date}}
-
-    # Build tags
-    tags:
-      - cgo
-
-    # Build flags
-    flags:
-      - -trimpath
-
-    # Note: goreleaser-cross will automatically handle the cross-compilation
-    # environment variables for each target platform
-
-# Archive configuration
+# Archive configuration - package prebuilt binaries from dist/
 archives:
   - id: radx
+    format: tar.gz
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -85,12 +24,12 @@ archives:
       {{- .Arch }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 
-    # Files to include in archive
+    # Use prebuilt binaries from dist/ directory
+    # The workflow prepares: dist/radx_linux_amd64/radx and dist/radx_linux_arm64/radx
     files:
       - LICENSE*
       - README*
       - CHANGELOG*
-
 
 # Checksum configuration
 checksum:
@@ -159,20 +98,6 @@ release:
     ### Installation
 
     Download the appropriate binary for your platform below and extract it to a location in your PATH.
-
-    #### macOS (Apple Silicon)
-    ```bash
-    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Version }}_darwin_arm64.tar.gz
-    tar -xzf radx_{{ .Version }}_darwin_arm64.tar.gz
-    sudo mv radx /usr/local/bin/
-    ```
-
-    #### macOS (Intel)
-    ```bash
-    curl -LO https://github.com/codeninja55/go-radx/releases/download/{{ .Tag }}/radx_{{ .Version }}_darwin_amd64.tar.gz
-    tar -xzf radx_{{ .Version }}_darwin_amd64.tar.gz
-    sudo mv radx /usr/local/bin/
-    ```
 
     #### Linux (x86-64)
     ```bash
