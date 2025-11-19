@@ -3,7 +3,8 @@
 package pixel
 
 /*
-#cgo pkg-config: libjpeg
+#cgo CFLAGS: -I/usr/include
+#cgo LDFLAGS: -ljpeg
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
