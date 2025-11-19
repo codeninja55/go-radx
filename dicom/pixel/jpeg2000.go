@@ -402,7 +402,6 @@ int compress_jpeg2000_lossless(
         cmptparms[i].x0 = 0;
         cmptparms[i].y0 = 0;
         cmptparms[i].prec = precision;
-        cmptparms[i].bpp = precision;
         cmptparms[i].sgnd = 0; // Unsigned
     }
 
