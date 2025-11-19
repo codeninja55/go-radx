@@ -3,8 +3,7 @@
 package pixel
 
 /*
-#cgo CFLAGS: -I/usr/include
-#cgo LDFLAGS: -lopenjp2
+#cgo pkg-config: libopenjp2
 #include <stdlib.h>
 #include <string.h>
 #include <openjpeg.h>

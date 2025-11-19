@@ -40,7 +40,7 @@ jobs:
       - name: Install CGO dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libopenjp2-7-dev libjpeg-turbo8-dev
+          sudo apt-get install -y pkg-config libopenjp2-7-dev libjpeg-turbo8-dev
 
       - name: Build binary
         env:
@@ -91,7 +91,7 @@ jobs:
       - name: Install CGO dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libopenjp2-7-dev libjpeg-turbo8-dev
+          sudo apt-get install -y pkg-config libopenjp2-7-dev libjpeg-turbo8-dev
 
       - name: Build binary
         env:
