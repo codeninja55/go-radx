@@ -13,6 +13,13 @@ before:
     # This runs once in the container before any builds start
     # Use libjpeg62-turbo-dev instead of generic libjpeg-dev for proper .pc files
     - apt-get update && apt-get install -y pkg-config libopenjp2-7-dev libopenjp2-7-dev:arm64 libjpeg62-turbo-dev libjpeg62-turbo-dev:arm64
+    # Find OpenJPEG headers and create symlink to /usr/include for easier discovery
+    - |
+      OPENJP2_DIR=$(find /usr/include -type d -name "openjpeg-*" | head -n 1)
+      if [ -n "$OPENJP2_DIR" ]; then
+        ln -sf $OPENJP2_DIR/openjpeg.h /usr/include/openjpeg.h
+        echo "Created symlink: /usr/include/openjpeg.h -> $OPENJP2_DIR/openjpeg.h"
+      fi
 
 # Build configuration
 builds:
