@@ -144,7 +144,7 @@ jobs:
           go-version: '1.25.4'
 
       - name: Download all binary artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: dist/
 
