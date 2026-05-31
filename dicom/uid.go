@@ -60,8 +60,3 @@ func (u UID) Name() string {
 	}
 	return string(u)
 }
-
-// TODO: superseded by the generated uid_values.go dictionary (Task 1.4).
-var uidNames = map[UID]string{
-	"1.2.840.10008.1.2.1": "Explicit VR Little Endian",
-}
