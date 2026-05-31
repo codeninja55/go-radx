@@ -28,14 +28,16 @@ extending it with the new groups:
 - The `dicomweb` group: WADO-RS, STOW-RS, and QIDO-RS clients (`wado`, `stow`, `qido`).
 - The `convert` group: cross-standard conversion (`dicom-to-fhir`, `sr-to-fhir`, `oru-to-fhir`, `orm-to-fhir`,
   `adt-to-fhir`).
+- The `serve` group: thin reference daemons for the DICOMweb and FHIR REST servers (`dicomweb`, `fhir`), the CLI entry
+  point for the `server` package's embeddable roles (`docs/reference/servers.md`, PRD §7.2). The DIMSE Storage/QR SCP
+  and the HL7 v2 MLLP listener keep their existing top-level homes (`scp` and `hl7 listen`).
 - The global behaviour: output formats, environment configuration, exit codes, logging, and the honest-failure rules.
 
 Out of scope for v1 (deferred, not designed against here): the SCP/server sides of MPPS and Storage Commitment (the v1
-N-services are SCU-only, PRD §5.1); the FHIR REST server and DICOMweb server daemons are library features exposed via
-thin reference daemons rather than through these client subcommands; UPS-RS and the legacy WADO-URI interface. The DIMSE
-query/retrieve subcommands (`find`, `get`, `move`) are the top-three dcmtk-parity gaps the Codex audit named and arrive
-with M3 DIMSE depth (PRD §13); they are documented here as committed surface so the command tree is stable, and they
-fail-closed until M3 lands.
+N-services are SCU-only, PRD §5.1); UPS-RS and the legacy WADO-URI interface. The DIMSE query/retrieve subcommands
+(`find`, `get`, `move`) are the top-three dcmtk-parity gaps the Codex audit named and arrive with M3 DIMSE depth
+(PRD §13); they are documented here as committed surface so the command tree is stable, and they fail-closed until M3
+lands.
 
 ## Command tree
 
@@ -71,6 +73,9 @@ radx <command> [flags]
     oru-to-fhir   Map an HL7 v2 ORU to a DiagnosticReport
     orm-to-fhir   Map an HL7 v2 ORM to a ServiceRequest
     adt-to-fhir   Map an HL7 v2 ADT to a Patient / Encounter
+  serve           Run a reference daemon (server package)
+    dicomweb      Serve WADO-RS / STOW-RS / QIDO-RS              ~ (no direct dcmtk equivalent)
+    fhir          Serve the FHIR REST API                        ~ (no direct dcmtk equivalent)
 ```
 
 The trailing `[M3]` and `[loopback]` notes are stable parts of the contract, not transient build state: the
@@ -136,11 +141,18 @@ environment is the configuration surface.
 | `RADX_CALLED_AE` | default Called AE Title (the remote AE) | `ORTHANC` |
 | `RADX_CALLING_AE` | default Calling AE Title (this client) | `RADX` |
 | `RADX_TIMEOUT` | default operation timeout (Go duration) | `5m` |
-| `RADX_MAX_PDU` | default maximum PDU length in bytes | `65536` |
+| `RADX_MAX_PDU` | default maximum PDU length in bytes | `16382` |
 | `RADX_BIND` | default `scp`/`listen` bind address | `127.0.0.1` |
 | `RADX_DICOMWEB_URL` | default DICOMweb base URL | `https://dicom.example.org/dicom-web` |
 | `RADX_MLLP_HOST` / `RADX_MLLP_PORT` | default HL7 v2 MLLP endpoint | `ris.example.org` / `2575` |
 | `RADX_BEARER_TOKEN` | bearer token for DICOMweb / FHIR HTTP auth | (read from env, never logged) |
+
+The maximum PDU length has one canonical default across the CLI: `16382` bytes, matching `dimse.WithMaxPDULength`'s
+`dimse.MaxPDULength` default (the value the `dimse` layer negotiates). Every command that opens an association —
+`echo`, `store`, `scp` — defaults `--max-pdu` to `16382`, and `RADX_MAX_PDU` binds the same value everywhere. The
+`store` command alone accepts an explicit raise up to a `131072`-byte cap, because a high-throughput batch transfer can
+benefit from larger P-DATA-TF PDUs; that is an operator override, not a different default. A value of `0` requests
+"no maximum specified" (unlimited), as in the `dimse` layer.
 
 Secrets — bearer tokens, TLS key passphrases — are read from the environment or a referenced file per 12-factor, are
 never logged, and are never written to the catalogue (PRD §9.8). `AETitle`, `TransferSyntax`, and the host/port values
@@ -197,7 +209,7 @@ radx echo <host> <port> [flags]
       --called-ae=ANY-SCP    Called AE Title (the remote AE)   [env: RADX_CALLED_AE]
       --calling-ae=RADX      Calling AE Title (this client)    [env: RADX_CALLING_AE]
       --timeout=30s          Connection and operation timeout  [env: RADX_TIMEOUT]
-      --max-pdu=16384        Maximum PDU length in bytes        [env: RADX_MAX_PDU]
+      --max-pdu=16382        Maximum PDU length in bytes        [env: RADX_MAX_PDU]
       --tls                  Negotiate DIMSE-TLS (verifies the peer certificate)
 ```
 
@@ -218,7 +230,7 @@ radx store <path>... [flags]
       --calling-ae=RADX      Calling AE Title                   [env: RADX_CALLING_AE]
   -R, --recursive            Descend into directories
       --timeout=5m           Operation timeout                  [env: RADX_TIMEOUT]
-      --max-pdu=65536        Maximum PDU length in bytes (cap 131072)
+      --max-pdu=16382        Maximum PDU length in bytes (cap 131072) [env: RADX_MAX_PDU]
       --workers=4            Concurrent worker associations (1-128)
       --transcode-to=""      Transcode to this transfer syntax before sending (default: send as stored)
       --continue-on-error    Keep processing after a failed object (final exit still non-zero)
@@ -228,9 +240,13 @@ Input: file or directory paths (with `-R` to recurse). Output: a per-object resu
 Lines, one object per file (`{"file":"a.dcm","sop_instance_uid":"…","status":"success"}` …) followed by a summary line;
 in `human`, a progress bar on stderr and a final tally.
 
-Three behaviours diverge deliberately from the prototype. First, transcoding is **off by default**: objects are sent as
-stored, matching `storescu`, and `--transcode-to` takes an explicit transfer syntax rather than the prototype's silent
-default-on transcode to JPEG 2000 (RADX-011) — medical-image fidelity is not altered without an explicit instruction.
+Three behaviours diverge deliberately from the prototype. First, transcoding is **off by default and is an explicit
+opt-in**: objects are sent as stored, matching `storescu`, and `--transcode-to` names the target transfer syntax rather
+than the prototype's silent default-on transcode to JPEG 2000 (RADX-011) — medical-image fidelity is not altered
+without an explicit instruction. Transcoding (the encode side) is available only in a build that includes the optional
+CGo codec tag and only for the syntaxes a codec exists for (RLE and JPEG 2000 lossless first, per `dicom.md` and
+`conformance/dicom.md`); a `--transcode-to` request against a syntax this build cannot encode is a usage error, not a
+silent passthrough. Decoding compressed input for storage is always available; only encode/transcode is gated.
 Second, any failed transfer makes the command exit non-zero; `--continue-on-error` changes only whether the batch stops,
 not the final status (RADX-003). Third, each worker owns its association lifecycle, so a reconnect replaces the worker's
 client cleanly rather than leaking the original (RADX-009). A study with files larger than the PDU is streamed in PDV
@@ -265,7 +281,7 @@ radx scp [flags]
       --output-dir=./dicom-received   Where to write received objects
       --organize             Lay out by Study/Series/SOP UID (default on)
       --accept-echo          Accept C-ECHO (default on)
-      --max-pdu=16384        Maximum PDU length in bytes
+      --max-pdu=16382        Maximum PDU length in bytes        [env: RADX_MAX_PDU]
       --max-conns=10         Maximum concurrent associations
       --tls-cert=/--tls-key= Serve over DIMSE-TLS (mutual TLS optional)
 ```
@@ -456,11 +472,47 @@ radx convert orm-to-fhir   [<file>|-]                               -> ServiceRe
 radx convert adt-to-fhir   [<file>|-] [--as=patient|encounter]      -> Patient / Encounter
 ```
 
-`--release` selects FHIR R4 (4.0.1) or R5 (5.0.0); the default is `R5` (PRD §5.3). Output is a FHIR resource as JSON to
-stdout (or `--output`). Each conversion returns the `convert` package's conversion report; a conversion that cannot
-faithfully map a required element returns an error and exits `3` rather than emitting a lossy resource (fail-closed,
-PRD §9.2). DICOM UIDs map to FHIR `Identifier` values (`urn:dicom:uid` / `urn:oid`), never to a `Reference.reference`
-(glossary).
+`--release` selects FHIR R4 (4.0.1) or R5 (5.0.0); the default is `R5` (PRD §5.3). The release is not cosmetic: it picks
+the release-explicit converter the `convert` package exposes (the `…R5` form, e.g. `convert.DICOMToImagingStudyR5`,
+returning a `*r5.ImagingStudy`, or its `…R4` twin returning a `*r4.ImagingStudy`; see `docs/reference/convert.md`). The
+result is serialised with `encoding/json` and written as a FHIR resource to stdout (or `--output`). Each conversion
+returns the `convert` package's conversion report; a conversion that cannot faithfully map a required element returns
+an error and exits `3` rather than emitting a lossy resource (fail-closed, PRD §9.2). DICOM UIDs map to FHIR
+`Identifier` values (`urn:dicom:uid` / `urn:oid`), never to a `Reference.reference` (glossary).
+
+## serve — reference daemons (DICOMweb, FHIR REST)
+
+The `serve` group runs the thin reference daemons that wrap the `server` package's embeddable roles, giving the
+DICOMweb and FHIR REST servers a CLI entry point alongside the DIMSE SCP (`scp`) and the HL7 v2 MLLP listener
+(`hl7 listen`). Each subcommand wires the shared backends — a filesystem object store and a SQLite catalogue — binds to
+loopback by default, and uses no-authentication (`AllowAll`) on that loopback bind, exactly as
+`docs/reference/servers.md` describes. There is no dcmtk equivalent; these are go-radx reference servers.
+
+```text
+radx serve dicomweb [flags]
+      --bind=127.0.0.1       Listen address (loopback by default)  [env: RADX_BIND]
+      --port=8042            Listen port
+      --base-path=/dicom-web DICOMweb base path
+      --object-store=...     Filesystem object-store root (required)
+      --catalogue=...        SQLite catalogue path (required; PHI store, never a default path)
+      --max-request-bytes=... Request body cap (hostile-input limit)
+      --tls-cert=/--tls-key= Serve over TLS (peer verification on by default)
+
+radx serve fhir [flags]
+      --bind=127.0.0.1       Listen address (loopback by default)  [env: RADX_BIND]
+      --port=8080            Listen port
+      --base-path=/fhir      FHIR REST base path
+      --repository=...       Repository backend selector / DSN (required)
+      --tls-cert=/--tls-key= Serve over TLS (peer verification on by default)
+```
+
+Both daemons follow the same safe defaults as the other servers. They **bind to loopback** (`127.0.0.1`); a
+non-loopback bind (`--bind 0.0.0.0`) is an explicit, logged opt-in that requires authentication to be configured
+(servers.md "Bind policy"). The SQLite catalogue holds PHI, so the `dicomweb` daemon requires an explicit `--catalogue`
+path and never creates a PHI-bearing database at a default path. Each daemon shuts down gracefully on
+`SIGINT`/`SIGTERM`, draining in-flight requests within the configured timeout. For embedding these roles in your own
+process, or running several together behind one composition root, use the `server` package directly
+(`docs/reference/servers.md`).
 
 ## Worked examples
 
@@ -488,6 +540,16 @@ if [ $? -ne 0 ]; then echo "some objects failed; see results.jsonl" >&2; fi
 radx scp --port 11112 --aet RADX-SCP --output-dir ./received --organize
 # Binds 127.0.0.1 by default. To accept from the network you must opt in:
 radx scp --bind 0.0.0.0 --port 11112 --aet RADX-SCP --output-dir ./received
+```
+
+### Serve a DICOMweb reference daemon on loopback
+
+```bash
+radx serve dicomweb --port 8042 --object-store ./objects --catalogue ./catalogue.db
+# Binds 127.0.0.1 by default; --catalogue is explicit because it stores PHI.
+# To expose it on the network you must opt in and configure authentication:
+radx serve dicomweb --bind 0.0.0.0 --port 8042 \
+  --object-store ./objects --catalogue ./catalogue.db --tls-cert server.crt --tls-key server.key
 ```
 
 ### De-identify-grade UID re-keying that actually writes
@@ -532,8 +594,11 @@ The `radx` CLI is conformant to the command surface and behaviour declared here;
 capability. For v1:
 
 - **Commands.** `echo`, `store`, `scp`, `dump`, `modify`, `organize`, `lookup`, `catalogue`, plus the `hl7`,
-  `dicomweb`, and `convert` groups, with the shared output contract, env binding, exit-code taxonomy, and honest-failure
-  rules on every command.
+  `dicomweb`, `convert`, and `serve` groups, with the shared output contract, env binding, exit-code taxonomy, and
+  honest-failure rules on every command.
+- **Reference servers.** The DIMSE Storage/QR SCP (`scp`) and HL7 v2 MLLP listener (`hl7 listen`) run as top-level
+  commands; the DICOMweb and FHIR REST reference daemons run under `serve` (`serve dicomweb`, `serve fhir`). All four
+  bind loopback by default and wrap the `server` package's embeddable roles (`docs/reference/servers.md`).
 - **DIMSE.** C-ECHO and C-STORE (SCU) and a loopback Storage/Verification SCP in the v1 floor; C-FIND/C-GET/C-MOVE
   (`find`/`get`/`move`) are committed surface that fail-closed until M3 (PRD §13).
 - **Transport security.** DIMSE-TLS and DICOMweb/FHIR HTTP default to TLS 1.2+ with peer verification; mutual TLS is a
@@ -581,3 +646,5 @@ Details this document committed that the PRD left open, for review:
 - The `dicomweb` reference — the WADO-RS / STOW-RS / QIDO-RS clients behind `radx dicomweb`.
 - The `hl7v2` reference — the MLLP client/server behind `radx hl7`.
 - The `convert` reference — the cross-standard conversions behind `radx convert`.
+- The `servers` reference — the embeddable server roles and reference daemons behind `radx scp`, `radx hl7 listen`,
+  and `radx serve`.

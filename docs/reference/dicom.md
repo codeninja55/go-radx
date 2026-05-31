@@ -3,8 +3,8 @@
 The `dicom` package is the foundation of go-radx. Every other subsystem reads it: `dimse` transports datasets over the
 network, `dicomweb` serializes them to HTTP, and `convert` maps them to FHIR. This reference defines the public API and
 behaviour of the data model (datasets, elements, tags, value representations, sequences), Part 10 file input and output,
-the supported transfer syntaxes, the pixel-data pipeline, and the PS3.15 Basic Application Level Confidentiality Profile
-for de-identification.
+the supported transfer syntaxes, the pixel-data pipeline, the DICOM Structured Report content-item model, and the
+PS3.15 Basic Application Level Confidentiality Profile for de-identification.
 
 The package is the M1 deliverable in the implementation sequence and a ground-up rewrite of the prototype's DICOM core.
 The prototype was audited as prototype-level (`docs/prd/go-radx-prd.md` §2.2): it dropped `SQ` sequences, never wrote
@@ -20,7 +20,8 @@ makes a sensible choice and records it; those choices are collected at the end.
 In scope for v1, seeded from the `pydicom` parity floor (`docs/prd/go-radx-prd.md` §6.2):
 
 - The data model: `DataSet`, `Element`, `Tag`, `VR`, the value types, `Sequence` (`SQ`) and `Item`.
-- `UID` parsing, validation, and generation under a configured organisation root.
+- `UID` parsing, validation, and generation under a configured organisation root, and the named SOP-identifier types
+  `SOPClassUID` and `SOPInstanceUID` reused by `dimse`, `dicomweb`, and `convert`.
 - The datetime value representations `DA`, `TM`, `DT`, with timezone offset and fractional-second handling.
 - The lexical-preserving `Decimal` type backing `DS` and `IS`, shared with FHIR `decimal`.
 - `PersonName` with three `=`-delimited component groups, each five `^`-delimited components.
@@ -29,14 +30,17 @@ In scope for v1, seeded from the `pydicom` parity floor (`docs/prd/go-radx-prd.m
   auto-recomputed group length, and the main dataset.
 - The four uncompressed transfer syntaxes, read and write: Implicit VR LE, Explicit VR LE, Explicit VR BE (retired),
   and Deflated Explicit VR LE.
-- The pixel pipeline: native (contiguous `OB`/`OW`), RLE, and encapsulated fragmented frames, with the optional-CGo
-  codec strategy for the compressed JPEG family.
+- The pixel pipeline: native (contiguous `OB`/`OW`), RLE, and encapsulated fragmented frames; decoding for every
+  supported compressed transfer syntax and transcoding/encoding where a codec exists, behind the optional-CGo build
+  tag (RLE and JPEG 2000 lossless first), with transcoding off by default.
+- The DICOM Structured Report content-item model: `ContentItem`, `ConceptNameCode`, the SR value-type and
+  relationship-type vocabularies, and SR document read and build. This is the data layer the `convert` SR-to-FHIR leg
+  reads (PRD §5.1 step 6); the supported SR SOP classes are declared in `docs/conformance/dicom.md`.
 - The PS3.15 Basic Application Level Confidentiality Profile for de-identification, with documented scope and limits.
 
-Out of scope for v1 (deferred, not designed against here): the compressed-codec encoders behind CGo do encode where a
-pure-Go or CGo codec exists and otherwise return a typed "codec unavailable" error; DICOMDIR file-sets and
-DICOM-JSON are part of the broader `pydicom` floor but are documented in their own references. This file covers the
-binary data model and Part 10.
+Out of scope for v1 (deferred, not designed against here): DICOMDIR file-sets and DICOM-JSON are part of the broader
+`pydicom` floor but are documented in their own references. This file covers the binary data model, the Structured
+Report content-item model, and Part 10.
 
 ## The data model
 
@@ -80,9 +84,39 @@ type TagInfo struct {
 // repeating groups by mask. ok is false for genuinely unknown tags.
 func Lookup(t Tag) (info TagInfo, ok bool)
 
-// LookupKeyword resolves a keyword to its canonical tag, e.g. "PatientName" -> (0010,0010).
+// LookupKeywordTag resolves a known keyword to its canonical tag for the common case where the
+// keyword is a compile-time literal, e.g. LookupKeywordTag("PatientName") == (0010,0010). It
+// panics only on a keyword that is not in the standard dictionary — a programmer error in the
+// literal, never reachable from external input. Use LookupKeyword for runtime/dynamic keywords.
+func LookupKeywordTag(keyword string) Tag
+
+// LookupKeyword resolves a keyword to its canonical tag for dynamic input, returning ok == false
+// for an unknown keyword instead of panicking.
 func LookupKeyword(keyword string) (Tag, bool)
 ```
+
+For the common attributes, the dictionary generator also emits one exported `Tag` constant per keyword, so callers can
+reference a tag by name without a lookup call. These constants are generator output, not hand-written, and stay in step
+with the dictionary:
+
+```go
+const (
+    TagPatientID         Tag = 0x00100020
+    TagPatientName       Tag = 0x00100010
+    TagStudyInstanceUID  Tag = 0x0020000D
+    TagStudyDate         Tag = 0x00080020
+    TagStudyDescription  Tag = 0x00081030
+    TagModalitiesInStudy Tag = 0x00080061
+    TagSeriesInstanceUID Tag = 0x0020000E
+    TagSOPClassUID       Tag = 0x00080016
+    TagSOPInstanceUID    Tag = 0x00080018
+    // ... one const per dictionary keyword, generated from PS3.6.
+)
+```
+
+These constants and `LookupKeywordTag` are the idiom every reference doc uses (`dimse`, `dicomweb`, `convert`, `cli`):
+a literal keyword resolves to a `Tag` through the generated constant or through `LookupKeywordTag`; only genuinely
+dynamic keyword input goes through `LookupKeyword`.
 
 Diagnostics render a tag as its keyword plus `(gggg,eeee)`, never bare hex (PRD §8.2, glossary rule 4). The error and
 log helpers in the package format tags through `Lookup` so a reader sees `PatientName (0010,0010)`, not `0x00100010`.
@@ -177,6 +211,14 @@ func (ds *DataSet) Get(t Tag) (Element, bool)
 
 // Set inserts or replaces the element for its tag.
 func (ds *DataSet) Set(e Element)
+
+// SetString is a convenience mutator: it looks up t's dictionary VR and inserts (or replaces)
+// a text element carrying vals. It is shorthand for Set(Element{Tag: t, VR: <dict VR>, ...}).
+func (ds *DataSet) SetString(t Tag, vals ...string)
+
+// SetEmpty inserts (or replaces) a zero-length element at t under its dictionary VR. It is the
+// idiom for declaring a return-key in a query identifier dataset (the C-FIND "universal match").
+func (ds *DataSet) SetEmpty(t Tag)
 
 // Delete removes the element at t; it is not an error if absent.
 func (ds *DataSet) Delete(t Tag)
@@ -331,9 +373,30 @@ func NewRandomUIDGenerator() *UIDGenerator
 func (g *UIDGenerator) Generate() UID
 ```
 
+UID minting is modelled as a `UIDGenerator` value (`Generate`) rather than a bare `GenerateUID` function so the
+organisation root and entropy source are explicit, injectable state rather than global configuration — the `Generate`
+method is the canonical minting operation the glossary refers to, and `NewProfile` takes a `*UIDGenerator` so the
+caller controls the root used for de-identification remapping.
+
 The `54`-character prefix cap and the `2.25.` UUID fallback follow `pydicom`'s `generate_uid` (`uid.py`): a prefix is
 appended with a random suffix sized to fill the 64-character field, and a `None` prefix produces a `2.25.`-rooted UID
 from a UUID. Generated UIDs are length-bounded to 64 characters including any NULL padding the writer adds.
+
+#### SOP identifier types
+
+Two named types distinguish the SOP roles a `UID` plays, so a function signature states whether it expects a SOP Class
+or a SOP Instance rather than taking a bare `UID`. They are the canonical types `dimse`, `dicomweb`, `convert`, and
+`servers` reuse (PRD §8.2, glossary), and `FileMeta` carries them:
+
+```go
+type SOPClassUID UID
+type SOPInstanceUID UID
+```
+
+Both inherit `UID`'s validation through conversion: `UID(sopClassUID).Validate()` and `UID(sopClassUID).Name()` work as
+expected. Defining them in `dicom` — the M1 foundation every other subsystem reads — means `dimse`
+`PresentationContext.AbstractSyntax`, `dicomweb` resource paths, and `ReferencedSOPInstance` all share one type rather
+than re-declaring it.
 
 ### Decimal
 
@@ -352,10 +415,18 @@ type Decimal struct {
 // signed integer in [-2^31, 2^31 - 1] expressed without a fractional part.
 func ParseDecimal(s string) (Decimal, error)
 
-func (d Decimal) String() string                  // the preserved lexical form
-func (d Decimal) Float64() (f float64, exact bool) // exact is false if conversion loses precision
-func (d Decimal) Int64() (n int64, ok bool)        // ok is false if d is not integral
-func (d Decimal) MarshalJSON() ([]byte, error)     // emits the preserved lexical form, unquoted for FHIR decimal
+func (d Decimal) String() string                // the preserved lexical form
+// Float64 returns the value as a float64. ok is false only when the lexical form has no finite
+// float64 representation (non-finite scale); a representable-but-rounded value returns ok == true.
+// This matches fhir.md and the PRD §8.1 contract for the shared type.
+func (d Decimal) Float64() (f float64, ok bool)
+// Exact reports whether the float64 from Float64 represents d without rounding loss.
+func (d Decimal) Exact() bool
+// BigFloat returns a *big.Float with precision sufficient for the lexical form, for callers that
+// need exactness or their own rounding.
+func (d Decimal) BigFloat() *big.Float
+func (d Decimal) Int64() (n int64, ok bool)     // ok is false if d is not integral
+func (d Decimal) MarshalJSON() ([]byte, error)  // emits the preserved lexical form, unquoted for FHIR decimal
 func (d *Decimal) UnmarshalJSON(b []byte) error
 ```
 
@@ -455,6 +526,100 @@ Three behaviours follow PS3.5 §6.2 and correct prototype defects (Codex DCM-010
 - `DT` parses both the fractional-second component (1–6 digits) and the `&ZZXX` UTC offset; `Time()` returns a
   zone-aware value. `TM` and `DT` preserve their fractional precision exactly rather than zero-filling.
 
+### Structured Report content items
+
+A DICOM Structured Report (SR) encodes its content as a tree of content items rooted at the Content Sequence
+`(0040,A730)`. Each item carries a concept name, a value typed by its `ValueType (0040,A040)`, and a relationship to its
+parent. go-radx models this tree as first-class data so the `convert` SR-to-FHIR leg has a documented data layer to read
+and build (PRD §5.1 step 6). The supported SR SOP classes (Basic Text SR, Enhanced SR, Comprehensive SR) are declared
+in `docs/conformance/dicom.md`.
+
+```go
+// ValueType is the SR content-item value type from PS3.3 (the VR CS value of (0040,A040)).
+type ValueType uint8
+
+const (
+    ValueTypeContainer ValueType = iota // CONTAINER
+    ValueTypeText                       // TEXT
+    ValueTypeCode                       // CODE
+    ValueTypeNum                        // NUM (measured value + units)
+    ValueTypePName                      // PNAME (person name)
+    ValueTypeDate                       // DATE
+    ValueTypeTime                       // TIME
+    ValueTypeDateTime                   // DATETIME
+    ValueTypeUIDRef                     // UIDREF
+    ValueTypeComposite                  // COMPOSITE (referenced SOP instance)
+    ValueTypeImage                      // IMAGE (referenced image)
+    ValueTypeSCoord                     // SCOORD (spatial coordinates)
+    ValueTypeSCoord3D                   // SCOORD3D
+    ValueTypeTCoord                     // TCOORD (temporal coordinates)
+    ValueTypeWaveform                   // WAVEFORM
+)
+
+// RelationshipType is the SR parent-child relationship from PS3.3 (the VR CS value of (0040,A010)).
+type RelationshipType uint8
+
+const (
+    RelationshipContains          RelationshipType = iota // CONTAINS
+    RelationshipHasObsContext                             // HAS OBS CONTEXT
+    RelationshipHasConceptMod                             // HAS CONCEPT MOD
+    RelationshipHasProperties                             // HAS PROPERTIES
+    RelationshipHasAcqContext                             // HAS ACQ CONTEXT
+    RelationshipInferredFrom                              // INFERRED FROM
+    RelationshipSelectedFrom                              // SELECTED FROM
+)
+
+// ConceptNameCode is a coded concept (a Code Sequence item): the (code, scheme, meaning) triple
+// from PS3.3 used for ConceptNameCodeSequence (0040,A043) and coded values.
+type ConceptNameCode struct {
+    CodeValue             string // (0008,0100)
+    CodingSchemeDesignator string // (0008,0102), e.g. "DCM", "SCT", "LN"
+    CodeMeaning           string // (0008,0104)
+}
+
+// ContentItem is one node of the SR content tree.
+type ContentItem struct {
+    ValueType    ValueType
+    Relationship RelationshipType // relationship to the parent; root carries the zero value
+    ConceptName  ConceptNameCode  // (0040,A043) what this item measures or states
+
+    // Value fields; only the field matching ValueType is populated.
+    Text        string          // TEXT
+    Code        ConceptNameCode  // CODE: the coded value (0040,A168)
+    MeasuredValue Decimal        // NUM: numeric value (0040,A30A); units in MeasurementUnits
+    MeasurementUnits ConceptNameCode // NUM: units of measurement (0040,08EA)
+    PersonName  PersonName       // PNAME
+    DateTime    DT               // DATE/TIME/DATETIME, preserved lexical form
+    UID         UID              // UIDREF
+    Referenced  []ReferencedSOPInstance // COMPOSITE/IMAGE referenced instances
+
+    Children []ContentItem // nested content (CONTAINS and other relationships)
+}
+
+// ReferencedSOPInstance pairs a referenced SOP Class with its SOP Instance. It is the single
+// shape reused by dimse and dicomweb; SR COMPOSITE/IMAGE items reference instances through it.
+type ReferencedSOPInstance struct {
+    SOPClassUID    SOPClassUID
+    SOPInstanceUID SOPInstanceUID
+}
+```
+
+An SR document is read from a parsed `DataSet` and built back into one through entry points on the package:
+
+```go
+// ParseSR reads the SR content tree from ds, starting at the root content item and recursing
+// through the Content Sequence (0040,A730). It returns a typed error if ds is not an SR IOD
+// (its SOP Class is not a supported SR SOP class) or the tree is malformed.
+func ParseSR(ds *DataSet) (*ContentItem, error)
+
+// BuildSR encodes root into the Content Sequence of ds, setting ValueType, RelationshipType,
+// ConceptNameCodeSequence, and the value attributes for each node recursively.
+func BuildSR(ds *DataSet, root *ContentItem) error
+```
+
+The tree is bounded by the same sequence-depth cap as any other `SQ` nesting (default 64), so a maliciously deep SR
+returns a typed `LimitExceededError` rather than overflowing the stack.
+
 ## Part 10 file format
 
 A Part 10 file is a 128-byte preamble, the `DICM` magic, the File Meta Information group (group `0002`, always Explicit
@@ -478,8 +643,8 @@ type File struct {
 
 type FileMeta struct {
     // Typed access to the required group-0002 elements.
-    MediaStorageSOPClassUID    UID
-    MediaStorageSOPInstanceUID UID
+    MediaStorageSOPClassUID    SOPClassUID
+    MediaStorageSOPInstanceUID SOPInstanceUID
     TransferSyntaxUID          TransferSyntax
     ImplementationClassUID     UID
     // ... plus the raw group-0002 DataSet for any optional elements.
@@ -518,6 +683,18 @@ func WriteFile(path string, f *File, opts ...WriteOption) error
 // Write encodes f to w. The encoder is selected from the declared transfer syntax;
 // an unsupported transfer syntax is rejected before any bytes are written.
 func Write(w io.Writer, f *File, opts ...WriteOption) error
+```
+
+A `*DataSet` exposes a convenience writer used in the worked examples and the consuming references (`dimse`,
+`dicomweb`). It synthesises a Part 10 `File`, deriving the file-meta SOP Class/Instance UIDs from the dataset's
+`(0008,0016)`/`(0008,0018)` elements and writing in the supplied transfer syntax:
+
+```go
+// WriteFile wraps ds in a minimal Part 10 File and writes it to path in ts. The
+// File Meta MediaStorageSOPClassUID/MediaStorageSOPInstanceUID are taken from the
+// dataset's SOPClassUID (0008,0016) and SOPInstanceUID (0008,0018); it returns a
+// typed error if either is absent or ts is unsupported.
+func (ds *DataSet) WriteFile(path string, ts TransferSyntax, opts ...WriteOption) error
 ```
 
 The writer is transfer-syntax-faithful. It selects a byte-order- and VR-aware encoder from the declared transfer syntax
@@ -605,15 +782,26 @@ bounds-checked segment math.
 ### Codec strategy (optional CGo)
 
 Compressed JPEG-family codecs (JPEG baseline/extended, JPEG-LS, JPEG 2000, HTJ2K) are the source of the prototype's
-build fragility, so go-radx follows the PRD §7.3 decision: **pure-Go decoders where they exist; optional CGo behind a
-build tag for the rest, never load-bearing.** The core library builds and passes its non-pixel tests with CGo disabled.
+build fragility, so go-radx follows the PRD §7.3 decision: **pure-Go where it exists; optional CGo behind a build tag
+for the rest, never load-bearing.** The core library builds and passes its non-pixel tests with CGo disabled.
+
+The two directions are scoped differently:
+
+- **Decode** is supported for every compressed transfer syntax in scope. With the codec build tag enabled the pipeline
+  decodes the JPEG family; native and RLE Lossless decode in pure Go regardless of build tag.
+- **Encode/transcode** is supported only where an encoder exists, starting with RLE and JPEG 2000 lossless, and is gated
+  behind the same optional-CGo build tag. Transcoding is **off by default**: re-encoding pixel data to a different
+  transfer syntax is an explicit opt-in (for example the CLI's `radx store --transcode` flag), never automatic, because
+  silent re-compression of clinical pixels is a data-integrity hazard.
 
 ```go
-// Codec decodes (and where supported encodes) one transfer syntax's pixel frames.
+// Codec decodes, and where an encoder exists encodes, one transfer syntax's pixel frames.
 type Codec interface {
     TransferSyntax() TransferSyntax
     Decode(frame []byte, geom PixelGeometry) ([]byte, error)
-    Encode(frame []byte, geom PixelGeometry) ([]byte, error) // may return ErrEncodeUnsupported
+    // Encode returns ErrEncodeUnsupported for a decode-only codec.
+    Encode(frame []byte, geom PixelGeometry) ([]byte, error)
+    CanEncode() bool
 }
 
 // RegisterCodec makes c available to the pixel pipeline. Build-tagged CGo codecs
@@ -623,13 +811,19 @@ func RegisterCodec(c Codec)
 // ErrCodecUnavailable is returned by Frames when no codec is registered for an
 // encapsulated transfer syntax. It names the missing transfer syntax.
 var ErrCodecUnavailable = errors.New("dicom: codec unavailable for transfer syntax")
+
+// ErrEncodeUnsupported is returned when a transcode is requested for a transfer
+// syntax whose registered codec is decode-only. It names the transfer syntax.
+var ErrEncodeUnsupported = errors.New("dicom: encode unsupported for transfer syntax")
 ```
 
-With CGo disabled, requesting frames from a JPEG 2000 instance returns `ErrCodecUnavailable` naming the transfer syntax
-as a clear, typed failure, not a build break or a silent partial image. CGo codecs are hardened against hostile input
-per PRD §9.3 (correcting Codex DCM-014/DCM-015): every C allocation result is checked, image dimensions are capped
-before allocation, sizes are converted through checked `size_t`/`int`, output is never truncated by an unchecked
-`C.int(size)` cast, and crash/fuzz tests run in subprocesses with timeouts so a hang fails CI rather than being skipped.
+`docs/conformance/dicom.md` marks each transfer syntax decode-only versus decode+encode so the supported direction is
+unambiguous. With CGo disabled, requesting frames from a JPEG 2000 instance returns `ErrCodecUnavailable` naming the
+transfer syntax as a clear, typed failure, not a build break or a silent partial image. CGo codecs are hardened against
+hostile input per PRD §9.3 (correcting Codex DCM-014/DCM-015): every C allocation result is checked, image dimensions
+are capped before allocation, sizes are converted through checked `size_t`/`int`, output is never truncated by an
+unchecked `C.int(size)` cast, and crash/fuzz tests run in subprocesses with timeouts so a hang fails CI rather than
+being skipped.
 
 ## De-identification — PS3.15 Basic Application Level Confidentiality Profile
 
@@ -647,7 +841,13 @@ type Profile struct {
 type ProfileOption func(*Profile)
 
 func WithRetainPatientCharacteristics() ProfileOption // PS3.15 option: retain age/sex/etc.
-func WithRetainLongitudinalDates(mode DateMode)       // remove | keep | shift-by-constant
+
+// WithRetainLongitudinalTemporalInformation opts in to the PS3.15 "Retain Longitudinal Temporal
+// Information" sub-option: instead of the default removal/zeroing, dates and times are kept either
+// as-is (DateModeKeep) or shifted by one consistent per-study offset (DateModeShift). It is
+// opt-in precisely because retaining temporal data weakens de-identification.
+func WithRetainLongitudinalTemporalInformation(mode DateMode) ProfileOption
+
 func WithRetainDeviceIdentity() ProfileOption
 func WithRetainUIDs() ProfileOption                   // skip UID remapping (off by default)
 func WithDummyValues(replacements map[Tag]string) ProfileOption
@@ -673,6 +873,9 @@ claimed PS3.15 compliance while leaving PHI inside sequence items and doing no p
 - UID remapping is consistent within a run: the same source UID always yields the same replacement, preserving the
   Study/Series/Instance reference graph after de-identification. New UIDs are minted by the supplied `UIDGenerator`, so
   the caller controls the organisation root.
+- Dates and times are **removed or zeroed by default**: the Basic Profile applies the `X`/`Z` action to date and time
+  attributes so no temporal data survives unless the caller opts in. `WithRetainLongitudinalTemporalInformation` is the
+  only way to keep them, and it applies a single consistent per-study shift (or keeps them verbatim).
 - `PatientIdentityRemoved (0012,0062)` is set to `YES` and `DeidentificationMethod (0012,0063)` records the applied
   profile and retained options.
 
@@ -764,8 +967,10 @@ func main() {
 }
 ```
 
-`LookupKeywordTag` is the panic-free convenience that resolves a known keyword to its tag (it panics only on a
-compile-time-unknown literal keyword, which is a programmer error, not input).
+`LookupKeywordTag` is the convenience for a compile-time literal keyword: it returns the bare `Tag` and panics only on a
+keyword that is not in the standard dictionary, which is a programmer typo, never reachable from input. For a
+keyword that comes from runtime input, use `LookupKeyword`, which returns `(Tag, bool)`. The generated `dicom.Tag*`
+constants are an alternative for literals that avoids the call entirely (`dicom.TagPatientName`).
 
 ### Build and write a dataset
 
@@ -789,7 +994,7 @@ f := &dicom.File{
     Meta: &dicom.FileMeta{
         TransferSyntaxUID:          dicom.ExplicitVRLittleEndian,
         MediaStorageSOPClassUID:    "1.2.840.10008.5.1.4.1.1.7", // Secondary Capture
-        MediaStorageSOPInstanceUID: gen.Generate(),
+        MediaStorageSOPInstanceUID: dicom.SOPInstanceUID(gen.Generate()),
     },
     DataSet: ds,
 }
@@ -798,12 +1003,16 @@ if err := dicom.WriteFile("out.dcm", f); err != nil {
 }
 ```
 
+`MediaStorageSOPClassUID` accepts the untyped string constant directly because it is a named type over `UID`; the
+generated `gen.Generate()` returns a `UID`, so it is converted to `SOPInstanceUID` explicitly.
+
 ### De-identify, preserving the reference graph
 
 ```go
 gen := dicom.NewRandomUIDGenerator() // 2.25. UUID root; no registration needed
 prof := dicom.NewProfile(gen,
-    dicom.WithRetainLongitudinalDates(dicom.DateShiftConstant),
+    // Dates are removed by default; this opts in to a consistent per-study shift instead.
+    dicom.WithRetainLongitudinalTemporalInformation(dicom.DateModeShift),
 )
 
 clean, err := prof.Deidentify(f.DataSet)
@@ -831,12 +1040,18 @@ implement all of DICOM. For the `dicom` package, v1 conformance is:
   generically; no private SOP-class logic.
 - **Text.** `SpecificCharacterSet` for the default repertoire, ISO 2022 code extensions, UTF-8, GB18030, and GBK.
   `PersonName` with three component groups.
-- **Pixel data.** Native (`OB`/`OW`) and RLE Lossless in pure Go, read and write. Encapsulated JPEG-family decoding
-  through optional CGo codecs behind a build tag; with CGo disabled these return `ErrCodecUnavailable`. Compressed
-  encoders are present only where a codec is built in.
+- **Pixel data.** Native (`OB`/`OW`) and RLE Lossless in pure Go, read and write. Decode for every supported compressed
+  transfer syntax through optional CGo codecs behind a build tag; with CGo disabled these return `ErrCodecUnavailable`.
+  Encoding/transcoding is supported where a codec exists (RLE and JPEG 2000 lossless first), behind the same build tag,
+  and is off by default (explicit opt-in). `docs/conformance/dicom.md` marks each transfer syntax decode-only versus
+  decode+encode.
+- **Structured Report.** `ParseSR`/`BuildSR` over the `ContentItem` tree (CONTAINER/TEXT/CODE/NUM/PNAME and the other
+  value types) for the SR SOP classes declared in `docs/conformance/dicom.md` (Basic Text SR, Enhanced SR, Comprehensive
+  SR). This is the data layer the `convert` SR-to-FHIR leg reads.
 - **De-identification.** PS3.15 Annex E Basic Profile with recursive traversal, consistent UID remapping, and
-  de-identification metadata. Burned-in pixel/overlay cleaning and the optional clean sub-profiles are **not** performed
-  (fail-closed on detected burned-in PHI).
+  de-identification metadata. Dates and times are removed/zeroed unless the caller opts in through
+  `WithRetainLongitudinalTemporalInformation`. Burned-in pixel/overlay cleaning and the optional clean sub-profiles are
+  **not** performed (fail-closed on detected burned-in PHI).
 
 Validation is gated in CI by `dciodvfy` (dcmtk) and round-trips against vendored `pydicom` fixtures (PRD §11.1). The
 published Conformance Statement (`docs/conformance/`) is the single source of truth for the supported SOP classes and

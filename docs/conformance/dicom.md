@@ -28,6 +28,11 @@ Part 8). DICOMweb (WADO-RS / STOW-RS / QIDO-RS) has its own conformance statemen
 In scope for v1:
 
 - The radiology-first **Storage** SOP Class set as both Storage SCU and Storage SCP.
+- The **DICOM Structured Report (SR) document model** — the content-item tree (`dicom.ContentItem`, its `ValueType`
+  vocabulary, `ConceptNameCode`, and relationship types) plus SR-document read and build — for the Basic Text,
+  Enhanced, and Comprehensive SR SOP Classes. These are validated, IOD-aware targets, not opaque transport, because the
+  convert layer bridges them to FHIR `DiagnosticReport`/`Observation` (PRD §5.1 step 6). The data-layer contract is
+  defined in `docs/reference/dicom.md`.
 - **Verification** (C-ECHO) as SCU and SCP.
 - **Query/Retrieve** (C-FIND, C-GET, C-MOVE) under the Patient Root and Study Root information models, as SCU and SCP.
 - **Modality Worklist** (C-FIND) as SCU, with a reference Modality Worklist SCP so the leg is testable end to end.
@@ -68,6 +73,9 @@ const (
 )
 
 // DefaultTransferSyntaxes is the proposed list when a presentation context is built without an explicit list.
+// The element order is the proposal preference: the acceptor may pick the first transfer syntax it supports, so
+// Explicit VR Little Endian is listed first as the most interoperable default. This order is identical in
+// docs/reference/dimse.md.
 var DefaultTransferSyntaxes = []dicom.TransferSyntax{
     ExplicitVRLittleEndian, ImplicitVRLittleEndian, DeflatedExplicitVRLittleEndian, ExplicitVRBigEndian,
 }
@@ -86,6 +94,11 @@ func StorageCommitmentContexts() []dimse.PresentationContext // Storage Commitme
 The verb-level entry points that drive each service are `Association.Echo`, `Association.Store`, `Association.Find`,
 `Association.Get`, `Association.Move` (SCU); the `dimse.Handler` interface methods `Echo`/`Store`/`Find`/`Get`/`Move`
 (SCP); and `Association.MPPS()` / `Association.StorageCommitment()` for the two N-service SCU flows.
+
+`Find`/`Get`/`Move` extend the PRD §8.1 `Find(ctx, query, level)` form with a trailing functional-options variadic
+(`opts ...dimse.QueryOption`) — a deliberate, recorded extension that keeps the type-level shape (receiver, value
+parameters, `iter.Seq2[Status, *dicom.DataSet]` return). The worked examples below call the PRD-committed form without
+options; the full signature with `opts ...dimse.QueryOption` is documented in `docs/reference/dimse.md`.
 
 ## SOP Classes
 
@@ -152,12 +165,15 @@ Supported (validated) Storage SOP Classes:
 | SR | Key Object Selection Document Storage | `1.2.840.10008.5.1.4.1.1.88.59` |
 | Encapsulated | Encapsulated PDF Storage | `1.2.840.10008.5.1.4.1.1.104.1` |
 
-The three SR SOP Classes are the SR documents the convert layer bridges to FHIR `DiagnosticReport`/`Observation` (PRD
-§5.1 step 6); they appear here so the SR side of that conversion has a validated wire path. Secondary Capture is
-included so non-radiology-native content (rendered reports, screenshots) has a conformant store target. The supported
-set is intentionally narrower than the 120-Class `pynetdicom` selection: it is the radiology workflow's actual SOP
-Classes plus the SR and encapsulated-document classes the convert layer needs, not the long tail of ophthalmic,
-dermatologic, RT-treatment, and waveform classes that v1 does not validate.
+The three SR SOP Classes — Basic Text SR, Enhanced SR, and Comprehensive SR — are validated as IOD-aware SR
+documents, not as opaque transport. v1 parses and builds their content-item tree (`dicom.ContentItem`, the `ValueType`
+vocabulary, `ConceptNameCode`, and relationship types, defined in `docs/reference/dicom.md`); the convert layer bridges
+that tree to FHIR `DiagnosticReport`/`Observation` (PRD §5.1 step 6). Round-trip validation therefore covers the SR
+document structure, not merely byte-for-byte storage. Secondary Capture is included so non-radiology-native content
+(rendered reports, screenshots) has a conformant store target. The supported set is intentionally narrower than the
+120-Class `pynetdicom` selection: it is the radiology workflow's actual SOP Classes plus the SR and
+encapsulated-document classes the convert layer needs, not the long tail of ophthalmic, dermatologic, RT-treatment, and
+waveform classes that v1 does not validate.
 
 `AllStorageContexts()` proposes every registered Storage SOP Class (the 170-Class transport set) for consumers who
 need a forwarding store; instances of unsupported classes are stored and retrieved verbatim with no IOD-level claim.
@@ -176,10 +192,12 @@ Patient/Study Only model and the Composite Instance Root / without-bulkdata / re
 | Study Root | C-MOVE | `1.2.840.10008.5.1.4.1.2.2.2` | Yes | Yes |
 | Study Root | C-GET | `1.2.840.10008.5.1.4.1.2.2.3` | Yes | Yes |
 
-`QueryRetrieveContexts()` returns the `pynetdicom`-equivalent Q/R preset filtered to these six models. The
-Query/Retrieve Levels supported are PATIENT, STUDY, SERIES, and IMAGE (`dimse.QueryLevel`); the SCU always writes the
-requested level into `(0008,0052)` before sending, and C-FIND/C-GET/C-MOVE expose results as
-`iter.Seq2[Status, *dicom.DataSet]` iterators with C-CANCEL on early iterator exit (PRD §8.1, glossary).
+`QueryRetrieveContexts()` returns 6 contexts (Patient Root + Study Root C-FIND/C-GET/C-MOVE), filtered from the
+`pynetdicom` 13-Class Q/R floor down to the two information models go-radx validates; the 13-Class floor is the upstream
+reference, not go-radx's preset count. The Query/Retrieve Levels supported are PATIENT, STUDY, SERIES, and IMAGE
+(`dimse.QueryLevel`); the SCU always writes the requested level into `(0008,0052)` before sending, and
+C-FIND/C-GET/C-MOVE expose results as `iter.Seq2[Status, *dicom.DataSet]` iterators with C-CANCEL on early iterator exit
+(PRD §8.1, glossary).
 
 ### Modality Worklist
 
@@ -262,30 +280,35 @@ without CGo.
 ### Tier 3 — compressed JPEG family: negotiated always, pixel codec optional via CGo
 
 These are accepted at the dataset and association level always (the encapsulated bytes are parsed, stored, and
-forwarded), but pixel-frame decode and encode are available only when an optional CGo codec is built in. With CGo
-disabled, requesting frames from one of these instances returns the typed `dicom.ErrCodecUnavailable` naming the
-transfer syntax — a clear failure, never a build break or a silent partial image (PRD §7.3).
+forwarded). Pixel-frame **decode** is supported for every listed compressed syntax through an optional CGo codec; v1's
+codec policy is decode-all for the supported set. Pixel-frame **encode** (and therefore transcode) is supported only
+where a go-radx encoder exists, prioritised RLE Lossless first (Tier 2, pure Go) and JPEG 2000 Lossless next, also
+behind the optional-CGo build tag. The encode-capable column below marks each syntax decode-only versus decode+encode.
+With CGo disabled, requesting decoded frames from one of these instances returns the typed `dicom.ErrCodecUnavailable`
+naming the transfer syntax — a clear failure, never a build break or a silent partial image (PRD §7.3).
 
 | Transfer syntax | UID | Negotiate / transport | Pixel decode | Pixel encode |
 |-----------------|-----|-----------------------|--------------|--------------|
-| JPEG Baseline (8-bit) | `1.2.840.10008.1.2.4.50` | Always | CGo only | CGo only |
-| JPEG Extended (12-bit) | `1.2.840.10008.1.2.4.51` | Always | CGo only | CGo only |
-| JPEG Lossless, Non-Hierarchical | `1.2.840.10008.1.2.4.57` | Always | CGo only | CGo only |
-| JPEG Lossless SV1 | `1.2.840.10008.1.2.4.70` | Always | CGo only | CGo only |
-| JPEG-LS Lossless | `1.2.840.10008.1.2.4.80` | Always | CGo only | CGo only |
-| JPEG-LS Near-Lossless | `1.2.840.10008.1.2.4.81` | Always | CGo only | CGo only |
-| JPEG 2000 Lossless | `1.2.840.10008.1.2.4.90` | Always | CGo only | CGo only |
-| JPEG 2000 | `1.2.840.10008.1.2.4.91` | Always | CGo only | CGo only |
-| HTJ2K Lossless | `1.2.840.10008.1.2.4.201` | Always | CGo only | CGo only |
-| HTJ2K | `1.2.840.10008.1.2.4.203` | Always | CGo only | CGo only |
+| JPEG Baseline (8-bit) | `1.2.840.10008.1.2.4.50` | Always | CGo only | No (decode-only) |
+| JPEG Extended (12-bit) | `1.2.840.10008.1.2.4.51` | Always | CGo only | No (decode-only) |
+| JPEG Lossless, Non-Hierarchical | `1.2.840.10008.1.2.4.57` | Always | CGo only | No (decode-only) |
+| JPEG Lossless SV1 | `1.2.840.10008.1.2.4.70` | Always | CGo only | No (decode-only) |
+| JPEG-LS Lossless | `1.2.840.10008.1.2.4.80` | Always | CGo only | No (decode-only) |
+| JPEG-LS Near-Lossless | `1.2.840.10008.1.2.4.81` | Always | CGo only | No (decode-only) |
+| JPEG 2000 Lossless | `1.2.840.10008.1.2.4.90` | Always | CGo only | CGo only (first encoder) |
+| JPEG 2000 | `1.2.840.10008.1.2.4.91` | Always | CGo only | No (decode-only) |
+| HTJ2K Lossless | `1.2.840.10008.1.2.4.201` | Always | CGo only | No (decode-only) |
+| HTJ2K | `1.2.840.10008.1.2.4.203` | Always | CGo only | No (decode-only) |
 
 The codec set built behind the CGo build tag is finalised in the M8 hardening milestone; this statement is updated when
-a codec moves from "negotiate/transport only" to "decode" or "encode" available. Codecs that `pynetdicom` registers but
-go-radx does not target for v1 pixel handling (JPIP, MPEG-2/4, HEVC/H.265, JPEG XL, SMPTE ST 2110, multi-component JPEG
-2000) are negotiable for transport but have no go-radx pixel codec.
+a codec moves from decode-only to encode-capable. Codecs that `pynetdicom` registers but go-radx does not target for v1
+pixel handling (JPIP, MPEG-2/4, HEVC/H.265, JPEG XL, SMPTE ST 2110, multi-component JPEG 2000) are negotiable for
+transport but have no go-radx pixel codec.
 
-Selecting a codec is explicit: go-radx never transcodes pixel data unless asked (PRD §8.2 opinionated default). Reading
-a file preserves its transfer syntax; conversion is a deliberate `Transcode`-style call.
+Selecting a codec is explicit, and **transcoding is off by default**: go-radx never re-encodes pixel data unless the
+consumer opts in (PRD §8.2 opinionated default). Reading a file preserves its transfer syntax; transcoding is a
+deliberate, opt-in `Transcode`-style call in the library, surfaced on the CLI as `radx store --transcode` (see
+`docs/reference/cli.md`).
 
 ## Association negotiation
 
@@ -295,7 +318,7 @@ features below match the `pynetdicom` floor (PRD §6.2), with the documented asy
 | Feature | Support | Notes |
 |---------|---------|-------|
 | Presentation-context negotiation | Yes | Odd-ID-keyed; per-context accepted transfer syntax; rejection reason codes |
-| Maximum PDU length | Yes | `WithMaxPDULength(n)`; default 16382; 0 means "no maximum specified" |
+| Maximum PDU length | Yes | `WithMaxPDULength(n)`; default `dimse.MaxPDULength` (16382); 0 = "no maximum specified" |
 | SCP/SCU role selection | Yes | `WithRoleSelection(...)`; required for C-GET (requestor accepts the Storage SCP role) |
 | Asynchronous operations window | Yes (negotiated) | `WithAsyncOps(...)`; acceptor windows to (1,1), synchronous |
 | User identity negotiation | Yes (types 1–5) | `WithUserIdentity(...)`: username, passcode, Kerberos, SAML, JWT |
@@ -324,9 +347,15 @@ never a bare string.
 DICOM behaviour in go-radx follows the PRD's honest-failure and hostile-input rules; the conformance-relevant
 guarantees are:
 
-- **DIMSE status is typed.** `dimse.Status` wraps the 16-bit code with `IsSuccess`/`IsPending`/`IsWarning`/`IsFailure`
-  and renders by name and class, never as bare hex (PRD §8.2). Pending statuses drive the query/retrieve iterators; a
-  terminal failure or warning ends them with the carried status.
+- **DIMSE status is typed.** `dimse.Status` is `struct { Code uint16 }`: the 16-bit status code is the only stored
+  field. Its category and human-readable meaning are derived, not settable — `(Status) Category() StatusCategory` and
+  `(Status) Meaning() string` resolve them from the per-service-class status table, and the predicates
+  `IsSuccess`/`IsPending`/`IsWarning`/`IsFailure`/`IsCancel` classify the code so a status renders by name and class,
+  never as bare hex (PRD §8.2). A status is constructed from named constants (for example `dimse.StatusStoreSuccess`,
+  `dimse.StatusStoreCannotUnderstand`) or via `dimse.NewStatus(code uint16, sc dimse.ServiceClass) Status`; there are no
+  caller-settable category or meaning fields, so a handler cannot author a status whose category contradicts its code.
+  SCP handlers return these named constants rather than struct literals. Pending statuses drive the query/retrieve
+  iterators; a terminal failure or warning ends them with the carried status.
 - **Fail-closed on partial capability.** A C-STORE SCP handler that has not persisted a dataset must not return
   success; an unsupported SOP Class is rejected at negotiation or answered "SOP Class not supported", never silently
   accepted (PRD §9.2). An N-service SCP request (MPPS or Storage Commitment as provider) is out of scope and rejected

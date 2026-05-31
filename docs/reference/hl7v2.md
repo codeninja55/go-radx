@@ -18,8 +18,9 @@ declared in the first two fields of the leading `MSH`/`BHS`/`FHS` segment. The p
 
 1. A generic six-level parse tree — message, segment, field, repetition, component, subcomponent — that round-trips
    any conformant message byte-for-byte and gives untyped access to every position.
-2. Typed segments (`MSH`, `PID`, `PV1`, `OBR`, `OBX`, `ORC`, `MSA`, `ERR`) and typed message types (`ADT`, `ORM`,
-   `ORU`, `ACK`) with named Go fields, backed by typed composite datatypes (`XPN`, `XAD`, `CX`, `CWE`, `HD`, `DTM`).
+2. Typed segments (`MSH`, `EVN`, `PID`, `PV1`, `OBR`, `OBX`, `ORC`, `MSA`, `ERR`) and typed message types (`ADT`,
+   `ORM`, `ORU`, `ACK`) with named Go fields, backed by typed composite datatypes (`XPN`, `XAD`, `CX`, `CWE`, `HD`,
+   `DTM`).
    The typed layer is the **primary** API: callers read `msg.PID().PatientName.Family`, never `seg[5][0][0]`.
 
 The package also covers the batch protocol (`BHS`/`BTS` batches, `FHS`/`FTS` files), escape/unescape per HL7 v2
@@ -69,22 +70,26 @@ convention and no overlap between them. Typed segment fields (the primary API) s
 ### Parsing entry points
 
 ```go
+// ParseOption configures a parse: maximum sizes, an application-defined escape
+// map, and strictness toggles. Pass none for the standard behaviour.
+type ParseOption func(*parseConfig)
+
 // Parse decodes a single HL7 v2 message from b. b may use \r, \n, or \r\n
 // segment terminators; the canonical form uses \r. Encoding characters are
 // derived from MSH-1/MSH-2 (see EncodingCharacters).
-func Parse(b []byte) (*Message, error)
+func Parse(b []byte, opts ...ParseOption) (*Message, error)
 
 // ParseBatch decodes a BHS/BTS batch (or a bare sequence of messages with no
 // BHS/BTS) into a Batch.
-func ParseBatch(b []byte) (*Batch, error)
+func ParseBatch(b []byte, opts ...ParseOption) (*Batch, error)
 
 // ParseFile decodes an FHS/FTS file (or a bare batch) into a File.
-func ParseFile(b []byte) (*File, error)
+func ParseFile(b []byte, opts ...ParseOption) (*File, error)
 
 // ParseAny dispatches on the leading segment: MSH -> Message, BHS or a multi-
 // message body -> Batch, FHS -> File. It returns one of *Message, *Batch, or
 // *File in the Container interface.
-func ParseAny(b []byte) (Container, error)
+func ParseAny(b []byte, opts ...ParseOption) (Container, error)
 ```
 
 `Parse` is strict about structure but lenient about line endings, matching how real interfaces emit messages. A body
@@ -137,14 +142,14 @@ report absence as `false` / an empty slice, never an error, because an absent op
 
 ```go
 // Accessor is a parsed SEG[n]-Fn-Rn-Cn-Sn path using 1-based HL7 spec numbering.
-// SegmentRepeat selects which instance of a repeated segment (1 = first).
+// SegmentNum selects which instance of a repeated segment (1 = first).
 type Accessor struct {
-    Segment       string // three-character segment ID, e.g. "PID"
-    SegmentRepeat int    // 1-based; 1 if omitted
-    Field         int    // 1-based HL7 field number; 0 if not in the path
-    Repetition    int
-    Component     int
-    Subcomponent  int
+    Segment      string // three-character segment ID, e.g. "PID"
+    SegmentNum   int    // 1-based segment instance; 1 if omitted
+    Field        int    // 1-based HL7 field number; 0 if not in the path
+    Repetition   int
+    Component    int
+    Subcomponent int
 }
 
 // ParseAccessor parses both styles: "PID-5-1-2" / "PID.5.1.2" (numeric) and
@@ -372,6 +377,13 @@ type ERR struct {
     Code     CWE
     Severity string // ERR-4, e.g. "E" error, "W" warning
 }
+
+// EVN — event type. Carried by ADT messages and read by convert.ADTToEncounter.
+type EVN struct {
+    EventTypeCode string // EVN-1, e.g. "A01" (deprecated mirror of MSH-9.2)
+    RecordedDateTime DTM // EVN-2
+    EventReasonCode  string // EVN-4
+}
 ```
 
 Every typed segment offers a parse-from-generic constructor and an into-generic renderer so the typed and generic
@@ -387,6 +399,7 @@ segment:
 
 ```go
 func (m *Message) MSH() (MSH, bool)
+func (m *Message) EVN() (EVN, bool)
 func (m *Message) PID() (PID, bool)
 func (m *Message) PV1() (PV1, bool)
 func (m *Message) AllOBX() []OBX // every OBX in order
@@ -405,9 +418,24 @@ type MessageType struct {
     Structure    string // MSH-9.3, e.g. "ORU_R01"
 }
 
+// ResultGroup is one OBR with the OBX rows that follow it, the grouping an ORU
+// message expresses through segment order. ORU.Results yields these in order.
+type ResultGroup struct {
+    Order        OBR
+    Observations []OBX
+}
+
+// OrderGroup is one ORC with the OBR requests that follow it, the grouping an
+// ORM/OMG message expresses through segment order. ORM.Orders yields these.
+type OrderGroup struct {
+    Common   ORC
+    Requests []OBR
+}
+
 // ADT — admission/discharge/transfer. Trigger event in MSH-9.2 (A01, A04, ...).
 type ADT struct{ *Message }
 func (a ADT) Event() string         // MSH-9.2
+func (a ADT) EVN() (EVN, bool)
 func (a ADT) PID() (PID, bool)
 func (a ADT) PV1() (PV1, bool)
 
@@ -713,7 +741,8 @@ ack, err := client.Send(ctx, msg) // blocks for the ACK frame
 if err != nil {
     log.Fatalf("send: %v", err)
 }
-if msa, ok := hl7v2.AsACK(ack).MSA(); ok && !msa.AckCode.IsPositive() {
+typedAck, _ := hl7v2.AsACK(ack)
+if msa, ok := typedAck.MSA(); ok && !msa.AckCode.IsPositive() {
     log.Fatalf("rejected: %s (%s)", msa.AckCode, msa.TextMessage)
 }
 ```
@@ -740,8 +769,9 @@ for _, m := range batch.Messages {
 The package meets the HL7 v2 parity floor (PRD §6.2) and is verified by byte-exact round-trip against the vendored
 `python-hl7` corpus and by interop on the MLLP results leg of the workflow (PRD §11.1, §13 milestone M5). Conformance
 is to the HL7 v2 base standard Chapter 2 encoding and Chapter 2 §2.10 escaping, not to a specific minor version's full
-segment dictionary. The published Conformance Statement (`docs/conformance/`) is the single source of truth for the
-exact segment, datatype, and message-type set; this page describes the v1 floor.
+segment dictionary. This page is the single normative source for the `hl7v2` public API shape — every type, signature,
+and field definition. The Conformance Statement (`docs/conformance/hl7v2.md`) is the source of truth for the supported
+*scope* (the exact message types, segments, and MLLP modes) and defers all API shape to this page.
 
 Covered:
 
@@ -749,7 +779,8 @@ Covered:
 - Encoding-character derivation with default-fill for short `MSH-2`.
 - Escape/unescape for the §2.10 floor set (separator, highlight, hex, rich-text, application-defined).
 - Variable-precision `DTM` parsing without zero-fill.
-- Typed segments `MSH`, `PID`, `PV1`, `OBR`, `OBX`, `ORC`, `MSA`, `ERR` and typed messages `ADT`, `ORM`, `ORU`, `ACK`.
+- Typed segments `MSH`, `EVN`, `PID`, `PV1`, `OBR`, `OBX`, `ORC`, `MSA`, `ERR` and typed messages `ADT`, `ORM`, `ORU`,
+  `ACK`.
 - Composite datatypes `XPN`, `XAD`, `CX`, `CWE`, `HD`, `DTM`.
 - Batch (`BHS`/`BTS`) and File (`FHS`/`FTS`) containers.
 - MLLP client and server with framing, acknowledgement, context cancellation, and a maximum frame cap.

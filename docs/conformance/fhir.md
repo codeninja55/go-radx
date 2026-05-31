@@ -77,7 +77,7 @@ directly (it remains the most deployed release and US Core runs on it) rather th
   ordering on serialize, and `contained` / `Bundle.entry.resource` polymorphic dispatch to concrete types.
 - `OperationOutcome` modelling and `transaction` / `searchset` / `document` / `message` / `batch` / `collection` Bundle
   semantics, with intra-Bundle and contained reference-integrity resolution.
-- `_summary` modes (`full` / `true` / `false` / `text` / `data`) for bandwidth-constrained serialization.
+- `_summary` modes (`full` / `true` / `text` / `data` / `count`) for bandwidth-constrained serialization.
 - JSON serialization as the normative wire format.
 
 ### Out of scope / deferred (v1)
@@ -119,10 +119,12 @@ The conformance-tested set is the radiology and clinical workflow resources requ
 | `Bundle` | Container for the above | R4, R5 |
 | `OperationOutcome` | Structured operation result | R4, R5 |
 
-These are the resources the cross-standard conversions target: `convert.DICOMToImagingStudy`,
-`convert.SRToDiagnosticReport` / `convert.DiagnosticReportToSR`, `convert.ORUToDiagnosticReport`,
-`convert.ORMToServiceRequest`, `convert.ADTToPatient`, and `convert.ADTToEncounter` (glossary naming rule 3). Each
-conversion produces resources from this set, and each is validated against the FHIR validator.
+These are the resources the cross-standard conversions target. Every resource-producing converter is release-explicit,
+so each name carries an `R4` or `R5` suffix and returns the matching release sub-package type (the `R5` forms shown):
+`convert.DICOMToImagingStudyR5`, `convert.SRToDiagnosticReportR5` / `convert.DiagnosticReportToSRR5`,
+`convert.ORUToDiagnosticReportR5`, `convert.ORMToServiceRequestR5`, `convert.ADTToPatientR5`, and
+`convert.ADTToEncounterR5` (glossary naming rule 3), each with an `…R4` twin. Each conversion produces resources from
+this set, and each is validated against the FHIR validator.
 
 A resource moving from "generated" to "conformance-tested" is a reviewed change to this statement, not a silent code
 change.
@@ -172,8 +174,11 @@ generated JSON authors exactly one suffixed property (`valueQuantity`, `deceased
 prototype's emit-every-branch-as-required model (Codex FHIR-001) and the R4 `*any` choice fields (Codex FHIR-002).
 
 ```go
-// ObservationValue is the sealed interface for Observation.value[x].
-// It is implemented by exactly the FHIR-permitted types for that choice (Quantity, CodeableConcept, string, ...).
+// ObservationValue is the sealed interface for Observation.value[x]. It is implemented only by
+// NAMED FHIR datatype types — never the built-in string, bool, or int32, which cannot carry the
+// unexported marker method. The complex branches are the generated datatype structs (Quantity,
+// CodeableConcept, Range, Ratio, Period, ...); the primitive branches are the release primitive
+// wrappers (FHIRString, FHIRBoolean, FHIRInteger, FHIRDateTime, FHIRTime, ...).
 type ObservationValue interface{ isObservationValue() }
 
 // Value returns the currently-set choice value, or (nil, false) if value[x] is absent.
@@ -183,6 +188,12 @@ func (o *Observation) Value() (ObservationValue, bool)
 func (o *Observation) SetValueQuantity(q Quantity)
 ```
 
+A `string`-valued choice branch boxes the value in the release primitive wrapper type
+(`r5.FHIRString`), which carries the marker method; the built-in `string` cannot. The
+primitive-mapping (FHIR `string` → Go `string`) applies only to plain fields, not to choice
+branches. Recovering the plain value from a wrapper is one explicit conversion, for example
+`string(val)` after a type switch lands on `r5.FHIRString`.
+
 ### Required-binding enums
 
 Only **required**-strength value-set bindings become closed Go enums (PRD §6.3; glossary "Value Set Binding"). Each one
@@ -190,7 +201,12 @@ is a defined string type, a const set, and a validating `ParseXxx`. Extensible, 
 `code` string, because closing them would reject conformant data. This closes the prototype's empty-`EnumValues` TODO
 (Codex FHIR-013).
 
+Required-binding enums are generated per release, so they live in the `fhir/r4` and `fhir/r5`
+sub-packages alongside the resources that reference them (shown here under `r5`):
+
 ```go
+package r5
+
 // AdministrativeGender is the required binding on Patient.gender (and elsewhere).
 type AdministrativeGender string
 
@@ -222,9 +238,25 @@ exponent notation. It does not map to `float64` (Codex FHIR-009). It is the same
 // Conversion to a numeric type is explicit; there is no in-place arithmetic.
 type Decimal struct{ /* preserves source lexical form */ }
 
-func (d Decimal) String() string               // the preserved lexical form
-func (d Decimal) Float64() (float64, bool)      // explicit, lossy conversion; ok=false if not representable
-func (d Decimal) MarshalJSON() ([]byte, error)  // emits the preserved lexical form, not a re-rendered float
+// String returns the preserved lexical form exactly as parsed.
+func (d Decimal) String() string
+
+// Float64 returns the value as a float64. ok is false only when the lexical form has no finite
+// float64 representation; a value that is representable but not exactly (such as 0.1) still
+// returns ok == true. Callers that need full precision use String or BigFloat. This signature
+// and semantics are identical across dicom.md, fhir.md, and the conformance statements.
+func (d Decimal) Float64() (f float64, ok bool)
+
+// Exact reports whether the lexical form converts to a float64 with no loss of precision. It is
+// the exactness signal kept separate from Float64's ok return, so the bool on Float64 is never
+// overloaded to mean two different things.
+func (d Decimal) Exact() bool
+
+// BigFloat returns a *big.Float with precision sufficient for the lexical form.
+func (d Decimal) BigFloat() *big.Float
+
+// MarshalJSON emits the preserved lexical form, not a re-rendered float.
+func (d Decimal) MarshalJSON() ([]byte, error)
 ```
 
 ### Primitive extensions
@@ -237,24 +269,56 @@ is generated **only** for true primitive elements, never for complex fields such
 
 ### Bundle and summary
 
+`Bundle` is a resource, so like every resource it is generated per release: the type, its
+`BundleType` binding, and its type-specific builders live in `fhir/r4` and `fhir/r5`. There is no
+root `fhir.Bundle` and no single `NewBundle`. Each builder enforces the `bdl-*` invariants up front
+rather than emitting an invalid bundle (Codex FHIR-010). The builders are shown for R5; R4 has the
+same signatures in its own package.
+
 ```go
-// BundleType is a required-binding enum; the permitted set differs by release (see below).
+package r5
+
+// BundleType is the required binding for Bundle.type; the permitted set differs by release.
 type BundleType string
 
-// NewBundle constructs a Bundle of the given type. Type-specific invariants are checked on Validate/Marshal,
-// not silently violated: total is only set for searchset/history, entry.search only for searchset,
-// document/message first-resource rules, and fullUrl uniqueness (Codex FHIR-010).
-func NewBundle(t BundleType) *Bundle
+const (
+    BundleDocument    BundleType = "document"
+    BundleMessage     BundleType = "message"
+    BundleTransaction BundleType = "transaction"
+    BundleBatch       BundleType = "batch"
+    BundleSearchSet   BundleType = "searchset"
+    BundleCollection  BundleType = "collection"
+    // history, transaction-response, batch-response also defined per release
+)
 
-// SummaryMode selects the _summary serialization view.
-type SummaryMode int
+// NewSearchSet builds a searchset Bundle; total is the only bundle type for which total is set.
+func NewSearchSet(total int, entries ...SearchEntry) *Bundle
+
+// NewTransaction builds a transaction Bundle; each entry carries a request (method + url).
+func NewTransaction(entries ...TransactionEntry) (*Bundle, error)
+
+// NewDocument builds a document Bundle whose first entry must be a Composition.
+func NewDocument(composition fhir.Resource, entries ...DocumentEntry) (*Bundle, error)
+
+// NewMessage builds a message Bundle whose first entry must be a MessageHeader.
+func NewMessage(header fhir.Resource, entries ...MessageEntry) (*Bundle, error)
+```
+
+`_summary` serialization is release-agnostic machinery that operates over the `Resource` interface,
+so `SummaryMode` and `MarshalSummary` live in the root `fhir` package:
+
+```go
+package fhir
+
+// SummaryMode selects the _summary serialization view; the five modes follow the FHIR SummaryEnum.
+type SummaryMode string
 
 const (
-    SummaryFull  SummaryMode = iota // no filtering
-    SummaryTrue                     // elements flagged isSummary in the StructureDefinition
-    SummaryText                     // text, id, meta, and mandatory elements only
-    SummaryData                     // all data elements; removes the narrative text
-    SummaryFalse                    // explicit "no summary" — same bytes as SummaryFull
+    SummaryFull  SummaryMode = "false" // full resource (no filtering)
+    SummaryTrue  SummaryMode = "true"  // elements flagged isSummary in the StructureDefinition
+    SummaryText  SummaryMode = "text"  // narrative (text), id, meta, and mandatory elements only
+    SummaryData  SummaryMode = "data"  // everything except the narrative (text)
+    SummaryCount SummaryMode = "count" // intended for Bundle: emit total only, no entries
 )
 
 // MarshalSummary serializes a resource under the given summary mode. It returns an error for a nil
@@ -295,7 +359,7 @@ CI.
 `_summary` filtering is driven by the `isSummary` flag carried on each element in the `StructureDefinition` (the same
 flag `fhir.resources` surfaces as its `summary_element_property` marker). The generator records that flag per element so
 `SummaryTrue` can include exactly the summary elements without a runtime spec lookup. The five modes match the FHIR
-`_summary` parameter: `full`, `true`, `text`, `data`, and `false`.
+`_summary` parameter: `full`, `true`, `text`, `data`, and `count`.
 
 XML and YAML are optional and deferred in v1. The API is shaped so they can be added as alternative codecs over the same
 generated model without changing resource types; until then, calling an XML/YAML path returns a typed "format not
@@ -377,14 +441,14 @@ _, err = fhir.Unmarshal[*r5.Observation](payload)
 ### Required-binding enum with explicit unknown-code policy
 
 ```go
-g, err := fhir.ParseAdministrativeGender("male")
+g, err := r5.ParseAdministrativeGender("male")
 if err != nil {
     return err // never reached for a valid code
 }
 patient.Gender = &g
 
 // An unknown code is rejected at the boundary, not coerced to a default.
-if _, err := fhir.ParseAdministrativeGender("M"); err != nil {
+if _, err := r5.ParseAdministrativeGender("M"); err != nil {
     // err: `"M" is not a valid AdministrativeGender (required binding: male|female|other|unknown)`
 }
 ```
@@ -392,15 +456,21 @@ if _, err := fhir.ParseAdministrativeGender("M"); err != nil {
 ### Choice type with mutual exclusion
 
 ```go
+value, err := fhir.ParseDecimal("7.40")
+if err != nil {
+    return err
+}
+unit := "mmol/L"
 obs := &r5.Observation{ /* status, code, subject ... */ }
-obs.SetValueQuantity(r5.Quantity{Value: fhir.MustDecimal("7.40"), Unit: stringPtr("mmol/L")})
+obs.SetValueQuantity(r5.Quantity{Value: value, Unit: &unit})
 
-// Setting another branch replaces the first; only one value[x] is ever authored.
-obs.SetValueString("see attached")
+// Setting another branch replaces the first; only one value[x] is ever authored. A string-valued
+// branch is boxed in the release primitive wrapper, never the built-in string.
+obs.SetValueString(r5.FHIRString("see attached"))
 
 if v, ok := obs.Value(); ok {
-    if s, ok := v.(r5.ValueString); ok {
-        _ = s // the Quantity was cleared by the later setter
+    if s, ok := v.(r5.FHIRString); ok {
+        _ = string(s) // the Quantity was cleared by the later setter
     }
 }
 ```
@@ -418,16 +488,28 @@ if err != nil {
 
 ### Building and validating a transaction Bundle
 
-```go
-b := fhir.NewBundle(fhir.BundleTransaction)
-b.AddEntry(patient, fhir.Request{Method: fhir.HTTPPost, URL: "Patient"})
-b.AddEntry(study, fhir.Request{Method: fhir.HTTPPost, URL: "ImagingStudy"})
+The transaction builder lives in the release package and enforces the `bdl-*` invariants as it
+constructs, so an invalid bundle never reaches the marshaller. Marshalling uses the standard
+library — each generated type implements `MarshalJSON`, so `json.Marshal` emits canonical FHIR JSON.
 
-if oo := b.Validate(); oo.HasErrors() {
-    // oo is an *OperationOutcome; each issue names the path and severity, no PHI.
-    return fmt.Errorf("invalid bundle: %s", oo.Summary())
+```go
+// r5.NewTransaction enforces per-entry request presence and fullUrl uniqueness up front; an
+// invariant violation is returned as an error rather than producing an invalid bundle. Each
+// r5.TransactionEntry pairs a resource with its request (method + url).
+b, err := r5.NewTransaction(
+    r5.TransactionEntry{Resource: patient, Method: r5.HTTPPost, URL: "Patient"},
+    r5.TransactionEntry{Resource: study, Method: r5.HTTPPost, URL: "ImagingStudy"},
+)
+if err != nil {
+    return fmt.Errorf("build bundle: %w", err)
 }
-data, err := b.MarshalJSON() // canonical element ordering; fullUrl uniqueness already checked
+
+// fhir.Validate runs the same structural checks over the Resource interface for any release.
+if oo := fhir.Validate(b); oo.HasErrors() {
+    // oo is a *fhir.OperationOutcome; each issue names the path and severity, no PHI.
+    return fmt.Errorf("invalid bundle: %w", oo.Error())
+}
+data, err := json.Marshal(b) // canonical element ordering; fullUrl uniqueness already checked
 ```
 
 ## What this statement fixes (re-foundation note)

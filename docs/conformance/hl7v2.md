@@ -14,9 +14,10 @@ round-trip fixtures (PRD §6.1, §11.1). It is not a claim to implement every tr
 standard. Anything not listed here is out of scope for v1; consult
 [Conformance scope and limits](#conformance-scope-and-limits) before relying on a behaviour.
 
-The companion API reference (`docs/reference/hl7v2.md`) is the full public API contract. This statement enumerates
-*scope* — which message types, segments, datatypes, transport modes, and acknowledgement behaviours are in or out —
-and fixes the load-bearing signatures that encode that scope.
+This statement enumerates *scope* — which message types, segments, datatypes, transport modes, and acknowledgement
+behaviours are in or out. **API shape is defined solely in `docs/reference/hl7v2.md`.** The API reference fixes every
+type, signature, and field definition; this statement does not restate them. Where this statement mentions a type or
+function by name, the authoritative definition is in the reference.
 
 ## Overview and scope
 
@@ -64,29 +65,20 @@ versions add fields and trigger events without renumbering existing ones. The po
   available, but does not reject a message whose layout disagrees with `MSH-12`. Senders frequently misdeclare it; the
   parser trusts the bytes, not the declaration.
 
-The `Version` value is surfaced as a typed field so a consumer can branch on it:
-
-```go
-type Version string
-
-const (
-    V23  Version = "2.3"
-    V231 Version = "2.3.1"
-    V24  Version = "2.4"
-    V25  Version = "2.5"
-    V251 Version = "2.5.1"
-    V26  Version = "2.6"
-    V27  Version = "2.7"
-    V281 Version = "2.8.1"
-)
-```
+The versions go-radx interoperates with across the version-tolerant range are `2.3`, `2.3.1`, `2.4`, `2.5`, `2.5.1`,
+`2.6`, `2.7`, and `2.8.1`. The typed `Version` value that surfaces the declared `MSH-12` is defined in the API
+reference; this statement only fixes the supported set.
 
 ## Public API
 
-The signatures below are the contract this statement fixes. Per PRD §8.1, typed segments with named Go fields are the
-**primary** API; callers never index. Per PRD §8.2 and the glossary naming rules, named types replace bare primitives
-(`MessageType`, `TriggerEvent`, `AckCode`, `EncodingCharacters`, `MessageControlID`), and there is exactly one indexing
-convention.
+Per PRD §8.1, typed segments with named Go fields are the **primary** API; callers never index. Per PRD §8.2 and the
+glossary naming rules, named types replace bare primitives (`MessageType`, `TriggerEvent`, `AckCode`,
+`EncodingCharacters`), and there is exactly one indexing convention.
+
+**The full public API — every type, signature, and field definition — is defined solely in
+`docs/reference/hl7v2.md`.** This section records only the scope decisions that the API encodes; it intentionally does
+not restate signatures, so the two documents can never drift apart. Where this statement names an identifier, the
+reference is authoritative for its shape.
 
 ### Indexing convention (one, unambiguous)
 
@@ -94,267 +86,84 @@ The generic tree is Go-native and **0-based**, like every other Go slice. The st
 **1-based** `SEG[n]-Fn-Rn-Cn-Sn` spec convention so a developer reading the HL7 standard can transcribe a path
 directly. These two conventions never mix: tree navigation is 0-based Go, accessor keys are 1-based HL7. The reference
 library's footgun — a 0-based container hidden under a 1-based callable accessor on the same object — does not exist
-here.
+here. The `Accessor` segment-instance field is `SegmentNum` (1 selects the first instance); `Message.Get` takes a
+1-based path string and returns the unescaped leaf value with an error channel. See the API reference for the exact
+signatures.
 
-```go
-// Accessor is the 1-based HL7 path SEG[n]-Fn-Rn-Cn-Sn (segment-instance, field, repetition, component, subcomponent).
-// Typed segment structs are the primary API; reach for Accessor only for fields go-radx does not model.
-type Accessor struct {
-    Segment      string // three-character segment ID, e.g. "PID"
-    SegmentNum   int    // 1-based segment instance; 1 selects the first PID
-    Field        int    // 1-based field; for MSH, Field 1 is the field separator
-    Repetition   int    // 1-based repetition
-    Component    int    // 1-based component
-    Subcomponent int    // 1-based subcomponent
-}
+### Generic tree and typed layers in scope
 
-func ParseAccessor(key string) (Accessor, error) // "PID.5.1.2", "PID-5-1-2", or "OBX2.5"
-func (a Accessor) Key() string
-```
+Two access layers are in scope:
 
-### Parsing and the generic tree
+- The generic six-level tree (`Message`, `Segment`, `Field`, `Repetition`, `Component`, subcomponent) navigated with
+  0-based Go slices, with `Message.Segment`/`Message.AllSegments` for typed-or-untyped lookup and `Message.Get` for the
+  1-based accessor path.
+- The typed segment and message views layered over it (the primary API).
 
-```go
-// Parse decodes one HL7 v2 message. Encoding characters are derived from MSH-1/MSH-2.
-// A truncated message (ending mid-value, not at a segment boundary) is io.ErrUnexpectedEOF, never a silent success.
-func Parse(data []byte, opts ...ParseOption) (*Message, error)
+`EncodingCharacters` is derived per message from `MSH-1`/`MSH-2`, never hardcoded (PRD §6.2 floor; glossary). The
+standard defaults (`|`, `^`, `~`, `\`, `&`) apply only when the sender omits trailing delimiters; a sender using
+non-standard delimiters round-trips correctly.
 
-// Message is the root of the six-level tree. Typed segment accessors layer over it.
-type Message struct{ /* segments, derived EncodingCharacters */ }
-
-func (m *Message) Encoding() EncodingCharacters
-func (m *Message) MessageType() (MessageType, bool) // parsed from MSH-9
-func (m *Message) ControlID() (MessageControlID, bool)
-func (m *Message) Version() (Version, bool)
-
-// Generic navigation: 0-based Go slices for any segment, typed or not.
-func (m *Message) Segment(id string) (Segment, bool) // first segment with this ID
-func (m *Message) Segments(id string) []Segment      // all segments with this ID
-func (m *Message) Get(a Accessor) (string, bool)     // unescaped leaf value at a 1-based path
-func (m *Message) Marshal() ([]byte, error)          // re-serialize; round-trips Parse byte-for-byte
-
-type Segment struct{ /* fields */ }
-func (s Segment) ID() string
-func (s Segment) Field(n int) (Field, bool) // 0-based Go index; field 0 is the segment ID
-```
-
-`EncodingCharacters` is derived per message, never hardcoded (PRD §6.2 floor; glossary). The defaults apply only when
-`MSH-2` is the canonical `^~\&`:
-
-```go
-type EncodingCharacters struct {
-    Field        byte // MSH-1, default '|'
-    Component    byte // MSH-2[0], default '^'
-    Repetition   byte // MSH-2[1], default '~'
-    Escape       byte // MSH-2[2], default '\'
-    Subcomponent byte // MSH-2[3], default '&'
-}
-
-func DefaultEncoding() EncodingCharacters // '|', '^', '~', '\', '&'
-```
-
-### Typed message types
+### Typed message types in scope
 
 `MessageType` is the `MSH-9` composite `code^trigger^structure` (e.g. `ORU^R01^ORU_R01`). The trigger event is only
-`MSH-9.2` (glossary).
+`MSH-9.2` (glossary). The in-scope message views are `ADT`, `ORM`, `OMG`, `ORU`, and `ACK`, each obtained from a parsed
+`*Message` via the `As*` view functions in the reference. `ORU.Results()` and `ORM.Orders()` expose the within-message
+grouping as iterators of `ResultGroup` (one `OBR` with its following `OBX` rows) and `OrderGroup` (one `ORC` with its
+following `OBR` requests) respectively; both group types are defined in the API reference.
 
-```go
-type MessageType struct {
-    Code      string       // MSH-9.1, e.g. "ORU"
-    Trigger   TriggerEvent // MSH-9.2, e.g. "R01"
-    Structure string       // MSH-9.3, e.g. "ORU_R01" (optional)
-}
+### Typed segments in scope
 
-type TriggerEvent string
+Typed segment structs are the primary read/write surface. Absent optional fields read as the datatype zero value, not
+an error (glossary: "absent optionals read as empty, not error"). The typed segments are `MSH`, `EVN`, `PID`, `PV1`,
+`ORC`, `OBR`, `OBX`, `MSA`, and `ERR`, plus the batch/file headers and trailers. Field shapes use the typed composite
+datatypes, never bare strings. Two scope-load-bearing field placements are fixed here and match the reference:
 
-// Typed views over a parsed Message. Each returns false if the message is not of that type.
-func (m *Message) ADT() (ADT, bool)
-func (m *Message) ORM() (ORM, bool)
-func (m *Message) OMG() (OMG, bool)
-func (m *Message) ORU() (ORU, bool)
-func (m *Message) ACK() (ACK, bool)
-```
+- `PID.PatientID` is `CX` at **PID-3** — the patient identifier list (first repetition), with `PID.AllPatientIDs` for
+  the remaining repetitions. PID-3 is the patient identifier list; the retired external `PID-2` is not modelled.
+- `OBX.Value` is `[]string` at OBX-5 (raw repetitions, interpreted per `OBX.ValueType` at OBX-2).
 
-### Typed segments
+### Composite datatypes in scope
 
-Typed segment structs are the primary read/write surface. Absent optional fields read as the datatype zero value, not an
-error (glossary: "absent optionals read as empty, not error").
+Typed composites are returned by the typed segment accessors. The reference library leaves these stringly-typed;
+go-radx models them (PRD §6.3). The in-scope composites are `XPN` (person name: `Family`, `Given`, `Middle`, `Suffix`,
+`Prefix`, `Degree`, `NameTypeCode`), `XAD` (address), `CX` (identifier with assigning authority), `CWE` (coded with
+exceptions, with `Code`/`Text` plus coding-system and alternate fields; supersedes the retired `CE`), `HD` (hierarchic
+designator), and `DTM` (variable-precision timestamp). Exact field lists and component numbers are in the API
+reference.
 
-```go
-func (m *Message) MSH() (MSH, bool)
-func (m *Message) PID() (PID, bool)
-func (m *Message) PV1() (PV1, bool)
-func (m *Message) EVN() (EVN, bool)
-func (m *Message) ORC() []ORC // an order may carry several
-func (m *Message) OBR() []OBR
-func (m *Message) OBX() []OBX
-func (m *Message) MSA() (MSA, bool)
-func (m *Message) ERR() []ERR
-```
+`DTM` **preserves precision** (glossary: "preserve precision, don't zero-fill"). A date-only `19720101` does not
+silently become midnight; the precision is retained so it round-trips and so a consumer can tell a true midnight from
+an unspecified time. The `Precision` enum and the resolving accessors are in the reference.
 
-Field shapes use the typed composite datatypes, never bare strings, for example:
-
-```go
-type PID struct {
-    SetID              string // PID-1
-    PatientID          CX     // PID-2 (external, retired post-2.3.1 but still seen)
-    PatientIdentifiers []CX   // PID-3 patient identifier list
-    PatientName        []XPN  // PID-5
-    DateOfBirth        DTM    // PID-7
-    AdministrativeSex  string // PID-8 (HL7 Table 0001)
-    PatientAddress     []XAD  // PID-11
-    // ... remaining v2.5.1 fields
-}
-
-type OBX struct {
-    SetID            string // OBX-1
-    ValueType        string // OBX-2 (HL7 Table 0125)
-    ObservationID    CWE    // OBX-3
-    ObservationSubID string // OBX-4
-    ObservationValue []string
-    Units            CWE    // OBX-6
-    AbnormalFlags    []string
-    ResultStatus     string // OBX-11 (HL7 Table 0085)
-    // ... remaining v2.5.1 fields
-}
-```
-
-### Composite datatypes
-
-Typed composites are returned by the typed segment accessors. The reference library leaves these stringly-typed; go-radx
-models them (PRD §6.3).
-
-```go
-type XPN struct { // person name
-    FamilyName, GivenName, MiddleName, Suffix, Prefix, Degree string
-    NameTypeCode                                              string // HL7 Table 0200
-}
-type XAD struct { // address
-    StreetAddress, OtherDesignation, City, State, ZipCode, Country, AddressType string
-}
-type CX struct { // identifier with assigning authority
-    ID                 string
-    AssigningAuthority HD
-    IdentifierTypeCode string // HL7 Table 0203
-}
-type CWE struct { // coded with exceptions (supersedes CE)
-    Identifier, Text, CodingSystem          string
-    AltIdentifier, AltText, AltCodingSystem string
-}
-type HD struct { // hierarchic designator
-    NamespaceID, UniversalID, UniversalIDType string
-}
-```
-
-`DTM` is a variable-precision timestamp that **preserves precision** (glossary: "preserve precision, don't zero-fill").
-A date-only `19720101` does not silently become midnight; the precision is retained so it round-trips and so a consumer
-can tell a true midnight from an unspecified time.
-
-```go
-type DTM struct{ /* preserves YYYY[MM[DD[HH[MM[SS[.S...]]]]]] precision and optional +/-HHMM offset */ }
-
-func ParseDTM(s string) (DTM, error)
-func (d DTM) String() string         // re-emits at the original precision
-func (d DTM) Time() (time.Time, bool) // ok=false if precision is below a usable instant
-func (d DTM) Precision() DTMPrecision  // Year | Month | Day | Hour | Minute | Second | Fraction
-```
-
-### Acknowledgement (ACK)
+### Acknowledgement (ACK) in scope
 
 There is no "NACK" message in HL7 (glossary). A negative acknowledgement is an `ACK` whose `MSA-1` carries a rejecting
 code. go-radx models `AckCode` as a typed enum over HL7 Table 0008, covering both original-mode (`AA`/`AE`/`AR`) and
-enhanced-mode (`CA`/`CE`/`CR`) acknowledgement codes.
+enhanced-mode (`CA`/`CE`/`CR`) acknowledgement codes, with the predicates `IsPositive()` (AA or CA), `IsError()` (AE or
+CE), and `IsReject()` (AR or CR). `BuildACK` constructs the spec-correct `ACK` response per HL7 §2.9.2: it swaps
+sender/receiver application and facility, echoes the inbound control ID into `MSA-2`, mints a fresh `MSH-10` for the
+`ACK`, and sets `MSA-1` to the chosen code. Signatures are in the API reference.
 
-```go
-type AckCode string
+### MLLP transport in scope
 
-const (
-    AckAA AckCode = "AA" // Application Accept (original mode)
-    AckAE AckCode = "AE" // Application Error
-    AckAR AckCode = "AR" // Application Reject
-    AckCA AckCode = "CA" // Commit Accept (enhanced mode)
-    AckCE AckCode = "CE" // Commit Error
-    AckCR AckCode = "CR" // Commit Reject
-)
+MLLP (Minimal Lower Layer Protocol) frames each message as `0x0B` `<message>` `0x1C` `0x0D` over TCP (glossary).
+go-radx adds `context` cancellation and a configurable maximum frame length to guard against a hostile or runaway peer
+(PRD §9.3, §9.4). Both client and server are in scope (PRD §5.1, §6.2 floor): a blocking `Client` (constructed with
+`NewClient`) that sends a message and blocks for the acknowledgement frame, and a `context`-aware `Server` (constructed
+with `NewServer`) that invokes a `Handler` once per inbound framed message. The `Handler.Handle(ctx, m)` method decides
+the acknowledgement, so a consumer can reject (`AR`) or report an error (`AE`) deliberately rather than have the server
+auto-build a reply. Returning a non-nil error from the handler is logged without PHI and closes that connection. The
+server binds to loopback unless an explicit non-loopback address is supplied (PRD §9.1), and supports a configurable
+maximum frame length, read timeouts, and TLS with peer verification (PRD §9.7). Type and option signatures are in the
+API reference.
 
-func (c AckCode) IsAccept() bool // AA or CA
-func (c AckCode) IsReject() bool // AR or CR
-func (c AckCode) IsError() bool  // AE or CE
-
-// BuildACK constructs the ACK response for an inbound message per HL7 §2.9.2:
-// it swaps sender/receiver application and facility, echoes the inbound control ID into MSA-2,
-// mints a fresh MSH-10 for the ACK, and sets MSA-1 to the chosen code.
-func BuildACK(inbound *Message, code AckCode, opts ...ACKOption) (*Message, error)
-
-type Acknowledgment struct {
-    Code        AckCode          // MSA-1
-    ControlID   MessageControlID // MSA-2, echoes the acknowledged message's MSH-10
-    TextMessage string           // MSA-3 (optional)
-    Errors      []ERR            // structured error detail (enhanced mode)
-}
-func (m *Message) Acknowledgment() (Acknowledgment, bool)
-```
-
-### MLLP transport
-
-MLLP (Minimal Lower Layer Protocol) frames each message as `0x0B` `<message>` `0x1C` `0x0D` over TCP (glossary). go-radx
-adds `context` cancellation and a configurable maximum frame length to guard against a hostile or runaway peer
-(PRD §9.3, §9.4). Both client and server are in scope (PRD §5.1, §6.2 floor).
-
-```go
-// Client: blocking send-and-receive-ACK over one connection.
-type MLLPClient struct{ /* ... */ }
-
-func DialMLLP(ctx context.Context, addr string, opts ...MLLPOption) (*MLLPClient, error)
-func (c *MLLPClient) Send(ctx context.Context, m *Message) (*Message, error) // returns the peer's ACK
-func (c *MLLPClient) SendRaw(ctx context.Context, frame []byte) ([]byte, error)
-func (c *MLLPClient) Close() error
-
-// Server: one Handler invocation per inbound framed message; the returned Message is framed back as the ACK.
-type Handler interface {
-    HandleMessage(ctx context.Context, m *Message) (*Message, error)
-}
-
-type MLLPServer struct{ /* ... */ }
-
-func NewMLLPServer(h Handler, opts ...MLLPOption) *MLLPServer
-func (s *MLLPServer) Serve(ctx context.Context, ln net.Listener) error // returns when ctx is done or ln closes
-
-// Options applying to both client and server.
-func WithMaxFrameBytes(n int) MLLPOption  // typed "frame too large" error when exceeded; default 16 MiB
-func WithReadTimeout(d time.Duration) MLLPOption
-func WithTLS(cfg *tls.Config) MLLPOption  // TLS 1.2+, peer verification on by default (PRD §9.7)
-func WithEncoding(name string) MLLPOption // character set for frame bytes; default UTF-8
-```
-
-The server binds wherever the caller's `net.Listener` binds; the reference daemon that wires it defaults to loopback
-(PRD §9.1). The server does not auto-build an ACK — the `Handler` decides the acknowledgement, so a consumer can
-reject (`AR`) or report an error (`AE`) deliberately. A `Handler` returning `(nil, nil)` sends no ACK (some integrations
-suppress acknowledgements); returning a non-nil error is logged without PHI and aborts that frame's exchange.
-
-### Batch and file containers
+### Batch and file containers in scope
 
 `Batch` (`BHS`/`BTS`) and `File` (`FHS`/`FTS`) are optional bulk containers. The headers and trailers are present
 together or not at all — a header without its trailer (or vice versa) is a malformed container, matching the reference
 library's "both or neither" rule. "File" here is the HL7 batch-protocol container, not an OS or `.dcm` file (glossary).
-
-```go
-type Batch struct {
-    Header   *Segment // BHS, or nil for a bare batch
-    Messages []*Message
-    Trailer  *Segment // BTS, or nil for a bare batch
-}
-type File struct {
-    Header  *Segment // FHS, or nil
-    Batches []*Batch
-    Trailer *Segment // FTS, or nil
-}
-
-func ParseBatch(data []byte, opts ...ParseOption) (*Batch, error)
-func ParseFile(data []byte, opts ...ParseOption) (*File, error)
-func (b *Batch) Marshal() ([]byte, error)
-func (f *File) Marshal() ([]byte, error)
-```
+`ParseBatch`/`ParseFile` parse them and the containers re-render through `MarshalText`; signatures are in the API
+reference.
 
 ## Supported message types and trigger events
 
@@ -364,13 +173,14 @@ into the generic tree but do not get a dedicated typed view.
 | Message type | Trigger events in scope | Typed view | Notes |
 |--------------|-------------------------|------------|-------|
 | `ADT` | `A01`, `A02`, `A03`, `A04`, `A08` | `ADT` | Feeds `ADTToPatient` / `ADTToEncounter` |
-| `ORM` | `O01` general order | `ORM` | Feeds `convert.ORMToServiceRequest`; carries `ORC`+`OBR` |
-| `OMG` | `O19` general clinical order (imaging) | `OMG` | Radiology order variant; `ORC`+`OBR` |
-| `ORU` | `R01` unsolicited observation result | `ORU` | Feeds `convert.ORUToDiagnosticReport`; carries `OBR`+`OBX` |
+| `ORM` | `O01` general order | `ORM` | Feeds `convert.ORMToServiceRequest`; carries `ORC`+`OBR` groups |
+| `OMG` | `O19` general clinical order (imaging) | `OMG` | Radiology order variant; `ORC`+`OBR` groups |
+| `ORU` | `R01` unsolicited observation result | `ORU` | Feeds `convert.ORUToDiagnosticReport`; `OBR`+`OBX` groups |
 | `ACK` | general acknowledgement | `ACK` | Built by `BuildACK`; `MSA`(+`ERR`) |
 
 The `ORM`/`OMG` split follows the standard's migration of imaging orders toward `OMG^O19`; go-radx accepts both so it
-interoperates with senders on either convention.
+interoperates with senders on either convention. Both `ORM` and `OMG` may carry several `ORC`+`OBR` order groups; the
+typed `Orders()` iterator yields each `OrderGroup` in order.
 
 ## Supported typed segments
 
@@ -402,29 +212,8 @@ the generic tree as raw component lists; they are not given dedicated structs in
 go-radx returns errors as values; it never panics on malformed input (PRD §9.3) and never reports success on failed
 work (PRD §9.2). Errors are typed and checkable with `errors.Is`/`errors.As`, and diagnostics name the offending
 location — segment ID, field number, byte offset — without emitting field *values*, honouring the no-PHI-by-default
-rule (PRD §8.2, §9.1).
-
-### Sentinel and typed errors
-
-```go
-var (
-    ErrMissingMSH      = errors.New("hl7v2: message does not begin with MSH")
-    ErrShortMSH        = errors.New("hl7v2: MSH too short to derive encoding characters")
-    ErrFrameTooLarge   = errors.New("hl7v2: MLLP frame exceeds configured maximum")
-    ErrInvalidBlock    = errors.New("hl7v2: MLLP block missing start byte 0x0B")
-    ErrUnbalancedBatch = errors.New("hl7v2: batch/file header present without matching trailer")
-)
-
-// ParseError locates a fault without leaking PHI: it names structure, not values.
-type ParseError struct {
-    Segment string // e.g. "PID"
-    Field   int    // 1-based; 0 if not field-specific
-    Offset  int    // byte offset into the input
-    Err     error
-}
-func (e *ParseError) Error() string
-func (e *ParseError) Unwrap() error
-```
+rule (PRD §8.2, §9.1). The typed error set (`ParseError`, `AccessorError`, `FramingError`, `LimitExceededError`,
+`SegmentError`) is defined in the API reference.
 
 ### Truncation is a failure, not a success
 
@@ -437,10 +226,10 @@ truncated message as complete is a defect, and the regression test for this ship
 
 A typed segment accessor never fails because the sender included extra fields; it surfaces only the fields go-radx
 models. Unmodelled fields, repetitions beyond the modelled set, and entire segments go-radx does not type are always
-reachable through `Message.Segment`, `Message.Segments`, and `Message.Get(Accessor)`. A `Get` against an absent optional
-field returns `("", false)` rather than an error, matching the standard's optional-field semantics. A `Get` whose path
-runs past a leaf node (asking for a component of a value that has none) returns an error, because that is a malformed
-request, not an absent optional.
+reachable through `Message.Segment`, `Message.AllSegments`, and `Message.Get`. A `Get` against an absent optional
+field returns `("", nil)` rather than an error, matching the standard's optional-field semantics. A `Get` whose path
+runs past a leaf node (asking for a component of a value that has none) returns an `*AccessorError`, because that is a
+malformed request, not an absent optional.
 
 ### Encoding characters and escaping
 
@@ -449,17 +238,19 @@ non-standard delimiters round-trips correctly. Escape and unescape implement HL7
 repetition, component, subcomponent, and escape separators (`\F\`, `\R\`, `\S\`, `\T\`, `\E\`), hex data (`\Xdd...\`),
 highlight (`\H\`/`\N\`), rich-text formatting (`\.br\` and the formatting commands), and application-defined sequences.
 `MSH-1` and `MSH-2` are themselves never unescaped, because they *define* the escape mechanism. Inline character-set
-switching inside escape sequences (ISO-IR code-page changes mid-field) is out of scope for v1, matching the reference
-library's documented limitation.
+switching inside escape sequences (`\Cxxyy\`, `\Mxxyyzz\`) is out of scope for v1; it is surfaced as an `UnescapeNotes`
+entry rather than silently lost, matching the reference library's documented limitation.
 
 ### Concurrency
 
 `Parse` and the typed accessors are pure and safe to call concurrently on distinct messages. A `*Message` is not safe
-for concurrent mutation. `MLLPServer.Serve` handles each connection on its own goroutine; the `Handler` must be safe for
+for concurrent mutation. The MLLP `Server` handles each connection on its own goroutine; the `Handler` must be safe for
 concurrent invocation. All network operations honour `context` cancellation, and the server shuts down gracefully when
 its context is cancelled (PRD §9.4).
 
 ## Worked usage examples
+
+The signatures used below are defined in `docs/reference/hl7v2.md`. These examples illustrate scope, not the API shape.
 
 ### Parse a result message and read typed fields
 
@@ -485,39 +276,38 @@ func main() {
         log.Fatalf("parse: %v", err)
     }
 
-    oru, ok := msg.ORU()
+    oru, ok := hl7v2.AsORU(msg)
     if !ok {
         log.Fatal("not an ORU^R01 message")
     }
 
-    if pid, ok := msg.PID(); ok && len(pid.PatientName) > 0 {
-        fmt.Println("family name:", pid.PatientName[0].FamilyName) // DOE
-        fmt.Println("dob precision:", pid.DateOfBirth.Precision())  // Day
+    if pid, ok := oru.PID(); ok {
+        fmt.Println("family name:", pid.PatientName.Family) // DOE
+        fmt.Println("dob precision:", pid.BirthDate.Precision()) // PrecisionDay
     }
-    for _, obx := range msg.OBX() {
-        fmt.Println("observation:", obx.ObservationValue)
+    for result := range oru.Results() {
+        for _, obx := range result.Observations {
+            fmt.Println("observation:", obx.Value)
+        }
     }
-    _ = oru
 }
 ```
 
 ### Receive over MLLP and acknowledge
 
 ```go
-type echoHandler struct{}
-
-func (echoHandler) HandleMessage(ctx context.Context, m *hl7v2.Message) (*hl7v2.Message, error) {
-    // BuildACK swaps sender/receiver, echoes the inbound MSH-10 into MSA-2, and mints a fresh ACK control ID.
-    return hl7v2.BuildACK(m, hl7v2.AckAA)
-}
-
 func serve(ctx context.Context) error {
-    ln, err := net.Listen("tcp", "127.0.0.1:2575") // loopback by default
+    // The Handler decides the acknowledgement; BuildACK swaps sender/receiver,
+    // echoes the inbound MSH-10 into MSA-2, and mints a fresh ACK control ID.
+    srv, err := hl7v2.NewServer("127.0.0.1:2575", hl7v2.HandlerFunc(
+        func(ctx context.Context, m *hl7v2.Message) (*hl7v2.Message, error) {
+            return m.BuildACK(hl7v2.AckAccept)
+        }),
+    )
     if err != nil {
         return err
     }
-    srv := hl7v2.NewMLLPServer(echoHandler{}, hl7v2.WithMaxFrameBytes(8<<20))
-    return srv.Serve(ctx, ln) // returns on ctx cancellation or listener close
+    return srv.Serve(ctx) // returns on ctx cancellation
 }
 ```
 
@@ -525,22 +315,26 @@ func serve(ctx context.Context) error {
 
 ```go
 func send(ctx context.Context, msg *hl7v2.Message) error {
-    client, err := hl7v2.DialMLLP(ctx, "127.0.0.1:2575")
+    client, err := hl7v2.NewClient("127.0.0.1:2575")
     if err != nil {
         return err
     }
     defer client.Close()
 
-    ack, err := client.Send(ctx, msg)
+    ack, err := client.Send(ctx, msg) // blocks for the ACK frame
     if err != nil {
         return err
     }
-    a, ok := ack.Acknowledgment()
+    typedAck, ok := hl7v2.AsACK(ack)
     if !ok {
         return fmt.Errorf("peer reply was not an ACK")
     }
-    if a.Code.IsReject() || a.Code.IsError() {
-        return fmt.Errorf("peer rejected message: %s %s", a.Code, a.TextMessage)
+    msa, ok := typedAck.MSA()
+    if !ok {
+        return fmt.Errorf("ACK has no MSA segment")
+    }
+    if msa.AckCode.IsReject() || msa.AckCode.IsError() {
+        return fmt.Errorf("peer rejected message: %s %s", msa.AckCode, msa.TextMessage)
     }
     return nil
 }
@@ -550,7 +344,7 @@ func send(ctx context.Context, msg *hl7v2.Message) error {
 
 In scope (v1):
 
-- Six-level lossless parse tree for any well-formed `MSH`-led message; byte-for-byte round-trip via `Marshal`.
+- Six-level lossless parse tree for any well-formed `MSH`-led message; byte-for-byte round-trip via `MarshalText`.
 - Typed message types `ADT` (A01/A02/A03/A04/A08), `ORM^O01`, `OMG^O19`, `ORU^R01`, `ACK`.
 - Typed segments `MSH`, `EVN`, `PID`, `PV1`, `ORC`, `OBR`, `OBX`, `MSA`, `ERR`, plus `BHS`/`BTS` and `FHS`/`FTS`.
 - Typed composites `XPN`, `XAD`, `CX`, `CWE`, `HD`, `DTM`.
@@ -578,7 +372,7 @@ to this conformance statement (PRD §6.1).
 
 ## See also
 
-- HL7 v2 API reference: `../reference/hl7v2.md`
+- HL7 v2 API reference (the single normative API source): `../reference/hl7v2.md`
 - Ubiquitous language (HL7 v2 section): `../../UBIQUITOUS_LANGUAGE.md`
 - Product requirements (parity floor §6.2, API commitments §8.1): `../prd/go-radx-prd.md`
 - Cross-standard conversions (`ORU`/`ORM`/`ADT` to FHIR): `../reference/convert.md`

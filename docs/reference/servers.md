@@ -37,9 +37,12 @@ In scope for v1:
 - **Observability hooks**: a `zap.Logger` and an OpenTelemetry `trace.TracerProvider` / `metric.MeterProvider`, both
   honouring the no-PHI rule (PRD §9.1, §9.10). OTel exports nowhere by default; it is operator-opt-in.
 - The four reference daemons (DIMSE SCP with optional Modality Worklist SCP, DICOMweb, FHIR REST, HL7 v2 MLLP) wired to
-  the default filesystem object store and SQLite catalogue, exercised by the `radx` CLI `serve` commands.
+  the default filesystem object store and SQLite catalogue. The DIMSE SCP is launched by `radx scp` and the MLLP server
+  by `radx hl7 listen` (see [radx CLI](cli.md)); the DICOMweb and FHIR REST daemons are embeddable library features in
+  v1 with no dedicated CLI subcommand (the `dicomweb`/`convert` CLI groups are clients, not servers — cli.md Scope).
 - A minimal **FHIR REST** server surface (the conformance subset of `read`, `create`, `search-type`, and `transaction`
-  for the workflow resource set) over a pluggable `fhir` repository.
+  for the workflow resource set) over a pluggable `server.Repository`, serving a single FHIR release fixed at role
+  construction (see "FHIR REST server").
 
 Out of scope for v1 (architected-for, deferred — PRD §3.2, §5.1):
 
@@ -60,7 +63,7 @@ plus the lifecycle and observability that sit above all four. The relationship i
 | DIMSE SCP | `dimse.Handler` (`dimse`) | DICOM Upper Layer over TCP/TLS |
 | Modality Worklist SCP | `dimse.FindHandler` over a `WorklistSource` (`server`) | DIMSE C-FIND, MWL information model |
 | DICOMweb | `dicomweb.StoreBackend` / `RetrieveBackend` / `QueryBackend` (`dicomweb`) | HTTP/TLS, `dicom+json` |
-| FHIR REST | `fhir.Repository` (`server`, over `fhir`) | HTTP/TLS, `application/fhir+json` |
+| FHIR REST | `server.Repository` (`server`, over `fhir`) | HTTP/TLS, `application/fhir+json` |
 | HL7 v2 MLLP | `hl7v2.Handler` (`hl7v2`) | MLLP over TCP/TLS |
 
 The DIMSE, DICOMweb, and MLLP server *types* (`dimse.Server`, `dicomweb.Server`, `hl7v2.Server`) live in their own
@@ -249,11 +252,12 @@ func (d *Daemon) Addrs() map[string]net.Addr
 ```
 
 Each role is built from the shared backends and its own options. The role constructors are where a consumer plugs in an
-`ObjectStore`, a `Catalogue`, a `WorklistSource`, or a `fhir.Repository`.
+`ObjectStore`, a `Catalogue`, a `WorklistSource`, or a `server.Repository`.
 
 ```go
-// DIMSERole configures the DIMSE SCP. AETitle and supported contexts are required; the worklist source is optional and,
-// when supplied, mounts the Modality Worklist SCP alongside the C-STORE/C-FIND/C-GET/C-MOVE/C-ECHO services.
+// DIMSERole configures the DIMSE SCP. The title is a validated dimse.AETitle (produce it with dimse.ParseAETitle, never
+// a bare string); supported contexts are required; the worklist source is optional and, when supplied, mounts the
+// Modality Worklist SCP alongside the C-STORE/C-FIND/C-GET/C-MOVE/C-ECHO services.
 func NewDIMSERole(title dimse.AETitle, store ObjectStore, cat Catalogue, opts ...DIMSERoleOption) (*DIMSERole, error)
 
 type DIMSERoleOption func(*dimseRoleConfig)
@@ -272,13 +276,15 @@ func WithDICOMwebPort(port int) DICOMwebRoleOption           // default 8042
 func WithDICOMwebBasePath(p string) DICOMwebRoleOption       // default "/dicom-web"
 func WithMaxRequestBytes(n int64) DICOMwebRoleOption         // body cap (PRD §9.3)
 
-// FHIRRole configures the FHIR REST server over a pluggable repository (see "FHIR REST server").
-func NewFHIRRole(repo fhir.Repository, opts ...FHIRRoleOption) (*FHIRRole, error)
+// FHIRRole configures the FHIR REST server over a pluggable server.Repository bound to one FHIR release (see "FHIR
+// REST server"). The release defaults to R5; set it with WithFHIRRelease and pass a repo that stores that release.
+func NewFHIRRole(repo Repository, opts ...FHIRRoleOption) (*FHIRRole, error)
 
 type FHIRRoleOption func(*fhirRoleConfig)
 
 func WithFHIRPort(port int) FHIRRoleOption                   // default 8080
 func WithFHIRBasePath(p string) FHIRRoleOption               // default "/fhir"
+func WithFHIRRelease(r fhir.Release) FHIRRoleOption          // default fhir.R5; one role serves one release
 
 // MLLPRole configures the HL7 v2 MLLP server over an hl7v2.Handler.
 func NewMLLPRole(h hl7v2.Handler, opts ...MLLPRoleOption) (*MLLPRole, error)
@@ -386,32 +392,56 @@ The FHIR REST server exposes the conformance subset of the FHIR HTTP API over a 
 `fhir.Validate`, and returns a `fhir.OperationOutcome` for every error — the FHIR-native error channel — rather than
 a bare HTTP body.
 
+### Release selection: one role serves one release
+
+A FHIR R4 resource and the corresponding R5 resource are **distinct Go types** in distinct packages (`r4.Patient`
+vs `r5.Patient`, `r4.Bundle` vs `r5.Bundle`; see [FHIR R4/R5](fhir.md), which states there is no root `fhir.Patient`
+or `fhir.Bundle`). A single Go `Repository` value therefore cannot transparently store both releases through one
+release-neutral type. go-radx resolves this by **fixing the release at role construction**: each `FHIRRole` serves
+exactly one FHIR release, chosen with `WithFHIRRelease`, and the `Repository` it wraps stores resources of that
+release. To serve both releases from one process, mount two `FHIRRole`s on different base paths (for example `/fhir/r4`
+and `/fhir/r5`). A request never selects the release; the base path the request hit determines it. This mirrors how the
+DIMSE role composes concrete `dimse` types rather than a release-neutral abstraction.
+
+The wire types crossing the `Repository` seam are release-neutral only at the **interface boundary**: methods exchange
+the release-agnostic `fhir.Resource` interface (every `r4`/`r5` resource satisfies it) and the role's configured
+release tells the implementation which concrete type to materialise. `Bundle`, however, is release-specific, so the
+search and transaction methods are typed against the configured release's `Bundle`. The interface below is shown for an
+R5 role; an R4 role substitutes `r4.Bundle` for `r5.Bundle` identically.
+
 ```go
-// Repository is the storage seam for the FHIR REST server. It is the FHIR counterpart of ObjectStore + Catalogue:
-// resources are stored and searched by type and id. Implementations are safe for concurrent use.
+// Repository is the storage seam for the FHIR REST server, defined in the server package (use server.Repository). It is
+// the FHIR counterpart of ObjectStore + Catalogue: resources are stored and searched by type and id. A Repository is
+// bound to one FHIR release (chosen via WithFHIRRelease); the fhir.Resource values it exchanges are that release's
+// concrete types. Implementations are safe for concurrent use.
 type Repository interface {
-    // Read returns the current version of one resource by type and id, or ErrNotFound.
-    Read(ctx context.Context, resourceType, id string) (Resource, error)
+    // Read returns the current version of one resource by type and id, or ErrNotFound. The returned fhir.Resource is a
+    // concrete resource of the role's release (e.g. *r5.Patient).
+    Read(ctx context.Context, resourceType, id string) (fhir.Resource, error)
 
     // Create stores a new resource, assigning a server id when the resource has none, and returns the stored resource.
     // It validates with fhir.Validate first; a resource with error-severity issues is rejected with that outcome.
-    Create(ctx context.Context, r Resource) (Resource, error)
+    Create(ctx context.Context, r fhir.Resource) (fhir.Resource, error)
 
-    // Search executes a type-level search and returns a searchset Bundle (built with fhir.NewSearchSet so total and the
-    // bdl-* invariants are correct). params are the raw FHIR search parameters.
-    Search(ctx context.Context, resourceType string, params url.Values) (*Bundle, error)
+    // Search executes a type-level search and returns a searchset Bundle of the role's release (built with the
+    // release's NewSearchSet, e.g. r5.NewSearchSet, so total and the bdl-* invariants hold). params are the raw FHIR
+    // search parameters. The *r5.Bundle return is *r4.Bundle for an R4 role.
+    Search(ctx context.Context, resourceType string, params url.Values) (*r5.Bundle, error)
 
     // Transaction processes a transaction Bundle atomically and returns the transaction-response Bundle. A failed entry
-    // rolls back the whole transaction (FHIR transaction semantics), and the response reports each entry's outcome.
-    Transaction(ctx context.Context, b *Bundle) (*Bundle, error)
+    // rolls back the whole transaction (FHIR transaction semantics), and the response reports each entry's outcome. The
+    // *r5.Bundle is *r4.Bundle for an R4 role.
+    Transaction(ctx context.Context, b *r5.Bundle) (*r5.Bundle, error)
 }
 ```
 
-`Resource`, `Bundle`, `OperationOutcome`, `fhir.Validate`, and `fhir.NewSearchSet` are the `fhir` package types
-documented in [FHIR R4/R5](fhir.md); the server does not introduce a parallel resource model. The served interactions in
-v1 are `read`, `create`, `search-type`, and `transaction` for the workflow resource set (`Patient`, `Encounter`,
-`ServiceRequest`, `ImagingStudy`, `DiagnosticReport`, `Observation`); `update`, `delete`, `vread`, `history`, and
-`patch` are deferred and return a `405`/`501` with an `OperationOutcome`, never a silent no-op (PRD §9.2).
+`fhir.Resource`, `fhir.Validate`, and `fhir.OperationOutcome` are the release-agnostic machinery the root `fhir` package
+publishes; `r5.Bundle` / `r4.Bundle` and the resource types (`r5.Patient`, `r4.Patient`, and so on) live in the
+`fhir/r4` and `fhir/r5` packages, all documented in [FHIR R4/R5](fhir.md). The server introduces no parallel resource
+model. The served interactions in v1 are `read`, `create`, `search-type`, and `transaction` for the workflow resource
+set (`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`, `DiagnosticReport`, `Observation`, in the role's
+release); `update`, `delete`, `vread`, `history`, and `patch` are deferred and return a `405`/`501` with an
+`OperationOutcome`, never a silent no-op (PRD §9.2).
 
 The HTTP status mapping is explicit: `200` on a successful read or search, `201` on create (with a `Location` header),
 `400` with an `error`-severity `OperationOutcome` when `fhir.Validate` rejects the body, `404` with an
@@ -421,8 +451,10 @@ The HTTP status mapping is explicit: `200` on a successful read or search, `201`
 ## Thin reference daemons
 
 The reference daemons are the runnable defaults: each wires the shared backends to a **filesystem object store** and a
-**SQLite catalogue**, binds to loopback, and uses `AllowAll()` authentication, so `radx ... serve` starts a working
-server with no configuration. They are the development and CLI default the PRD calls for (§7.2), and they deliberately
+**SQLite catalogue**, binds to loopback, and uses `AllowAll()` authentication, so a daemon starts a working server with
+no configuration. The DIMSE SCP daemon is launched from the `radx scp` command and the MLLP daemon from `radx hl7
+listen` (see [radx CLI](cli.md)); the DICOMweb and FHIR REST daemons are embedded via the `server` package in v1, with
+no dedicated `radx` subcommand. They are the development default the PRD calls for (§7.2), and they deliberately
 mirror the `pynetdicom` `qrscp` reference app's shape (a SQLite database plus a filesystem instance store), which
 go-radx's interop tests already exercise.
 
@@ -465,7 +497,11 @@ if err != nil {
     log.Fatalf("catalogue: %v", err)
 }
 
-dimseRole, err := server.NewDIMSERole("RADX-SCP", store, cat,
+aet, err := dimse.ParseAETitle("RADX-SCP") // AETitle is a validated value type, never a bare string
+if err != nil {
+    log.Fatalf("ae title: %v", err)
+}
+dimseRole, err := server.NewDIMSERole(aet, store, cat,
     server.WithDIMSEPort(11112),
     server.WithWorklistSource(myWorklist), // mounts the Modality Worklist SCP; omit to serve storage/QR only
 )
@@ -500,10 +536,15 @@ WADO-RS without a second copy.
 store, _ := server.FileStore("/var/lib/radx/objects")
 cat, _ := server.SQLiteCatalogue(ctx, "/var/lib/radx/catalogue.db")
 
-dimseRole, _ := server.NewDIMSERole("RADX-SCP", store, cat, server.WithWorklistSource(worklist))
+aet, err := dimse.ParseAETitle("RADX-SCP") // validated AETitle, not a bare string literal
+if err != nil {
+    log.Fatal(err)
+}
+dimseRole, _ := server.NewDIMSERole(aet, store, cat, server.WithWorklistSource(worklist))
 webRole, _ := server.NewDICOMwebRole(store, cat) // same store + catalogue as DIMSE
 mllpRole, _ := server.NewMLLPRole(orderHandler)  // HL7 v2 results/orders over MLLP
-fhirRole, _ := server.NewFHIRRole(fhirRepo)      // FHIR REST over a fhir.Repository
+fhirRole, _ := server.NewFHIRRole(fhirRepo,      // FHIR REST over a server.Repository
+    server.WithFHIRRelease(fhir.R5))             // one role serves one release; fhirRepo stores R5 resources
 
 d, err := server.New(
     server.WithLogger(logger),
@@ -607,7 +648,8 @@ Explicit limits (deferred, architected-for — PRD §3.2, §5.1):
   types the DIMSE role composes.
 - [DICOMweb client and server](dicomweb.md) — the `dicomweb.StoreBackend`/`RetrieveBackend`/`QueryBackend` that the
   DICOMweb role composes.
-- [FHIR R4/R5](fhir.md) — the `fhir.Resource`, `Bundle`, `OperationOutcome`, and `Validate` the FHIR role composes.
+- [FHIR R4/R5](fhir.md) — the release-agnostic `fhir.Resource`, `fhir.OperationOutcome`, and `fhir.Validate`, and the
+  release-specific `r4.Bundle`/`r5.Bundle` resources the FHIR role composes.
 - [HL7 v2 messaging and MLLP](hl7v2.md) — the `hl7v2.Handler` and MLLP server the MLLP role composes.
 - `docs/prd/go-radx-prd.md` §7.2 (servers), §9.1 (PHI and bind defaults), §9.4 (concurrency), §9.7 (transport),
   §9.10 (observability).

@@ -35,9 +35,10 @@ Out of scope for v1 (architected-for, deferred — PRD §3.2, §5.1):
   flows), Print Management, and the Unified Procedure Step (UPS) service classes.
 - Non-DICOM transports.
 
-The `dimse` package reuses `dicom.TransferSyntax`, `dicom.UID`, `dicom.DataSet`, and `dicom.SOPClassUID` rather than
-re-declaring them (`UBIQUITOUS_LANGUAGE.md`, cross-standard collision table). The package never declares a bare,
-ambiguous `Context` type: presentation context is `dimse.PresentationContext`, distinct from Go's `context.Context`.
+The `dimse` package reuses `dicom.TransferSyntax`, `dicom.UID`, `dicom.DataSet`, `dicom.SOPClassUID`, and
+`dicom.SOPInstanceUID` rather than re-declaring them; those SOP types are owned by the `dicom` package
+(`UBIQUITOUS_LANGUAGE.md`, cross-standard collision table). The package never declares a bare, ambiguous `Context`
+type: presentation context is `dimse.PresentationContext`, distinct from Go's `context.Context`.
 
 ## Overview of the layers
 
@@ -101,44 +102,96 @@ DIMSE status is a 16-bit value whose categorisation (Success / Pending / Warning
 service class (PS3.7 Annex C plus PS3.4 service-class annexes). go-radx returns it as a typed `Status` whose category
 methods read in English and whose `String()` renders the registered meaning by name, never bare hex (PRD §8.2, rule 2).
 
+A `Status` carries only its 16-bit code. The category and the human-readable meaning are **derived**, never stored as
+settable fields, so a caller can never author a status whose category contradicts its code (PRD §8.1). Construct a
+`Status` from a named constant (`StatusStoreSuccess`, `StatusStoreCannotUnderstand`, and the rest of the per-service
+table) or from `NewStatus`, which binds the raw code to the service class that decides how to categorise it.
+
 ```go
-// Status is a DIMSE status value (0000,0900). Category is resolved against the relevant service class so the same
-// numeric code reads correctly in context (e.g. 0xB000 is a Storage warning, not a generic value).
+// Status is a DIMSE status value (0000,0900). It wraps only the wire code; Category() and Meaning() are derived
+// against the service class the status was constructed with, so the same numeric code reads correctly in context
+// (e.g. 0xB000 is a Storage warning, not a generic value).
 type Status struct {
 	Code uint16
-	// Category is the resolved Success/Pending/Warning/Cancel/Failure class.
-	Category StatusCategory
-	// Meaning is the human-readable registered meaning, e.g. "Refused: Out of Resources". Empty for bare Success/Cancel.
-	Meaning string
 }
+
+// NewStatus binds a raw status code to a service class, fixing how Category()/Meaning() resolve it. Prefer the named
+// constants below; reach for NewStatus only when handling a code received from the wire.
+func NewStatus(code uint16, sc ServiceClass) Status
+
+// ServiceClass selects the per-class categorisation table (general, Verification, Storage, FIND, MOVE, GET, Worklist,
+// Procedure Step, Storage Commitment) used to resolve a status code's category and meaning.
+type ServiceClass uint8
+
+const (
+	ServiceClassGeneral ServiceClass = iota
+	ServiceClassVerification
+	ServiceClassStorage
+	ServiceClassFind
+	ServiceClassMove
+	ServiceClassGet
+	ServiceClassWorklist
+	ServiceClassProcedureStep
+	ServiceClassStorageCommitment
+)
 
 type StatusCategory uint8
 
 const (
-	StatusUnknown StatusCategory = iota
-	StatusSuccess
-	StatusPending
-	StatusWarning
-	StatusCancel
-	StatusFailure
+	StatusCategoryUnknown StatusCategory = iota
+	StatusCategorySuccess
+	StatusCategoryPending
+	StatusCategoryWarning
+	StatusCategoryCancel
+	StatusCategoryFailure
 )
 
-func (s Status) IsSuccess() bool // Category == StatusSuccess
-func (s Status) IsPending() bool // Category == StatusPending (a continuing C-FIND/C-GET/C-MOVE match)
-func (s Status) IsWarning() bool // Category == StatusWarning
-func (s Status) IsCancel() bool  // Category == StatusCancel
-func (s Status) IsFailure() bool // Category == StatusFailure
+// Category resolves the Success/Pending/Warning/Cancel/Failure class from the code and its service class.
+func (s Status) Category() StatusCategory
+
+// Meaning returns the registered meaning, e.g. "Refused: Out of Resources". Empty for bare Success/Cancel.
+func (s Status) Meaning() string
+
+func (s Status) IsSuccess() bool // Category() == StatusCategorySuccess
+func (s Status) IsPending() bool // Category() == StatusCategoryPending (a continuing C-FIND/C-GET/C-MOVE match)
+func (s Status) IsWarning() bool // Category() == StatusCategoryWarning
+func (s Status) IsCancel() bool  // Category() == StatusCategoryCancel
+func (s Status) IsFailure() bool // Category() == StatusCategoryFailure
 
 // String renders "0xC000 Failure: Unable to Process" — name and class, the §8.2 legibility rule.
 func (s Status) String() string
+```
+
+Named status constants give callers (and SCP handlers) values they cannot mis-categorise. Each constant pairs a code
+with the service class that defines its meaning, so `StatusStoreCannotUnderstand.Category()` is always `Failure`:
+
+```go
+const (
+	// General / shared
+	StatusSuccess Status = /* 0x0000, ServiceClassGeneral */
+	StatusCancel  Status = /* 0xFE00, ServiceClassGeneral */
+
+	// Storage service class
+	StatusStoreSuccess         Status = /* 0x0000, ServiceClassStorage */
+	StatusStoreOutOfResources  Status = /* 0xA700, ServiceClassStorage */
+	StatusStoreDataSetMismatch Status = /* 0xA900, ServiceClassStorage */
+	StatusStoreCannotUnderstand Status = /* 0xC000, ServiceClassStorage */
+
+	// Query/Retrieve FIND
+	StatusFindPending Status = /* 0xFF00, ServiceClassFind */
+	StatusFindSuccess Status = /* 0x0000, ServiceClassFind */
+
+	// Verification
+	StatusEchoSuccess Status = /* 0x0000, ServiceClassVerification */
+)
 ```
 
 Status resolution is service-class aware, mirroring `pynetdicom/status.py`. The categorisation tables ported are:
 general (PS3.7 Annex C), Verification, Storage (including the ranged `A700–A7FF` out-of-resources, `A900–A9FF`
 data-set-mismatch, and `C000–CFFF` cannot-understand bands), Query/Retrieve FIND, MOVE, and GET, Modality Worklist,
 and the two N-service tables needed in v1 (Procedure Step / MPPS and Storage Commitment). A code with no registered
-meaning in the active service class resolves to `StatusUnknown` with the raw code preserved; it is never silently
-coerced to success.
+meaning in the active service class resolves to category `StatusCategoryUnknown` with the raw code preserved; it is
+never silently coerced to success.
 
 Selected named codes (illustrative, not exhaustive — the full tables live in the implementation and the Conformance
 Statement):
@@ -178,6 +231,13 @@ func WithMaxPDULength(n MaxPDULength) AEOption         // default 16382; 0 = unl
 func WithImplementationClassUID(uid dicom.UID) AEOption
 func WithImplementationVersionName(name string) AEOption
 func WithTLS(cfg *tls.Config) AEOption                // see "Transport security"
+
+// WithStoreHandler registers the sink for instances received as C-GET sub-operations (the requestor stores them
+// itself). Required before calling Association.Get.
+func WithStoreHandler(h StoreHandler) AEOption
+
+// WithCommitmentHandler registers the sink for the Storage Commitment N-EVENT-REPORT result.
+func WithCommitmentHandler(h CommitmentHandler) AEOption
 ```
 
 ### Establishing an outbound association (SCU)
@@ -319,22 +379,26 @@ func NewPresentationContext(id uint8, abstract dicom.SOPClassUID, ts ...dicom.Tr
 
 ### Default transfer syntaxes
 
-When a context is built without an explicit transfer-syntax list, the proposed set is the four `pynetdicom` defaults —
-the uncompressed and deflated syntaxes the core library reads and writes (PRD §6.2 DICOM floor):
+When a context is built without an explicit transfer-syntax list, the proposed set is the four uncompressed/deflated
+syntaxes the core library reads and writes (PRD §6.2 DICOM floor). The order is the proposal preference: the acceptor
+may pick the first acceptable, so Explicit VR Little Endian leads. This literal is identical to the one in
+`docs/conformance/dicom.md`:
 
 ```go
 var DefaultTransferSyntaxes = []dicom.TransferSyntax{
-	dicom.ImplicitVRLittleEndian, // 1.2.840.10008.1.2
-	dicom.ExplicitVRLittleEndian, // 1.2.840.10008.1.2.1
+	dicom.ExplicitVRLittleEndian,         // 1.2.840.10008.1.2.1
+	dicom.ImplicitVRLittleEndian,         // 1.2.840.10008.1.2
 	dicom.DeflatedExplicitVRLittleEndian, // 1.2.840.10008.1.2.1.99
-	dicom.ExplicitVRBigEndian,    // 1.2.840.10008.1.2.2 (retired)
+	dicom.ExplicitVRBigEndian,            // 1.2.840.10008.1.2.2 (retired)
 }
 ```
 
-The full registered transfer-syntax set (45 in `pynetdicom`) is recognised for negotiation. Whether a *compressed*
-syntax can actually be decoded depends on the `dicom` codec build (PRD §7.3): negotiation may accept a JPEG/JPEG-LS/
-JPEG 2000/HTJ2K context, but pixel decode degrades to a typed "codec unavailable" error rather than a panic if the codec
-is not compiled in.
+The full registered transfer-syntax set recognised for negotiation tracks the `dicom` package's transfer-syntax
+registry (mirroring the `pynetdicom` floor). go-radx **decodes** every supported compressed syntax it negotiates;
+**encoding/transcoding** is available only where a codec exists (RLE and JPEG 2000 lossless first), behind the optional
+CGo build tag and off by default (explicit opt-in — PRD §7.3, see `docs/conformance/dicom.md` for the per-syntax
+decode-only vs decode+encode matrix). Negotiation may still accept a JPEG/JPEG-LS/JPEG 2000/HTJ2K context whose codec
+is not compiled in; pixel decode then degrades to a typed "codec unavailable" error rather than a panic.
 
 ### Presets
 
@@ -342,20 +406,26 @@ Presets are curated bundles of presentation contexts for common roles — a go-r
 (glossary). They mirror the `pynetdicom/presentation.py` exports. Each is a function returning a fresh slice so callers
 may mutate without sharing state:
 
+The context counts these functions return are the go-radx conformance subset, defined authoritatively in
+`docs/conformance/dicom.md` (the source of truth for scope). The `pynetdicom` parity floor (120 selected / 170 all
+Storage, 13 Q/R) is cited only as the upstream reference these presets filter from.
+
 ```go
-func VerificationContexts() []PresentationContext        // 1  context  (Verification SOP Class)
-func StorageContexts() []PresentationContext             // ~120 contexts (curated Storage SOP Classes)
-func AllStorageContexts() []PresentationContext          // ~170 contexts (every registered Storage SOP Class)
-func QueryRetrieveContexts() []PresentationContext       // 13 contexts (Patient/Study/Worklist/etc. Q/R models)
-func BasicWorklistContexts() []PresentationContext       // Modality Worklist Information Model — FIND
-func ModalityPerformedContexts() []PresentationContext   // MPPS SOP Class (for the MPPS SCU)
-func StorageCommitmentContexts() []PresentationContext   // Storage Commitment Push Model SOP Class
+func VerificationContexts() []PresentationContext        // 1 context (Verification SOP Class)
+func StorageContexts() []PresentationContext             // 36 contexts (validated radiology Storage set)
+func AllStorageContexts() []PresentationContext          // 170 contexts (every registered Storage SOP Class)
+func QueryRetrieveContexts() []PresentationContext       // 6 contexts (Patient Root + Study Root Q/R models)
+func BasicWorklistContexts() []PresentationContext       // 1 context (Modality Worklist Information Model — FIND)
+func ModalityPerformedContexts() []PresentationContext   // 1 context (MPPS SOP Class, for the MPPS SCU)
+func StorageCommitmentContexts() []PresentationContext   // 1 context (Storage Commitment Push Model SOP Class)
 ```
 
-Because the A-ASSOCIATE-RQ has a 128-context limit, `StorageContexts()` returns the curated ~120 selected classes; use
-`AllStorageContexts()` only when a single role genuinely needs the full ~170 (and split across associations if the
-proposal would exceed 128). The accepted side always returns a single transfer syntax per context; rejected contexts
-still encode exactly one (insignificant) transfer-syntax sub-item, which the prototype omitted (Codex DIMSE-008).
+`StorageContexts()` returns the 36-class validated radiology set — round-trip-tested and interop-verified —
+intentionally narrower than the 120-class `pynetdicom` selected-Storage floor. `AllStorageContexts()` proposes all 170
+registered Storage SOP Classes for transport-only use. Because the A-ASSOCIATE-RQ has a 128-context limit, a single
+`AllStorageContexts()` proposal must be split across associations; the curated `StorageContexts()` set stays well under
+the limit. The accepted side always returns a single transfer syntax per context; rejected contexts still encode exactly
+one (insignificant) transfer-syntax sub-item, which the prototype omitted (Codex DIMSE-008).
 
 ## The DUL state machine (PS3.8 Table 9-10)
 
@@ -478,7 +548,11 @@ func WithMoveOriginator(aet AETitle, msgID uint16) StoreOption
 Query and retrieve operations produce **multiple responses**: zero or more `Pending` statuses (each carrying a matching
 or sub-operation dataset) followed by a single terminal `Success`, `Warning`, `Cancel`, or `Failure`. go-radx exposes
 this as a Go 1.23+ iterator, not a callback (PRD §8.1), so callers consume responses with `range` and can stop early.
-Stopping (or cancelling `ctx`) sends a C-CANCEL:
+Stopping (or cancelling `ctx`) sends a C-CANCEL.
+
+These signatures extend the PRD §8.1 committed form `Find(ctx, q, lvl) iter.Seq2[Status, *dicom.DataSet]` with a
+functional-options variadic (`opts ...QueryOption`) and clearer parameter names. Parameter names are illustrative; the
+type-level shape (receiver, value parameters, `iter.Seq2[Status, *dicom.DataSet]` return) is the committed contract.
 
 ```go
 // Find issues a C-FIND and yields (Status, identifier) for each response. The terminal status yields a nil dataset.
@@ -491,8 +565,8 @@ func (a *Association) Find(
 ) iter.Seq2[Status, *dicom.DataSet]
 
 // Get retrieves matching instances to THIS AE over the same association (C-GET). Each yielded value is a sub-operation
-// status; received instances are delivered to the StoreHandler configured on the AE/association (C-GET requires the
-// requestor to accept the SCP role for the relevant Storage SOP Classes — see RoleSelection).
+// status; received instances are delivered to the StoreHandler registered on the AE via WithStoreHandler (C-GET
+// requires the requestor to accept the SCP role for the relevant Storage SOP Classes — see RoleSelection).
 func (a *Association) Get(
 	ctx context.Context,
 	query *dicom.DataSet,
@@ -534,6 +608,13 @@ failure `Status` is paired with a retrievable error via the association:
 func (a *Association) LastError() error
 ```
 
+`LastError()` is set only for transport or protocol faults (a dropped connection, an A-ABORT, a malformed PDU) that end
+the iteration before a clean terminal DIMSE status; a terminal `Failure`/`Cancel` `Status` is in-band, not an error. It
+is scoped to the most recent iterator on that `Association` and must be read immediately after the `range` loop ends,
+before starting another query. An `Association` is **not** safe for concurrent queries: do not run `Find`/`Get`/`Move`
+iterators on the same association from multiple goroutines, because `LastError()` is per-association, not per-call.
+Concurrency is achieved by opening one association per goroutine (the AE is concurrency-safe).
+
 ### C-CANCEL
 
 There is no standalone `Cancel` method on the everyday path: cancellation is expressed by cancelling the `ctx` passed to
@@ -565,7 +646,10 @@ func (m *MPPS) Set(ctx context.Context, instance dicom.SOPInstanceUID, attrs *di
 
 ```go
 // StorageCommitment is the Storage Commitment Push Model SCU. It requests commitment via N-ACTION and receives the
-// result via an N-EVENT-REPORT from the peer (which may arrive on the same association or a later one).
+// result via an N-EVENT-REPORT from the peer. v1 receives the report on the SAME association: after Request returns,
+// the SCU keeps the association open and the result is delivered to the AE's registered CommitmentHandler (see
+// WithCommitmentHandler). Receiving the report on a later, peer-initiated association is the deferred SCP-side path
+// (scope: N-services SCU only) and is not a v1 guarantee.
 type StorageCommitment struct{ assoc *Association }
 
 func (a *Association) StorageCommitment() *StorageCommitment
@@ -575,26 +659,25 @@ func (a *Association) StorageCommitment() *StorageCommitment
 func (sc *StorageCommitment) Request(
 	ctx context.Context,
 	transactionUID dicom.UID,
-	instances []ReferencedSOPInstance,
+	instances []dicom.ReferencedSOPInstance,
 ) (Status, error)
 
-// ReferencedSOPInstance is a (SOP Class UID, SOP Instance UID) pair: the DICOM referenced-instance shape, deliberately
-// NOT named Reference (glossary: never name a DICOM helper Reference; that noun is FHIR's).
-type ReferencedSOPInstance struct {
-	SOPClassUID    dicom.SOPClassUID
-	SOPInstanceUID dicom.SOPInstanceUID
-}
+// ReferencedSOPInstance is owned by the dicom package (dicom.ReferencedSOPInstance): a (SOP Class UID, SOP Instance
+// UID) pair, deliberately NOT named Reference (that noun is FHIR's). dimse and dicomweb reuse the one dicom type
+// rather than redeclaring it.
 
 // StorageCommitmentResult is delivered to the AE's CommitmentHandler when the N-EVENT-REPORT arrives.
 type StorageCommitmentResult struct {
 	TransactionUID dicom.UID
-	Successful     []ReferencedSOPInstance
+	Successful     []dicom.ReferencedSOPInstance
 	Failed         []FailedSOPInstance
 }
 
+// FailedSOPInstance is a referenced instance plus a DIMSE failure reason code (0008,1197). Same shape as the
+// dicomweb STOW-RS failed-instance entry.
 type FailedSOPInstance struct {
-	ReferencedSOPInstance
-	Reason Status
+	dicom.ReferencedSOPInstance
+	FailureReason uint16
 }
 ```
 
@@ -612,7 +695,7 @@ go-radx models intervention events as interface methods returning typed status, 
 // services are rejected at negotiation or answered with "SOP Class not supported". A handler returning success on work
 // it did not store is a defect (PRD §9.2 fail-closed).
 type Handler interface {
-	// Echo answers a C-ECHO. Return StatusSuccess unless the SCP is degraded.
+	// Echo answers a C-ECHO. Return StatusEchoSuccess unless the SCP is degraded.
 	Echo(ctx context.Context, info OpInfo) Status
 
 	// Store receives one dataset (C-STORE). Persisting it before returning success is the handler's responsibility;
@@ -647,9 +730,29 @@ type OpInfo struct {
 ```
 
 Handlers may implement narrower interfaces (interface segregation, PRD §8.2): a store-only SCP implements
-`StoreHandler`, a worklist SCP implements `FindHandler`. The dispatcher type-asserts for each. Notification events are
-observed by
-registering callbacks on the `Server` (or `AE`) for diagnostics and metrics; they never block the protocol.
+`StoreHandler`, a worklist SCP implements `FindHandler`. The dispatcher type-asserts for each. The same `StoreHandler`
+is the sink for instances received as C-GET sub-operations on the SCU side (registered via `WithStoreHandler`).
+
+```go
+// StoreHandler receives a single dataset, as a C-STORE SCP and as the C-GET sub-operation sink on the requestor.
+type StoreHandler interface {
+	Store(ctx context.Context, ds *dicom.DataSet, info OpInfo) Status
+}
+
+// FindHandler answers a C-FIND query, mirroring the SCU iterator.
+type FindHandler interface {
+	Find(ctx context.Context, query *dicom.DataSet, level QueryLevel, info OpInfo) iter.Seq2[Status, *dicom.DataSet]
+}
+
+// CommitmentHandler receives the Storage Commitment N-EVENT-REPORT result on the SCU. Registered with
+// WithCommitmentHandler; invoked once per correlated transaction.
+type CommitmentHandler interface {
+	Commitment(ctx context.Context, result StorageCommitmentResult)
+}
+```
+
+Notification events are observed by registering callbacks on the `Server` (or `AE`) for diagnostics and metrics; they
+never block the protocol.
 
 When the SCP's C-GET / C-MOVE handler drives sub-operation C-STOREs, each sub-operation gets a **real, distinct Message
 ID**, and each C-STORE-RSP is read through the same reassembly loop as a normal response — the prototype used
@@ -715,7 +818,16 @@ files, never hard-coded, and are never logged (PRD §9.8).
 ### C-ECHO (verification)
 
 ```go
-ae, err := dimse.NewAE("RADX-SCU")
+calling, err := dimse.ParseAETitle("RADX-SCU") // validates length 1..16 and the allowed repertoire
+if err != nil {
+	log.Fatal(err)
+}
+called, err := dimse.ParseAETitle("ORTHANC")
+if err != nil {
+	log.Fatal(err)
+}
+
+ae, err := dimse.NewAE(calling)
 if err != nil {
 	log.Fatal(err)
 }
@@ -723,7 +835,7 @@ if err != nil {
 ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 defer cancel()
 
-assoc, err := ae.Associate(ctx, "pacs.example.org:104", "ORTHANC", dimse.VerificationContexts())
+assoc, err := ae.Associate(ctx, "pacs.example.org:104", called, dimse.VerificationContexts())
 if err != nil {
 	log.Fatalf("association failed: %v", err)
 }
@@ -747,7 +859,7 @@ if err != nil {
 	log.Fatal(err)
 }
 
-assoc, err := ae.Associate(ctx, "pacs.example.org:104", "ORTHANC", dimse.StorageContexts())
+assoc, err := ae.Associate(ctx, "pacs.example.org:104", called, dimse.StorageContexts())
 if err != nil {
 	log.Fatal(err)
 }
@@ -770,7 +882,7 @@ query.SetString(dicom.TagPatientID, "12345")
 query.SetEmpty(dicom.TagStudyInstanceUID)   // request these keys back
 query.SetEmpty(dicom.TagStudyDescription)
 
-assoc, err := ae.Associate(ctx, "pacs.example.org:104", "ORTHANC", dimse.QueryRetrieveContexts())
+assoc, err := ae.Associate(ctx, "pacs.example.org:104", called, dimse.QueryRetrieveContexts())
 if err != nil {
 	log.Fatal(err)
 }
@@ -796,22 +908,34 @@ Cancelling `ctx` (or `break`ing out of the loop) mid-iteration sends a C-CANCEL 
 
 ### Serving a Storage SCP
 
+Handlers return named status constants, never `Status` struct literals — a literal with a `Category` field would let a
+handler author a status that contradicts its code, which the typed model exists to prevent (PRD §8.1).
+
 ```go
 type fileStore struct{ dir string }
 
 func (f *fileStore) Echo(ctx context.Context, info dimse.OpInfo) dimse.Status {
-	return dimse.Status{Code: 0x0000, Category: dimse.StatusSuccess}
+	return dimse.StatusEchoSuccess
 }
 
 func (f *fileStore) Store(ctx context.Context, ds *dicom.DataSet, info dimse.OpInfo) dimse.Status {
-	if err := ds.WriteFile(filepath.Join(f.dir, info.SOPClassUID.String()+".dcm")); err != nil {
-		return dimse.Status{Code: 0xC000, Category: dimse.StatusFailure, Meaning: "Cannot Understand"}
+	// Write a Part 10 file using the transfer syntax the context was negotiated with.
+	path := filepath.Join(f.dir, info.SOPClassUID.String()+".dcm")
+	if err := ds.WriteFile(path, info.TransferSyntax); err != nil {
+		return dimse.StatusStoreCannotUnderstand
 	}
-	return dimse.Status{Code: 0x0000, Category: dimse.StatusSuccess}
+	return dimse.StatusStoreSuccess
 }
 
 func main() {
-	ae, _ := dimse.NewAE("RADX-SCP")
+	title, err := dimse.ParseAETitle("RADX-SCP")
+	if err != nil {
+		log.Fatal(err)
+	}
+	ae, err := dimse.NewAE(title)
+	if err != nil {
+		log.Fatal(err)
+	}
 	srv := dimse.NewServer(ae, dimse.AllStorageContexts(), &fileStore{dir: "/var/dicom"})
 	ctx := context.Background()
 	// Default bind is loopback; pass an explicit address to bind elsewhere.
@@ -835,7 +959,8 @@ What v1 conforms to:
   user identity types 1–5, SOP-class extended and common-extended negotiation.
 - **DUL**: PS3.8 Table 9-10 in full — 13 states (including Sta9–Sta12), 19 events, 28 actions.
 - **Transfer syntaxes**: the four defaults negotiated and exercised end-to-end; the full registered set recognised for
-  negotiation; compressed-syntax pixel decode subject to the `dicom` codec build (PRD §7.3).
+  negotiation; every supported compressed syntax **decoded**; **encode/transcode** only where a codec exists (RLE and
+  JPEG 2000 lossless first), behind the optional CGo build tag and off by default (PRD §7.3, conformance matrix).
 - **Transport**: plain TCP and TLS 1.2+ with peer verification and optional mutual TLS.
 - **Interoperability**: verified in CI against Orthanc and dcm4chee-arc (PRD §11.1).
 
@@ -844,9 +969,10 @@ Explicit limits (deferred, architected-for — PRD §3.2, §5.1):
 - No SCP / server side of MPPS or Storage Commitment.
 - No standalone N-GET / N-DELETE service, no Print Management, no Unified Procedure Step (UPS).
 - No private SOP-class business logic; private abstract syntaxes negotiate generically.
-- Compressed transfer-syntax *codec availability* is a `dicom`-package build concern, not a DIMSE guarantee: a context
-  may be negotiated whose pixel data cannot be decoded without the optional CGo codecs, in which case decode returns a
-  typed "codec unavailable" error.
+- Compressed transfer-syntax *codec availability* is a `dicom`-package build concern, not a DIMSE guarantee. Decode of
+  every supported compressed syntax is in scope; encode/transcode is gated on a compiled-in codec behind the optional
+  CGo build tag (off by default). A context may be negotiated whose pixel data cannot be decoded without the optional
+  codecs, in which case decode returns a typed "codec unavailable" error.
 
 ## See also
 

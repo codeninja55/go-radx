@@ -8,8 +8,9 @@ serialization boundary, preserves decimal lexical fidelity, and round-trips the 
 
 This document is the public-API contract for the package. The implementation conforms to it; where the PRD
 (`docs/prd/go-radx-prd.md`) committed a signature in §8.1, this document honours it verbatim. Terminology follows the
-project glossary (`UBIQUITOUS_LANGUAGE.md`); in particular, `fhir.Element` is the FHIR base component and is never
-conflated with a DICOM data element, and `fhir.Reference` is never used for a DICOM referenced-SOP UID pair.
+project glossary (`UBIQUITOUS_LANGUAGE.md`); in particular, the FHIR `Element` base component (generated per release as
+`r4.Element`/`r5.Element`) is never conflated with a DICOM data element, and the FHIR `Reference` datatype is never used
+for a DICOM referenced-SOP UID pair.
 
 ## Scope and conformance
 
@@ -47,6 +48,42 @@ import (
 
 Each release package's resource types satisfy `fhir.Resource`, so `fhir.Unmarshal[*r5.Patient]` and
 `fhir.As[*r4.Patient]` both work without the caller importing release-specific helper functions.
+
+The root `fhir` package holds **only** release-agnostic machinery: the `Resource` interface, `Unmarshal[T]`/`As[T]`,
+`UnmarshalResource`, the `Decimal` primitive, the `OperationOutcome` issue-severity constants, the sentinel errors, and
+the `resourceType`-to-factory registry. There is no `fhir.Patient`, `fhir.Reference`, or `fhir.Bundle` at the root —
+every resource, backbone element, and complex datatype is generated per release under `fhir/r4` and `fhir/r5`.
+
+### Complex datatypes
+
+Complex datatypes (`Reference`, `Identifier`, `Coding`, `CodeableConcept`, `Quantity`, `HumanName`, `Period`, and the
+rest) are generated per release alongside resources, so a consumer writes `r5.Reference` and `r5.Identifier`, never a
+root `fhir.Reference`. The two datatypes that other go-radx packages depend on most — `convert` builds them from DICOM
+and HL7 v2 data, `Bundle.Resolve` consumes them — have this committed shape (shown for R5; R4 is identical in these
+fields):
+
+```go
+// Reference is a FHIR reference datatype: a pointer to another resource by
+// relative/absolute URL, by logical Identifier, or both, with an optional
+// human-readable Display and a Type hint naming the referenced resource.
+type Reference struct {
+    Reference  *string     `json:"reference,omitempty"`  // e.g. "Patient/pat-1" or "#contained-id"
+    Type       *string     `json:"type,omitempty"`       // referenced resourceType, e.g. "Patient"
+    Identifier *Identifier `json:"identifier,omitempty"` // logical (identifier-based) reference
+    Display    *string     `json:"display,omitempty"`
+}
+
+// Identifier is a FHIR identifier datatype: a value qualified by the system that
+// issued it. DICOM UIDs map to an Identifier with system "urn:dicom:uid" (the
+// glossary rule), never to a Reference.
+type Identifier struct {
+    Use      *string          `json:"use,omitempty"`
+    Type     *CodeableConcept `json:"type,omitempty"`
+    System   *string          `json:"system,omitempty"`
+    Value    *string          `json:"value,omitempty"`
+    Assigner *Reference       `json:"assigner,omitempty"`
+}
+```
 
 ## The Resource interface and type-safe access
 
@@ -146,11 +183,19 @@ Required scalar primitives are generated as **pointers** (`*bool`, `*int32`, and
 distinguishable from a valid zero value. This is the structural half of the FHIR-007 fix: a required `false` is present
 because the pointer is non-nil, regardless of the value it points to.
 
+The Go-scalar mapping above applies to **plain primitive fields**. When a primitive appears as a branch of a choice
+group (see [Choice types](#choice-types-typed-accessors-and-mutual-exclusion)), the value is boxed in the release's
+named primitive wrapper type — `r5.FHIRString`, `r5.FHIRBoolean`, `r5.FHIRInteger`, and so on — because the built-in
+Go `string`/`bool`/`int32` cannot carry the marker method that seals the choice interface. The wrapper's underlying
+type is the same scalar, so the conversion cost is a single `r5.FHIRString("text")` at the call site.
+
 ### The `_field` sibling
 
 In FHIR JSON, a primitive element may carry an `id` and `extension` through a sibling property whose name is the
 primitive's name prefixed with an underscore. For a primitive field `Foo`, the generated struct carries a paired
-`Foo_ext` field of type `*PrimitiveElement`:
+`FooElement` field of type `*PrimitiveElement`. The Go field name uses the idiomatic `XxxElement` suffix (the
+convention HAPI and most FHIR codegen use); the JSON tag still maps it to the `_foo` wire sibling, so the underscore
+lives only in the serialised form, never in a Go identifier:
 
 ```go
 // PrimitiveElement carries the id and extensions of a primitive value through
@@ -164,8 +209,8 @@ type PrimitiveElement struct {
 // Example: Patient.gender and its "_gender" sibling.
 type Patient struct {
     // ...
-    Gender    AdministrativeGender `json:"gender,omitempty"`
-    Gender_ext *PrimitiveElement   `json:"_gender,omitempty"`
+    Gender        AdministrativeGender `json:"gender,omitempty"`
+    GenderElement *PrimitiveElement    `json:"_gender,omitempty"`
     // ...
 }
 ```
@@ -181,8 +226,8 @@ per the FHIR primitive-array rules.
 //   "given":  ["Jane", "Q"]
 //   "_given": [null, {"id":"middle-initial"}]
 type HumanName struct {
-    Given     []string            `json:"given,omitempty"`
-    Given_ext []*PrimitiveElement `json:"_given,omitempty"`
+    Given        []string            `json:"given,omitempty"`
+    GivenElement []*PrimitiveElement `json:"_given,omitempty"`
     // ...
 }
 ```
@@ -210,10 +255,17 @@ func ParseDecimal(s string) (Decimal, error)
 // String returns the preserved lexical form exactly as parsed.
 func (d Decimal) String() string
 
-// Float64 returns the value as a float64. ok is false when the lexical form has
-// no finite float64 representation; callers that need full precision must use
-// String or BigFloat instead.
+// Float64 returns the value as a float64. ok is false only when the lexical form
+// has no finite float64 representation; a value that is representable but not
+// exactly (such as 0.1) still returns ok == true. Callers that need full
+// precision use String or BigFloat. This signature and semantics are identical
+// across dicom.md, fhir.md, and the conformance statements.
 func (d Decimal) Float64() (f float64, ok bool)
+
+// Exact reports whether the lexical form converts to a float64 with no loss of
+// precision. It is the exactness signal kept separate from Float64's ok return,
+// so the bool on Float64 is never overloaded to mean two different things.
+func (d Decimal) Exact() bool
 
 // BigFloat returns a *big.Float with precision sufficient for the lexical form.
 func (d Decimal) BigFloat() *big.Float
@@ -245,9 +297,12 @@ the other siblings.
 
 ```go
 // ObservationValue is the sealed value type for Observation.value[x]. It is
-// implemented only by the permitted choice branches (Quantity, CodeableConcept,
-// String, Boolean, Integer, Range, Ratio, SampledData, Time, DateTime, Period,
-// and the rest defined by the StructureDefinition for the release).
+// implemented only by NAMED FHIR datatype types — never the built-in string,
+// bool, or int32, which cannot carry the unexported marker method. The complex
+// branches (Quantity, CodeableConcept, Range, Ratio, SampledData, Period, and
+// the rest defined by the StructureDefinition for the release) are the generated
+// datatype structs; the primitive branches are the release primitive wrappers
+// (FHIRString, FHIRBoolean, FHIRInteger, FHIRDateTime, FHIRTime, ...).
 type ObservationValue interface {
     isObservationValue()
 }
@@ -265,7 +320,8 @@ func (o *Observation) SetValueQuantity(q Quantity)
 func (o *Observation) SetValueCodeableConcept(c CodeableConcept)
 ```
 
-Reading a choice value uses a type switch on the sealed interface:
+Reading a choice value uses a type switch on the sealed interface. A primitive branch is the release wrapper type, so
+recovering the plain Go value is one explicit conversion — the cost of making `string`-valued choices type-safe:
 
 ```go
 if v, ok := obs.Value(); ok {
@@ -274,11 +330,15 @@ if v, ok := obs.Value(); ok {
         fmt.Printf("%s %s\n", val.Value, val.Unit) // val.Value is fhir.Decimal
     case r5.CodeableConcept:
         fmt.Println(val.Text)
-    case r5.String:
-        fmt.Println(string(val))
+    case r5.FHIRString:
+        fmt.Println(string(val)) // FHIRString's underlying type is string
     }
 }
 ```
+
+Setting a `string`-valued branch boxes the value the same way, for example
+`obs.SetValueString(r5.FHIRString("normal"))`. The wrapper appears only on choice branches; a plain `Observation.note`
+text field is still a Go `string`.
 
 Because every `SetValueX` clears the others, you cannot author a resource with both `valueQuantity` and `valueString`
 populated, and the marshaller therefore cannot emit an invalid two-branch choice. This is the FHIR-001 fix; it also
@@ -367,10 +427,12 @@ remains the official HL7 FHIR validator in CI (PRD §11.1).
 
 ## Bundles
 
-A `Bundle` is a typed resource whose processing semantics depend on `Bundle.type`. go-radx models the entry structure
-faithfully (`fullUrl`, `resource`, `request`, `response`, `search`) and provides type-specific construction so you
-cannot accidentally produce a bundle that violates the FHIR `bdl-*` invariants. This is the FHIR-010 fix; the prototype
-incremented `total` for every bundle type and enforced no per-type constraints.
+A `Bundle` is a typed resource whose processing semantics depend on `Bundle.type`. Like every resource it is generated
+per release, so the type and its builders live in `fhir/r4` and `fhir/r5` (`r5.Bundle`, `r5.NewSearchSet`, and so on);
+there is no root `fhir.Bundle`. go-radx models the entry structure faithfully (`fullUrl`, `resource`, `request`,
+`response`, `search`) and provides type-specific construction so you cannot accidentally produce a bundle that violates
+the FHIR `bdl-*` invariants. This is the FHIR-010 fix; the prototype incremented `total` for every bundle type and
+enforced no per-type constraints. The builders below are shown for R5; R4 has the same signatures in its own package.
 
 ```go
 // BundleType is the required binding for Bundle.type.
@@ -421,25 +483,26 @@ explicit rather than papering over it with a mutex on a mutable helper.
 ## Reference integrity
 
 go-radx resolves references within a bundle and within `contained` resources, the two contexts where FHIR defines local
-resolution.
+resolution. These are methods on the release-specific `Bundle` and `DomainResource` types (shown for R5); they take a
+release `Reference` and return the root `fhir.Resource` interface so the caller narrows with `fhir.As[T]`:
 
 ```go
-// Resolve looks up the resource that ref points to within the scope of bundle.
+// Resolve looks up the resource that ref points to within the scope of the bundle.
 // It resolves entry.fullUrl matches and "#id" contained references. ok is false
 // when the target is not present in the bundle (an external reference, or a
 // dangling local one).
-func (b *Bundle) Resolve(ref Reference) (res Resource, ok bool)
+func (b *Bundle) Resolve(ref Reference) (res fhir.Resource, ok bool)
 
 // Contained returns the contained resource with the given anchor id ("#id" without
 // the leading '#'). It returns an error — not a silent miss — when a contained
 // entry is structurally malformed, so a corrupt payload surfaces as a data-quality
 // failure rather than a false "not found". This is the FHIR-011 fix.
-func (r *DomainResource) Contained(id string) (Resource, error)
+func (r *DomainResource) Contained(id string) (fhir.Resource, error)
 
 // CheckReferenceIntegrity walks every Reference in the bundle and reports, as
 // OperationOutcome issues, any local reference (fullUrl or "#id") that does not
 // resolve. External references (absolute URLs to other servers) are not flagged.
-func (b *Bundle) CheckReferenceIntegrity() *OperationOutcome
+func (b *Bundle) CheckReferenceIntegrity() *fhir.OperationOutcome
 ```
 
 `Contained` returns an aggregate error identifying the offending entry index when a contained resource is malformed,
@@ -455,14 +518,21 @@ The package distinguishes two failure channels, and uses each deliberately:
 2. **`OperationOutcome`** for validation, where the natural result is a *set* of issues with severities. `Validate`,
    `CheckReferenceIntegrity`, and the bundle builders' validators return an `*OperationOutcome`.
 
+The `OperationOutcome` resource is generated per release like any other resource (`r4.OperationOutcome`,
+`r5.OperationOutcome`). The `IssueSeverity` binding and its constants are stable across R4 and R5, so they live in the
+root `fhir` package as release-agnostic machinery and both release packages alias them:
+
 ```go
-// OperationOutcome is a structured FHIR result carrying zero or more issues.
+// OperationOutcome is a structured FHIR result carrying zero or more issues. It
+// is a generated resource (r4.OperationOutcome / r5.OperationOutcome) with the
+// standard DomainResource fields (id, meta, text, and so on) elided here.
 type OperationOutcome struct {
     Issue []*OperationOutcomeIssue `json:"issue"`
-    // ... standard DomainResource fields
 }
 
-// IssueSeverity is the required binding for OperationOutcome.issue.severity.
+// IssueSeverity is the required binding for OperationOutcome.issue.severity. It
+// lives in the root fhir package because the severities are identical in R4 and
+// R5.
 type IssueSeverity string
 
 const (
@@ -562,7 +632,8 @@ test, are:
 - **Choice groups.** One sealed value interface, one `Value()` getter, and one `SetValueX` setter per branch, plus the
   suffixed storage fields for JSON. Group cardinality is validated once per group.
 - **Primitive extensions.** A `*PrimitiveElement` sibling for each scalar primitive and a `[]*PrimitiveElement` for each
-  repeating primitive, with null-aligned marshalling — and no `_field` sibling on any non-primitive.
+  repeating primitive, with null-aligned marshalling — and no `_field` sibling on any non-primitive. The sibling field
+  uses the idiomatic `XxxElement` Go name with a `json:"_xxx,omitempty"` tag, so no Go identifier carries an underscore.
 - **Required-binding enums.** A defined string type, const set, `ParseXxx`, and a validating `UnmarshalJSON` for every
   `required`-strength binding; `string` for weaker strengths.
 - **`resourceType`.** A constant `ResourceType()` method and a `MarshalJSON` that always emits the constant.
@@ -576,14 +647,18 @@ test, are:
 ```
 fhir/
 ├── resource.go          # Resource interface, Unmarshal[T], As[T], UnmarshalResource, registry, sentinel errors
-├── decimal.go           # Decimal primitive
-├── primitive.go         # PrimitiveElement, primitive-extension marshalling helpers
+├── decimal.go           # Decimal primitive (Float64, Exact, BigFloat)
+├── primitive.go         # PrimitiveElement, primitive-extension marshalling helpers (shared by both releases)
 ├── summary.go           # SummaryMode, MarshalSummary
-├── outcome.go           # OperationOutcome, IssueSeverity
+├── outcome.go           # IssueSeverity binding and severity constants (the resource is generated per release)
 ├── internal/gen/        # the code generator (build-time only)
-├── r4/                  # generated R4 4.0.1: resources, datatypes, enums, registry init
-└── r5/                  # generated R5 5.0.0: resources, datatypes, enums, registry init
+├── r4/                  # generated R4 4.0.1: resources, datatypes, enums, OperationOutcome, registry init
+└── r5/                  # generated R5 5.0.0: resources, datatypes, enums, OperationOutcome, registry init
 ```
+
+The root machinery is release-agnostic; everything that differs between R4 and R5 — resources, complex datatypes such
+as `Reference` and `Identifier`, the per-release `OperationOutcome` resource, and the required-binding enums — lives
+in `r4` and `r5`. Generated release structs reference the shared `fhir.PrimitiveElement` for their `_field` siblings.
 
 R4 and R5 are genuinely separate packages with their own type names, resolving the FHIR-014 defect where the prototype
 declared `package resources` inside a `types` directory and produced two incompatible sets of similarly named types.

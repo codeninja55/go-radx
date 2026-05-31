@@ -143,25 +143,33 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 
 // StoreResponse models the application/dicom+json store response (PS3.18 §10.5).
 type StoreResponse struct {
-    RetrieveURL string                   // (0008,1190) of the response dataset, if present
-    Referenced  []ReferencedSOPInstance  // (0008,1199) — instances the server accepted
-    Failed      []FailedSOPInstance      // (0008,1198) — instances the server rejected, with a DIMSE-style reason
+    RetrieveURL string                    // (0008,1190) of the response dataset, if present
+    Referenced  []StoredInstance          // (0008,1199) — instances the server accepted
+    Failed      []dicom.FailedSOPInstance // (0008,1198) — instances the server rejected, with a reason code
 }
 
 func (r *StoreResponse) IsComplete() bool // true only when Failed is empty
 
-// ReferencedSOPInstance and FailedSOPInstance reuse the DICOM noun (never bare "Reference"; see glossary).
-type ReferencedSOPInstance struct {
-    SOPClassUID    dicom.UID
-    SOPInstanceUID dicom.UID
-    RetrieveURL    string
+// StoredInstance is an accepted STOW-RS instance: the canonical dicom.ReferencedSOPInstance pair plus the
+// HTTP-specific per-instance RetrieveURL (0008,1190) the origin assigns. Embedding the shared type keeps the SOP
+// UID vocabulary identical to dimse and dicom without re-declaring it.
+type StoredInstance struct {
+    dicom.ReferencedSOPInstance
+    RetrieveURL string
 }
 
-type FailedSOPInstance struct {
-    SOPClassUID    dicom.UID
-    SOPInstanceUID dicom.UID
-    FailureReason  dimse.Status // the (0008,1197) failure-reason code, rendered by name in diagnostics
-}
+// ReferencedSOPInstance and FailedSOPInstance are the canonical referenced-instance shapes owned by the dicom
+// package (never bare "Reference"; that noun is FHIR's — see glossary). dicomweb reuses them so a Storage-Commitment
+// result (dimse) and a STOW-RS response (dicomweb) speak the same vocabulary; dimse.md uses the identical pair:
+//
+//	type ReferencedSOPInstance struct {
+//	    SOPClassUID    dicom.SOPClassUID
+//	    SOPInstanceUID dicom.SOPInstanceUID
+//	}
+//	type FailedSOPInstance struct {
+//	    ReferencedSOPInstance
+//	    FailureReason uint16 // the (0008,1197) failure-reason code, rendered by name in diagnostics
+//	}
 ```
 
 ### QIDO-RS search
@@ -251,10 +259,14 @@ type StoreBackend interface {
     Store(ctx context.Context, ds *dicom.DataSet) error
 }
 
-// Retrieve resolves a ResourcePath to instances and metadata (used by WADO-RS).
+// Retrieve resolves a ResourcePath to instances, metadata, frames, and bulk data (used by WADO-RS). The method set
+// mirrors the client retrieval surface so the embeddable server can answer every WADO-RS resource the client requests
+// and the conformance statement claims: /instances, /metadata, /frames, and /bulkdata.
 type RetrieveBackend interface {
     RetrieveInstances(ctx context.Context, p ResourcePath) iter.Seq2[*dicom.DataSet, error]
+    RetrieveMetadata(ctx context.Context, p ResourcePath) ([]*dicom.DataSet, error)
     RetrieveFrames(ctx context.Context, p ResourcePath, frames ...int) ([][]byte, error)
+    RetrieveBulkData(ctx context.Context, uri BulkDataURI) ([]byte, error)
 }
 
 // Query answers QIDO-RS searches.
@@ -282,8 +294,8 @@ default; a non-loopback bind is explicit (PRD §9.1).
 ## Behaviour and error model
 
 Errors are returned as values, typed, and rendered in human terms (PRD §8.2). DICOM concepts appear by name —
-tags as keyword plus `(gggg,eeee)`, transfer syntaxes and SOP classes by registered name, STOW failure reasons as
-named `dimse.Status` values — and never carry PHI by default (PRD §9.1).
+tags as keyword plus `(gggg,eeee)`, transfer syntaxes and SOP classes by registered name, the STOW failure-reason
+code (0008,1197) rendered by its registered name — and never carry PHI by default (PRD §9.1).
 
 ```go
 // HTTPError carries the transport-level failure with enough context to act, without PHI.
@@ -397,7 +409,7 @@ if err != nil {
     log.Fatalf("qido: %v", err)
 }
 for _, ds := range studies {
-    uid, _ := ds.UID(dicom.TagStudyInstanceUID)
+    uid, _ := ds.GetUID(dicom.TagStudyInstanceUID)
     log.Printf("study %s", uid)
 }
 ```
