@@ -124,3 +124,44 @@ func TestTypedGetters(t *testing.T) {
 		t.Error("absent tag should return ok == false")
 	}
 }
+
+// TestBuildDatasetWorkedExample mirrors the reference doc "Build a dataset" example
+// through the Increment 1 type system only (no I/O): build a DataSet with a
+// PatientName and a StudyInstanceUID minted by a UIDGenerator, then read every value
+// back through the typed getters and assert it round-trips through the types.
+func TestBuildDatasetWorkedExample(t *testing.T) {
+	ds := NewDataSet()
+	ds.Set(Element{
+		Tag:   LookupKeywordTag("PatientName"),
+		VR:    VRPN,
+		Value: NewStrings(VRPN, "Doe^Jane"),
+	})
+
+	gen, err := NewUIDGenerator("1.2.826.0.1.3680043.2.1143")
+	if err != nil {
+		t.Fatal(err)
+	}
+	study := gen.Generate()
+	if !study.IsValid() {
+		t.Fatalf("minted StudyInstanceUID is invalid: %q", study)
+	}
+	ds.Set(Element{
+		Tag:   LookupKeywordTag("StudyInstanceUID"),
+		VR:    VRUI,
+		Value: NewStrings(VRUI, string(study)),
+	})
+
+	pn, ok := ds.GetPersonName(LookupKeywordTag("PatientName"))
+	if !ok || pn.Alphabetic.FamilyName != "Doe" || pn.Alphabetic.GivenName != "Jane" {
+		t.Errorf("PatientName round-trip = (%+v,%v)", pn, ok)
+	}
+
+	gotUID, ok := ds.GetUID(LookupKeywordTag("StudyInstanceUID"))
+	if !ok || gotUID != study {
+		t.Errorf("StudyInstanceUID round-trip = (%q,%v), want %q", gotUID, ok, study)
+	}
+
+	if ds.Len() != 2 {
+		t.Errorf("Len() = %d, want 2", ds.Len())
+	}
+}
