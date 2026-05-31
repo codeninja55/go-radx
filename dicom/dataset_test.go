@@ -99,3 +99,28 @@ func TestCloneLengthMatches(t *testing.T) {
 		t.Error("Clone should preserve element count")
 	}
 }
+
+func TestTypedGetters(t *testing.T) {
+	ds := NewDataSet()
+	ds.Set(Element{Tag: TagStudyInstanceUID, VR: VRUI, Value: NewStrings(VRUI, "1.2.840.10008.1.2.1")})
+	ds.Set(Element{Tag: TagPatientName, VR: VRPN, Value: NewStrings(VRPN, "Doe^Jane")})
+	d, _ := ParseDecimal("1.5")
+	ds.Set(Element{Tag: LookupKeywordTag("SliceThickness"), VR: VRDS, Value: NewDecimals(VRDS, d)})
+	ds.Set(Element{Tag: LookupKeywordTag("Rows"), VR: VRUS, Value: NewInts(VRUS, 512)})
+
+	if u, ok := ds.GetUID(TagStudyInstanceUID); !ok || u != "1.2.840.10008.1.2.1" {
+		t.Errorf("GetUID = (%q,%v)", u, ok)
+	}
+	if pn, ok := ds.GetPersonName(TagPatientName); !ok || pn.Alphabetic.FamilyName != "Doe" {
+		t.Errorf("GetPersonName = (%+v,%v)", pn, ok)
+	}
+	if dec, ok := ds.GetDecimal(LookupKeywordTag("SliceThickness")); !ok || dec.String() != "1.5" {
+		t.Errorf("GetDecimal = (%v,%v)", dec, ok)
+	}
+	if n, ok := ds.GetInt(LookupKeywordTag("Rows")); !ok || n != 512 {
+		t.Errorf("GetInt = (%d,%v)", n, ok)
+	}
+	if _, ok := ds.GetString(TagPatientID); ok {
+		t.Error("absent tag should return ok == false")
+	}
+}

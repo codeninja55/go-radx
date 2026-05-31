@@ -114,6 +114,69 @@ func (ds *DataSet) GetStrings(t Tag) ([]string, bool) {
 	return sv.Strings(), true
 }
 
+// GetUID returns the first UI value parsed as a UID.
+func (ds *DataSet) GetUID(t Tag) (UID, bool) {
+	s, ok := ds.GetString(t)
+	if !ok {
+		return "", false
+	}
+	return UID(s), true
+}
+
+// GetInt returns the first integer value of an IS/SS/US/SL/UL/SV/UV element.
+func (ds *DataSet) GetInt(t Tag) (int64, bool) {
+	e, ok := ds.Get(t)
+	if !ok {
+		return 0, false
+	}
+	switch v := e.Value.(type) {
+	case *Ints:
+		ns := v.Ints()
+		if len(ns) == 0 {
+			return 0, false
+		}
+		return ns[0], true
+	case *Decimals: // IS is carried as a Decimal
+		ds := v.Decimals()
+		if len(ds) == 0 {
+			return 0, false
+		}
+		return ds[0].Int64()
+	default:
+		return 0, false
+	}
+}
+
+// GetDecimal returns the first DS value.
+func (ds *DataSet) GetDecimal(t Tag) (Decimal, bool) {
+	e, ok := ds.Get(t)
+	if !ok {
+		return Decimal{}, false
+	}
+	dv, ok := e.Value.(*Decimals)
+	if !ok {
+		return Decimal{}, false
+	}
+	vals := dv.Decimals()
+	if len(vals) == 0 {
+		return Decimal{}, false
+	}
+	return vals[0], true
+}
+
+// GetPersonName returns the first PN value parsed into component groups.
+func (ds *DataSet) GetPersonName(t Tag) (PersonName, bool) {
+	s, ok := ds.GetString(t)
+	if !ok {
+		return PersonName{}, false
+	}
+	pn, err := ParsePersonName(s)
+	if err != nil {
+		return PersonName{}, false
+	}
+	return pn, true
+}
+
 // Clone returns a deep copy: every element's value slice is copied, not aliased, so
 // de-identification and conversion never contaminate the source (Codex DCM-016).
 func (ds *DataSet) Clone() *DataSet {
