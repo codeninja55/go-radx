@@ -1,0 +1,25 @@
+# Binaries and build output
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Coverage
+*.coverprofile
+coverage.*
+cover.html
+
+# Go workspace (local multi-module dev convenience; not for consumers)
+go.work
+go.work.sum
+
+# OS / editor
+.DS_Store
+*.swp
+*~
+
+# Environment / secrets (never commit; see PRD §9.8)
+.env
+.env.*
+!.env.example
