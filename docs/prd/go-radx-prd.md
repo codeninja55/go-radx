@@ -234,7 +234,7 @@ go-radx/
 ├── dimse/        # DIMSE networking: DUL FSM, PDU, ACSE association, SCU, SCP, C/N services
 ├── dicomweb/     # DICOMweb: WADO-RS, STOW-RS, QIDO-RS — client and server (greenfield; measured vs dc4che + the standard)
 ├── hl7v2/        # HL7 v2.x: typed segments/messages, generic tree, batch/file, MLLP client/server (greenfield)
-├── fhir/         # FHIR R4/R5: generator, generated resources, primitives, validation, bundles, summary mode
+├── fhir/         # FHIR R4/R5: root (Resource, Unmarshal/As, Decimal) + generated r4/ and r5/ release sub-packages
 ├── convert/      # Cross-standard: DICOM→FHIR ImagingStudy, SR↔DiagnosticReport, HL7v2↔FHIR
 ├── server/       # Embeddable server building blocks + pluggable storage/auth interfaces
 └── cmd/radx/     # The flagship CLI and thin reference daemons (separate Go module — §7.4)
@@ -285,7 +285,7 @@ methods cannot declare type parameters, so all type-parameterised dispatch is vi
 // FHIR resource identity + type-safe access. Registry returns the interface; generics give the static type.
 type Resource interface{ ResourceType() string }
 func Unmarshal[T Resource](data []byte) (T, error) // verifies embedded resourceType matches T, else error
-func As[T Resource](r Resource) (T, bool)           // checked downcast; call site: fhir.As[*Patient](entry.Resource)
+func As[T Resource](r Resource) (T, bool)           // checked downcast; call site: fhir.As[*r5.Patient](entry.Resource)
 
 // Choice types: typed accessor + setters; mutual exclusion enforced at the boundary.
 type ObservationValue interface{ isObservationValue() } // sealed-ish; implemented by Quantity, CodeableConcept, ...

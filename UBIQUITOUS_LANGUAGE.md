@@ -81,7 +81,9 @@ through `convert/`.
 - **Repeating Group** (`RepeatingGroup`) — `60xx`/`50xx`; dictionary lookup masks the variable bytes.
 - **Implicit vs Explicit VR** (`ExplicitVR`) — encoding style set by the Transfer Syntax; the reader must honour the
   negotiated syntax (the prototype always used Implicit VR LE — a defect).
-- **generate_uid** (`GenerateUID`) — mint a new UID under the org root; reused by PS3.15 UID remapping.
+- **UID generation** (`UIDGenerator`, via `NewUIDGenerator(root)` / `NewRandomUIDGenerator()` and
+  `(*UIDGenerator).Generate()`) — mint UIDs under a configured org root (no default registered root; fail-closed);
+  reused by the PS3.15 Profile for consistent UID remapping.
 - **Keyword** (`Keyword`) — human-readable element name (e.g. `PatientName`) from the data dictionary (~5,189 entries);
   resolved from a static dictionary, not reflection.
 - **File-set / DICOMDIR** (`FileSet`) — Media Storage Directory + referenced files.
@@ -151,7 +153,12 @@ through `convert/`.
   it.
 - **Message Control ID** (`MessageControlID`) — MSH-10; locally unique, not a global UID.
 
-## FHIR (package `fhir`)
+## FHIR (packages `fhir` + `fhir/r4`, `fhir/r5`)
+
+Resources and datatypes (`Patient`, `ImagingStudy`, `Reference`, `Identifier`, …) are generated into the release
+sub-packages `fhir/r4` and `fhir/r5` (e.g. `r5.Patient`). The root `fhir` package holds only release-agnostic
+machinery: the `Resource` interface, `Unmarshal[T]`/`As[T]`, `Decimal`, `OperationOutcome` issue-severity constants,
+errors, and the resourceType registry. The `convert` package returns release-explicit types (e.g. `*r5.ImagingStudy`).
 
 - **Resource** (`Resource` interface, `ResourceType() string`) — base unit of exchange; `resourceType` discriminator.
 - **DomainResource** — Resource + narrative/extensions/contained (most clinical resources).
