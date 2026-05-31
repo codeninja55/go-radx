@@ -7,29 +7,6 @@ import (
 	"strings"
 )
 
-// rawSQ holds an SQ element's value field as opaque bytes for Increment 2. The
-// reader must never drop a sequence (Codex DCM-005); structured Sequence/Item
-// parsing arrives in Increment 3, which replaces this with a real *Sequence. Until
-// then the raw bytes are preserved exactly so a sequence-bearing file round-trips
-// byte-identically.
-//
-// undefined marks the encoding of the source element: an undefined-length SQ's raw
-// bytes include the Sequence Delimitation Item, and it must be re-emitted with the
-// 0xFFFFFFFF length form. A defined-length SQ's raw bytes are exactly its counted
-// value field, re-emitted with that byte count.
-type rawSQ struct {
-	raw       []byte
-	undefined bool
-}
-
-func (v *rawSQ) VR() VR { return VRSQ }
-
-// EncodedLen is the preserved byte count; SQ is never padded. For an
-// undefined-length SQ the on-wire length field is the 0xFFFFFFFF sentinel, written
-// by the writer rather than counted here, so EncodedLen still reports the byte
-// count for callers that size the value field.
-func (v *rawSQ) EncodedLen(binary.ByteOrder) uint32 { return uint32(len(v.raw)) }
-
 // decodeValue reads one element's value field into a typed Value, bounds-checking
 // the declared length against the bytes remaining before any allocation (Codex
 // DCM-004) and surfacing a short read as io.ErrUnexpectedEOF (Codex DCM-003).
@@ -40,9 +17,6 @@ func decodeValue(br *boundedReader, h elementHeader, enc encoding) (Value, error
 	}
 
 	switch h.vr {
-	case VRSQ:
-		return &rawSQ{raw: raw}, nil
-
 	case VRSS, VRUS, VRSL, VRUL, VRSV, VRUV:
 		return decodeInts(h.vr, raw, enc.byteOrder), nil
 
@@ -168,10 +142,6 @@ func decodeTags(raw []byte, bo binary.ByteOrder) Value {
 // with the correct trailing byte (Codex DCM-007 write half).
 func encodeValue(w io.Writer, v Value, enc encoding) (uint32, error) {
 	switch t := v.(type) {
-	case *rawSQ:
-		_, err := w.Write(t.raw)
-		return uint32(len(t.raw)), err
-
 	case *Strings:
 		return encodePadded(w, strings.Join(t.Strings(), `\`), t.VR())
 

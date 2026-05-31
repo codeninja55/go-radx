@@ -146,27 +146,46 @@ func TestDecodeBytesOB(t *testing.T) {
 	}
 }
 
-// DCM-005 guard for Increment 2: an SQ value is preserved as opaque raw bytes, never
-// dropped. Increment 3 replaces this with structured parsing.
-func TestDecodeSQPreservedAsOpaqueBytes(t *testing.T) {
-	raw := []byte{0xFE, 0xFF, 0x00, 0xE0, 0x04, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04}
-	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0040, 0xA730), vr: VRSQ, length: uint32(len(raw))}, encodingFor(ExplicitVRLittleEndian))
+// DCM-005: an SQ value is parsed structurally into nested datasets, never dropped.
+// A defined-length sequence with one defined-length item carrying a PN element
+// navigates to that element and re-encodes byte-identically.
+func TestDecodeSQStructured(t *testing.T) {
+	ts := ExplicitVRLittleEndian
+	var inner bytes.Buffer
+	inner.Write(buildElement(t, ts, NewTag(0x0010, 0x0010), VRPN, NewStrings(VRPN, "Doe^Jane")))
+
+	var sq bytes.Buffer
+	sq.Write(leTag(0xFFFE, 0xE000))     // item header
+	sq.Write(le32(uint32(inner.Len()))) // defined-length item
+	sq.Write(inner.Bytes())             // item content
+
+	br := newBoundedReader(bytes.NewReader(sq.Bytes()), defaultMaxElementLen)
+	seq, err := decodeSequence(br, elementHeader{tag: NewTag(0x0040, 0xA730), vr: VRSQ, length: uint32(sq.Len())}, ts, newReadConfig(), 1)
 	if err != nil {
-		t.Fatalf("decodeValue: %v", err)
+		t.Fatalf("decodeSequence: %v", err)
 	}
-	rb, ok := v.(*rawSQ)
-	if !ok {
-		t.Fatalf("SQ value is %T, want *rawSQ (opaque preservation for Increment 2)", v)
+	if seq.Len() != 1 {
+		t.Fatalf("Len = %d, want 1", seq.Len())
 	}
-	if !bytes.Equal(rb.raw, raw) {
-		t.Errorf("opaque SQ bytes = % x, want % x (exact preservation)", rb.raw, raw)
+	if seq.undefinedLength {
+		t.Error("defined-length sequence parsed as undefined-length")
 	}
-	if rb.VR() != VRSQ {
-		t.Errorf("rawSQ VR = %s, want SQ", rb.VR())
+	for it := range seq.Items() {
+		if it.undefinedLength {
+			t.Error("defined-length item parsed as undefined-length")
+		}
+		if v, ok := it.DataSet.GetString(NewTag(0x0010, 0x0010)); !ok || v != "Doe^Jane" {
+			t.Errorf("item PatientName = %q,%v, want Doe^Jane", v, ok)
+		}
 	}
-	if rb.EncodedLen(binary.LittleEndian) != uint32(len(raw)) {
-		t.Errorf("rawSQ EncodedLen = %d, want %d", rb.EncodedLen(binary.LittleEndian), len(raw))
+
+	// Re-encode the value field; it reproduces the source bytes exactly.
+	var out bytes.Buffer
+	if _, err := encodeSequenceValue(&out, seq, ts); err != nil {
+		t.Fatalf("encodeSequenceValue: %v", err)
+	}
+	if !bytes.Equal(out.Bytes(), sq.Bytes()) {
+		t.Errorf("re-encoded SQ value not byte-identical:\n got % x\nwant % x", out.Bytes(), sq.Bytes())
 	}
 }
 
@@ -222,20 +241,28 @@ func TestEncodeValueRoundTrip(t *testing.T) {
 	}
 }
 
-// Clone must deep-copy a preserved SQ so the opaque bytes are not aliased across
-// datasets (Codex DCM-016 invariant carried through Increment 2).
-func TestCloneDeepCopiesRawSQ(t *testing.T) {
+// Clone must deep-copy a sequence so a mutation of the clone's nested item dataset
+// never reaches the source (Codex DCM-016).
+func TestCloneDeepCopiesSequence(t *testing.T) {
 	src := NewDataSet()
-	raw := []byte{0xFE, 0xFF, 0x00, 0xE0, 0x00, 0x00, 0x00, 0x00}
-	src.Set(Element{Tag: NewTag(0x0040, 0xA730), VR: VRSQ, Value: &rawSQ{raw: raw}})
-	clone := src.Clone()
+	item := NewDataSet()
+	item.SetString(NewTag(0x0010, 0x0010), "Doe^Jane")
+	src.Set(Element{Tag: NewTag(0x0040, 0xA730), VR: VRSQ, Value: NewSequenceValue(NewSequence(item))})
 
-	got, _ := clone.Get(NewTag(0x0040, 0xA730))
-	cloned := got.Value.(*rawSQ)
-	cloned.raw[0] = 0x00 // mutate the clone's bytes
-	orig, _ := src.Get(NewTag(0x0040, 0xA730))
-	if orig.Value.(*rawSQ).raw[0] != 0xFE {
-		t.Error("mutating the clone's SQ bytes reached the source: not a deep copy")
+	clone := src.Clone()
+	clonedSeq, ok := clone.GetSequence(NewTag(0x0040, 0xA730))
+	if !ok {
+		t.Fatal("clone lost the sequence")
+	}
+	for it := range clonedSeq.Items() {
+		it.DataSet.SetString(NewTag(0x0010, 0x0010), "Mutated^Clone")
+	}
+
+	srcSeq, _ := src.GetSequence(NewTag(0x0040, 0xA730))
+	for it := range srcSeq.Items() {
+		if v, _ := it.DataSet.GetString(NewTag(0x0010, 0x0010)); v != "Doe^Jane" {
+			t.Errorf("mutating the clone's nested item reached the source: %q (Codex DCM-016)", v)
+		}
 	}
 }
 

@@ -22,16 +22,17 @@ func readDataSet(br *boundedReader, ts TransferSyntax, cfg readConfig) (*DataSet
 		}
 
 		var v Value
-		if h.length == undefinedLength {
-			// An undefined-length value is an SQ (or encapsulated pixel data, handled
-			// in Increment 6) delimited by a Sequence Delimitation Item, not a counted
-			// length. Capture it opaquely so it round-trips byte-identically and is
-			// never dropped (Codex DCM-005); Increment 3 parses it structurally.
-			raw, err := scanUndefinedLengthValue(br, ts, h.tag)
+		if h.vr == VRSQ || h.length == undefinedLength {
+			// An SQ (by VR) or any undefined-length value is a sequence delimited by a
+			// Sequence Delimitation Item, parsed structurally into nested datasets so it
+			// is never dropped (Codex DCM-005). Encapsulated pixel data under a
+			// compressed syntax is handled by the pixel pipeline (Increment 6), not here;
+			// v1 reads only uncompressed syntaxes whose undefined-length values are SQ.
+			seq, err := decodeSequence(br, elementHeader{tag: h.tag, vr: VRSQ, length: h.length}, ts, cfg, 1)
 			if err != nil {
 				return nil, err
 			}
-			v = &rawSQ{raw: raw, undefined: true}
+			v = &sequenceValue{seq: seq}
 			h.vr = VRSQ
 		} else {
 			v, err = decodeValue(br, h, encodingFor(ts))
@@ -52,16 +53,16 @@ func writeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error {
 		if e.Value == nil {
 			return &ValueError{Tag: e.Tag, VR: e.VR, Msg: "element has no value"}
 		}
-		n := e.Value.EncodedLen(enc.byteOrder)
 
-		// An undefined-length SQ carries its Sequence Delimitation Item inside its
-		// raw bytes, so its header length is the 0xFFFFFFFF sentinel, not a count.
-		headerLen := n
-		if sq, ok := e.Value.(*rawSQ); ok && sq.undefined {
-			headerLen = undefinedLength
+		if sv, ok := e.Value.(*sequenceValue); ok {
+			if err := writeSequenceElement(w, e.Tag, sv.seq, ts); err != nil {
+				return err
+			}
+			continue
 		}
 
-		if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: headerLen}, ts); err != nil {
+		n := e.Value.EncodedLen(enc.byteOrder)
+		if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: n}, ts); err != nil {
 			return err
 		}
 		written, err := encodeValue(w, e.Value, enc)
@@ -73,4 +74,25 @@ func writeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error {
 		}
 	}
 	return nil
+}
+
+// writeSequenceElement writes an SQ element: its header with the recorded length
+// form (the 0xFFFFFFFF sentinel for an undefined-length sequence, the exact item
+// byte count otherwise) followed by the structured item body. The length form is the
+// one the sequence was read with, so a sequence-bearing dataset round-trips
+// byte-identically (PS3.5 §7.5; Codex DCM-005).
+func writeSequenceElement(w io.Writer, tag Tag, seq *Sequence, ts TransferSyntax) error {
+	headerLen := undefinedLength
+	if !seq.undefinedLength {
+		n, err := sequenceEncodedLen(seq, ts)
+		if err != nil {
+			return err
+		}
+		headerLen = n
+	}
+	if err := writeElementHeader(w, elementHeader{tag: tag, vr: VRSQ, length: headerLen}, ts); err != nil {
+		return err
+	}
+	_, err := encodeSequenceValue(w, seq, ts)
+	return err
 }

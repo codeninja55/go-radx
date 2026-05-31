@@ -164,6 +164,21 @@ func (ds *DataSet) GetDecimal(t Tag) (Decimal, bool) {
 	return vals[0], true
 }
 
+// GetSequence returns the SQ value at t as a structured Sequence. ok is false if t
+// is absent or is not a sequence. The returned *Sequence aliases the stored
+// sequence; callers that mutate it must Clone the dataset first (Codex DCM-016).
+func (ds *DataSet) GetSequence(t Tag) (*Sequence, bool) {
+	e, ok := ds.Get(t)
+	if !ok {
+		return nil, false
+	}
+	sv, ok := e.Value.(*sequenceValue)
+	if !ok {
+		return nil, false
+	}
+	return sv.seq, true
+}
+
 // GetPersonName returns the first PN value parsed into component groups.
 func (ds *DataSet) GetPersonName(t Tag) (PersonName, bool) {
 	s, ok := ds.GetString(t)
@@ -203,10 +218,8 @@ func cloneValue(v Value) Value {
 		return NewTags(t.vals...)
 	case *Bytes:
 		return NewBytes(t.vr, t.b)
-	case *rawSQ:
-		cp := make([]byte, len(t.raw))
-		copy(cp, t.raw)
-		return &rawSQ{raw: cp, undefined: t.undefined}
+	case *sequenceValue:
+		return &sequenceValue{seq: cloneSequence(t.seq)}
 	default:
 		return v
 	}

@@ -43,6 +43,13 @@ func readElementHeader(br *boundedReader, ts TransferSyntax) (elementHeader, err
 
 	// The tag is consumed: we are committed to an element, so any EOF reading the
 	// rest of the header is a truncation, never a clean boundary (Codex DCM-003).
+	return readElementHeaderBody(br, tag, enc)
+}
+
+// readElementHeaderBody reads the VR (if explicit) and length that follow an
+// already-consumed tag, in enc's encoding. The tag is committed, so any EOF reading
+// the remainder is a truncation, never a clean boundary (Codex DCM-003).
+func readElementHeaderBody(br *boundedReader, tag Tag, enc encoding) (elementHeader, error) {
 	if enc.implicitVR {
 		lenBytes, err := br.readExact(4)
 		if err != nil {
