@@ -203,6 +203,10 @@ func cloneValue(v Value) Value {
 		return NewTags(t.vals...)
 	case *Bytes:
 		return NewBytes(t.vr, t.b)
+	case *rawSQ:
+		cp := make([]byte, len(t.raw))
+		copy(cp, t.raw)
+		return &rawSQ{raw: cp}
 	default:
 		return v
 	}
