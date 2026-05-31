@@ -21,9 +21,23 @@ func readDataSet(br *boundedReader, ts TransferSyntax, cfg readConfig) (*DataSet
 			return ds, nil
 		}
 
-		v, err := decodeValue(br, h, encodingFor(ts))
-		if err != nil {
-			return nil, err
+		var v Value
+		if h.length == undefinedLength {
+			// An undefined-length value is an SQ (or encapsulated pixel data, handled
+			// in Increment 6) delimited by a Sequence Delimitation Item, not a counted
+			// length. Capture it opaquely so it round-trips byte-identically and is
+			// never dropped (Codex DCM-005); Increment 3 parses it structurally.
+			raw, err := scanUndefinedLengthValue(br, ts, h.tag)
+			if err != nil {
+				return nil, err
+			}
+			v = &rawSQ{raw: raw, undefined: true}
+			h.vr = VRSQ
+		} else {
+			v, err = decodeValue(br, h, encodingFor(ts))
+			if err != nil {
+				return nil, err
+			}
 		}
 		ds.Set(Element{Tag: h.tag, VR: h.vr, Value: v})
 	}
@@ -39,7 +53,15 @@ func writeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error {
 			return &ValueError{Tag: e.Tag, VR: e.VR, Msg: "element has no value"}
 		}
 		n := e.Value.EncodedLen(enc.byteOrder)
-		if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: n}, ts); err != nil {
+
+		// An undefined-length SQ carries its Sequence Delimitation Item inside its
+		// raw bytes, so its header length is the 0xFFFFFFFF sentinel, not a count.
+		headerLen := n
+		if sq, ok := e.Value.(*rawSQ); ok && sq.undefined {
+			headerLen = undefinedLength
+		}
+
+		if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: headerLen}, ts); err != nil {
 			return err
 		}
 		written, err := encodeValue(w, e.Value, enc)

@@ -12,13 +12,22 @@ import (
 // parsing arrives in Increment 3, which replaces this with a real *Sequence. Until
 // then the raw bytes are preserved exactly so a sequence-bearing file round-trips
 // byte-identically.
+//
+// undefined marks the encoding of the source element: an undefined-length SQ's raw
+// bytes include the Sequence Delimitation Item, and it must be re-emitted with the
+// 0xFFFFFFFF length form. A defined-length SQ's raw bytes are exactly its counted
+// value field, re-emitted with that byte count.
 type rawSQ struct {
-	raw []byte
+	raw       []byte
+	undefined bool
 }
 
 func (v *rawSQ) VR() VR { return VRSQ }
 
-// EncodedLen is the preserved byte count; SQ is never padded.
+// EncodedLen is the preserved byte count; SQ is never padded. For an
+// undefined-length SQ the on-wire length field is the 0xFFFFFFFF sentinel, written
+// by the writer rather than counted here, so EncodedLen still reports the byte
+// count for callers that size the value field.
 func (v *rawSQ) EncodedLen(binary.ByteOrder) uint32 { return uint32(len(v.raw)) }
 
 // decodeValue reads one element's value field into a typed Value, bounds-checking

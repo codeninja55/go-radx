@@ -206,7 +206,7 @@ func cloneValue(v Value) Value {
 	case *rawSQ:
 		cp := make([]byte, len(t.raw))
 		copy(cp, t.raw)
-		return &rawSQ{raw: cp}
+		return &rawSQ{raw: cp, undefined: t.undefined}
 	default:
 		return v
 	}
