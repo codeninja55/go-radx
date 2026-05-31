@@ -33,7 +33,8 @@ The first release (v1) delivers the radiology workflow end-to-end — order, wor
 procedure-step status, storage confirmation, reporting, and results. It is built **walking-skeleton-first**: a thin but
 correct path touching every subsystem is delivered before any leg is deepened (§5.2, §13). Correctness is gated in CI by
 live interoperability against reference implementations (Orthanc, dcm4chee-arc, the HL7 FHIR validator, dcmtk's
-`dciodvfy`) *and* by merge-blocking security/PHI gates (§11) — not by self-asserted unit tests alone.
+`dciodvfy`), plus basic safety checks and comparative performance benchmarks (§11) — not by self-asserted unit tests
+alone.
 
 ## 2. Problem statement and motivation
 
@@ -76,13 +77,15 @@ risk than a literal rewrite (discards what works) or an incremental patch (build
 
 - Type-safe, idiomatic Go APIs for DICOM, HL7 v2.x, and FHIR R4/R5 that make invalid states unrepresentable at the
   serialization boundary where Go's type system allows, and return errors as values everywhere else.
+- Legible, opinionated APIs and human-readable DICOM/HL7/FHIR diagnostics: signatures and error messages a developer can
+  read without the spec, with strong safe defaults over endless configuration (§8.2).
 - A `radx` CLI with dcmtk-class breadth and ergonomics, serving practitioners and operators.
 - Embeddable, composable servers (DIMSE SCP, DICOMweb, FHIR REST, HL7 v2 MLLP) with pluggable storage and auth, plus
   thin reference daemons that run out of the box.
 - Production-grade non-functional behaviour: PHI safety, honest failure reporting, hostile-input hardening, concurrency
   safety, transport security, supply-chain integrity, observability, and no global mutable state.
-- Conformance verified against reference implementations and official validators in CI; security/PHI controls verified
-  by merge-blocking gates.
+- Conformance verified against reference implementations and official validators in CI; basic safety defaults checked in
+  CI; and performance benchmarked against the reference libraries (§11).
 
 ### 3.2 Non-goals (v1)
 
@@ -209,14 +212,17 @@ First-class v1 requirements — the reason the project exists. The concrete API 
   the API boundary, so the design is an ergonomic win over `fhir.resources`, not merely a more verbose clone (§8.1).
 - **Typed HL7 v2 segments and message types** (MSH/PID/PV1/EVN/ORC/OBR/OBX/MSA/ERR/…, and ADT/ORM/ORU/ACK) with named
   Go fields as the primary API, enums for common HL7 tables, and one unambiguous indexing convention (§8.1).
-- **A real PS3.15 Basic Application Level Confidentiality Profile** (PS3.15 Annex E / §E.1): full Table E.1-1 action
-  coverage applied recursively through sequence items, consistent UID remapping with a stable map, required
-  de-identification-method metadata, and an explicit decision on Clean Pixel Data / Clean Recognizable Visual Features
-  (implement burned-in-text/overlay handling, or return a typed "pixel cleaning not performed" error — never claim the
-  profile is complete while it is not). Verified by a §11 gate. Neither `pydicom` nor `pynetdicom` ships this.
+- **A PS3.15 Basic Application Level Confidentiality Profile** (PS3.15 Annex E / §E.1) for de-identification: Table
+  E.1-1 actions applied recursively through sequence items, consistent UID remapping with a stable map, and
+  de-identification-method metadata. Its scope and limits (notably whether burned-in pixel/overlay cleaning is
+  performed) are clearly documented so the consumer can judge whether it meets their de-identification needs — go-radx
+  provides the capability, not a compliance guarantee. Neither `pydicom` nor `pynetdicom` ships a built-in profile.
 - **Typed DIMSE status**, `context.Context`-based cancellation/timeouts, goroutine-and-channel concurrency (real async
   ops, which pynetdicom negotiates but does not provide), and per-instance configuration instead of global mutable
   state.
+- **Human-readable diagnostics** — logs and errors that name tags, VRs, UIDs, and DIMSE statuses instead of emitting raw
+  hex or numeric codes, with actionable context and no PHI by default (§8.2). The reference libraries' diagnostics are
+  raw, and `pynetdicom`'s are PHI-leaking by default.
 
 ## 7. Architecture overview
 
@@ -312,18 +318,41 @@ func (a *Association) Find(ctx context.Context, q *dicom.DataSet, lvl QueryLevel
 func NewReader(r io.Reader, opts ...ReadOption) *Reader
 ```
 
+### 8.2 Design principles — legibility, simplicity, and opinionated defaults
+
+Three rules bind both the public API surface and the implementation, in priority order:
+
+1. **Legible call signatures.** A signature should be understandable at a glance without the docs: named types instead of
+   bare primitives (`TransferSyntax`, `AETitle`, `Tag` — not `string`/`uint32`); options or config structs (or functional
+   options) instead of long positional parameter lists; verbs that read as English (`Store`, `Query`, `Transcode`); and
+   errors returned as values with messages a caller can act on. If a signature needs a comment to be understood, the
+   signature is wrong.
+2. **Legible DICOM diagnostics.** Logs and errors render DICOM (and HL7/FHIR) concepts in human terms, never bare numbers:
+   a tag as its keyword plus `(gggg,eeee)`, VRs by name, UIDs and SOP/transfer-syntax UIDs by their registered names, and
+   DIMSE statuses by name and class (success/pending/warning/failure). Every error carries the context needed to act —
+   which element, which association or SOP instance, which file or byte offset — while honouring the no-PHI-by-default
+   rule (§9.1): identifiers and structure, not patient values. Diagnostics are structured (zap) and human-readable at
+   once.
+3. **Elegant, simple to implement, opinionated where it matters.** Prefer the smallest correct design and one obvious way
+   to do each thing over breadth of configuration. Be **opinionated** where it improves safety or clarity — strong sane
+   defaults (no transcoding unless asked, loopback bind, errors not panics, typed enums over strings) and a single
+   canonical API rather than several overlapping ones — and add a configuration knob only when a real use case proves it
+   necessary. Opinionation serves the consumer; it is not rigidity for its own sake.
+
 ## 9. Non-functional requirements
 
-Promoted to first-class because the prototype violated every one and the references set cautionary precedents. Every
-control here has a corresponding §11 verification gate.
+These are the library's safe defaults and engineering standards, informed by the failures the prototype and the
+references exhibited. The library ships sane defaults and the controls; the **policy** — how much PHI protection, what
+regulatory posture, what retention — belongs to the consumer who integrates go-radx into their product. A few of these
+are verified by basic CI sanity checks (§11.2); the rest are consumer-tunable, not mandated.
 
-1. **PHI safety.** Never log PHI by default — and "logs" explicitly includes error messages, SQL/query text, filter
-   expressions, file paths derived from PHI, **and all telemetry**: trace span names/attributes, metric labels, and
-   exporter payloads (invert the `pynetdicom` default that logs C-FIND/C-GET/C-MOVE identifiers). Any PHI-at-rest store
-   (e.g. the catalogue) is opt-in, emits a PHI warning on creation, is permission-hardened, supports a documented
-   retention/erasure path, supports (or documents the consumer's responsibility to provide) encryption at rest, and
-   defaults to redacted mode. **All four server roles and the thin daemons bind to loopback by default; a non-loopback
-   bind requires an explicit `--bind`/`--listen-address` and emits a startup warning.**
+1. **PHI safety (safe defaults; governance is the consumer's).** The library does not log PHI by default — including in
+   error messages, query/SQL text, and file paths — and does not emit PHI in telemetry (span attributes, metric labels)
+   by default; verbosity that would surface PHI is opt-in. Servers and daemons bind to loopback by default; a
+   non-loopback bind is explicit. Any PHI-bearing convenience store (e.g. the reference catalogue) is opt-in and offers a
+   redacted mode. Beyond these defaults, **PHI governance — encryption at rest, retention/erasure, access control, and
+   audit — is the integrating consumer's responsibility; go-radx provides the hooks and configuration, not the policy,
+   and makes no compliance guarantee.**
 2. **Honest failure reporting.** Never report success on failed work. Typed errors mapped to the §8 exit-code taxonomy;
    partial batch failure is non-zero by default. Two explicit rules the prototype broke: **(a) fail-closed on
    unimplemented/partial capability** — a path that cannot perform the requested mutation returns a typed error and
@@ -341,23 +370,25 @@ control here has a corresponding §11 verification gate.
 4. **Concurrency safety.** No global mutable state. Concurrent-safe APIs or explicitly documented non-safe types.
    `context.Context`-driven cancellation/timeouts on all network and long-running operations. No fire-and-forget
    goroutines.
-5. **Determinism and medical-device posture.** Designed to support **IEC 62304 Class B** integration and ISO 13485
-   processes; formal device certification is the consumer's responsibility and is out of v1 scope. Deterministic,
-   testable behaviour. An **audit trail for data modifications** with a defined minimum record schema: who/what/when,
-   source UID, target UID, action (per PS3.15 action codes where applicable), and a before/after digest — **never the
-   PHI value itself** — emitted to a configurable sink. "Comprehensive validation" is defined as the published
-   Conformance Statement plus the §11 gates.
+5. **Engineering quality (no imposed regulatory posture).** go-radx is a general-purpose library built to good
+   engineering standards: deterministic and testable behaviour, explicit error handling, and validation against the
+   published Conformance Statements. It makes **no medical-device certification claim and imposes no compliance
+   machinery.** Whether it is used in regulated or SaMD contexts — and any resulting obligations (IEC 62304, ISO 13485,
+   formal audit trails, de-identification governance) — is the consumer's decision and responsibility. For consumers who
+   want an audit trail, the library exposes an optional data-modification hook they can wire to their own sink; it does
+   not mandate a schema or a sink.
 6. **Performance.** Minimise allocations in hot paths; stream large objects (pixel data, bulk transfers); benchmark
-   performance-critical paths.
+   performance-critical paths, including comparative benchmarks against the reference libraries for compression and
+   transfer-syntax handling (§11.3).
 7. **Transport security.** DIMSE-TLS and all HTTP servers default to TLS 1.2+ (prefer 1.3), verify peer certificates by
    default, never set `InsecureSkipVerify` outside an explicitly flagged test mode, and offer a documented mutual-TLS
    option.
 8. **Secrets handling.** Credentials, keys, and tokens come from env/files per 12-factor, are never logged, and are
    never written to the PHI catalogue.
-9. **Supply-chain integrity.** Pinned dependencies; `govulncheck` as a CI gate; an SBOM emitted per release; signed
-   release artifacts with provenance (cosign/SLSA-style).
-10. **Observability.** Structured logging via `zap` and OpenTelemetry tracing/metrics — both subject to the §9.1 no-PHI
-    rule. OTel is operator-controlled, opt-in, exports nowhere by default, and carries no PHI; this reconciles the
+9. **Supply-chain integrity.** Pinned dependencies and `govulncheck` in CI. SBOM and signed releases are recommended for
+   downstream consumers who need them, not mandated by the library.
+10. **Observability.** Structured logging via `zap` — human-readable and machine-structured at once, rendering
+    DICOM/HL7/FHIR concepts by name per §8.2 — and OpenTelemetry tracing/metrics, both subject to the §9.1 no-PHI rule. OTel is operator-controlled, opt-in, exports nowhere by default, and carries no PHI; this reconciles the
     archived `project.md` "no telemetry/data collection" privacy stance (which meant outbound vendor collection) with
     local operator observability. Neither `zap` nor a direct OTel dependency is wired today (OTel is only transitive);
     both are added as direct, wired dependencies in M0.
@@ -389,21 +420,31 @@ A change is not "done" until the interop matrix is green: **DIMSE + DICOMweb** i
 validator**; **DICOM** files validated by **`dciodvfy`** (dcmtk); and **round-trip** against vendored `pydicom`/
 `pynetdicom`/`python-hl7` fixtures and corpora (§5.3 vendoring decision: test corpora only, with license attribution).
 
-### 11.2 Security and PHI gates (merge-blocking)
+### 11.2 Basic safety checks (CI)
 
-Because an NFR not in the acceptance bar is unenforceable (the precise reason the prototype violated all of §9), the
-following are blocking CI checks:
+Lightweight, sane-default checks — not a compliance regime (compliance and PHI governance are the consumer's, per §9.1
+and §9.5):
 
-- **PHI-leak test** — run representative commands and servers at debug verbosity against fixtures containing known PHI
-  tokens; fail on any token appearing in stdout, stderr, log sinks, **trace spans, or metric labels**.
-- **Bind-default test** — assert every server role and daemon listens on loopback unless explicit opt-in.
-- **De-identification verification** — assert PS3.15 Table E.1-1 attributes are removed/replaced recursively (including
-  inside sequences) via an attribute checklist plus a `dciodvfy`/`gdcmanon` round-trip; assert the burned-in-pixel
-  decision is honoured.
+- **PHI-default sanity test** — run representative commands and servers at default verbosity against fixtures with known
+  PHI tokens; flag any token surfacing in stdout, stderr, logs, or telemetry, confirming the no-PHI-by-default behaviour.
+- **Bind-default test** — assert servers and daemons listen on loopback unless explicitly opted out.
 - **Hostile-input run** — execute a malformed-input corpus under a memory cap; must not OOM, panic, or hang.
-- **`govulncheck`** gate and **SBOM** generation per release.
+- **`govulncheck`** in CI. SBOM and signed releases are recommended, not required.
 
-### 11.3 Other verification
+The PS3.15 de-identification profile is tested like any feature (correctness against an attribute checklist), not gated
+as a compliance bar; its documented scope and limits are what the consumer relies on.
+
+### 11.3 Performance benchmarks (versus reference libraries)
+
+Comparative benchmarks against the reference libraries are part of verification, tracked over time to catch regressions
+and to substantiate the "Go performance" claim. The **priority area is compression and transfer syntax**: encode/decode
+throughput and allocations for the supported transfer syntaxes (uncompressed Implicit/Explicit VR LE, Deflated, RLE, and
+the JPEG / JPEG-LS / JPEG 2000 / HTJ2K codecs where available), benchmarked against `pydicom` (with its `pylibjpeg` /
+`gdcm` plugins) for DICOM pixel pipelines and against `pynetdicom` for DIMSE C-STORE / transfer throughput. Secondary:
+FHIR (de)serialization versus `fhir.resources`, and HL7 v2 parse throughput versus `python-hl7`. Benchmarks run on a
+documented fixture set; results are published and reviewed per release (not merge-gated).
+
+### 11.4 Other verification
 
 Published Conformance Statements per standard; table-driven and golden-file unit tests; fuzzing for binary parsers,
 HTTP/MLLP parsers, and codecs; coverage targets of 80% overall and 90% on critical paths; benchmark suites. Every bug
@@ -429,7 +470,7 @@ can proceed in parallel once M2 is green.
 
 1. **M0 — Foundations.** `git init`; pin `mise` to Go 1.26; scaffold the multi-module layout (root + `cmd/radx`); CI with
    testcontainers (Orthanc + dcm4chee-arc), the FHIR validator, and `dciodvfy`; wire `zap` + direct OTel; **port the
-   Orthanc integration tests**; vendor test corpora; stand up the §11.2 security-gate scaffolding.
+   Orthanc integration tests**; vendor test corpora; stand up the §11.2 basic safety checks and the §11.3 benchmark harness.
 2. **M1 — DICOM data layer.** Correct Part 10 I/O, `SQ`, transfer syntaxes, value/VR types, tags, UID, datetime; gated
    by `dciodvfy` + pydicom round-trips. (Rewrites the DICOM core; ports element/vr/tag/uid/datetime with fixes.)
 3. **M2 — Walking skeleton (thin, end-to-end).** The thinnest correct path through every subsystem: parse+validate one
@@ -444,8 +485,8 @@ can proceed in parallel once M2 is green.
    mode — R5 first, gated by the FHIR validator.
 8. **M6b — FHIR R4.** Full R4 (4.0.1) generation; R4-conformance for the workflow set.
 9. **M7 — Conversion + CLI + daemons.** DICOM↔FHIR, SR↔FHIR, HL7v2↔FHIR; dcmtk-parity CLI; thin reference daemons.
-10. **M8 — Hardening + v1.** PS3.15 de-identification (with the §11.2 gate), fuzzing, performance, transport security,
-    supply-chain (SBOM/signing), conformance statements, docs.
+10. **M8 — Hardening + v1.** PS3.15 de-identification (with documented scope), fuzzing, performance benchmarks vs the
+    reference libraries, transport security, conformance statements, docs.
 
 ## 14. Risks
 
@@ -455,20 +496,22 @@ can proceed in parallel once M2 is green.
   against the FHIR validator with choice-type and primitive-extension cases first.
 - **Codec/CGo fragility.** Mitigation: optional CGo behind a build tag; pure-Go core; clear degradation.
 - **DICOMweb has no Python parity floor.** Mitigation: measured against dc4che and the DICOMweb standard directly.
-- **De-identification is the most dangerous component.** Mitigation: the §11.2 attribute-level gate; never claim profile
-  completeness while pixel cleaning is unimplemented.
+- **De-identification correctness.** Mitigation: test the PS3.15 profile against an attribute checklist and document its
+  scope and limits clearly; the library provides the capability, and the consumer owns their de-identification policy.
 - **Conformance-subset creep.** Mitigation: the Conformance Statement is the single source of truth; growth is reviewed.
 
 ## 15. Open questions
 
 None blocking. Resolved at review: FHIR releases = R4 4.0.1 + R5 (STU3 out, R4B deferred); DICOM SR ↔ FHIR and
 MPPS-SCU + Storage-Commitment-SCU are in v1; test corpora are vendored with attribution. Remaining low-priority item:
-confirm the audit-trail sink format (structured-log event versus separate audit stream) during M0.
+confirm the shape of the optional data-modification audit hook (§9.5), if a consumer needs one, during M0.
 
 ## 16. Success metrics
 
-- Green reference-interop matrix (Orthanc + dcm4chee-arc + FHIR validator + `dciodvfy`) **and** green §11.2 security/PHI
-  gates on every CI run.
+- Green reference-interop matrix (Orthanc + dcm4chee-arc + FHIR validator + `dciodvfy`) and passing §11.2 basic safety
+  checks on every CI run.
+- Performance benchmarks against the reference libraries tracked per release with no unexplained regression — especially
+  for compression and transfer-syntax encode/decode.
 - The radiology workflow demonstrated end-to-end via the `radx` CLI against a reference PACS, including procedure-step
   status (MPPS) and storage confirmation.
 - Published Conformance Statements for DICOM, HL7 v2, and FHIR.
