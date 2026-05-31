@@ -19,7 +19,9 @@ const (
 
 // rleSegmentCount is the number of byte planes a frame's geometry produces:
 // SamplesPerPixel * bytesPerSample. RLE requires BitsAllocated to be 8 or 16, so
-// bytesPerSample is 1 or 2 and the count never exceeds 6.
+// bytesPerSample is 1 or 2 and the count never exceeds 6. It is used by the encoder,
+// which derives the segment layout from the geometry; the decoder reads the segment
+// count from the codestream header instead (it is authoritative per PS3.5 Annex G).
 func rleSegmentCount(geom PixelGeometry) (segments, bytesPerSample int, err error) {
 	switch geom.BitsAllocated {
 	case 8:
@@ -46,6 +48,32 @@ func rleSegmentCount(geom PixelGeometry) (segments, bytesPerSample int, err erro
 	return segments, bytesPerSample, nil
 }
 
+// rleByteInterleave reports whether geom's BitsAllocated and SamplesPerPixel match a
+// segment count of segments under the PS3.5 Annex G byte-plane mapping (samples *
+// bytesPerSample). When they do, the decoder scatters each segment into the
+// interleaved little-endian output; when they do not (a non-conformant codestream
+// such as a 1-bit segmentation re-encoded as RLE), the decoder concatenates each
+// segment as a contiguous plane instead, so the codestream is still decoded faithfully
+// rather than rejected. bytesPerSample is meaningful only when interleave is true.
+func rleByteInterleave(geom PixelGeometry, segments int) (interleave bool, bytesPerSample, samples int) {
+	switch geom.BitsAllocated {
+	case 8:
+		bytesPerSample = 1
+	case 16:
+		bytesPerSample = 2
+	default:
+		return false, 0, 0
+	}
+	samples = int(geom.SamplesPerPixel)
+	if samples < 1 {
+		samples = 1
+	}
+	if samples*bytesPerSample != segments {
+		return false, 0, 0
+	}
+	return true, bytesPerSample, samples
+}
+
 // decodeRLEFrame expands one RLE-encoded frame into contiguously packed pixel bytes
 // laid out per geom. Every offset and length read from the header is bounds-checked
 // against the frame before use, so a malformed header or a segment that decodes to
@@ -55,16 +83,13 @@ func decodeRLEFrame(frame []byte, geom PixelGeometry) ([]byte, error) {
 	if len(frame) < rleHeaderLen {
 		return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "RLE frame shorter than the 64-byte header"}
 	}
-	segments, bytesPerSample, err := rleSegmentCount(geom)
-	if err != nil {
-		return nil, err
-	}
 
-	declared := int(binary.LittleEndian.Uint32(frame[0:4]))
-	if declared != segments {
+	// The codestream header is authoritative for the segment count (PS3.5 Annex G).
+	segments := int(binary.LittleEndian.Uint32(frame[0:4]))
+	if segments < 1 || segments > rleMaxSegments {
 		return nil, &ValueError{
 			Tag: TagPixelData, VR: VROBorOW,
-			Msg: fmt.Sprintf("RLE header declares %d segments, geometry needs %d", declared, segments),
+			Msg: fmt.Sprintf("RLE header segment count %d out of range 1..15", segments),
 		}
 	}
 
@@ -80,9 +105,11 @@ func decodeRLEFrame(frame []byte, geom PixelGeometry) ([]byte, error) {
 	}
 
 	pixelsPerSegment := int(geom.Rows) * int(geom.Columns)
-	out := make([]byte, geom.FrameLength())
-	samples := segments / bytesPerSample
+	if pixelsPerSegment <= 0 {
+		return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "RLE frame geometry has zero pixels"}
+	}
 
+	planes := make([][]byte, segments)
 	for seg := 0; seg < segments; seg++ {
 		end := len(frame)
 		if seg+1 < segments {
@@ -101,16 +128,32 @@ func decodeRLEFrame(frame []byte, geom PixelGeometry) ([]byte, error) {
 				Msg: fmt.Sprintf("RLE segment %d decoded to %d bytes, expected %d", seg, len(plane), pixelsPerSegment),
 			}
 		}
+		planes[seg] = plane
+	}
 
-		// Scatter the byte plane into the interleaved little-endian output. Segment
-		// index seg = sample*bytesPerSample + bytePlane, where bytePlane 0 is the most
-		// significant byte; the destination little-endian byte index is therefore
-		// (bytesPerSample-1-bytePlane).
+	interleave, bytesPerSample, samples := rleByteInterleave(geom, segments)
+	out := make([]byte, segments*pixelsPerSegment)
+	if !interleave {
+		// Non-conformant geometry: emit each byte plane contiguously. A single-segment
+		// frame (the common 8-bit case the byte interleave also handles) decodes to one
+		// plane regardless, so this path stays correct for it.
+		for seg := 0; seg < segments; seg++ {
+			copy(out[seg*pixelsPerSegment:], planes[seg])
+		}
+		return out, nil
+	}
+
+	// Scatter each byte plane into the interleaved little-endian output. Segment index
+	// seg = sample*bytesPerSample + bytePlane, where bytePlane 0 is the most
+	// significant byte; the destination little-endian byte index is therefore
+	// (bytesPerSample-1-bytePlane).
+	stride := samples * bytesPerSample
+	for seg := 0; seg < segments; seg++ {
 		sample := seg / bytesPerSample
 		bytePlane := seg % bytesPerSample
 		destByte := bytesPerSample - 1 - bytePlane
-		stride := samples * bytesPerSample
 		dst := sample*bytesPerSample + destByte
+		plane := planes[seg]
 		for p := 0; p < pixelsPerSegment; p++ {
 			out[dst] = plane[p]
 			dst += stride

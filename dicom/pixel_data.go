@@ -19,7 +19,9 @@ type Frame struct {
 type PixelData struct {
 	Geometry PixelGeometry
 
-	native []byte // contiguous samples for an uncompressed transfer syntax
+	native    []byte           // contiguous samples for an uncompressed transfer syntax
+	encaps    *encapsulated    // parsed fragment stream for a compressed transfer syntax
+	extended  *extendedOffsets // Extended Offset Table from the dataset, if present
 }
 
 // NewPixelData builds the PixelData for ds under ts. For an uncompressed transfer
@@ -56,8 +58,42 @@ func newNativePixelData(geom PixelGeometry, native []byte) *PixelData {
 	return &PixelData{Geometry: geom, native: native}
 }
 
+// NewEncapsulatedPixelData parses the raw encapsulated (7FE0,0010) value bytes for ds
+// under ts into a PixelData. The fragment stream is parsed as a bounded item stream
+// (Codex DCM-006); the Extended Offset Table, when present in ds, is preferred over
+// the Basic Offset Table for frame mapping. It returns a typed error for a
+// non-encapsulated transfer syntax or a malformed fragment stream.
+func NewEncapsulatedPixelData(ds *DataSet, ts TransferSyntax, value []byte) (*PixelData, error) {
+	if !ts.IsEncapsulated() {
+		return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "transfer syntax is not encapsulated"}
+	}
+	geom, err := ResolvePixelGeometry(ds, ts)
+	if err != nil {
+		return nil, err
+	}
+	enc, err := parseEncapsulated(value, geom.NumberOfFrames)
+	if err != nil {
+		return nil, err
+	}
+	pd := &PixelData{Geometry: geom, encaps: enc}
+	if eot, ok := extendedOffsetTable(ds); ok {
+		pd.extended = eot
+	}
+	return pd, nil
+}
+
 // IsEncapsulated reports whether the pixel data is carried as compressed fragments.
-func (p *PixelData) IsEncapsulated() bool { return p.Geometry.TransferSyntax.IsEncapsulated() }
+func (p *PixelData) IsEncapsulated() bool { return p.encaps != nil }
+
+// BasicOffsetTable returns the Basic Offset Table (32-bit per-frame offsets) of
+// encapsulated pixel data. ok is false for native data or when there was no Basic
+// Offset Table item.
+func (p *PixelData) BasicOffsetTable() ([]uint32, bool) {
+	if p.encaps == nil {
+		return nil, false
+	}
+	return p.encaps.basicOffsetTable()
+}
 
 // Frames iterates decoded frames. For native data it slices the contiguous buffer
 // into NumberOfFrames frames of FrameLength bytes each, failing closed if the buffer
@@ -66,7 +102,58 @@ func (p *PixelData) IsEncapsulated() bool { return p.Geometry.TransferSyntax.IsE
 // registered for the transfer syntax, yielding a typed CodecUnavailableError when no
 // codec is built in.
 func (p *PixelData) Frames() iter.Seq2[Frame, error] {
+	if p.encaps != nil {
+		return p.encapsulatedFrames()
+	}
 	return p.nativeFrames()
+}
+
+// encapsulatedFrames decodes each frame's fragment group through the registered
+// codec. When no codec is registered for the transfer syntax (a JPEG-family instance
+// in a pure-Go build) it yields a single typed CodecUnavailableError naming the
+// transfer syntax, never a partial image.
+func (p *PixelData) encapsulatedFrames() iter.Seq2[Frame, error] {
+	return func(yield func(Frame, error) bool) {
+		codec, ok := lookupCodec(p.Geometry.TransferSyntax)
+		if !ok {
+			yield(Frame{}, newCodecUnavailable(p.Geometry.TransferSyntax))
+			return
+		}
+
+		encoded, err := p.frameEncodedBytes()
+		if err != nil {
+			yield(Frame{}, err)
+			return
+		}
+		for i, enc := range encoded {
+			decoded, err := codec.Decode(enc, p.Geometry)
+			if err != nil {
+				yield(Frame{Index: i}, err)
+				return
+			}
+			if !yield(Frame{Index: i, Pixels: decoded}, nil) {
+				return
+			}
+		}
+	}
+}
+
+// frameEncodedBytes returns each frame's concatenated encoded bytes, mapped by the
+// Extended Offset Table when present, otherwise by the Basic Offset Table or the
+// one-fragment-per-frame fallback.
+func (p *PixelData) frameEncodedBytes() ([][]byte, error) {
+	if p.extended != nil {
+		return p.encaps.framesViaExtendedOffsets(p.extended)
+	}
+	ranges, err := p.encaps.validateFrameMapping(p.Geometry.NumberOfFrames)
+	if err != nil {
+		return nil, err
+	}
+	out := make([][]byte, len(ranges))
+	for i, r := range ranges {
+		out[i] = p.encaps.frameBytes(r)
+	}
+	return out, nil
 }
 
 // nativeFrames slices the contiguous native buffer per the geometry.
