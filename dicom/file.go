@@ -35,6 +35,9 @@ type readConfig struct {
 	// dataset and sequence-item scope can swap its own pointer without a global or a
 	// shared mutation (PRD §9.4). nil means the default repertoire.
 	activeCharset *SpecificCharacterSet
+	// lenientDates relaxes DA parsing to accept the legacy YYYY and YYYYMM partial
+	// forms. Strict YYYYMMDD is the default (Codex DCM-010).
+	lenientDates bool
 }
 
 // ReadOption configures a Read/ReadFile call.
@@ -70,6 +73,14 @@ func WithMaxSequenceDepth(n int) ReadOption {
 // WithStopAtPixelData defers the pixel-data element for a partial read.
 func WithStopAtPixelData() ReadOption {
 	return func(c *readConfig) { c.stopAtPixelData = true }
+}
+
+// WithLenientDates accepts the legacy partial DA forms (YYYY and YYYYMM) in
+// addition to the strict YYYYMMDD. Strict parsing is the default: the prototype
+// accepted partial dates unconditionally, silently treating them as valid clinical
+// metadata (Codex DCM-010).
+func WithLenientDates() ReadOption {
+	return func(c *readConfig) { c.lenientDates = true }
 }
 
 // WithDefaultCharacterSet sets the Specific Character Set defined terms applied to
