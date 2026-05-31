@@ -19,6 +19,9 @@ func (e *ValueError) Error() string {
 }
 
 // keywordFor renders a tag's keyword for diagnostics; falls back to "" if unknown.
-// Task 1.5 enriches this to resolve the keyword through Lookup once the dictionary
-// exists; until then it is deliberately empty so this file compiles standalone.
-func keywordFor(Tag) string { return "" }
+func keywordFor(t Tag) string {
+	if info, ok := Lookup(t); ok {
+		return info.Keyword
+	}
+	return ""
+}
