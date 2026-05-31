@@ -1,2 +1,14 @@
 [tools]
 go = "1.26"
+
+[tasks."test:dicom"]
+description = "Run the dicom package test suite (race + coverage)"
+run = "go test -race -cover ./dicom/..."
+
+[tasks."dicom:dciodvfy"]
+description = "Validate written DICOM files with dcmtk dciodvfy (skips if absent)"
+run = "tools/dicom-conformance/dciodvfy.sh"
+
+[tasks."dicom:pydicom"]
+description = "Round-trip vendored fixtures through pydicom (skips if absent)"
+run = "python3 tools/dicom-conformance/pydicom_roundtrip.py testdata/dicom"
