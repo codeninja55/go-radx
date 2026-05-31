@@ -6,7 +6,23 @@ import "io"
 // boundary. EOF inside any element header or value is a truncation, surfaced as
 // io.ErrUnexpectedEOF, never a graceful end (Codex DCM-003). The element loop is
 // the extension point Increment 3 hooks structured SQ parsing into.
+//
+// The active Specific Character Set flows through the parse, not a global (PRD §9.4):
+// it starts from cfg.defaultCharSet and is replaced when (0008,0005) is read, so the
+// low-tagged charset element governs the customisable text VRs that follow it.
+//
+// The active Specific Character Set lives in cfg (a value type) and is swapped in
+// place when (0008,0005) is read, so the low-tagged charset element governs the
+// customisable text VRs that follow it without a global (PRD §9.4; Codex DCM-011).
 func readDataSet(br *boundedReader, ts TransferSyntax, cfg readConfig) (*DataSet, error) {
+	if cfg.activeCharset == nil {
+		cs, err := NewSpecificCharacterSet(cfg.defaultCharSet...)
+		if err != nil {
+			return nil, err
+		}
+		cfg.activeCharset = cs
+	}
+
 	ds := NewDataSet()
 	for {
 		h, err := readElementHeader(br, ts)
@@ -35,13 +51,32 @@ func readDataSet(br *boundedReader, ts TransferSyntax, cfg readConfig) (*DataSet
 			v = &sequenceValue{seq: seq}
 			h.vr = VRSQ
 		} else {
-			v, err = decodeValue(br, h, encodingFor(ts))
+			v, err = decodeValue(br, h, encodingFor(ts), cfg.activeCharset)
 			if err != nil {
 				return nil, err
 			}
 		}
 		ds.Set(Element{Tag: h.tag, VR: h.vr, Value: v})
+
+		if h.tag == TagSpecificCharacterSet {
+			cs, err := charsetFromElement(v)
+			if err != nil {
+				return nil, err
+			}
+			cfg.activeCharset = cs
+		}
 	}
+}
+
+// charsetFromElement resolves a freshly read (0008,0005) value into the active
+// character set. The element is a default-repertoire CS, so its values are the
+// defined terms verbatim.
+func charsetFromElement(v Value) (*SpecificCharacterSet, error) {
+	sv, ok := v.(*Strings)
+	if !ok {
+		return NewSpecificCharacterSet()
+	}
+	return NewSpecificCharacterSet(sv.Strings()...)
 }
 
 // writeDataSet writes ds's elements in ascending tag order in ts's encoding. Each

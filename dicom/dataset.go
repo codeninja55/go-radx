@@ -207,6 +207,9 @@ func (ds *DataSet) Clone() *DataSet {
 func cloneValue(v Value) Value {
 	switch t := v.(type) {
 	case *Strings:
+		if t.raw != nil {
+			return newStringsRaw(t.vr, t.raw, t.vals...)
+		}
 		return NewStrings(t.vr, t.vals...)
 	case *Ints:
 		return NewInts(t.vr, t.vals...)

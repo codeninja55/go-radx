@@ -64,7 +64,7 @@ func TestWriteFileMetaGroupLengthIsExact(t *testing.T) {
 	if h.tag != tagFileMetaGroupLength {
 		t.Fatalf("first element is %s, want %s (group length written first)", h.tag, tagFileMetaGroupLength)
 	}
-	v, err := decodeValue(br, h, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, h, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decode group length: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestWriteFileMetaRecomputesStaleGroupLength(t *testing.T) {
 		t.Fatalf("readPreamble: %v", err)
 	}
 	h, _ := readElementHeader(br, ExplicitVRLittleEndian)
-	v, _ := decodeValue(br, h, encodingFor(ExplicitVRLittleEndian))
+	v, _ := decodeValue(br, h, encodingFor(ExplicitVRLittleEndian), nil)
 	if got := v.(*Ints).Ints()[0]; got == 999999 {
 		t.Error("stale group length 999999 was trusted instead of recomputed (DCM-001)")
 	}

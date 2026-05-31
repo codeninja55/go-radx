@@ -10,7 +10,7 @@ import (
 
 func TestDecodeStringsSingleValue(t *testing.T) {
 	br := newBoundedReader(bytes.NewReader([]byte("ISO_IR 192")), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0008, 0x0005), vr: VRCS, length: 10}, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0008, 0x0005), vr: VRCS, length: 10}, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestDecodeStringsMultiValueTrimsPad(t *testing.T) {
 	// "DERIVED\SECONDARY\OTHER " is 23 chars + 1 SPACE pad = 24 bytes.
 	raw := []byte("DERIVED\\SECONDARY\\OTHER ")
 	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0008, 0x0008), vr: VRCS, length: uint32(len(raw))}, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0008, 0x0008), vr: VRCS, length: uint32(len(raw))}, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestDecodeUITrimsNullPad(t *testing.T) {
 	// "1.2.840.10008.1.2.2" is 19 chars + 1 NULL pad = 20 bytes.
 	raw := append([]byte("1.2.840.10008.1.2.2"), 0x00)
 	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0002, 0x0010), vr: VRUI, length: uint32(len(raw))}, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0002, 0x0010), vr: VRUI, length: uint32(len(raw))}, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestDecodeUITrimsNullPad(t *testing.T) {
 func TestDecodeIntsLittleEndian(t *testing.T) {
 	raw := []byte{0x01, 0x00, 0x02, 0x00} // US 1, US 2
 	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x0010), vr: VRUS, length: 4}, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x0010), vr: VRUS, length: 4}, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestDecodeIntsLittleEndian(t *testing.T) {
 func TestDecodeIntsBigEndian(t *testing.T) {
 	raw := []byte{0x00, 0x01, 0x00, 0x02} // US 1, US 2 big endian
 	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x0010), vr: VRUS, length: 4}, encodingFor(ExplicitVRBigEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x0010), vr: VRUS, length: 4}, encodingFor(ExplicitVRBigEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestDecodeIntsBigEndian(t *testing.T) {
 func TestDecodeSignedInts(t *testing.T) {
 	raw := []byte{0xFF, 0xFF} // SS -1
 	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x0106), vr: VRSS, length: 2}, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x0106), vr: VRSS, length: 2}, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestDecodeFloatsLittleEndian(t *testing.T) {
 	raw := make([]byte, 8)
 	binary.LittleEndian.PutUint64(raw, 0x3FF0000000000000) // 1.0 as float64
 	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x1052), vr: VRFD, length: 8}, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x1052), vr: VRFD, length: 8}, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestDecodeFloatsLittleEndian(t *testing.T) {
 func TestDecodeDecimalsDS(t *testing.T) {
 	raw := []byte("1.5\\2.5 ") // 7 chars + SPACE pad = 8
 	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x1050), vr: VRDS, length: uint32(len(raw))}, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0028, 0x1050), vr: VRDS, length: uint32(len(raw))}, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestDecodeDecimalsDS(t *testing.T) {
 func TestDecodeTagsAT(t *testing.T) {
 	raw := []byte{0x10, 0x00, 0x20, 0x00} // (0010,0020) little endian
 	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0020, 0x9165), vr: VRAT, length: 4}, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x0020, 0x9165), vr: VRAT, length: 4}, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestDecodeTagsAT(t *testing.T) {
 func TestDecodeBytesOB(t *testing.T) {
 	raw := []byte{0xDE, 0xAD, 0xBE, 0xEF}
 	br := newBoundedReader(bytes.NewReader(raw), defaultMaxElementLen)
-	v, err := decodeValue(br, elementHeader{tag: NewTag(0x7FE0, 0x0010), vr: VROB, length: 4}, encodingFor(ExplicitVRLittleEndian))
+	v, err := decodeValue(br, elementHeader{tag: NewTag(0x7FE0, 0x0010), vr: VROB, length: 4}, encodingFor(ExplicitVRLittleEndian), nil)
 	if err != nil {
 		t.Fatalf("decodeValue: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestDecodeSQStructured(t *testing.T) {
 func TestDecodeTruncatedValueIsUnexpectedEOF(t *testing.T) {
 	// A value field declaring 8 bytes over a 4-byte stream is a truncation.
 	br := newBoundedReader(bytes.NewReader([]byte("abcd")), defaultMaxElementLen)
-	_, err := decodeValue(br, elementHeader{tag: NewTag(0x0010, 0x0010), vr: VRPN, length: 8}, encodingFor(ExplicitVRLittleEndian))
+	_, err := decodeValue(br, elementHeader{tag: NewTag(0x0010, 0x0010), vr: VRPN, length: 8}, encodingFor(ExplicitVRLittleEndian), nil)
 	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("truncated value = %v, want io.ErrUnexpectedEOF", err)
 	}
@@ -230,7 +230,7 @@ func TestEncodeValueRoundTrip(t *testing.T) {
 			}
 			br := newBoundedReader(bytes.NewReader(buf.Bytes()), defaultMaxElementLen)
 			h := elementHeader{tag: NewTag(0x0010, 0x0010), vr: tc.vr, length: n}
-			got, err := decodeValue(br, h, enc)
+			got, err := decodeValue(br, h, enc, nil)
 			if err != nil {
 				t.Fatalf("decodeValue: %v", err)
 			}

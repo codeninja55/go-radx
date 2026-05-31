@@ -52,7 +52,7 @@ func readFileMeta(br *boundedReader) (*FileMeta, error) {
 		return nil, fmt.Errorf("dicom: file meta must start with %s File Meta Information Group Length, got %s",
 			tagFileMetaGroupLength, h.tag)
 	}
-	glVal, err := decodeValue(br, h, encodingFor(fileMetaTransferSyntax))
+	glVal, err := decodeValue(br, h, encodingFor(fileMetaTransferSyntax), nil)
 	if err != nil {
 		return nil, err
 	}

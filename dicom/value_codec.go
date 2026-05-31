@@ -9,8 +9,10 @@ import (
 
 // decodeValue reads one element's value field into a typed Value, bounds-checking
 // the declared length against the bytes remaining before any allocation (Codex
-// DCM-004) and surfacing a short read as io.ErrUnexpectedEOF (Codex DCM-003).
-func decodeValue(br *boundedReader, h elementHeader, enc encoding) (Value, error) {
+// DCM-004) and surfacing a short read as io.ErrUnexpectedEOF (Codex DCM-003). The
+// customisable text VRs are decoded through charset (the dataset's resolved
+// (0008,0005)); every other VR is unaffected by it (Codex DCM-011).
+func decodeValue(br *boundedReader, h elementHeader, enc encoding, charset *SpecificCharacterSet) (Value, error) {
 	raw, err := br.readN(h.length)
 	if err != nil {
 		return nil, err
@@ -34,19 +36,40 @@ func decodeValue(br *boundedReader, h elementHeader, enc encoding) (Value, error
 
 	default:
 		// All remaining VRs are text: AE AS CS DA DT LO LT PN SH ST TM UC UI UR UT.
-		return decodeStrings(h.vr, raw), nil
+		return decodeStrings(h.vr, raw, charset)
 	}
 }
 
-// decodeStrings trims the single trailing pad byte (SPACE or NULL) and splits the
-// backslash-separated values. Charset decoding is Increment 4; for now the raw
-// bytes are taken as the lexical string.
-func decodeStrings(vr VR, raw []byte) Value {
-	s := trimPad(vr, raw)
-	if s == "" {
-		return NewStrings(vr)
+// decodeStrings trims the single trailing pad byte (SPACE or NULL), decodes the field
+// through the character set for the customisable text VRs (leaving the default
+// repertoire as a verbatim ASCII pass-through), then splits the backslash-separated
+// values. A customisable value decoded under a non-default character set retains its
+// raw bytes so the write path is byte-exact.
+func decodeStrings(vr VR, raw []byte, charset *SpecificCharacterSet) (Value, error) {
+	if !vr.usesSpecificCharacterSet() || charset == nil || charset.IsDefaultRepertoire() {
+		s := trimPad(vr, raw)
+		if s == "" {
+			return NewStrings(vr), nil
+		}
+		return NewStrings(vr, strings.Split(s, `\`)...), nil
 	}
-	return NewStrings(vr, strings.Split(s, `\`)...)
+
+	// Decode the whole (unpadded) field through the character set, then split on the
+	// backslash value delimiter. Splitting after decoding is correct because the
+	// character set's component handling guarantees a backslash only appears as a real
+	// delimiter, never as the low byte of a multi-byte character.
+	body := raw
+	if pad, ok := vr.PadByte(); ok && len(body) > 0 && body[len(body)-1] == pad {
+		body = body[:len(body)-1]
+	}
+	decoded, err := charset.Decode(body)
+	if err != nil {
+		return nil, err
+	}
+	if decoded == "" {
+		return newStringsRaw(vr, raw), nil
+	}
+	return newStringsRaw(vr, raw, strings.Split(decoded, `\`)...), nil
 }
 
 // decodeDecimals trims the SPACE pad and splits DS/IS values, preserving each
@@ -143,6 +166,12 @@ func decodeTags(raw []byte, bo binary.ByteOrder) Value {
 func encodeValue(w io.Writer, v Value, enc encoding) (uint32, error) {
 	switch t := v.(type) {
 	case *Strings:
+		if t.raw != nil {
+			// A value read under a non-default character set re-emits its verbatim,
+			// already-padded bytes so the round-trip is byte-exact.
+			written, err := w.Write(t.raw)
+			return uint32(written), err
+		}
 		return encodePadded(w, strings.Join(t.Strings(), `\`), t.VR())
 
 	case *Decimals:

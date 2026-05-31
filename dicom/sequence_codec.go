@@ -116,6 +116,10 @@ func decodeItem(br *boundedReader, owner Tag, length uint32, ts TransferSyntax, 
 // byte offset reaches end (defined-length item); when end < 0 it reads until the
 // Item Delimitation Item (FFFE,E00D) (undefined-length item). A nested SQ element
 // recurses through decodeSequence at depth+1.
+//
+// The active character set arrives in cfg from the enclosing dataset; cfg is a value
+// type, so an item-level (0008,0005) updated here governs only this item, never
+// leaking into siblings or the parent (PS3.5 §6.1.2.3).
 func decodeItemElements(br *boundedReader, ts TransferSyntax, cfg readConfig, depth int, end int64) (*DataSet, error) {
 	ds := NewDataSet()
 	for {
@@ -142,12 +146,21 @@ func decodeItemElements(br *boundedReader, ts TransferSyntax, cfg readConfig, de
 			return nil, err
 		}
 		ds.Set(Element{Tag: h.tag, VR: h.vr, Value: v})
+
+		if h.tag == TagSpecificCharacterSet {
+			cs, err := charsetFromElement(v)
+			if err != nil {
+				return nil, err
+			}
+			cfg.activeCharset = cs
+		}
 	}
 }
 
 // decodeElementValue decodes one element's value, recursing into a structured
 // Sequence for an SQ (by VR) or for any undefined-length value (an implicit-VR SQ).
-// depth is the current sequence nesting level.
+// depth is the current sequence nesting level. Customisable text VRs decode through
+// cfg's active character set.
 func decodeElementValue(br *boundedReader, h elementHeader, ts TransferSyntax, cfg readConfig, depth int) (Value, error) {
 	if h.vr == VRSQ || h.length == undefinedLength {
 		seq, err := decodeSequence(br, elementHeader{tag: h.tag, vr: VRSQ, length: h.length}, ts, cfg, depth+1)
@@ -156,7 +169,7 @@ func decodeElementValue(br *boundedReader, h elementHeader, ts TransferSyntax, c
 		}
 		return &sequenceValue{seq: seq}, nil
 	}
-	return decodeValue(br, h, encodingFor(ts))
+	return decodeValue(br, h, encodingFor(ts), cfg.activeCharset)
 }
 
 // readDelimiterHeader reads a bare 8-byte item/delimiter header (4-byte tag + 4-byte

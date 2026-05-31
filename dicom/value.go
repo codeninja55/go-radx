@@ -15,11 +15,18 @@ type Value interface {
 }
 
 // Strings is the value type for the text VRs (AE AS CS LO SH UC UR UT ST LT DA TM DT
-// PN UI). Values are stored decoded; SpecificCharacterSet (Increment 4) governs the
-// byte encoding.
+// PN UI). Values are stored decoded through the dataset's Specific Character Set.
+//
+// For a customisable text VR read under a non-default character set, the reader
+// retains the exact, padded value-field bytes in raw so the writer re-emits them
+// byte-for-byte (a re-encode could pick different but equivalent ISO 2022 escapes).
+// raw is nil for programmatically constructed values and for the default repertoire,
+// so those re-encode from vals exactly as before and the prior byte-identical
+// fixture round-trips are untouched.
 type Strings struct {
 	vr   VR
 	vals []string
+	raw  []byte // the verbatim padded value field, or nil to re-encode from vals
 }
 
 // NewStrings constructs a text value under vr.
@@ -27,6 +34,17 @@ func NewStrings(vr VR, vals ...string) Value {
 	cp := make([]string, len(vals))
 	copy(cp, vals)
 	return &Strings{vr: vr, vals: cp}
+}
+
+// newStringsRaw constructs a text value that carries both the decoded values and the
+// verbatim padded value field. Used by the reader for customisable text VRs decoded
+// under a non-default character set so the write path is byte-exact.
+func newStringsRaw(vr VR, raw []byte, vals ...string) *Strings {
+	vcp := make([]string, len(vals))
+	copy(vcp, vals)
+	rcp := make([]byte, len(raw))
+	copy(rcp, raw)
+	return &Strings{vr: vr, vals: vcp, raw: rcp}
 }
 
 func (v *Strings) VR() VR { return v.vr }
@@ -40,7 +58,11 @@ func (v *Strings) Strings() []string {
 
 // EncodedLen joins the values with backslash and pads the whole field to an even
 // length with the VR pad byte (Codex DCM-007: the entire character field is even).
+// A value retaining its verbatim raw bytes reports their length unchanged.
 func (v *Strings) EncodedLen(binary.ByteOrder) uint32 {
+	if v.raw != nil {
+		return uint32(len(v.raw))
+	}
 	if len(v.vals) == 0 {
 		return 0
 	}

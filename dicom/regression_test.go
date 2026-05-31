@@ -88,7 +88,7 @@ func TestRegressionDCM002Deflated(t *testing.T) {
 		t.Fatalf("readPreamble: %v", err)
 	}
 	h, _ := readElementHeader(br, ExplicitVRLittleEndian)
-	gv, _ := decodeValue(br, h, encodingFor(ExplicitVRLittleEndian))
+	gv, _ := decodeValue(br, h, encodingFor(ExplicitVRLittleEndian), nil)
 	groupLen := gv.(*Ints).Ints()[0]
 	mainStart := br.offset() + groupLen
 

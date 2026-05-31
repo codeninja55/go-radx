@@ -43,10 +43,10 @@ const (
 // Ambiguous parse-time placeholders (PS3.6 dictionary VRs the reader resolves from
 // context). They never appear on the wire.
 const (
-	VRUSorSS VR = iota + 34 // "US or SS"
-	VRUSorOW                // "US or OW"
-	VROBorOW                // "OB or OW"
-	VRUSorSSorOW            // "US or SS or OW"
+	VRUSorSS     VR = iota + 34 // "US or SS"
+	VRUSorOW                    // "US or OW"
+	VROBorOW                    // "OB or OW"
+	VRUSorSSorOW                // "US or SS or OW"
 )
 
 var vrNames = [...]string{
@@ -71,6 +71,19 @@ func (vr VR) String() string {
 func (vr VR) Is32BitLength() bool {
 	switch vr {
 	case VROB, VROW, VROD, VROF, VROL, VROV, VRSQ, VRUC, VRUR, VRUT, VRUN:
+		return true
+	default:
+		return false
+	}
+}
+
+// usesSpecificCharacterSet reports whether the VR's text is decoded through the
+// dataset's (0008,0005) Specific Character Set. PS3.5 §6.1.2.3 names exactly these
+// VRs as customisable; every other text VR (AE CS DA DS IS TM UI UR AS) is always the
+// default repertoire (ISO 646) and ignores (0008,0005).
+func (vr VR) usesSpecificCharacterSet() bool {
+	switch vr {
+	case VRSH, VRLO, VRST, VRLT, VRPN, VRUC, VRUT:
 		return true
 	default:
 		return false

@@ -26,6 +26,15 @@ type readConfig struct {
 	maxElementLen    uint32
 	maxSequenceDepth int
 	stopAtPixelData  bool
+	// defaultCharSet is the fallback Specific Character Set defined terms applied to
+	// customisable text VRs when the dataset has no (0008,0005). Empty means the
+	// default repertoire (ISO 646).
+	defaultCharSet []string
+	// activeCharset is the resolved Specific Character Set in force at the current
+	// parse position. It flows through readConfig copies (a value type), so each
+	// dataset and sequence-item scope can swap its own pointer without a global or a
+	// shared mutation (PRD §9.4). nil means the default repertoire.
+	activeCharset *SpecificCharacterSet
 }
 
 // ReadOption configures a Read/ReadFile call.
@@ -61,6 +70,14 @@ func WithMaxSequenceDepth(n int) ReadOption {
 // WithStopAtPixelData defers the pixel-data element for a partial read.
 func WithStopAtPixelData() ReadOption {
 	return func(c *readConfig) { c.stopAtPixelData = true }
+}
+
+// WithDefaultCharacterSet sets the Specific Character Set defined terms applied to
+// customisable text VRs when the dataset itself carries no (0008,0005). A dataset's
+// own (0008,0005) always takes precedence (PS3.5 §6.1.2.3). With no terms the default
+// repertoire (ISO 646) is used.
+func WithDefaultCharacterSet(cs ...string) ReadOption {
+	return func(c *readConfig) { c.defaultCharSet = append([]string(nil), cs...) }
 }
 
 // writeConfig holds the resolved write options.
