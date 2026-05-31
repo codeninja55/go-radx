@@ -70,6 +70,27 @@ func (ds *DataSet) All() iter.Seq[Element] {
 	}
 }
 
+// SetString looks up t's dictionary VR and inserts (or replaces) a text element
+// carrying vals.
+func (ds *DataSet) SetString(t Tag, vals ...string) {
+	vr := dictVR(t)
+	ds.Set(Element{Tag: t, VR: vr, Value: NewStrings(vr, vals...)})
+}
+
+// SetEmpty inserts (or replaces) a zero-length element at t under its dictionary VR.
+func (ds *DataSet) SetEmpty(t Tag) {
+	vr := dictVR(t)
+	ds.Set(Element{Tag: t, VR: vr, Value: NewStrings(vr)})
+}
+
+// dictVR resolves the dictionary VR for t, defaulting to UN for unknown tags.
+func dictVR(t Tag) VR {
+	if info, ok := Lookup(t); ok {
+		return info.VR
+	}
+	return VRUN
+}
+
 // GetString returns the first value of a text VR element. ok is false if t is absent
 // or is not a text value.
 func (ds *DataSet) GetString(t Tag) (string, bool) {

@@ -53,3 +53,25 @@ func TestDataSetSetReplaces(t *testing.T) {
 		t.Errorf("replaced value = %q, want b (element VR %s)", s, e.VR)
 	}
 }
+
+func TestSetStringUsesDictionaryVR(t *testing.T) {
+	ds := NewDataSet()
+	ds.SetString(TagPatientName, "Doe^Jane")
+	e, ok := ds.Get(TagPatientName)
+	if !ok || e.VR != VRPN { // dictionary VR for PatientName is PN
+		t.Errorf("SetString should use dictionary VR PN, got %s", e.VR)
+	}
+}
+
+func TestSetEmptyDeclaresZeroLengthReturnKey(t *testing.T) {
+	// The C-FIND universal-match idiom.
+	ds := NewDataSet()
+	ds.SetEmpty(TagStudyDescription)
+	e, ok := ds.Get(TagStudyDescription)
+	if !ok {
+		t.Fatal("SetEmpty should insert the element")
+	}
+	if e.Value.EncodedLen(nil) != 0 {
+		t.Errorf("SetEmpty value length = %d, want 0", e.Value.EncodedLen(nil))
+	}
+}
