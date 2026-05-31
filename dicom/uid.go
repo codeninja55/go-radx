@@ -60,3 +60,11 @@ func (u UID) Name() string {
 	}
 	return string(u)
 }
+
+// SOPClassUID identifies a SOP Class (an IOD + its DIMSE services). It is a named
+// type over UID so a signature states the SOP role; dimse, dicomweb, and convert
+// reuse it. Validation is inherited via conversion: UID(sc).Validate().
+type SOPClassUID UID
+
+// SOPInstanceUID identifies one concrete SOP Instance.
+type SOPInstanceUID UID

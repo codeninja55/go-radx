@@ -58,3 +58,17 @@ func TestUIDValidateErrorIsTyped(t *testing.T) {
 		t.Errorf("want *ValueError, got %T", err)
 	}
 }
+
+func TestSOPIdentifierTypesInheritValidation(t *testing.T) {
+	sc := SOPClassUID("1.2.840.10008.5.1.4.1.1.2")
+	if err := UID(sc).Validate(); err != nil {
+		t.Errorf("SOPClassUID should validate through UID conversion: %v", err)
+	}
+	if UID(sc).Name() != "CT Image Storage" {
+		t.Errorf("Name() = %q, want CT Image Storage", UID(sc).Name())
+	}
+	si := SOPInstanceUID("1..2") // invalid
+	if UID(si).IsValid() {
+		t.Error("invalid SOPInstanceUID should not validate")
+	}
+}
