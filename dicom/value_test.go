@@ -45,3 +45,33 @@ func TestValueVR(t *testing.T) {
 		t.Error("VR() should report PN")
 	}
 }
+
+func TestNewBytesCopiesInput(t *testing.T) {
+	src := []byte{1, 2, 3, 4}
+	v := NewBytes(VROB, src)
+	src[0] = 0xFF // mutate the caller's slice after construction
+	bv, ok := v.(*Bytes)
+	if !ok {
+		t.Fatal("NewBytes should return *Bytes")
+	}
+	if got := bv.Bytes(); got[0] != 1 {
+		t.Errorf("value aliased the caller's slice: got[0] = %#x, want 1 (Codex DCM-016)", got[0])
+	}
+}
+
+func TestBytesAccessorReturnsCopy(t *testing.T) {
+	v := NewBytes(VROB, []byte{1, 2, 3, 4})
+	bv := v.(*Bytes)
+	out := bv.Bytes()
+	out[0] = 0xFF // mutate the returned slice
+	if bv.Bytes()[0] != 1 {
+		t.Error("Bytes() returned an internal slice that callers can mutate (Codex DCM-016)")
+	}
+}
+
+func TestBytesEncodedLenEvenPadded(t *testing.T) {
+	// Odd OB length pads to even with a trailing NULL.
+	if got := NewBytes(VROB, []byte{1, 2, 3}).EncodedLen(binary.LittleEndian); got != 4 {
+		t.Errorf("odd OB EncodedLen = %d, want 4 (even-padded)", got)
+	}
+}

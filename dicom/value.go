@@ -184,3 +184,34 @@ func (v *Tags) Tags() []Tag {
 }
 
 func (v *Tags) EncodedLen(binary.ByteOrder) uint32 { return uint32(len(v.vals)) * 4 }
+
+// Bytes is the value type for OB OW OL OV UN (length-bounded raw bytes).
+type Bytes struct {
+	vr VR
+	b  []byte // owned; never aliased to a caller slice
+}
+
+// NewBytes copies b so the value owns its bytes.
+func NewBytes(vr VR, b []byte) Value {
+	cp := make([]byte, len(b))
+	copy(cp, b)
+	return &Bytes{vr: vr, b: cp}
+}
+
+func (v *Bytes) VR() VR { return v.vr }
+
+// Bytes returns a copy of the value field.
+func (v *Bytes) Bytes() []byte {
+	cp := make([]byte, len(v.b))
+	copy(cp, v.b)
+	return cp
+}
+
+// EncodedLen is the byte length padded up to even with a trailing NULL.
+func (v *Bytes) EncodedLen(binary.ByteOrder) uint32 {
+	n := uint32(len(v.b))
+	if n%2 == 1 {
+		n++
+	}
+	return n
+}
