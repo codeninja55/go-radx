@@ -82,8 +82,11 @@ fixture corpus in the prototype's `testdata/dicom/` are reusable and are pulled 
   RLE/JPEG2000-lossless encode behind the optional CGo build tag; transcoding off by default. *Outlined.*
 - **Increment 7 — PS3.15 Basic Profile de-identification.** Recursive Table E.1-1 action set, consistent UID remap,
   dates removed by default, fail-closed on burned-in pixel PHI. *Outlined.*
+- **Increment 8 — Structured Report content-item model.** `ContentItem`, `ConceptNameCode`, `ValueType`,
+  `RelationshipType`, `ReferencedSOPInstance`, and `ParseSR`/`BuildSR` over the SR content tree for the Basic Text,
+  Enhanced, and Comprehensive SR SOP classes. *Outlined.*
 
-Increments 2 through 7 are outlined here (scope, key signatures from the reference doc, dependencies, verification gate)
+Increments 2 through 8 are outlined here (scope, key signatures from the reference doc, dependencies, verification gate)
 and are expanded into bite-sized TDD tasks when reached.
 
 ---
@@ -509,6 +512,12 @@ func (vr VR) PadByte() (byte, bool) {
 }
 ```
 
+**Note — DS/IS pad with SPACE.** `VRDS` and `VRIS` are in the SPACE pad set above even though their values are modelled
+as `Decimals` (Task 1.10), not `Strings`. They are character VRs on the wire, so PS3.5 §6.2 requires SPACE padding of the
+value field, and `Decimals.EncodedLen` relies on this to produce an even length (Codex DCM-007). This is more complete
+than the reference doc's `PadByte` prose, which lists only UI and "other string VRs" — do not "simplify" DS/IS back out
+of the SPACE set.
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `go test ./dicom/ -run TestVR -v`
@@ -587,9 +596,12 @@ func TestUIDName(t *testing.T) {
 
 func TestUIDValidateErrorIsTyped(t *testing.T) {
 	_, err := ParseUID("1..2")
+	if err == nil {
+		t.Fatal("want error")
+	}
 	var ve *ValueError
-	if !errors.As(err, &ve) && err == nil {
-		t.Errorf("expected a non-nil error for invalid UID")
+	if !errors.As(err, &ve) {
+		t.Errorf("want *ValueError, got %T", err)
 	}
 }
 ```
@@ -666,7 +678,13 @@ func (u UID) Name() string {
 }
 ```
 
-Also add the `ValueError` type in `dicom/errors.go` (it is reused throughout; create the file now):
+Also add the `ValueError` type in `dicom/errors.go` (it is reused throughout; create the file now).
+
+**Ordering note — keep every task compiling.** `keywordFor` is the diagnostic that resolves a tag to its keyword
+through the dictionary, but `Lookup`/`TagInfo` do not exist until Task 1.5. To keep the package compiling at the end of
+*every* task (so each `go test` fails only for its intended reason, never `undefined: Lookup`), `keywordFor` ships
+**self-contained** here (it returns `""` for now) and Task 1.5 enriches it to call `Lookup` once the dictionary lands.
+Do not call `Lookup` from this file yet.
 
 ```go
 package dicom
@@ -690,12 +708,9 @@ func (e *ValueError) Error() string {
 }
 
 // keywordFor renders a tag's keyword for diagnostics; falls back to "" if unknown.
-func keywordFor(t Tag) string {
-	if info, ok := Lookup(t); ok {
-		return info.Keyword
-	}
-	return ""
-}
+// Task 1.5 enriches this to resolve the keyword through Lookup once the dictionary
+// exists; until then it is deliberately empty so this file compiles standalone.
+func keywordFor(Tag) string { return "" }
 ```
 
 The `uidNames` map is supplied by the generated UID dictionary (Task 1.4 generator output). For this task, seed a tiny
@@ -726,15 +741,24 @@ git commit -m "feat(dicom): add UID type with single PS3.5 sec9.1 validation pat
 ### Task 1.4: Generated tag and UID dictionaries
 
 **Files:**
+- Create: `dicom/dictionary.go` (the `TagInfo` and `repeatingEntry` type definitions + the `dictLen` helper; the
+  `Lookup`/`LookupKeyword`/`LookupKeywordTag` functions are added by Task 1.5)
 - Create: `dicom/gen/gentags/main.go` (generator; ports the prototype's
   `/Users/codeninja/vcs/go-radx/dicom/tag/generate_tag_values.py` logic to Go, reading the innolitics JSON)
-- Create: `dicom/tag_values.go` (generated: `Tag*` constants + `tagDict` map keyed by `Tag` and by keyword)
+- Create: `dicom/tag_values.go` (generated: `Tag*` constants, `tagDict map[Tag]TagInfo`, `repeatingDict` slice)
 - Create: `dicom/uid_values.go` (generated: `uidNames` map, ~490 entries)
 - Test: `dicom/tag_values_test.go`
 
 The dictionary is generated, never hand-edited. Reuse the innolitics dataset and license attribution from the prototype
 generator. The generator emits one `Tag*` constant per keyword (`TagPatientName Tag = 0x00100010`, …) plus the
 `tagDict` used by `Lookup`. The license header (innolitics MIT) must be reproduced in the generated file.
+
+**Ordering note — keep every task compiling.** The generated `tag_values.go` declares `tagDict map[Tag]TagInfo` and
+`repeatingDict []repeatingEntry`, so the `TagInfo` and `repeatingEntry` types must exist *before* the generated file
+references them. This task therefore creates `dicom/dictionary.go` with those two type definitions (and the `dictLen`
+helper the test calls) in Step 3, then generates the data against them. Task 1.5 appends the lookup functions
+(`Lookup`, `LookupKeyword`, `LookupKeywordTag`, the `keywordTag` index) to the same `dictionary.go` and enriches
+`keywordFor`. After this task the package compiles; the `Lookup`-using tests live in Task 1.5.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -782,25 +806,44 @@ func TestGeneratedUIDNames(t *testing.T) {
 Run: `go test ./dicom/ -run 'TestGenerated|TestDictionary' -v`
 Expected: FAIL — `undefined: TagPatientID`, `dictLen`.
 
-- [ ] **Step 3: Write the generator and generate the dictionaries**
+- [ ] **Step 3: Define the dictionary types, then write the generator and generate the dictionaries**
 
-Port `generate_tag_values.py` to a Go generator at `dicom/gen/gentags/main.go`, pinned to the same innolitics revision
-hash the prototype used (`7f4749d09ed3ef2fa70637d376d423a4b13523cd`, rev2024b) for reproducibility. It reads the
-innolitics `attributes.json` and `sop_classes.json` / `uid_dictionary.json`, and writes:
+First create `dicom/dictionary.go` with the type definitions the generated file references plus the `dictLen` helper the
+test calls (the lookup functions are added by Task 1.5):
+
+```go
+package dicom
+
+//go:generate go run ./gen/gentags
+
+// TagInfo is a dictionary entry resolved from a Tag.
+type TagInfo struct {
+	Keyword string // e.g. "PatientName"
+	VR      VR     // dictionary VR; ambiguous VRs use the ambiguous placeholders
+	VM      string // value multiplicity, e.g. "1", "1-n", "2"
+	Name    string // human-readable name from PS3.6
+}
+
+// repeatingEntry holds a masked dictionary entry for a repeating group.
+type repeatingEntry struct {
+	mask, value uint32 // (tag & mask) == value matches
+	info        TagInfo
+}
+
+// dictLen reports the exact-entry count, used by the dictionary coverage test.
+func dictLen() int { return len(tagDict) }
+```
+
+Then port `generate_tag_values.py` to a Go generator at `dicom/gen/gentags/main.go`, pinned to the same innolitics
+revision hash the prototype used (`7f4749d09ed3ef2fa70637d376d423a4b13523cd`, rev2024b) for reproducibility. It reads
+the innolitics `attributes.json` and `sop_classes.json` / `uid_dictionary.json`, and writes:
 
 - `dicom/tag_values.go` — for each non-repeating attribute, a `const Tag<Keyword> Tag = 0x<group><element>`; plus a
   `tagDict` of type `map[Tag]TagInfo` for exact entries and a `repeatingDict []repeatingEntry` (mask + value + TagInfo)
   for `60xx`/`50xx`/`5xxx` (Task 1.5 consumes the repeating slice).
 - `dicom/uid_values.go` — the `uidNames map[UID]string` (~490 entries), superseding the stub from Task 1.3.
 
-Both files begin with `// Code generated by gen/gentags; DO NOT EDIT.` and the innolitics MIT license block. Add a
-`//go:generate go run ./gen/gentags` directive at the top of `dicom/dictionary.go`.
-
-Add the helper the test calls:
-
-```go
-func dictLen() int { return len(tagDict) }
-```
+Both generated files begin with `// Code generated by gen/gentags; DO NOT EDIT.` and the innolitics MIT license block.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -821,7 +864,9 @@ git commit -m "feat(dicom): generate tag constants and UID name dictionary"
 ### Task 1.5: Dictionary lookup with repeating-group mask
 
 **Files:**
-- Create: `dicom/dictionary.go` (extend with `TagInfo`, `Lookup`, `LookupKeyword`, `LookupKeywordTag`)
+- Modify: `dicom/dictionary.go` (append `Lookup`, `LookupKeyword`, `LookupKeywordTag`, the `keywordTag` index; the
+  `TagInfo`/`repeatingEntry` types already exist from Task 1.4)
+- Modify: `dicom/errors.go` (enrich `keywordFor` to resolve through `Lookup`)
 - Test: `dicom/dictionary_test.go`
 
 This closes Codex DCM-012: the prototype looked up tags exact-only and replaced the repeating `x` with `0`, so the
@@ -886,29 +931,16 @@ func TestLookupKeywordTagPanicsOnTypo(t *testing.T) {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `go test ./dicom/ -run TestLookup -v`
-Expected: FAIL — `undefined: Lookup`, `TagInfo`, `LookupKeyword`, `LookupKeywordTag`.
+Expected: FAIL — `undefined: Lookup`, `LookupKeyword`, `LookupKeywordTag` (the `TagInfo`/`repeatingEntry` types already
+exist from Task 1.4, so they are not in the undefined list).
 
-- [ ] **Step 3: Write minimal implementation**
+- [ ] **Step 3: Append the lookup functions to `dictionary.go`**
+
+`TagInfo` and `repeatingEntry` were defined in Task 1.4; this step only appends the resolver functions and the reverse
+index to the same file (do not re-declare the types). Add an `import "fmt"` to the file's existing import block — Task
+1.4 created `dictionary.go` without imports, so introduce the import statement here:
 
 ```go
-package dicom
-
-import "fmt"
-
-// TagInfo is a dictionary entry resolved from a Tag.
-type TagInfo struct {
-	Keyword string // e.g. "PatientName"
-	VR      VR     // dictionary VR; ambiguous VRs use the ambiguous placeholders
-	VM      string // value multiplicity, e.g. "1", "1-n", "2"
-	Name    string // human-readable name from PS3.6
-}
-
-// repeatingEntry holds a masked dictionary entry for a repeating group.
-type repeatingEntry struct {
-	mask, value uint32 // (tag & mask) == value matches
-	info        TagInfo
-}
-
 // Lookup resolves a tag through the standard dictionary, resolving 60xx/50xx/5xxx
 // repeating groups by mask. ok is false for genuinely unknown tags.
 func Lookup(t Tag) (TagInfo, bool) {
@@ -953,6 +985,19 @@ func LookupKeywordTag(keyword string) Tag {
 }
 ```
 
+Now that `Lookup` exists, enrich `keywordFor` in `dicom/errors.go` so diagnostics render the tag keyword (it returned
+`""` as a self-contained stub in Task 1.3):
+
+```go
+// keywordFor renders a tag's keyword for diagnostics; falls back to "" if unknown.
+func keywordFor(t Tag) string {
+	if info, ok := Lookup(t); ok {
+		return info.Keyword
+	}
+	return ""
+}
+```
+
 The generator (Task 1.4) must emit the `repeatingDict` slice with `OverlayData` masked at `0xFF00FFFF == 0x60003000`.
 If the generated file does not yet include `repeatingDict`, extend the generator and regenerate.
 
@@ -964,7 +1009,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add dicom/dictionary.go dicom/dictionary_test.go
+git add dicom/dictionary.go dicom/errors.go dicom/dictionary_test.go
 git commit -m "feat(dicom): add dictionary Lookup with repeating-group mask resolution"
 ```
 
@@ -1071,10 +1116,117 @@ Expected: FAIL — `undefined: ParseDecimal`, `Decimal`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Implement `Decimal` storing the verbatim source plus a lazily-parsed `*big.Float`. `Float64` uses `big.Float.Float64`
-(its `Accuracy` return drives `Exact`). DS values are capped at 16 bytes; IS at a signed 32-bit integer expressed
-without a fractional part (per the reference doc). `MarshalJSON` emits the unquoted lexical form (FHIR decimal contract).
-Full code is written following the reference doc signatures in `docs/reference/dicom.md`.
+```go
+package dicom
+
+import (
+	"fmt"
+	"math/big"
+	"strings"
+)
+
+// maxDSLen is the PS3.5 byte cap for a single DS value.
+const maxDSLen = 16
+
+// Decimal is the lexical-preserving numeric type shared by FHIR decimal and DICOM
+// DS/IS. It carries the source string so a value read from a file serialises back
+// byte-identically. It performs no in-place arithmetic; conversion to a Go numeric
+// is explicit and may report inexactness.
+type Decimal struct {
+	lexical string     // preserved source form
+	val     *big.Float // parsed once on construction
+}
+
+// ParseDecimal validates s as a DICOM DS/IS or FHIR decimal lexical form and
+// preserves it verbatim. DS is limited to 16 bytes per value (PS3.5).
+func ParseDecimal(s string) (Decimal, error) {
+	if s == "" {
+		return Decimal{}, &ValueError{VR: VRDS, Msg: "decimal is empty"}
+	}
+	if len(s) > maxDSLen {
+		return Decimal{}, &ValueError{VR: VRDS, Msg: fmt.Sprintf("DS value exceeds 16 bytes (%d)", len(s))}
+	}
+	// big.Float parses the standard decimal/exponent forms; reject anything it cannot.
+	bf, _, err := big.ParseFloat(s, 10, 256, big.ToNearestEven)
+	if err != nil {
+		return Decimal{}, &ValueError{VR: VRDS, Msg: fmt.Sprintf("not a decimal: %q", s)}
+	}
+	return Decimal{lexical: s, val: bf}, nil
+}
+
+// String returns the preserved lexical form.
+func (d Decimal) String() string { return d.lexical }
+
+// Float64 returns the value as a float64. ok is false only when the lexical form has
+// no finite float64 representation; a representable-but-rounded value returns ok == true.
+func (d Decimal) Float64() (float64, bool) {
+	if d.val == nil {
+		return 0, false
+	}
+	f, acc := d.val.Float64()
+	if (f == 0 && acc == big.Below) || f != f { // NaN guard
+		return 0, false
+	}
+	if f > 1.7976931348623157e308 || f < -1.7976931348623157e308 {
+		return 0, false
+	}
+	return f, true
+}
+
+// Exact reports whether the float64 from Float64 represents d without rounding loss.
+func (d Decimal) Exact() bool {
+	if d.val == nil {
+		return false
+	}
+	_, acc := d.val.Float64()
+	return acc == big.Exact
+}
+
+// BigFloat returns a copy of the parsed *big.Float with precision sufficient for the
+// lexical form, for callers that need exactness or their own rounding.
+func (d Decimal) BigFloat() *big.Float {
+	if d.val == nil {
+		return new(big.Float)
+	}
+	return new(big.Float).Copy(d.val)
+}
+
+// Int64 returns the integral value. ok is false if d is not integral.
+func (d Decimal) Int64() (int64, bool) {
+	if d.val == nil || !d.val.IsInt() {
+		return 0, false
+	}
+	n, acc := d.val.Int64()
+	if acc != big.Exact {
+		return 0, false
+	}
+	return n, true
+}
+
+// MarshalJSON emits the preserved lexical form, unquoted, for FHIR decimal.
+func (d Decimal) MarshalJSON() ([]byte, error) {
+	if d.lexical == "" {
+		return []byte("null"), nil
+	}
+	return []byte(d.lexical), nil
+}
+
+// UnmarshalJSON preserves the raw token's lexical form (trimming any quotes a lenient
+// producer added).
+func (d *Decimal) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	parsed, err := ParseDecimal(s)
+	if err != nil {
+		return err
+	}
+	*d = parsed
+	return nil
+}
+```
+
+Note: `ParseDecimal` validates DS-shaped lexical forms here. The reference doc also names an IS sub-range (a signed
+32-bit integer expressed without a fractional part); IS-specific range checking is layered in by the `Decimals` value
+constructor and the writer when the VR is known to be `IS`, since `ParseDecimal` alone does not carry the VR.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1156,9 +1308,82 @@ Expected: FAIL — `undefined: ParsePersonName`, `PersonName`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Implement `PersonName`/`NameComponents` per the reference doc: split on `=` into at most three groups, each on `^` into
-at most five components, error on overflow, and `String` drops trailing empty components and groups. Full code follows
-the committed signatures.
+```go
+package dicom
+
+import (
+	"fmt"
+	"strings"
+)
+
+// maxPNComponent is the per-component PS3.5 character cap for PN.
+const maxPNComponent = 64
+
+// NameComponents holds the five ^-delimited components of one PersonName group.
+type NameComponents struct {
+	FamilyName string
+	GivenName  string
+	MiddleName string
+	Prefix     string
+	Suffix     string
+}
+
+// PersonName is VR PN: up to three =-delimited component groups (alphabetic,
+// ideographic, phonetic), each holding up to five ^-delimited components.
+type PersonName struct {
+	Alphabetic  NameComponents
+	Ideographic NameComponents // empty if absent
+	Phonetic    NameComponents // empty if absent
+}
+
+// ParsePersonName splits s on "=" into up to three groups, each on "^" into up to
+// five components, trimming the standard pad. It errors on more than three groups or
+// more than five components in a group, or a component over 64 characters.
+func ParsePersonName(s string) (PersonName, error) {
+	groups := strings.Split(s, "=")
+	if len(groups) > 3 {
+		return PersonName{}, &ValueError{VR: VRPN, Msg: fmt.Sprintf("PN has %d component groups, max 3", len(groups))}
+	}
+	var pn PersonName
+	dst := []*NameComponents{&pn.Alphabetic, &pn.Ideographic, &pn.Phonetic}
+	for i, g := range groups {
+		comps := strings.Split(g, "^")
+		if len(comps) > 5 {
+			return PersonName{}, &ValueError{VR: VRPN, Msg: fmt.Sprintf("PN group %d has %d components, max 5", i+1, len(comps))}
+		}
+		for _, c := range comps {
+			if len(strings.TrimRight(c, " ")) > maxPNComponent {
+				return PersonName{}, &ValueError{VR: VRPN, Msg: fmt.Sprintf("PN group %d component exceeds 64 characters", i+1)}
+			}
+		}
+		fields := [5]*string{&dst[i].FamilyName, &dst[i].GivenName, &dst[i].MiddleName, &dst[i].Prefix, &dst[i].Suffix}
+		for j, c := range comps {
+			*fields[j] = strings.TrimRight(c, " ")
+		}
+	}
+	return pn, nil
+}
+
+// String renders the canonical "=" / "^" form, dropping trailing empty components and
+// trailing empty groups (so "Doe^John" not "Doe^John^^^==").
+func (p PersonName) String() string {
+	groups := [3]NameComponents{p.Alphabetic, p.Ideographic, p.Phonetic}
+	rendered := make([]string, 0, 3)
+	for _, g := range groups {
+		comps := []string{g.FamilyName, g.GivenName, g.MiddleName, g.Prefix, g.Suffix}
+		end := len(comps)
+		for end > 0 && comps[end-1] == "" {
+			end-- // drop trailing empty components
+		}
+		rendered = append(rendered, strings.Join(comps[:end], "^"))
+	}
+	end := len(rendered)
+	for end > 0 && rendered[end-1] == "" {
+		end-- // drop trailing empty groups
+	}
+	return strings.Join(rendered[:end], "=")
+}
+```
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1332,7 +1557,7 @@ git commit -m "feat(dicom): add SOPClassUID and SOPInstanceUID named types"
 
 ---
 
-### Task 1.10: `Value` interface and `Strings`/`Ints`/`Floats`/`Tags` values
+### Task 1.10: `Value` interface and `Strings`/`Ints`/`Floats`/`Decimals`/`Tags` values
 
 **Files:**
 - Create: `dicom/value.go`
@@ -1340,6 +1565,11 @@ git commit -m "feat(dicom): add SOPClassUID and SOPInstanceUID named types"
 
 `Value` exposes the on-wire VR and the encoded (padded, even) length; `EncodedLen` never panics. This is where VR-correct
 padding (Task 1.2) is applied, closing the length half of Codex DCM-007.
+
+**Scope note.** This task delivers the `Value` interface and the `Strings`, `Ints`, `Floats`, `Decimals`, and `Tags`
+value types only. `NewBytes`/`Bytes` is deferred to Task 1.11. `NewSequenceValue` references the `Sequence` type, which
+does not exist until Increment 3, so it is deferred there. The `Value` interface is intentionally open to extension:
+later increments add `Bytes`, `Sequence`, and `PixelData` implementations without changing the interface.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1400,10 +1630,194 @@ Expected: FAIL — `undefined: NewStrings`, `Value`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Define the `Value` interface and the concrete types. `Strings.EncodedLen` joins values with `\`, then pads the whole
-field to an even length using the VR's pad byte (from `VR.PadByte`). `Ints`/`Floats`/`Tags` compute `len*elementSize`
-(2/4/8 bytes by VR; AT is 4 bytes). Construction validates the VR class. Full code follows the reference doc table and
-signatures (`NewStrings`, `NewInts`, `NewFloats`, `NewDecimals`, `NewBytes`, `NewSequenceValue`).
+```go
+package dicom
+
+import (
+	"encoding/binary"
+	"strings"
+)
+
+// Value is the interface every element value implements. It exposes the on-wire VR
+// and the even, padded value-field length. EncodedLen never panics, and tolerates a
+// nil byte order for zero-length values (used by SetEmpty). It is open to extension:
+// later increments add Bytes, Sequence, and PixelData implementations.
+type Value interface {
+	VR() VR
+	EncodedLen(bo binary.ByteOrder) uint32
+}
+
+// Strings is the value type for the text VRs (AE AS CS LO SH UC UR UT ST LT DA TM DT
+// PN UI). Values are stored decoded; SpecificCharacterSet (Increment 4) governs the
+// byte encoding.
+type Strings struct {
+	vr   VR
+	vals []string
+}
+
+// NewStrings constructs a text value under vr.
+func NewStrings(vr VR, vals ...string) Value {
+	cp := make([]string, len(vals))
+	copy(cp, vals)
+	return &Strings{vr: vr, vals: cp}
+}
+
+func (v *Strings) VR() VR { return v.vr }
+
+// Strings returns a copy of the value list.
+func (v *Strings) Strings() []string {
+	cp := make([]string, len(v.vals))
+	copy(cp, v.vals)
+	return cp
+}
+
+// EncodedLen joins the values with backslash and pads the whole field to an even
+// length with the VR pad byte (Codex DCM-007: the entire character field is even).
+func (v *Strings) EncodedLen(binary.ByteOrder) uint32 {
+	if len(v.vals) == 0 {
+		return 0
+	}
+	n := uint32(len(strings.Join(v.vals, `\`)))
+	if n%2 == 1 {
+		if _, ok := v.vr.PadByte(); ok {
+			n++
+		}
+	}
+	return n
+}
+
+// Ints is the value type for SS US SL UL SV UV.
+type Ints struct {
+	vr   VR
+	vals []int64
+}
+
+// NewInts constructs an integer value under vr.
+func NewInts(vr VR, vals ...int64) Value {
+	cp := make([]int64, len(vals))
+	copy(cp, vals)
+	return &Ints{vr: vr, vals: cp}
+}
+
+func (v *Ints) VR() VR { return v.vr }
+
+// Ints returns a copy of the value list.
+func (v *Ints) Ints() []int64 {
+	cp := make([]int64, len(v.vals))
+	copy(cp, v.vals)
+	return cp
+}
+
+func (v *Ints) EncodedLen(binary.ByteOrder) uint32 {
+	return uint32(len(v.vals)) * uint32(intSize(v.vr))
+}
+
+// intSize is the per-element byte width of an integer VR.
+func intSize(vr VR) int {
+	switch vr {
+	case VRSS, VRUS:
+		return 2
+	case VRSL, VRUL:
+		return 4
+	case VRSV, VRUV:
+		return 8
+	default:
+		return 0
+	}
+}
+
+// Floats is the value type for FL FD OF OD.
+type Floats struct {
+	vr   VR
+	vals []float64
+}
+
+// NewFloats constructs a floating-point value under vr.
+func NewFloats(vr VR, vals ...float64) Value {
+	cp := make([]float64, len(vals))
+	copy(cp, vals)
+	return &Floats{vr: vr, vals: cp}
+}
+
+func (v *Floats) VR() VR { return v.vr }
+
+// Floats returns a copy of the value list.
+func (v *Floats) Floats() []float64 {
+	cp := make([]float64, len(v.vals))
+	copy(cp, v.vals)
+	return cp
+}
+
+func (v *Floats) EncodedLen(binary.ByteOrder) uint32 {
+	size := 4
+	if v.vr == VRFD || v.vr == VROD {
+		size = 8
+	}
+	return uint32(len(v.vals)) * uint32(size)
+}
+
+// Decimals is the value type for DS and IS, carrying lexical-preserving Decimals.
+type Decimals struct {
+	vr   VR
+	vals []Decimal
+}
+
+// NewDecimals constructs a DS/IS value under vr.
+func NewDecimals(vr VR, vals ...Decimal) Value {
+	cp := make([]Decimal, len(vals))
+	copy(cp, vals)
+	return &Decimals{vr: vr, vals: cp}
+}
+
+func (v *Decimals) VR() VR { return v.vr }
+
+// Decimals returns a copy of the value list.
+func (v *Decimals) Decimals() []Decimal {
+	cp := make([]Decimal, len(v.vals))
+	copy(cp, v.vals)
+	return cp
+}
+
+// EncodedLen joins the preserved lexical forms with backslash and pads to even with
+// SPACE (DS/IS pad with SPACE per PS3.5; see Task 1.2 note).
+func (v *Decimals) EncodedLen(binary.ByteOrder) uint32 {
+	if len(v.vals) == 0 {
+		return 0
+	}
+	parts := make([]string, len(v.vals))
+	for i, d := range v.vals {
+		parts[i] = d.String()
+	}
+	n := uint32(len(strings.Join(parts, `\`)))
+	if n%2 == 1 {
+		n++
+	}
+	return n
+}
+
+// Tags is the value type for AT (each value is a 4-byte tag).
+type Tags struct {
+	vals []Tag
+}
+
+// NewTags constructs an AT value.
+func NewTags(vals ...Tag) Value {
+	cp := make([]Tag, len(vals))
+	copy(cp, vals)
+	return &Tags{vals: cp}
+}
+
+func (v *Tags) VR() VR { return VRAT }
+
+// Tags returns a copy of the value list.
+func (v *Tags) Tags() []Tag {
+	cp := make([]Tag, len(v.vals))
+	copy(cp, v.vals)
+	return cp
+}
+
+func (v *Tags) EncodedLen(binary.ByteOrder) uint32 { return uint32(len(v.vals)) * 4 }
+```
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1414,7 +1828,7 @@ Expected: PASS.
 
 ```bash
 git add dicom/value.go dicom/value_test.go
-git commit -m "feat(dicom): add Value interface and string/int/float/tag values with even encoded length"
+git commit -m "feat(dicom): add Value interface and string/int/float/decimal/tag values with even encoded length"
 ```
 
 ---
@@ -1798,10 +2212,97 @@ Expected: FAIL — `ds.GetUID undefined`, etc.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Implement each getter to fetch the element, type-switch on its `Value`, and return the model type with `ok` semantics.
-`GetUID` parses the first `UI` value; `GetPersonName` runs `ParsePersonName`; `GetDecimal` returns the first `Decimal`;
-`GetInt` accepts `IS`/`SS`/`US`/`SL`/`UL`/`SV`/`UV`. `GetString`/`GetStrings` return the (charset-decoded — Increment 4
-makes this real) text. Full code follows the reference doc.
+Each getter fetches the element, type-switches on its `Value`, and returns the model type with `ok` semantics. `GetString`
+returns the first value of a text VR (charset decoding becomes real in Increment 4); `GetStrings` returns all values.
+
+```go
+// GetString returns the first value of a text VR element, charset-decoded.
+func (ds *DataSet) GetString(t Tag) (string, bool) {
+	vals, ok := ds.GetStrings(t)
+	if !ok || len(vals) == 0 {
+		return "", false
+	}
+	return vals[0], true
+}
+
+// GetStrings returns all backslash-separated values of a text VR element.
+func (ds *DataSet) GetStrings(t Tag) ([]string, bool) {
+	e, ok := ds.Get(t)
+	if !ok {
+		return nil, false
+	}
+	sv, ok := e.Value.(*Strings)
+	if !ok {
+		return nil, false
+	}
+	return sv.Strings(), true
+}
+
+// GetUID returns the first UI value parsed as a UID.
+func (ds *DataSet) GetUID(t Tag) (UID, bool) {
+	s, ok := ds.GetString(t)
+	if !ok {
+		return "", false
+	}
+	return UID(s), true
+}
+
+// GetInt returns the first integer value of an IS/SS/US/SL/UL/SV/UV element.
+func (ds *DataSet) GetInt(t Tag) (int64, bool) {
+	e, ok := ds.Get(t)
+	if !ok {
+		return 0, false
+	}
+	switch v := e.Value.(type) {
+	case *Ints:
+		ns := v.Ints()
+		if len(ns) == 0 {
+			return 0, false
+		}
+		return ns[0], true
+	case *Decimals: // IS is carried as a Decimal
+		ds := v.Decimals()
+		if len(ds) == 0 {
+			return 0, false
+		}
+		return ds[0].Int64()
+	default:
+		return 0, false
+	}
+}
+
+// GetDecimal returns the first DS value.
+func (ds *DataSet) GetDecimal(t Tag) (Decimal, bool) {
+	e, ok := ds.Get(t)
+	if !ok {
+		return Decimal{}, false
+	}
+	dv, ok := e.Value.(*Decimals)
+	if !ok {
+		return Decimal{}, false
+	}
+	vals := dv.Decimals()
+	if len(vals) == 0 {
+		return Decimal{}, false
+	}
+	return vals[0], true
+}
+
+// GetPersonName returns the first PN value parsed into component groups.
+func (ds *DataSet) GetPersonName(t Tag) (PersonName, bool) {
+	s, ok := ds.GetString(t)
+	if !ok {
+		return PersonName{}, false
+	}
+	pn, err := ParsePersonName(s)
+	if err != nil {
+		return PersonName{}, false
+	}
+	return pn, true
+}
+```
+
+`GetSequence` is deferred to Increment 3 (the `Sequence` type does not exist yet).
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1897,12 +2398,17 @@ func WithStopAtPixelData() ReadOption
 element read/write round-trip; implicit-VR-LE read/write; big-endian byte-order-aware codec; deflated dataset
 read/write; `FileMeta` parse + group-length boundary validation; `FileMeta` write with auto-recomputed group length;
 preamble + `DICM` handling; `DataSet.WriteFile` convenience deriving file-meta UIDs from `(0008,0016)`/`(0008,0018)`;
-truncation-is-failure regression; hostile-length regression.
+truncation-is-failure regression; hostile-length regression. The explicit-VR-LE writer round-trip task must include a
+**byte-level pad assertion**: write an odd-length value for each character VR (`AE`/`CS`/`DA`/`DS`/`IS`/`LO`/`PN` with
+SPACE, `UI` with NULL) and assert the emitted value field is even-length and ends in the correct pad byte, completing
+the write half of DCM-007 (Increment 1 proved only the `EncodedLen`/`PadByte` length computation; this proves the bytes
+are actually emitted padded).
 
 **Codex defects guarded:** DCM-001 (group length written first, exact byte count), DCM-002 (transfer-syntax-faithful
 encoder: byte order + deflate, reject unsupported before writing), DCM-003 (EOF only at a clean top-level tag boundary;
 `io.ErrUnexpectedEOF` inside any value/item propagated), DCM-004 (every 32-bit length validated against bytes remaining
-in a bounded reader before allocation), DCM-009 (writer rejects invalid UIDs through `ParseUID`, not a local check).
+in a bounded reader before allocation), DCM-007 (write half: emitted character value fields are even and padded with the
+correct byte), DCM-009 (writer rejects invalid UIDs through `ParseUID`, not a local check).
 
 **Fixtures needed (Increment 0):** `liver.dcm` (Explicit VR LE round-trip), `SC_rgb_expb.dcm` (Big Endian),
 `MR2_UNCI.dcm` (Implicit VR LE), plus a generated `liver.truncated.dcm` for DCM-003.
@@ -2082,6 +2588,15 @@ per-study shift or keeps them verbatim. Set `PatientIdentityRemoved (0012,0062) 
 ```go
 type Profile struct { /* action table, options, UID remap, dummy policy */ }
 type ProfileOption func(*Profile)
+
+// DateMode selects how the Retain Longitudinal Temporal Information sub-option keeps
+// dates/times when opted in. It is defined here (used only by the de-id profile).
+type DateMode uint8
+const (
+	DateModeKeep  DateMode = iota // keep dates/times verbatim
+	DateModeShift                 // shift by one consistent per-study offset
+)
+
 func NewProfile(g *UIDGenerator, opts ...ProfileOption) *Profile
 func (p *Profile) Deidentify(ds *DataSet) (*DataSet, error)
 func WithRetainPatientCharacteristics() ProfileOption
@@ -2113,6 +2628,116 @@ dataset is never mutated (assert by comparing a pre-clone snapshot).
 
 ---
 
+## Increment 8 — Structured Report content-item model — outline
+
+**Scope:** The DICOM Structured Report (SR) content-item tree, a committed v1 deliverable (reference doc; conformance
+declares Basic Text SR, Enhanced SR, and Comprehensive SR as IOD-aware supported SOP classes, not opaque transport). An
+SR encodes its content as a tree rooted at the Content Sequence `(0040,A730)`; each node carries a concept name, a value
+typed by its `ValueType (0040,A040)`, and a relationship to its parent `(0040,A010)`. go-radx models this tree as
+first-class data so the `convert` SR-to-FHIR leg has a documented data layer to read and build (PRD §5.1 step 6).
+`ParseSR` reads the tree from a parsed `DataSet`; `BuildSR` encodes a tree back into one.
+
+**Key types/functions (from `docs/reference/dicom.md`):**
+
+```go
+// ValueType is the SR content-item value type from PS3.3 (the VR CS value of (0040,A040)).
+type ValueType uint8
+const (
+	ValueTypeContainer ValueType = iota // CONTAINER
+	ValueTypeText                       // TEXT
+	ValueTypeCode                       // CODE
+	ValueTypeNum                        // NUM (measured value + units)
+	ValueTypePName                      // PNAME (person name)
+	ValueTypeDate                       // DATE
+	ValueTypeTime                       // TIME
+	ValueTypeDateTime                   // DATETIME
+	ValueTypeUIDRef                     // UIDREF
+	ValueTypeComposite                  // COMPOSITE (referenced SOP instance)
+	ValueTypeImage                      // IMAGE (referenced image)
+	ValueTypeSCoord                     // SCOORD (spatial coordinates)
+	ValueTypeSCoord3D                   // SCOORD3D
+	ValueTypeTCoord                     // TCOORD (temporal coordinates)
+	ValueTypeWaveform                   // WAVEFORM
+)
+
+// RelationshipType is the SR parent-child relationship from PS3.3 (the VR CS value of (0040,A010)).
+type RelationshipType uint8
+const (
+	RelationshipContains          RelationshipType = iota // CONTAINS
+	RelationshipHasObsContext                             // HAS OBS CONTEXT
+	RelationshipHasConceptMod                             // HAS CONCEPT MOD
+	RelationshipHasProperties                             // HAS PROPERTIES
+	RelationshipHasAcqContext                             // HAS ACQ CONTEXT
+	RelationshipInferredFrom                              // INFERRED FROM
+	RelationshipSelectedFrom                              // SELECTED FROM
+)
+
+// ConceptNameCode is a coded concept (a Code Sequence item): the (code, scheme, meaning) triple.
+type ConceptNameCode struct {
+	CodeValue              string // (0008,0100)
+	CodingSchemeDesignator string // (0008,0102), e.g. "DCM", "SCT", "LN"
+	CodeMeaning            string // (0008,0104)
+}
+
+// ContentItem is one node of the SR content tree.
+type ContentItem struct {
+	ValueType    ValueType
+	Relationship RelationshipType // relationship to the parent; root carries the zero value
+	ConceptName  ConceptNameCode  // (0040,A043) what this item measures or states
+
+	Text             string                  // TEXT
+	Code             ConceptNameCode         // CODE: the coded value (0040,A168)
+	MeasuredValue    Decimal                 // NUM: numeric value (0040,A30A)
+	MeasurementUnits ConceptNameCode         // NUM: units (0040,08EA)
+	PersonName       PersonName              // PNAME
+	DateTime         DT                      // DATE/TIME/DATETIME, preserved lexical form
+	UID              UID                     // UIDREF
+	Referenced       []ReferencedSOPInstance // COMPOSITE/IMAGE referenced instances
+
+	Children []ContentItem // nested content (CONTAINS and other relationships)
+}
+
+// ReferencedSOPInstance pairs a referenced SOP Class with its SOP Instance. It is the single shape
+// reused by dimse and dicomweb; SR COMPOSITE/IMAGE items reference instances through it.
+type ReferencedSOPInstance struct {
+	SOPClassUID    SOPClassUID
+	SOPInstanceUID SOPInstanceUID
+}
+
+func ParseSR(ds *DataSet) (*ContentItem, error)
+func BuildSR(ds *DataSet, root *ContentItem) error
+```
+
+**Dependencies:** Increment 1 (`Decimal`, `PersonName`, `UID`, `SOPClassUID`/`SOPInstanceUID`, `DataSet`), Increment 3
+(`Sequence`/`Item` — the content tree is a recursion over `SQ`, and `ReferencedSOPInstance` is read from referenced-SOP
+sequences), and Increment 5 (`DT` for DATE/TIME/DATETIME items). `ReferencedSOPInstance` is a new shared type added in
+this increment, reused later by `dimse` and `dicomweb`. This is new code, not a port (the prototype had no SR model).
+
+**Tasks (to be expanded):** the `ValueType` and `RelationshipType` enums with their CS-string mappings (parse/format the
+`(0040,A040)`/`(0040,A010)` defined terms); `ConceptNameCode` read/write against a Code Sequence item (`(0008,0100)`/
+`(0008,0102)`/`(0008,0104)`); `ContentItem` and `ReferencedSOPInstance` types; `ParseSR` recursing the Content Sequence
+`(0040,A730)`, rejecting a non-SR IOD (SOP Class not a supported SR class) with a typed error; per-`ValueType` value
+extraction (TEXT/CODE/NUM/PNAME/DATETIME/UIDREF/COMPOSITE/IMAGE); `BuildSR` encoding the tree back into the Content
+Sequence with `ValueType`, `RelationshipType`, `ConceptNameCodeSequence`, and value attributes per node; the
+depth/size-cap reuse and malformed-tree regression.
+
+**Depth and size cap:** the SR tree reuses the same sequence-depth cap as any other `SQ` nesting (default 64, from
+Increment 3's `WithMaxSequenceDepth`), so a maliciously deep SR returns a typed `LimitExceededError` rather than
+overflowing the stack — `ParseSR` recurses through `SQ` and inherits that bound.
+
+**Codex defects guarded:** none specific to SR in the audit (the prototype shipped no SR model). The increment inherits
+DCM-003/DCM-004 truncation and length bounds through the Increment 3 sequence parser it recurses over.
+
+**Fixtures needed (Increment 0):** add a small Basic Text SR and a Comprehensive SR fixture (pydicom ships SR test files,
+e.g. `reportsi.dcm`-style) to `testdata/dicom/` so `ParseSR` round-trips a real content tree.
+
+**Verification gate:** `ParseSR` of an SR fixture yields the expected root `CONTAINER` with the correct nested
+`ValueType`/`RelationshipType` and `ConceptNameCode` values; `BuildSR` of that tree re-encodes to a `DataSet` that
+`ParseSR` reads back equal (tree round-trip); a non-SR dataset returns a typed error; a synthetic depth-65 SR yields
+`LimitExceededError`; pydicom agrees on the parsed `(0040,A730)` structure.
+
+---
+
 ## Cross-increment Codex defect traceability
 
 Every audited defect is closed by a named regression test in the increment shown.
@@ -2125,7 +2750,7 @@ Every audited defect is closed by a named regression test in the increment shown
 | DCM-004 | Critical | Increment 2 | hostile-length rejected before `make` in bounded reader |
 | DCM-005 | High | Increment 3 | sequences are real nested datasets, round-trip |
 | DCM-006 | High | Increment 6 | bounded fragment stream, truncated header is an error |
-| DCM-007 | Medium | Increment 1 (1.2, 1.10, 1.11) | VR-centralised even-length padding |
+| DCM-007 | Medium | Increment 1 (length) + Increment 2 (emitted padded bytes) | VR-centralised even-length padding (1.2/1.10/1.11) + byte-level pad assertion in the writer round-trip |
 | DCM-008 | High | Increment 1 (1.8) | fail-closed UIDGenerator, no default root |
 | DCM-009 | Medium | Increment 1 (1.3) + 2 | single `ParseUID` validation path, writer reuses it |
 | DCM-010 | Medium | Increment 5 | strict DA + lenient opt-in + leap-second |
