@@ -75,3 +75,27 @@ func TestSetEmptyDeclaresZeroLengthReturnKey(t *testing.T) {
 		t.Errorf("SetEmpty value length = %d, want 0", e.Value.EncodedLen(nil))
 	}
 }
+
+func TestCloneIsDeep(t *testing.T) {
+	src := NewDataSet()
+	src.Set(Element{Tag: TagPixelData, VR: VROB, Value: NewBytes(VROB, []byte{1, 2, 3, 4})})
+
+	clone := src.Clone()
+	// Mutate the clone's element; the source must be untouched.
+	clone.Set(Element{Tag: TagPixelData, VR: VROB, Value: NewBytes(VROB, []byte{9, 9})})
+
+	se, _ := src.Get(TagPixelData)
+	sb := se.Value.(*Bytes).Bytes()
+	if len(sb) != 4 || sb[0] != 1 {
+		t.Errorf("Clone aliased source value: source bytes = %v (Codex DCM-016)", sb)
+	}
+}
+
+func TestCloneLengthMatches(t *testing.T) {
+	src := NewDataSet()
+	src.SetString(TagPatientName, "a")
+	src.SetString(TagStudyInstanceUID, "1.2")
+	if src.Clone().Len() != src.Len() {
+		t.Error("Clone should preserve element count")
+	}
+}

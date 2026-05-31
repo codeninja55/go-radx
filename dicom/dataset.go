@@ -113,3 +113,34 @@ func (ds *DataSet) GetStrings(t Tag) ([]string, bool) {
 	}
 	return sv.Strings(), true
 }
+
+// Clone returns a deep copy: every element's value slice is copied, not aliased, so
+// de-identification and conversion never contaminate the source (Codex DCM-016).
+func (ds *DataSet) Clone() *DataSet {
+	out := NewDataSet()
+	for e := range ds.All() {
+		out.Set(Element{Tag: e.Tag, VR: e.VR, Value: cloneValue(e.Value)})
+	}
+	return out
+}
+
+// cloneValue reconstructs a value through its constructor so the copy owns its own
+// backing slices. The value constructors already defensively copy their inputs.
+func cloneValue(v Value) Value {
+	switch t := v.(type) {
+	case *Strings:
+		return NewStrings(t.vr, t.vals...)
+	case *Ints:
+		return NewInts(t.vr, t.vals...)
+	case *Floats:
+		return NewFloats(t.vr, t.vals...)
+	case *Decimals:
+		return NewDecimals(t.vr, t.vals...)
+	case *Tags:
+		return NewTags(t.vals...)
+	case *Bytes:
+		return NewBytes(t.vr, t.b)
+	default:
+		return v
+	}
+}
