@@ -88,6 +88,10 @@ type Server struct {
 
 	wg           sync.WaitGroup
 	shutdownOnce sync.Once
+	// joined is closed by a single waiter goroutine (started once by teardownOnce) when every
+	// tracked goroutine has finished. Every Shutdown call selects on it against its own ctx, so
+	// repeated deadline-bounded retries share one waiter rather than leaking a goroutine per call.
+	joined chan struct{}
 }
 
 // NewServer builds an SCP for the AE, advertising the supported presentation contexts and
@@ -114,6 +118,7 @@ func NewServer(ae *AE, supported []PresentationContext, h any, opts ...ServerOpt
 		cfg:       cfg,
 		sem:       make(chan struct{}, cfg.maxAssociations),
 		conns:     make(map[*dul.Conn]struct{}),
+		joined:    make(chan struct{}),
 	}
 }
 
@@ -143,8 +148,14 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 	}
 	s.listener = ln
 	s.cancelHandlers = cancelHandlers
+	// Count the accept loop under the SAME lock that publishes the listener, BEFORE Shutdown can
+	// observe the listener and call wg.Wait. This keeps the WaitGroup counter >= 1 from the moment
+	// the server is publicly visible until Shutdown joins, so no wg.Add (here, the accept-loop
+	// watcher, or a per-association goroutine) is ever a from-zero Add racing a concurrent Wait.
+	s.wg.Add(1)
 	s.mu.Unlock()
 
+	defer s.wg.Done()
 	return s.acceptLoop(handlerCtx, ln)
 }
 
@@ -261,17 +272,12 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.teardownOnce()
 
-	// Re-runnable bounded join. NOT gated behind the once: each Shutdown waits against its own ctx
-	// and returns the real outcome, so a retry after a deadline reports actual completion, never a
-	// false nil. The waiter goroutine outlives a deadline-bounded Shutdown harmlessly and is reused
-	// by the next call's wg.Wait.
-	done := make(chan struct{})
-	go func() {
-		s.wg.Wait()
-		close(done)
-	}()
+	// Re-runnable bounded join sharing the single waiter teardownOnce started. NOT gated behind the
+	// once: each Shutdown selects the shared s.joined against its own ctx and returns the real
+	// outcome, so a retry after a deadline reports actual completion (never a false nil) without
+	// leaking a fresh waiter goroutine per call.
 	select {
-	case <-done:
+	case <-s.joined:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -309,6 +315,12 @@ func (s *Server) teardownOnce() {
 		for _, c := range conns {
 			_ = c.Close()
 		}
+		// Start the single join waiter; it closes s.joined once every tracked goroutine has
+		// finished, so all Shutdown calls share one waiter rather than spawning one per retry.
+		go func() {
+			s.wg.Wait()
+			close(s.joined)
+		}()
 	})
 }
 
