@@ -16,8 +16,14 @@ const (
 	ExplicitVRBigEndian            TransferSyntax = "1.2.840.10008.1.2.2" // retired, read+write
 	RLELossless                    TransferSyntax = "1.2.840.10008.1.2.5"
 	JPEGBaseline8Bit               TransferSyntax = "1.2.840.10008.1.2.4.50"
+	JPEGExtended12Bit              TransferSyntax = "1.2.840.10008.1.2.4.51"
+	JPEGLSLossless                 TransferSyntax = "1.2.840.10008.1.2.4.80"
+	JPEGLSNearLossless             TransferSyntax = "1.2.840.10008.1.2.4.81"
 	JPEG2000Lossless               TransferSyntax = "1.2.840.10008.1.2.4.90"
 	JPEG2000                       TransferSyntax = "1.2.840.10008.1.2.4.91"
+	HTJ2KLossless                  TransferSyntax = "1.2.840.10008.1.2.4.201"
+	HTJ2KLosslessRPCL              TransferSyntax = "1.2.840.10008.1.2.4.202"
+	HTJ2K                          TransferSyntax = "1.2.840.10008.1.2.4.203"
 )
 
 // IsImplicitVR reports whether the syntax encodes elements without an explicit VR.

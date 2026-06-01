@@ -21,6 +21,8 @@ origin (see the `LICENSE-*.txt` files in this directory).
 | `SC_rgb_expb.dcm` | Explicit VR Big Endian, retired (`1.2.840.10008.1.2.2`) | pydicom `SC_rgb_*` family; Big Endian variant produced with dcmtk `dcmconv` | MIT (pydicom); dcmtk tooling | Byte-order handling (Increment 2, DCM-002) |
 | `liver_rle.dcm` | RLE Lossless (`1.2.840.10008.1.2.5`) | pydicom liver corpus; RLE variant produced with GDCM `gdcmconv` | MIT (pydicom); GDCM tooling | Pure-Go RLE pixel decode (Increment 6) |
 | `liver_j2k.dcm` | JPEG 2000 Lossless (`1.2.840.10008.1.2.4.90`) | pydicom liver corpus, JPEG 2000 variant | MIT (pydicom) | CGo-gated decode and `ErrCodecUnavailable` under `nocgo` (Increment 6) |
+| `HTJ2KLossless_08_RGB.dcm` | High-Throughput JPEG 2000 (Lossless Only) (`1.2.840.10008.1.2.4.201`) | pydicom-data store; 480x640 RGB 8-bit synthetic | MIT (pydicom) | CGo-gated HTJ2K decode via OpenJPEG 2.5 and `ErrCodecUnavailable` under `nocgo` (Increment 6c) |
+| `HTJ2K_08_RGB.dcm` | High-Throughput JPEG 2000 (`1.2.840.10008.1.2.4.203`) | pydicom-data store; 480x640 RGB 8-bit synthetic | MIT (pydicom) | CGo-gated HTJ2K decode via OpenJPEG 2.5 and `ErrCodecUnavailable` under `nocgo` (Increment 6c) |
 | `MR-SIEMENS-DICOM-WithOverlays.dcm` | Explicit VR Little Endian (`1.2.840.10008.1.2.1`) | GDCM | BSD-3-Clause (GDCM) | Overlays and repeating group `60xx` dictionary mask (Increment 1, DCM-012) |
 | `explicit_VR-UN.dcm` | JPEG 2000 Lossless (`1.2.840.10008.1.2.4.90`) | pydicom (issue #968); original from The Cancer Imaging Archive, de-identified, recompressed with `gdcmconv --j2k` | MIT (pydicom) | Ambiguous/`UN` VR resolution (nearly all tags carry VR `UN`) (Increment 1) |
 | `basic-text-sr.dcm` | Explicit VR Little Endian (`1.2.840.10008.1.2.1`) | pydicom `reportsi.dcm` (Basic Text SR Storage; synthetic placeholder patient identifiers) | MIT (pydicom) | Structured Report content-item tree parse and round-trip (Increment 8) |
@@ -42,7 +44,8 @@ origin (see the `LICENSE-*.txt` files in this directory).
 ## License attribution
 
 - `LICENSE-pydicom.txt` — MIT license covering the pydicom-origin fixtures: `liver.dcm`, `MR2_UNCI.dcm`,
-  `SC_rgb_expb.dcm`, `liver_rle.dcm`, `liver_j2k.dcm`, `explicit_VR-UN.dcm`, `basic-text-sr.dcm`.
+  `SC_rgb_expb.dcm`, `liver_rle.dcm`, `liver_j2k.dcm`, `explicit_VR-UN.dcm`, `basic-text-sr.dcm`,
+  `HTJ2KLossless_08_RGB.dcm`, `HTJ2K_08_RGB.dcm`.
 - `LICENSE-gdcm.txt` — BSD-3-Clause license covering the GDCM-origin fixture `MR-SIEMENS-DICOM-WithOverlays.dcm`, and
   acknowledged for the GDCM tooling (`gdcmconv`) used to derive `liver_rle.dcm`.
 - `LICENSE-dcmtk.txt` — OFFIS BSD-3-Clause license acknowledged for the dcmtk tooling (`dcmconv`) used to derive

@@ -294,4 +294,13 @@ func goErrString(buf []C.char) string {
 func init() {
 	RegisterCodec(openjpegCodec{ts: JPEG2000Lossless, canEncode: true})
 	RegisterCodec(openjpegCodec{ts: JPEG2000, canEncode: false})
+
+	// High-Throughput JPEG 2000 (.201/.202/.203) is the same J2K codestream family
+	// with the HT block coder; OpenJPEG 2.5's OPJ_CODEC_J2K decoder dispatches to the
+	// HT decoder on the codestream's CAP/COD markers, so the existing decode path
+	// handles it unchanged. This build of OpenJPEG has the HT decoder but no HT
+	// encoder, so all three HTJ2K syntaxes are decode-only.
+	RegisterCodec(openjpegCodec{ts: HTJ2KLossless, canEncode: false})
+	RegisterCodec(openjpegCodec{ts: HTJ2KLosslessRPCL, canEncode: false})
+	RegisterCodec(openjpegCodec{ts: HTJ2K, canEncode: false})
 }

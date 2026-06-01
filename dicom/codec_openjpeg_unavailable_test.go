@@ -8,13 +8,49 @@ import (
 	"testing"
 )
 
-// TestNoCodecForJPEG2000InPureGo asserts the JPEG family has no registered codec
-// without the dicom_openjpeg build tag. The companion TestJPEG2000CodecRegistered
-// asserts the opposite once the codec is built in.
+// TestNoCodecForJPEG2000InPureGo asserts the JPEG 2000 family (classic and
+// High-Throughput) has no registered codec without the dicom_openjpeg build tag. The
+// companions TestJPEG2000CodecRegistered and TestHTJ2KCodecsRegistered assert the
+// opposite once the codec is built in.
 func TestNoCodecForJPEG2000InPureGo(t *testing.T) {
-	for _, ts := range []TransferSyntax{JPEG2000Lossless, JPEG2000} {
+	for _, ts := range []TransferSyntax{
+		JPEG2000Lossless, JPEG2000,
+		HTJ2KLossless, HTJ2KLosslessRPCL, HTJ2K,
+	} {
 		if c, ok := lookupCodec(ts); ok {
 			t.Fatalf("did not expect a %s codec in pure Go, got %T", ts.Name(), c)
+		}
+	}
+}
+
+// TestHTJ2KReturnsCodecUnavailable is the §7.3 degradation for High-Throughput JPEG
+// 2000, asserted only in a build WITHOUT the dicom_openjpeg codec: an HTJ2K instance
+// has no registered codec, so requesting frames yields a typed ErrCodecUnavailable
+// naming the transfer syntax.
+func TestHTJ2KReturnsCodecUnavailable(t *testing.T) {
+	for _, f := range []struct {
+		file string
+		ts   TransferSyntax
+	}{
+		{"HTJ2KLossless_08_RGB.dcm", HTJ2KLossless},
+		{"HTJ2K_08_RGB.dcm", HTJ2K},
+	} {
+		pd, err := ReadPixelData(filepath.Join("..", "testdata", "dicom", f.file))
+		if err != nil {
+			t.Fatalf("%s: ReadPixelData: %v", f.file, err)
+		}
+		if pd.Geometry.TransferSyntax != f.ts {
+			t.Fatalf("%s: transfer syntax = %s, want %s", f.file, pd.Geometry.TransferSyntax, f.ts)
+		}
+		var gotErr error
+		for _, err := range pd.Frames() {
+			if err != nil {
+				gotErr = err
+				break
+			}
+		}
+		if !errors.Is(gotErr, ErrCodecUnavailable) {
+			t.Errorf("%s: error = %v, want ErrCodecUnavailable", f.file, gotErr)
 		}
 	}
 }
