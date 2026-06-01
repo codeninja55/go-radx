@@ -63,7 +63,19 @@ func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.Accept
 		}
 		switch kind {
 		case inboundReleased:
-			return acc.CompleteRelease(ctx)
+			// CompleteRelease sends the A-RELEASE-RP then awaits the peer's orderly transport close (a
+			// final inbound read). A peer that sends A-RELEASE-RQ then HOLDS the TCP open would block
+			// that read forever, holding the capacity slot and goroutine until Shutdown — a
+			// slot-exhaustion DoS in the release phase (P1 adversarial review). Bound the await-close
+			// read by networkTimeout: it is an idle wait for the peer to close, the same idle-bound the
+			// post-negotiation reads use.
+			releaseCtx := ctx
+			if networkTimeout > 0 {
+				var cancel context.CancelFunc
+				releaseCtx, cancel = context.WithTimeout(ctx, networkTimeout)
+				defer cancel()
+			}
+			return acc.CompleteRelease(releaseCtx)
 		case inboundAborted, inboundClosed:
 			// The peer aborted or closed the transport in an orderly way; the association is over.
 			return conn.Close()

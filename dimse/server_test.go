@@ -12,6 +12,7 @@ import (
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/dul"
+	"github.com/codeninja55/go-radx/dimse/pdu"
 )
 
 // echoAndStorageContexts builds a single proposal list combining the Verification context and the
@@ -654,6 +655,99 @@ func TestServerLargeStoreNotCappedByIdleTimeout(t *testing.T) {
 	if gotInstance != sentInstance {
 		t.Errorf("stored SOP Instance UID = %q, want %q", gotInstance, sentInstance)
 	}
+}
+
+// TestServerReleaseCompletionTimesOut is the named regression for the release-completion DoS (P1
+// adversarial review): the acceptor's CompleteRelease awaits the peer's orderly transport close (a
+// final inbound read). A peer that sends A-RELEASE-RQ then HOLDS the TCP connection open — never
+// closing — must not block that read forever, holding the capacity slot and goroutine until
+// Shutdown. With a single capacity slot and a short network timeout, the await-close read must time
+// out and release the slot so a subsequent association can be served.
+//
+// The misbehaving peer is built with the production association machinery: it negotiates normally,
+// then writes an A-RELEASE-RQ directly through its conn/state-machine (advancing by Evt11 exactly as
+// Requestor.Release does) but, unlike Release, never reads the A-RELEASE-RP and never closes — it
+// just holds the socket open. Before the fix the server's CompleteRelease read used the long-lived
+// server context and parked forever on that silent peer, never releasing the slot.
+func TestServerReleaseCompletionTimesOut(t *testing.T) {
+	const networkTimeout = 300 * time.Millisecond
+
+	ae, err := NewAE(AETitle("RADX-SCP"), WithNetworkTimeout(networkTimeout))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	contexts := echoAndStorageContexts()
+	h := &serverTestHandler{echoStatus: StatusEchoSuccess, storeStatus: StatusStoreSuccess}
+	srv := NewServer(ae, contexts, h, WithMaxAssociations(1))
+
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		select {
+		case <-served:
+		case <-time.After(5 * time.Second):
+			t.Error("ListenAndServe did not return after Shutdown")
+		}
+	})
+
+	scu, err := NewAE(AETitle("RADX-SCU"))
+	if err != nil {
+		t.Fatalf("NewAE (SCU): %v", err)
+	}
+
+	// Misbehaving peer: negotiate, send A-RELEASE-RQ, then hold the connection open (never reading
+	// the A-RELEASE-RP, never closing). It occupies the single slot until the await-close read times
+	// out.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stuck, err := scu.Associate(ctx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+	if err != nil {
+		t.Fatalf("misbehaving peer Associate: %v", err)
+	}
+	t.Cleanup(func() { _ = stuck.requestor.Conn().Close() })
+
+	stuckConn := stuck.requestor.Conn()
+	stuckMachine := stuck.requestor.Machine()
+	if _, _, serr := stuckMachine.Apply(dul.Evt11); serr != nil { // A-RELEASE request -> AR-1 -> Sta7
+		t.Fatalf("Apply(Evt11): %v", serr)
+	}
+	if werr := stuckConn.WritePDU(ctx, &pdu.ReleaseRQ{}); werr != nil {
+		t.Fatalf("write A-RELEASE-RQ: %v", werr)
+	}
+	// Deliberately do NOT read the A-RELEASE-RP and do NOT close: the peer holds the socket open.
+
+	// Second association: it can only establish AND complete a C-ECHO once the stuck peer's slot is
+	// released by the await-close timeout. Poll generously relative to the injected network timeout;
+	// if the slot were never released this would fail at the deadline.
+	start := time.Now()
+	deadline := time.Now().Add(5 * time.Second)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		assoc, aerr := scu.Associate(dialCtx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+		if aerr != nil {
+			dialCancel()
+			lastErr = aerr
+			time.Sleep(20 * time.Millisecond)
+			continue
+		}
+		status, eerr := assoc.Echo(dialCtx)
+		if eerr == nil && status.IsSuccess() {
+			_ = assoc.Release(dialCtx)
+			dialCancel()
+			t.Logf("second association served after %s (network timeout %s)", time.Since(start), networkTimeout)
+			return
+		}
+		_ = assoc.Abort(dialCtx)
+		dialCancel()
+		lastErr = eerr
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("second association was never served within the deadline; the release-completion slot was not released (last error: %v)", lastErr)
 }
 
 // TestServerShutdownIsIdempotent confirms a second Shutdown after the first is a safe no-op.
