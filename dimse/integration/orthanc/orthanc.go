@@ -1,12 +1,14 @@
 //go:build interop
 
-// Package orthanc provides a testcontainers-backed Orthanc PACS fixture for the
-// DIMSE interop gate. It is built only under the interop tag so the testcontainers
-// dependency stays out of the default build; the DIMSE legs that drive it
-// (C-ECHO and C-STORE as SCU and SCP) are activated in Increment 7.
+// Package orthanc provides a testcontainers-backed Orthanc PACS fixture for the DIMSE interop
+// gate. It is built only under the interop tag so the testcontainers dependency stays out of the
+// default build. The fixture starts an Orthanc container, exposes its DICOM (4242) and REST API
+// (8042) ports, waits for readiness, and offers a small REST client used to verify that a
+// C-STORE actually landed (the regression that proves the prototype's Orthanc abort is fixed).
 package orthanc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -18,26 +20,44 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// OrthancContainer wraps a testcontainers Orthanc instance.
-type OrthancContainer struct {
-	Container testcontainers.Container
-	DICOMHost string
-	DICOMPort string
-	HTTPHost  string
-	HTTPPort  string
+// AETitle is the Orthanc container's DICOM AE Title. The container is configured to accept any
+// Called AE Title (DICOM_CHECK_CALLED_AET=false), but an SCU still names this as the Called AE.
+const AETitle = "ORTHANC"
+
+// dicomPort and httpPort are the container-internal ports Orthanc binds: 4242 for DIMSE and 8042
+// for the REST API. testcontainers maps each to an ephemeral host port discovered after start.
+const (
+	dicomPort = "4242/tcp"
+	httpPort  = "8042/tcp"
+)
+
+// image pins the Orthanc container image. orthancteam/orthanc is the maintained upstream image and
+// honours the ORTHANC__* environment overrides used below.
+const image = "orthancteam/orthanc:latest"
+
+// Container wraps a started Orthanc testcontainers instance and the host-side addresses its mapped
+// ports resolve to.
+type Container struct {
+	container testcontainers.Container
+	dicomHost string
+	dicomPort string
+	httpHost  string
+	httpPort  string
 }
 
-// StartOrthanc starts an Orthanc PACS container for testing.
-func StartOrthanc(ctx context.Context) (*OrthancContainer, error) {
+// Start launches an Orthanc container and blocks until its REST API answers. The container accepts
+// any C-ECHO and C-STORE without authentication so the interop SCU can drive it directly; remote
+// access is enabled so the host-side test can reach the mapped REST port.
+func Start(ctx context.Context) (*Container, error) {
 	req := testcontainers.ContainerRequest{
-		Image:        "orthancteam/orthanc:latest",
-		ExposedPorts: []string{"4242/tcp", "8042/tcp"}, // DICOM and HTTP ports
+		Image:        image,
+		ExposedPorts: []string{dicomPort, httpPort},
 		WaitingFor: wait.ForAll(
-			wait.ForListeningPort("8042/tcp"),
-			wait.ForHTTP("/system").WithPort("8042/tcp").WithStartupTimeout(60*time.Second),
+			wait.ForListeningPort(dicomPort),
+			wait.ForHTTP("/system").WithPort(httpPort).WithStartupTimeout(120*time.Second),
 		),
 		Env: map[string]string{
-			"ORTHANC__DICOM_AET":                  "ORTHANC",
+			"ORTHANC__DICOM_AET":                  AETitle,
 			"ORTHANC__DICOM_CHECK_CALLED_AET":     "false",
 			"ORTHANC__AUTHENTICATION_ENABLED":     "false",
 			"ORTHANC__DICOM_ALWAYS_ALLOW_ECHO":    "true",
@@ -47,228 +67,140 @@ func StartOrthanc(ctx context.Context) (*OrthancContainer, error) {
 		},
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to start Orthanc container: %w", err)
+		return nil, fmt.Errorf("start Orthanc container: %w", err)
 	}
 
-	// Get DICOM port mapping
-	dicomHost, err := container.Host(ctx)
+	host, err := c.Host(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get DICOM host: %w", err)
+		return nil, fmt.Errorf("resolve Orthanc host: %w", err)
 	}
-
-	dicomPort, err := container.MappedPort(ctx, "4242")
+	dp, err := c.MappedPort(ctx, dicomPort)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get DICOM port: %w", err)
+		return nil, fmt.Errorf("resolve mapped DICOM port: %w", err)
 	}
-
-	// Get HTTP port mapping
-	httpHost, err := container.Host(ctx)
+	hp, err := c.MappedPort(ctx, httpPort)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get HTTP host: %w", err)
+		return nil, fmt.Errorf("resolve mapped HTTP port: %w", err)
 	}
 
-	httpPort, err := container.MappedPort(ctx, "8042")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get HTTP port: %w", err)
-	}
-
-	return &OrthancContainer{
-		Container: container,
-		DICOMHost: dicomHost,
-		DICOMPort: dicomPort.Port(),
-		HTTPHost:  httpHost,
-		HTTPPort:  httpPort.Port(),
+	return &Container{
+		container: c,
+		dicomHost: host,
+		dicomPort: dp.Port(),
+		httpHost:  host,
+		httpPort:  hp.Port(),
 	}, nil
 }
 
-// Stop terminates the Orthanc container.
-func (oc *OrthancContainer) Stop(ctx context.Context) error {
-	if oc.Container != nil {
-		return oc.Container.Terminate(ctx)
+// Stop terminates the container. It is safe to call on a nil container.
+func (c *Container) Stop(ctx context.Context) error {
+	if c == nil || c.container == nil {
+		return nil
 	}
-	return nil
+	return c.container.Terminate(ctx)
 }
 
-// DICOMAddress returns the full DICOM address (host:port).
-func (oc *OrthancContainer) DICOMAddress() string {
-	return fmt.Sprintf("%s:%s", oc.DICOMHost, oc.DICOMPort)
+// DICOMAddr returns the host:port the SCU dials for DIMSE.
+func (c *Container) DICOMAddr() string {
+	return fmt.Sprintf("%s:%s", c.dicomHost, c.dicomPort)
 }
 
-// HTTPBaseURL returns the HTTP base URL.
-func (oc *OrthancContainer) HTTPBaseURL() string {
-	return fmt.Sprintf("http://%s:%s", oc.HTTPHost, oc.HTTPPort)
+// HTTPBaseURL returns the base URL of the Orthanc REST API.
+func (c *Container) HTTPBaseURL() string {
+	return fmt.Sprintf("http://%s:%s", c.httpHost, c.httpPort)
 }
 
-// GetInstances retrieves all instances from Orthanc via REST API.
-func (oc *OrthancContainer) GetInstances(ctx context.Context) ([]string, error) {
-	url := fmt.Sprintf("%s/instances", oc.HTTPBaseURL())
+// orthancInstance is the subset of an Orthanc /instances/{id} response the interop gate inspects:
+// the main DICOM tags carry the SOP Instance UID a C-STORE landed under.
+type orthancInstance struct {
+	MainDicomTags struct {
+		SOPInstanceUID string `json:"SOPInstanceUID"`
+	} `json:"MainDicomTags"`
+}
 
+// InstanceIDs lists every Orthanc-internal instance identifier currently stored.
+func (c *Container) InstanceIDs(ctx context.Context) ([]string, error) {
+	var ids []string
+	if err := c.getJSON(ctx, "/instances", &ids); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+// HasInstanceWithSOPUID reports whether Orthanc holds an instance whose SOP Instance UID equals
+// sopInstanceUID. It walks the stored instances and matches on the main DICOM tags, so the interop
+// C-STORE leg can prove the exact instance it sent was actually persisted, not merely that some
+// instance arrived.
+func (c *Container) HasInstanceWithSOPUID(ctx context.Context, sopInstanceUID string) (bool, error) {
+	ids, err := c.InstanceIDs(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, id := range ids {
+		var inst orthancInstance
+		if err := c.getJSON(ctx, "/instances/"+id, &inst); err != nil {
+			return false, err
+		}
+		if inst.MainDicomTags.SOPInstanceUID == sopInstanceUID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// getJSON issues a GET against the Orthanc REST API and decodes the JSON body into out.
+func (c *Container) getJSON(ctx context.Context, path string, out any) error {
+	url := c.HTTPBaseURL() + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("build request %s: %w", path, err)
 	}
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get instances: %w", err)
+		return fmt.Errorf("GET %s: %w", path, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("GET %s: unexpected status %d: %s", path, resp.StatusCode, string(body))
 	}
-
-	var instances []string
-	if err := parseJSON(resp.Body, &instances); err != nil {
-		return nil, fmt.Errorf("failed to parse instances: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("decode %s: %w", path, err)
 	}
-
-	return instances, nil
-}
-
-// GetStudies retrieves all studies from Orthanc via REST API.
-func (oc *OrthancContainer) GetStudies(ctx context.Context) ([]string, error) {
-	url := fmt.Sprintf("%s/studies", oc.HTTPBaseURL())
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get studies: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var studies []string
-	if err := parseJSON(resp.Body, &studies); err != nil {
-		return nil, fmt.Errorf("failed to parse studies: %w", err)
-	}
-
-	return studies, nil
-}
-
-// DeleteAllContent deletes all content from Orthanc.
-func (oc *OrthancContainer) DeleteAllContent(ctx context.Context) error {
-	instances, err := oc.GetInstances(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, instanceID := range instances {
-		url := fmt.Sprintf("%s/instances/%s", oc.HTTPBaseURL(), instanceID)
-		req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, http.NoBody)
-		if err != nil {
-			return fmt.Errorf("failed to create delete request: %w", err)
-		}
-
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("failed to delete instance: %w", err)
-		}
-		_ = resp.Body.Close()
-	}
-
 	return nil
 }
 
-// ConfigureModality configures a DICOM modality in Orthanc.
-func (oc *OrthancContainer) ConfigureModality(ctx context.Context, aet, host string, port int) error {
-	url := fmt.Sprintf("%s/modalities/%s", oc.HTTPBaseURL(), aet)
-
-	config := map[string]any{
-		"AET":  aet,
-		"Host": host,
-		"Port": port,
-	}
-
-	body, err := json.Marshal(config)
+// ConfigureModality registers a remote DICOM modality (AE Title, host, port) in Orthanc via its
+// REST API, so Orthanc can be driven to C-STORE to an external SCP (e.g. a go-radx Server).
+func (c *Container) ConfigureModality(ctx context.Context, aet, host string, port int) error {
+	body, err := json.Marshal(map[string]any{"AET": aet, "Host": host, "Port": port})
 	if err != nil {
-		return fmt.Errorf("failed to marshal modality config: %w", err)
+		return fmt.Errorf("marshal modality config: %w", err)
 	}
+	return c.put(ctx, "/modalities/"+aet, body)
+}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, io.NopCloser(newReader(body)))
+// put issues a PUT with a JSON body against the Orthanc REST API.
+func (c *Container) put(ctx context.Context, path string, body []byte) error {
+	url := c.HTTPBaseURL() + path
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("build request %s: %w", path, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to configure modality: %w", err)
+		return fmt.Errorf("PUT %s: %w", path, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
+		return fmt.Errorf("PUT %s: unexpected status %d: %s", path, resp.StatusCode, string(respBody))
 	}
-
 	return nil
-}
-
-// SendToModality sends an instance to a configured modality.
-func (oc *OrthancContainer) SendToModality(ctx context.Context, modality, instanceID string) error {
-	url := fmt.Sprintf("%s/modalities/%s/store", oc.HTTPBaseURL(), modality)
-
-	body, err := json.Marshal([]string{instanceID})
-	if err != nil {
-		return fmt.Errorf("failed to marshal instance list: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, io.NopCloser(newReader(body)))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send to modality: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	return nil
-}
-
-// parseJSON is a helper to parse JSON responses.
-func parseJSON(r io.Reader, v any) error {
-	decoder := json.NewDecoder(r)
-	return decoder.Decode(v)
-}
-
-// simpleReader adapts a byte slice to an io.Reader for request bodies.
-type simpleReader struct {
-	data []byte
-	pos  int
-}
-
-func newReader(data []byte) *simpleReader {
-	return &simpleReader{data: data}
-}
-
-func (r *simpleReader) Read(p []byte) (n int, err error) {
-	if r.pos >= len(r.data) {
-		return 0, io.EOF
-	}
-	n = copy(p, r.data[r.pos:])
-	r.pos += n
-	return n, nil
 }
