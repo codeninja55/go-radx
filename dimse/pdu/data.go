@@ -1,6 +1,7 @@
 package pdu
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -100,4 +101,39 @@ func decodePDV(br *boundedReader) (PresentationDataValue, error) {
 		MessageControlHeader:  hdr[1],
 		Data:                  data,
 	}, nil
+}
+
+// DataTF is a P-DATA-TF PDU: one or more PDV items carrying command and dataset
+// fragments (PS3.8 §9.3.5).
+type DataTF struct {
+	Items []PresentationDataValue
+}
+
+// Encode writes the P-DATA-TF PDU: the 6-byte header (with the summed item length)
+// followed by each PDV item.
+func (p *DataTF) Encode(w io.Writer) error {
+	var body bytes.Buffer
+	for _, item := range p.Items {
+		if err := encodePDV(&body, item); err != nil {
+			return err
+		}
+	}
+	if err := writeHeader(w, PDUTypeData, uint32(body.Len())); err != nil {
+		return err
+	}
+	_, err := w.Write(body.Bytes())
+	return err
+}
+
+// Decode reads PDV items from a bounded reader seeded with the PDU body length, so
+// the items cannot collectively exceed the declared body (PRD §9.3).
+func (p *DataTF) Decode(br *boundedReader) error {
+	for br.Remaining() > 0 {
+		item, err := decodePDV(br)
+		if err != nil {
+			return err
+		}
+		p.Items = append(p.Items, item)
+	}
+	return nil
 }

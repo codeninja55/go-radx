@@ -101,3 +101,31 @@ func TestPDVDecodeRejectsLengthBeyondBody(t *testing.T) {
 		t.Error("decodePDV should reject an item length exceeding the bytes remaining")
 	}
 }
+
+func TestDataTFRoundTrip(t *testing.T) {
+	in := &DataTF{Items: []PresentationDataValue{
+		{PresentationContextID: 1, MessageControlHeader: 0x01, Data: []byte("cmd")},
+		{PresentationContextID: 1, MessageControlHeader: 0x03, Data: []byte("end")},
+	}}
+	var buf bytes.Buffer
+	if err := in.Encode(&buf); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	if PDUType(buf.Bytes()[0]) != PDUTypeData {
+		t.Fatalf("first byte = %#02x, want P-DATA-TF type 0x04", buf.Bytes()[0])
+	}
+	pt, length, err := readHeader(&buf)
+	if err != nil || pt != PDUTypeData {
+		t.Fatalf("readHeader = (%s, %d), %v", pt, length, err)
+	}
+	out := &DataTF{}
+	if err := out.Decode(newBoundedReader(&buf, int64(length))); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(out.Items) != 2 || string(out.Items[0].Data) != "cmd" || string(out.Items[1].Data) != "end" {
+		t.Errorf("Decode items = %+v, want round-trip", out.Items)
+	}
+	if !out.Items[1].IsLastFragment() {
+		t.Error("last item should be marked last-fragment")
+	}
+}
