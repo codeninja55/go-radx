@@ -353,6 +353,82 @@ func TestServerShutdownClosesConnectionsWhileHandlerBlocked(t *testing.T) {
 	}
 }
 
+// TestServerIdleAssociationTimesOut is the named regression for the idle-association DoS: a peer
+// that completes negotiation then sends nothing must not hold a capacity slot forever. With a
+// short injected network timeout and a single capacity slot, the silent peer's association is
+// closed within ~the network timeout, releasing the slot so a subsequent C-ECHO association is
+// served (Codex/concurrency review). Without the per-read timeout this test would hang on the
+// second association until the outer deadline.
+func TestServerIdleAssociationTimesOut(t *testing.T) {
+	const networkTimeout = 300 * time.Millisecond
+
+	ae, err := NewAE(AETitle("RADX-SCP"), WithNetworkTimeout(networkTimeout))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	contexts := echoAndStorageContexts()
+	h := &serverTestHandler{echoStatus: StatusEchoSuccess, storeStatus: StatusStoreSuccess}
+	srv := NewServer(ae, contexts, h, WithMaxAssociations(1))
+
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		select {
+		case <-served:
+		case <-time.After(5 * time.Second):
+			t.Error("ListenAndServe did not return after Shutdown")
+		}
+	})
+
+	scu, err := NewAE(AETitle("RADX-SCU"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+
+	// First association: negotiate, then send NOTHING. It holds the single slot until the
+	// server's per-read network timeout closes it.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	idle, err := scu.Associate(ctx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+	if err != nil {
+		t.Fatalf("first (idle) Associate: %v", err)
+	}
+	t.Cleanup(func() { _ = idle.Abort(context.Background()) })
+
+	// Second association: it can only establish AND complete a C-ECHO once the idle peer's slot is
+	// released by the timeout. Bound it generously relative to the injected network timeout; if the
+	// slot were never released this would fail at the deadline.
+	start := time.Now()
+	deadline := time.Now().Add(5 * time.Second)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		assoc, aerr := scu.Associate(dialCtx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+		if aerr != nil {
+			dialCancel()
+			lastErr = aerr
+			time.Sleep(20 * time.Millisecond)
+			continue
+		}
+		status, eerr := assoc.Echo(dialCtx)
+		if eerr == nil && status.IsSuccess() {
+			_ = assoc.Release(dialCtx)
+			dialCancel()
+			t.Logf("second association served after %s (network timeout %s)", time.Since(start), networkTimeout)
+			return
+		}
+		_ = assoc.Abort(dialCtx)
+		dialCancel()
+		lastErr = eerr
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("second association was never served within the deadline; the idle slot was not released (last error: %v)", lastErr)
+}
+
 // TestServerShutdownIsIdempotent confirms a second Shutdown after the first is a safe no-op.
 func TestServerShutdownIsIdempotent(t *testing.T) {
 	srv, _ := startServer(t, &serverTestHandler{echoStatus: StatusEchoSuccess})

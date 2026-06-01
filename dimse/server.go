@@ -190,7 +190,7 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 		RequireCalledAETitle:   string(s.cfg.requireCalledAETitle),
 		RequireCallingAETitles: aeTitleStrings(s.cfg.requireCallingAETitles),
 	}
-	if err := dispatchAssociation(ctx, conn, params, s.handler); err != nil {
+	if err := dispatchAssociation(ctx, conn, params, s.ae.config().networkTimeout, s.handler); err != nil {
 		// The association ended on a fault (rejection, abort, protocol error, or a connection the
 		// peer or Shutdown closed under us); the connection is closed below regardless. The error
 		// is intentionally not logged here (no logger wired into the skeleton yet) and never

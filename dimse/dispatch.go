@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/acse"
@@ -26,7 +27,12 @@ import (
 // are never reimplemented. A received DIMSE message (P-DATA-TF stream) is routed by command field
 // to the Echo or Store dispatch primitive; an A-RELEASE-RQ completes the graceful release; an
 // A-ABORT or an orderly transport close ends the association cleanly.
-func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.AcceptParams, h Handler) error {
+//
+// Each inbound read is bounded by networkTimeout (the AE's idle-association bound) when it is
+// positive: a peer that completes negotiation then sends nothing must not hold a capacity slot and
+// a goroutine forever (a slot-exhaustion DoS — Codex/concurrency review). On the timeout the read
+// returns context.DeadlineExceeded, the association ends, and the Server releases the slot.
+func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.AcceptParams, networkTimeout time.Duration, h Handler) error {
 	acc, err := acse.Accept(ctx, conn, params)
 	if err != nil {
 		return err
@@ -39,7 +45,7 @@ func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.Accept
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		cmd, ds, pcID, kind, err := readInbound(ctx, acc, resolveTS)
+		cmd, ds, pcID, kind, err := readInbound(ctx, acc, networkTimeout, resolveTS)
 		if err != nil {
 			return err
 		}
@@ -72,16 +78,27 @@ const (
 // message from one or more P-DATA-TF PDUs, or reports an A-RELEASE-RQ / A-ABORT / orderly close.
 // A protocol violation surfaces as a typed error (DriveInbound has already sent the provider
 // A-ABORT); a clean io.EOF reports inboundClosed.
+//
+// When networkTimeout is positive the whole inbound-message read is bounded by it (derived once
+// from ctx), so a peer that goes silent — before the first PDU or stalled mid-reassembly — times
+// out and the association ends, releasing its capacity slot rather than parking forever.
 func readInbound(
 	ctx context.Context,
 	acc *acse.Acceptor,
+	networkTimeout time.Duration,
 	resolveTS func(pcID uint8) (dicom.TransferSyntax, error),
 ) (CommandSet, *dicom.DataSet, uint8, inboundKind, error) {
 	conn := acc.Conn()
 	m := acc.Machine()
 	r := newMessageReassemblerFunc(resolveTS)
+	readCtx := ctx
+	if networkTimeout > 0 {
+		var cancel context.CancelFunc
+		readCtx, cancel = context.WithTimeout(ctx, networkTimeout)
+		defer cancel()
+	}
 	for {
-		p, _, err := dul.DriveInbound(ctx, conn, m)
+		p, _, err := dul.DriveInbound(readCtx, conn, m)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return CommandSet{}, nil, 0, inboundClosed, nil
