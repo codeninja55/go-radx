@@ -217,13 +217,24 @@ build on.
 
 **Porting note — representation changes from the prototype.** The prototype's `DataTF.Decode` read items "until EOF"
 from a raw `io.Reader` with the body pre-read into a slice; this increment reads from an explicit **bounded reader**
-seeded with the exact PDU-body length, so a PDV item length exceeding the body remaining is rejected against bytes
-actually present, not against the 16 MB constant the prototype used (`MaxPDULength = 16777215`). The
-`MessageControlCommand`/`MessageControlLastFragment` constant values (`0x01`/`0x02`) are kept; the prototype's
-ambiguous `MessageControlDataset`/`MessageControlDatasetLast` aliases are dropped in favour of composing the two real
-bits (command bit + last-fragment bit). The `pdu` package depends only on the standard library and `dicom` (for no
-types yet in this increment — the PDU layer is pure bytes); it never imports `dul` or the root `dimse` (acyclic
-layering, dimse.md "Overview of the layers").
+seeded with the declared PDU-body length. **Two distinct guards are required, not one** (the lesson from the `dicom`
+bounded reader, DCM-003/DCM-004): (a) a PDV item length exceeding the body *remaining* is a truncation, and (b) a PDV
+payload or declared PDU length exceeding an **absolute `MaxPDULength` ceiling** is rejected before allocation. The
+remaining-bytes check alone is insufficient because the bounded reader's remaining count is seeded from the declared
+length read off the wire, which is attacker-controlled — so the prototype's `MaxPDULength = 16777215` (16 MiB) cap is
+**kept** as the absolute allocation ceiling (enforced in `readHeader` and again before the PDV `make`), with the
+negotiated Maximum Length enforced later at the association layer. The `MessageControlCommand`/
+`MessageControlLastFragment` constant values (`0x01`/`0x02`) are kept; the prototype's ambiguous
+`MessageControlDataset`/`MessageControlDatasetLast` aliases are dropped in favour of composing the two real bits
+(command bit + last-fragment bit). A `DataTF` body with zero PDV items is a malformed PDU, rejected (PS3.8 §9.3.5), not
+an empty success. The `pdu` package depends only on the standard library (no `dicom` types in this increment — the PDU
+layer is pure bytes); it never imports `dul`, `acse`, or the root `dimse` (acyclic layering, dimse.md "Overview of the
+layers"). It returns a local `*PDUError`.
+
+**Transcription corrections (from execution):** the plan's Task 1.4 `errors.go` block declared an unused `import "fmt"`
+(the `Error()` method uses string concatenation) — omit it; `fmt` is used in `data.go`, not `errors.go`. Increment 0
+already created `dimse/pdu/doc.go` with the package doc comment, so `pdu.go` (Task 1.1) starts at `package pdu` without
+re-declaring it (two package-level doc comments would trip `go vet`/lint).
 
 **File structure:**
 - `dimse/pdu/pdu.go` + `dimse/pdu/pdu_test.go` — PDU-type constants, `PDUType`, the 6-byte header read/write, and the
