@@ -18,6 +18,39 @@ func loopback(t *testing.T) (*dul.Conn, *dul.Conn) {
 	return dul.NewConn(c, 0), dul.NewConn(s, 0)
 }
 
+// tcpLoopback returns a connected pair over the loopback interface. Unlike net.Pipe, the
+// kernel socket buffers let a side write a PDU the peer has not yet read, which a single
+// goroutine driving both a write and a follow-up read needs to avoid deadlock.
+func tcpLoopback(t *testing.T) (*dul.Conn, *dul.Conn) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close() })
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		nc, aerr := ln.Accept()
+		if aerr != nil {
+			accepted <- nil
+			return
+		}
+		accepted <- nc
+	}()
+
+	dialed, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	peer := <-accepted
+	if peer == nil {
+		t.Fatal("accept failed")
+	}
+	t.Cleanup(func() { dialed.Close(); peer.Close() })
+	return dul.NewConn(dialed, 0), dul.NewConn(peer, 0)
+}
+
 func echoRequest() Request {
 	return Request{
 		CalledAETitle:  "ACCEPTOR",
@@ -155,5 +188,91 @@ func TestRequestRejected(t *testing.T) {
 	var re *RejectedError
 	if !errors.As(err, &re) {
 		t.Fatalf("Associate error = %T, want *RejectedError", err)
+	}
+}
+
+// TestServeReleaseSendsAbortOnProtocolViolation proves the consolidation closed the
+// correctness gap: the live acse path now SENDS the provider-source A-ABORT that PS3.8 AA-8
+// requires when a peer commits a protocol violation, routing inbound reads through the shared
+// dul.DriveInbound. Here an established association is asked to release, but the peer sends an
+// unexpected (recognised) A-ASSOCIATE-RQ instead of an A-RELEASE-RQ; in Sta6 that drives AA-8,
+// and the acceptor must write an A-ABORT back rather than closing silently (the pre-refactor
+// behaviour).
+func TestServeReleaseSendsAbortOnProtocolViolation(t *testing.T) {
+	// A real TCP loopback (not net.Pipe) so the kernel socket buffers a write the peer has
+	// not yet read; net.Pipe is fully synchronous and would deadlock the abort send against
+	// the violating write on a single goroutine.
+	rqConn, acConn := tcpLoopback(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	acceptorDone := make(chan *Acceptor, 1)
+	acceptErr := make(chan error, 1)
+	go func() {
+		a, err := Accept(ctx, acConn, acceptParams())
+		if err != nil {
+			acceptErr <- err
+			return
+		}
+		acceptorDone <- a
+	}()
+
+	req, err := Associate(ctx, rqConn, echoRequest())
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+
+	var acc *Acceptor
+	select {
+	case acc = <-acceptorDone:
+	case err := <-acceptErr:
+		t.Fatalf("Accept: %v", err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("acceptor did not establish")
+	}
+
+	// The acceptor services a release; the requestor instead sends a recognised-but-unexpected
+	// PDU, a protocol violation that must drive AA-8 and a provider A-ABORT back on the wire.
+	serveDone := make(chan error, 1)
+	go func() { serveDone <- acc.ServeRelease(ctx) }()
+
+	violation := &pdu.AssociateRQ{
+		ProtocolVersion:      1,
+		ApplicationContext:   "1.2.840.10008.3.1.1.1",
+		PresentationContexts: []pdu.PresentationContextRQ{{ID: 1, AbstractSyntax: verificationUID, TransferSyntaxes: []string{implicitVRLE}}},
+		UserInfo:             pdu.UserInformation{MaxPDULength: 16382},
+	}
+	if werr := req.Conn().WritePDU(ctx, violation); werr != nil {
+		t.Fatalf("writing the violating PDU: %v", werr)
+	}
+
+	// The pre-refactor acse closed silently here; the consolidated path sends the A-ABORT.
+	resp, rerr := req.Conn().ReadPDU(ctx)
+	if rerr != nil {
+		t.Fatalf("reading the A-ABORT the acceptor must send on a violation: %v", rerr)
+	}
+	ab, ok := resp.(*pdu.Abort)
+	if !ok {
+		t.Fatalf("peer received %s, want an A-ABORT after a protocol violation", resp.Type())
+	}
+	if ab.Source != pdu.AbortSourceServiceProvider {
+		t.Errorf("A-ABORT source = %d, want provider (%d)", ab.Source, pdu.AbortSourceServiceProvider)
+	}
+	if ab.Reason != pdu.AbortReasonUnexpectedPDU {
+		t.Errorf("A-ABORT reason = %d, want UnexpectedPDU (%d)", ab.Reason, pdu.AbortReasonUnexpectedPDU)
+	}
+
+	// ServeRelease surfaces the violation as a typed *ProtocolError, not a silent success.
+	select {
+	case serr := <-serveDone:
+		if serr == nil {
+			t.Fatal("ServeRelease on a protocol violation = nil error, want a *ProtocolError")
+		}
+		var pe *ProtocolError
+		if !errors.As(serr, &pe) {
+			t.Fatalf("ServeRelease error = %T, want *ProtocolError", serr)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("ServeRelease did not return after the violation")
 	}
 }

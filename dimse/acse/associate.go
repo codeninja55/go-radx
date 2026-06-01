@@ -86,16 +86,18 @@ func Associate(ctx context.Context, conn *dul.Conn, req Request) (*Requestor, er
 		return nil, err
 	}
 
-	resp, err := conn.ReadPDU(ctx)
+	// DriveInbound reads the response and applies its received-event to m, sending the
+	// provider A-ABORT itself if the response is an unexpected or invalid PDU (the shared
+	// PS3.8 hardening). A-ASSOCIATE-AC drives AE-3 -> Sta6, A-ASSOCIATE-RJ drives AE-4 -> Sta1,
+	// and an A-ABORT drives AA-3 -> Sta1; all three are defined transitions and surface here as
+	// the decoded PDU with a nil DriveInbound error, which we interpret below.
+	resp, _, err := dul.DriveInbound(ctx, conn, m)
 	if err != nil {
-		return nil, translateReadError(m, err)
+		return nil, translateDriveError(m, err)
 	}
 
 	switch p := resp.(type) {
 	case *pdu.AssociateAC:
-		if _, _, serr := m.Apply(dul.Evt3); serr != nil { // -> AE-3 -> Sta6
-			return nil, wrapState(m, serr)
-		}
 		return &Requestor{
 			conn:     conn,
 			machine:  m,
@@ -103,14 +105,14 @@ func Associate(ctx context.Context, conn *dul.Conn, req Request) (*Requestor, er
 			peerMax:  p.UserInfo.MaxPDULength,
 		}, nil
 	case *pdu.AssociateRJ:
-		_, _, _ = m.Apply(dul.Evt4) // -> AE-4 -> Sta1
 		return nil, &RejectedError{Result: p.Result, Source: p.Source, Reason: p.Reason}
 	case *pdu.Abort:
-		_, _, _ = m.Apply(dul.Evt16) // -> AA-3 -> Sta1
 		return nil, &AbortedError{Provider: p.Source == pdu.AbortSourceServiceProvider, Source: p.Source, Reason: p.Reason}
 	default:
-		_, _, serr := m.Apply(dul.Evt19) // unexpected PDU -> AA-8
-		return nil, wrapUnexpected(m, resp.Type(), serr)
+		// A recognised-but-unexpected PDU has already driven AA-8 inside DriveInbound, which
+		// returned the *StateError translated above; reaching here means a PDU type with a
+		// defined transition we do not consume during establishment.
+		return nil, wrapUnexpected(m, resp.Type(), nil)
 	}
 }
 
@@ -127,17 +129,19 @@ func Accept(ctx context.Context, conn *dul.Conn, params AcceptParams) (*Acceptor
 		return nil, wrapState(m, err)
 	}
 
-	resp, err := conn.ReadPDU(ctx)
+	// DriveInbound reads the A-ASSOCIATE-RQ and applies Evt6 (-> AE-6 -> Sta3). Any other
+	// recognised PDU is unexpected in Sta2 and drives AA-1 (send user-source A-ABORT) -> Sta13,
+	// and a malformed PDU drives the provider A-ABORT; DriveInbound sends the abort and returns
+	// the typed *StateError.
+	resp, _, err := dul.DriveInbound(ctx, conn, m)
 	if err != nil {
-		return nil, translateReadError(m, err)
+		return nil, translateDriveError(m, err)
 	}
 	rq, ok := resp.(*pdu.AssociateRQ)
 	if !ok {
-		_, _, serr := m.Apply(dul.Evt19)
-		return nil, wrapUnexpected(m, resp.Type(), serr)
-	}
-	if _, _, serr := m.Apply(dul.Evt6); serr != nil { // -> AE-6 -> Sta3
-		return nil, wrapState(m, serr)
+		// A recognised PDU with a defined non-fault transition that is not an A-ASSOCIATE-RQ;
+		// the fault PDUs were already aborted inside DriveInbound.
+		return nil, wrapUnexpected(m, resp.Type(), nil)
 	}
 
 	results := NegotiateAcceptor(rq.PresentationContexts, params.Supported)
@@ -186,16 +190,15 @@ func (r *Requestor) Release(ctx context.Context) error {
 	if err := r.conn.WritePDU(ctx, &pdu.ReleaseRQ{}); err != nil {
 		return err
 	}
-	resp, err := r.conn.ReadPDU(ctx)
+	// DriveInbound reads the A-RELEASE-RP and applies Evt13 (Sta7 -> AR-3 -> Sta1). A peer's
+	// A-RELEASE-RQ would collide here (Evt12 -> AR-8 -> Sta9); any unexpected or invalid PDU
+	// drives AA-8 with the provider A-ABORT sent by DriveInbound.
+	resp, _, err := dul.DriveInbound(ctx, r.conn, r.machine)
 	if err != nil {
-		return translateReadError(r.machine, err)
+		return translateDriveError(r.machine, err)
 	}
 	if _, ok := resp.(*pdu.ReleaseRP); !ok {
-		_, _, serr := r.machine.Apply(dul.Evt19)
-		return wrapUnexpected(r.machine, resp.Type(), serr)
-	}
-	if _, _, serr := r.machine.Apply(dul.Evt13); serr != nil { // -> AR-3 (close) -> Sta1
-		return wrapState(r.machine, serr)
+		return wrapUnexpected(r.machine, resp.Type(), nil)
 	}
 	return r.conn.Close()
 }
@@ -204,34 +207,33 @@ func (r *Requestor) Release(ctx context.Context) error {
 // the A-RELEASE-RP (AR-4), then observe the transport close (Evt17) and return to Sta1. It
 // is bounded by ctx and never panics.
 func (a *Acceptor) ServeRelease(ctx context.Context) error {
-	resp, err := a.conn.ReadPDU(ctx)
+	// DriveInbound reads the A-RELEASE-RQ and applies Evt12 (Sta6 -> AR-2 -> Sta8). Any
+	// unexpected or invalid PDU drives AA-8 with the provider A-ABORT sent by DriveInbound.
+	resp, _, err := dul.DriveInbound(ctx, a.conn, a.machine)
 	if err != nil {
-		return translateReadError(a.machine, err)
+		return translateDriveError(a.machine, err)
 	}
 	if _, ok := resp.(*pdu.ReleaseRQ); !ok {
-		_, _, serr := a.machine.Apply(dul.Evt19)
-		return wrapUnexpected(a.machine, resp.Type(), serr)
+		return wrapUnexpected(a.machine, resp.Type(), nil)
 	}
-	if _, _, serr := a.machine.Apply(dul.Evt12); serr != nil { // -> AR-2 -> Sta8
-		return wrapState(a.machine, serr)
-	}
-	if _, _, serr := a.machine.Apply(dul.Evt14); serr != nil { // -> AR-4 (send RELEASE-RP) -> Sta13
+	// Evt14 (local A-RELEASE response) is a local primitive: AR-4 (send A-RELEASE-RP) -> Sta13.
+	if _, _, serr := a.machine.Apply(dul.Evt14); serr != nil {
 		return wrapState(a.machine, serr)
 	}
 	if err := a.conn.WritePDU(ctx, &pdu.ReleaseRP{}); err != nil {
 		return err
 	}
-	// Await the orderly transport close the requestor performs after AR-3.
-	if _, rerr := a.conn.ReadPDU(ctx); rerr != nil {
+	// Await the orderly transport close the requestor performs after AR-3. A clean io.EOF
+	// drives Evt17 (Sta13 -> AR-5 -> Sta1); a PDU arriving where a close was expected is
+	// treated as unexpected.
+	resp, _, rerr := dul.DriveInbound(ctx, a.conn, a.machine)
+	if rerr != nil {
 		if errors.Is(rerr, io.EOF) {
-			_, _, _ = a.machine.Apply(dul.Evt17) // -> AR-5 -> Sta1
 			return a.conn.Close()
 		}
-		return translateReadError(a.machine, rerr)
+		return translateDriveError(a.machine, rerr)
 	}
-	// A PDU arrived where a close was expected; treat it as unexpected.
-	_, _, serr := a.machine.Apply(dul.Evt19)
-	return wrapUnexpected(a.machine, pdu.PDUTypeData, serr)
+	return wrapUnexpected(a.machine, resp.Type(), nil)
 }
 
 // Abort sends a user-initiated A-ABORT and closes the transport, leaving the machine in
@@ -336,15 +338,21 @@ func padAETitle(title string) [16]byte {
 	return field
 }
 
-// translateReadError maps a transport read error to a typed acse error. A context
+// translateDriveError maps a dul.DriveInbound error to a typed acse error. A context
 // cancellation or deadline is surfaced as-is; a clean io.EOF is a transport close (the
-// conversation broke); anything else is a protocol fault.
-func translateReadError(m *dul.StateMachine, err error) error {
+// conversation broke before the expected PDU arrived); a *dul.StateError is a protocol
+// violation DriveInbound has already aborted on the wire, surfaced as a *ProtocolError naming
+// the violating state and event; anything else is a transport read fault.
+func translateDriveError(m *dul.StateMachine, err error) error {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
 	if errors.Is(err, io.EOF) {
 		return &ProtocolError{State: m.CurrentState(), Detail: "transport closed before the expected PDU arrived"}
+	}
+	var se *dul.StateError
+	if errors.As(err, &se) {
+		return &ProtocolError{State: se.State, Detail: se.Error()}
 	}
 	return &ProtocolError{State: m.CurrentState(), Detail: fmt.Sprintf("reading PDU: %v", err)}
 }
