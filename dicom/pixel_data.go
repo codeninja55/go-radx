@@ -19,9 +19,15 @@ type Frame struct {
 type PixelData struct {
 	Geometry PixelGeometry
 
-	native    []byte           // contiguous samples for an uncompressed transfer syntax
-	encaps    *encapsulated    // parsed fragment stream for a compressed transfer syntax
-	extended  *extendedOffsets // Extended Offset Table from the dataset, if present
+	native   []byte           // contiguous samples for an uncompressed transfer syntax
+	encaps   *encapsulated    // parsed fragment stream for a compressed transfer syntax
+	extended *extendedOffsets // Extended Offset Table from the dataset, if present
+
+	// frameLen overrides the geometry-derived frame length for native slicing when it
+	// is positive. It is set when frames are produced by a decode (transcode to native),
+	// where the decoded frame length is authoritative even if the dataset's BitsAllocated
+	// disagrees, so a non-conformant source still slices into the correct frames.
+	frameLen int
 }
 
 // NewPixelData builds the PixelData for ds under ts. For an uncompressed transfer
@@ -156,10 +162,14 @@ func (p *PixelData) frameEncodedBytes() ([][]byte, error) {
 	return out, nil
 }
 
-// nativeFrames slices the contiguous native buffer per the geometry.
+// nativeFrames slices the contiguous native buffer per the geometry, or per the
+// explicit frameLen override when frames were produced by a decode.
 func (p *PixelData) nativeFrames() iter.Seq2[Frame, error] {
 	return func(yield func(Frame, error) bool) {
 		frameLen := p.Geometry.FrameLength()
+		if p.frameLen > 0 {
+			frameLen = p.frameLen
+		}
 		frames := p.Geometry.NumberOfFrames
 		if frameLen <= 0 || frames <= 0 {
 			yield(Frame{}, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "non-positive frame length or frame count"})
