@@ -56,6 +56,11 @@ func (c StatusCategory) String() string {
 // Meaning() are derived against the ServiceClass it was constructed with, so a caller can never
 // author a status whose category contradicts its code (PRD §8.1). Construct one from a named
 // constant or from NewStatus.
+//
+// The zero value Status{} has code 0x0000 and so reports IsSuccess() == true; it is NOT a "no
+// status" sentinel. Operations that return (Status, error) return this zero value on their error
+// paths, so a returned Status is only meaningful when the returned error is nil — check the error
+// first.
 type Status struct {
 	Code uint16
 

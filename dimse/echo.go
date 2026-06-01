@@ -20,8 +20,12 @@ const echoMessageID uint16 = 1
 //
 // A Failure-category status is data the caller inspects with status.IsFailure(), not a Go error;
 // the returned error reports a transport, association, or protocol fault — "the conversation
-// broke", distinct from "the peer answered, and said no" (dimse.md "Error model"). It guards
-// against an unestablished or released association with a typed error, never a panic (DIMSE-017).
+// broke", distinct from "the peer answered, and said no" (dimse.md "Error model").
+//
+// The returned Status is meaningful ONLY when the returned error is nil. On a non-nil error the
+// Status is unset (the Status{} zero value, whose code 0x0000 reports success) and must not be
+// inspected — check the error first. It guards against an unestablished or released association
+// with a typed error, never a panic (DIMSE-017).
 func (a *Association) Echo(ctx context.Context) (Status, error) {
 	if a == nil || a.requestor == nil {
 		return Status{}, &AssociationError{Kind: AssociationNotEstablished, Detail: "Echo on an unestablished association"}

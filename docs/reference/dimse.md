@@ -531,9 +531,16 @@ func (a *Association) Echo(ctx context.Context) (Status, error)
 ### C-STORE
 
 ```go
-// Store transmits one dataset via C-STORE. The presentation context is selected from the dataset's SOP Class UID and
-// transfer syntax; if no accepted context matches, Store returns a typed error and transmits nothing. It never reports
-// success on work it did not do (PRD §9.2 fail-closed rule, which the prototype's `store` violated).
+// Store transmits one dataset via C-STORE. The presentation context is selected by the dataset's SOP Class UID, and the
+// dataset is encoded in that context's negotiated transfer syntax; if no accepted context matches, Store returns a typed
+// error and transmits nothing. It never reports success on work it did not do (PRD §9.2 fail-closed rule, which the
+// prototype's `store` violated).
+//
+// Limitation: selection is by SOP Class only. The dicom.DataSet does not carry its source transfer syntax (that lives on
+// the File Meta group, separate from the dataset), so Store cannot yet prefer a context whose accepted transfer syntax
+// matches the dataset's own. Transfer-syntax-faithful selection — required to send compressed pixel data as-is and avoid
+// transcoding that would corrupt it — is deferred to a later increment. Today Store assumes the dataset is encodable in
+// the context's negotiated transfer syntax.
 func (a *Association) Store(ctx context.Context, ds *dicom.DataSet, opts ...StoreOption) (Status, error)
 
 type StoreOption func(*storeConfig)

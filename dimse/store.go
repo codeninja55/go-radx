@@ -44,13 +44,20 @@ func WithMoveOriginator(aet AETitle, msgID uint16) StoreOption {
 	}
 }
 
-// Store transmits one dataset via C-STORE (PS3.4 B.2). The presentation context is selected from
-// the dataset's SOP Class UID (0008,0016) and a negotiated transfer syntax; if no accepted context
-// matches, Store returns a typed *AssociationError and transmits NOTHING — it never reports
-// success on work it did not do (PRD §9.2 fail-closed, the rule the prototype's store violated). A
-// Failure-category status is data the caller inspects with status.IsFailure(), not a Go error; the
-// returned error reports a transport, association, or protocol fault. It guards against an
-// unestablished or released association with a typed error, never a panic (Codex DIMSE-017).
+// Store transmits one dataset via C-STORE (PS3.4 B.2). The presentation context is selected by the
+// dataset's SOP Class UID (0008,0016), and the dataset is encoded in that context's negotiated
+// transfer syntax; if no accepted context matches, Store returns a typed *AssociationError and
+// transmits NOTHING — it never reports success on work it did not do (PRD §9.2 fail-closed, the
+// rule the prototype's store violated). Selection is by SOP Class only: the dataset does not carry
+// its own transfer syntax, so transfer-syntax-faithful selection (to avoid transcoding compressed
+// data) is deferred to a later increment — see contextForStorage. A Failure-category status is
+// data the caller inspects with status.IsFailure(), not a Go error; the returned error reports a
+// transport, association, or protocol fault.
+//
+// The returned Status is meaningful ONLY when the returned error is nil. On a non-nil error the
+// Status is unset (the Status{} zero value, whose code 0x0000 reports success) and must not be
+// inspected — check the error first. It guards against an unestablished or released association
+// with a typed error, never a panic (Codex DIMSE-017).
 func (a *Association) Store(ctx context.Context, ds *dicom.DataSet, opts ...StoreOption) (Status, error) {
 	if a == nil || a.requestor == nil {
 		return Status{}, &AssociationError{Kind: AssociationNotEstablished, Detail: "Store on an unestablished association"}
@@ -141,6 +148,13 @@ func (a *Association) Store(ctx context.Context, ds *dicom.DataSet, opts ...Stor
 // syntax for the given SOP Class, or false when none was accepted (so Store fails closed rather
 // than guessing a context). When several contexts were accepted for the same SOP Class the first
 // is chosen, matching the proposal order.
+//
+// Selection is by SOP Class ONLY. The dicom.DataSet does not carry its source transfer syntax (it
+// lives on the File Meta group, separate from the dataset), so this cannot yet prefer a context
+// whose accepted transfer syntax matches the dataset's own. The dataset is therefore encoded in the
+// chosen context's negotiated transfer syntax. Transfer-syntax-faithful selection — required to
+// send compressed pixel data as-is rather than transcoding (which would corrupt it) — is deferred
+// to a later increment.
 func (a *Association) contextForStorage(sopClass dicom.SOPClassUID) (uint8, dicom.TransferSyntax, bool) {
 	for _, pc := range a.accepted {
 		if pc.Result != ContextAccepted {
