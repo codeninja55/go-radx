@@ -1443,3 +1443,15 @@ later legs, so the outlines do not drift from the committed API shapes:
   in the outline and pin narrative-only.
 - **Increment 12 (options, M1):** `WithSubjectR5(ref r5.Reference) Option` depends on `fhir/r5.Reference` (built in
   Increment 11); note the dependency so the executor does not stub `Reference`.
+
+### Architecture decision (from execution): DUL state-machine ownership
+
+Surfaced at Increment 3 and decided by the architect. The DUL state machine is owned by the **caller** — the ACSE
+layer for the association lifecycle, and the DIMSE message layer (Increment 5) and the SCP (Increment 6) for their
+phases — NOT by `dul.Conn`. The `dul` package provides three composable pieces: `StateMachine` (the PS3.8 Table 9-10
+table + `Apply`), `Conn` (pure context-aware PDU framing/I/O — no embedded FSM), and `DriveInbound(ctx, conn, *StateMachine)`,
+the one hardened inbound path that reads a PDU, maps it (io.EOF→Evt17, malformed→Evt19, recognised→its event), applies
+it to the caller's machine, and SENDS the provider/user A-ABORT with the correct reason on a fault action. Increments
+5 and 6 MUST route their inbound reads through `dul.DriveInbound` against their own `StateMachine` so the abort-send and
+the clean-close/malformed distinction are never reimplemented (the original split left the hardening in dead `Conn` code
+while the live path failed to send the AA-8 A-ABORT — do not recreate that).
