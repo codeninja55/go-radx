@@ -147,6 +147,26 @@ func (a *Association) AcceptedContexts() []PresentationContext {
 	return a.accepted
 }
 
+// PeerImplementationClassUID returns the Implementation Class UID the peer (acceptor) advertised
+// in its A-ASSOCIATE-AC user information (PS3.7 D.3.3.2), or "" for an unestablished association or
+// a peer that advertised none.
+func (a *Association) PeerImplementationClassUID() dicom.UID {
+	if a == nil || a.requestor == nil {
+		return ""
+	}
+	return dicom.UID(a.requestor.PeerImplementationClassUID())
+}
+
+// PeerImplementationVersionName returns the Implementation Version Name the peer (acceptor)
+// advertised in its A-ASSOCIATE-AC user information (PS3.7 D.3.3.2), or "" for an unestablished
+// association or a peer that advertised none.
+func (a *Association) PeerImplementationVersionName() string {
+	if a == nil || a.requestor == nil {
+		return ""
+	}
+	return a.requestor.PeerImplementationVersionName()
+}
+
 // Release performs a graceful A-RELEASE, bounded by ctx. It is idempotent: a second Release
 // on an already-released association is a safe no-op (Codex DIMSE-017). It returns a typed
 // *AssociationError when called on an unestablished association.

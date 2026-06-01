@@ -923,6 +923,62 @@ func TestNewServerAcceptsEchoOnlyHandler(t *testing.T) {
 	}
 }
 
+// TestServerAdvertisesImplementationIdentity is the named regression (P2 adversarial review): the
+// Server must propagate the AE's configured Implementation Class UID and Implementation Version
+// Name into the A-ASSOCIATE-AC it sends on an inbound association, mirroring the outbound SCU side.
+// An SCU associating to such a Server must see those values in the accepted association's user
+// information.
+func TestServerAdvertisesImplementationIdentity(t *testing.T) {
+	const (
+		implClassUID = dicom.UID("1.2.840.99999.1")
+		implVersion  = "GO-RADX-TEST"
+	)
+
+	ae, err := NewAE(
+		AETitle("RADX-SCP"),
+		WithImplementationClassUID(implClassUID),
+		WithImplementationVersionName(implVersion),
+	)
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	contexts := echoAndStorageContexts()
+	srv := NewServer(ae, contexts, &serverTestHandler{echoStatus: StatusEchoSuccess, storeStatus: StatusStoreSuccess})
+
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		select {
+		case <-served:
+		case <-time.After(5 * time.Second):
+			t.Error("ListenAndServe did not return after Shutdown")
+		}
+	})
+
+	scu, err := NewAE(AETitle("RADX-SCU"))
+	if err != nil {
+		t.Fatalf("NewAE (SCU): %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	assoc, err := scu.Associate(ctx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+	defer func() { _ = assoc.Release(ctx) }()
+
+	if got := assoc.PeerImplementationClassUID(); got != implClassUID {
+		t.Errorf("peer Implementation Class UID = %q, want %q", got, implClassUID)
+	}
+	if got := assoc.PeerImplementationVersionName(); got != implVersion {
+		t.Errorf("peer Implementation Version Name = %q, want %q", got, implVersion)
+	}
+}
+
 // TestServerListenRejectsBadBind confirms a malformed bind address surfaces as an error from
 // ListenAndServe rather than a hang.
 func TestServerListenRejectsBadBind(t *testing.T) {

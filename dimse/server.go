@@ -215,6 +215,11 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 		Supported:              s.supported,
 		RequireCalledAETitle:   string(s.cfg.requireCalledAETitle),
 		RequireCallingAETitles: aeTitleStrings(s.cfg.requireCallingAETitles),
+		// Carry the AE's configured implementation identity into the A-ASSOCIATE-AC user
+		// information, so an inbound association advertises it just as an outbound SCU does
+		// (PS3.7 D.3.3.2); without this the inbound side silently dropped the configured identity.
+		ImplementationClassUID: string(s.ae.config().implementationClassUID),
+		ImplementationVersion:  s.ae.config().implementationVersion,
 	}
 	if err := dispatchAssociation(ctx, conn, params, s.ae.config().acseTimeout, s.ae.config().networkTimeout, s.handler); err != nil {
 		// The association ended on a fault (rejection, abort, protocol error, or a connection the

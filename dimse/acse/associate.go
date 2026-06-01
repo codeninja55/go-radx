@@ -74,6 +74,9 @@ type Requestor struct {
 	machine  *dul.StateMachine
 	accepted []pdu.PresentationContextAC
 	peerMax  uint32
+
+	peerImplementationClassUID string
+	peerImplementationVersion  string
 }
 
 // Acceptor is an established inbound association from the acceptor's perspective.
@@ -119,10 +122,12 @@ func Associate(ctx context.Context, conn *dul.Conn, req Request) (*Requestor, er
 	switch p := resp.(type) {
 	case *pdu.AssociateAC:
 		return &Requestor{
-			conn:     conn,
-			machine:  m,
-			accepted: p.PresentationContexts,
-			peerMax:  p.UserInfo.MaxPDULength,
+			conn:                       conn,
+			machine:                    m,
+			accepted:                   p.PresentationContexts,
+			peerMax:                    p.UserInfo.MaxPDULength,
+			peerImplementationClassUID: p.UserInfo.ImplementationClassUID,
+			peerImplementationVersion:  p.UserInfo.ImplementationVersion,
 		}, nil
 	case *pdu.AssociateRJ:
 		return nil, &RejectedError{Result: p.Result, Source: p.Source, Reason: p.Reason}
@@ -328,6 +333,14 @@ func (a *Acceptor) AcceptedContexts() []pdu.PresentationContextAC { return a.acc
 
 // PeerMaxPDULength reports the maximum PDU length the peer advertised (0 = unlimited).
 func (r *Requestor) PeerMaxPDULength() uint32 { return r.peerMax }
+
+// PeerImplementationClassUID reports the Implementation Class UID the acceptor advertised in the
+// A-ASSOCIATE-AC user information (PS3.7 D.3.3.2), or "" when the acceptor sent none.
+func (r *Requestor) PeerImplementationClassUID() string { return r.peerImplementationClassUID }
+
+// PeerImplementationVersionName reports the Implementation Version Name the acceptor advertised in
+// the A-ASSOCIATE-AC user information (PS3.7 D.3.3.2), or "" when the acceptor sent none.
+func (r *Requestor) PeerImplementationVersionName() string { return r.peerImplementationVersion }
 
 // RequestedContexts returns the presentation contexts the requestor proposed (acceptor side).
 func (a *Acceptor) RequestedContexts() []pdu.PresentationContextRQ {
