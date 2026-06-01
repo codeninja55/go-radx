@@ -1,9 +1,12 @@
 package dimse
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net"
+	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -134,4 +137,179 @@ func TestStoreRejectsDatasetWithoutSOPClass(t *testing.T) {
 	if _, err := assoc.Store(ctx, ds); err == nil {
 		t.Error("Store of a dataset with no SOP Class UID returned nil error, want a typed error")
 	}
+}
+
+// segmentationStorageSOPClass is the SOP Class of the liver.dcm fixture — Segmentation Storage,
+// which is in StorageContexts() (the validated radiology Storage set), encoded uncompressed
+// Explicit VR LE, so the four-syntax DIMSE skeleton can negotiate and exercise it end-to-end.
+const segmentationStorageSOPClass = "1.2.840.10008.5.1.4.1.1.66.4"
+
+// storeSCPResult captures what the storage SCP dispatch observed.
+type storeSCPResult struct {
+	status Status
+	ds     *dicom.DataSet
+	info   *OpInfo
+	err    error
+}
+
+// recordingStoreHandler persists (records) the dataset it receives and returns a configurable
+// status — a StoreHandler that satisfies the fail-closed rule by holding the dataset before
+// reporting success.
+type recordingStoreHandler struct {
+	status Status
+	mu     sync.Mutex
+	ds     *dicom.DataSet
+	info   *OpInfo
+}
+
+func (h *recordingStoreHandler) Store(_ context.Context, ds *dicom.DataSet, info OpInfo) Status {
+	h.mu.Lock()
+	h.ds = ds
+	h.info = &info
+	h.mu.Unlock()
+	return h.status
+}
+
+// startStoreSCP listens on loopback and, for each inbound association, negotiates the Segmentation
+// Storage context (Explicit VR LE preferred) as acceptor, services one C-STORE via serveStore
+// dispatching to h, then services the graceful release.
+func startStoreSCP(t *testing.T, called AETitle, h StoreHandler) (string, <-chan storeSCPResult) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+
+	results := make(chan storeSCPResult, 1)
+	go func() {
+		nc, aerr := ln.Accept()
+		if aerr != nil {
+			return
+		}
+		conn := dul.NewConn(nc, 0)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		acc, perr := acse.Accept(ctx, conn, acse.AcceptParams{
+			CalledAETitle: string(called),
+			MaxPDULength:  16382,
+			Supported: []acse.SupportedContext{{
+				AbstractSyntax:   segmentationStorageSOPClass,
+				TransferSyntaxes: []string{"1.2.840.10008.1.2.1", "1.2.840.10008.1.2"},
+			}},
+		})
+		if perr != nil {
+			_ = nc.Close()
+			results <- storeSCPResult{err: perr}
+			return
+		}
+		status, serr := serveStore(ctx, acc, AETitle("SCU"), called, h)
+		var ds *dicom.DataSet
+		var info *OpInfo
+		if rec, ok := h.(*recordingStoreHandler); ok {
+			rec.mu.Lock()
+			ds, info = rec.ds, rec.info
+			rec.mu.Unlock()
+		}
+		results <- storeSCPResult{status: status, ds: ds, info: info, err: serr}
+		_ = acc.ServeRelease(ctx)
+	}()
+	return ln.Addr().String(), results
+}
+
+// TestStoreInProcessRoundTrip is the load-bearing C-STORE end-to-end proof: an in-process SCU
+// stores a real uncompressed fixture (liver.dcm, Segmentation Storage, Explicit VR LE) to an
+// in-process SCP, which persists it and returns StatusStoreSuccess. The SCP-received dataset must
+// match the sent one on the SOP Instance UID and a pixel-data sample — proof the command-last-bit
+// fix and the negotiated-transfer-syntax dataset decode work end-to-end (DIMSE-001/002/003).
+func TestStoreInProcessRoundTrip(t *testing.T) {
+	src, err := dicom.ReadFile(filepath.Join("..", "testdata", "dicom", "liver.dcm"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	sentDS := src.DataSet
+	sentInstance, _ := sentDS.GetString(tagSOPInstanceUID)
+	sentClass, _ := sentDS.GetString(tagSOPClassUID)
+	if sentClass != segmentationStorageSOPClass {
+		t.Fatalf("fixture SOP Class = %q, want %q", sentClass, segmentationStorageSOPClass)
+	}
+	sentPixels := pixelSample(t, sentDS)
+
+	h := &recordingStoreHandler{status: StatusStoreSuccess}
+	addr, results := startStoreSCP(t, AETitle("SCP"), h)
+
+	ae, err := NewAE(AETitle("SCU"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Negotiate a context for the fixture's SOP Class (Segmentation Storage is in StorageContexts).
+	assoc, err := ae.Associate(ctx, addr, AETitle("SCP"), StorageContexts())
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+
+	status, err := assoc.Store(ctx, sentDS)
+	if err != nil {
+		t.Fatalf("Store transport error: %v", err)
+	}
+	if status.Code != StatusStoreSuccess.Code || !status.IsSuccess() {
+		t.Errorf("SCU Store status = %s, want store success", status)
+	}
+
+	if err := assoc.Release(ctx); err != nil {
+		t.Fatalf("Release: %v", err)
+	}
+
+	res := <-results
+	if res.err != nil {
+		t.Fatalf("SCP serveStore: %v", res.err)
+	}
+	if !res.status.IsSuccess() {
+		t.Errorf("SCP dispatch status = %s, want success", res.status)
+	}
+	if res.ds == nil {
+		t.Fatal("SCP persisted no dataset")
+	}
+	if res.info == nil {
+		t.Fatal("SCP recorded no OpInfo")
+	}
+	if res.info.SOPClassUID != dicom.SOPClassUID(segmentationStorageSOPClass) {
+		t.Errorf("OpInfo.SOPClassUID = %q, want %q", res.info.SOPClassUID, segmentationStorageSOPClass)
+	}
+	if res.info.TransferSyntax != dicom.ExplicitVRLittleEndian {
+		t.Errorf("OpInfo.TransferSyntax = %q, want Explicit VR LE (negotiated)", res.info.TransferSyntax)
+	}
+
+	// The received dataset must match the sent one on the SOP Instance UID and a pixel sample.
+	gotInstance, _ := res.ds.GetString(tagSOPInstanceUID)
+	if gotInstance != sentInstance {
+		t.Errorf("received SOP Instance UID = %q, want %q", gotInstance, sentInstance)
+	}
+	gotPixels := pixelSample(t, res.ds)
+	if !bytes.Equal(gotPixels, sentPixels) {
+		t.Errorf("received pixel sample (%d bytes) does not match the sent sample (%d bytes)",
+			len(gotPixels), len(sentPixels))
+	}
+}
+
+// pixelSample returns the first 64 bytes (or fewer) of the Pixel Data element (7FE0,0010), the
+// sample compared across the C-STORE round-trip.
+func pixelSample(t *testing.T, ds *dicom.DataSet) []byte {
+	t.Helper()
+	e, ok := ds.Get(dicom.NewTag(0x7FE0, 0x0010))
+	if !ok {
+		t.Fatal("dataset has no Pixel Data (7FE0,0010)")
+	}
+	b, ok := e.Value.(*dicom.Bytes)
+	if !ok {
+		t.Fatalf("Pixel Data value type = %T, want *dicom.Bytes", e.Value)
+	}
+	data := b.Bytes()
+	if len(data) > 64 {
+		data = data[:64]
+	}
+	return append([]byte(nil), data...)
 }
