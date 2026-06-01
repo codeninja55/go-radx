@@ -29,12 +29,6 @@ func (e *LimitExceededError) Error() string {
 	return fmt.Sprintf("dicom: %s limit exceeded: %d > %d", e.Kind, e.Actual, e.Limit)
 }
 
-// truncated wraps an underlying read error as ErrTruncated when it indicates a
-// short read inside an element, preserving io.ErrUnexpectedEOF matching.
-func truncated(context string) error {
-	return fmt.Errorf("dicom: truncated %s: %w", context, io.ErrUnexpectedEOF)
-}
-
 // isEOF reports a clean end-of-stream (io.EOF) as distinct from a mid-element
 // truncation.
 func isEOF(err error) bool { return errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) }

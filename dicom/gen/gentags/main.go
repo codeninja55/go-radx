@@ -399,8 +399,8 @@ func isUID(s string) bool {
 // cleanCell trims whitespace and removes the zero-width spaces and soft hyphens the
 // DICOM XML embeds in long UID strings.
 func cleanCell(s string) string {
-	s = strings.ReplaceAll(s, "​", "") // zero-width space
-	s = strings.ReplaceAll(s, "­", "") // soft hyphen
+	s = strings.ReplaceAll(s, "\u200b", "") // zero-width space
+	s = strings.ReplaceAll(s, "\u00ad", "") // soft hyphen
 	return strings.TrimSpace(s)
 }
 
@@ -446,7 +446,7 @@ func get(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET %s: %s", url, resp.Status)
 	}

@@ -15,7 +15,7 @@ func ReadFile(path string, opts ...ReadOption) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	return Read(bufio.NewReader(file), opts...)
 }
 
@@ -44,7 +44,7 @@ func Read(r io.Reader, opts ...ReadOption) (*File, error) {
 	if ts.IsDeflated() {
 		// The main dataset follows the file-meta group as a raw DEFLATE stream.
 		fr := flate.NewReader(br.r)
-		defer fr.Close()
+		defer func() { _ = fr.Close() }()
 		main = newBoundedReader(fr, cfg.maxElementLen)
 	}
 
@@ -66,11 +66,11 @@ func WriteFile(path string, f *File, opts ...WriteOption) error {
 	}
 	bw := bufio.NewWriter(out)
 	if err := Write(bw, f, opts...); err != nil {
-		out.Close()
+		_ = out.Close()
 		return err
 	}
 	if err := bw.Flush(); err != nil {
-		out.Close()
+		_ = out.Close()
 		return err
 	}
 	return out.Close()

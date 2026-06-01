@@ -37,7 +37,6 @@ func TestBoundedReaderHostileLengthRejectedBeforeAlloc(t *testing.T) {
 	// allocation (Codex DCM-004): no make([]byte, n) for a hostile n.
 	const cap = 1 << 20 // 1 MiB cap
 	br := newBoundedReader(strings.NewReader("abc"), cap)
-	const hostile = uint32(3 * 1024 * 1024 * 1024 >> 0) // wraps; use a value over cap
 	_, err := br.readN(0xFFFFFFFE)
 	var le *LimitExceededError
 	if !errors.As(err, &le) {
