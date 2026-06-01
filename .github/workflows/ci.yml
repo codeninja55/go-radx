@@ -1,0 +1,143 @@
+# CI for the go-radx re-foundation.
+#
+# UNVALIDATED UNTIL FIRST RUN: this workflow was authored offline against the repository's mise
+# tasks, build tags, and pinned tool versions, but it has never executed (the re-foundation history
+# is not yet on a GitHub remote). The pure-Go jobs (lint-test, conformance, interop, govulncheck) are
+# high-confidence; the `codecs` job builds three native libraries from source and is the most likely
+# to need flag/version iteration on the first real run — see the note on that job.
+#
+# Design: the default build is pure-Go (CGO_ENABLED=0); the C-backed pixel codecs live behind the
+# dicom_openjpeg / dicom_libjpeg / dicom_charls build tags, so only the `codecs` job needs the native
+# libraries. The conformance gates (tools/dicom-conformance/*) skip on a dev box but FAIL when
+# CI=true, so this is where they finally run for real.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    name: Lint, vet, build, race tests (pure-Go default build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-clean:"; echo "$unformatted"; exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: golangci-lint (default build)
+        run: mise exec -- golangci-lint run ./...
+      - name: golangci-lint (interop build tag)
+        run: mise exec -- golangci-lint run --build-tags interop ./...
+      - name: build
+        run: go build ./...
+      - name: race tests (default build; race needs cgo but no codec libs)
+        run: go test -race ./...
+
+  conformance:
+    name: DICOM conformance (dciodvfy + pydicom, enforced)
+    runs-on: ubuntu-latest
+    env:
+      CI: "true" # flips tools/dicom-conformance/*.sh from skip-locally to fail-if-tool-absent
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install dcmtk + pydicom
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dcmtk python3-pip
+          python3 -m pip install --break-system-packages pydicom
+      - name: DICOM IOD validation (dciodvfy)
+        run: mise run dicom:dciodvfy
+      - name: pydicom round-trip
+        run: mise run dicom:pydicom
+
+  interop:
+    name: DIMSE interop gate (testcontainers — Orthanc + dcm4chee-arc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: DIMSE interop tests
+        # GitHub-hosted ubuntu runners ship Docker; testcontainers manages the Orthanc and
+        # dcm4chee-arc stacks. The dcm4chee-arc stack (LDAP + PostgreSQL + WildFly) is memory-heavy
+        # for a standard runner — watch this job if the runner is resource-constrained.
+        run: go test -tags interop -count=1 ./dimse/integration/...
+
+  govulncheck:
+    name: Go vulnerability scan
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  codecs:
+    # UNVALIDATED — highest-risk job. The C-backed pixel codecs are pinned to OpenJPEG 2.5.4,
+    # libjpeg-turbo 3.1.4, and CharLS 2.4.3 (the versions the local build links via Homebrew).
+    # Ubuntu apt ships older releases — notably libjpeg-turbo 2.x, which lacks the TJPARAM_LOSSLESS
+    # API codec_libjpeg.go uses — so the libraries are built from source here. The exact release tags
+    # and cmake flags below have NOT been validated against a real CI run and may need iteration.
+    name: CGo pixel codecs (native libs from source)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install build tooling
+        run: sudo apt-get update && sudo apt-get install -y cmake build-essential pkg-config nasm curl
+      - name: Build & install OpenJPEG 2.5.4
+        run: |
+          curl -fsSL https://github.com/uclouvain/openjpeg/archive/refs/tags/v2.5.4.tar.gz | tar -xz
+          cmake -S openjpeg-2.5.4 -B openjpeg-2.5.4/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+          cmake --build openjpeg-2.5.4/build -j"$(nproc)"
+          sudo cmake --install openjpeg-2.5.4/build
+      - name: Build & install libjpeg-turbo 3.1.4
+        run: |
+          curl -fsSL https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.1.4/libjpeg-turbo-3.1.4.tar.gz | tar -xz
+          cmake -S libjpeg-turbo-3.1.4 -B libjpeg-turbo-3.1.4/build -DCMAKE_BUILD_TYPE=Release -DENABLE_SHARED=ON
+          cmake --build libjpeg-turbo-3.1.4/build -j"$(nproc)"
+          sudo cmake --install libjpeg-turbo-3.1.4/build
+      - name: Build & install CharLS 2.4.3
+        run: |
+          curl -fsSL https://github.com/team-charls/charls/archive/refs/tags/2.4.3.tar.gz | tar -xz
+          cmake -S charls-2.4.3 -B charls-2.4.3/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+          cmake --build charls-2.4.3/build -j"$(nproc)"
+          sudo cmake --install charls-2.4.3/build
+      - name: Refresh linker cache
+        run: sudo ldconfig
+      - name: Build, test & lint with codec tags
+        env:
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
+          LD_LIBRARY_PATH: /usr/local/lib:/usr/local/lib64
+        run: |
+          TAGS="dicom_openjpeg dicom_libjpeg dicom_charls"
+          go build -tags "$TAGS" ./...
+          go test -tags "$TAGS" ./dicom/...
+          mise exec -- golangci-lint run --build-tags "$TAGS" ./...
