@@ -26,6 +26,7 @@ type outcome struct {
 var table = map[transition]outcome{
 	// Sta1 — Idle.
 	{Sta1, Evt1}: {AE1, Sta4},
+	{Sta1, Evt5}: {AE5, Sta2},
 
 	// Sta2 — transport connection open, awaiting A-ASSOCIATE-RQ.
 	{Sta2, Evt3}:  {AA1, Sta13},

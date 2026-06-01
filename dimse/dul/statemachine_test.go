@@ -26,6 +26,7 @@ type transitionCase struct {
 var table910 = []transitionCase{
 	// Sta1
 	{Sta1, Evt1, AE1, Sta4},
+	{Sta1, Evt5, AE5, Sta2},
 	// Sta2
 	{Sta2, Evt3, AA1, Sta13},
 	{Sta2, Evt4, AA1, Sta13},
@@ -239,6 +240,28 @@ func TestReleaseCollisionReachesSta9AndSta12(t *testing.T) {
 	}
 	if action, next, _ = sm2.Apply(Evt14); action != AR4 || next != Sta13 {
 		t.Fatalf("Sta12 + Evt14 = (%v -> %v), want (AR-4 -> Sta13)", action, next)
+	}
+}
+
+// TestAcceptInboundTransportConnection guards the acceptor's entry transition that the
+// original Increment 2 work omitted on the false belief that pynetdicom lacks it. PS3.8
+// Table 9-10 and pynetdicom's fsm.py both define Sta1 + Evt5 (an accepted inbound TCP
+// connection) -> AE-5 (issue transport response, start ARTIM timer) -> Sta2 (await the
+// A-ASSOCIATE-RQ). Without it the SCP can never accept an association.
+func TestAcceptInboundTransportConnection(t *testing.T) {
+	sm := NewStateMachine() // starts in Sta1
+	action, next, err := sm.Apply(Evt5)
+	if err != nil {
+		t.Fatalf("Apply(Sta1, Evt5) unexpected error: %v", err)
+	}
+	if action != AE5 {
+		t.Errorf("Apply(Sta1, Evt5) action = %v, want AE-5", action)
+	}
+	if next != Sta2 {
+		t.Errorf("Apply(Sta1, Evt5) next = %v, want Sta2", next)
+	}
+	if sm.CurrentState() != Sta2 {
+		t.Errorf("after Apply(Sta1, Evt5) state = %v, want Sta2", sm.CurrentState())
 	}
 }
 
