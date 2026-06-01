@@ -15,10 +15,33 @@ import (
 type CommandField uint16
 
 const (
+	// CommandCStoreRQ is the C-STORE request command field (PS3.7 §9.1.1, verified against
+	// pynetdicom dimse_messages.py C_STORE_RQ).
+	CommandCStoreRQ CommandField = 0x0001
+	// CommandCStoreRSP is the C-STORE response command field (PS3.7 §9.1.1).
+	CommandCStoreRSP CommandField = 0x8001
 	// CommandCEchoRQ is the C-ECHO request command field (PS3.7 §9.3.5).
 	CommandCEchoRQ CommandField = 0x0030
 	// CommandCEchoRSP is the C-ECHO response command field (PS3.7 §9.3.6).
 	CommandCEchoRSP CommandField = 0x8030
+	// CommandCMoveRQ is the C-MOVE request command field (PS3.7 §9.1.4). The C-MOVE service is
+	// M3 scope; the constant exists so the command-set encoder can carry Move Destination, the
+	// VR-AE element the DIMSE-007 regression exercises.
+	CommandCMoveRQ CommandField = 0x0021
+)
+
+// Priority is the DIMSE operation priority (0000,0700), a US value (PS3.7 §10.3.1). The wire
+// values are not ordered numerically: medium is 0x0000, high 0x0001, low 0x0002 (verified against
+// pynetdicom DIMSE priority constants).
+type Priority uint16
+
+const (
+	// PriorityMedium is the default operation priority (0x0000).
+	PriorityMedium Priority = 0x0000
+	// PriorityHigh requests expedited handling (0x0001).
+	PriorityHigh Priority = 0x0001
+	// PriorityLow requests deferred handling (0x0002).
+	PriorityLow Priority = 0x0002
 )
 
 // commandResponseBit marks a command field as a response (PS3.7 §9.1: the high bit set).
@@ -34,16 +57,40 @@ const (
 )
 
 // Command-set element tags (PS3.7 §10.3, group 0000). The command set is always encoded in
-// Implicit VR Little Endian, so the VR is implied by the dictionary, not the wire.
+// Implicit VR Little Endian, so the VR is implied by the command dictionary, not the wire. The
+// command dictionary is separate from the PS3.6 data dictionary the dicom package ships (which
+// has no group-0000 entries), so it is held here as commandVR.
 var (
 	tagCommandGroupLength        = dicom.NewTag(0x0000, 0x0000) // UL
 	tagAffectedSOPClassUID       = dicom.NewTag(0x0000, 0x0002) // UI
 	tagCommandField              = dicom.NewTag(0x0000, 0x0100) // US
 	tagMessageID                 = dicom.NewTag(0x0000, 0x0110) // US
 	tagMessageIDBeingRespondedTo = dicom.NewTag(0x0000, 0x0120) // US
+	tagMoveDestination           = dicom.NewTag(0x0000, 0x0600) // AE
+	tagPriority                  = dicom.NewTag(0x0000, 0x0700) // US
 	tagCommandDataSetType        = dicom.NewTag(0x0000, 0x0800) // US
 	tagStatus                    = dicom.NewTag(0x0000, 0x0900) // US
+	tagAffectedSOPInstanceUID    = dicom.NewTag(0x0000, 0x1000) // UI
 )
+
+// commandVR is the Value Representation each group-0000 command element carries in the DICOM
+// Command Dictionary (PS3.7 §E.1, verified against pydicom _dicom_dict.py). Although the command
+// set is encoded Implicit VR LE — so the VR is not written on the wire — the encoder selects the
+// padding and width by VR: a UI value NUL-pads to even length, an AE value space-pads, a US is two
+// bytes, a UL four. Giving Move Destination (0000,0600) its dictionary VR AE rather than UI was
+// the DIMSE-007 fix (the prototype NUL-padded an AE field).
+var commandVR = map[dicom.Tag]dicom.VR{
+	tagCommandGroupLength:        dicom.VRUL,
+	tagAffectedSOPClassUID:       dicom.VRUI,
+	tagCommandField:              dicom.VRUS,
+	tagMessageID:                 dicom.VRUS,
+	tagMessageIDBeingRespondedTo: dicom.VRUS,
+	tagMoveDestination:           dicom.VRAE,
+	tagPriority:                  dicom.VRUS,
+	tagCommandDataSetType:        dicom.VRUS,
+	tagStatus:                    dicom.VRUS,
+	tagAffectedSOPInstanceUID:    dicom.VRUI,
+}
 
 // CommandSet is a decoded DIMSE command (PS3.7 §6.3.1): the elements of group 0000 that carry
 // the command type, message identifiers, the affected SOP Class, the data-set-present flag, and
@@ -54,7 +101,17 @@ type CommandSet struct {
 	MessageID                 uint16
 	MessageIDBeingRespondedTo uint16
 	AffectedSOPClassUID       dicom.UID
+	AffectedSOPInstanceUID    dicom.UID
 	CommandDataSetType        uint16
+	// Priority is the operation priority (0000,0700); present on data-bearing requests (C-STORE,
+	// C-FIND, C-GET, C-MOVE). HasPriority distinguishes a present medium priority (0x0000) from an
+	// absent element, since PriorityMedium is the zero value.
+	HasPriority bool
+	Priority    Priority
+	// MoveDestination is the C-MOVE destination AE Title (0000,0600), VR AE. It is empty on a
+	// C-STORE-RQ (which does not carry it); the field exists so the command-set encoder exercises
+	// a VR-AE element (the DIMSE-007 regression).
+	MoveDestination AETitle
 	// HasStatus distinguishes a present zero status (0x0000 Success) from an absent one; the
 	// status element is present only on responses.
 	HasStatus bool
@@ -113,19 +170,48 @@ func (cs CommandSet) Encode() ([]byte, error) {
 func (cs CommandSet) elements() []commandElement {
 	var es []commandElement
 	if cs.AffectedSOPClassUID != "" {
-		es = append(es, commandElement{tagAffectedSOPClassUID, encodeUI(string(cs.AffectedSOPClassUID))})
+		es = append(es, encodeCommandString(tagAffectedSOPClassUID, string(cs.AffectedSOPClassUID)))
 	}
-	es = append(es, commandElement{tagCommandField, encodeUS(uint16(cs.CommandField))})
+	es = append(es, encodeCommandUS(tagCommandField, uint16(cs.CommandField)))
 	if cs.IsResponse() {
-		es = append(es, commandElement{tagMessageIDBeingRespondedTo, encodeUS(cs.MessageIDBeingRespondedTo)})
+		es = append(es, encodeCommandUS(tagMessageIDBeingRespondedTo, cs.MessageIDBeingRespondedTo))
 	} else {
-		es = append(es, commandElement{tagMessageID, encodeUS(cs.MessageID)})
+		es = append(es, encodeCommandUS(tagMessageID, cs.MessageID))
 	}
-	es = append(es, commandElement{tagCommandDataSetType, encodeUS(cs.CommandDataSetType)})
+	if cs.MoveDestination != "" {
+		es = append(es, encodeCommandString(tagMoveDestination, string(cs.MoveDestination)))
+	}
+	if cs.HasPriority {
+		es = append(es, encodeCommandUS(tagPriority, uint16(cs.Priority)))
+	}
+	es = append(es, encodeCommandUS(tagCommandDataSetType, cs.CommandDataSetType))
 	if cs.HasStatus {
-		es = append(es, commandElement{tagStatus, encodeUS(cs.Status)})
+		es = append(es, encodeCommandUS(tagStatus, cs.Status))
+	}
+	if cs.AffectedSOPInstanceUID != "" {
+		es = append(es, encodeCommandString(tagAffectedSOPInstanceUID, string(cs.AffectedSOPInstanceUID)))
 	}
 	return es
+}
+
+// encodeCommandUS encodes a US (or UL, for the group-length element) command value at tag, taking
+// the width from the command dictionary VR so a UL is four bytes and a US two.
+func encodeCommandUS(tag dicom.Tag, v uint16) commandElement {
+	if commandVR[tag] == dicom.VRUL {
+		b := make([]byte, 4)
+		binary.LittleEndian.PutUint32(b, uint32(v))
+		return commandElement{tag, b}
+	}
+	return commandElement{tag, encodeUS(v)}
+}
+
+// encodeCommandString encodes a string command value at tag, padding per its command dictionary
+// VR: a UI value NUL-pads to even length, an AE value space-pads (the DIMSE-007 distinction).
+func encodeCommandString(tag dicom.Tag, s string) commandElement {
+	if commandVR[tag] == dicom.VRAE {
+		return commandElement{tag, encodeAE(s)}
+	}
+	return commandElement{tag, encodeUI(s)}
 }
 
 // DecodeCommandSet parses an Implicit VR Little Endian command set. It tolerates command
@@ -174,11 +260,18 @@ func (cs *CommandSet) applyElement(tag dicom.Tag, value []byte) {
 		cs.MessageID = decodeUS(value)
 	case tagMessageIDBeingRespondedTo:
 		cs.MessageIDBeingRespondedTo = decodeUS(value)
+	case tagMoveDestination:
+		cs.MoveDestination = AETitle(decodeAE(value))
+	case tagPriority:
+		cs.HasPriority = true
+		cs.Priority = Priority(decodeUS(value))
 	case tagCommandDataSetType:
 		cs.CommandDataSetType = decodeUS(value)
 	case tagStatus:
 		cs.HasStatus = true
 		cs.Status = decodeUS(value)
+	case tagAffectedSOPInstanceUID:
+		cs.AffectedSOPInstanceUID = dicom.UID(decodeUI(value))
 	}
 }
 
@@ -226,4 +319,20 @@ func encodeUI(s string) []byte {
 // decodeUI decodes a UI value, trimming the PS3.5 NUL/space padding.
 func decodeUI(b []byte) string {
 	return string(bytes.TrimRight(b, "\x00 "))
+}
+
+// encodeAE encodes an AE (Application Entity title), padding to an even length with a trailing
+// space as PS3.5 §6.2 requires for AE values — never a NUL, which is the UI/UID pad (the DIMSE-007
+// distinction: Move Destination is VR AE, so it is space-padded).
+func encodeAE(s string) []byte {
+	b := []byte(s)
+	if len(b)%2 != 0 {
+		b = append(b, ' ')
+	}
+	return b
+}
+
+// decodeAE decodes an AE value, trimming the PS3.5 leading/trailing space padding.
+func decodeAE(b []byte) string {
+	return string(bytes.TrimSpace(b))
 }
