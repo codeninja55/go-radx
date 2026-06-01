@@ -16,6 +16,8 @@ const (
 	ExplicitVRBigEndian            TransferSyntax = "1.2.840.10008.1.2.2" // retired, read+write
 	RLELossless                    TransferSyntax = "1.2.840.10008.1.2.5"
 	JPEGBaseline8Bit               TransferSyntax = "1.2.840.10008.1.2.4.50"
+	JPEG2000Lossless               TransferSyntax = "1.2.840.10008.1.2.4.90"
+	JPEG2000                       TransferSyntax = "1.2.840.10008.1.2.4.91"
 )
 
 // IsImplicitVR reports whether the syntax encodes elements without an explicit VR.
