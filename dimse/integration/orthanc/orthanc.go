@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"time"
 
+	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -34,6 +35,11 @@ const (
 // image pins the Orthanc container image. orthancteam/orthanc is the maintained upstream image and
 // honours the ORTHANC__* environment overrides used below.
 const image = "orthancteam/orthanc:latest"
+
+// HostAccessHost is the hostname a container uses to reach a service bound on the Docker host. The
+// host-gateway ExtraHost wired in Start makes it resolvable on plain Linux/CI as well as on Docker
+// Desktop and OrbStack, so Orthanc can C-STORE back to a go-radx Server bound on the host.
+const HostAccessHost = "host.docker.internal"
 
 // Container wraps a started Orthanc testcontainers instance and the host-side addresses its mapped
 // ports resolve to.
@@ -64,6 +70,12 @@ func Start(ctx context.Context) (*Container, error) {
 			"ORTHANC__DICOM_ALWAYS_ALLOW_STORE":   "true",
 			"ORTHANC__REMOTE_ACCESS_ALLOWED":      "true",
 			"ORTHANC__UNKNOWN_SOP_CLASS_ACCEPTED": "true",
+		},
+		// Make the Docker host reachable from inside the container as host.docker.internal on every
+		// platform (Docker Desktop and OrbStack resolve it natively; plain Linux needs the host-gateway
+		// mapping), so Orthanc can act as a C-STORE SCU against a go-radx Server bound on the host.
+		HostConfigModifier: func(hc *dockercontainer.HostConfig) {
+			hc.ExtraHosts = append(hc.ExtraHosts, HostAccessHost+":host-gateway")
 		},
 	}
 
@@ -185,6 +197,48 @@ func (c *Container) ConfigureModality(ctx context.Context, aet, host string, por
 	return c.put(ctx, "/modalities/"+aet, body)
 }
 
+// UploadInstance uploads a DICOM instance (raw Part 10 bytes) to Orthanc via POST /instances and
+// returns the Orthanc-internal instance identifier, so the caller can drive Orthanc to forward that
+// instance to a remote modality.
+func (c *Container) UploadInstance(ctx context.Context, instance []byte) (string, error) {
+	var reply struct {
+		ID     string `json:"ID"`
+		Status string `json:"Status"`
+	}
+	if err := c.post(ctx, "/instances", "application/dicom", instance, &reply); err != nil {
+		return "", err
+	}
+	if reply.ID == "" {
+		return "", fmt.Errorf("upload instance: Orthanc returned an empty ID (status %q)", reply.Status)
+	}
+	return reply.ID, nil
+}
+
+// StoreToModality drives Orthanc to C-STORE the given Orthanc-internal instance to the named remote
+// modality (registered via ConfigureModality), synchronously so the call returns only once the
+// transfer has completed. It is the foreign-SCU side of the SCP interop gate: Orthanc is the C-STORE
+// SCU against an external SCP (a go-radx Server).
+func (c *Container) StoreToModality(ctx context.Context, modalityName, orthancInstanceID string) error {
+	body, err := json.Marshal(map[string]any{
+		"Resources":   []string{orthancInstanceID},
+		"Synchronous": true,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal store request: %w", err)
+	}
+	var reply struct {
+		FailedInstancesCount int `json:"FailedInstancesCount"`
+		InstancesCount       int `json:"InstancesCount"`
+	}
+	if err := c.post(ctx, "/modalities/"+modalityName+"/store", "application/json", body, &reply); err != nil {
+		return err
+	}
+	if reply.FailedInstancesCount > 0 {
+		return fmt.Errorf("store to modality %s: %d of %d instances failed", modalityName, reply.FailedInstancesCount, reply.InstancesCount)
+	}
+	return nil
+}
+
 // put issues a PUT with a JSON body against the Orthanc REST API.
 func (c *Container) put(ctx context.Context, path string, body []byte) error {
 	url := c.HTTPBaseURL() + path
@@ -201,6 +255,32 @@ func (c *Container) put(ctx context.Context, path string, body []byte) error {
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("PUT %s: unexpected status %d: %s", path, resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// post issues a POST with the given body and content type against the Orthanc REST API, decoding the
+// JSON response into out when out is non-nil.
+func (c *Container) post(ctx context.Context, path, contentType string, body []byte, out any) error {
+	url := c.HTTPBaseURL() + path
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("build request %s: %w", path, err)
+	}
+	req.Header.Set("Content-Type", contentType)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("POST %s: %w", path, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("POST %s: unexpected status %d: %s", path, resp.StatusCode, string(respBody))
+	}
+	if out != nil {
+		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+			return fmt.Errorf("decode %s: %w", path, err)
+		}
 	}
 	return nil
 }

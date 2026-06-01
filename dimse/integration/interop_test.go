@@ -1,10 +1,11 @@
 //go:build interop
 
-// Package integration holds the DIMSE interop regression net: C-ECHO and C-STORE driven as an SCU
-// against a real Orthanc container, plus a C-STORE received by the go-radx Server SCP. It is the
-// gate that proves the prototype's last-fragment-bit defect (Codex DIMSE-001) is fixed end-to-end:
-// the prototype aborted on a C-STORE to Orthanc, go-radx must succeed and the instance must be
-// retrievable from Orthanc's REST API.
+// Package integration holds the DIMSE interop regression net. It drives both directions against a
+// real Orthanc container: go-radx as the SCU (C-ECHO and C-STORE to Orthanc) and go-radx as the SCP
+// (a C-STORE received by the go-radx Server, both from a go-radx SCU on loopback and from Orthanc
+// acting as a real third-party SCU). The SCU C-STORE leg is the gate that proves the prototype's
+// last-fragment-bit defect (Codex DIMSE-001) is fixed end-to-end: the prototype aborted on a C-STORE
+// to Orthanc, go-radx must succeed and the instance must be retrievable from Orthanc's REST API.
 //
 // Every test is behind the interop build tag so the default build and test run are unaffected and
 // the testcontainers dependency stays out of the default build graph.
@@ -12,6 +13,9 @@ package integration
 
 import (
 	"context"
+	"net"
+	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -189,13 +193,12 @@ func (r *recordingStore) snapshot() []string {
 	return out
 }
 
-// TestInteropOrthancStoresToGoRadxServer stands up a go-radx Server SCP on loopback and drives a
-// C-STORE into it from a second go-radx AE acting as the SCU. It proves the Server receive path:
-// the handler receives the exact instance and the returned status is success. A go-radx-SCU →
-// go-radx-Server store is the deterministic interop direction (no dependency on Orthanc's outbound
-// modality send), so the SCP receive contract is exercised without external networking quirks. It
-// then shuts the server down cleanly within a deadline.
-func TestInteropOrthancStoresToGoRadxServer(t *testing.T) {
+// TestServerReceivesCStoreFromGoRadxSCU stands up a go-radx Server SCP on loopback and drives a
+// C-STORE into it from a second go-radx AE acting as the SCU. It is the fast, deterministic SCP
+// receive check (no container, no external networking): the handler receives the exact instance, the
+// returned status is success, and the server shuts down cleanly within a deadline. The companion
+// TestInteropOrthancStoresToGoRadxServer proves the same receive path against a real third-party SCU.
+func TestServerReceivesCStoreFromGoRadxSCU(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
@@ -242,6 +245,80 @@ func TestInteropOrthancStoresToGoRadxServer(t *testing.T) {
 	}
 	if err := assoc.Release(ctx); err != nil {
 		t.Fatalf("release association: %v", err)
+	}
+
+	received := handler.snapshot()
+	if len(received) != 1 || received[0] != sopInstanceUID {
+		t.Fatalf("Server handler received %v, want exactly [%s]", received, sopInstanceUID)
+	}
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		t.Fatalf("server shutdown: %v", err)
+	}
+	if err := <-serveErr; err != nil {
+		t.Fatalf("ListenAndServe returned an error: %v", err)
+	}
+}
+
+// TestInteropOrthancStoresToGoRadxServer is the foreign-SCU SCP interop gate: a real Orthanc PACS
+// acts as the C-STORE SCU against a go-radx Server SCP. It uploads the fixture into Orthanc, binds the
+// Server on a container-reachable interface, registers the Server as a remote modality in Orthanc, and
+// drives Orthanc to C-STORE the instance to it, then asserts the Server's handler received the exact
+// SOP Instance UID. This proves the go-radx receive path interoperates with a third-party SCU, not
+// only with a go-radx SCU (the loopback companion above), closing the direction the gate previously
+// only simulated.
+func TestInteropOrthancStoresToGoRadxServer(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	orth := startOrthanc(ctx, t)
+	_, sopInstanceUID := readFixture(t)
+
+	scpTitle, err := dimse.ParseAETitle("RADX-SCP")
+	if err != nil {
+		t.Fatalf("parse SCP AE title: %v", err)
+	}
+	scpAE, err := dimse.NewAE(scpTitle)
+	if err != nil {
+		t.Fatalf("new SCP AE: %v", err)
+	}
+
+	handler := &recordingStore{}
+	srv := dimse.NewServer(scpAE, dimse.StorageContexts(), handler)
+
+	// Bind a container-reachable interface (NOT loopback) so Orthanc, running in the container, can
+	// dial back to the Server via host.docker.internal.
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.ListenAndServe(ctx, "0.0.0.0:0") }()
+	addr := waitForAddr(t, srv)
+
+	_, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatalf("split server addr %q: %v", addr, err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("parse server port %q: %v", portStr, err)
+	}
+
+	// Upload the fixture into Orthanc so it holds an instance to forward.
+	instance, err := os.ReadFile(storeFixture)
+	if err != nil {
+		t.Fatalf("read fixture bytes %s: %v", storeFixture, err)
+	}
+	orthancID, err := orth.UploadInstance(ctx, instance)
+	if err != nil {
+		t.Fatalf("upload fixture to Orthanc: %v", err)
+	}
+
+	// Register the go-radx Server as a remote modality, then drive Orthanc to C-STORE to it.
+	if err := orth.ConfigureModality(ctx, string(scpTitle), orthanc.HostAccessHost, port); err != nil {
+		t.Fatalf("configure go-radx modality in Orthanc: %v", err)
+	}
+	if err := orth.StoreToModality(ctx, string(scpTitle), orthancID); err != nil {
+		t.Fatalf("drive Orthanc to C-STORE to go-radx Server: %v", err)
 	}
 
 	received := handler.snapshot()
