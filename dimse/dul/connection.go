@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"sync"
@@ -89,17 +90,29 @@ func (c *Conn) ReadPDU(ctx context.Context) (pdu.PDU, error) {
 }
 
 // driveOnce reads one PDU and advances the state machine by the event it represents. On
-// a successful read it maps the PDU to its received-event and applies it. On a decode
-// error it raises Evt19 (invalid PDU received), which the FSM turns into the AA-8 path; it
-// then sends the provider-source A-ABORT the standard requires, so an invalid PDU never
-// causes a silent socket close (Codex DIMSE-011). It returns the action the FSM selected,
-// the decoded PDU (nil on a decode error), and any error.
+// a successful read it maps the PDU to its received-event and applies it. A clean io.EOF
+// at a PDU boundary (the peer closed the socket in an orderly way) raises Evt17 (transport
+// connection closed); a genuinely malformed or unrecognised PDU raises Evt19 (invalid PDU
+// received), which the FSM turns into the AA-8 path that sends the provider-source A-ABORT
+// the standard requires, so an invalid PDU never causes a silent socket close (Codex
+// DIMSE-011). It returns the action the FSM selected, the decoded PDU (nil on a read
+// error), and any error.
 func (c *Conn) driveOnce(ctx context.Context) (Action, pdu.PDU, error) {
 	p, readErr := c.ReadPDU(ctx)
 	if readErr != nil {
-		// A context or transport error is not a protocol violation; surface it directly.
+		// A context error is not a protocol violation; surface it directly.
 		if errors.Is(readErr, context.Canceled) || errors.Is(readErr, context.DeadlineExceeded) {
 			return ActionNone, nil, readErr
+		}
+		// A clean io.EOF at a PDU boundary is an orderly transport close: Evt17, not Evt19.
+		// Only a malformed/unrecognised PDU is an invalid PDU (Evt19).
+		if errors.Is(readErr, io.EOF) {
+			action, _, smErr := c.machine.Apply(Evt17)
+			c.performAbortAction(ctx, action)
+			if smErr != nil {
+				return action, nil, smErr
+			}
+			return action, nil, readErr
 		}
 		// Any other read error is treated as an invalid/unrecognised PDU: Evt19.
 		action, _, smErr := c.machine.Apply(Evt19)

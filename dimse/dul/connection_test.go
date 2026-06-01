@@ -140,6 +140,55 @@ func TestConnAbortOnInvalidPDU(t *testing.T) {
 	}
 }
 
+// TestConnCleanCloseDrivesEvt17 is the regression for the read-error branch: a peer that
+// closes the socket at a PDU boundary (a clean io.EOF) is an orderly transport close, so
+// driveOnce must raise Evt17 (transport connection closed) and NOT Evt19 (invalid PDU ->
+// abort). From Sta2 the FSM resolves Evt17 to AA-5 (stop ARTIM) -> Sta1 and sends no
+// A-ABORT; an Evt19 would instead have driven AA-1 and written an abort back on the wire.
+func TestConnCleanCloseDrivesEvt17(t *testing.T) {
+	client, server := net.Pipe()
+	t.Cleanup(func() { client.Close(); server.Close() })
+
+	sc := NewConn(server, 0)
+	sc.machine.forceState(Sta2) // acceptor awaiting the A-ASSOCIATE-RQ
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// The peer closes at a PDU boundary: the read sees a clean io.EOF, no bytes pending.
+	gotUnexpected := make(chan pdu.PDU, 1)
+	go func() {
+		client.Close()
+		// If the FSM mistakenly took the Evt19 path it would send an A-ABORT back; read it.
+		p, err := pdu.ReadPDU(client)
+		if err != nil {
+			gotUnexpected <- nil
+			return
+		}
+		gotUnexpected <- p
+	}()
+
+	action, _, _ := sc.driveOnce(ctx)
+	if action == AA1 {
+		t.Fatalf("clean close drove %v (the Evt19/abort path); want the Evt17 path", action)
+	}
+	if action != AA5 {
+		t.Errorf("clean close action = %v, want AA-5 (Sta2 + Evt17)", action)
+	}
+	if sc.machine.CurrentState() != Sta1 {
+		t.Errorf("state after clean close = %v, want Sta1", sc.machine.CurrentState())
+	}
+
+	select {
+	case p := <-gotUnexpected:
+		if p != nil {
+			t.Errorf("peer received an unexpected %v after a clean close; want no abort (Evt17, not Evt19)", p.Type())
+		}
+	case <-time.After(time.Second):
+		// No PDU arrived, which is the expected outcome for a clean close.
+	}
+}
+
 func TestConnWriteRejectsNilContextDeadlinePassthrough(t *testing.T) {
 	// A write with an already-cancelled context must not block and must surface the error.
 	client, server := net.Pipe()
