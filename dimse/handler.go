@@ -133,6 +133,12 @@ func serveStore(ctx context.Context, acc *acse.Acceptor, calling, called AETitle
 	if err := validateStoreContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), m.CurrentState()); err != nil {
 		return Status{}, err
 	}
+	// The command and dataset must agree on the instance identity, else the SCP would persist
+	// one instance while acknowledging another (the RSP echoes the command's Affected SOP
+	// Instance UID), or emit a malformed RSP with an empty mandatory UID.
+	if err := validateStoreInstance(cmd, ds, m.CurrentState()); err != nil {
+		return Status{}, err
+	}
 
 	ts, _ := resolveTS(pcID)
 	info := OpInfo{
@@ -204,6 +210,20 @@ func validateStoreContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (d
 		return &ProtocolError{State: state, Detail: fmt.Sprintf(
 			"C-STORE Affected SOP Class %s does not match the abstract syntax negotiated for presentation context %d",
 			cmd.AffectedSOPClassUID, pcID)}
+	}
+	return nil
+}
+
+// validateStoreInstance fails closed when a C-STORE-RQ's mandatory Affected SOP Instance UID is
+// absent or disagrees with the dataset's own SOP Instance UID (0008,0018). Storing on a mismatch
+// would let the SCP persist one instance while acknowledging another (the RSP echoes the command
+// UID), or emit an RSP missing the mandatory UID — an integrity fault, not a storage failure.
+func validateStoreInstance(cmd CommandSet, ds *dicom.DataSet, state State) error {
+	dsInstance, _ := ds.GetString(tagSOPInstanceUID)
+	if cmd.AffectedSOPInstanceUID == "" || string(cmd.AffectedSOPInstanceUID) != dsInstance {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-STORE Affected SOP Instance UID %q does not match the dataset SOP Instance UID %q",
+			cmd.AffectedSOPInstanceUID, dsInstance)}
 	}
 	return nil
 }

@@ -119,3 +119,33 @@ func TestValidateStoreContext(t *testing.T) {
 		t.Error("unknown presentation context = nil error, want a protocol fault")
 	}
 }
+
+// TestValidateStoreInstance is the regression for the instance-identity guard: a C-STORE-RQ whose
+// command Affected SOP Instance UID is absent or disagrees with the dataset's (0008,0018) is a
+// protocol fault, so the SCP never persists one instance while acknowledging another.
+func TestValidateStoreInstance(t *testing.T) {
+	ds := dicom.NewDataSet()
+	ds.SetString(dicom.NewTag(0x0008, 0x0018), "1.2.3.4")
+
+	// Command and dataset agree on the instance: passes.
+	match := CommandSet{CommandField: CommandCStoreRQ, AffectedSOPInstanceUID: "1.2.3.4"}
+	if err := validateStoreInstance(match, ds, Sta6); err != nil {
+		t.Errorf("matching instance UID rejected: %v", err)
+	}
+
+	// Command names a different instance than the dataset carries: protocol fault.
+	mismatch := CommandSet{CommandField: CommandCStoreRQ, AffectedSOPInstanceUID: "9.9.9"}
+	err := validateStoreInstance(mismatch, ds, Sta6)
+	if err == nil {
+		t.Fatal("mismatched instance UID = nil error, want a protocol fault")
+	}
+	var pe *ProtocolError
+	if !errors.As(err, &pe) {
+		t.Errorf("error = %T, want *ProtocolError", err)
+	}
+
+	// Command omits the mandatory instance UID: protocol fault.
+	if err := validateStoreInstance(CommandSet{CommandField: CommandCStoreRQ}, ds, Sta6); err == nil {
+		t.Error("empty instance UID = nil error, want a protocol fault")
+	}
+}
