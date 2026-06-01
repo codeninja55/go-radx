@@ -6,6 +6,38 @@ golangci-lint = "2.12.2"
 description = "Run the dicom package test suite (race + coverage)"
 run = "go test -race -cover ./dicom/..."
 
+[tasks."test:dimse"]
+description = "Run the dimse package test suite (race + coverage)"
+run = "go test -race -cover ./dimse/..."
+
+[tasks."test:dicomweb"]
+description = "Run the dicomweb package test suite (race + coverage)"
+run = "go test -race -cover ./dicomweb/..."
+
+[tasks."test:hl7v2"]
+description = "Run the hl7v2 package test suite (race + coverage)"
+run = "go test -race -cover ./hl7v2/..."
+
+[tasks."test:fhir"]
+description = "Run the fhir package test suite (race + coverage)"
+run = "go test -race -cover ./fhir/..."
+
+[tasks."test:convert"]
+description = "Run the convert package test suite (race + coverage)"
+run = "go test -race -cover ./convert/..."
+
+[tasks."test:skeleton"]
+description = "Run the M2 walking-skeleton package suites (race + coverage)"
+run = "go test -race -cover ./dimse/... ./dicomweb/... ./hl7v2/... ./fhir/... ./convert/... ./server/..."
+
+[tasks."interop:dimse"]
+description = "Run the DIMSE interop gate against the Orthanc/dcm4chee-arc containers"
+run = "go test -tags interop -v ./dimse/integration/..."
+
+[tasks."interop:dicomweb"]
+description = "Run the DICOMweb interop gate against the Orthanc container"
+run = "go test -tags interop -v ./dicomweb/integration/..."
+
 [tasks."dicom:dciodvfy"]
 description = "Validate written DICOM files with dcmtk dciodvfy (skips if absent)"
 run = "tools/dicom-conformance/dciodvfy.sh"
