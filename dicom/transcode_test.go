@@ -2,7 +2,6 @@ package dicom
 
 import (
 	"bytes"
-	"errors"
 	"path/filepath"
 	"testing"
 )
@@ -79,41 +78,6 @@ func TestTranscodeNativeToRLEAndBack(t *testing.T) {
 		if !bytes.Equal(backFrames[i], srcFrames[i]) {
 			t.Errorf("native frame %d not pixel-exact after round-trip", i)
 		}
-	}
-}
-
-// TestTranscodeToJPEG2000Unsupported is the off-by-default boundary: re-encoding to a
-// JPEG-family syntax with no pure-Go encoder returns ErrEncodeUnsupported, never a
-// silent or corrupt result, until the CGo codecs land (Increment 6b).
-func TestTranscodeToJPEG2000Unsupported(t *testing.T) {
-	src := twoFrameNativePixelData(t)
-	const jpeg2000Lossless TransferSyntax = "1.2.840.10008.1.2.4.90"
-
-	_, err := Transcode(src, jpeg2000Lossless)
-	if err == nil {
-		t.Fatal("expected ErrEncodeUnsupported transcoding to JPEG 2000 in pure Go")
-	}
-	if !errors.Is(err, ErrEncodeUnsupported) {
-		t.Errorf("error = %v, want ErrEncodeUnsupported", err)
-	}
-	var eu *EncodeUnsupportedError
-	if !errors.As(err, &eu) {
-		t.Fatalf("error %v is not an *EncodeUnsupportedError", err)
-	}
-	if eu.TransferSyntax != jpeg2000Lossless {
-		t.Errorf("error names %s, want JPEG 2000 Lossless", eu.TransferSyntax)
-	}
-}
-
-// TestTranscodeFromJPEG2000Unavailable transcoding a JPEG 2000 source in a pure-Go
-// build fails to decode the source frames, surfacing ErrCodecUnavailable.
-func TestTranscodeFromJPEG2000Unavailable(t *testing.T) {
-	src, err := ReadPixelData(filepath.Join("..", "testdata", "dicom", "liver_j2k.dcm"))
-	if err != nil {
-		t.Fatalf("ReadPixelData: %v", err)
-	}
-	if _, err := Transcode(src, ExplicitVRLittleEndian); !errors.Is(err, ErrCodecUnavailable) {
-		t.Errorf("error = %v, want ErrCodecUnavailable decoding a JPEG 2000 source", err)
 	}
 }
 

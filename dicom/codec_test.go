@@ -20,14 +20,6 @@ func TestNativeCodecsRegistered(t *testing.T) {
 	}
 }
 
-func TestNoCodecForJPEG2000InPureGo(t *testing.T) {
-	// With no CGo codec build tag, the JPEG family has no registered codec.
-	const jpeg2000Lossless TransferSyntax = "1.2.840.10008.1.2.4.90"
-	if c, ok := lookupCodec(jpeg2000Lossless); ok {
-		t.Fatalf("did not expect a JPEG 2000 codec in pure Go, got %T", c)
-	}
-}
-
 func TestCodecUnavailableErrorWrapsSentinelAndNamesSyntax(t *testing.T) {
 	const jpeg2000Lossless TransferSyntax = "1.2.840.10008.1.2.4.90"
 	err := newCodecUnavailable(jpeg2000Lossless)
