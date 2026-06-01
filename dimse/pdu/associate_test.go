@@ -178,6 +178,39 @@ func TestAETitlePadTrim(t *testing.T) {
 	}
 }
 
+// TestDecodeAssociateRQRejectsMalformedUserInfoSubItem guards the propagation of a nested
+// sub-item length error out of the User-Information item: an A-ASSOCIATE-RQ whose
+// User-Information item contains a sub-item declaring a length beyond the bytes present
+// must fail the whole A-ASSOCIATE decode. The prototype swallowed the sub-item error and
+// let the outer decode succeed on malformed input.
+func TestDecodeAssociateRQRejectsMalformedUserInfoSubItem(t *testing.T) {
+	called := padAETitle("CALLED")
+	calling := padAETitle("CALLING")
+
+	// A User-Information item whose only nested sub-item (max-length) declares 64 bytes of
+	// payload but carries none, so its length exceeds the User-Information item's bytes.
+	var userInfo bytes.Buffer
+	userInfo.Write([]byte{ItemTypeMaxLength, 0x00, 0x00, 0x40}) // declared length 64, no payload
+
+	var body bytes.Buffer
+	body.Write([]byte{0x00, 0x01, 0x00, 0x00}) // protocol version + reserved
+	body.Write(called[:])
+	body.Write(calling[:])
+	body.Write(make([]byte, 32)) // reserved
+	encodeItem(&body, ItemTypeApplicationContext, []byte("1.2.840.10008.3.1.1.1"))
+	encodeItem(&body, ItemTypeUserInformation, userInfo.Bytes())
+
+	var pduBuf bytes.Buffer
+	if err := writeHeader(&pduBuf, PDUTypeAssociateRQ, uint32(body.Len())); err != nil {
+		t.Fatal(err)
+	}
+	pduBuf.Write(body.Bytes())
+
+	if _, err := DecodeAssociateRQ(&pduBuf); err == nil {
+		t.Error("DecodeAssociateRQ should reject a User-Information sub-item length exceeding its bytes")
+	}
+}
+
 // TestDecodeAssociateRQRejectsTruncatedItem guards against a sub-item length exceeding
 // the remaining body bytes (a hostile A-ASSOCIATE-RQ).
 func TestDecodeAssociateRQRejectsTruncatedItem(t *testing.T) {

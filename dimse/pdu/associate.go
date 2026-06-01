@@ -175,7 +175,11 @@ func decodeAssociateRQBody(br *boundedReader) (*AssociateRQ, error) {
 			}
 			p.PresentationContexts = append(p.PresentationContexts, pc)
 		case ItemTypeUserInformation:
-			p.UserInfo = decodeUserInformation(data)
+			ui, err := decodeUserInformation(data)
+			if err != nil {
+				return nil, err
+			}
+			p.UserInfo = ui
 		}
 	}
 	return p, nil
@@ -211,7 +215,11 @@ func decodeAssociateACBody(br *boundedReader) (*AssociateAC, error) {
 			}
 			p.PresentationContexts = append(p.PresentationContexts, pc)
 		case ItemTypeUserInformation:
-			p.UserInfo = decodeUserInformation(data)
+			ui, err := decodeUserInformation(data)
+			if err != nil {
+				return nil, err
+			}
+			p.UserInfo = ui
 		}
 	}
 	return p, nil
@@ -397,13 +405,13 @@ func encodeUserInformation(out *bytes.Buffer, ui UserInformation) {
 	encodeItem(out, ItemTypeUserInformation, buf.Bytes())
 }
 
-func decodeUserInformation(data []byte) UserInformation {
+func decodeUserInformation(data []byte) (UserInformation, error) {
 	br := newBoundedReader(bytes.NewReader(data), int64(len(data)))
 	var ui UserInformation
 	for br.Remaining() > 0 {
 		itemType, itemData, err := readItem(br)
 		if err != nil {
-			return ui
+			return ui, err
 		}
 		switch itemType {
 		case ItemTypeMaxLength:
@@ -416,7 +424,7 @@ func decodeUserInformation(data []byte) UserInformation {
 			ui.ImplementationVersion = string(itemData)
 		}
 	}
-	return ui
+	return ui, nil
 }
 
 // padAETitle pads an AE title to the 16-byte DICOM field with trailing spaces.
