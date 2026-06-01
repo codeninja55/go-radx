@@ -13,36 +13,32 @@ import (
 	"github.com/codeninja55/go-radx/dimse/pdu"
 )
 
-// Conn is the socket owner at the DUL layer: it wraps a net.Conn, frames PDUs through
-// the pdu codec, and advances the PS3.8 state machine. It owns the ARTIM timer. It knows
-// only PDUs, never DICOM messages, and imports only the pdu package and the standard
-// library, keeping the layering acyclic (dimse.md "Overview of the layers").
+// Conn is the socket owner at the DUL layer: it wraps a net.Conn and frames PDUs through
+// the pdu codec. It owns the ARTIM timer. It performs no state-machine logic of its own:
+// the association layer owns the StateMachine and drives inbound reads through DriveInbound,
+// which shares the PS3.8 hardening across every consumer. Conn knows only PDUs, never DICOM
+// messages, and imports only the pdu package and the standard library, keeping the layering
+// acyclic (dimse.md "Overview of the layers").
 //
-// A single goroutine drives the machine; reads and writes are serialised by separate
-// mutexes so a reader and a writer may run concurrently (full-duplex) but two writers
-// (or two readers) cannot interleave a half-framed PDU. context.Context cancels a blocked
-// read or write by setting a past deadline on the connection.
+// Reads and writes are serialised by separate mutexes so a reader and a writer may run
+// concurrently (full-duplex) but two writers (or two readers) cannot interleave a half-framed
+// PDU. context.Context cancels a blocked read or write by setting a past deadline on the
+// connection.
 type Conn struct {
-	nc      net.Conn
-	machine *StateMachine
-	artim   *artim
+	nc    net.Conn
+	artim *artim
 
 	writeMu sync.Mutex
 	readMu  sync.Mutex
 }
 
 // NewConn wraps a net.Conn. artimTimeout configures the ARTIM timer; zero disables it.
-// The machine starts in Sta1; the association layer drives it to the appropriate state.
 func NewConn(nc net.Conn, artimTimeout time.Duration) *Conn {
 	return &Conn{
-		nc:      nc,
-		machine: NewStateMachine(),
-		artim:   newARTIM(artimTimeout),
+		nc:    nc,
+		artim: newARTIM(artimTimeout),
 	}
 }
-
-// State reports the current DUL state (for observability).
-func (c *Conn) State() State { return c.machine.CurrentState() }
 
 // Close closes the underlying transport and stops the ARTIM timer.
 func (c *Conn) Close() error {
@@ -89,71 +85,96 @@ func (c *Conn) ReadPDU(ctx context.Context) (pdu.PDU, error) {
 	return p, nil
 }
 
-// driveOnce reads one PDU and advances the state machine by the event it represents. On
-// a successful read it maps the PDU to its received-event and applies it. A clean io.EOF
-// at a PDU boundary (the peer closed the socket in an orderly way) raises Evt17 (transport
-// connection closed); a genuinely malformed or unrecognised PDU raises Evt19 (invalid PDU
-// received), which the FSM turns into the AA-8 path that sends the provider-source A-ABORT
-// the standard requires, so an invalid PDU never causes a silent socket close (Codex
-// DIMSE-011). It returns the action the FSM selected, the decoded PDU (nil on a read
-// error), and any error.
-func (c *Conn) driveOnce(ctx context.Context) (Action, pdu.PDU, error) {
-	p, readErr := c.ReadPDU(ctx)
+// DriveInbound reads one PDU on conn and advances the caller's state machine m by the event
+// the read represents, sharing the PS3.8 inbound hardening across every consumer (acse drives
+// its own StateMachine through this one path). On a successful read it maps the PDU to its
+// received-event and applies it. A clean io.EOF at a PDU boundary (the peer closed the socket
+// in an orderly way) raises Evt17 (transport connection closed), an orderly close that sends
+// no A-ABORT; a genuinely malformed or unrecognised PDU raises Evt19 (invalid PDU received),
+// which the FSM turns into the AA-8 path that sends the provider-source A-ABORT the standard
+// requires, so an invalid PDU never causes a silent socket close (Codex DIMSE-011).
+//
+// It returns the decoded PDU (nil on a read error), the action the FSM selected, and the
+// error: a context error or io.EOF verbatim, or a typed *StateError when the event was a
+// protocol violation (else nil). A recognised PDU that is unexpected in the current state is a
+// violation whether the Table 9-10 cell is undefined (Apply returns the *StateError) or an
+// explicit fault-abort cell (e.g. Sta6 + Evt6 -> AA-8, which Apply returns with a nil error);
+// in both cases the provider A-ABORT is sent and a *StateError is returned so the caller never
+// mistakes the aborting PDU for a valid response. m must be the StateMachine the caller
+// advances for this connection so the inbound transition stays consistent with the caller's
+// local-primitive transitions.
+func DriveInbound(ctx context.Context, conn *Conn, m *StateMachine) (pdu.PDU, Action, error) {
+	p, readErr := conn.ReadPDU(ctx)
 	if readErr != nil {
-		// A context error is not a protocol violation; surface it directly.
+		// A context error is not a protocol violation; surface it directly, no FSM change.
 		if errors.Is(readErr, context.Canceled) || errors.Is(readErr, context.DeadlineExceeded) {
-			return ActionNone, nil, readErr
+			return nil, ActionNone, readErr
 		}
-		// A clean io.EOF at a PDU boundary is an orderly transport close: Evt17, not Evt19.
-		// Only a malformed/unrecognised PDU is an invalid PDU (Evt19).
+		// A clean io.EOF at a PDU boundary is an orderly transport close: Evt17, not Evt19,
+		// and never an A-ABORT.
 		if errors.Is(readErr, io.EOF) {
-			action, _, smErr := c.machine.Apply(Evt17)
-			// Evt17 resolves to AA-4/AA-5/AR-5 (no provider A-ABORT), so the reason is unused.
-			c.performAbortAction(ctx, action, pdu.AbortReasonNotSpecified)
+			action, _, smErr := m.Apply(Evt17)
 			if smErr != nil {
-				return action, nil, smErr
+				return nil, action, smErr
 			}
-			return action, nil, readErr
+			return nil, action, readErr
 		}
 		// Any other read error is treated as an invalid/unrecognised PDU: Evt19.
-		action, _, smErr := c.machine.Apply(Evt19)
-		c.performAbortAction(ctx, action, pdu.AbortReasonUnrecognizedPDU)
+		action, _, smErr := m.Apply(Evt19)
+		sendFaultAbort(ctx, conn, action, pdu.AbortReasonUnrecognizedPDU)
 		// Prefer the protocol error from the machine; fall back to the read error.
 		if smErr != nil {
-			return action, nil, smErr
+			return nil, action, smErr
 		}
-		return action, nil, readErr
+		return nil, action, readErr
 	}
 
 	event := pduToEvent(p)
-	action, _, smErr := c.machine.Apply(event)
-	if smErr != nil {
-		// An unexpected (but well-formed, recognised) PDU also drives AA-8; the provider
-		// abort reason is "unexpected PDU", distinct from a malformed PDU's "unrecognised".
-		c.performAbortAction(ctx, action, pdu.AbortReasonUnexpectedPDU)
+	from := m.CurrentState()
+	action, _, smErr := m.Apply(event)
+	if isFaultAbort(action) {
+		// A recognised-but-unexpected PDU drives AA-8 (or AA-7/AA-1); the provider abort reason
+		// is "unexpected PDU", distinct from a malformed PDU's "unrecognised". Apply may return
+		// this with a nil error (an explicit fault-abort cell); synthesise the *StateError so
+		// the violation surfaces consistently.
+		sendFaultAbort(ctx, conn, action, pdu.AbortReasonUnexpectedPDU)
+		if smErr == nil {
+			smErr = &StateError{State: from, Event: event}
+		}
 	}
-	return action, p, smErr
+	return p, action, smErr
 }
 
-// performAbortAction sends the A-ABORT a fault action requires. AA-8 and AA-7 send a
+// isFaultAbort reports whether an action is one of the abort actions sendFaultAbort writes an
+// A-ABORT for: AA-8 and AA-7 (provider source) and AA-1 (user source).
+func isFaultAbort(action Action) bool {
+	switch action {
+	case AA8, AA7, AA1:
+		return true
+	default:
+		return false
+	}
+}
+
+// sendFaultAbort sends the A-ABORT a fault action requires. AA-8 and AA-7 send a
 // provider-source A-ABORT carrying providerReason (which distinguishes a malformed PDU
 // from a well-formed-but-unexpected one); AA-1 sends a user-source A-ABORT. Other actions
 // send nothing here (the association layer performs the non-abort sends, which need
-// association state the DUL does not hold).
-func (c *Conn) performAbortAction(ctx context.Context, action Action, providerReason uint8) {
+// association state the DUL does not hold). Conn still owns the ARTIM, so the abort arms it.
+func sendFaultAbort(ctx context.Context, conn *Conn, action Action, providerReason uint8) {
 	switch action {
 	case AA8, AA7:
-		_ = c.WritePDU(ctx, &pdu.Abort{
+		_ = conn.WritePDU(ctx, &pdu.Abort{
 			Source: pdu.AbortSourceServiceProvider,
 			Reason: providerReason,
 		})
-		c.artim.start()
+		conn.artim.start()
 	case AA1:
-		_ = c.WritePDU(ctx, &pdu.Abort{
+		_ = conn.WritePDU(ctx, &pdu.Abort{
 			Source: pdu.AbortSourceServiceUser,
 			Reason: pdu.AbortReasonNotSpecified,
 		})
-		c.artim.start()
+		conn.artim.start()
 	}
 }
 

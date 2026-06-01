@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -89,15 +90,16 @@ func TestPDUToEventMapping(t *testing.T) {
 	}
 }
 
-// TestConnAbortOnInvalidPDU is the DIMSE-011 end-to-end regression at the connection
-// layer: a peer that sends bytes the pdu codec rejects must drive the FSM through AA-8 to
-// an A-ABORT (provider source) written back on the wire, never a silent close.
-func TestConnAbortOnInvalidPDU(t *testing.T) {
+// TestDriveInboundAbortOnInvalidPDU is the DIMSE-011 end-to-end regression at the connection
+// layer: a peer that sends bytes the pdu codec rejects must drive the caller's FSM through
+// AA-8 to an A-ABORT (provider source) written back on the wire, never a silent close.
+func TestDriveInboundAbortOnInvalidPDU(t *testing.T) {
 	client, server := net.Pipe()
 	t.Cleanup(func() { client.Close(); server.Close() })
 
 	sc := NewConn(server, 0)
-	sc.machine.forceState(Sta6) // pretend the association is established
+	m := NewStateMachine()
+	m.forceState(Sta6) // pretend the association is established
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -116,12 +118,12 @@ func TestConnAbortOnInvalidPDU(t *testing.T) {
 		gotAbort <- ab
 	}()
 
-	action, _, err := sc.driveOnce(ctx)
+	_, action, err := DriveInbound(ctx, sc, m)
 	if err == nil {
-		t.Fatal("driveOnce on an invalid PDU = nil error, want a protocol error")
+		t.Fatal("DriveInbound on an invalid PDU = nil error, want a protocol error")
 	}
 	if action != AA8 {
-		t.Fatalf("driveOnce action = %v, want AA-8 (DIMSE-011)", action)
+		t.Fatalf("DriveInbound action = %v, want AA-8 (DIMSE-011)", action)
 	}
 
 	select {
@@ -139,22 +141,23 @@ func TestConnAbortOnInvalidPDU(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for the A-ABORT")
 	}
-	if sc.machine.CurrentState() != Sta13 {
-		t.Errorf("state after invalid PDU = %v, want Sta13", sc.machine.CurrentState())
+	if m.CurrentState() != Sta13 {
+		t.Errorf("state after invalid PDU = %v, want Sta13", m.CurrentState())
 	}
 }
 
-// TestConnUnexpectedRecognizedPDUAbortReason is the regression for the abort-diagnostic
-// fix: a well-formed, RECOGNISED PDU that is unexpected in the current state (here an
-// A-ASSOCIATE-RJ received while established in Sta6, whose Table 9-10 cell is undefined)
-// must abort with the provider reason "unexpected PDU", distinct from a malformed PDU's
-// "unrecognised PDU".
-func TestConnUnexpectedRecognizedPDUAbortReason(t *testing.T) {
+// TestDriveInboundUnexpectedRecognizedPDUAbortReason is the regression for the
+// abort-diagnostic fix: a well-formed, RECOGNISED PDU that is unexpected in the current state
+// (here an A-ASSOCIATE-RJ received while established in Sta6, whose Table 9-10 cell is
+// undefined) must abort with the provider reason "unexpected PDU", distinct from a malformed
+// PDU's "unrecognised PDU".
+func TestDriveInboundUnexpectedRecognizedPDUAbortReason(t *testing.T) {
 	client, server := net.Pipe()
 	t.Cleanup(func() { client.Close(); server.Close() })
 
 	sc := NewConn(server, 0)
-	sc.machine.forceState(Sta6) // established; an A-ASSOCIATE-RJ is unexpected here
+	m := NewStateMachine()
+	m.forceState(Sta6) // established; an A-ASSOCIATE-RJ is unexpected here
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -172,12 +175,16 @@ func TestConnUnexpectedRecognizedPDUAbortReason(t *testing.T) {
 		gotAbort <- ab
 	}()
 
-	action, _, err := sc.driveOnce(ctx)
+	_, action, err := DriveInbound(ctx, sc, m)
 	if err == nil {
-		t.Fatal("driveOnce on an unexpected recognised PDU = nil error, want a protocol error")
+		t.Fatal("DriveInbound on an unexpected recognised PDU = nil error, want a protocol error")
+	}
+	var se *StateError
+	if !errors.As(err, &se) {
+		t.Fatalf("DriveInbound error = %T, want *StateError", err)
 	}
 	if action != AA8 {
-		t.Fatalf("driveOnce action = %v, want AA-8", action)
+		t.Fatalf("DriveInbound action = %v, want AA-8", action)
 	}
 	select {
 	case ab := <-gotAbort:
@@ -217,17 +224,18 @@ func TestConnReusableAfterCancelledRead(t *testing.T) {
 	}
 }
 
-// TestConnCleanCloseDrivesEvt17 is the regression for the read-error branch: a peer that
-// closes the socket at a PDU boundary (a clean io.EOF) is an orderly transport close, so
-// driveOnce must raise Evt17 (transport connection closed) and NOT Evt19 (invalid PDU ->
+// TestDriveInboundCleanCloseDrivesEvt17 is the regression for the read-error branch: a peer
+// that closes the socket at a PDU boundary (a clean io.EOF) is an orderly transport close, so
+// DriveInbound must raise Evt17 (transport connection closed) and NOT Evt19 (invalid PDU ->
 // abort). From Sta2 the FSM resolves Evt17 to AA-5 (stop ARTIM) -> Sta1 and sends no
 // A-ABORT; an Evt19 would instead have driven AA-1 and written an abort back on the wire.
-func TestConnCleanCloseDrivesEvt17(t *testing.T) {
+func TestDriveInboundCleanCloseDrivesEvt17(t *testing.T) {
 	client, server := net.Pipe()
 	t.Cleanup(func() { client.Close(); server.Close() })
 
 	sc := NewConn(server, 0)
-	sc.machine.forceState(Sta2) // acceptor awaiting the A-ASSOCIATE-RQ
+	m := NewStateMachine()
+	m.forceState(Sta2) // acceptor awaiting the A-ASSOCIATE-RQ
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -245,15 +253,18 @@ func TestConnCleanCloseDrivesEvt17(t *testing.T) {
 		gotUnexpected <- p
 	}()
 
-	action, _, _ := sc.driveOnce(ctx)
+	_, action, err := DriveInbound(ctx, sc, m)
+	if !errors.Is(err, io.EOF) {
+		t.Errorf("clean close error = %v, want io.EOF (orderly transport close)", err)
+	}
 	if action == AA1 {
 		t.Fatalf("clean close drove %v (the Evt19/abort path); want the Evt17 path", action)
 	}
 	if action != AA5 {
 		t.Errorf("clean close action = %v, want AA-5 (Sta2 + Evt17)", action)
 	}
-	if sc.machine.CurrentState() != Sta1 {
-		t.Errorf("state after clean close = %v, want Sta1", sc.machine.CurrentState())
+	if m.CurrentState() != Sta1 {
+		t.Errorf("state after clean close = %v, want Sta1", m.CurrentState())
 	}
 
 	select {
