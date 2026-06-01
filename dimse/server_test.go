@@ -88,6 +88,16 @@ type echoOnlyHandler struct {
 
 func (h *echoOnlyHandler) Echo(_ context.Context, _ OpInfo) Status { return h.status }
 
+// funcStoreHandler adapts a function to StoreHandler, letting a test install arbitrary Store
+// behaviour (e.g. a handler that deliberately ignores its context to outlive a Shutdown deadline).
+type funcStoreHandler struct {
+	fn func(ctx context.Context, ds *dicom.DataSet, info OpInfo) Status
+}
+
+func (h *funcStoreHandler) Store(ctx context.Context, ds *dicom.DataSet, info OpInfo) Status {
+	return h.fn(ctx, ds, info)
+}
+
 // startServer builds and serves a Server on loopback (OS-assigned port), returning it and a
 // function that blocks until ListenAndServe has returned. The caller is responsible for Shutdown.
 func startServer(t *testing.T, h any, opts ...ServerOption) (*Server, *AE) {
@@ -976,6 +986,106 @@ func TestServerAdvertisesImplementationIdentity(t *testing.T) {
 	}
 	if got := assoc.PeerImplementationVersionName(); got != implVersion {
 		t.Errorf("peer Implementation Version Name = %q, want %q", got, implVersion)
+	}
+}
+
+// TestServerShutdownRetryAfterDeadline is the named regression (P2 adversarial review): a second
+// Shutdown after the first hit its deadline must report the REAL outcome, not rubber-stamp success.
+// The once-only teardown (close listener, cancel handler ctx, close conns) happens once and is
+// idempotent, but the bounded wg.Wait() is re-runnable: each Shutdown re-attempts the join against
+// its own ctx.
+//
+// A handler is parked observing neither its context wake nor a release until the test allows it
+// (it blocks on a test channel that ignores ctx for this assertion). The first Shutdown(shortCtx)
+// must return a deadline error (handlers still running). A second Shutdown while the handler is
+// STILL parked must ALSO return a non-nil deadline error — a false nil here is the defect. Then the
+// handler is released and a final Shutdown(freshCtx) must return nil, proving the second call truly
+// waited rather than short-circuiting through a sync.Once.
+func TestServerShutdownRetryAfterDeadline(t *testing.T) {
+	src, err := dicom.ReadFile(filepath.Join("..", "testdata", "dicom", "liver.dcm"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	sentDS := src.DataSet
+
+	// hardParked blocks the handler ONLY on the test release channel (ignoring ctx), so neither the
+	// listener close nor the handler-ctx cancel can wake it — the handler genuinely outlives the
+	// first Shutdown's deadline, the situation that exposed the false-nil second Shutdown.
+	hardParked := make(chan struct{})
+	parkedEntered := make(chan struct{})
+	var enteredOnce sync.Once
+	h := &funcStoreHandler{
+		fn: func(_ context.Context, ds *dicom.DataSet, _ OpInfo) Status {
+			enteredOnce.Do(func() { close(parkedEntered) })
+			<-hardParked // intentionally NOT selecting on ctx: this handler ignores its context
+			return StatusStoreSuccess
+		},
+	}
+	_ = sentDS
+
+	ae, err := NewAE(AETitle("RADX-SCP"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	contexts := echoAndStorageContexts()
+	srv := NewServer(ae, contexts, h)
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	// Guarantee the parked handler is released no matter how the test exits, so ListenAndServe and
+	// the handler goroutine can finish.
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(hardParked) }) }
+	defer release()
+
+	scu, err := NewAE(AETitle("RADX-SCU"))
+	if err != nil {
+		t.Fatalf("NewAE (SCU): %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	assoc, err := scu.Associate(ctx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+	go func() { _, _ = assoc.Store(ctx, sentDS) }()
+
+	select {
+	case <-parkedEntered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("handler never entered Store; cannot park it for the retry assertion")
+	}
+
+	// First Shutdown: the handler is parked and ignores its context, so the bounded wait must hit
+	// the short deadline and return a non-nil error.
+	firstCtx, firstCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer firstCancel()
+	if err := srv.Shutdown(firstCtx); err == nil {
+		t.Fatal("first Shutdown returned nil while a handler was still parked; want a deadline error")
+	}
+
+	// Second Shutdown while STILL parked: it must RE-RUN the bounded wait against its own ctx and
+	// return the real (still-running) outcome — a non-nil deadline error. A nil here is the
+	// rubber-stamp defect a sync.Once-gated wait produces.
+	secondCtx, secondCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer secondCancel()
+	if err := srv.Shutdown(secondCtx); err == nil {
+		t.Fatal("second Shutdown while the handler is still parked returned nil; it falsely reported a clean shutdown (the bounded wait was gated behind a sync.Once)")
+	}
+
+	// Release the handler so it actually finishes, then a fresh Shutdown must observe the real
+	// completion and return nil — proving the retry genuinely waited rather than short-circuiting.
+	release()
+	finalCtx, finalCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer finalCancel()
+	if err := srv.Shutdown(finalCtx); err != nil {
+		t.Fatalf("final Shutdown after releasing the handler = %v, want nil (handlers finished)", err)
+	}
+
+	select {
+	case <-served:
+	case <-time.After(5 * time.Second):
+		t.Error("ListenAndServe did not return after the handlers finished")
 	}
 }
 

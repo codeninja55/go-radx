@@ -233,27 +233,55 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 }
 
 // Shutdown stops accepting new associations and then drives a cooperative, then forced-wake,
-// stop of the in-flight handlers, bounded by ctx. It is idempotent: a second Shutdown is a safe
-// no-op. It returns ctx.Err() if the handlers do not finish within the deadline, nil otherwise.
+// stop of the in-flight handlers, bounded by ctx. It returns ctx.Err() if the handlers do not
+// finish within the deadline, nil once they have actually finished.
 //
-// The ordering matters. Shutdown sets the shutdown flag, closes the listener (no new association
-// can start), then CANCELS the handler context so a handler doing application work — a C-STORE
-// persisting to disk, the realistic case — that observes its context returns promptly. It then
-// closes the active connections so a handler parked in a DriveInbound/ReadPDU (which the context
-// cancellation alone may not interrupt at the socket) is also woken. Finally it joins the tracked
-// goroutines, bounded by ctx.
+// Two parts compose Shutdown. The teardown — set the shutdown flag, close the listener (no new
+// association can start), cancel the handler context, close the active connections — runs ONCE and
+// is idempotent. The bounded join (wg.Wait against ctx) is RE-RUNNABLE: every Shutdown re-attempts
+// it against its own ctx and returns the real outcome. So a second Shutdown after the first hit its
+// deadline does NOT rubber-stamp success: it waits again and returns nil only when the handlers
+// have genuinely finished, ctx.Err() while they are still running (P2 adversarial review). The
+// earlier defect gated the whole of Shutdown — teardown AND wait — behind a sync.Once, so a second
+// call short-circuited to nil even with handlers still alive, falsely reporting a clean shutdown.
 //
-// Cancelling the context is the fix for a Shutdown that only closed connections: such a Shutdown
-// woke a handler blocked in a socket read but NOT one busy in application work, so it waited out
-// the full deadline (Codex/concurrency review DIMSE-014). The dataset already in flight is not
-// lost — a handler that observes its context can complete the in-flight store and then return.
+// The teardown ordering matters. It closes the listener first (no new association can start), then
+// CANCELS the handler context so a handler doing application work — a C-STORE persisting to disk,
+// the realistic case — that observes its context returns promptly. It then closes the active
+// connections so a handler parked in a DriveInbound/ReadPDU (which the context cancellation alone
+// may not interrupt at the socket) is also woken (cooperative shutdown, DIMSE-014). The dataset
+// already in flight is not lost — a handler that observes its context can complete the in-flight
+// store and then return.
 //
 // A handler that ignores its context AND is not in a connection read cannot be woken (Go cannot
-// forcibly kill a goroutine); it can outlive this deadline, and the waiter goroutine outlives
-// Shutdown with it until that handler finally returns. Observing the cancelled context is the
-// handler's contract (see Server).
+// forcibly kill a goroutine); it can outlive this deadline. A subsequent Shutdown with a fresh
+// deadline re-runs the join and reports nil once that handler finally returns. Observing the
+// cancelled context is the handler's contract (see Server).
 func (s *Server) Shutdown(ctx context.Context) error {
-	var err error
+	s.teardownOnce()
+
+	// Re-runnable bounded join. NOT gated behind the once: each Shutdown waits against its own ctx
+	// and returns the real outcome, so a retry after a deadline reports actual completion, never a
+	// false nil. The waiter goroutine outlives a deadline-bounded Shutdown harmlessly and is reused
+	// by the next call's wg.Wait.
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// teardownOnce performs the idempotent, once-only Shutdown teardown: it marks the server shutting
+// down, closes the listener, cancels the handler context, and closes the active connections. It is
+// separated from the bounded wait so a second Shutdown re-attempts the wait (returning the real
+// outcome) without re-running these side effects (which must happen exactly once).
+func (s *Server) teardownOnce() {
 	s.shutdownOnce.Do(func() {
 		s.mu.Lock()
 		s.shutdown = true
@@ -280,19 +308,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		for _, c := range conns {
 			_ = c.Close()
 		}
-
-		done := make(chan struct{})
-		go func() {
-			s.wg.Wait()
-			close(done)
-		}()
-		select {
-		case <-done:
-		case <-ctx.Done():
-			err = ctx.Err()
-		}
 	})
-	return err
 }
 
 // Addr reports the network address the server is listening on, or nil before it has bound. With a
