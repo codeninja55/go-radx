@@ -28,12 +28,24 @@ import (
 // to the Echo or Store dispatch primitive; an A-RELEASE-RQ completes the graceful release; an
 // A-ABORT or an orderly transport close ends the association cleanly.
 //
-// Each inbound read is bounded by networkTimeout (the AE's idle-association bound) when it is
-// positive: a peer that completes negotiation then sends nothing must not hold a capacity slot and
-// a goroutine forever (a slot-exhaustion DoS — Codex/concurrency review). On the timeout the read
-// returns context.DeadlineExceeded, the association ends, and the Server releases the slot.
-func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.AcceptParams, networkTimeout time.Duration, h Handler) error {
-	acc, err := acse.Accept(ctx, conn, params)
+// The negotiation read (acse.Accept) is bounded by acseTimeout (the AE's association-negotiation
+// bound) when it is positive: a peer that opens TCP, acquires a capacity slot, but NEVER sends the
+// A-ASSOCIATE-RQ must not hold the slot (and a goroutine) until Shutdown — a slot-exhaustion DoS in
+// the negotiation phase (P1 adversarial review). On the timeout acse.Accept returns a deadline
+// error, this returns it, the connection is closed, and the Server releases the slot.
+//
+// Each post-negotiation inbound read is bounded by networkTimeout (the AE's idle-association bound)
+// when it is positive: a peer that completes negotiation then sends nothing must not hold a capacity
+// slot and a goroutine forever (a slot-exhaustion DoS — Codex/concurrency review). On the timeout
+// the read returns context.DeadlineExceeded, the association ends, and the Server releases the slot.
+func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.AcceptParams, acseTimeout, networkTimeout time.Duration, h Handler) error {
+	negotiateCtx := ctx
+	if acseTimeout > 0 {
+		var cancel context.CancelFunc
+		negotiateCtx, cancel = context.WithTimeout(ctx, acseTimeout)
+		defer cancel()
+	}
+	acc, err := acse.Accept(negotiateCtx, conn, params)
 	if err != nil {
 		return err
 	}

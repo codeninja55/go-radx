@@ -445,6 +445,80 @@ func TestServerIdleAssociationTimesOut(t *testing.T) {
 	t.Fatalf("second association was never served within the deadline; the idle slot was not released (last error: %v)", lastErr)
 }
 
+// TestServerNegotiationTimesOut is the named regression for the negotiation-phase slot-exhaustion
+// DoS (P1 adversarial review): a peer that opens TCP, acquires a capacity slot, but NEVER sends the
+// A-ASSOCIATE-RQ must not hold the slot (and its goroutine) forever. With a single capacity slot and
+// a short injected ACSE timeout, the silent dialer's negotiation read times out, releasing the slot
+// so a subsequent real association can establish and complete a C-ECHO. Without bounding the
+// acse.Accept read by the ACSE timeout this test would hang on the second association.
+func TestServerNegotiationTimesOut(t *testing.T) {
+	const acseTimeout = 300 * time.Millisecond
+
+	ae, err := NewAE(AETitle("RADX-SCP"), WithACSETimeout(acseTimeout))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	contexts := echoAndStorageContexts()
+	h := &serverTestHandler{echoStatus: StatusEchoSuccess, storeStatus: StatusStoreSuccess}
+	srv := NewServer(ae, contexts, h, WithMaxAssociations(1))
+
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		select {
+		case <-served:
+		case <-time.After(5 * time.Second):
+			t.Error("ListenAndServe did not return after Shutdown")
+		}
+	})
+
+	// Silent peer: connect TCP (acquiring the one slot) and send NOTHING. The server's negotiation
+	// read (acse.Accept) must time out under the ACSE timeout and release the slot.
+	raw, err := net.Dial("tcp", srv.Addr().String())
+	if err != nil {
+		t.Fatalf("raw Dial: %v", err)
+	}
+	t.Cleanup(func() { _ = raw.Close() })
+
+	scu, err := NewAE(AETitle("RADX-SCU"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+
+	// Second association: it can only establish AND complete a C-ECHO once the silent peer's slot is
+	// released by the negotiation timeout. Poll generously relative to the injected ACSE timeout; if
+	// the slot were never released this would fail at the deadline.
+	start := time.Now()
+	deadline := time.Now().Add(5 * time.Second)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		assoc, aerr := scu.Associate(dialCtx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+		if aerr != nil {
+			dialCancel()
+			lastErr = aerr
+			time.Sleep(20 * time.Millisecond)
+			continue
+		}
+		status, eerr := assoc.Echo(dialCtx)
+		if eerr == nil && status.IsSuccess() {
+			_ = assoc.Release(dialCtx)
+			dialCancel()
+			t.Logf("second association served after %s (ACSE timeout %s)", time.Since(start), acseTimeout)
+			return
+		}
+		_ = assoc.Abort(dialCtx)
+		dialCancel()
+		lastErr = eerr
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("second association was never served within the deadline; the negotiation slot was not released (last error: %v)", lastErr)
+}
+
 // TestServerShutdownIsIdempotent confirms a second Shutdown after the first is a safe no-op.
 func TestServerShutdownIsIdempotent(t *testing.T) {
 	srv, _ := startServer(t, &serverTestHandler{echoStatus: StatusEchoSuccess})
