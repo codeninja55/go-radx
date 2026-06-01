@@ -222,18 +222,143 @@ func startReleaseOnlyAcceptor(t *testing.T, called AETitle) string {
 		conn := dul.NewConn(nc, 0)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		acc, perr := acse.Accept(ctx, conn, acse.AcceptParams{
-			CalledAETitle: string(called),
-			MaxPDULength:  16382,
-			Supported: []acse.SupportedContext{{
-				AbstractSyntax:   string(verificationSOPClass),
-				TransferSyntaxes: []string{"1.2.840.10008.1.2.1", "1.2.840.10008.1.2"},
-			}},
-		})
+		acc, perr := acse.Accept(ctx, conn, verificationAcceptParams(called))
 		if perr != nil {
 			nc.Close()
 			return
 		}
+		_ = acc.ServeRelease(ctx)
+	}()
+	return ln.Addr().String()
+}
+
+// verificationAcceptParams is the acceptor negotiation config for the Verification SOP Class,
+// shared by the test acceptors.
+func verificationAcceptParams(called AETitle) acse.AcceptParams {
+	return acse.AcceptParams{
+		CalledAETitle: string(called),
+		MaxPDULength:  16382,
+		Supported: []acse.SupportedContext{{
+			AbstractSyntax:   string(verificationSOPClass),
+			TransferSyntaxes: []string{"1.2.840.10008.1.2.1", "1.2.840.10008.1.2"},
+		}},
+	}
+}
+
+// TestEchoHonoursDIMSETimeout is the regression for the DIMSE-timeout fix: when the peer accepts
+// the association but never sends the C-ECHO-RSP, Echo must return bounded by the configured
+// DIMSE timeout, not block until the caller's (longer) context expires.
+func TestEchoHonoursDIMSETimeout(t *testing.T) {
+	addr := startStallingAcceptor(t, AETitle("SCP"))
+
+	ae, err := NewAE(AETitle("SCU"), WithDIMSETimeout(200*time.Millisecond))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	assoc, err := ae.Associate(ctx, addr, AETitle("SCP"), VerificationContexts())
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+
+	start := time.Now()
+	_, err = assoc.Echo(ctx)
+	elapsed := time.Since(start)
+	if err == nil {
+		t.Fatal("Echo against a non-responding peer = nil error, want a timeout")
+	}
+	// The 200ms DIMSE timeout must fire well before the caller's 3s context; pre-fix, Echo used
+	// the raw context and only returned at ~3s.
+	if elapsed > 1500*time.Millisecond {
+		t.Errorf("Echo took %v; want it bounded by the 200ms DIMSE timeout (configured timeout ignored?)", elapsed)
+	}
+}
+
+// startStallingAcceptor negotiates the association then never answers any DIMSE request, holding
+// the connection open, so an SCU operation must rely on its own DIMSE timeout.
+func startStallingAcceptor(t *testing.T, called AETitle) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		nc, aerr := ln.Accept()
+		if aerr != nil {
+			return
+		}
+		defer nc.Close()
+		conn := dul.NewConn(nc, 0)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, perr := acse.Accept(ctx, conn, verificationAcceptParams(called)); perr != nil {
+			return
+		}
+		<-ctx.Done() // negotiated, then deliberately silent: never answer the C-ECHO
+	}()
+	return ln.Addr().String()
+}
+
+// TestEchoRejectsResponseWithoutStatus is the regression for the mandatory-Status fix: a
+// C-ECHO-RSP missing the Status element is malformed and must surface as a protocol error, never
+// be laundered into 0x0000 Success.
+func TestEchoRejectsResponseWithoutStatus(t *testing.T) {
+	addr := startNoStatusEchoAcceptor(t, AETitle("SCP"))
+
+	ae, _ := NewAE(AETitle("SCU"))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	assoc, err := ae.Associate(ctx, addr, AETitle("SCP"), VerificationContexts())
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+	_, err = assoc.Echo(ctx)
+	if err == nil {
+		t.Fatal("Echo on a C-ECHO-RSP without Status = nil error, want a protocol error (not success)")
+	}
+	var pe *ProtocolError
+	if !errors.As(err, &pe) {
+		t.Errorf("error = %T, want *ProtocolError", err)
+	}
+}
+
+// startNoStatusEchoAcceptor negotiates, reads the C-ECHO-RQ, then replies with a C-ECHO-RSP that
+// omits the mandatory Status element — a non-conformant response.
+func startNoStatusEchoAcceptor(t *testing.T, called AETitle) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		nc, aerr := ln.Accept()
+		if aerr != nil {
+			return
+		}
+		defer nc.Close()
+		conn := dul.NewConn(nc, 0)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		acc, perr := acse.Accept(ctx, conn, verificationAcceptParams(called))
+		if perr != nil {
+			return
+		}
+		cmd, pcID, rerr := receiveCommand(ctx, acc.Conn(), acc.Machine())
+		if rerr != nil {
+			return
+		}
+		_ = sendCommand(ctx, acc.Conn(), acc.Machine(), pcID, CommandSet{
+			CommandField:              CommandCEchoRSP,
+			MessageIDBeingRespondedTo: cmd.MessageID,
+			AffectedSOPClassUID:       cmd.AffectedSOPClassUID,
+			CommandDataSetType:        CommandDataSetNotPresent,
+			HasStatus:                 false, // the malformed bit: no Status element
+		})
 		_ = acc.ServeRelease(ctx)
 	}()
 	return ln.Addr().String()

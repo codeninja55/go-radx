@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/acse"
@@ -18,8 +19,9 @@ import (
 // typed *AssociationError rather than panicking (Codex DIMSE-017). It is not safe for
 // concurrent use by multiple goroutines issuing operations; a single goroutine drives it.
 type Association struct {
-	requestor *acse.Requestor
-	accepted  []PresentationContext
+	requestor    *acse.Requestor
+	accepted     []PresentationContext
+	dimseTimeout time.Duration
 
 	mu       sync.Mutex
 	released bool
@@ -75,9 +77,21 @@ func (ae *AE) Associate(
 		return nil, translateAssociateError(err)
 	}
 	return &Association{
-		requestor: requestor,
-		accepted:  fromPDUContextsAC(contexts, requestor.AcceptedContexts()),
+		requestor:    requestor,
+		accepted:     fromPDUContextsAC(contexts, requestor.AcceptedContexts()),
+		dimseTimeout: ae.cfg.dimseTimeout,
 	}, nil
+}
+
+// dimseContext derives the per-operation context, applying the association's DIMSE timeout
+// when the caller's context has no earlier deadline. It mirrors AE.acseContext for the
+// data-transfer phase, so a peer that accepts the association and then never answers a DIMSE
+// request cannot block the operation indefinitely (the configured WithDIMSETimeout promise).
+func (a *Association) dimseContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if a.dimseTimeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, a.dimseTimeout)
 }
 
 // dial opens the TCP connection to addr, honouring the AE's connection timeout (when set)
