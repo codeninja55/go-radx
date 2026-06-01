@@ -702,6 +702,24 @@ and, for Deflated Explicit VR LE, deflates the main dataset after the file-meta 
 explicit from implicit VR, always emitted Little Endian, and never deflated — so declaring Explicit VR BE or Deflated
 while writing uncompressed Little Endian produced corrupt files (Codex DCM-002, PS3.5 Annex A).
 
+The transport subsystems carry a dataset as a **bare element stream** — no Part 10 preamble and no file-meta group —
+because the framing lives outside the dataset (P-DATA-TF fragments for `dimse`, multipart parts for `dicomweb`). The
+package exposes that stream codec so the subsystems reuse the one transfer-syntax-faithful encoder rather than
+redeclaring their own (the prototype's DIMSE layer hand-rolled an Explicit/Implicit VR encoder that ignored byte order,
+sequences, and the active character set):
+
+```go
+// EncodeDataSet writes ds as a bare element stream in ts (PS3.7 §6.3.1): the dataset elements in
+// ascending tag order, no preamble or file-meta group. Deflated Explicit VR LE deflates the
+// stream. An encapsulated or empty transfer syntax is rejected before any bytes are written.
+func EncodeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error
+
+// DecodeDataSet reads a bare element stream from r in ts, the inverse of EncodeDataSet. A clean
+// EOF at a top-level tag boundary ends the dataset; truncation surfaces as io.ErrUnexpectedEOF.
+// Every wire length is bounds-checked against a bounded reader before allocation (PRD §9.3).
+func DecodeDataSet(r io.Reader, ts TransferSyntax, opts ...ReadOption) (*DataSet, error)
+```
+
 The File Meta Information group is always written Explicit VR Little Endian, and `(0002,0000)` File Meta Information
 Group Length is recomputed and written first. The encoder serialises the group-0002 elements to a buffer, counts the
 bytes following the group-length element through the last group-0002 element, and prepends the `UL` group-length with
