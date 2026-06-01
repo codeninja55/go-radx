@@ -286,6 +286,15 @@ func (r *Requestor) Conn() *dul.Conn { return r.conn }
 // Conn returns the underlying DUL connection (acceptor side).
 func (a *Acceptor) Conn() *dul.Conn { return a.conn }
 
+// Machine returns the association's DUL StateMachine so the DIMSE message layer routes its
+// inbound P-DATA-TF reads through dul.DriveInbound against the same machine the association
+// lifecycle advances (the architect's DUL-ownership decision: inbound reads never reimplement
+// the abort-send/clean-close hardening). It is the same machine State() reports.
+func (r *Requestor) Machine() *dul.StateMachine { return r.machine }
+
+// Machine returns the association's DUL StateMachine (acceptor side).
+func (a *Acceptor) Machine() *dul.StateMachine { return a.machine }
+
 func buildAssociateRQ(req Request) *pdu.AssociateRQ {
 	return &pdu.AssociateRQ{
 		ProtocolVersion:      protocolVersion,
