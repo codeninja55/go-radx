@@ -1,19 +1,20 @@
 //go:build cgo && dicom_libjpeg
 
-// Package dicom's JPEG (baseline/extended) codec is built only when both cgo is
-// enabled and the dicom_libjpeg build tag is set. It binds libjpeg-turbo's
-// TurboJPEG 3.x API through the C bridge in turbojpeg_bridge.{h,c}. The default
-// build (no tag) and CGO_ENABLED=0 builds register no JPEG codec, so a JPEG
-// Baseline/Extended instance degrades to the typed ErrCodecUnavailable (PRD §7.3);
-// building with -tags dicom_libjpeg against an installed libjpeg-turbo makes the
-// baseline and extended fixtures decode.
+// Package dicom's JPEG codec is built only when both cgo is enabled and the
+// dicom_libjpeg build tag is set. It binds libjpeg-turbo's TurboJPEG 3.x API through
+// the C bridge in turbojpeg_bridge.{h,c}. The default build (no tag) and
+// CGO_ENABLED=0 builds register no JPEG codec, so a JPEG instance degrades to the
+// typed ErrCodecUnavailable (PRD §7.3); building with -tags dicom_libjpeg against an
+// installed libjpeg-turbo makes the JPEG fixtures decode.
 //
 // Scope: this codec covers the lossy DCT-based processes DICOM carries as JPEG
-// Baseline (Process 1, 8-bit, .50) and JPEG Extended (Process 2 & 4, 12-bit, .51).
-// libjpeg-turbo does not implement the lossless-JPEG processes that DICOM .57
-// (Process 14) and .70 (Process 14 SV1) use, so those syntaxes register no codec
-// here and degrade to ErrCodecUnavailable. Encode is not offered: re-encoding to a
-// lossy syntax is never a safe default.
+// Baseline (Process 1, 8-bit, .50) and JPEG Extended (Process 2 & 4, up to 12-bit,
+// .51), and the predictive lossless process DICOM carries as JPEG Lossless
+// (Process 14, .57) and JPEG Lossless SV1 (Process 14 Selection Value 1, .70), which
+// libjpeg-turbo 3.x decodes at 2..16-bit precision. Lossless JPEG carries no colour
+// transform, so its samples pass through against the dataset's declared
+// PhotometricInterpretation. Decode only: encode is never offered here — re-encoding
+// to a lossy syntax is never a safe default, and a lossless re-encode is deferred.
 package dicom
 
 // #cgo pkg-config: libturbojpeg
@@ -54,9 +55,9 @@ func (e *jpegError) Unwrap() error { return ErrJPEG }
 // captured text is library state, never pixel data.
 const jpegErrBufLen = 256
 
-// libjpegCodec decodes the lossy JPEG transfer syntaxes (Baseline .50, Extended
-// .51) via libjpeg-turbo. One instance is registered per transfer syntax; encode is
-// never offered (decode-only).
+// libjpegCodec decodes the JPEG transfer syntaxes libjpeg-turbo handles: the lossy
+// Baseline .50 and Extended .51, and the predictive lossless .57 and .70. One
+// instance is registered per transfer syntax; encode is never offered (decode-only).
 type libjpegCodec struct {
 	ts TransferSyntax
 }
@@ -65,8 +66,9 @@ func (c libjpegCodec) TransferSyntax() TransferSyntax { return c.ts }
 
 func (c libjpegCodec) CanEncode() bool { return false }
 
-// Decode expands one baseline or extended JPEG codestream into contiguously packed
-// native pixel bytes laid out per geom. The decoded image's dimensions and component
+// Decode expands one baseline, extended, or lossless JPEG codestream into
+// contiguously packed native pixel bytes laid out per geom. The decoded image's
+// dimensions and component
 // count are validated against geom before the output frame is sized, so a codestream
 // whose dimensions disagree with the dataset header fails with a typed error rather
 // than producing a misaligned frame.
@@ -111,7 +113,33 @@ func (c libjpegCodec) Decode(frame []byte, geom PixelGeometry) ([]byte, error) {
 		return nil, &jpegError{op: "decode", status: int(status), detail: jpegErrString(errbuf)}
 	}
 
+	// The codestream's process must match the transfer syntax that selected this
+	// codec: a .57/.70 instance must carry predictive lossless data and a .50/.51
+	// instance must carry lossy DCT data. All four syntaxes share one C decode entry,
+	// so a mislabeled, non-conformant object (e.g. lossless bytes under a Baseline
+	// UID) is rejected here rather than silently decoded.
+	if gotLossless := dec.lossless != 0; gotLossless != c.isLossless() {
+		return nil, &jpegError{op: "decode", detail: fmt.Sprintf(
+			"codestream is %s but transfer syntax %s requires %s",
+			jpegProcessName(gotLossless), c.ts.Name(), jpegProcessName(c.isLossless()))}
+	}
+
 	return packJPEGFrame(&dec, geom)
+}
+
+// isLossless reports whether this codec's transfer syntax is one of the predictive
+// lossless JPEG processes (.57 / .70) rather than a lossy DCT process (.50 / .51).
+func (c libjpegCodec) isLossless() bool {
+	return c.ts == JPEGLossless || c.ts == JPEGLosslessSV1
+}
+
+// jpegProcessName names a JPEG process class for a diagnostic message; it carries no
+// pixel data.
+func jpegProcessName(lossless bool) string {
+	if lossless {
+		return "lossless"
+	}
+	return "lossy"
 }
 
 // Encode is never supported for the lossy JPEG syntaxes; it returns the typed
@@ -191,4 +219,6 @@ func isYBRPhotometric(pi string) bool {
 func init() {
 	RegisterCodec(libjpegCodec{ts: JPEGBaseline8Bit})
 	RegisterCodec(libjpegCodec{ts: JPEGExtended12Bit})
+	RegisterCodec(libjpegCodec{ts: JPEGLossless})
+	RegisterCodec(libjpegCodec{ts: JPEGLosslessSV1})
 }

@@ -151,17 +151,19 @@ goradx_tj_status goradx_tj_decode(const uint8_t *src, size_t srclen,
     status = GORADX_TJ_ERR_DIMENSIONS;
     goto done;
   }
-  /* This bridge handles the lossy baseline/extended processes only. A lossless
-   * JPEG (DICOM .57/.70) is rejected so it never silently decodes here. */
+  /* libjpeg-turbo 3.x decodes both the lossy DCT processes (DICOM Baseline .50 /
+   * Extended .51) and the predictive lossless process (DICOM .57 / .70). The valid
+   * precision range depends on the process: lossy JPEG is 8-bit (Process 1) or
+   * 9..12-bit (Process 2 & 4); lossless JPEG is 2..16-bit. Reject a precision outside
+   * the stream's own process range before the precision-keyed decompress dispatch
+   * below, so a malformed header cannot select a mismatched decompressor. */
   if (lossless == 1) {
-    set_err(errbuf, errbuflen, "turbojpeg: lossless JPEG not supported by this codec");
-    status = GORADX_TJ_ERR_PRECISION;
-    goto done;
-  }
-  /* Baseline is 8-bit (Process 1); Extended is up to 12-bit (Process 2 & 4).
-   * Reject anything outside that range so a 16-bit lossless header cannot reach
-   * the 8/12-bit dispatch below. */
-  if (prec != 8 && !(prec >= 9 && prec <= 12)) {
+    if (prec < 2 || prec > 16) {
+      set_err(errbuf, errbuflen, "turbojpeg: unsupported lossless JPEG precision");
+      status = GORADX_TJ_ERR_PRECISION;
+      goto done;
+    }
+  } else if (prec != 8 && !(prec >= 9 && prec <= 12)) {
     set_err(errbuf, errbuflen, "turbojpeg: unsupported JPEG precision");
     status = GORADX_TJ_ERR_PRECISION;
     goto done;
@@ -238,10 +240,14 @@ goradx_tj_status goradx_tj_decode(const uint8_t *src, size_t srclen,
     int pixfmt = (numcomps == 3) ? TJPF_RGB : TJPF_GRAY;
     int pitch = 0; /* 0 = tightly packed rows */
     int rc;
-    if (bps == 1) {
+    if (prec <= 8) {
       rc = tj3Decompress8(handle, src, srclen, buf, pitch, pixfmt);
-    } else {
+    } else if (prec <= 12) {
       rc = tj3Decompress12(handle, src, srclen, (short *)buf, pitch, pixfmt);
+    } else {
+      /* 13..16-bit samples (lossless only) need the 16-bit decompressor. buf is
+       * sized for 2 bytes per sample (bps == 2), so the unsigned-short write fits. */
+      rc = tj3Decompress16(handle, src, srclen, (unsigned short *)buf, pitch, pixfmt);
     }
     if (rc != 0) {
       capture_lib_err(handle, errbuf, errbuflen);
@@ -255,6 +261,7 @@ goradx_tj_status goradx_tj_decode(const uint8_t *src, size_t srclen,
   out->height = height;
   out->numcomps = numcomps;
   out->precision = (uint32_t)prec;
+  out->lossless = (uint32_t)(lossless == 1);
   out->data = buf;
   out->data_len = (size_t)total;
   buf = NULL; /* ownership transferred to out */
@@ -276,4 +283,87 @@ void goradx_tj_free_decoded(goradx_tj_decoded *out) {
     out->data = NULL;
     out->data_len = 0;
   }
+}
+
+goradx_tj_status goradx_tj_encode_lossless(const uint8_t *samples, uint32_t width,
+                                           uint32_t height, uint32_t numcomps,
+                                           uint32_t precision, int psv,
+                                           uint8_t **out, size_t *outlen,
+                                           char *errbuf, size_t errbuflen) {
+  if (samples == NULL || out == NULL || outlen == NULL || width == 0 ||
+      height == 0) {
+    set_err(errbuf, errbuflen, "turbojpeg: invalid encode argument");
+    return GORADX_TJ_ERR_ARGUMENT;
+  }
+  *out = NULL;
+  *outlen = 0;
+  if (errbuf != NULL && errbuflen > 0) {
+    errbuf[0] = '\0';
+  }
+  if (numcomps != 1 && numcomps != 3) {
+    set_err(errbuf, errbuflen, "turbojpeg: unsupported encode component count");
+    return GORADX_TJ_ERR_COMPONENTS;
+  }
+  if (precision < 2 || precision > 16) {
+    set_err(errbuf, errbuflen, "turbojpeg: unsupported encode precision");
+    return GORADX_TJ_ERR_PRECISION;
+  }
+
+  goradx_tj_status status = GORADX_TJ_ERR_DECODE;
+  tjhandle handle = NULL;
+  unsigned char *jpegBuf = NULL; /* tj3-allocated; freed with tj3Free */
+  uint8_t *copy = NULL;          /* malloc copy returned to the caller */
+  size_t jpegSize = 0;
+  int pixfmt = (numcomps == 3) ? TJPF_RGB : TJPF_GRAY;
+  int rc;
+
+  handle = tj3Init(TJINIT_COMPRESS);
+  if (handle == NULL) {
+    set_err(errbuf, errbuflen, "turbojpeg: tj3Init(compress) returned NULL");
+    return GORADX_TJ_ERR_ALLOC;
+  }
+  tj3Set(handle, TJPARAM_LOSSLESS, 1);
+  tj3Set(handle, TJPARAM_LOSSLESSPSV, psv);
+  tj3Set(handle, TJPARAM_PRECISION, (int)precision);
+  /* Lossless JPEG never subsamples chroma; pin TJSAMP_444 so a 3-component encode
+   * keeps every sample (matching what the decode path requires). */
+  tj3Set(handle, TJPARAM_SUBSAMP, TJSAMP_444);
+
+  if (precision <= 8) {
+    rc = tj3Compress8(handle, samples, (int)width, 0, (int)height, pixfmt, &jpegBuf,
+                      &jpegSize);
+  } else if (precision <= 12) {
+    rc = tj3Compress12(handle, (const short *)samples, (int)width, 0, (int)height,
+                       pixfmt, &jpegBuf, &jpegSize);
+  } else {
+    rc = tj3Compress16(handle, (const unsigned short *)samples, (int)width, 0,
+                       (int)height, pixfmt, &jpegBuf, &jpegSize);
+  }
+  if (rc != 0) {
+    capture_lib_err(handle, errbuf, errbuflen);
+    set_err(errbuf, errbuflen, "turbojpeg: lossless compress failed");
+    status = GORADX_TJ_ERR_DECODE;
+    goto done;
+  }
+
+  /* Hand the caller a malloc'd copy so it frees with free(), not tj3Free. */
+  copy = (uint8_t *)malloc(jpegSize);
+  if (copy == NULL) {
+    set_err(errbuf, errbuflen, "turbojpeg: encode output copy allocation failed");
+    status = GORADX_TJ_ERR_ALLOC;
+    goto done;
+  }
+  memcpy(copy, jpegBuf, jpegSize);
+  *out = copy;
+  *outlen = jpegSize;
+  status = GORADX_TJ_OK;
+
+done:
+  if (jpegBuf != NULL) {
+    tj3Free(jpegBuf);
+  }
+  if (handle != NULL) {
+    tj3Destroy(handle);
+  }
+  return status;
 }

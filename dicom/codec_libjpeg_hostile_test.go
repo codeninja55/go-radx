@@ -99,19 +99,41 @@ func runJPEGHostileWorker() {
 func jpegHostileCorpus(t *testing.T) map[string][]byte {
 	t.Helper()
 	valid := validBaselineCodestream(t)
+	// A 16-bit lossless seed fuzzes the predictive-lossless header parse and the
+	// tj3Decompress16 dispatch that the 8-bit baseline seed never structurally reaches.
+	lossless16 := validLossless16Codestream(t)
 
 	return map[string][]byte{
-		"empty":            {},
-		"single_byte":      {0xFF},
-		"soi_only":         {0xFF, 0xD8},
-		"random_garbage":   garbage(4096),
-		"zero_filled":      make([]byte, 8192),
-		"truncated_header": clone(valid[:32]),
-		"truncated_mid":    clone(valid[:len(valid)/2]),
-		"truncated_tail":   clone(valid[:len(valid)-4]),
-		"oversized_dims":   jpegOversizedDimensions(valid),
-		"zero_dims":        jpegZeroDimensions(valid),
+		"empty":                       {},
+		"single_byte":                 {0xFF},
+		"soi_only":                    {0xFF, 0xD8},
+		"random_garbage":              garbage(4096),
+		"zero_filled":                 make([]byte, 8192),
+		"truncated_header":            clone(valid[:32]),
+		"truncated_mid":               clone(valid[:len(valid)/2]),
+		"truncated_tail":              clone(valid[:len(valid)-4]),
+		"oversized_dims":              jpegOversizedDimensions(valid),
+		"zero_dims":                   jpegZeroDimensions(valid),
+		"lossless16_truncated_header": clone(lossless16[:32]),
+		"lossless16_truncated_mid":    clone(lossless16[:len(lossless16)/2]),
 	}
+}
+
+// validLossless16Codestream returns a small valid 16-bit predictive lossless JPEG
+// codestream, the seed for the lossless hostile cases. It is produced by the codec's
+// own encoder so the truncated variants are structurally close to a real lossless
+// stream and drive the 16-bit decompress path under malformed input.
+func validLossless16Codestream(t *testing.T) []byte {
+	t.Helper()
+	samples := syntheticSamples(64, 64, 1, 16)
+	cs, err := encodeLosslessJPEG(samples, 64, 64, 1, 16, 1)
+	if err != nil {
+		t.Fatalf("encode lossless seed: %v", err)
+	}
+	if len(cs) < 64 {
+		t.Fatalf("lossless seed too short: %d bytes", len(cs))
+	}
+	return cs
 }
 
 // validBaselineCodestream returns the first frame's raw JPEG codestream from the

@@ -17,6 +17,8 @@ const (
 	RLELossless                    TransferSyntax = "1.2.840.10008.1.2.5"
 	JPEGBaseline8Bit               TransferSyntax = "1.2.840.10008.1.2.4.50"
 	JPEGExtended12Bit              TransferSyntax = "1.2.840.10008.1.2.4.51"
+	JPEGLossless                   TransferSyntax = "1.2.840.10008.1.2.4.57" // Process 14
+	JPEGLosslessSV1                TransferSyntax = "1.2.840.10008.1.2.4.70" // Process 14 SV1, default lossless
 	JPEGLSLossless                 TransferSyntax = "1.2.840.10008.1.2.4.80"
 	JPEGLSNearLossless             TransferSyntax = "1.2.840.10008.1.2.4.81"
 	JPEG2000Lossless               TransferSyntax = "1.2.840.10008.1.2.4.90"

@@ -26,6 +26,7 @@ origin (see the `LICENSE-*.txt` files in this directory).
 | `SC_jpeg_no_color_transform.dcm` | JPEG Baseline (Process 1) (`1.2.840.10008.1.2.4.50`) | pydicom `SC_*` family; 256x256 RGB 8-bit, no colour transform | MIT (pydicom) | CGo-gated JPEG Baseline decode via libjpeg-turbo and `ErrCodecUnavailable` under `nocgo` (Increment 6c) |
 | `SC_rgb_small_odd_jpeg.dcm` | JPEG Baseline (Process 1) (`1.2.840.10008.1.2.4.50`) | pydicom `SC_*` family; 3x3 YBR_FULL 8-bit (JFIF/YCbCr) | MIT (pydicom) | YBR_FULL JPEG decode keeps native YCbCr samples; pixel-exact vs pydicom reference (Increment 6c) |
 | `JPGExtended.dcm` | JPEG Extended (Process 2 & 4) (`1.2.840.10008.1.2.4.51`) | pydicom test files; 1024x256 MONOCHROME2 16-bit allocated / 12-bit stored | MIT (pydicom) | CGo-gated JPEG Extended 12-bit decode via libjpeg-turbo (Increment 6c) |
+| `JPGLosslessP14SV1_1s_1f_8b.dcm` | JPEG Lossless SV1 (Process 14 SV1) (`1.2.840.10008.1.2.4.70`) | pydicom test files; 1024x768 MONOCHROME2 8-bit, 1 frame | MIT (pydicom) | CGo-gated JPEG Lossless decode via libjpeg-turbo 3.x and `ErrCodecUnavailable` under `nocgo` (Increment 6d) |
 | `MR_small_jpeg_ls_lossless.dcm` | JPEG-LS Lossless (`1.2.840.10008.1.2.4.80`) | pydicom `MR_small` family; 64x64 MONOCHROME2 signed 16-bit | MIT (pydicom) | CGo-gated JPEG-LS lossless decode + encode via CharLS; pixel-exact vs pydicom reference (Increment 6c) |
 | `JPEGLSNearLossless_08.dcm` | JPEG-LS Near-Lossless (`1.2.840.10008.1.2.4.81`) | pydicom test files; 45x10 MONOCHROME2 8-bit | MIT (pydicom) | CGo-gated JPEG-LS near-lossless 8-bit decode via CharLS; pixel-exact vs pydicom reference (Increment 6c) |
 | `JPEGLSNearLossless_16.dcm` | JPEG-LS Near-Lossless (`1.2.840.10008.1.2.4.81`) | pydicom test files; 50x10 MONOCHROME2 16-bit | MIT (pydicom) | CGo-gated JPEG-LS near-lossless 16-bit decode via CharLS (Increment 6c) |
@@ -53,8 +54,8 @@ origin (see the `LICENSE-*.txt` files in this directory).
 - `LICENSE-pydicom.txt` — MIT license covering the pydicom-origin fixtures: `liver.dcm`, `MR2_UNCI.dcm`,
   `SC_rgb_expb.dcm`, `liver_rle.dcm`, `liver_j2k.dcm`, `explicit_VR-UN.dcm`, `basic-text-sr.dcm`,
   `HTJ2KLossless_08_RGB.dcm`, `HTJ2K_08_RGB.dcm`, `SC_jpeg_no_color_transform.dcm`, `SC_rgb_small_odd_jpeg.dcm`,
-  `JPGExtended.dcm`, `MR_small_jpeg_ls_lossless.dcm`, `JPEGLSNearLossless_08.dcm`, `JPEGLSNearLossless_16.dcm`,
-  `SC_rgb_jls_lossy_sample.dcm`.
+  `JPGExtended.dcm`, `JPGLosslessP14SV1_1s_1f_8b.dcm`, `MR_small_jpeg_ls_lossless.dcm`, `JPEGLSNearLossless_08.dcm`,
+  `JPEGLSNearLossless_16.dcm`, `SC_rgb_jls_lossy_sample.dcm`.
 - `LICENSE-gdcm.txt` — BSD-3-Clause license covering the GDCM-origin fixture `MR-SIEMENS-DICOM-WithOverlays.dcm`, and
   acknowledged for the GDCM tooling (`gdcmconv`) used to derive `liver_rle.dcm`.
 - `LICENSE-dcmtk.txt` — OFFIS BSD-3-Clause license acknowledged for the dcmtk tooling (`dcmconv`) used to derive

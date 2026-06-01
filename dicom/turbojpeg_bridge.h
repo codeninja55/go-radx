@@ -2,22 +2,24 @@
 
 /*
  * turbojpeg_bridge.h declares a narrow, safe surface over libjpeg-turbo's
- * TurboJPEG 3.x API for the lossy DICOM JPEG transfer syntaxes: JPEG Baseline
- * (Process 1, 8-bit, .50) and JPEG Extended (Process 2 & 4, 12-bit, .51). It is
- * compiled only under the `cgo && dicom_libjpeg` build tag; the default build
- * never touches libjpeg-turbo.
+ * TurboJPEG 3.x API for the DICOM JPEG transfer syntaxes it can decode: the lossy
+ * JPEG Baseline (Process 1, 8-bit, .50) and JPEG Extended (Process 2 & 4, up to
+ * 12-bit, .51), and the predictive lossless JPEG Lossless (Process 14, .57) and JPEG
+ * Lossless SV1 (Process 14 Selection Value 1, .70), which libjpeg-turbo 3.x decodes
+ * at 2..16-bit precision. It is compiled only under the `cgo && dicom_libjpeg` build
+ * tag; the default build never touches libjpeg-turbo.
  *
  * The bridge keeps the TurboJPEG handle lifecycle, the header probe, the
- * precision-dependent decompress dispatch (tj3Decompress8 / tj3Decompress12), and
- * the error-string capture in C, so the Go side deals only with a fixed-shape
- * result struct and never holds a live tjhandle across the cgo boundary. Every
- * allocation is NULL-checked and every header value that drives an allocation is
- * validated against caller-supplied caps before the allocation happens (DCM-014).
+ * precision-dependent decompress dispatch (tj3Decompress8 / tj3Decompress12 /
+ * tj3Decompress16), and the error-string capture in C, so the Go side deals only
+ * with a fixed-shape result struct and never holds a live tjhandle across the cgo
+ * boundary. Every allocation is NULL-checked and every header value that drives an
+ * allocation is validated against caller-supplied caps before the allocation happens
+ * (DCM-014).
  *
- * libjpeg-turbo does not implement the lossless-JPEG processes that DICOM .57 and
- * .70 use as DCT-based codecs; this bridge intentionally covers only the lossy
- * .50/.51 processes. The .57/.70 syntaxes register no codec and degrade to
- * ErrCodecUnavailable.
+ * goradx_tj_encode_lossless is a test-support entry point that produces lossless
+ * codestreams for round-trip correctness tests of the decode path; the production
+ * codec is decode-only.
  */
 #ifndef GORADX_TURBOJPEG_BRIDGE_H
 #define GORADX_TURBOJPEG_BRIDGE_H
@@ -47,14 +49,15 @@ typedef enum {
 
 /* goradx_tj_decoded is the fixed-shape result of a decode. data points to
  * width*height*numcomps samples in sample-interleaved order (planar configuration
- * 0): for 8-bit precision each sample is one byte; for 9..12-bit precision each
- * sample is a little-endian uint16. The Go side packs them into the DICOM frame
+ * 0): for precision <= 8 each sample is one byte; for 9..16-bit precision each
+ * sample is a native-order uint16. The Go side packs them into the DICOM frame
  * layout. data is allocated by the bridge and released with goradx_tj_free_decoded. */
 typedef struct {
   uint32_t width;
   uint32_t height;
   uint32_t numcomps;   /* 1 (grayscale) or 3 (RGB) */
-  uint32_t precision;  /* bits per sample as reported by the codestream (8 or 12) */
+  uint32_t precision;  /* bits per sample as reported by the codestream (2..16) */
+  uint32_t lossless;   /* 1 if the codestream uses the predictive lossless process */
   uint8_t *data;       /* width*height*numcomps samples, interleaved */
   size_t data_len;     /* byte length of data */
 } goradx_tj_decoded;
@@ -84,5 +87,19 @@ goradx_tj_status goradx_tj_decode(const uint8_t *src, size_t srclen,
 
 /* goradx_tj_free_decoded releases the buffer in out (safe on a zeroed struct). */
 void goradx_tj_free_decoded(goradx_tj_decoded *out);
+
+/* goradx_tj_encode_lossless encodes width*height*numcomps interleaved samples into a
+ * predictive lossless JPEG codestream (the process DICOM uses for .57/.70). It exists
+ * to support round-trip correctness tests of the lossless decode path; the production
+ * codec is decode-only. Each sample is one byte for precision <= 8, otherwise a
+ * native-order uint16. psv is the lossless predictor selection value: 1 yields the
+ * SV1 form DICOM .70 uses, 2..7 the general Process 14 (.57) form. On success *out is
+ * a malloc'd codestream of *outlen bytes that the caller frees with free(). errbuf
+ * receives a NUL-terminated message (library state, never PHI) on any nonzero return. */
+goradx_tj_status goradx_tj_encode_lossless(const uint8_t *samples, uint32_t width,
+                                           uint32_t height, uint32_t numcomps,
+                                           uint32_t precision, int psv,
+                                           uint8_t **out, size_t *outlen,
+                                           char *errbuf, size_t errbuflen);
 
 #endif /* GORADX_TURBOJPEG_BRIDGE_H */

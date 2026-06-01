@@ -9,10 +9,10 @@ import (
 )
 
 // TestJPEGCodecsRegistered checks that building with -tags dicom_libjpeg makes the
-// baseline and extended JPEG codecs available where the pure-Go build had none. Both
-// are decode-only (re-encoding to a lossy syntax is never a default).
+// baseline, extended, and lossless JPEG codecs available where the pure-Go build had
+// none. All are decode-only here (re-encoding to a JPEG syntax is never a default).
 func TestJPEGCodecsRegistered(t *testing.T) {
-	for _, ts := range []TransferSyntax{JPEGBaseline8Bit, JPEGExtended12Bit} {
+	for _, ts := range []TransferSyntax{JPEGBaseline8Bit, JPEGExtended12Bit, JPEGLossless, JPEGLosslessSV1} {
 		c, ok := lookupCodec(ts)
 		if !ok {
 			t.Fatalf("no codec registered for %s (%s)", ts.Name(), ts)
@@ -139,6 +139,36 @@ func TestJPEGDecodeExtended12BitFixture(t *testing.T) {
 	}
 }
 
+// TestJPEGProcessMustMatchTransferSyntax asserts the codec rejects a codestream whose
+// JPEG process disagrees with the transfer syntax that selected it: a lossless stream
+// under a lossy (Baseline) UID, or a lossy stream under a Lossless UID. All four JPEG
+// syntaxes share one decode entry, so this guard is what stops a mislabeled,
+// non-conformant object from decoding silently.
+func TestJPEGProcessMustMatchTransferSyntax(t *testing.T) {
+	// A real lossless codestream offered under a lossy (Baseline) transfer syntax.
+	losslessStream, err := encodeLosslessJPEG(syntheticSamples(8, 8, 1, 8), 8, 8, 1, 8, 1)
+	if err != nil {
+		t.Fatalf("encodeLosslessJPEG: %v", err)
+	}
+	losslessGeom := PixelGeometry{
+		Rows: 8, Columns: 8, SamplesPerPixel: 1, BitsAllocated: 8, BitsStored: 8,
+		PhotometricInterpretation: "MONOCHROME2",
+	}
+	if _, err := (libjpegCodec{ts: JPEGBaseline8Bit}).Decode(losslessStream, losslessGeom); !errors.Is(err, ErrJPEG) {
+		t.Errorf("lossless stream as Baseline: err = %v, want ErrJPEG process mismatch", err)
+	}
+
+	// A real lossy (Baseline) codestream offered under a Lossless transfer syntax.
+	lossyStream := validBaselineCodestream(t) // 256x256 RGB baseline fixture frame
+	lossyGeom := PixelGeometry{
+		Rows: 256, Columns: 256, SamplesPerPixel: 3, BitsAllocated: 8, BitsStored: 8,
+		PhotometricInterpretation: "RGB",
+	}
+	if _, err := (libjpegCodec{ts: JPEGLosslessSV1}).Decode(lossyStream, lossyGeom); !errors.Is(err, ErrJPEG) {
+		t.Errorf("Baseline stream as Lossless: err = %v, want ErrJPEG process mismatch", err)
+	}
+}
+
 // TestJPEGTranscodeToNative decodes the baseline RGB fixture and transcodes it to
 // uncompressed Explicit VR Little Endian, confirming the native frame count and
 // length match the geometry through the Transcode path.
@@ -174,7 +204,7 @@ func TestJPEGTranscodeToNative(t *testing.T) {
 // ErrEncodeUnsupported (re-encoding to a lossy syntax is never offered).
 func TestJPEGIsDecodeOnly(t *testing.T) {
 	geom := PixelGeometry{Rows: 8, Columns: 8, SamplesPerPixel: 1, BitsAllocated: 8, BitsStored: 8}
-	for _, ts := range []TransferSyntax{JPEGBaseline8Bit, JPEGExtended12Bit} {
+	for _, ts := range []TransferSyntax{JPEGBaseline8Bit, JPEGExtended12Bit, JPEGLossless, JPEGLosslessSV1} {
 		c, ok := lookupCodec(ts)
 		if !ok {
 			t.Fatalf("no codec registered for %s", ts)
@@ -185,17 +215,37 @@ func TestJPEGIsDecodeOnly(t *testing.T) {
 	}
 }
 
-// TestJPEGLosslessSyntaxesUnavailable documents the scope boundary: libjpeg-turbo
-// does not implement the lossless-JPEG processes DICOM .57/.70 use, so those
-// syntaxes register no codec even with the dicom_libjpeg tag, and an instance
-// degrades to the typed ErrCodecUnavailable.
-func TestJPEGLosslessSyntaxesUnavailable(t *testing.T) {
-	for _, ts := range []TransferSyntax{
-		TransferSyntax("1.2.840.10008.1.2.4.57"), // JPEG Lossless, Non-Hierarchical (Process 14)
-		TransferSyntax("1.2.840.10008.1.2.4.70"), // JPEG Lossless, Non-Hierarchical, SV1
-	} {
-		if c, ok := lookupCodec(ts); ok {
-			t.Errorf("did not expect a codec for lossless JPEG %s, got %T", ts, c)
+// TestJPEGLosslessDecodesRealFixture is the named lossless (.70) decode regression
+// against a real Process 14 SV1 codestream: JPGLosslessP14SV1_1s_1f_8b.dcm decodes
+// without error and the frame is exactly the FrameLength the resolved geometry
+// declares. Lossless JPEG carries no colour transform, so MONOCHROME2 samples pass
+// through unchanged. Pixel-exact correctness for every precision is proven separately
+// by the encode/decode round-trip in TestJPEGLosslessRoundTrip.
+func TestJPEGLosslessDecodesRealFixture(t *testing.T) {
+	pd, err := ReadPixelData(filepath.Join("..", "testdata", "dicom", "JPGLosslessP14SV1_1s_1f_8b.dcm"))
+	if err != nil {
+		t.Fatalf("ReadPixelData: %v", err)
+	}
+	if pd.Geometry.TransferSyntax != JPEGLosslessSV1 {
+		t.Fatalf("transfer syntax = %s, want JPEG Lossless SV1", pd.Geometry.TransferSyntax)
+	}
+	t.Logf("geometry: %dx%d spp=%d bits=%d/%d pi=%q frames=%d",
+		pd.Geometry.Columns, pd.Geometry.Rows, pd.Geometry.SamplesPerPixel,
+		pd.Geometry.BitsStored, pd.Geometry.BitsAllocated,
+		pd.Geometry.PhotometricInterpretation, pd.Geometry.NumberOfFrames)
+
+	wantLen := pd.Geometry.FrameLength()
+	var frames int
+	for frame, err := range pd.Frames() {
+		if err != nil {
+			t.Fatalf("frame %d: %v", frames, err)
 		}
+		if len(frame.Pixels) != wantLen {
+			t.Errorf("frame %d length = %d, want %d", frames, len(frame.Pixels), wantLen)
+		}
+		frames++
+	}
+	if frames != pd.Geometry.NumberOfFrames {
+		t.Errorf("decoded %d frames, want %d", frames, pd.Geometry.NumberOfFrames)
 	}
 }

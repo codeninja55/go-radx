@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-// TestNoCodecForBaselineJPEGInPureGo asserts the lossy JPEG syntaxes have no
-// registered codec without the dicom_libjpeg build tag. The companion
-// TestJPEGCodecsRegistered asserts the opposite once the codec is built in.
+// TestNoCodecForBaselineJPEGInPureGo asserts the JPEG syntaxes have no registered
+// codec without the dicom_libjpeg build tag. The companion TestJPEGCodecsRegistered
+// asserts the opposite once the codec is built in.
 func TestNoCodecForBaselineJPEGInPureGo(t *testing.T) {
-	for _, ts := range []TransferSyntax{JPEGBaseline8Bit, JPEGExtended12Bit} {
+	for _, ts := range []TransferSyntax{JPEGBaseline8Bit, JPEGExtended12Bit, JPEGLossless, JPEGLosslessSV1} {
 		if c, ok := lookupCodec(ts); ok {
 			t.Fatalf("did not expect a %s codec without dicom_libjpeg, got %T", ts.Name(), c)
 		}
@@ -60,6 +60,29 @@ func TestExtendedJPEGReturnsCodecUnavailable(t *testing.T) {
 	}
 	if pd.Geometry.TransferSyntax != JPEGExtended12Bit {
 		t.Fatalf("transfer syntax = %s, want JPEG Extended", pd.Geometry.TransferSyntax)
+	}
+	var gotErr error
+	for _, err := range pd.Frames() {
+		if err != nil {
+			gotErr = err
+			break
+		}
+	}
+	if !errors.Is(gotErr, ErrCodecUnavailable) {
+		t.Errorf("error = %v, want ErrCodecUnavailable", gotErr)
+	}
+}
+
+// TestLosslessJPEGReturnsCodecUnavailable mirrors the degradation for the lossless
+// (.70) fixture: without the dicom_libjpeg codec, a JPEG Lossless instance yields the
+// typed ErrCodecUnavailable rather than a build break or a partial image.
+func TestLosslessJPEGReturnsCodecUnavailable(t *testing.T) {
+	pd, err := ReadPixelData(filepath.Join("..", "testdata", "dicom", "JPGLosslessP14SV1_1s_1f_8b.dcm"))
+	if err != nil {
+		t.Fatalf("ReadPixelData: %v", err)
+	}
+	if pd.Geometry.TransferSyntax != JPEGLosslessSV1 {
+		t.Fatalf("transfer syntax = %s, want JPEG Lossless SV1", pd.Geometry.TransferSyntax)
 	}
 	var gotErr error
 	for _, err := range pd.Frames() {
