@@ -101,7 +101,10 @@ func maxPayloadPerPDV(sendCap MaxPDULength) int {
 // before command-last is seen, and never reports a command-only message complete while a declared
 // dataset is still arriving.
 type messageReassembler struct {
-	ts             dicom.TransferSyntax
+	// resolveTS maps the presentation context ID the message arrived on to the negotiated transfer
+	// syntax used to decode the dataset (DIMSE-003). The SCU knows the syntax up front (it chose
+	// the context); the SCP resolves it from the accepted contexts by the inbound context ID.
+	resolveTS      func(pcID uint8) (dicom.TransferSyntax, error)
 	pcID           uint8
 	commandBytes   []byte
 	datasetBytes   []byte
@@ -112,10 +115,18 @@ type messageReassembler struct {
 	dataset *dicom.DataSet
 }
 
-// newMessageReassembler builds a reassembler that decodes the dataset with ts (the negotiated
-// transfer syntax of the operation's presentation context).
+// newMessageReassembler builds a reassembler that decodes the dataset with the fixed transfer
+// syntax ts (the negotiated transfer syntax of the operation's presentation context, known to the
+// SCU up front).
 func newMessageReassembler(ts dicom.TransferSyntax) *messageReassembler {
-	return &messageReassembler{ts: ts}
+	return newMessageReassemblerFunc(func(uint8) (dicom.TransferSyntax, error) { return ts, nil })
+}
+
+// newMessageReassemblerFunc builds a reassembler that resolves the dataset transfer syntax from
+// the inbound presentation context ID (the SCP path, where the syntax depends on which accepted
+// context the C-STORE-RQ arrived on).
+func newMessageReassemblerFunc(resolveTS func(pcID uint8) (dicom.TransferSyntax, error)) *messageReassembler {
+	return &messageReassembler{resolveTS: resolveTS}
 }
 
 // add folds one PDV into the message and reports whether the message is complete. A PDV arriving
@@ -149,7 +160,11 @@ func (r *messageReassembler) add(item pdu.PresentationDataValue) (bool, error) {
 	}
 	r.datasetBytes = append(r.datasetBytes, item.Data...)
 	if item.IsLastFragment() {
-		ds, err := dicom.DecodeDataSet(bytes.NewReader(r.datasetBytes), r.ts)
+		ts, err := r.resolveTS(r.pcID)
+		if err != nil {
+			return false, err
+		}
+		ds, err := dicom.DecodeDataSet(bytes.NewReader(r.datasetBytes), ts)
 		if err != nil {
 			return false, &ProtocolError{State: Sta6, Detail: "decoding C-STORE dataset with the negotiated transfer syntax: " + err.Error()}
 		}
@@ -197,7 +212,7 @@ func sendCommand(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, pcID 
 // unexpected/invalid PDU and the clean-close distinction are never reimplemented (the architect's
 // DUL-ownership decision).
 func receiveCommand(ctx context.Context, conn *dul.Conn, m *dul.StateMachine) (CommandSet, uint8, error) {
-	cmd, _, pcID, err := receiveMessage(ctx, conn, m, nil)
+	cmd, _, pcID, err := receiveMessage(ctx, conn, m, newMessageReassembler(dicom.ImplicitVRLittleEndian))
 	if err != nil {
 		return CommandSet{}, 0, err
 	}
@@ -231,12 +246,7 @@ func sendMessage(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, pcID 
 // the dataset with ts (DIMSE-002/003). It returns the command set, the dataset (nil when none was
 // declared), and the presentation context ID. All inbound reads go through DriveInbound against
 // the association's own machine (the architect's DUL-ownership decision).
-func receiveMessage(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, ts *dicom.TransferSyntax) (CommandSet, *dicom.DataSet, uint8, error) {
-	syntax := dicom.ImplicitVRLittleEndian
-	if ts != nil {
-		syntax = *ts
-	}
-	r := newMessageReassembler(syntax)
+func receiveMessage(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, r *messageReassembler) (CommandSet, *dicom.DataSet, uint8, error) {
 	for {
 		p, _, err := dul.DriveInbound(ctx, conn, m)
 		if err != nil {

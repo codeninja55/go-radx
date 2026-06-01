@@ -3,6 +3,8 @@ package dimse
 import (
 	"context"
 	"testing"
+
+	"github.com/codeninja55/go-radx/dicom"
 )
 
 // echoHandler is a minimal Handler that records the OpInfo it was called with and returns a
@@ -35,12 +37,48 @@ func TestOpInfoCarriesProtocolContext(t *testing.T) {
 	}
 }
 
-// TestHandlerEchoIsInvokable confirms the Handler interface's Echo method dispatches and returns
-// the handler's status.
+// TestHandlerEchoIsInvokable confirms the EchoHandler capability dispatches and returns the
+// handler's status. An echo-only SCP implements EchoHandler (interface segregation), not the full
+// Handler union.
 func TestHandlerEchoIsInvokable(t *testing.T) {
-	var h Handler = &echoHandler{status: StatusEchoSuccess}
+	var h EchoHandler = &echoHandler{status: StatusEchoSuccess}
 	got := h.Echo(context.Background(), OpInfo{MessageID: 3})
 	if !got.IsSuccess() {
-		t.Errorf("Handler.Echo() = %s, want success", got)
+		t.Errorf("EchoHandler.Echo() = %s, want success", got)
+	}
+}
+
+// storeRecorder is a minimal Handler implementing both Echo and Store, recording the dataset and
+// OpInfo it was dispatched with and returning a configurable status.
+type storeRecorder struct {
+	status   Status
+	seenInfo *OpInfo
+	seenDS   *dicom.DataSet
+}
+
+func (h *storeRecorder) Echo(_ context.Context, info OpInfo) Status { return StatusEchoSuccess }
+
+func (h *storeRecorder) Store(_ context.Context, ds *dicom.DataSet, info OpInfo) Status {
+	h.seenInfo = &info
+	h.seenDS = ds
+	return h.status
+}
+
+// TestHandlerStoreIsInvokable confirms the Handler interface's Store method dispatches, receives
+// the dataset, and returns the handler's status.
+func TestHandlerStoreIsInvokable(t *testing.T) {
+	rec := &storeRecorder{status: StatusStoreSuccess}
+	var h Handler = rec
+	ds := dicom.NewDataSet()
+	ds.SetString(dicom.NewTag(0x0008, 0x0018), "1.2.3")
+	got := h.Store(context.Background(), ds, OpInfo{MessageID: 5})
+	if !got.IsSuccess() {
+		t.Errorf("Handler.Store() = %s, want success", got)
+	}
+	if rec.seenDS == nil {
+		t.Fatal("Store did not receive the dataset")
+	}
+	if v, _ := rec.seenDS.GetString(dicom.NewTag(0x0008, 0x0018)); v != "1.2.3" {
+		t.Errorf("Store dataset SOP Instance UID = %q, want 1.2.3", v)
 	}
 }

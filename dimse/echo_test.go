@@ -23,7 +23,7 @@ type scpResult struct {
 // Verification context as acceptor, services one C-ECHO via serveEcho dispatching to h, then
 // services the graceful release. It returns the listener address and a channel delivering the
 // dispatch outcome. The listener closes on test cleanup.
-func startEchoSCP(t *testing.T, called AETitle, h Handler) (string, <-chan scpResult) {
+func startEchoSCP(t *testing.T, called AETitle, h EchoHandler) (string, <-chan scpResult) {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -61,7 +61,7 @@ func startEchoSCP(t *testing.T, called AETitle, h Handler) (string, <-chan scpRe
 }
 
 // handlerSeen extracts the OpInfo a recording handler captured, if any.
-func handlerSeen(h Handler) *OpInfo {
+func handlerSeen(h EchoHandler) *OpInfo {
 	if rec, ok := h.(*recordingEchoHandler); ok {
 		return rec.opInfo()
 	}
