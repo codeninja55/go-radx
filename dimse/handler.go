@@ -6,6 +6,7 @@ import (
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/acse"
+	"github.com/codeninja55/go-radx/dimse/pdu"
 )
 
 // OpInfo carries the per-operation context an SCP needs to answer an inbound DIMSE operation:
@@ -212,19 +213,44 @@ func acceptedTransferSyntaxResolver(acc *acse.Acceptor) func(uint8) (dicom.Trans
 }
 
 // acceptedAbstractSyntaxResolver maps a presentation context ID to the abstract syntax (SOP Class
-// UID) the peer proposed for it, from the requested contexts in the A-ASSOCIATE-RQ. The acceptor
-// accepted the context for that abstract syntax, so it is the SOP Class a C-STORE on that context
-// must carry.
+// UID) negotiated for it, but ONLY when that context was ACCEPTED (Result 0). It binds the pure
+// abstractSyntaxFor to this acceptor's requested and accepted contexts; both validateEchoContext
+// and validateStoreContext share it, so the acceptance requirement covers both.
 func acceptedAbstractSyntaxResolver(acc *acse.Acceptor) func(uint8) (dicom.SOPClassUID, bool) {
 	requested := acc.RequestedContexts()
+	accepted := acc.AcceptedContexts()
 	return func(pcID uint8) (dicom.SOPClassUID, bool) {
-		for _, pc := range requested {
-			if pc.ID == pcID {
-				return dicom.SOPClassUID(pc.AbstractSyntax), true
+		return abstractSyntaxFor(requested, accepted, pcID)
+	}
+}
+
+// abstractSyntaxFor resolves the abstract syntax (SOP Class UID) for a presentation context ID,
+// returning (abstract, true) ONLY when the context was ACCEPTED — present in accepted with
+// Result 0 (acceptance, PS3.8 §9.3.3.2) — AND has a matching proposed entry in requested (the
+// A-ASSOCIATE-RQ carries the abstract syntax; the A-ASSOCIATE-AC echoes only the ID and result).
+// Requiring acceptance closes the bypass where a peer operates on a context the acceptor REJECTED
+// during negotiation: a proposed-but-rejected context has no negotiated abstract syntax, so a
+// C-ECHO/C-STORE on its ID must not validate (P2 adversarial review).
+func abstractSyntaxFor(requested []pdu.PresentationContextRQ, accepted []pdu.PresentationContextAC, pcID uint8) (dicom.SOPClassUID, bool) {
+	acceptedContext := false
+	for _, pc := range accepted {
+		if pc.ID == pcID {
+			if pc.Result != pdu.PresentationContextAcceptance {
+				return "", false
 			}
+			acceptedContext = true
+			break
 		}
+	}
+	if !acceptedContext {
 		return "", false
 	}
+	for _, pc := range requested {
+		if pc.ID == pcID {
+			return dicom.SOPClassUID(pc.AbstractSyntax), true
+		}
+	}
+	return "", false
 }
 
 // validateStoreContext fails closed when a C-STORE-RQ's Affected SOP Class UID does not match the

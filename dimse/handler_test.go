@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/dimse/pdu"
 )
 
 // echoHandler is a minimal Handler that records the OpInfo it was called with and returns a
@@ -155,6 +156,48 @@ func TestServeEchoRejectsNonVerificationContext(t *testing.T) {
 	// A C-ECHO on a context that was never negotiated is also a protocol fault.
 	if err := validateEchoContext(9, abstractFor, Sta6); err == nil {
 		t.Error("C-ECHO on an unknown presentation context = nil error, want a protocol fault")
+	}
+}
+
+// TestAbstractSyntaxForRequiresAcceptance is the regression for the abstract-syntax resolver
+// hardening (P2 adversarial review): resolving a presentation context's abstract syntax must
+// require the context was ACCEPTED (Result 0, PS3.8 §9.3.3.2), not merely proposed. A peer that
+// negotiated a context that the acceptor REJECTED must not be able to operate (C-ECHO/C-STORE) on
+// that rejected context's ID, bypassing negotiation.
+func TestAbstractSyntaxForRequiresAcceptance(t *testing.T) {
+	const ctImageStorage = dicom.SOPClassUID("1.2.840.10008.5.1.4.1.1.2")
+
+	requested := []pdu.PresentationContextRQ{
+		{ID: 1, AbstractSyntax: string(verificationSOPClass)},
+		{ID: 3, AbstractSyntax: string(ctImageStorage)},
+		{ID: 5, AbstractSyntax: string(ctImageStorage)},
+	}
+	accepted := []pdu.PresentationContextAC{
+		{ID: 1, Result: pdu.PresentationContextAcceptance},
+		{ID: 3, Result: pdu.PresentationContextAbstractSyntaxNotSupported}, // rejected during negotiation
+	}
+
+	// A context accepted (Result 0) with a matching requested abstract syntax resolves it.
+	if abstract, ok := abstractSyntaxFor(requested, accepted, 1); !ok || abstract != verificationSOPClass {
+		t.Errorf("accepted context 1 = (%q, %v), want (%q, true)", abstract, ok, verificationSOPClass)
+	}
+
+	// A context that is present but was REJECTED (Result != 0) must not resolve, even though it
+	// has a requested abstract syntax — this is the bypass the fix closes.
+	if abstract, ok := abstractSyntaxFor(requested, accepted, 3); ok {
+		t.Errorf("rejected context 3 = (%q, true), want empty/false", abstract)
+	}
+
+	// A context accepted but absent from the requested set cannot have its abstract syntax
+	// resolved (no abstract syntax to map to).
+	acceptedOrphan := append(accepted, pdu.PresentationContextAC{ID: 7, Result: pdu.PresentationContextAcceptance})
+	if abstract, ok := abstractSyntaxFor(requested, acceptedOrphan, 7); ok {
+		t.Errorf("accepted-but-unrequested context 7 = (%q, true), want empty/false", abstract)
+	}
+
+	// An unknown presentation context ID resolves to nothing.
+	if abstract, ok := abstractSyntaxFor(requested, accepted, 9); ok {
+		t.Errorf("unknown context 9 = (%q, true), want empty/false", abstract)
 	}
 }
 
