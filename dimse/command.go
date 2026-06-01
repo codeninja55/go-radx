@@ -71,6 +71,8 @@ var (
 	tagCommandDataSetType        = dicom.NewTag(0x0000, 0x0800) // US
 	tagStatus                    = dicom.NewTag(0x0000, 0x0900) // US
 	tagAffectedSOPInstanceUID    = dicom.NewTag(0x0000, 0x1000) // UI
+	tagMoveOriginatorAETitle     = dicom.NewTag(0x0000, 0x1030) // AE
+	tagMoveOriginatorMessageID   = dicom.NewTag(0x0000, 0x1031) // US
 )
 
 // commandVR is the Value Representation each group-0000 command element carries in the DICOM
@@ -90,6 +92,8 @@ var commandVR = map[dicom.Tag]dicom.VR{
 	tagCommandDataSetType:        dicom.VRUS,
 	tagStatus:                    dicom.VRUS,
 	tagAffectedSOPInstanceUID:    dicom.VRUI,
+	tagMoveOriginatorAETitle:     dicom.VRAE,
+	tagMoveOriginatorMessageID:   dicom.VRUS,
 }
 
 // CommandSet is a decoded DIMSE command (PS3.7 §6.3.1): the elements of group 0000 that carry
@@ -112,6 +116,12 @@ type CommandSet struct {
 	// C-STORE-RQ (which does not carry it); the field exists so the command-set encoder exercises
 	// a VR-AE element (the DIMSE-007 regression).
 	MoveDestination AETitle
+	// MoveOriginatorAETitle (0000,1030) and MoveOriginatorMessageID (0000,1031) propagate the
+	// originating C-MOVE/C-GET when a C-STORE-RQ is a sub-operation (PS3.7 §9.1.1). HasMoveOriginator
+	// gates their presence; an everyday C-STORE carries neither.
+	MoveOriginatorAETitle   AETitle
+	MoveOriginatorMessageID uint16
+	HasMoveOriginator       bool
 	// HasStatus distinguishes a present zero status (0x0000 Success) from an absent one; the
 	// status element is present only on responses.
 	HasStatus bool
@@ -190,6 +200,10 @@ func (cs CommandSet) elements() []commandElement {
 	}
 	if cs.AffectedSOPInstanceUID != "" {
 		es = append(es, encodeCommandString(tagAffectedSOPInstanceUID, string(cs.AffectedSOPInstanceUID)))
+	}
+	if cs.HasMoveOriginator {
+		es = append(es, encodeCommandString(tagMoveOriginatorAETitle, string(cs.MoveOriginatorAETitle)))
+		es = append(es, encodeCommandUS(tagMoveOriginatorMessageID, cs.MoveOriginatorMessageID))
 	}
 	return es
 }
@@ -272,6 +286,11 @@ func (cs *CommandSet) applyElement(tag dicom.Tag, value []byte) {
 		cs.Status = decodeUS(value)
 	case tagAffectedSOPInstanceUID:
 		cs.AffectedSOPInstanceUID = dicom.UID(decodeUI(value))
+	case tagMoveOriginatorAETitle:
+		cs.HasMoveOriginator = true
+		cs.MoveOriginatorAETitle = AETitle(decodeAE(value))
+	case tagMoveOriginatorMessageID:
+		cs.MoveOriginatorMessageID = decodeUS(value)
 	}
 }
 

@@ -22,9 +22,22 @@ type Association struct {
 	requestor    *acse.Requestor
 	accepted     []PresentationContext
 	dimseTimeout time.Duration
+	// localMaxPDULength is the maximum PDU length this AE advertised; peerMaxPDULength is the one
+	// the peer advertised in its A-ASSOCIATE-AC. A C-STORE is fragmented so every P-DATA-TF stays
+	// within both limits (MaxPDULength.SendCap), and an unlimited peer max (0) resolves to the
+	// local cap rather than a zero or negative bound (Codex DIMSE-005).
+	localMaxPDULength MaxPDULength
+	peerMaxPDULength  MaxPDULength
 
 	mu       sync.Mutex
 	released bool
+}
+
+// sendCap resolves the P-DATA-TF body byte cap for outbound DIMSE messages: the smaller of the
+// peer's advertised maximum and the local maximum, treating an unlimited (0) peer max as the local
+// cap (Codex DIMSE-005).
+func (a *Association) sendCap() MaxPDULength {
+	return a.peerMaxPDULength.SendCap(a.localMaxPDULength)
 }
 
 // AssociateOption configures an outbound association (reserved for role selection,
@@ -77,9 +90,11 @@ func (ae *AE) Associate(
 		return nil, translateAssociateError(err)
 	}
 	return &Association{
-		requestor:    requestor,
-		accepted:     fromPDUContextsAC(contexts, requestor.AcceptedContexts()),
-		dimseTimeout: ae.cfg.dimseTimeout,
+		requestor:         requestor,
+		accepted:          fromPDUContextsAC(contexts, requestor.AcceptedContexts()),
+		dimseTimeout:      ae.cfg.dimseTimeout,
+		localMaxPDULength: ae.cfg.maxPDULength,
+		peerMaxPDULength:  MaxPDULength(requestor.PeerMaxPDULength()),
 	}, nil
 }
 
