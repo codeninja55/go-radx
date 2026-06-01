@@ -31,7 +31,36 @@ const (
 	deidClean
 	// deidReplaceUID remaps the UID through the stable per-run map (U).
 	deidReplaceUID
+	// deidShiftDate is not a Table E.1-1 code: it is the resolved action for a
+	// date/time attribute when the caller opts in to temporal retention. It keeps the
+	// value (DateModeKeep) or shifts it by the per-run offset (DateModeShift).
+	deidShiftDate
 )
+
+// isPatientCharacteristic reports whether t is a general patient characteristic
+// retained under the PS3.15 Retain Patient Characteristics sub-option.
+func isPatientCharacteristic(t Tag) bool {
+	switch t {
+	case TagPatientAge, TagPatientSex, TagPatientSize, TagPatientWeight,
+		TagPatientSexNeutered, TagSmokingStatus, TagPregnancyStatus:
+		return true
+	default:
+		return false
+	}
+}
+
+// isDeviceIdentity reports whether t is a device or institution identity attribute
+// retained under the PS3.15 Retain Device Identity sub-option.
+func isDeviceIdentity(t Tag) bool {
+	switch t {
+	case TagInstitutionName, TagInstitutionAddress, TagInstitutionCodeSequence,
+		TagInstitutionalDepartmentName, TagStationName, TagDeviceSerialNumber,
+		TagDeviceLabel, TagGantryID, TagPlateID, TagDetectorID, TagCassetteID:
+		return true
+	default:
+		return false
+	}
+}
 
 // basicProfileActions maps a confidentiality attribute to its Basic Profile action.
 // It is built once at init from the keyword table below. Attributes whose keyword is
