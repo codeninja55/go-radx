@@ -264,6 +264,16 @@ func (a *Acceptor) ServeRelease(ctx context.Context) error {
 	if _, ok := resp.(*pdu.ReleaseRQ); !ok {
 		return wrapUnexpected(a.machine, resp.Type(), nil)
 	}
+	return a.CompleteRelease(ctx)
+}
+
+// CompleteRelease finishes the acceptor-side graceful release once the A-RELEASE-RQ has already
+// been read and applied (Evt12 -> AR-2 -> Sta8): it sends the A-RELEASE-RP (AR-4) and observes
+// the orderly transport close. The SCP dispatch loop reads each inbound PDU through
+// dul.DriveInbound itself (the architect's DUL-ownership decision) and calls this when the PDU it
+// read is the A-RELEASE-RQ, so the release-completion hardening is not reimplemented. It is bounded
+// by ctx and never panics.
+func (a *Acceptor) CompleteRelease(ctx context.Context) error {
 	// Evt14 (local A-RELEASE response) is a local primitive: AR-4 (send A-RELEASE-RP) -> Sta13.
 	if _, _, serr := a.machine.Apply(dul.Evt14); serr != nil {
 		return wrapState(a.machine, serr)
