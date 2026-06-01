@@ -71,7 +71,6 @@ func serveEcho(ctx context.Context, acc *acse.Acceptor, calling, called AETitle,
 			Detail: "expected a C-ECHO-RQ command field, got a different command",
 		}
 	}
-
 	info := OpInfo{
 		CallingAETitle: calling,
 		CalledAETitle:  called,
@@ -79,6 +78,18 @@ func serveEcho(ctx context.Context, acc *acse.Acceptor, calling, called AETitle,
 		MessageID:      cmd.MessageID,
 		SOPClassUID:    dicom.SOPClassUID(cmd.AffectedSOPClassUID),
 	}
+	return serveEchoCommand(ctx, acc, h, cmd, pcID, info)
+}
+
+// serveEchoCommand dispatches an already-read C-ECHO-RQ command set to the handler and writes the
+// C-ECHO-RSP. The SCP dispatch loop (Increment 6) reads each inbound message once and routes by
+// command field, calling this so the C-ECHO response logic is not duplicated; serveEcho is the
+// single-shot wrapper that reads then dispatches (preserving the in-process unit-test contract).
+//
+// The response echoes the request's Affected SOP Class UID and Message ID into the
+// Message ID Being Responded To, carries no data set (CommandDataSetType 0x0101), and reports
+// the handler's status — the verification contract (PS3.7 §9.1.5).
+func serveEchoCommand(ctx context.Context, acc *acse.Acceptor, h EchoHandler, cmd CommandSet, pcID uint8, info OpInfo) (Status, error) {
 	status := h.Echo(ctx, info)
 
 	rsp := CommandSet{
@@ -89,7 +100,7 @@ func serveEcho(ctx context.Context, acc *acse.Acceptor, calling, called AETitle,
 		HasStatus:                 true,
 		Status:                    status.Code,
 	}
-	if err := sendCommand(ctx, conn, m, pcID, rsp); err != nil {
+	if err := sendCommand(ctx, acc.Conn(), acc.Machine(), pcID, rsp); err != nil {
 		return Status{}, err
 	}
 	return status, nil
@@ -109,12 +120,27 @@ func serveStore(ctx context.Context, acc *acse.Acceptor, calling, called AETitle
 	conn := acc.Conn()
 	m := acc.Machine()
 
-	resolveTS := acceptedTransferSyntaxResolver(acc)
-	r := newMessageReassemblerFunc(resolveTS)
+	r := newMessageReassemblerFunc(acceptedTransferSyntaxResolver(acc))
 	cmd, ds, pcID, err := receiveMessage(ctx, conn, m, r)
 	if err != nil {
 		return Status{}, err
 	}
+	info := OpInfo{CallingAETitle: calling, CalledAETitle: called}
+	return serveStoreMessage(ctx, acc, h, cmd, ds, pcID, info)
+}
+
+// serveStoreMessage dispatches an already-read C-STORE-RQ (command set plus dataset) to the
+// StoreHandler and writes the C-STORE-RSP. The SCP dispatch loop reads each inbound message once
+// and routes by command field, calling this; serveStore is the single-shot wrapper that reads then
+// dispatches. info carries the AE titles the caller resolved; this fills in the per-operation
+// presentation/transfer/SOP fields from the read message.
+//
+// The handler is responsible for persisting the dataset before returning a success status; the
+// dispatch never launders a non-success status into success (PRD §9.2 fail-closed). A C-STORE-RQ
+// that arrives with no dataset (CommandDataSetType not present) is malformed — a C-STORE always
+// carries the composite SOP Instance.
+func serveStoreMessage(ctx context.Context, acc *acse.Acceptor, h StoreHandler, cmd CommandSet, ds *dicom.DataSet, pcID uint8, info OpInfo) (Status, error) {
+	m := acc.Machine()
 	if cmd.CommandField != CommandCStoreRQ {
 		return Status{}, &ProtocolError{
 			State:  m.CurrentState(),
@@ -140,15 +166,11 @@ func serveStore(ctx context.Context, acc *acse.Acceptor, calling, called AETitle
 		return Status{}, err
 	}
 
-	ts, _ := resolveTS(pcID)
-	info := OpInfo{
-		CallingAETitle: calling,
-		CalledAETitle:  called,
-		PresentationID: pcID,
-		TransferSyntax: ts,
-		MessageID:      cmd.MessageID,
-		SOPClassUID:    dicom.SOPClassUID(cmd.AffectedSOPClassUID),
-	}
+	ts, _ := acceptedTransferSyntaxResolver(acc)(pcID)
+	info.PresentationID = pcID
+	info.TransferSyntax = ts
+	info.MessageID = cmd.MessageID
+	info.SOPClassUID = dicom.SOPClassUID(cmd.AffectedSOPClassUID)
 	status := h.Store(ctx, ds, info)
 
 	rsp := CommandSet{
@@ -160,7 +182,7 @@ func serveStore(ctx context.Context, acc *acse.Acceptor, calling, called AETitle
 		HasStatus:                 true,
 		Status:                    status.Code,
 	}
-	if err := sendCommand(ctx, conn, m, pcID, rsp); err != nil {
+	if err := sendCommand(ctx, acc.Conn(), acc.Machine(), pcID, rsp); err != nil {
 		return Status{}, err
 	}
 	return status, nil
