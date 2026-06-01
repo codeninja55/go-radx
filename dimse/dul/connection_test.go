@@ -125,6 +125,18 @@ func TestDriveInboundAbortOnInvalidPDU(t *testing.T) {
 	if action != AA8 {
 		t.Fatalf("DriveInbound action = %v, want AA-8 (DIMSE-011)", action)
 	}
+	// The error must be a *StateError reporting the state that RECEIVED the bad PDU (Sta6),
+	// not the post-abort Sta13, and it must wrap the underlying codec error for detail.
+	var se *StateError
+	if !errors.As(err, &se) {
+		t.Fatalf("DriveInbound error = %T, want *StateError", err)
+	}
+	if se.State != Sta6 {
+		t.Errorf("StateError.State = %v, want Sta6 (the offending state, not post-abort)", se.State)
+	}
+	if se.Err == nil {
+		t.Error("StateError should wrap the underlying codec error for a malformed PDU")
+	}
 
 	select {
 	case ab := <-gotAbort:

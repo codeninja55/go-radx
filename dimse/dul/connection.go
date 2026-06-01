@@ -120,11 +120,17 @@ func DriveInbound(ctx context.Context, conn *Conn, m *StateMachine) (pdu.PDU, Ac
 			return nil, action, readErr
 		}
 		// Any other read error is treated as an invalid/unrecognised PDU: Evt19.
+		from := m.CurrentState()
 		action, _, smErr := m.Apply(Evt19)
 		sendFaultAbort(ctx, conn, action, pdu.AbortReasonUnrecognizedPDU)
-		// Prefer the protocol error from the machine; fall back to the read error.
-		if smErr != nil {
-			return nil, action, smErr
+		if smErr != nil || isFaultAbort(action) {
+			// A malformed PDU is a protocol violation. Report the state that RECEIVED it (not the
+			// post-abort Sta13), wrapping the codec error for detail. Apply returns its own
+			// StateError for an undefined cell, or a nil error for a defined fault-abort cell
+			// (e.g. Sta6 + Evt19 -> AA-8); synthesise a consistent StateError either way so the
+			// caller's error translation always sees the offending state, matching the
+			// recognised-PDU path.
+			return nil, action, &StateError{State: from, Event: Evt19, Err: readErr}
 		}
 		return nil, action, readErr
 	}
