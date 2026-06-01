@@ -55,3 +55,22 @@ func TestARTIMZeroDurationNeverFires(t *testing.T) {
 	}
 	timer.stop()
 }
+
+// TestARTIMRestartDropsPriorExpiry guards against a stale expiry leaking across a re-arm:
+// after a timer has fired, re-arming then stopping must leave the next wait clean. The
+// harder in-flight-callback race (Stop returning while the callback is mid-flight) is
+// closed by construction — the callback checks its arm generation under the same mutex
+// that drains the channel, so a callback from a superseded arm never signals.
+func TestARTIMRestartDropsPriorExpiry(t *testing.T) {
+	timer := newARTIM(2 * time.Millisecond)
+	timer.start()
+	time.Sleep(30 * time.Millisecond) // let the first arm fire; its expiry is now buffered
+	timer.start()                     // re-arm: invalidates the prior arm and drains its expiry
+	timer.stop()                      // stop the re-armed timer before it can fire
+	select {
+	case <-timer.expired():
+		t.Fatal("a prior arm's expiry leaked after restart + stop")
+	case <-time.After(30 * time.Millisecond):
+		// no stale fire — correct
+	}
+}

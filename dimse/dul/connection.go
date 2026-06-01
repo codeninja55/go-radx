@@ -108,7 +108,8 @@ func (c *Conn) driveOnce(ctx context.Context) (Action, pdu.PDU, error) {
 		// Only a malformed/unrecognised PDU is an invalid PDU (Evt19).
 		if errors.Is(readErr, io.EOF) {
 			action, _, smErr := c.machine.Apply(Evt17)
-			c.performAbortAction(ctx, action)
+			// Evt17 resolves to AA-4/AA-5/AR-5 (no provider A-ABORT), so the reason is unused.
+			c.performAbortAction(ctx, action, pdu.AbortReasonNotSpecified)
 			if smErr != nil {
 				return action, nil, smErr
 			}
@@ -116,7 +117,7 @@ func (c *Conn) driveOnce(ctx context.Context) (Action, pdu.PDU, error) {
 		}
 		// Any other read error is treated as an invalid/unrecognised PDU: Evt19.
 		action, _, smErr := c.machine.Apply(Evt19)
-		c.performAbortAction(ctx, action)
+		c.performAbortAction(ctx, action, pdu.AbortReasonUnrecognizedPDU)
 		// Prefer the protocol error from the machine; fall back to the read error.
 		if smErr != nil {
 			return action, nil, smErr
@@ -127,22 +128,24 @@ func (c *Conn) driveOnce(ctx context.Context) (Action, pdu.PDU, error) {
 	event := pduToEvent(p)
 	action, _, smErr := c.machine.Apply(event)
 	if smErr != nil {
-		// An unexpected (but well-formed) PDU also drives AA-8; send the A-ABORT.
-		c.performAbortAction(ctx, action)
+		// An unexpected (but well-formed, recognised) PDU also drives AA-8; the provider
+		// abort reason is "unexpected PDU", distinct from a malformed PDU's "unrecognised".
+		c.performAbortAction(ctx, action, pdu.AbortReasonUnexpectedPDU)
 	}
 	return action, p, smErr
 }
 
-// performAbortAction sends the A-ABORT a fault action requires. AA-8 and AA-1 send a
-// provider-source / user-source A-ABORT respectively; AA-7 sends an A-ABORT during the
-// closing state. Other actions send nothing here (the association layer performs the
-// non-abort sends, which need association state the DUL does not hold).
-func (c *Conn) performAbortAction(ctx context.Context, action Action) {
+// performAbortAction sends the A-ABORT a fault action requires. AA-8 and AA-7 send a
+// provider-source A-ABORT carrying providerReason (which distinguishes a malformed PDU
+// from a well-formed-but-unexpected one); AA-1 sends a user-source A-ABORT. Other actions
+// send nothing here (the association layer performs the non-abort sends, which need
+// association state the DUL does not hold).
+func (c *Conn) performAbortAction(ctx context.Context, action Action, providerReason uint8) {
 	switch action {
 	case AA8, AA7:
 		_ = c.WritePDU(ctx, &pdu.Abort{
 			Source: pdu.AbortSourceServiceProvider,
-			Reason: pdu.AbortReasonUnrecognizedPDU,
+			Reason: providerReason,
 		})
 		c.artim.start()
 	case AA1:
@@ -184,7 +187,9 @@ func pduToEvent(p pdu.PDU) Evt {
 // stop function tears the watcher down and clears that direction's deadline.
 func (c *Conn) watchContext(ctx context.Context, setDeadline func(time.Time) error) func() {
 	done := make(chan struct{})
+	finished := make(chan struct{})
 	go func() {
+		defer close(finished)
 		select {
 		case <-ctx.Done():
 			// A past deadline interrupts an in-flight Read or Write on the net.Conn.
@@ -194,6 +199,11 @@ func (c *Conn) watchContext(ctx context.Context, setDeadline func(time.Time) err
 	}()
 	return func() {
 		close(done)
+		// Wait for the watcher to return before clearing the deadline. Otherwise a watcher
+		// that observed ctx.Done() at about the same time the operation completed could set
+		// a past deadline AFTER this clear, stranding a stale deadline that fails the next
+		// operation under a fresh context with a spurious timeout.
+		<-finished
 		_ = setDeadline(time.Time{})
 	}
 }

@@ -132,11 +132,88 @@ func TestConnAbortOnInvalidPDU(t *testing.T) {
 		if ab.Source != pdu.AbortSourceServiceProvider {
 			t.Errorf("A-ABORT source = %d, want provider (%d)", ab.Source, pdu.AbortSourceServiceProvider)
 		}
+		// A malformed/unrecognised PDU aborts with "unrecognised PDU", not "unexpected".
+		if ab.Reason != pdu.AbortReasonUnrecognizedPDU {
+			t.Errorf("A-ABORT reason = %d, want UnrecognizedPDU (%d)", ab.Reason, pdu.AbortReasonUnrecognizedPDU)
+		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for the A-ABORT")
 	}
 	if sc.machine.CurrentState() != Sta13 {
 		t.Errorf("state after invalid PDU = %v, want Sta13", sc.machine.CurrentState())
+	}
+}
+
+// TestConnUnexpectedRecognizedPDUAbortReason is the regression for the abort-diagnostic
+// fix: a well-formed, RECOGNISED PDU that is unexpected in the current state (here an
+// A-ASSOCIATE-RJ received while established in Sta6, whose Table 9-10 cell is undefined)
+// must abort with the provider reason "unexpected PDU", distinct from a malformed PDU's
+// "unrecognised PDU".
+func TestConnUnexpectedRecognizedPDUAbortReason(t *testing.T) {
+	client, server := net.Pipe()
+	t.Cleanup(func() { client.Close(); server.Close() })
+
+	sc := NewConn(server, 0)
+	sc.machine.forceState(Sta6) // established; an A-ASSOCIATE-RJ is unexpected here
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	gotAbort := make(chan *pdu.Abort, 1)
+	go func() {
+		// A valid A-ASSOCIATE-RJ PDU: type 0x03, 4-byte body (reserved, result, source, reason).
+		client.Write([]byte{0x03, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01, 0x01, 0x01})
+		p, err := pdu.ReadPDU(client)
+		if err != nil {
+			gotAbort <- nil
+			return
+		}
+		ab, _ := p.(*pdu.Abort)
+		gotAbort <- ab
+	}()
+
+	action, _, err := sc.driveOnce(ctx)
+	if err == nil {
+		t.Fatal("driveOnce on an unexpected recognised PDU = nil error, want a protocol error")
+	}
+	if action != AA8 {
+		t.Fatalf("driveOnce action = %v, want AA-8", action)
+	}
+	select {
+	case ab := <-gotAbort:
+		if ab == nil {
+			t.Fatal("peer did not receive an A-ABORT after an unexpected PDU")
+		}
+		if ab.Reason != pdu.AbortReasonUnexpectedPDU {
+			t.Errorf("A-ABORT reason = %d, want UnexpectedPDU (%d)", ab.Reason, pdu.AbortReasonUnexpectedPDU)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the A-ABORT")
+	}
+}
+
+// TestConnReusableAfterCancelledRead is the regression for the deadline-watcher race: an
+// operation whose context is already cancelled must not strand a past deadline that fails
+// the next operation under a fresh context. The stop function waits for the watcher to
+// return before clearing the deadline, so a fresh read after a cancelled one succeeds.
+func TestConnReusableAfterCancelledRead(t *testing.T) {
+	client, server := net.Pipe()
+	t.Cleanup(func() { client.Close(); server.Close() })
+	sc := NewConn(server, 0)
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel() // already cancelled before the read starts
+	if _, err := sc.ReadPDU(cancelled); err == nil {
+		t.Fatal("ReadPDU with a cancelled context should fail")
+	}
+
+	// A fresh read must still work: the cancelled read must not have left a stale deadline.
+	want := &pdu.ReleaseRP{}
+	go func() { _ = pdu.WritePDU(client, want) }()
+	fresh, freshCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer freshCancel()
+	if _, err := sc.ReadPDU(fresh); err != nil {
+		t.Fatalf("fresh ReadPDU after a cancelled one failed (stale deadline?): %v", err)
 	}
 }
 
