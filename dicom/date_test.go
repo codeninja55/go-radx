@@ -83,15 +83,15 @@ func TestDAPartialTimeReportsIncomplete(t *testing.T) {
 
 func TestParseDARejectsMalformed(t *testing.T) {
 	cases := []string{
-		"",          // empty
-		"2024022",   // 7 digits
-		"202402290", // 9 digits
+		"",           // empty
+		"2024022",    // 7 digits
+		"202402290",  // 9 digits
 		"2024-02-29", // separators
-		"20241301",  // month 13
-		"20240230",  // Feb 30 (invalid calendar day)
-		"20230229",  // 2023 not a leap year
-		"2024023x",  // non-digit
-		"00000000",  // year 0 / month 0 / day 0
+		"20241301",   // month 13
+		"20240230",   // Feb 30 (invalid calendar day)
+		"20230229",   // 2023 not a leap year
+		"2024023x",   // non-digit
+		"00000000",   // year 0 / month 0 / day 0
 	}
 	for _, s := range cases {
 		if _, err := ParseDA(s); err == nil {

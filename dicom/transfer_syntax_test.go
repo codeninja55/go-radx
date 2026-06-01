@@ -4,7 +4,7 @@ import "testing"
 
 func TestTransferSyntaxPredicates(t *testing.T) {
 	tests := []struct {
-		ts                                  TransferSyntax
+		ts                                   TransferSyntax
 		implicit, bigEndian, deflated, encap bool
 	}{
 		{ImplicitVRLittleEndian, true, false, false, false},

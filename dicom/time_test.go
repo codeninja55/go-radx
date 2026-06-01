@@ -96,17 +96,17 @@ func TestTMPrecisionReported(t *testing.T) {
 
 func TestParseTMRejectsMalformed(t *testing.T) {
 	cases := []string{
-		"",            // empty
-		"7",           // odd, single digit
-		"0760",        // minute 60
-		"076145",      // minute 61
-		"073061",      // second 61 (60 is the only allowed overflow)
-		"2400",        // hour 24
-		"073045.",     // trailing dot, no fraction
+		"",               // empty
+		"7",              // odd, single digit
+		"0760",           // minute 60
+		"076145",         // minute 61
+		"073061",         // second 61 (60 is the only allowed overflow)
+		"2400",           // hour 24
+		"073045.",        // trailing dot, no fraction
 		"073045.1234567", // 7 fractional digits
-		"07:30:45",    // separators
-		"07304",       // 5 digits (odd)
-		"abcdef",      // non-digit
+		"07:30:45",       // separators
+		"07304",          // 5 digits (odd)
+		"abcdef",         // non-digit
 	}
 	for _, s := range cases {
 		if _, err := ParseTM(s); err == nil {
