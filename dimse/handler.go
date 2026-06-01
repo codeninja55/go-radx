@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/acse"
@@ -126,6 +127,12 @@ func serveStore(ctx context.Context, acc *acse.Acceptor, calling, called AETitle
 			Detail: "C-STORE-RQ declared no data set; a C-STORE always carries the composite SOP Instance",
 		}
 	}
+	// The C-STORE's Affected SOP Class UID must match the abstract syntax negotiated for the
+	// context it arrived on; a mismatch bypasses presentation-context negotiation (storing an
+	// unnegotiated SOP Class on an accepted context) and is a protocol fault.
+	if err := validateStoreContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), m.CurrentState()); err != nil {
+		return Status{}, err
+	}
 
 	ts, _ := resolveTS(pcID)
 	info := OpInfo{
@@ -169,4 +176,34 @@ func acceptedTransferSyntaxResolver(acc *acse.Acceptor) func(uint8) (dicom.Trans
 			Detail: "C-STORE-RQ arrived on a presentation context that was not accepted",
 		}
 	}
+}
+
+// acceptedAbstractSyntaxResolver maps a presentation context ID to the abstract syntax (SOP Class
+// UID) the peer proposed for it, from the requested contexts in the A-ASSOCIATE-RQ. The acceptor
+// accepted the context for that abstract syntax, so it is the SOP Class a C-STORE on that context
+// must carry.
+func acceptedAbstractSyntaxResolver(acc *acse.Acceptor) func(uint8) (dicom.SOPClassUID, bool) {
+	requested := acc.RequestedContexts()
+	return func(pcID uint8) (dicom.SOPClassUID, bool) {
+		for _, pc := range requested {
+			if pc.ID == pcID {
+				return dicom.SOPClassUID(pc.AbstractSyntax), true
+			}
+		}
+		return "", false
+	}
+}
+
+// validateStoreContext fails closed when a C-STORE-RQ's Affected SOP Class UID does not match the
+// abstract syntax negotiated for the presentation context it arrived on. Accepting a mismatch
+// would let a peer store an unnegotiated SOP Class on an accepted context, bypassing
+// presentation-context negotiation (PS3.7/PS3.8) — a protocol fault, not a storage failure.
+func validateStoreContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (dicom.SOPClassUID, bool), state State) error {
+	abstract, ok := abstractFor(pcID)
+	if !ok || dicom.SOPClassUID(cmd.AffectedSOPClassUID) != abstract {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-STORE Affected SOP Class %s does not match the abstract syntax negotiated for presentation context %d",
+			cmd.AffectedSOPClassUID, pcID)}
+	}
+	return nil
 }

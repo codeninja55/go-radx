@@ -338,3 +338,32 @@ func TestFragmentMessageZeroCapTreatedAsUnlimited(t *testing.T) {
 		t.Errorf("command stream should begin with the group-length tag (0000,xxxx)")
 	}
 }
+
+// TestReassemblerRejectsMixedContextID guards the receive path against a peer that sends a later
+// PDV on a different presentation context than the message started on (PS3.8 §9.3.5 requires all
+// PDVs of one message to share a context). Folding the mismatched bytes in would decode them with
+// the first context's transfer syntax; the reassembler must reject it as a protocol fault.
+func TestReassemblerRejectsMixedContextID(t *testing.T) {
+	r := newMessageReassembler(dicom.ImplicitVRLittleEndian)
+	// The first PDV establishes the message's context (1).
+	if _, err := r.add(pdu.PresentationDataValue{
+		PresentationContextID: 1,
+		MessageControlHeader:  pdu.MakeControlHeader(true, false), // command, more fragments
+		Data:                  []byte{0x00},
+	}); err != nil {
+		t.Fatalf("first PDV on context 1: %v", err)
+	}
+	// A later PDV on context 3 is a protocol fault, not silently appended.
+	_, err := r.add(pdu.PresentationDataValue{
+		PresentationContextID: 3,
+		MessageControlHeader:  pdu.MakeControlHeader(true, true),
+		Data:                  []byte{0x00},
+	})
+	if err == nil {
+		t.Fatal("PDV on a mismatched presentation context = nil error, want a protocol fault")
+	}
+	var pe *ProtocolError
+	if !errors.As(err, &pe) {
+		t.Errorf("error = %T, want *ProtocolError", err)
+	}
+}

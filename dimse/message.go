@@ -148,6 +148,13 @@ func newMessageReassemblerFunc(resolveTS func(pcID uint8) (dicom.TransferSyntax,
 func (r *messageReassembler) add(item pdu.PresentationDataValue) (bool, error) {
 	if r.pcID == 0 {
 		r.pcID = item.PresentationContextID
+	} else if item.PresentationContextID != r.pcID {
+		// All PDVs of one DIMSE message arrive on the same presentation context (PS3.8 §9.3.5).
+		// A PDV on a different context is a protocol fault, never silently folded in — otherwise
+		// its bytes would be decoded with the first context's negotiated transfer syntax.
+		return false, &ProtocolError{State: Sta6, Detail: fmt.Sprintf(
+			"PDV presentation context %d does not match the message's context %d",
+			item.PresentationContextID, r.pcID)}
 	}
 
 	if item.IsCommand() {

@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -80,5 +81,41 @@ func TestHandlerStoreIsInvokable(t *testing.T) {
 	}
 	if v, _ := rec.seenDS.GetString(dicom.NewTag(0x0008, 0x0018)); v != "1.2.3" {
 		t.Errorf("Store dataset SOP Instance UID = %q, want 1.2.3", v)
+	}
+}
+
+// TestValidateStoreContext is the regression for the SCP-side negotiation guard: a C-STORE-RQ
+// whose Affected SOP Class UID does not match the abstract syntax negotiated for the context it
+// arrived on must be rejected as a protocol fault, so a peer cannot store an unnegotiated SOP
+// Class on an accepted context.
+func TestValidateStoreContext(t *testing.T) {
+	const negotiated = dicom.SOPClassUID("1.2.840.10008.5.1.4.1.1.2") // CT Image Storage
+	abstractFor := func(pcID uint8) (dicom.SOPClassUID, bool) {
+		if pcID == 1 {
+			return negotiated, true
+		}
+		return "", false
+	}
+
+	// A matching SOP Class on the negotiated context passes.
+	match := CommandSet{CommandField: CommandCStoreRQ, AffectedSOPClassUID: dicom.UID(negotiated)}
+	if err := validateStoreContext(match, 1, abstractFor, Sta6); err != nil {
+		t.Errorf("matching SOP class rejected: %v", err)
+	}
+
+	// A different SOP Class on the negotiated context is a protocol fault.
+	mismatch := CommandSet{CommandField: CommandCStoreRQ, AffectedSOPClassUID: dicom.UID("1.2.840.10008.5.1.4.1.1.4")} // MR
+	err := validateStoreContext(mismatch, 1, abstractFor, Sta6)
+	if err == nil {
+		t.Fatal("mismatched SOP class = nil error, want a protocol fault")
+	}
+	var pe *ProtocolError
+	if !errors.As(err, &pe) {
+		t.Errorf("error = %T, want *ProtocolError", err)
+	}
+
+	// A C-STORE on a context that was never negotiated is also a protocol fault.
+	if err := validateStoreContext(match, 9, abstractFor, Sta6); err == nil {
+		t.Error("unknown presentation context = nil error, want a protocol fault")
 	}
 }
