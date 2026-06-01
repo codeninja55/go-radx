@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/codeninja55/go-radx/dimse/dul"
 	"github.com/codeninja55/go-radx/dimse/pdu"
@@ -16,6 +17,16 @@ const applicationContextUID = "1.2.840.10008.3.1.1.1"
 
 // protocolVersion is the DICOM Upper Layer protocol version (PS3.8 9.3.2): bit 0 set.
 const protocolVersion uint16 = 1
+
+// Service-user-source A-ASSOCIATE-RJ diagnostic reasons (PS3.8 Table 9-21). The acceptor
+// returns these when it rejects an association because of an AE-title mismatch, matching
+// pynetdicom's require_called_aet / require_calling_aet rejection behaviour (a Called AE Title
+// mismatch is reported as "Called AE title not recognised", a Calling AE Title mismatch as
+// "Calling AE title not recognised").
+const (
+	reasonCallingAETitleNotRecognized uint8 = 3
+	reasonCalledAETitleNotRecognized  uint8 = 7
+)
 
 // Request is the requestor-side input to Associate: the called and calling AE titles, the
 // proposed presentation contexts, and the local maximum PDU length to advertise (0 means
@@ -40,6 +51,15 @@ type AcceptParams struct {
 	MaxPDULength  uint32
 	Supported     []SupportedContext
 	RejectAll     bool
+
+	// RequireCalledAETitle, when non-empty, rejects an A-ASSOCIATE-RQ whose Called AE Title
+	// does not match it (PS3.8 Table 9-21 called-AE-title-not-recognized). RequireCallingAETitles,
+	// when non-empty, rejects an RQ whose Calling AE Title is not one of the listed titles
+	// (calling-AE-title-not-recognized). Both are enforced at negotiation, before any
+	// presentation-context matching, so a mismatch is refused with an A-ASSOCIATE-RJ rather than
+	// established (mirrors pynetdicom's require_called_aet / require_calling_aet).
+	RequireCalledAETitle   string
+	RequireCallingAETitles []string
 
 	ImplementationClassUID string
 	ImplementationVersion  string
@@ -144,9 +164,21 @@ func Accept(ctx context.Context, conn *dul.Conn, params AcceptParams) (*Acceptor
 		return nil, wrapUnexpected(m, resp.Type(), nil)
 	}
 
+	// Enforce the AE-title policy at negotiation: a mismatch is refused with an A-ASSOCIATE-RJ
+	// (service-user source) carrying the matching diagnostic reason, BEFORE any context
+	// matching, so the peer never sees an acceptance for an association the acceptor will not
+	// serve (PS3.8 Table 9-21).
+	if reason, reject := aeTitleRejection(params, rq); reject {
+		return nil, rejectAssociation(ctx, conn, m, reason)
+	}
+
 	results := NegotiateAcceptor(rq.PresentationContexts, params.Supported)
 	if params.RejectAll || !anyAccepted(results) {
-		return nil, rejectAssociation(ctx, conn, m, params.RejectAll)
+		reason := uint8(pdu.PresentationContextAbstractSyntaxNotSupported)
+		if params.RejectAll {
+			reason = 1 // application-context-name-not-supported (PS3.8 9.3.4) — no service offered
+		}
+		return nil, rejectAssociation(ctx, conn, m, reason)
 	}
 
 	ac := buildAssociateAC(params, rq, results)
@@ -159,13 +191,29 @@ func Accept(ctx context.Context, conn *dul.Conn, params AcceptParams) (*Acceptor
 	return &Acceptor{conn: conn, machine: m, accepted: results, request: rq}, nil
 }
 
-// rejectAssociation performs the AE-8 reject: send an A-ASSOCIATE-RJ and advance to Sta13,
-// returning the typed *RejectedError describing the reason.
-func rejectAssociation(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, all bool) error {
-	reason := uint8(pdu.PresentationContextAbstractSyntaxNotSupported)
-	if all {
-		reason = 1 // application-context-name-not-supported (PS3.8 9.3.4) — no service offered
+// aeTitleRejection reports whether the inbound A-ASSOCIATE-RQ violates the acceptor's AE-title
+// policy, returning the matching service-user diagnostic reason (PS3.8 Table 9-21). A Called AE
+// Title mismatch wins over a Calling AE Title mismatch (the called title is the addressed AE; a
+// wrong one means the request reached the wrong endpoint).
+func aeTitleRejection(params AcceptParams, rq *pdu.AssociateRQ) (uint8, bool) {
+	if params.RequireCalledAETitle != "" && trimAETitle(rq.CalledAETitle) != params.RequireCalledAETitle {
+		return reasonCalledAETitleNotRecognized, true
 	}
+	if len(params.RequireCallingAETitles) > 0 {
+		calling := trimAETitle(rq.CallingAETitle)
+		for _, allowed := range params.RequireCallingAETitles {
+			if calling == allowed {
+				return 0, false
+			}
+		}
+		return reasonCallingAETitleNotRecognized, true
+	}
+	return 0, false
+}
+
+// rejectAssociation performs the AE-8 reject: send an A-ASSOCIATE-RJ (service-user source,
+// permanent) carrying reason and advance to Sta13, returning the typed *RejectedError.
+func rejectAssociation(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, reason uint8) error {
 	rj := &pdu.AssociateRJ{
 		Result: pdu.AssociateRJResultPermanent,
 		Source: pdu.AssociateRJSourceServiceUser,
@@ -279,6 +327,24 @@ func (a *Acceptor) RequestedContexts() []pdu.PresentationContextRQ {
 	return a.request.PresentationContexts
 }
 
+// CallingAETitle returns the Calling AE Title from the inbound A-ASSOCIATE-RQ, trimmed of the
+// fixed-field padding (the SCU's title). It is empty for a not-yet-established acceptor.
+func (a *Acceptor) CallingAETitle() string {
+	if a.request == nil {
+		return ""
+	}
+	return trimAETitle(a.request.CallingAETitle)
+}
+
+// CalledAETitle returns the Called AE Title from the inbound A-ASSOCIATE-RQ, trimmed of the
+// fixed-field padding (the title the SCU addressed). It is empty for a not-yet-established acceptor.
+func (a *Acceptor) CalledAETitle() string {
+	if a.request == nil {
+		return ""
+	}
+	return trimAETitle(a.request.CalledAETitle)
+}
+
 // Conn returns the underlying DUL connection so the DIMSE message layer can send and
 // receive P-DATA-TF PDUs over the established association.
 func (r *Requestor) Conn() *dul.Conn { return r.conn }
@@ -345,6 +411,13 @@ func padAETitle(title string) [16]byte {
 		field[i] = ' '
 	}
 	return field
+}
+
+// trimAETitle is the inverse of padAETitle: it strips the insignificant surrounding spaces
+// from a 16-byte fixed AE-Title field (PS3.5 VR AE; leading and trailing spaces are not
+// significant) to recover the AE Title text.
+func trimAETitle(field [16]byte) string {
+	return strings.Trim(string(field[:]), " ")
 }
 
 // translateDriveError maps a dul.DriveInbound error to a typed acse error. A context

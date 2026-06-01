@@ -276,3 +276,143 @@ func TestServeReleaseSendsAbortOnProtocolViolation(t *testing.T) {
 		t.Fatal("ServeRelease did not return after the violation")
 	}
 }
+
+// TestAcceptExposesAETitles confirms the established acceptor reports the Calling and Called AE
+// titles from the inbound A-ASSOCIATE-RQ (trimmed of the fixed-field padding), so the SCP can
+// build the no-PHI OpInfo for each operation.
+func TestAcceptExposesAETitles(t *testing.T) {
+	rqConn, acConn := loopback(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	acceptorDone := make(chan *Acceptor, 1)
+	acceptErr := make(chan error, 1)
+	go func() {
+		a, err := Accept(ctx, acConn, acceptParams())
+		if err != nil {
+			acceptErr <- err
+			return
+		}
+		acceptorDone <- a
+	}()
+
+	if _, err := Associate(ctx, rqConn, echoRequest()); err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+
+	var acc *Acceptor
+	select {
+	case acc = <-acceptorDone:
+	case err := <-acceptErr:
+		t.Fatalf("Accept: %v", err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("acceptor did not establish")
+	}
+
+	if acc.CallingAETitle() != "REQUESTOR" {
+		t.Errorf("CallingAETitle() = %q, want REQUESTOR", acc.CallingAETitle())
+	}
+	if acc.CalledAETitle() != "ACCEPTOR" {
+		t.Errorf("CalledAETitle() = %q, want ACCEPTOR", acc.CalledAETitle())
+	}
+}
+
+// TestAcceptRejectsWrongCalledAETitle is the named SCP regression: when the acceptor requires a
+// specific Called AE Title, an A-ASSOCIATE-RQ naming a different one is rejected at negotiation
+// with an A-ASSOCIATE-RJ (service-user source, called-AE-title-not-recognized), not accepted.
+func TestAcceptRejectsWrongCalledAETitle(t *testing.T) {
+	rqConn, acConn := loopback(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	acceptErr := make(chan error, 1)
+	go func() {
+		params := acceptParams()
+		params.RequireCalledAETitle = "OTHER-SCP" // the RQ names "ACCEPTOR", a mismatch
+		_, err := Accept(ctx, acConn, params)
+		acceptErr <- err
+	}()
+
+	_, err := Associate(ctx, rqConn, echoRequest())
+	if err == nil {
+		t.Fatal("Associate with a wrong Called AE Title = nil error, want a rejection")
+	}
+	var re *RejectedError
+	if !errors.As(err, &re) {
+		t.Fatalf("Associate error = %T, want *RejectedError", err)
+	}
+	if re.Source != pdu.AssociateRJSourceServiceUser {
+		t.Errorf("rejection source = %d, want service-user (%d)", re.Source, pdu.AssociateRJSourceServiceUser)
+	}
+	if re.Reason != reasonCalledAETitleNotRecognized {
+		t.Errorf("rejection reason = %d, want called-AE-title-not-recognized (%d)", re.Reason, reasonCalledAETitleNotRecognized)
+	}
+
+	if serr := <-acceptErr; serr == nil {
+		t.Fatal("Accept on a wrong Called AE Title = nil error, want a *RejectedError")
+	} else {
+		var sre *RejectedError
+		if !errors.As(serr, &sre) {
+			t.Fatalf("Accept error = %T, want *RejectedError", serr)
+		}
+	}
+}
+
+// TestAcceptRejectsUnlistedCallingAETitle confirms that when the acceptor restricts the Calling
+// AE Titles it serves, an RQ from a title outside the list is rejected at negotiation with the
+// calling-AE-title-not-recognized reason; a listed title is accepted.
+func TestAcceptRejectsUnlistedCallingAETitle(t *testing.T) {
+	t.Run("unlisted is rejected", func(t *testing.T) {
+		rqConn, acConn := loopback(t)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		go func() {
+			params := acceptParams()
+			params.RequireCallingAETitles = []string{"TRUSTED"} // the RQ is from "REQUESTOR"
+			_, _ = Accept(ctx, acConn, params)
+		}()
+
+		_, err := Associate(ctx, rqConn, echoRequest())
+		if err == nil {
+			t.Fatal("Associate from an unlisted Calling AE Title = nil error, want a rejection")
+		}
+		var re *RejectedError
+		if !errors.As(err, &re) {
+			t.Fatalf("Associate error = %T, want *RejectedError", err)
+		}
+		if re.Reason != reasonCallingAETitleNotRecognized {
+			t.Errorf("rejection reason = %d, want calling-AE-title-not-recognized (%d)", re.Reason, reasonCallingAETitleNotRecognized)
+		}
+	})
+
+	t.Run("listed is accepted", func(t *testing.T) {
+		rqConn, acConn := loopback(t)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		acceptorDone := make(chan *Acceptor, 1)
+		acceptErr := make(chan error, 1)
+		go func() {
+			params := acceptParams()
+			params.RequireCallingAETitles = []string{"REQUESTOR", "TRUSTED"}
+			a, err := Accept(ctx, acConn, params)
+			if err != nil {
+				acceptErr <- err
+				return
+			}
+			acceptorDone <- a
+		}()
+
+		if _, err := Associate(ctx, rqConn, echoRequest()); err != nil {
+			t.Fatalf("Associate from a listed Calling AE Title: %v", err)
+		}
+		select {
+		case <-acceptorDone:
+		case err := <-acceptErr:
+			t.Fatalf("Accept of a listed Calling AE Title = %v, want acceptance", err)
+		case <-time.After(3 * time.Second):
+			t.Fatal("acceptor did not establish")
+		}
+	})
+}
