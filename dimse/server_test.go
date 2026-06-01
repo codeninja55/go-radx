@@ -65,9 +65,32 @@ func (h *serverTestHandler) Store(ctx context.Context, ds *dicom.DataSet, info O
 	return h.storeStatus
 }
 
+// storeOnlyHandler implements ONLY StoreHandler — the interface-segregation case a store-only SCP
+// writes (no dummy Echo method). NewServer must accept it; a C-ECHO routed to it must be refused
+// with StatusSOPClassNotSupported, not a panic.
+type storeOnlyHandler struct {
+	status   Status
+	mu       sync.Mutex
+	storedDS *dicom.DataSet
+}
+
+func (h *storeOnlyHandler) Store(_ context.Context, ds *dicom.DataSet, _ OpInfo) Status {
+	h.mu.Lock()
+	h.storedDS = ds
+	h.mu.Unlock()
+	return h.status
+}
+
+// echoOnlyHandler implements ONLY EchoHandler — the symmetric interface-segregation case.
+type echoOnlyHandler struct {
+	status Status
+}
+
+func (h *echoOnlyHandler) Echo(_ context.Context, _ OpInfo) Status { return h.status }
+
 // startServer builds and serves a Server on loopback (OS-assigned port), returning it and a
 // function that blocks until ListenAndServe has returned. The caller is responsible for Shutdown.
-func startServer(t *testing.T, h Handler, opts ...ServerOption) (*Server, *AE) {
+func startServer(t *testing.T, h any, opts ...ServerOption) (*Server, *AE) {
 	t.Helper()
 	ae, err := NewAE(AETitle("RADX-SCP"))
 	if err != nil {
@@ -785,6 +808,118 @@ func TestServerListenAndServeStopsOnContextCancel(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("ListenAndServe did not return after its context was cancelled")
+	}
+}
+
+// TestNewServerAcceptsStoreOnlyHandler is the named interface-segregation regression (P2
+// adversarial review): a handler implementing ONLY StoreHandler (no Echo method) must compile, be
+// accepted by NewServer, and serve a C-STORE end to end. A C-ECHO routed to the same store-only
+// handler must be refused gracefully with StatusSOPClassNotSupported (0x0122) — the dispatcher
+// type-asserts the EchoHandler capability per operation — never a panic or an accepted echo.
+func TestNewServerAcceptsStoreOnlyHandler(t *testing.T) {
+	src, err := dicom.ReadFile(filepath.Join("..", "testdata", "dicom", "liver.dcm"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	sentDS := src.DataSet
+	sentInstance, _ := sentDS.GetString(tagSOPInstanceUID)
+
+	h := &storeOnlyHandler{status: StatusStoreSuccess}
+	srv, _ := startServer(t, h)
+
+	scu, err := NewAE(AETitle("RADX-SCU"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	contexts := echoAndStorageContexts()
+	assoc, err := scu.Associate(ctx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+
+	// A C-STORE is the handler's capability: it must be served and stored.
+	storeStatus, err := assoc.Store(ctx, sentDS)
+	if err != nil {
+		t.Fatalf("Store transport error: %v", err)
+	}
+	if !storeStatus.IsSuccess() {
+		t.Errorf("Store status = %s, want success", storeStatus)
+	}
+
+	// A C-ECHO is a capability this handler does NOT implement: the dispatcher must refuse it with
+	// StatusSOPClassNotSupported (a peer-visible RSP), not panic and not accept it.
+	echoStatus, err := assoc.Echo(ctx)
+	if err != nil {
+		t.Fatalf("Echo transport error: %v (want a graceful unsupported-status RSP, not a fault)", err)
+	}
+	if echoStatus.Code != StatusSOPClassNotSupported.Code {
+		t.Errorf("Echo status = %s, want 0x%04X (Refused: SOP Class Not Supported)", echoStatus, StatusSOPClassNotSupported.Code)
+	}
+
+	if err := assoc.Release(ctx); err != nil {
+		t.Fatalf("Release: %v", err)
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.storedDS == nil {
+		t.Fatal("store-only handler stored no dataset")
+	}
+	gotInstance, _ := h.storedDS.GetString(tagSOPInstanceUID)
+	if gotInstance != sentInstance {
+		t.Errorf("stored SOP Instance UID = %q, want %q", gotInstance, sentInstance)
+	}
+}
+
+// TestNewServerAcceptsEchoOnlyHandler is the symmetric interface-segregation regression: a handler
+// implementing ONLY EchoHandler must compile, be accepted by NewServer, and serve a C-ECHO. A
+// C-STORE routed to it must be refused with StatusSOPClassNotSupported, not a panic.
+func TestNewServerAcceptsEchoOnlyHandler(t *testing.T) {
+	src, err := dicom.ReadFile(filepath.Join("..", "testdata", "dicom", "liver.dcm"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	sentDS := src.DataSet
+
+	h := &echoOnlyHandler{status: StatusEchoSuccess}
+	srv, _ := startServer(t, h)
+
+	scu, err := NewAE(AETitle("RADX-SCU"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	contexts := echoAndStorageContexts()
+	assoc, err := scu.Associate(ctx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+
+	// A C-ECHO is the handler's capability: it must be served.
+	echoStatus, err := assoc.Echo(ctx)
+	if err != nil {
+		t.Fatalf("Echo transport error: %v", err)
+	}
+	if !echoStatus.IsSuccess() {
+		t.Errorf("Echo status = %s, want success", echoStatus)
+	}
+
+	// A C-STORE is a capability this handler does NOT implement: refuse with the unsupported status.
+	storeStatus, err := assoc.Store(ctx, sentDS)
+	if err != nil {
+		t.Fatalf("Store transport error: %v (want a graceful unsupported-status RSP, not a fault)", err)
+	}
+	if storeStatus.Code != StatusSOPClassNotSupported.Code {
+		t.Errorf("Store status = %s, want 0x%04X (Refused: SOP Class Not Supported)", storeStatus, StatusSOPClassNotSupported.Code)
+	}
+
+	if err := assoc.Release(ctx); err != nil {
+		t.Fatalf("Release: %v", err)
 	}
 }
 

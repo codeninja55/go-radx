@@ -38,7 +38,7 @@ import (
 // when it is positive: a peer that completes negotiation then sends nothing must not hold a capacity
 // slot and a goroutine forever (a slot-exhaustion DoS — Codex/concurrency review). On the timeout
 // the read returns context.DeadlineExceeded, the association ends, and the Server releases the slot.
-func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.AcceptParams, acseTimeout, networkTimeout time.Duration, h Handler) error {
+func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.AcceptParams, acseTimeout, networkTimeout time.Duration, h any) error {
 	negotiateCtx := ctx
 	if acseTimeout > 0 {
 		var cancel context.CancelFunc
@@ -166,15 +166,17 @@ func readInbound(
 	}
 }
 
-// dispatchMessage routes a complete inbound DIMSE message to the handler by its command field. A
-// command field this SCP does not service is answered as a protocol fault rather than silently
-// dropped (an SCP that negotiated a context it cannot service is a configuration error). The Echo
-// and Store paths reuse the shared dispatch primitives (serveEchoCommand / serveStoreMessage) so
-// the response logic lives in one place.
+// dispatchMessage routes a complete inbound DIMSE message to the handler by its command field. It
+// type-asserts the per-operation capability on h (EchoHandler for a C-ECHO, StoreHandler for a
+// C-STORE): a handler that does not implement the routed operation's capability is refused
+// gracefully with a StatusSOPClassNotSupported RSP rather than panicking or accepting (interface
+// segregation, PRD §8.2). A command field this SCP services no capability for is answered as a
+// protocol fault rather than silently dropped. The Echo and Store paths reuse the shared dispatch
+// primitives (serveEchoCommand / serveStoreMessage) so the response logic lives in one place.
 func dispatchMessage(
 	ctx context.Context,
 	acc *acse.Acceptor,
-	h Handler,
+	h any,
 	cmd CommandSet,
 	ds *dicom.DataSet,
 	pcID uint8,
@@ -192,10 +194,18 @@ func dispatchMessage(
 		base.PresentationID = pcID
 		base.MessageID = cmd.MessageID
 		base.SOPClassUID = dicom.SOPClassUID(cmd.AffectedSOPClassUID)
-		_, err := serveEchoCommand(ctx, acc, h, cmd, pcID, base)
+		eh, ok := h.(EchoHandler)
+		if !ok {
+			return refuseUnsupportedEcho(ctx, acc, cmd, pcID)
+		}
+		_, err := serveEchoCommand(ctx, acc, eh, cmd, pcID, base)
 		return err
 	case CommandCStoreRQ:
-		_, err := serveStoreMessage(ctx, acc, h, cmd, ds, pcID, base)
+		sh, ok := h.(StoreHandler)
+		if !ok {
+			return refuseUnsupportedStore(ctx, acc, cmd, pcID)
+		}
+		_, err := serveStoreMessage(ctx, acc, sh, cmd, ds, pcID, base)
 		return err
 	default:
 		return &ProtocolError{
@@ -203,4 +213,39 @@ func dispatchMessage(
 			Detail: "received an unsupported command field for this SCP",
 		}
 	}
+}
+
+// refuseUnsupportedEcho answers a C-ECHO-RQ that reached a handler with no EchoHandler capability:
+// it writes a C-ECHO-RSP carrying StatusSOPClassNotSupported (0x0122) so the peer learns the
+// service is unsupported, rather than the SCP panicking or aborting (interface segregation, PRD
+// §8.2). The dataset has already been consumed from the wire by the read loop, so no PDV is left
+// dangling.
+func refuseUnsupportedEcho(ctx context.Context, acc *acse.Acceptor, cmd CommandSet, pcID uint8) error {
+	rsp := CommandSet{
+		CommandField:              CommandCEchoRSP,
+		MessageIDBeingRespondedTo: cmd.MessageID,
+		AffectedSOPClassUID:       cmd.AffectedSOPClassUID,
+		CommandDataSetType:        CommandDataSetNotPresent,
+		HasStatus:                 true,
+		Status:                    StatusSOPClassNotSupported.Code,
+	}
+	return sendCommand(ctx, acc.Conn(), acc.Machine(), pcID, rsp)
+}
+
+// refuseUnsupportedStore answers a C-STORE-RQ that reached a handler with no StoreHandler
+// capability: it writes a C-STORE-RSP carrying StatusSOPClassNotSupported (0x0122). The composite
+// SOP Instance the RQ carried has already been read from the wire by the dispatch loop and is
+// discarded — nothing is persisted (fail-closed), and the RSP echoes the command's Affected SOP
+// Class/Instance UIDs so the peer can correlate the refusal.
+func refuseUnsupportedStore(ctx context.Context, acc *acse.Acceptor, cmd CommandSet, pcID uint8) error {
+	rsp := CommandSet{
+		CommandField:              CommandCStoreRSP,
+		MessageIDBeingRespondedTo: cmd.MessageID,
+		AffectedSOPClassUID:       cmd.AffectedSOPClassUID,
+		AffectedSOPInstanceUID:    cmd.AffectedSOPInstanceUID,
+		CommandDataSetType:        CommandDataSetNotPresent,
+		HasStatus:                 true,
+		Status:                    StatusSOPClassNotSupported.Code,
+	}
+	return sendCommand(ctx, acc.Conn(), acc.Machine(), pcID, rsp)
 }

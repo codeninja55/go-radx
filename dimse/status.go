@@ -132,6 +132,12 @@ var (
 	// StatusEchoSuccess is the Verification (C-ECHO) success status (0x0000).
 	StatusEchoSuccess = NewStatus(0x0000, ServiceClassVerification)
 
+	// StatusSOPClassNotSupported is the general DIMSE failure "Refused: SOP Class Not Supported"
+	// (0x0122, PS3.7 Annex C). An SCP returns it when the inbound operation's service is one the
+	// hosted handler does not provide (e.g. a C-ECHO reaching a store-only handler), refusing the
+	// operation gracefully rather than aborting (interface segregation, PRD §8.2).
+	StatusSOPClassNotSupported = NewStatus(0x0122, ServiceClassGeneral)
+
 	// StatusStoreSuccess is the Storage (C-STORE) success status (0x0000): the SOP Instance was
 	// stored (PS3.4 B.2.3).
 	StatusStoreSuccess = NewStatus(0x0000, ServiceClassStorage)

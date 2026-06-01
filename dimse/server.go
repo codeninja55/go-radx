@@ -68,7 +68,7 @@ func WithRequireCallingAETitles(ts ...AETitle) ServerOption {
 type Server struct {
 	ae        *AE
 	supported []acse.SupportedContext
-	handler   Handler
+	handler   any
 	cfg       serverConfig
 
 	// sem is the capacity semaphore: a slot is acquired before a per-association goroutine is
@@ -94,7 +94,15 @@ type Server struct {
 // dispatching inbound operations to h. The supported contexts are the abstract syntaxes (and their
 // acceptable transfer syntaxes) the Server negotiates as acceptor; a proposed context outside this
 // set is rejected at negotiation. Options configure capacity and the AE-title policy.
-func NewServer(ae *AE, supported []PresentationContext, h Handler, opts ...ServerOption) *Server {
+//
+// h MUST implement at least one of EchoHandler / StoreHandler. It is typed as any so a
+// service-specific SCP can implement only the narrower capability it offers (interface segregation,
+// PRD §8.2) without dummy methods: a store-only SCP implements StoreHandler alone, an echo-only SCP
+// EchoHandler alone, and a full SCP both (the Handler union). The dispatcher type-asserts the
+// capability per inbound operation; an operation whose capability h does not implement is refused
+// with StatusSOPClassNotSupported (a peer-visible RSP), never a panic. A handler implementing
+// neither capability is a configuration error: every inbound operation it could be sent is refused.
+func NewServer(ae *AE, supported []PresentationContext, h any, opts ...ServerOption) *Server {
 	cfg := serverConfig{maxAssociations: defaultMaxAssociations}
 	for _, opt := range opts {
 		opt(&cfg)
