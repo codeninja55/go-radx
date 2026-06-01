@@ -91,9 +91,13 @@ const (
 // A protocol violation surfaces as a typed error (DriveInbound has already sent the provider
 // A-ABORT); a clean io.EOF reports inboundClosed.
 //
-// When networkTimeout is positive the whole inbound-message read is bounded by it (derived once
-// from ctx), so a peer that goes silent — before the first PDU or stalled mid-reassembly — times
-// out and the association ends, releasing its capacity slot rather than parking forever.
+// When networkTimeout is positive it bounds EACH inbound PDU read individually — it is the AE's
+// IDLE-association bound, not a cap on the whole message. The timeout is derived fresh per read
+// (and cancelled immediately after that read returns), so an idle gap — no PDU for networkTimeout,
+// whether before the first PDU or stalled mid-reassembly — times out and the association ends,
+// while continuous progress resets the deadline. A legitimate large/slow C-STORE spanning many
+// P-DATA-TF PDUs over a total longer than networkTimeout therefore succeeds as long as each PDU
+// arrives within networkTimeout of the previous, rather than being aborted mid-transfer.
 func readInbound(
 	ctx context.Context,
 	acc *acse.Acceptor,
@@ -103,14 +107,20 @@ func readInbound(
 	conn := acc.Conn()
 	m := acc.Machine()
 	r := newMessageReassemblerFunc(resolveTS)
-	readCtx := ctx
-	if networkTimeout > 0 {
-		var cancel context.CancelFunc
-		readCtx, cancel = context.WithTimeout(ctx, networkTimeout)
-		defer cancel()
-	}
 	for {
+		// Bound this single read by the idle timeout. The context is derived fresh per read and
+		// cancelled explicitly the moment DriveInbound returns (NOT deferred, which would accumulate
+		// one live timer per PDU across the reassembly loop), so the deadline tracks the gap since the
+		// last PDU, not the elapsed time of the whole message.
+		readCtx := ctx
+		var cancel context.CancelFunc
+		if networkTimeout > 0 {
+			readCtx, cancel = context.WithTimeout(ctx, networkTimeout)
+		}
 		p, _, err := dul.DriveInbound(readCtx, conn, m)
+		if cancel != nil {
+			cancel()
+		}
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return CommandSet{}, nil, 0, inboundClosed, nil

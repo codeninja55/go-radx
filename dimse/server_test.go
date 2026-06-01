@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/dimse/dul"
 )
 
 // echoAndStorageContexts builds a single proposal list combining the Verification context and the
@@ -517,6 +518,142 @@ func TestServerNegotiationTimesOut(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatalf("second association was never served within the deadline; the negotiation slot was not released (last error: %v)", lastErr)
+}
+
+// TestServerLargeStoreNotCappedByIdleTimeout is the named regression for the idle-vs-total timeout
+// defect (P2 adversarial review): WithNetworkTimeout is an IDLE-association bound — it must bound
+// each individual inbound PDU read, NOT the whole multi-PDU message. A legitimate large/slow C-STORE
+// delivered as many P-DATA-TF PDUs, each arriving within the network timeout of the previous but
+// whose TOTAL duration exceeds it, must succeed: continuous progress resets the deadline.
+//
+// The slow-drip SCU is built with the PRODUCTION encoders: it negotiates normally, then uses
+// fragmentMessage (the same fragmenter Store uses) to encode the C-STORE-RQ command and dataset, and
+// writes the resulting PDUs one at a time through the requestor's own conn/state-machine, advancing
+// the machine by Evt9 per write exactly as sendMessage does. A small advertised maximum PDU length
+// forces the dataset to fragment into many PDVs. The first PDUs are dripped with a gap that is well
+// under the injected network timeout but whose CUMULATIVE duration exceeds it, then the remainder are
+// sent back to back; the slow phase alone crosses the total bound while no single inter-PDU gap does,
+// so the only way the store succeeds is if the timeout is reset per read. Before the per-read fix the
+// server derived ONE timeout for the whole reassembly loop, so this store was aborted mid-transfer
+// once the total exceeded the timeout.
+//
+// Margins are sized for the race detector: an 80ms gap sits 120ms under the 200ms bound, so
+// scheduler jitter cannot spuriously trip the per-read deadline, while four such gaps (320ms) clear
+// the 200ms total comfortably.
+func TestServerLargeStoreNotCappedByIdleTimeout(t *testing.T) {
+	const (
+		networkTimeout  = 200 * time.Millisecond
+		interPDUGap     = 80 * time.Millisecond // < networkTimeout: each idle gap stays well under the bound
+		slowDrips       = 4                     // 4 * 80ms = 320ms cumulative >> 200ms network timeout
+		scuMaxPDULength = MaxPDULength(64)      // tiny cap => the dataset fragments into many PDVs
+	)
+
+	src, err := dicom.ReadFile(filepath.Join("..", "testdata", "dicom", "liver.dcm"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	sentDS := src.DataSet
+	sentInstance, _ := sentDS.GetString(tagSOPInstanceUID)
+
+	ae, err := NewAE(AETitle("RADX-SCP"), WithNetworkTimeout(networkTimeout))
+	if err != nil {
+		t.Fatalf("NewAE (SCP): %v", err)
+	}
+	contexts := echoAndStorageContexts()
+	h := &serverTestHandler{echoStatus: StatusEchoSuccess, storeStatus: StatusStoreSuccess}
+	srv := NewServer(ae, contexts, h)
+
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		select {
+		case <-served:
+		case <-time.After(5 * time.Second):
+			t.Error("ListenAndServe did not return after Shutdown")
+		}
+	})
+
+	scu, err := NewAE(AETitle("RADX-SCU"), WithMaxPDULength(scuMaxPDULength))
+	if err != nil {
+		t.Fatalf("NewAE (SCU): %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	assoc, err := scu.Associate(ctx, srv.Addr().String(), AETitle("RADX-SCP"), contexts)
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+
+	// Select the accepted Storage context and its transfer syntax, then build the C-STORE-RQ exactly
+	// as Store does, fragmenting with the production fragmenter under the SCU's send cap.
+	sopClass, _ := sentDS.GetString(tagSOPClassUID)
+	pcID, ts, ok := assoc.contextForStorage(dicom.SOPClassUID(sopClass))
+	if !ok {
+		t.Fatalf("no accepted presentation context for SOP Class %s", sopClass)
+	}
+	rq := CommandSet{
+		CommandField:           CommandCStoreRQ,
+		MessageID:              storeMessageID,
+		AffectedSOPClassUID:    dicom.UID(sopClass),
+		AffectedSOPInstanceUID: dicom.UID(sentInstance),
+		HasPriority:            true,
+		Priority:               PriorityMedium,
+		CommandDataSetType:     CommandDataSetPresent,
+	}
+	pdus, err := fragmentMessage(rq, sentDS, ts, pcID, assoc.sendCap())
+	if err != nil {
+		t.Fatalf("fragmentMessage: %v", err)
+	}
+	if len(pdus) <= slowDrips {
+		t.Fatalf("fragmentMessage produced %d PDUs, need more than %d to span the network timeout", len(pdus), slowDrips)
+	}
+
+	conn := assoc.requestor.Conn()
+	m := assoc.requestor.Machine()
+
+	// Drip the first slowDrips PDUs with a gap < networkTimeout between each (cumulatively crossing
+	// the timeout), then stream the rest back to back. Each write advances the state machine by Evt9
+	// just as sendMessage does. The fix keeps the association alive because each individual read
+	// completes within the bound even though the slow phase alone outlasts the whole timeout.
+	for i, p := range pdus {
+		if i > 0 && i <= slowDrips {
+			time.Sleep(interPDUGap)
+		}
+		if _, _, serr := m.Apply(dul.Evt9); serr != nil {
+			t.Fatalf("Apply(Evt9) before PDU %d: %v", i, serr)
+		}
+		if werr := conn.WritePDU(ctx, p); werr != nil {
+			t.Fatalf("WritePDU %d/%d: %v", i+1, len(pdus), werr)
+		}
+	}
+
+	// The server reassembled the slow-dripped message and the handler answered: read the C-STORE-RSP.
+	rsp, _, _, err := receiveMessage(ctx, conn, m, newMessageReassembler(ts))
+	if err != nil {
+		t.Fatalf("receive C-STORE-RSP: %v (the slow store was aborted; the idle timeout capped the whole message)", err)
+	}
+	if rsp.CommandField != CommandCStoreRSP {
+		t.Fatalf("response command field = %v, want C-STORE-RSP", rsp.CommandField)
+	}
+	status := NewStatus(rsp.Status, ServiceClassStorage)
+	if !status.IsSuccess() {
+		t.Errorf("C-STORE status = %s, want success", status)
+	}
+	_ = assoc.Release(ctx)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.storedDS == nil {
+		t.Fatal("handler stored no dataset despite a successful response")
+	}
+	gotInstance, _ := h.storedDS.GetString(tagSOPInstanceUID)
+	if gotInstance != sentInstance {
+		t.Errorf("stored SOP Instance UID = %q, want %q", gotInstance, sentInstance)
+	}
 }
 
 // TestServerShutdownIsIdempotent confirms a second Shutdown after the first is a safe no-op.
