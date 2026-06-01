@@ -23,6 +23,7 @@ origin (see the `LICENSE-*.txt` files in this directory).
 | `liver_j2k.dcm` | JPEG 2000 Lossless (`1.2.840.10008.1.2.4.90`) | pydicom liver corpus, JPEG 2000 variant | MIT (pydicom) | CGo-gated decode and `ErrCodecUnavailable` under `nocgo` (Increment 6) |
 | `MR-SIEMENS-DICOM-WithOverlays.dcm` | Explicit VR Little Endian (`1.2.840.10008.1.2.1`) | GDCM | BSD-3-Clause (GDCM) | Overlays and repeating group `60xx` dictionary mask (Increment 1, DCM-012) |
 | `explicit_VR-UN.dcm` | JPEG 2000 Lossless (`1.2.840.10008.1.2.4.90`) | pydicom (issue #968); original from The Cancer Imaging Archive, de-identified, recompressed with `gdcmconv --j2k` | MIT (pydicom) | Ambiguous/`UN` VR resolution (nearly all tags carry VR `UN`) (Increment 1) |
+| `basic-text-sr.dcm` | Explicit VR Little Endian (`1.2.840.10008.1.2.1`) | pydicom `reportsi.dcm` (Basic Text SR Storage; synthetic placeholder patient identifiers) | MIT (pydicom) | Structured Report content-item tree parse and round-trip (Increment 8) |
 
 ## Notes on upstream filename conventions
 
@@ -41,7 +42,7 @@ origin (see the `LICENSE-*.txt` files in this directory).
 ## License attribution
 
 - `LICENSE-pydicom.txt` — MIT license covering the pydicom-origin fixtures: `liver.dcm`, `MR2_UNCI.dcm`,
-  `SC_rgb_expb.dcm`, `liver_rle.dcm`, `liver_j2k.dcm`, `explicit_VR-UN.dcm`.
+  `SC_rgb_expb.dcm`, `liver_rle.dcm`, `liver_j2k.dcm`, `explicit_VR-UN.dcm`, `basic-text-sr.dcm`.
 - `LICENSE-gdcm.txt` — BSD-3-Clause license covering the GDCM-origin fixture `MR-SIEMENS-DICOM-WithOverlays.dcm`, and
   acknowledged for the GDCM tooling (`gdcmconv`) used to derive `liver_rle.dcm`.
 - `LICENSE-dcmtk.txt` — OFFIS BSD-3-Clause license acknowledged for the dcmtk tooling (`dcmconv`) used to derive
