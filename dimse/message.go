@@ -10,12 +10,13 @@ import (
 	"github.com/codeninja55/go-radx/dimse/pdu"
 )
 
-// pdvOverhead is the per-PDV item overhead carried inside a P-DATA-TF PDU body: the
-// presentation-context ID and the message-control header (PS3.8 §9.3.5). The 4-byte PDV item
-// length and the 6-byte PDU header sit outside the send cap accounting below; the cap bounds the
-// PDV body, which is the conservative interpretation that keeps every PDU within the peer's
-// advertised maximum.
-const pdvOverhead = 2
+// pdvOverhead is the per-PDV item overhead that counts against the negotiated Maximum Length: the
+// 4-byte PDV item-length field, the 1-byte presentation-context ID, and the 1-byte message-control
+// header (PS3.8 §9.3.5). The 6-byte P-DATA-TF PDU header sits OUTSIDE the negotiated maximum (the
+// maximum bounds the PDU data field, not the framing), so it is correctly excluded — but the
+// 4-byte PDV item-length field lives INSIDE that data field and must be reserved, otherwise a full
+// fragment overshoots the peer's advertised maximum by 4. pynetdicom fragments at max_pdu - 6.
+const pdvOverhead = 6
 
 // fragmentMessage encodes a DIMSE message — a command set, optionally followed by a dataset — into
 // one or more P-DATA-TF PDUs. The command set is always Implicit VR LE (PS3.7 §6.3.1); the dataset

@@ -242,10 +242,16 @@ func TestFragmentMessageRespectsSendCap(t *testing.T) {
 	if len(items) < 3 {
 		t.Fatalf("small send cap should split into several PDVs, got %d", len(items))
 	}
-	// Each PDV payload plus the PDV header (1 ctx + 1 control = 2 bytes) must be within the cap.
+	// Each emitted PDV occupies, inside the P-DATA-TF data field the negotiated Maximum Length
+	// bounds, a 4-byte PDV item length + 1-byte ctx ID + 1-byte control header + payload. Assert
+	// that full 6-byte-overhead footprint against the cap with the literal on-wire constant (NOT the
+	// pdvOverhead symbol the producer uses), so an under-count regression — e.g. reserving only the
+	// 2-byte item header and overshooting the peer's advertised maximum by 4 — is caught here.
+	const onWirePDVOverhead = 6 // 4-byte item length + 1 ctx ID + 1 control header
 	for i, it := range items {
-		if len(it.Data)+2 > cap {
-			t.Errorf("PDV %d payload %d + 2 header bytes exceeds send cap %d", i, len(it.Data), cap)
+		if len(it.Data)+onWirePDVOverhead > cap {
+			t.Errorf("PDV %d data-field footprint %d (payload %d + %d overhead) exceeds send cap %d",
+				i, len(it.Data)+onWirePDVOverhead, len(it.Data), onWirePDVOverhead, cap)
 		}
 	}
 
