@@ -250,10 +250,15 @@ reference daemons are deployable and loopback-bound by default (§9.1) — it do
 
 ### 7.3 Codec strategy (explicit decision)
 
-Compressed transfer-syntax codecs (JPEG, JPEG-LS, JPEG 2000, HTJ2K) are the source of the prototype's build fragility.
-Strategy: **pure-Go decoders where they exist; optional CGo behind a build tag for the rest, never load-bearing.** The
-core library builds and passes its non-pixel tests with CGo disabled; compressed pixel support degrades to a clear,
-typed "codec unavailable" error rather than a build failure.
+Native (uncompressed) and RLE pixel handling is pure Go. The complex compressed codecs (JPEG, JPEG-LS, JPEG 2000,
+HTJ2K) **use battle-tested C libraries via CGo** (libjpeg-turbo, CharLS, OpenJPEG) for encode/decode correctness —
+hand-rolled pure-Go implementations of these would be error-prone, and the C libraries are the de-facto-correct
+references. To avoid the prototype's *load-bearing*-CGo build fragility, the C-backed codecs sit **behind a build tag**:
+the core library builds and passes its non-pixel tests with `CGO_ENABLED=0` or without the C libraries present, and a
+compressed transfer syntax with no built codec degrades to a clear, typed `ErrCodecUnavailable` error rather than a
+build failure. Building with the codec tag (and the C libraries installed) enables the C-backed
+JPEG/JPEG-LS/JPEG-2000/HTJ2K paths. Net: C-grade codec correctness without making the whole library un-buildable for
+consumers who only need the data model.
 
 ### 7.4 Module structure
 
