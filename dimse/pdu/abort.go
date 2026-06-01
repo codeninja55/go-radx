@@ -43,6 +43,11 @@ func DecodeAbort(r io.Reader) (*Abort, error) {
 	if err != nil {
 		return nil, err
 	}
+	return decodeAbortBody(br)
+}
+
+// decodeAbortBody decodes the A-ABORT body from a seeded bounded reader.
+func decodeAbortBody(br *boundedReader) (*Abort, error) {
 	var b [4]byte
 	if _, err := io.ReadFull(br, b[:]); err != nil {
 		return nil, err

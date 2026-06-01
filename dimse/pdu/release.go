@@ -50,6 +50,12 @@ func discardReserved(r io.Reader, want PDUType) error {
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(io.Discard, br)
+	return discardReservedBody(br)
+}
+
+// discardReservedBody drains the reserved body from a seeded bounded reader (used by
+// ReadPDU once it has already consumed the header).
+func discardReservedBody(br *boundedReader) error {
+	_, err := io.Copy(io.Discard, br)
 	return err
 }

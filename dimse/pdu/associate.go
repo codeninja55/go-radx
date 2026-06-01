@@ -150,6 +150,12 @@ func DecodeAssociateRQ(r io.Reader) (*AssociateRQ, error) {
 	if err != nil {
 		return nil, err
 	}
+	return decodeAssociateRQBody(br)
+}
+
+// decodeAssociateRQBody decodes the A-ASSOCIATE-RQ body from a bounded reader already
+// seeded with the declared PDU-body length (used by both DecodeAssociateRQ and ReadPDU).
+func decodeAssociateRQBody(br *boundedReader) (*AssociateRQ, error) {
 	p := &AssociateRQ{}
 	if err := readAssociateFixedFields(br, &p.ProtocolVersion, &p.CalledAETitle, &p.CallingAETitle); err != nil {
 		return nil, err
@@ -181,6 +187,11 @@ func DecodeAssociateAC(r io.Reader) (*AssociateAC, error) {
 	if err != nil {
 		return nil, err
 	}
+	return decodeAssociateACBody(br)
+}
+
+// decodeAssociateACBody decodes the A-ASSOCIATE-AC body from a seeded bounded reader.
+func decodeAssociateACBody(br *boundedReader) (*AssociateAC, error) {
 	p := &AssociateAC{}
 	if err := readAssociateFixedFields(br, &p.ProtocolVersion, &p.CalledAETitle, &p.CallingAETitle); err != nil {
 		return nil, err
@@ -212,6 +223,11 @@ func DecodeAssociateRJ(r io.Reader) (*AssociateRJ, error) {
 	if err != nil {
 		return nil, err
 	}
+	return decodeAssociateRJBody(br)
+}
+
+// decodeAssociateRJBody decodes the A-ASSOCIATE-RJ body from a seeded bounded reader.
+func decodeAssociateRJBody(br *boundedReader) (*AssociateRJ, error) {
 	var b [4]byte
 	if _, err := io.ReadFull(br, b[:]); err != nil {
 		return nil, err
