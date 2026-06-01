@@ -126,6 +126,26 @@ var (
 	StatusCancel = NewStatus(0xFE00, ServiceClassGeneral)
 	// StatusEchoSuccess is the Verification (C-ECHO) success status (0x0000).
 	StatusEchoSuccess = NewStatus(0x0000, ServiceClassVerification)
+
+	// StatusStoreSuccess is the Storage (C-STORE) success status (0x0000): the SOP Instance was
+	// stored (PS3.4 B.2.3).
+	StatusStoreSuccess = NewStatus(0x0000, ServiceClassStorage)
+	// StatusStoreOutOfResources is the Storage failure "Refused: Out of Resources" (0xA700 band).
+	StatusStoreOutOfResources = NewStatus(0xA700, ServiceClassStorage)
+	// StatusStoreDataSetDoesNotMatchSOPClass is the Storage failure "Data Set Does Not Match SOP
+	// Class" (0xA900 band).
+	StatusStoreDataSetDoesNotMatchSOPClass = NewStatus(0xA900, ServiceClassStorage)
+	// StatusStoreCannotUnderstand is the Storage failure "Cannot Understand" (0xC000 band): the
+	// SCP could not parse or process the dataset.
+	StatusStoreCannotUnderstand = NewStatus(0xC000, ServiceClassStorage)
+	// StatusStoreCoercionOfDataElements is the Storage warning "Coercion of Data Elements"
+	// (0xB000): the instance was stored, but some elements were coerced.
+	StatusStoreCoercionOfDataElements = NewStatus(0xB000, ServiceClassStorage)
+	// StatusStoreElementDiscarded is the Storage warning "Element Discarded" (0xB006).
+	StatusStoreElementDiscarded = NewStatus(0xB006, ServiceClassStorage)
+	// StatusStoreDataSetDoesNotMatchSOPClassWarning is the Storage warning "Data Set Does Not
+	// Match SOP Class" (0xB007): stored with a warning, distinct from the 0xA900 failure.
+	StatusStoreDataSetDoesNotMatchSOPClassWarning = NewStatus(0xB007, ServiceClassStorage)
 )
 
 // statusEntry is a categorised, human-readable status meaning in a service-class table.
@@ -140,12 +160,39 @@ type statusEntry struct {
 // added with their services (Increment 5+).
 func statusTable(sc ServiceClass) map[uint16]statusEntry {
 	switch sc {
+	case ServiceClassStorage:
+		return storageStatusTable
 	case ServiceClassVerification:
 		return generalStatusTable
 	default:
 		return generalStatusTable
 	}
 }
+
+// storageStatusTable is the PS3.4 B.2.3 Storage service-class status table, ported from
+// pynetdicom's STORAGE_SERVICE_CLASS_STATUS (which merges the Storage-specific codes over the
+// GENERAL_STATUS table). Only the explicitly-named codes carry a meaning here; the ranged failure
+// bands (0xA700–0xA7FF Out of Resources, 0xA900–0xA9FF mismatch, 0xC000–0xCFFF Cannot Understand)
+// resolve their category via codeToCategory, and a code's meaning is the band representative when
+// looked up exactly. General DIMSE statuses inherited from the general table are folded in so a
+// peer's general failure (e.g. 0x0110 Processing Failure) still categorises correctly.
+var storageStatusTable = func() map[uint16]statusEntry {
+	t := map[uint16]statusEntry{
+		0x0000: {StatusCategorySuccess, ""},
+		0xA700: {StatusCategoryFailure, "Refused: Out of Resources"},
+		0xA900: {StatusCategoryFailure, "Data Set Does Not Match SOP Class"},
+		0xC000: {StatusCategoryFailure, "Cannot Understand"},
+		0xB000: {StatusCategoryWarning, "Coercion of Data Elements"},
+		0xB006: {StatusCategoryWarning, "Element Discarded"},
+		0xB007: {StatusCategoryWarning, "Data Set Does Not Match SOP Class"},
+	}
+	for code, entry := range generalStatusTable {
+		if _, taken := t[code]; !taken {
+			t[code] = entry
+		}
+	}
+	return t
+}()
 
 // generalStatusTable is the PS3.7 Annex C general status table, ported from pynetdicom's
 // GENERAL_STATUS. Only explicitly-named codes appear; ranged bands (0xA000–0xBFFF,

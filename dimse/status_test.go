@@ -89,3 +89,56 @@ func TestStatusCategoryPredicates(t *testing.T) {
 		t.Error("0x0000 must not report IsFailure()")
 	}
 }
+
+// TestStatusStoreSuccess is the named regression: StatusStoreSuccess must categorise as Success
+// against the Storage service class.
+func TestStatusStoreSuccess(t *testing.T) {
+	if !StatusStoreSuccess.IsSuccess() {
+		t.Errorf("StatusStoreSuccess.IsSuccess() = false, want true (category %v)", StatusStoreSuccess.Category())
+	}
+	if StatusStoreSuccess.Code != 0x0000 {
+		t.Errorf("StatusStoreSuccess.Code = %#04x, want 0x0000", StatusStoreSuccess.Code)
+	}
+	if StatusStoreSuccess.ServiceClass() != ServiceClassStorage {
+		t.Errorf("StatusStoreSuccess service class = %v, want Storage", StatusStoreSuccess.ServiceClass())
+	}
+}
+
+// TestStorageStatusTable exercises the Storage service-class status table (PS3.4 B.2.3, verified
+// against pynetdicom STORAGE_SERVICE_CLASS_STATUS): the named failure codes, the warning codes,
+// and the ranged bands resolve to the right categories and meanings.
+func TestStorageStatusTable(t *testing.T) {
+	cases := []struct {
+		name     string
+		s        Status
+		category StatusCategory
+		meaning  string
+	}{
+		{"cannot understand", StatusStoreCannotUnderstand, StatusCategoryFailure, "Cannot Understand"},
+		{"out of resources", StatusStoreOutOfResources, StatusCategoryFailure, "Refused: Out of Resources"},
+		{"dataset mismatch (failure)", StatusStoreDataSetDoesNotMatchSOPClass, StatusCategoryFailure, "Data Set Does Not Match SOP Class"},
+		{"coercion warning", StatusStoreCoercionOfDataElements, StatusCategoryWarning, "Coercion of Data Elements"},
+		{"element discarded", StatusStoreElementDiscarded, StatusCategoryWarning, "Element Discarded"},
+		{"dataset mismatch (warning)", StatusStoreDataSetDoesNotMatchSOPClassWarning, StatusCategoryWarning, "Data Set Does Not Match SOP Class"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if c.s.Category() != c.category {
+				t.Errorf("%s category = %v, want %v", c.name, c.s.Category(), c.category)
+			}
+			if c.s.Meaning() != c.meaning {
+				t.Errorf("%s meaning = %q, want %q", c.name, c.s.Meaning(), c.meaning)
+			}
+			if c.s.ServiceClass() != ServiceClassStorage {
+				t.Errorf("%s service class = %v, want Storage", c.name, c.s.ServiceClass())
+			}
+		})
+	}
+
+	// A code inside a Storage failure band resolves to the band meaning even though it is not a
+	// named code, against the Storage class.
+	band := NewStatus(0xA7FF, ServiceClassStorage)
+	if !band.IsFailure() {
+		t.Errorf("0xA7FF (Out of Resources band) IsFailure() = false, want true")
+	}
+}
