@@ -65,7 +65,9 @@ func (e *EncodeUnsupportedError) Error() string {
 func (e *EncodeUnsupportedError) Unwrap() error { return ErrEncodeUnsupported }
 
 // newEncodeUnsupported builds the typed encode-unsupported error for ts.
-func newEncodeUnsupported(ts TransferSyntax) error { return &EncodeUnsupportedError{TransferSyntax: ts} }
+func newEncodeUnsupported(ts TransferSyntax) error {
+	return &EncodeUnsupportedError{TransferSyntax: ts}
+}
 
 // codecRegistry maps a transfer syntax to its codec. There is no mutable global the
 // pixel pipeline reads under concurrency (PRD §9): the package-level registry is

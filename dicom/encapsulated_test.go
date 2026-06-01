@@ -154,7 +154,7 @@ func TestParseEncapsulatedTruncatedHeaderIsError(t *testing.T) {
 // before any read, not accepted as a short fragment.
 func TestParseEncapsulatedOverlongFragmentIsError(t *testing.T) {
 	var s bytes.Buffer
-	s.Write(itemHeader(0))         // empty BOT
+	s.Write(itemHeader(0))          // empty BOT
 	s.Write(itemHeader(0x7FFFFFFF)) // claims 2 GiB but no data follows
 	s.Write([]byte{1, 2})
 

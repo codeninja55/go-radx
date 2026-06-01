@@ -94,9 +94,9 @@ func TestResolvePixelGeometryRejectsZeroBitsAllocated(t *testing.T) {
 
 func TestPixelGeometryFrameLength(t *testing.T) {
 	tests := []struct {
-		name                                       string
-		rows, cols, samples, bitsAllocated         uint16
-		wantBytes                                  int
+		name                               string
+		rows, cols, samples, bitsAllocated uint16
+		wantBytes                          int
 	}{
 		{"8-bit RGB", 4, 6, 3, 8, 4 * 6 * 3},
 		{"16-bit mono", 512, 512, 1, 16, 512 * 512 * 2},

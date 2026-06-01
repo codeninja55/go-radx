@@ -10,7 +10,7 @@ func TestPackBitsRoundTrip(t *testing.T) {
 		{},
 		{0x00},
 		{0x01, 0x02, 0x03},
-		bytes.Repeat([]byte{0xAA}, 200),                  // long replicate run, capped at 128
+		bytes.Repeat([]byte{0xAA}, 200), // long replicate run, capped at 128
 		append(bytes.Repeat([]byte{0x01}, 5), 0x02, 0x03), // replicate then literal
 		{1, 2, 2, 2, 3, 4, 5, 5, 5, 5, 5, 6},
 	}
@@ -52,8 +52,8 @@ func TestRLERoundTripPixelExact(t *testing.T) {
 			make: func(n int) []byte {
 				b := make([]byte, n)
 				for i := 0; i < n; i += 2 {
-					b[i] = byte(i)        // LSB
-					b[i+1] = byte(i / 2)  // MSB
+					b[i] = byte(i)       // LSB
+					b[i+1] = byte(i / 2) // MSB
 				}
 				return b
 			},
