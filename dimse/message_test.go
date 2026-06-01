@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -216,6 +217,48 @@ func TestReassemblerNoDatasetCompletesAtCommandLast(t *testing.T) {
 	}
 	if r.command.Status != StatusStoreSuccess.Code {
 		t.Errorf("decoded status = %#04x, want store success", r.command.Status)
+	}
+}
+
+// TestReassemblerRejectsOversizedMessage is the receive-side DoS regression: a peer streaming PDVs
+// without ever setting the last-fragment bit (or declaring an enormous dataset) must not grow the
+// reassembler's buffers unboundedly. With a small injected maxBytes, the cumulative command bytes
+// crossing the cap must surface a typed *ProtocolError BEFORE the over-cap fragment is appended, so
+// the receive path can abort the association rather than allocating.
+func TestReassemblerRejectsOversizedMessage(t *testing.T) {
+	r := newMessageReassembler(dicom.ExplicitVRLittleEndian)
+	r.maxBytes = 32 // injected small cap so the test never allocates the 2 GiB default
+
+	// First command fragment fits under the cap (never last, so the peer "keeps streaming").
+	first := make([]byte, 20)
+	if _, err := r.add(pdu.PresentationDataValue{
+		PresentationContextID: 3,
+		MessageControlHeader:  pdu.MakeControlHeader(true, false), // command, NOT last
+		Data:                  first,
+	}); err != nil {
+		t.Fatalf("first under-cap fragment should be accepted: %v", err)
+	}
+	if got := len(r.commandBytes); got != len(first) {
+		t.Fatalf("after first fragment commandBytes = %d, want %d", got, len(first))
+	}
+
+	// Second fragment would push the total to 40 > 32: it must be rejected before being appended.
+	second := make([]byte, 20)
+	_, err := r.add(pdu.PresentationDataValue{
+		PresentationContextID: 3,
+		MessageControlHeader:  pdu.MakeControlHeader(true, false),
+		Data:                  second,
+	})
+	if err == nil {
+		t.Fatal("over-cap fragment returned nil error, want a typed *ProtocolError before unbounded growth")
+	}
+	var pe *ProtocolError
+	if !errors.As(err, &pe) {
+		t.Fatalf("over-cap error = %T, want *ProtocolError", err)
+	}
+	if got := len(r.commandBytes); got != len(first) {
+		t.Errorf("over-cap fragment was appended (commandBytes = %d, want %d): the cap must reject BEFORE allocating",
+			got, len(first))
 	}
 }
 

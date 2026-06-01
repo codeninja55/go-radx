@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/dul"
@@ -95,6 +96,15 @@ func maxPayloadPerPDV(sendCap MaxPDULength) int {
 	return payload
 }
 
+// defaultMaxMessageBytes bounds the total reassembled command+dataset size of a single inbound
+// DIMSE message. It is the receive-side denial-of-service guard: a malicious or buggy peer that
+// streams PDVs without ever setting the last-fragment bit, or that declares an enormous dataset,
+// must not grow memory unboundedly — the reassembler refuses to accumulate past this cap and the
+// receive path aborts the association instead of allocating. The 2 GiB bound is generous (no
+// legitimate single DIMSE message approaches it) yet finite; it is intended to become configurable
+// via the Server/AE in a later increment.
+const defaultMaxMessageBytes = 1 << 31 // 2 GiB
+
 // messageReassembler is the inbound DIMSE message state machine (DIMSE-002). It collects command
 // PDVs until command-last, decodes the command set, reads CommandDataSetType to learn whether a
 // dataset follows, and only then collects dataset PDVs until dataset-last, decoding the dataset
@@ -105,7 +115,9 @@ type messageReassembler struct {
 	// resolveTS maps the presentation context ID the message arrived on to the negotiated transfer
 	// syntax used to decode the dataset (DIMSE-003). The SCU knows the syntax up front (it chose
 	// the context); the SCP resolves it from the accepted contexts by the inbound context ID.
-	resolveTS      func(pcID uint8) (dicom.TransferSyntax, error)
+	resolveTS func(pcID uint8) (dicom.TransferSyntax, error)
+	// maxBytes caps the total reassembled command+dataset size, the receive-side DoS bound.
+	maxBytes       int
 	pcID           uint8
 	commandBytes   []byte
 	datasetBytes   []byte
@@ -127,7 +139,7 @@ func newMessageReassembler(ts dicom.TransferSyntax) *messageReassembler {
 // the inbound presentation context ID (the SCP path, where the syntax depends on which accepted
 // context the C-STORE-RQ arrived on).
 func newMessageReassemblerFunc(resolveTS func(pcID uint8) (dicom.TransferSyntax, error)) *messageReassembler {
-	return &messageReassembler{resolveTS: resolveTS}
+	return &messageReassembler{resolveTS: resolveTS, maxBytes: defaultMaxMessageBytes}
 }
 
 // add folds one PDV into the message and reports whether the message is complete. A PDV arriving
@@ -141,6 +153,9 @@ func (r *messageReassembler) add(item pdu.PresentationDataValue) (bool, error) {
 	if item.IsCommand() {
 		if r.commandLast {
 			return false, &ProtocolError{State: Sta6, Detail: "command PDV received after the command set was already complete"}
+		}
+		if err := r.checkCap(len(item.Data)); err != nil {
+			return false, err
 		}
 		r.commandBytes = append(r.commandBytes, item.Data...)
 		if item.IsLastFragment() {
@@ -159,6 +174,9 @@ func (r *messageReassembler) add(item pdu.PresentationDataValue) (bool, error) {
 	if !r.expectsDataset {
 		return false, &ProtocolError{State: Sta6, Detail: "dataset PDV received but the command declared CommandDataSetType not present"}
 	}
+	if err := r.checkCap(len(item.Data)); err != nil {
+		return false, err
+	}
 	r.datasetBytes = append(r.datasetBytes, item.Data...)
 	if item.IsLastFragment() {
 		ts, err := r.resolveTS(r.pcID)
@@ -172,6 +190,22 @@ func (r *messageReassembler) add(item pdu.PresentationDataValue) (bool, error) {
 		r.dataset = ds
 	}
 	return r.complete(), nil
+}
+
+// checkCap reports a typed *ProtocolError BEFORE appending incoming bytes would push the total
+// reassembled command+dataset size past maxBytes, the receive-side DoS bound. Refusing here — ahead
+// of the append — means a peer streaming PDVs without ever setting last-fragment, or declaring an
+// enormous dataset, never allocates past the cap; the receive path surfaces the error and the
+// association aborts. The message names the cap, never any patient value (PRD §9.1).
+func (r *messageReassembler) checkCap(incoming int) error {
+	if len(r.commandBytes)+len(r.datasetBytes)+incoming > r.maxBytes {
+		return &ProtocolError{
+			State: Sta6,
+			Detail: fmt.Sprintf("reassembled DIMSE message would exceed the %d-byte maximum message size",
+				r.maxBytes),
+		}
+	}
+	return nil
 }
 
 // decodeCommand decodes the accumulated command bytes and records whether a dataset follows.
