@@ -77,8 +77,8 @@ func TestDeidentifyWithDummyValues(t *testing.T) {
 func TestDeidentifyRemovesPrivateTagsByDefault(t *testing.T) {
 	ds := NewDataSet()
 	ds.SetString(TagStudyInstanceUID, "1.2.3")
-	creator := NewTag(0x0009, 0x0010)         // private creator (0009,0010)
-	privateData := NewTag(0x0009, 0x1001)     // private element under that creator
+	creator := NewTag(0x0009, 0x0010)     // private creator (0009,0010)
+	privateData := NewTag(0x0009, 0x1001) // private element under that creator
 	ds.Set(Element{Tag: creator, VR: VRLO, Value: NewStrings(VRLO, "ACME")})
 	ds.Set(Element{Tag: privateData, VR: VRLO, Value: NewStrings(VRLO, "secret")})
 

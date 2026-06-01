@@ -8,8 +8,8 @@ import "testing"
 func TestDeidentifyRecursesIntoSequenceItems(t *testing.T) {
 	// Build a dataset with PHI both at top level and nested two sequences deep.
 	inner := NewDataSet()
-	inner.SetString(TagPatientName, "Inner^Patient") // D, nested level 2
-	inner.SetString(TagPatientBirthTime, "010101")   // X, nested level 2
+	inner.SetString(TagPatientName, "Inner^Patient")  // D, nested level 2
+	inner.SetString(TagPatientBirthTime, "010101")    // X, nested level 2
 	inner.SetString(TagInstitutionName, "Inner Hosp") // X, nested level 2
 
 	middle := NewDataSet()

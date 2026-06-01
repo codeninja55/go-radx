@@ -30,10 +30,10 @@ func namedSRTree(t *testing.T) *ContentItem {
 				Code:         ConceptNameCode{CodeValue: "R-00339", CodingSchemeDesignator: "SRT", CodeMeaning: "Normal"},
 			},
 			{
-				ValueType:       ValueTypeNum,
-				Relationship:    RelationshipContains,
-				ConceptName:     ConceptNameCode{CodeValue: "G-A437", CodingSchemeDesignator: "SRT", CodeMeaning: "Diameter"},
-				MeasuredValue:   mustDecimal(t, "12.5"),
+				ValueType:        ValueTypeNum,
+				Relationship:     RelationshipContains,
+				ConceptName:      ConceptNameCode{CodeValue: "G-A437", CodingSchemeDesignator: "SRT", CodeMeaning: "Diameter"},
+				MeasuredValue:    mustDecimal(t, "12.5"),
 				MeasurementUnits: ConceptNameCode{CodeValue: "mm", CodingSchemeDesignator: "UCUM", CodeMeaning: "millimeter"},
 			},
 			{
