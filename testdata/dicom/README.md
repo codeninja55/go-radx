@@ -23,6 +23,9 @@ origin (see the `LICENSE-*.txt` files in this directory).
 | `liver_j2k.dcm` | JPEG 2000 Lossless (`1.2.840.10008.1.2.4.90`) | pydicom liver corpus, JPEG 2000 variant | MIT (pydicom) | CGo-gated decode and `ErrCodecUnavailable` under `nocgo` (Increment 6) |
 | `HTJ2KLossless_08_RGB.dcm` | High-Throughput JPEG 2000 (Lossless Only) (`1.2.840.10008.1.2.4.201`) | pydicom-data store; 480x640 RGB 8-bit synthetic | MIT (pydicom) | CGo-gated HTJ2K decode via OpenJPEG 2.5 and `ErrCodecUnavailable` under `nocgo` (Increment 6c) |
 | `HTJ2K_08_RGB.dcm` | High-Throughput JPEG 2000 (`1.2.840.10008.1.2.4.203`) | pydicom-data store; 480x640 RGB 8-bit synthetic | MIT (pydicom) | CGo-gated HTJ2K decode via OpenJPEG 2.5 and `ErrCodecUnavailable` under `nocgo` (Increment 6c) |
+| `SC_jpeg_no_color_transform.dcm` | JPEG Baseline (Process 1) (`1.2.840.10008.1.2.4.50`) | pydicom `SC_*` family; 256x256 RGB 8-bit, no colour transform | MIT (pydicom) | CGo-gated JPEG Baseline decode via libjpeg-turbo and `ErrCodecUnavailable` under `nocgo` (Increment 6c) |
+| `SC_rgb_small_odd_jpeg.dcm` | JPEG Baseline (Process 1) (`1.2.840.10008.1.2.4.50`) | pydicom `SC_*` family; 3x3 YBR_FULL 8-bit (JFIF/YCbCr) | MIT (pydicom) | YBR_FULL JPEG decode keeps native YCbCr samples; pixel-exact vs pydicom reference (Increment 6c) |
+| `JPGExtended.dcm` | JPEG Extended (Process 2 & 4) (`1.2.840.10008.1.2.4.51`) | pydicom test files; 1024x256 MONOCHROME2 16-bit allocated / 12-bit stored | MIT (pydicom) | CGo-gated JPEG Extended 12-bit decode via libjpeg-turbo (Increment 6c) |
 | `MR-SIEMENS-DICOM-WithOverlays.dcm` | Explicit VR Little Endian (`1.2.840.10008.1.2.1`) | GDCM | BSD-3-Clause (GDCM) | Overlays and repeating group `60xx` dictionary mask (Increment 1, DCM-012) |
 | `explicit_VR-UN.dcm` | JPEG 2000 Lossless (`1.2.840.10008.1.2.4.90`) | pydicom (issue #968); original from The Cancer Imaging Archive, de-identified, recompressed with `gdcmconv --j2k` | MIT (pydicom) | Ambiguous/`UN` VR resolution (nearly all tags carry VR `UN`) (Increment 1) |
 | `basic-text-sr.dcm` | Explicit VR Little Endian (`1.2.840.10008.1.2.1`) | pydicom `reportsi.dcm` (Basic Text SR Storage; synthetic placeholder patient identifiers) | MIT (pydicom) | Structured Report content-item tree parse and round-trip (Increment 8) |
@@ -45,7 +48,8 @@ origin (see the `LICENSE-*.txt` files in this directory).
 
 - `LICENSE-pydicom.txt` — MIT license covering the pydicom-origin fixtures: `liver.dcm`, `MR2_UNCI.dcm`,
   `SC_rgb_expb.dcm`, `liver_rle.dcm`, `liver_j2k.dcm`, `explicit_VR-UN.dcm`, `basic-text-sr.dcm`,
-  `HTJ2KLossless_08_RGB.dcm`, `HTJ2K_08_RGB.dcm`.
+  `HTJ2KLossless_08_RGB.dcm`, `HTJ2K_08_RGB.dcm`, `SC_jpeg_no_color_transform.dcm`, `SC_rgb_small_odd_jpeg.dcm`,
+  `JPGExtended.dcm`.
 - `LICENSE-gdcm.txt` — BSD-3-Clause license covering the GDCM-origin fixture `MR-SIEMENS-DICOM-WithOverlays.dcm`, and
   acknowledged for the GDCM tooling (`gdcmconv`) used to derive `liver_rle.dcm`.
 - `LICENSE-dcmtk.txt` — OFFIS BSD-3-Clause license acknowledged for the dcmtk tooling (`dcmconv`) used to derive
