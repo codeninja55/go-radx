@@ -852,6 +852,17 @@ func WithRetainDeviceIdentity() ProfileOption
 func WithRetainUIDs() ProfileOption                   // skip UID remapping (off by default)
 func WithDummyValues(replacements map[Tag]string) ProfileOption
 
+// WithRetainSafePrivate preserves private attributes whose private creator is on the
+// supplied allow-list (PS3.15 "Retain Safe Private" sub-option). Without it the Basic
+// Profile removes all private tags, since go-radx implements no private SOP-class logic.
+func WithRetainSafePrivate(creators ...string) ProfileOption
+
+// WithAllowBurnedInPixelData accepts the residual risk of burned-in identifying pixel
+// data: Deidentify will not return ErrBurnedInPixelData even when BurnedInAnnotation is
+// "YES". The caller asserts it has handled the pixels by other means; the profile never
+// itself removes burned-in pixel text in v1.
+func WithAllowBurnedInPixelData() ProfileOption
+
 // NewProfile builds the Basic Profile with the given options. The UID remap is
 // seeded from g so Study/Series/SOP UIDs are rewritten consistently and a given
 // source UID always maps to the same replacement within one run.

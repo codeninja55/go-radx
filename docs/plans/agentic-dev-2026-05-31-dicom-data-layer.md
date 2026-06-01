@@ -2792,6 +2792,8 @@ These surfaced while writing the plan and should be resolved before or during ex
    need to define them; the plan should commit their shapes when Increment 6 is expanded, deriving fields from the
    image-pixel module attributes the doc lists on `PixelData`.
 
-6. **`WithRetainSafePrivate` option.** The de-identification scope section names `WithRetainSafePrivate` but the
-   `ProfileOption` list does not include its signature. Increment 7 expansion should reconcile this — either it is an
-   additional `ProfileOption` to add, or the prose is aspirational. Surface to the API owner.
+6. **`WithRetainSafePrivate` option.** RESOLVED in Increment 7. The scope section's private-tag allow-listing prose
+   requires it, so `WithRetainSafePrivate(creators ...string) ProfileOption` was added to the committed `ProfileOption`
+   list (preserving private attributes whose creator is allow-listed; private tags are removed by default otherwise).
+   The reference doc option list was updated to match. The same increment also added `WithAllowBurnedInPixelData()`, the
+   opt-out the burned-in fail-closed prose (PS3.15 scope, line ~890) requires but had not named.
