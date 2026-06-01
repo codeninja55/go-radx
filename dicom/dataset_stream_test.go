@@ -2,6 +2,7 @@ package dicom
 
 import (
 	"bytes"
+	"io"
 	"testing"
 )
 
@@ -55,6 +56,20 @@ func TestEncodeDecodeDataSetImplicitVR(t *testing.T) {
 	}
 	if v, _ := got.GetString(NewTag(0x0008, 0x0018)); v != "1.2.3.4.5" {
 		t.Errorf("implicit VR round-trip = %q, want 1.2.3.4.5", v)
+	}
+}
+
+// TestEncodeDataSetNilReturnsError confirms EncodeDataSet returns a typed error rather than
+// panicking on a nil dataset — a nil *DataSet is a caller fault surfaced as an error, never a
+// nil-pointer dereference inside the encoder.
+func TestEncodeDataSetNilReturnsError(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("EncodeDataSet(nil) panicked: %v", r)
+		}
+	}()
+	if err := EncodeDataSet(io.Discard, nil, ExplicitVRLittleEndian); err == nil {
+		t.Error("EncodeDataSet(nil) returned nil error, want a typed error")
 	}
 }
 

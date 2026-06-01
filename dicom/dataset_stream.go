@@ -3,6 +3,7 @@ package dicom
 import (
 	"bufio"
 	"compress/flate"
+	"fmt"
 	"io"
 )
 
@@ -14,6 +15,9 @@ import (
 // (encapsulated or empty) transfer syntax is rejected before any bytes are written (Codex
 // DCM-002).
 func EncodeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error {
+	if ds == nil {
+		return fmt.Errorf("dicom: cannot encode a nil dataset")
+	}
 	if err := checkWritableTransferSyntax(ts); err != nil {
 		return err
 	}
