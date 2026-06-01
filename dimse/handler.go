@@ -236,6 +236,21 @@ func validateStoreContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (d
 	return nil
 }
 
+// validateEchoContext fails closed when a C-ECHO-RQ arrives on a presentation context whose
+// negotiated abstract syntax is not the Verification SOP Class. Accepting a mismatch would let a
+// peer run Verification on a context it negotiated for a different abstract syntax (e.g. a Storage
+// context), bypassing presentation-context negotiation (PS3.7/PS3.8) — the same protocol fault the
+// C-STORE path rejects with validateStoreContext, kept symmetric.
+func validateEchoContext(pcID uint8, abstractFor func(uint8) (dicom.SOPClassUID, bool), state State) error {
+	abstract, ok := abstractFor(pcID)
+	if !ok || abstract != verificationSOPClass {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-ECHO arrived on presentation context %d whose abstract syntax %q is not the Verification SOP Class",
+			pcID, abstract)}
+	}
+	return nil
+}
+
 // validateStoreInstance fails closed when a C-STORE-RQ's mandatory Affected SOP Instance UID is
 // absent or disagrees with the dataset's own SOP Instance UID (0008,0018). Storing on a mismatch
 // would let the SCP persist one instance while acknowledging another (the RSP echoes the command

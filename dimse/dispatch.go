@@ -149,6 +149,12 @@ func dispatchMessage(
 	base := OpInfo{CallingAETitle: calling, CalledAETitle: called}
 	switch cmd.CommandField {
 	case CommandCEchoRQ:
+		// Like the C-STORE path, the C-ECHO must arrive on a context whose negotiated abstract
+		// syntax is the Verification SOP Class; a peer that negotiated only Storage contexts must
+		// not run Verification on one (asymmetry with validateStoreContext — P2 review).
+		if err := validateEchoContext(pcID, acceptedAbstractSyntaxResolver(acc), acc.Machine().CurrentState()); err != nil {
+			return err
+		}
 		base.PresentationID = pcID
 		base.MessageID = cmd.MessageID
 		base.SOPClassUID = dicom.SOPClassUID(cmd.AffectedSOPClassUID)

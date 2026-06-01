@@ -120,6 +120,44 @@ func TestValidateStoreContext(t *testing.T) {
 	}
 }
 
+// TestServeEchoRejectsNonVerificationContext is the regression for the C-ECHO negotiation guard
+// (the symmetry with validateStoreContext — P2 review): a C-ECHO arriving on a presentation
+// context whose negotiated abstract syntax is not the Verification SOP Class must be rejected as a
+// protocol fault, so a peer that negotiated only Storage contexts cannot run Verification on one.
+func TestServeEchoRejectsNonVerificationContext(t *testing.T) {
+	const storage = dicom.SOPClassUID("1.2.840.10008.5.1.4.1.1.2") // CT Image Storage
+	abstractFor := func(pcID uint8) (dicom.SOPClassUID, bool) {
+		switch pcID {
+		case 1:
+			return verificationSOPClass, true
+		case 3:
+			return storage, true
+		default:
+			return "", false
+		}
+	}
+
+	// A C-ECHO on the Verification context passes.
+	if err := validateEchoContext(1, abstractFor, Sta6); err != nil {
+		t.Errorf("C-ECHO on the Verification context rejected: %v", err)
+	}
+
+	// A C-ECHO on a Storage context is a protocol fault.
+	err := validateEchoContext(3, abstractFor, Sta6)
+	if err == nil {
+		t.Fatal("C-ECHO on a Storage context = nil error, want a protocol fault")
+	}
+	var pe *ProtocolError
+	if !errors.As(err, &pe) {
+		t.Errorf("error = %T, want *ProtocolError", err)
+	}
+
+	// A C-ECHO on a context that was never negotiated is also a protocol fault.
+	if err := validateEchoContext(9, abstractFor, Sta6); err == nil {
+		t.Error("C-ECHO on an unknown presentation context = nil error, want a protocol fault")
+	}
+}
+
 // TestValidateStoreInstance is the regression for the instance-identity guard: a C-STORE-RQ whose
 // command Affected SOP Instance UID is absent or disagrees with the dataset's (0008,0018) is a
 // protocol fault, so the SCP never persists one instance while acknowledging another.
