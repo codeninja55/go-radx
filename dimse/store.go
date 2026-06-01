@@ -69,7 +69,13 @@ func (a *Association) Store(ctx context.Context, ds *dicom.DataSet, opts ...Stor
 	if !ok || sopClass == "" {
 		return Status{}, &ValidationError{Detail: "dataset has no SOP Class UID (0008,0016) to select a presentation context"}
 	}
-	sopInstance, _ := ds.GetString(tagSOPInstanceUID)
+	// SOP Instance UID is Type 1 in C-STORE-RQ: an absent or empty value would build a malformed RQ
+	// whose Affected SOP Instance UID element CommandSet.elements() omits. Fail closed before any
+	// wire I/O (PRD §9.2), mirroring the SOP Class check above.
+	sopInstance, ok := ds.GetString(tagSOPInstanceUID)
+	if !ok || sopInstance == "" {
+		return Status{}, &ValidationError{Detail: "dataset has no SOP Instance UID (0008,0018); a C-STORE-RQ requires it (Type 1)"}
+	}
 
 	cfg := storeConfig{priority: PriorityMedium}
 	for _, opt := range opts {

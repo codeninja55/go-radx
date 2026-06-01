@@ -139,6 +139,48 @@ func TestStoreRejectsDatasetWithoutSOPClass(t *testing.T) {
 	}
 }
 
+// TestStoreNoSOPInstanceUIDTransmitsNothing confirms Store fails closed when the dataset carries a
+// SOP Class UID but no SOP Instance UID (0008,0018). SOP Instance UID is Type 1 in C-STORE-RQ;
+// absent, it would build a malformed RQ whose Affected SOP Instance UID element is silently
+// omitted. Store must return a *ValidationError before any wire I/O and transmit no PDU (PRD §9.2).
+func TestStoreNoSOPInstanceUIDTransmitsNothing(t *testing.T) {
+	addr, gotData := startVerificationOnlySCP(t)
+	ae, err := NewAE(AETitle("SCU"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	assoc, err := ae.Associate(ctx, addr, AETitle("SCP"), VerificationContexts())
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+
+	// A dataset with a SOP Class UID but NO SOP Instance UID (0008,0018).
+	ds := dicom.NewDataSet()
+	ds.SetString(dicom.NewTag(0x0008, 0x0016), "1.2.840.10008.5.1.4.1.1.2") // CT Image Storage
+
+	_, err = assoc.Store(ctx, ds)
+	if err == nil {
+		t.Fatal("Store of a dataset with no SOP Instance UID returned nil error, want a *ValidationError")
+	}
+	var ve *ValidationError
+	if !errors.As(err, &ve) {
+		t.Errorf("Store error = %T, want *ValidationError", err)
+	}
+
+	// Release; the SCP then confirms it never received a P-DATA-TF (nothing was transmitted).
+	_ = assoc.Release(ctx)
+	select {
+	case derr := <-gotData:
+		if derr != nil {
+			t.Error(derr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("timed out waiting for the SCP to confirm no P-DATA-TF was sent")
+	}
+}
+
 // segmentationStorageSOPClass is the SOP Class of the liver.dcm fixture — Segmentation Storage,
 // which is in StorageContexts() (the validated radiology Storage set), encoded uncompressed
 // Explicit VR LE, so the four-syntax DIMSE skeleton can negotiate and exercise it end-to-end.
