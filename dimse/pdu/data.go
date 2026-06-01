@@ -82,6 +82,15 @@ func decodePDV(br *boundedReader) (PresentationDataValue, error) {
 		}
 	}
 	payloadLen := int64(itemLen - pdvHeaderLen)
+	// Cap the payload against the absolute maximum before allocating: the bounded
+	// reader's remaining count is seeded from the declared (attacker-controlled) PDU
+	// length, so CanRead alone does not bound the allocation (the remaining-bytes
+	// check and the absolute-length check are distinct guards). PRD §9.3.
+	if payloadLen > int64(MaxPDULength) {
+		return PresentationDataValue{}, &PDUError{
+			Detail: fmt.Sprintf("PDV payload length %d exceeds maximum PDU length %d", payloadLen, MaxPDULength),
+		}
+	}
 	var hdr [2]byte
 	if _, err := io.ReadFull(br, hdr[:]); err != nil {
 		return PresentationDataValue{}, err
@@ -134,6 +143,11 @@ func (p *DataTF) Decode(br *boundedReader) error {
 			return err
 		}
 		p.Items = append(p.Items, item)
+	}
+	// A P-DATA-TF PDU body must carry one or more PDV items (PS3.8 §9.3.5); an empty
+	// body is a malformed PDU, not an empty success.
+	if len(p.Items) == 0 {
+		return &PDUError{Detail: "P-DATA-TF PDU must contain at least one PDV item"}
 	}
 	return nil
 }

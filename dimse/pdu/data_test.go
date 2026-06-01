@@ -102,6 +102,41 @@ func TestPDVDecodeRejectsLengthBeyondBody(t *testing.T) {
 	}
 }
 
+// TestPDVDecodeRejectsOversizedPayloadBeforeAlloc guards the allocation against a
+// hostile declared length: the bounded reader is seeded with a huge remaining count
+// (as it would be from an attacker-declared PDU length), so the remaining-bytes
+// guard alone would pass — only the absolute MaxPDULength cap stops the make. The
+// payload one byte over the ceiling must be rejected before any buffer is allocated.
+func TestPDVDecodeRejectsOversizedPayloadBeforeAlloc(t *testing.T) {
+	var raw bytes.Buffer
+	var hdr [4]byte
+	binary.BigEndian.PutUint32(hdr[:], MaxPDULength+pdvHeaderLen+1) // payload = MaxPDULength + 1
+	raw.Write(hdr[:])
+	br := newBoundedReader(&raw, int64(1)<<40) // remaining far exceeds the bytes present
+	_, err := decodePDV(br)
+	if err == nil {
+		t.Fatal("decodePDV should reject a payload exceeding MaxPDULength before allocation")
+	}
+	var pe *PDUError
+	if !errors.As(err, &pe) {
+		t.Errorf("error = %T, want *PDUError", err)
+	}
+}
+
+// TestDataTFRejectsEmptyBody asserts a P-DATA-TF whose body carries no PDV items is a
+// protocol error, not an empty success (PS3.8 §9.3.5 requires one or more PDVs).
+func TestDataTFRejectsEmptyBody(t *testing.T) {
+	out := &DataTF{}
+	err := out.Decode(newBoundedReader(bytes.NewReader(nil), 0))
+	if err == nil {
+		t.Fatal("Decode of an empty P-DATA-TF body should be a protocol error")
+	}
+	var pe *PDUError
+	if !errors.As(err, &pe) {
+		t.Errorf("error = %T, want *PDUError", err)
+	}
+}
+
 func TestDataTFRoundTrip(t *testing.T) {
 	in := &DataTF{Items: []PresentationDataValue{
 		{PresentationContextID: 1, MessageControlHeader: 0x01, Data: []byte("cmd")},

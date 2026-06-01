@@ -19,6 +19,15 @@ const (
 	PDUTypeAbort       PDUType = 0x07
 )
 
+// MaxPDULength is the absolute ceiling the codec accepts for a PDU body length,
+// independent of the association-negotiated Maximum Length. It bounds allocation
+// against a hostile declared length (PRD §9.3): because the bounded reader is seeded
+// from the declared length read off the wire, that length is not proof that bytes
+// are present, so the remaining-bytes check alone cannot cap a buffer — a declared
+// length and any single PDV payload above this ceiling are rejected before
+// allocation. The association layer enforces the tighter negotiated maximum on top.
+const MaxPDULength uint32 = 0x00FFFFFF // 16 MiB - 1
+
 var pduTypeNames = map[PDUType]string{
 	PDUTypeAssociateRQ: "A-ASSOCIATE-RQ",
 	PDUTypeAssociateAC: "A-ASSOCIATE-AC",
@@ -72,5 +81,8 @@ func readHeader(r io.Reader) (PDUType, uint32, error) {
 		return 0, 0, fmt.Errorf("pdu: unrecognised PDU type 0x%02X", h[0])
 	}
 	length := binary.BigEndian.Uint32(h[2:])
+	if length > MaxPDULength {
+		return 0, 0, fmt.Errorf("pdu: %s declared body length %d exceeds maximum %d", pt, length, MaxPDULength)
+	}
 	return pt, length, nil
 }
