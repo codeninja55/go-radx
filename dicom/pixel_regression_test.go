@@ -36,9 +36,12 @@ func TestNativeDecodeSCRGBRegression(t *testing.T) {
 
 // TestUnknownCompressedSyntaxReturnsCodecUnavailable checks the degradation for any
 // compressed syntax with no registered codec, using a synthetic encapsulated stream
-// under an unregistered JPEG-LS UID.
+// under MPEG-2 Main Profile / Main Level. go-radx negotiates and transports MPEG
+// instances but targets no pixel codec for them in any build (see
+// docs/conformance/dicom.md), so this degradation holds regardless of which CGo
+// codec tags are enabled.
 func TestUnknownCompressedSyntaxReturnsCodecUnavailable(t *testing.T) {
-	const jpegLS TransferSyntax = "1.2.840.10008.1.2.4.80"
+	const mpeg2 TransferSyntax = "1.2.840.10008.1.2.4.100"
 
 	ds := NewDataSet()
 	ds.Set(Element{Tag: TagRows, VR: VRUS, Value: NewInts(VRUS, 2)})
@@ -51,7 +54,7 @@ func TestUnknownCompressedSyntaxReturnsCodecUnavailable(t *testing.T) {
 	s.Write([]byte{1, 2, 3, 4})
 	s.Write(seqDelim())
 
-	pd, err := NewEncapsulatedPixelData(ds, jpegLS, s.Bytes())
+	pd, err := NewEncapsulatedPixelData(ds, mpeg2, s.Bytes())
 	if err != nil {
 		t.Fatalf("NewEncapsulatedPixelData: %v", err)
 	}
