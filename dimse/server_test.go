@@ -284,10 +284,16 @@ func TestServerMaxAssociationsRefusesBeforeSpawn(t *testing.T) {
 	_ = assoc1.Release(ctx)
 }
 
-// TestServerShutdownClosesConnectionsWhileHandlerBlocked is the named DIMSE-014 regression: Shutdown
-// with a deadline returns after closing active association connections even while a handler is
-// parked mid-store. The prototype waited for handlers WITHOUT closing connections, so a handler
-// blocked in ReadPDU hung Shutdown forever; this confirms Shutdown returns promptly.
+// TestServerShutdownClosesConnectionsWhileHandlerBlocked is the named DIMSE-014 regression for
+// cooperative shutdown. A handler doing application work (here: a Store parked observing its
+// context, the realistic C-STORE-persisting-to-disk case) must be woken by Shutdown CANCELLING the
+// handler context — not left to wait out the Shutdown deadline. The handler here blocks ONLY on its
+// context (h.release is never closed during the assertion), so if Shutdown returned via its
+// deadline rather than the cancel/wake path the elapsed time would approach the 5s deadline; the
+// test asserts it returns well under 1s, and so FAILS if the context is not cancelled.
+//
+// Earlier this test was hollow: its handler blocked on a test channel and Shutdown passed via the
+// close-first deadline branch (~the deadline), never exercising the wake path it claimed to prove.
 func TestServerShutdownClosesConnectionsWhileHandlerBlocked(t *testing.T) {
 	src, err := dicom.ReadFile(filepath.Join("..", "testdata", "dicom", "liver.dcm"))
 	if err != nil {
@@ -299,7 +305,7 @@ func TestServerShutdownClosesConnectionsWhileHandlerBlocked(t *testing.T) {
 		echoStatus:   StatusEchoSuccess,
 		storeStatus:  StatusStoreSuccess,
 		storeEntered: make(chan struct{}),
-		release:      make(chan struct{}),
+		release:      make(chan struct{}), // closed only on cleanup, never during the assertion
 	}
 
 	ae, err := NewAE(AETitle("RADX-SCP"))
@@ -331,18 +337,28 @@ func TestServerShutdownClosesConnectionsWhileHandlerBlocked(t *testing.T) {
 		t.Fatal("handler never entered Store; cannot prove it is parked mid-operation")
 	}
 
-	// Shutdown must close the active connection (waking the handler's blocked reads) and return
-	// within the deadline, never hang waiting for a handler still blocked in ReadPDU.
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Shutdown cancels the handler context, waking the parked handler cooperatively, and must
+	// return PROMPTLY — not wait out its (generous) deadline. A 5s deadline with a sub-1s assertion
+	// makes the deadline path unmistakable: only the cancel/wake path returns this fast.
+	const shutdownDeadline = 5 * time.Second
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownDeadline)
 	defer shutdownCancel()
 	done := make(chan error, 1)
+	start := time.Now()
 	go func() { done <- srv.Shutdown(shutdownCtx) }()
 
 	select {
-	case <-done:
-		// Returned within the deadline — the close-first ordering worked.
-	case <-time.After(4 * time.Second):
-		t.Fatal("Shutdown did not return while a handler was parked; connections were not closed first (DIMSE-014)")
+	case serr := <-done:
+		elapsed := time.Since(start)
+		if serr != nil {
+			t.Fatalf("Shutdown returned %v (deadline path); want a prompt cooperative return", serr)
+		}
+		if elapsed >= time.Second {
+			t.Fatalf("Shutdown took %s (>= 1s); it returned via the deadline, not by cancelling the handler context (DIMSE-014)", elapsed)
+		}
+		t.Logf("Shutdown returned promptly in %s (cooperative cancel, deadline %s)", elapsed, shutdownDeadline)
+	case <-time.After(shutdownDeadline + time.Second):
+		t.Fatal("Shutdown did not return; the handler context was not cancelled (DIMSE-014)")
 	}
 
 	// ListenAndServe returns once the listener is closed.

@@ -43,6 +43,11 @@ type StoreHandler interface {
 // interfaces (EchoHandler, StoreHandler) and the dispatcher type-asserts for each. A handler
 // returning success on work it did not do is a defect (PRD §9.2 fail-closed). The query/retrieve
 // capabilities (Find/Get/Move) join this union with their services in M3.
+//
+// A handler MUST observe the context it is passed: Server.Shutdown cancels it, and a handler that
+// selects on ctx.Done() (or threads ctx through its I/O) is woken cooperatively and returns
+// promptly. A handler that ignores its context and is not blocked in a connection read cannot be
+// woken — Go cannot forcibly kill a goroutine — and so can outlive Shutdown's deadline.
 type Handler interface {
 	EchoHandler
 	StoreHandler

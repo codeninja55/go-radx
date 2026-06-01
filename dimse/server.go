@@ -59,6 +59,12 @@ func WithRequireCallingAETitles(ts ...AETitle) ServerOption {
 // explicit in the listen address. Every goroutine it spawns — the accept loop and each
 // per-association handler — is tracked and joined by Shutdown; there are no fire-and-forget
 // goroutines (PRD §9.4). It is safe for concurrent use.
+//
+// Shutdown cancels the context passed to every in-flight Handler (Echo/Store) and closes the
+// active connections, so a handler MUST observe its context: a handler that selects on ctx.Done()
+// (or hands ctx to its I/O) returns promptly on Shutdown. A handler that ignores its context AND is
+// not blocked in a connection read cannot be woken — Go cannot forcibly kill a goroutine — so it
+// can outlive Shutdown's deadline. Observing the context is therefore the handler's contract.
 type Server struct {
 	ae        *AE
 	supported []acse.SupportedContext
@@ -74,6 +80,11 @@ type Server struct {
 	listener net.Listener
 	conns    map[*dul.Conn]struct{} // active association connections, closed first by Shutdown
 	shutdown bool
+
+	// cancelHandlers cancels the handler context derived in ListenAndServe. Shutdown calls it so a
+	// handler observing its context returns promptly (cooperative shutdown), rather than only being
+	// woken if it happens to be blocked in a connection read (Codex/concurrency review DIMSE-014).
+	cancelHandlers context.CancelFunc
 
 	wg           sync.WaitGroup
 	shutdownOnce sync.Once
@@ -103,11 +114,17 @@ func NewServer(ae *AE, supported []PresentationContext, h Handler, opts ...Serve
 // 127.0.0.1, so a non-loopback bind must name the interface explicitly (PRD §9.1). It returns nil
 // on a clean Shutdown (the listener closed) and a typed error on a bind failure. It blocks for the
 // lifetime of the listener.
+//
+// Every per-association handler runs under a context derived from ctx that Shutdown cancels, so a
+// handler observing its context is woken cooperatively on Shutdown (it is NOT the Shutdown context).
 func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 	ln, err := net.Listen("tcp", loopbackAddr(addr))
 	if err != nil {
 		return fmt.Errorf("dimse: listen on %q: %w", addr, err)
 	}
+
+	handlerCtx, cancelHandlers := context.WithCancel(ctx)
+	defer cancelHandlers()
 
 	s.mu.Lock()
 	if s.shutdown {
@@ -117,9 +134,10 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 		return nil
 	}
 	s.listener = ln
+	s.cancelHandlers = cancelHandlers
 	s.mu.Unlock()
 
-	return s.acceptLoop(ctx, ln)
+	return s.acceptLoop(handlerCtx, ln)
 }
 
 // acceptLoop accepts connections until the listener is closed (Shutdown) or ctx is cancelled. For
@@ -201,19 +219,33 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 	_ = conn.Close()
 }
 
-// Shutdown stops accepting new associations, closes every active association connection FIRST so
-// any handler blocked in a DriveInbound/ReadPDU returns, then waits for the in-flight handlers and
-// the accept loop to finish, bounded by ctx. Closing connections before waiting is the fix for the
-// prototype's Shutdown, which waited for handlers WITHOUT closing connections and so hung forever on
-// a handler blocked mid-read (Codex DIMSE-014). It is idempotent: a second Shutdown is a safe no-op.
-// It returns ctx.Err() if the handlers do not finish within the deadline (after the connections are
-// closed), nil otherwise.
+// Shutdown stops accepting new associations and then drives a cooperative, then forced-wake,
+// stop of the in-flight handlers, bounded by ctx. It is idempotent: a second Shutdown is a safe
+// no-op. It returns ctx.Err() if the handlers do not finish within the deadline, nil otherwise.
+//
+// The ordering matters. Shutdown sets the shutdown flag, closes the listener (no new association
+// can start), then CANCELS the handler context so a handler doing application work — a C-STORE
+// persisting to disk, the realistic case — that observes its context returns promptly. It then
+// closes the active connections so a handler parked in a DriveInbound/ReadPDU (which the context
+// cancellation alone may not interrupt at the socket) is also woken. Finally it joins the tracked
+// goroutines, bounded by ctx.
+//
+// Cancelling the context is the fix for a Shutdown that only closed connections: such a Shutdown
+// woke a handler blocked in a socket read but NOT one busy in application work, so it waited out
+// the full deadline (Codex/concurrency review DIMSE-014). The dataset already in flight is not
+// lost — a handler that observes its context can complete the in-flight store and then return.
+//
+// A handler that ignores its context AND is not in a connection read cannot be woken (Go cannot
+// forcibly kill a goroutine); it can outlive this deadline, and the waiter goroutine outlives
+// Shutdown with it until that handler finally returns. Observing the cancelled context is the
+// handler's contract (see Server).
 func (s *Server) Shutdown(ctx context.Context) error {
 	var err error
 	s.shutdownOnce.Do(func() {
 		s.mu.Lock()
 		s.shutdown = true
 		ln := s.listener
+		cancelHandlers := s.cancelHandlers
 		conns := make([]*dul.Conn, 0, len(s.conns))
 		for c := range s.conns {
 			conns = append(conns, c)
@@ -224,9 +256,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		if ln != nil {
 			_ = ln.Close()
 		}
-		// Close active connections BEFORE waiting, so a handler parked in DriveInbound/ReadPDU
-		// wakes and its goroutine can finish (DIMSE-014). The dataset already in flight is not
-		// lost — the handler that received it runs to completion; only the blocked read is woken.
+		// Cancel the handler context so a handler observing it (doing application work, not blocked
+		// in a read) returns promptly — cooperative shutdown (DIMSE-014).
+		if cancelHandlers != nil {
+			cancelHandlers()
+		}
+		// Close active connections too, so a handler parked in DriveInbound/ReadPDU wakes and its
+		// goroutine can finish; the in-flight dataset is not lost — a cooperative handler completes
+		// it and returns.
 		for _, c := range conns {
 			_ = c.Close()
 		}
