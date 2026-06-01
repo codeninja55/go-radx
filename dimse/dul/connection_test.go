@@ -204,6 +204,87 @@ func TestConnWriteRejectsNilContextDeadlinePassthrough(t *testing.T) {
 	}
 }
 
+// TestConnCancelReadDoesNotDisturbWrite is the regression for direction-specific
+// deadlines: the connection is full-duplex, so cancelling a blocked read must not time out
+// an in-flight write. A shared SetDeadline would set both directions at once, spuriously
+// failing the concurrent write; SetReadDeadline / SetWriteDeadline keep each direction's
+// cancellation independent. It runs under -race to flush out a shared-deadline data race.
+func TestConnCancelReadDoesNotDisturbWrite(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close() })
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		nc, aerr := ln.Accept()
+		if aerr != nil {
+			accepted <- nil
+			return
+		}
+		accepted <- nc
+	}()
+
+	dialed, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	peer := <-accepted
+	if peer == nil {
+		t.Fatal("accept failed")
+	}
+	t.Cleanup(func() { dialed.Close(); peer.Close() })
+
+	c := NewConn(dialed, 0)
+
+	// A read that will never see data; its context will be cancelled to unblock it. The
+	// cancellation must touch only the read deadline.
+	readCtx, cancelRead := context.WithCancel(context.Background())
+	readDone := make(chan error, 1)
+	go func() {
+		_, rerr := c.ReadPDU(readCtx)
+		readDone <- rerr
+	}()
+
+	// The peer drains anything written so a concurrent write completes.
+	peerDrained := make(chan struct{})
+	go func() {
+		buf := make([]byte, 64)
+		for {
+			if _, derr := peer.Read(buf); derr != nil {
+				close(peerDrained)
+				return
+			}
+		}
+	}()
+
+	// Cancel the read while the write is in flight, then write concurrently.
+	writeDone := make(chan error, 1)
+	go func() {
+		cancelRead()
+		writeDone <- c.WritePDU(context.Background(), &pdu.ReleaseRQ{})
+	}()
+
+	select {
+	case rerr := <-readDone:
+		if !errors.Is(rerr, context.Canceled) {
+			t.Errorf("cancelled read returned %v, want context.Canceled", rerr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("cancelled read did not return")
+	}
+
+	select {
+	case werr := <-writeDone:
+		if werr != nil {
+			t.Errorf("write disturbed by the read cancellation: %v (shared deadline?)", werr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("write with its own context did not complete")
+	}
+}
+
 func TestConnEncodeRoundTripsThroughBuffer(t *testing.T) {
 	// Sanity: a PDU written by the connection decodes byte-identically via the pdu codec.
 	var buf bytes.Buffer

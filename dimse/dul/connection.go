@@ -60,7 +60,7 @@ func (c *Conn) WritePDU(ctx context.Context, p pdu.PDU) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	stop := c.watchContext(ctx)
+	stop := c.watchContext(ctx, c.nc.SetWriteDeadline)
 	defer stop()
 
 	if err := pdu.WritePDU(c.nc, p); err != nil {
@@ -79,7 +79,7 @@ func (c *Conn) ReadPDU(ctx context.Context) (pdu.PDU, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	stop := c.watchContext(ctx)
+	stop := c.watchContext(ctx, c.nc.SetReadDeadline)
 	defer stop()
 
 	p, err := pdu.ReadPDU(c.nc)
@@ -177,21 +177,24 @@ func pduToEvent(p pdu.PDU) Evt {
 }
 
 // watchContext arms a goroutine that, on ctx cancellation, sets a past deadline on the
-// connection so a blocked Read/Write returns immediately. The returned stop function
-// tears the watcher down and clears the deadline.
-func (c *Conn) watchContext(ctx context.Context) func() {
+// connection so a blocked Read/Write returns immediately. setDeadline is the
+// direction-specific setter (SetReadDeadline on the read path, SetWriteDeadline on the
+// write path) so cancelling a read cannot disturb an in-flight write and vice versa: the
+// connection is full-duplex and each direction's cancellation is independent. The returned
+// stop function tears the watcher down and clears that direction's deadline.
+func (c *Conn) watchContext(ctx context.Context, setDeadline func(time.Time) error) func() {
 	done := make(chan struct{})
 	go func() {
 		select {
 		case <-ctx.Done():
 			// A past deadline interrupts an in-flight Read or Write on the net.Conn.
-			_ = c.nc.SetDeadline(time.Unix(1, 0))
+			_ = setDeadline(time.Unix(1, 0))
 		case <-done:
 		}
 	}()
 	return func() {
 		close(done)
-		_ = c.nc.SetDeadline(time.Time{})
+		_ = setDeadline(time.Time{})
 	}
 }
 
