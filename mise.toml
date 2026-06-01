@@ -1,5 +1,6 @@
 [tools]
 go = "1.26"
+golangci-lint = "2.12.2"
 
 [tasks."test:dicom"]
 description = "Run the dicom package test suite (race + coverage)"
@@ -12,3 +13,7 @@ run = "tools/dicom-conformance/dciodvfy.sh"
 [tasks."dicom:pydicom"]
 description = "Round-trip vendored fixtures through pydicom (skips if absent)"
 run = "python3 tools/dicom-conformance/pydicom_roundtrip.py testdata/dicom"
+
+[tasks."lint"]
+description = "Run golangci-lint (2.x, Go 1.26 compatible)"
+run = "golangci-lint run ./..."

@@ -1,0 +1,19 @@
+# golangci-lint v2 configuration (Go 1.26).
+# The v2 schema differs from v1; `version: "2"` is required.
+version: "2"
+
+linters:
+  # The standard set: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  exclusions:
+    # Generated files (the tag/UID dictionaries carry a "Code generated" header).
+    generated: lax
+    rules:
+      # Unchecked errors in tests are conventional and low-risk.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
