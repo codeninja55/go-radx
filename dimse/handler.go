@@ -268,16 +268,21 @@ func validateStoreContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (d
 }
 
 // validateEchoContext fails closed when a C-ECHO-RQ arrives on a presentation context whose
-// negotiated abstract syntax is not the Verification SOP Class. Accepting a mismatch would let a
-// peer run Verification on a context it negotiated for a different abstract syntax (e.g. a Storage
-// context), bypassing presentation-context negotiation (PS3.7/PS3.8) — the same protocol fault the
-// C-STORE path rejects with validateStoreContext, kept symmetric.
-func validateEchoContext(pcID uint8, abstractFor func(uint8) (dicom.SOPClassUID, bool), state State) error {
+// negotiated abstract syntax is not the Verification SOP Class, OR when the command's Affected SOP
+// Class UID is not the Verification SOP Class. Either lets a peer run Verification outside the
+// negotiated/declared SOP Class, bypassing presentation-context negotiation (PS3.7 §9.1.5 makes the
+// command's Affected SOP Class UID Type 1) — the same protocol fault the C-STORE path rejects with
+// validateStoreContext, kept symmetric in both the context and the command checks.
+func validateEchoContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (dicom.SOPClassUID, bool), state State) error {
 	abstract, ok := abstractFor(pcID)
 	if !ok || abstract != verificationSOPClass {
 		return &ProtocolError{State: state, Detail: fmt.Sprintf(
 			"C-ECHO arrived on presentation context %d whose abstract syntax %q is not the Verification SOP Class",
 			pcID, abstract)}
+	}
+	if dicom.SOPClassUID(cmd.AffectedSOPClassUID) != verificationSOPClass {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-ECHO-RQ Affected SOP Class %q is not the Verification SOP Class", cmd.AffectedSOPClassUID)}
 	}
 	return nil
 }

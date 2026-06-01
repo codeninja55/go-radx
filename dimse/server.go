@@ -195,7 +195,8 @@ func (s *Server) acceptLoop(ctx context.Context, ln net.Listener) error {
 			continue
 		}
 
-		s.wg.Add(1)
+		// trackConn already did wg.Add(1) under s.mu (so the goroutine is counted before the
+		// connection is visible to Shutdown); this goroutine pairs it with wg.Done.
 		go func() {
 			defer s.wg.Done()
 			defer func() { <-s.sem }()
@@ -331,6 +332,11 @@ func (s *Server) trackConn(conn *dul.Conn) bool {
 	if s.shutdown {
 		return false
 	}
+	// Count the per-association goroutine under the SAME lock that records the connection (and that
+	// Shutdown's teardown snapshots under). Otherwise a connection could become visible to Shutdown
+	// — and so be closed and waited on — before its goroutine is counted, racing this wg.Add against
+	// Shutdown's wg.Wait (Go WaitGroup misuse, and a possible early return before the join).
+	s.wg.Add(1)
 	s.conns[conn] = struct{}{}
 	return true
 }

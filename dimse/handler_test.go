@@ -138,13 +138,15 @@ func TestServeEchoRejectsNonVerificationContext(t *testing.T) {
 		}
 	}
 
-	// A C-ECHO on the Verification context passes.
-	if err := validateEchoContext(1, abstractFor, Sta6); err != nil {
+	verifyRQ := CommandSet{CommandField: CommandCEchoRQ, AffectedSOPClassUID: dicom.UID(verificationSOPClass)}
+
+	// A C-ECHO on the Verification context, naming the Verification SOP Class, passes.
+	if err := validateEchoContext(verifyRQ, 1, abstractFor, Sta6); err != nil {
 		t.Errorf("C-ECHO on the Verification context rejected: %v", err)
 	}
 
-	// A C-ECHO on a Storage context is a protocol fault.
-	err := validateEchoContext(3, abstractFor, Sta6)
+	// A C-ECHO on a Storage context is a protocol fault (context check).
+	err := validateEchoContext(verifyRQ, 3, abstractFor, Sta6)
 	if err == nil {
 		t.Fatal("C-ECHO on a Storage context = nil error, want a protocol fault")
 	}
@@ -154,8 +156,15 @@ func TestServeEchoRejectsNonVerificationContext(t *testing.T) {
 	}
 
 	// A C-ECHO on a context that was never negotiated is also a protocol fault.
-	if err := validateEchoContext(9, abstractFor, Sta6); err == nil {
+	if err := validateEchoContext(verifyRQ, 9, abstractFor, Sta6); err == nil {
 		t.Error("C-ECHO on an unknown presentation context = nil error, want a protocol fault")
+	}
+
+	// A C-ECHO on the Verification context but naming a NON-Verification SOP Class in the command
+	// is a protocol fault (command check — the new symmetry with validateStoreContext).
+	wrongClass := CommandSet{CommandField: CommandCEchoRQ, AffectedSOPClassUID: dicom.UID(storage)}
+	if err := validateEchoContext(wrongClass, 1, abstractFor, Sta6); err == nil {
+		t.Error("C-ECHO-RQ with a non-Verification Affected SOP Class = nil error, want a protocol fault")
 	}
 }
 
