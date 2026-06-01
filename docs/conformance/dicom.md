@@ -280,27 +280,42 @@ without CGo.
 ### Tier 3 — compressed JPEG family: negotiated always, pixel codec optional via CGo
 
 These are accepted at the dataset and association level always (the encapsulated bytes are parsed, stored, and
-forwarded). Pixel-frame **decode** is supported for every listed compressed syntax through an optional CGo codec; v1's
-codec policy is decode-all for the supported set. Pixel-frame **encode** (and therefore transcode) is supported only
-where a go-radx encoder exists, prioritised RLE Lossless first (Tier 2, pure Go) and JPEG 2000 Lossless next, also
-behind the optional-CGo build tag. The encode-capable column below marks each syntax decode-only versus decode+encode.
-With CGo disabled, requesting decoded frames from one of these instances returns the typed `dicom.ErrCodecUnavailable`
-naming the transfer syntax — a clear failure, never a build break or a silent partial image (PRD §7.3).
+forwarded). Pixel-frame **decode** is provided by optional CGo codecs, each behind its own build tag so a deployment
+links only the C libraries it needs. Pixel-frame **encode** (and therefore transcode) is supported only where a go-radx
+encoder exists and is pixel-exact: RLE Lossless first (Tier 2, pure Go), then JPEG 2000 Lossless (OpenJPEG) and JPEG-LS
+Lossless (CharLS). With the relevant tag disabled, requesting decoded frames from one of these instances returns the
+typed `dicom.ErrCodecUnavailable` naming the transfer syntax: a clear failure, never a build break or a silent
+partial image (PRD §7.3).
+
+The CGo codecs and their build tags and backing libraries:
+
+- `dicom_openjpeg` — OpenJPEG (`libopenjp2`): JPEG 2000 and High-Throughput JPEG 2000.
+- `dicom_libjpeg` — libjpeg-turbo (`libturbojpeg`): JPEG Baseline and Extended (lossy DCT processes).
+- `dicom_charls` — CharLS (`charls`): JPEG-LS Lossless and Near-Lossless.
+
+The "Pixel decode" column names the build tag that enables decode (empty cell with `ErrCodecUnavailable` until that tag
+is set). "Pixel encode" marks each syntax decode-only versus decode+encode.
 
 | Transfer syntax | UID | Negotiate / transport | Pixel decode | Pixel encode |
 |-----------------|-----|-----------------------|--------------|--------------|
-| JPEG Baseline (8-bit) | `1.2.840.10008.1.2.4.50` | Always | CGo only | No (decode-only) |
-| JPEG Extended (12-bit) | `1.2.840.10008.1.2.4.51` | Always | CGo only | No (decode-only) |
-| JPEG Lossless, Non-Hierarchical | `1.2.840.10008.1.2.4.57` | Always | CGo only | No (decode-only) |
-| JPEG Lossless SV1 | `1.2.840.10008.1.2.4.70` | Always | CGo only | No (decode-only) |
-| JPEG-LS Lossless | `1.2.840.10008.1.2.4.80` | Always | CGo only | No (decode-only) |
-| JPEG-LS Near-Lossless | `1.2.840.10008.1.2.4.81` | Always | CGo only | No (decode-only) |
-| JPEG 2000 Lossless | `1.2.840.10008.1.2.4.90` | Always | CGo only | CGo only (first encoder) |
-| JPEG 2000 | `1.2.840.10008.1.2.4.91` | Always | CGo only | No (decode-only) |
-| HTJ2K Lossless | `1.2.840.10008.1.2.4.201` | Always | CGo only | No (decode-only) |
-| HTJ2K | `1.2.840.10008.1.2.4.203` | Always | CGo only | No (decode-only) |
+| JPEG Baseline (8-bit) | `1.2.840.10008.1.2.4.50` | Always | `dicom_libjpeg` | No (decode-only) |
+| JPEG Extended (12-bit) | `1.2.840.10008.1.2.4.51` | Always | `dicom_libjpeg` | No (decode-only) |
+| JPEG Lossless, Non-Hierarchical | `1.2.840.10008.1.2.4.57` | Always | `ErrCodecUnavailable` | No (decode-only) |
+| JPEG Lossless SV1 | `1.2.840.10008.1.2.4.70` | Always | `ErrCodecUnavailable` | No (decode-only) |
+| JPEG-LS Lossless | `1.2.840.10008.1.2.4.80` | Always | `dicom_charls` | `dicom_charls` (lossless) |
+| JPEG-LS Near-Lossless | `1.2.840.10008.1.2.4.81` | Always | `dicom_charls` | No (decode-only) |
+| JPEG 2000 Lossless | `1.2.840.10008.1.2.4.90` | Always | `dicom_openjpeg` | `dicom_openjpeg` (lossless) |
+| JPEG 2000 | `1.2.840.10008.1.2.4.91` | Always | `dicom_openjpeg` | No (decode-only) |
+| HTJ2K Lossless | `1.2.840.10008.1.2.4.201` | Always | `dicom_openjpeg` | No (decode-only) |
+| HTJ2K with RPCL Options | `1.2.840.10008.1.2.4.202` | Always | `dicom_openjpeg` | No (decode-only) |
+| HTJ2K | `1.2.840.10008.1.2.4.203` | Always | `dicom_openjpeg` | No (decode-only) |
 
-The codec set built behind the CGo build tag is finalised in the M8 hardening milestone; this statement is updated when
+The JPEG Lossless processes `1.2.840.10008.1.2.4.57` (Process 14) and `1.2.840.10008.1.2.4.70` (Process 14, SV1) have no
+go-radx pixel codec: these are the predictive lossless JPEG processes, which libjpeg-turbo's lossy baseline/extended
+codec does not cover, so a `.57`/`.70` instance is transported but degrades to `ErrCodecUnavailable` on pixel decode. A
+later increment may add them through libjpeg-turbo's lossless-JPEG decode path or a dedicated codec.
+
+The codec set built behind the CGo build tags is finalised in the M8 hardening milestone; this statement is updated when
 a codec moves from decode-only to encode-capable. Codecs that `pynetdicom` registers but go-radx does not target for v1
 pixel handling (JPIP, MPEG-2/4, HEVC/H.265, JPEG XL, SMPTE ST 2110, multi-component JPEG 2000) are negotiable for
 transport but have no go-radx pixel codec.
