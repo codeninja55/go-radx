@@ -50,12 +50,17 @@ func discardReserved(r io.Reader, want PDUType) error {
 	if err != nil {
 		return err
 	}
-	return discardReservedBody(br)
+	return discardReservedBody(br, want)
 }
 
-// discardReservedBody drains the reserved body from a seeded bounded reader (used by
-// ReadPDU once it has already consumed the header).
-func discardReservedBody(br *boundedReader) error {
+// discardReservedBody drains the four reserved body bytes from a seeded bounded reader
+// (used by ReadPDU once it has already consumed the header). It rejects a declared body
+// length other than the fixed four bytes: a larger length would otherwise leave its
+// surplus in the stream and desync the next PDU (PS3.8 §9.3.6–7).
+func discardReservedBody(br *boundedReader, pt PDUType) error {
+	if err := requireFixedBody(br, pt); err != nil {
+		return err
+	}
 	_, err := io.Copy(io.Discard, br)
 	return err
 }

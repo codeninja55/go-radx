@@ -56,6 +56,53 @@ func TestReadPDUDispatchesEachType(t *testing.T) {
 	}
 }
 
+// TestReadPDURejectsOversizedFixedBody guards against a stream desync on the fixed-size
+// PDUs (A-ASSOCIATE-RJ, A-ABORT, A-RELEASE-RQ, A-RELEASE-RP). Each carries exactly four
+// body bytes. The prototype read only the four fixed bytes and returned success even when
+// the declared body length was larger, leaving the surplus in the stream so the NEXT PDU
+// was parsed at the wrong offset. ReadPDU must reject the oversized body, and a valid PDU
+// that follows in the same stream must still parse correctly.
+func TestReadPDURejectsOversizedFixedBody(t *testing.T) {
+	cases := []struct {
+		name string
+		pt   PDUType
+	}{
+		{"A-ASSOCIATE-RJ", PDUTypeAssociateRJ},
+		{"A-ABORT", PDUTypeAbort},
+		{"A-RELEASE-RQ", PDUTypeReleaseRQ},
+		{"A-RELEASE-RP", PDUTypeReleaseRP},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var stream bytes.Buffer
+			// A fixed-body PDU declaring eight body bytes (four surplus) instead of four.
+			if err := writeHeader(&stream, c.pt, 8); err != nil {
+				t.Fatal(err)
+			}
+			stream.Write(make([]byte, 8))
+
+			// A well-formed PDU immediately after it, to expose any desync.
+			next := &AssociateRJ{Result: AssociateRJResultPermanent, Source: AssociateRJSourceServiceUser, Reason: 2}
+			if err := WritePDU(&stream, next); err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := ReadPDU(&stream); err == nil {
+				t.Fatalf("ReadPDU should reject a %s with a declared body length of 8 (fixed body is 4)", c.name)
+			}
+
+			// The reader must be positioned exactly at the start of the next PDU's header.
+			got, err := ReadPDU(&stream)
+			if err != nil {
+				t.Fatalf("subsequent PDU did not parse after the oversized %s (stream desync): %v", c.name, err)
+			}
+			if got.Type() != PDUTypeAssociateRJ {
+				t.Errorf("subsequent PDU type = %v, want A-ASSOCIATE-RJ (stream desync after %s)", got.Type(), c.name)
+			}
+		})
+	}
+}
+
 func TestReadPDUReturnsEOFAtBoundary(t *testing.T) {
 	if _, err := ReadPDU(bytes.NewReader(nil)); !errors.Is(err, io.EOF) {
 		t.Errorf("ReadPDU on empty stream = %v, want io.EOF", err)

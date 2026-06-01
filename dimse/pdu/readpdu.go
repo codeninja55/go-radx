@@ -52,12 +52,12 @@ func ReadPDU(r io.Reader) (PDU, error) {
 		}
 		return d, nil
 	case PDUTypeReleaseRQ:
-		if err := discardReservedBody(br); err != nil {
+		if err := discardReservedBody(br, PDUTypeReleaseRQ); err != nil {
 			return nil, err
 		}
 		return &ReleaseRQ{}, nil
 	case PDUTypeReleaseRP:
-		if err := discardReservedBody(br); err != nil {
+		if err := discardReservedBody(br, PDUTypeReleaseRP); err != nil {
 			return nil, err
 		}
 		return &ReleaseRP{}, nil

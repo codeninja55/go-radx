@@ -234,14 +234,38 @@ func DecodeAssociateRJ(r io.Reader) (*AssociateRJ, error) {
 	return decodeAssociateRJBody(br)
 }
 
+// fixedBodyLength is the body length of the fixed-size PDUs: A-ASSOCIATE-RJ, A-ABORT, and
+// A-RELEASE-RQ/RP all carry exactly four body bytes (PS3.8 §9.3.4, §9.3.6–8).
+const fixedBodyLength = 4
+
 // decodeAssociateRJBody decodes the A-ASSOCIATE-RJ body from a seeded bounded reader.
 func decodeAssociateRJBody(br *boundedReader) (*AssociateRJ, error) {
+	if err := requireFixedBody(br, PDUTypeAssociateRJ); err != nil {
+		return nil, err
+	}
 	var b [4]byte
 	if _, err := io.ReadFull(br, b[:]); err != nil {
 		return nil, err
 	}
 	// b[0] is reserved.
 	return &AssociateRJ{Result: b[1], Source: b[2], Reason: b[3]}, nil
+}
+
+// requireFixedBody rejects a fixed-size PDU whose declared body length is not exactly
+// fixedBodyLength. A larger declared length would otherwise leave its surplus in the
+// stream after the decoder reads the fixed bytes, desyncing ReadPDU so the next PDU is
+// parsed at the wrong offset; a shorter one is a truncated body. Both are protocol errors
+// (PS3.8 §9.3). On a length mismatch it first drains the whole declared body so the stream
+// stays synchronised at the next PDU boundary, then returns a typed *PDUError.
+func requireFixedBody(br *boundedReader, pt PDUType) error {
+	if br.Remaining() == fixedBodyLength {
+		return nil
+	}
+	declared := br.Remaining()
+	if _, err := io.Copy(io.Discard, br); err != nil {
+		return err
+	}
+	return &PDUError{Detail: fmt.Sprintf("%s body length %d, want %d", pt, declared, fixedBodyLength)}
 }
 
 // openPDUBody reads the 6-byte header, checks the type matches, and returns a bounded
