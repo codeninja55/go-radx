@@ -1,7 +1,15 @@
-// Package dimse implements DICOM DIMSE networking (PS3.7 and PS3.8): the DICOM Upper
-// Layer state machine, PDU encoding, ACSE association negotiation, and the C- and N-
-// service classes as both Service Class User (SCU) and Service Class Provider (SCP).
+// Package dimse implements the DICOM Message Service Element and its transport
+// layer: the DICOM Upper Layer protocol (DUL, PS3.8) and the DIMSE-C / DIMSE-N
+// services (PS3.7). It is the network plane of go-radx, carrying DICOM datasets
+// defined by the dicom package between Application Entities over TCP, with
+// optional TLS. The package is built in three stacked layers — pdu (the PDU/PDV
+// wire codec), dul (the PS3.8 state machine and socket owner), and acse
+// (association negotiation) — over which this root package builds the DIMSE
+// message layer (command-set build/parse and PDV fragmentation) and the typed
+// C/N service operations as both Service Class User and Service Class Provider.
+// It reuses dicom.TransferSyntax, dicom.UID, dicom.DataSet, and the SOP UID types
+// rather than redeclaring them.
 //
-// See docs/reference/dimse.md for the public API and docs/conformance/dicom.md for the
-// supported SOP classes and negotiation features.
+// See docs/reference/dimse.md for the public API and docs/conformance/dicom.md for
+// the supported SOP classes and negotiation features.
 package dimse
