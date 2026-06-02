@@ -21,6 +21,12 @@ type serverConfig struct {
 	maxAssociations        int
 	requireCalledAETitle   AETitle
 	requireCallingAETitles []AETitle
+	// moveDestinations maps a C-MOVE Move Destination AE Title to its network address ("host:port").
+	// The C-MOVE SCP resolves the destination through this table, opens an outbound association to
+	// it, and C-STOREs each matched instance there as a sub-operation. A destination not in the table
+	// is answered with the terminal 0xA801 "Move Destination Unknown" status (PS3.4 C.4.2.1.5). It is
+	// nil when no destinations are configured, so a Server with no C-MOVE support refuses every move.
+	moveDestinations map[AETitle]string
 }
 
 // ServerOption configures a Server at construction.
@@ -51,6 +57,28 @@ func WithRequireCalledAETitle(t AETitle) ServerOption {
 // accepts any Calling AE Title.
 func WithRequireCallingAETitles(ts ...AETitle) ServerOption {
 	return func(c *serverConfig) { c.requireCallingAETitles = ts }
+}
+
+// WithMoveDestinations configures the known-AE table the C-MOVE SCP resolves a Move Destination AE
+// Title against: each entry maps a destination AE Title to its network address ("host:port"). On a
+// C-MOVE-RQ the SCP looks up the requested destination here, opens an outbound association to it, and
+// C-STOREs each matched instance there as a sub-operation. A destination absent from the table is
+// answered with the terminal 0xA801 "Move Destination Unknown" status, never a panic. It copies the
+// map so a later caller mutation cannot change the Server's resolution (no shared mutable state, PRD
+// §9.4); a nil or empty map leaves the Server with no C-MOVE destinations (every move is refused as
+// unknown).
+func WithMoveDestinations(dests map[AETitle]string) ServerOption {
+	return func(c *serverConfig) {
+		if len(dests) == 0 {
+			c.moveDestinations = nil
+			return
+		}
+		copied := make(map[AETitle]string, len(dests))
+		for aet, addr := range dests {
+			copied[aet] = addr
+		}
+		c.moveDestinations = copied
+	}
 }
 
 // Server is an embeddable DIMSE SCP. It hosts a Handler, accepts inbound associations, negotiates
@@ -233,7 +261,8 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 		ImplementationClassUID: string(s.ae.config().implementationClassUID),
 		ImplementationVersion:  s.ae.config().implementationVersion,
 	}
-	if err := dispatchAssociation(ctx, conn, params, s.ae.config().acseTimeout, s.ae.config().networkTimeout, s.handler); err != nil {
+	move := moveSupport{ae: s.ae, destinations: s.cfg.moveDestinations}
+	if err := dispatchAssociation(ctx, conn, params, s.ae.config().acseTimeout, s.ae.config().networkTimeout, s.handler, move); err != nil {
 		// The association ended on a fault (rejection, abort, protocol error, or a connection the
 		// peer or Shutdown closed under us); the connection is closed below regardless. The error
 		// is intentionally not logged here (no logger wired into the skeleton yet) and never

@@ -71,6 +71,10 @@ func (h *storeRecorder) Find(_ context.Context, _ *dicom.DataSet, _ QueryLevel, 
 	return func(yield func(Status, *dicom.DataSet) bool) {}
 }
 
+func (h *storeRecorder) Move(_ context.Context, _ *dicom.DataSet, _ QueryLevel, _ AETitle, _ OpInfo) iter.Seq2[Status, *dicom.DataSet] {
+	return func(yield func(Status, *dicom.DataSet) bool) {}
+}
+
 // TestHandlerStoreIsInvokable confirms the Handler interface's Store method dispatches, receives
 // the dataset, and returns the handler's status.
 func TestHandlerStoreIsInvokable(t *testing.T) {

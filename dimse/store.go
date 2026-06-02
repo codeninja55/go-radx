@@ -24,6 +24,8 @@ type storeConfig struct {
 	moveOriginatorAE AETitle
 	moveOriginatorID uint16
 	hasMoveOrigin    bool
+	messageID        uint16
+	hasMessageID     bool
 }
 
 // StoreOption configures a C-STORE.
@@ -32,6 +34,20 @@ type StoreOption func(*storeConfig)
 // WithStorePriority sets the C-STORE operation priority (default medium).
 func WithStorePriority(p Priority) StoreOption {
 	return func(c *storeConfig) { c.priority = p }
+}
+
+// WithStoreMessageID overrides the C-STORE-RQ Message ID. An everyday Store uses the fixed
+// storeMessageID (one operation per association needs no allocator); a C-GET/C-MOVE sub-operation
+// C-STORE supplies a distinct, non-zero ID from the association's nextMessageID() allocator so each
+// in-flight sub-operation carries its own ID (the DIMSE-016 fix). A zero value is ignored, keeping
+// the fixed default.
+func WithStoreMessageID(id uint16) StoreOption {
+	return func(c *storeConfig) {
+		if id != 0 {
+			c.messageID = id
+			c.hasMessageID = true
+		}
+	}
 }
 
 // WithMoveOriginator propagates the Move Originator AE Title and Message ID for a C-STORE issued as
@@ -105,9 +121,13 @@ func (a *Association) Store(ctx context.Context, ds *dicom.DataSet, opts ...Stor
 	opCtx, cancel := a.dimseContext(ctx)
 	defer cancel()
 
+	msgID := storeMessageID
+	if cfg.hasMessageID {
+		msgID = cfg.messageID
+	}
 	rq := CommandSet{
 		CommandField:           CommandCStoreRQ,
-		MessageID:              storeMessageID,
+		MessageID:              msgID,
 		AffectedSOPClassUID:    dicom.UID(sopClass),
 		AffectedSOPInstanceUID: dicom.UID(sopInstance),
 		HasPriority:            true,

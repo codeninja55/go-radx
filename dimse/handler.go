@@ -57,12 +57,30 @@ type FindHandler interface {
 	Find(ctx context.Context, query *dicom.DataSet, level QueryLevel, info OpInfo) iter.Seq2[Status, *dicom.DataSet]
 }
 
+// MoveHandler answers a C-MOVE retrieve, mirroring the SCU iterator (dimse.md "SCP handlers and the
+// event model"). It yields one (Status, instance) pair per matched instance — a Pending status
+// (0xFF00) carrying the matched instance dataset the runtime then C-STOREs to the resolved Move
+// Destination AE as a sub-operation — and the iterator ends after the matches are exhausted. The
+// runtime owns the destination association and the sub-operation store loop (each with a distinct
+// non-zero Message ID, DIMSE-016) and the count accumulation; the handler supplies only the matched
+// instances. A retrieve-only SCP implements MoveHandler alone (interface segregation, PRD §8.2).
+//
+// The handler MUST observe its context: the runtime cancels it on a fault, Server.Shutdown, or once
+// the iteration ends, so a handler that threads ctx through its match resolution stops promptly.
+type MoveHandler interface {
+	// Move yields (Status, instance) for each matched instance a C-MOVE should retrieve to dest. A
+	// Pending status carries the matched instance dataset; the iterator ends after the matches are
+	// exhausted (an optional terminal status from the handler ends the matches early).
+	Move(ctx context.Context, query *dicom.DataSet, level QueryLevel, dest AETitle, info OpInfo) iter.Seq2[Status, *dicom.DataSet]
+}
+
 // Handler answers inbound DIMSE-C operations dispatched by the SCP. An intervention operation is
 // answered with a typed Status, so a handler cannot forget to answer (PRD §8.2). It is the union
 // of the per-service capabilities; an SCP that supports only some services implements the narrower
-// interfaces (EchoHandler, StoreHandler, FindHandler) and the dispatcher type-asserts for each. A
-// handler returning success on work it did not do is a defect (PRD §9.2 fail-closed). The remaining
-// query/retrieve capabilities (Get/Move) join this union with their services in later M3 increments.
+// interfaces (EchoHandler, StoreHandler, FindHandler, MoveHandler) and the dispatcher type-asserts
+// for each. A handler returning success on work it did not do is a defect (PRD §9.2 fail-closed).
+// The remaining query/retrieve capability (Get) joins this union with its service in a later M3
+// increment.
 //
 // A handler MUST observe the context it is passed: Server.Shutdown cancels it, and a handler that
 // selects on ctx.Done() (or threads ctx through its I/O) is woken cooperatively and returns
@@ -72,6 +90,7 @@ type Handler interface {
 	EchoHandler
 	StoreHandler
 	FindHandler
+	MoveHandler
 }
 
 // serveEcho services one inbound C-ECHO over an established acceptor association: it reads the
@@ -334,6 +353,35 @@ func validateFindContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (di
 // agree on what a FIND context is.
 func isFindModel(sopClass dicom.SOPClassUID) bool {
 	_, ok := findModels[sopClass]
+	return ok
+}
+
+// validateMoveContext fails closed when a C-MOVE-RQ arrives on a presentation context whose
+// negotiated abstract syntax is not a Query/Retrieve MOVE information model, OR when the command's
+// Affected SOP Class UID is not that same negotiated MOVE model. Either lets a peer run a retrieve
+// outside the negotiated/declared SOP Class, bypassing presentation-context negotiation (PS3.4 C.4.2
+// makes the C-MOVE-RQ Affected SOP Class UID Type 1) — the same protocol fault the C-FIND/C-STORE/
+// C-ECHO paths reject, kept symmetric across the context and the command checks.
+func validateMoveContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (dicom.SOPClassUID, bool), state State) error {
+	abstract, ok := abstractFor(pcID)
+	if !ok || !isMoveModel(abstract) {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-MOVE arrived on presentation context %d whose abstract syntax %q is not a Query/Retrieve MOVE information model",
+			pcID, abstract)}
+	}
+	if dicom.SOPClassUID(cmd.AffectedSOPClassUID) != abstract {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-MOVE Affected SOP Class %q does not match the abstract syntax negotiated for presentation context %d",
+			cmd.AffectedSOPClassUID, pcID)}
+	}
+	return nil
+}
+
+// isMoveModel reports whether the SOP Class is one of the C-MOVE information models go-radx serves
+// as an SCP (the Patient Root / Study Root MOVE models). It reuses the moveModels set the SCU side
+// validates a WithQueryModel against, so the SCU and SCP agree on what a MOVE context is.
+func isMoveModel(sopClass dicom.SOPClassUID) bool {
+	_, ok := moveModels[sopClass]
 	return ok
 }
 
