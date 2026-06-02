@@ -124,7 +124,10 @@ jobs:
       - name: Build & install libjpeg-turbo 3.1.4
         run: |
           curl -fsSL https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.1.4/libjpeg-turbo-3.1.4.tar.gz | tar -xz
-          cmake -S libjpeg-turbo-3.1.4 -B libjpeg-turbo-3.1.4/build -DCMAKE_BUILD_TYPE=Release -DENABLE_SHARED=ON
+          # libjpeg-turbo's cmake defaults CMAKE_INSTALL_PREFIX to /opt/libjpeg-turbo (unlike OpenJPEG
+          # and CharLS, which default to /usr/local) — pin it so libturbojpeg.pc lands where the
+          # others do and pkg-config discovery finds it.
+          cmake -S libjpeg-turbo-3.1.4 -B libjpeg-turbo-3.1.4/build -DCMAKE_BUILD_TYPE=Release -DENABLE_SHARED=ON -DCMAKE_INSTALL_PREFIX=/usr/local
           cmake --build libjpeg-turbo-3.1.4/build -j"$(nproc)"
           sudo cmake --install libjpeg-turbo-3.1.4/build
       - name: Build & install CharLS 2.4.3
@@ -141,8 +144,8 @@ jobs:
       # hardcode a fragile path list.
       - name: Resolve pkg-config and linker paths
         run: |
-          pc="$(find /usr/local -type d -name pkgconfig 2>/dev/null | sort -u | paste -sd: -)"
-          libs="$(find /usr/local -type f -name 'lib*.so*' -printf '%h\n' 2>/dev/null | sort -u | paste -sd: -)"
+          pc="$(find /usr/local /opt -type d -name pkgconfig 2>/dev/null | sort -u | paste -sd: -)"
+          libs="$(find /usr/local /opt -type f -name 'lib*.so*' -printf '%h\n' 2>/dev/null | sort -u | paste -sd: -)"
           echo "pkgconfig dirs: $pc"
           echo "lib dirs: $libs"
           echo "PKG_CONFIG_PATH=$pc" >> "$GITHUB_ENV"
@@ -153,6 +156,8 @@ jobs:
         run: |
           # Self-report the cause via annotations (gh run view shows annotations without admin log
           # access): first whether pkg-config sees the from-source libs, then the cgo build error.
+          echo "::error::PKG_CONFIG_PATH=[$PKG_CONFIG_PATH]"
+          find /usr/local /opt -name 'libturbojpeg*.pc' 2>/dev/null | sed 's/^/::error::libturbojpeg.pc on-disk: /' || true
           echo "--- pkg-config visibility (from-source codec libs) ---"
           for p in libopenjp2 libturbojpeg charls; do
             if pkg-config --exists "$p"; then
