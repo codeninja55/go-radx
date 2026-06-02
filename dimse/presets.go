@@ -6,6 +6,35 @@ import "github.com/codeninja55/go-radx/dicom"
 // of a C-ECHO presentation context.
 const verificationSOPClass dicom.SOPClassUID = "1.2.840.10008.1.1"
 
+// Query/Retrieve, Worklist, MPPS, and Storage Commitment SOP Class UIDs, verified against the
+// DICOM registry (PS3.6 Annex A) and pynetdicom's sop_class exports. These are the abstract
+// syntaxes the M3 presentation-context presets propose.
+const (
+	patientRootFindSOPClass dicom.SOPClassUID = "1.2.840.10008.5.1.4.1.2.1.1" // Patient Root Q/R — FIND
+	patientRootMoveSOPClass dicom.SOPClassUID = "1.2.840.10008.5.1.4.1.2.1.2" // Patient Root Q/R — MOVE
+	patientRootGetSOPClass  dicom.SOPClassUID = "1.2.840.10008.5.1.4.1.2.1.3" // Patient Root Q/R — GET
+	studyRootFindSOPClass   dicom.SOPClassUID = "1.2.840.10008.5.1.4.1.2.2.1" // Study Root Q/R — FIND
+	studyRootMoveSOPClass   dicom.SOPClassUID = "1.2.840.10008.5.1.4.1.2.2.2" // Study Root Q/R — MOVE
+	studyRootGetSOPClass    dicom.SOPClassUID = "1.2.840.10008.5.1.4.1.2.2.3" // Study Root Q/R — GET
+
+	modalityWorklistSOPClass           dicom.SOPClassUID = "1.2.840.10008.5.1.4.31"  // Modality Worklist Information Model — FIND
+	modalityPerformedStepSOPClass      dicom.SOPClassUID = "1.2.840.10008.3.1.2.3.3" // Modality Performed Procedure Step (MPPS)
+	storageCommitmentPushModelSOPClass dicom.SOPClassUID = "1.2.840.10008.1.20.1"    // Storage Commitment Push Model
+)
+
+// queryRetrieveSOPClasses is the Patient Root and Study Root Query/Retrieve Information Model set
+// (FIND, MOVE, GET each), the abstract syntaxes QueryRetrieveContexts proposes. It is the go-radx
+// conformance subset of pynetdicom's 13-class QueryRetrievePresentationContexts (the
+// PatientStudyOnly, CompositeInstance, and RepositoryQuery models are out of v1 scope).
+var queryRetrieveSOPClasses = []dicom.SOPClassUID{
+	patientRootFindSOPClass,
+	patientRootMoveSOPClass,
+	patientRootGetSOPClass,
+	studyRootFindSOPClass,
+	studyRootMoveSOPClass,
+	studyRootGetSOPClass,
+}
+
 // validatedStorageSOPClasses is the curated, radiology-first Storage SOP Class set go-radx
 // declares conformance for as both Storage SCU and Storage SCP. It is the "Supported
 // (validated) Storage SOP Classes" table in docs/conformance/dicom.md — 36 classes,
@@ -76,4 +105,33 @@ func VerificationContexts() []PresentationContext {
 // under the 128-context A-ASSOCIATE-RQ limit. A fresh slice is returned each call.
 func StorageContexts() []PresentationContext {
 	return contextsFor(validatedStorageSOPClasses)
+}
+
+// QueryRetrieveContexts returns the six Patient Root and Study Root Query/Retrieve Information
+// Model contexts (FIND, MOVE, GET each), the abstract syntaxes a C-FIND/C-MOVE/C-GET SCU proposes,
+// each proposing the default transfer syntaxes (dimse.md "Presets"). A fresh slice is returned
+// each call.
+func QueryRetrieveContexts() []PresentationContext {
+	return contextsFor(queryRetrieveSOPClasses)
+}
+
+// BasicWorklistContexts returns the single Modality Worklist Information Model — FIND context, the
+// abstract syntax an MWL C-FIND SCU proposes, proposing the default transfer syntaxes (dimse.md
+// "Presets"). A fresh slice is returned each call.
+func BasicWorklistContexts() []PresentationContext {
+	return contextsFor([]dicom.SOPClassUID{modalityWorklistSOPClass})
+}
+
+// ModalityPerformedContexts returns the single Modality Performed Procedure Step (MPPS) context,
+// the abstract syntax an MPPS SCU proposes, proposing the default transfer syntaxes (dimse.md
+// "Presets"). A fresh slice is returned each call.
+func ModalityPerformedContexts() []PresentationContext {
+	return contextsFor([]dicom.SOPClassUID{modalityPerformedStepSOPClass})
+}
+
+// StorageCommitmentContexts returns the single Storage Commitment Push Model context, the abstract
+// syntax a Storage Commitment SCU proposes, proposing the default transfer syntaxes (dimse.md
+// "Presets"). A fresh slice is returned each call.
+func StorageCommitmentContexts() []PresentationContext {
+	return contextsFor([]dicom.SOPClassUID{storageCommitmentPushModelSOPClass})
 }

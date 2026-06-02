@@ -118,3 +118,71 @@ func TestPresetsReturnFreshSlices(t *testing.T) {
 		t.Error("StorageContexts() returns a shared slice; callers can corrupt each other")
 	}
 }
+
+// TestNewPresetContextCounts pins the M3 query/retrieve, worklist, MPPS, and storage-commitment
+// presets at their conformance counts (dimse.md "Presets": QueryRetrieve 6, BasicWorklist 1,
+// ModalityPerformed 1, StorageCommitment 1) and checks the IDs are odd (PS3.8 9.3.2.2) and each
+// proposes the default transfer syntaxes.
+func TestNewPresetContextCounts(t *testing.T) {
+	cases := []struct {
+		name string
+		got  []PresentationContext
+		want int
+	}{
+		{"QueryRetrieveContexts", QueryRetrieveContexts(), 6},
+		{"BasicWorklistContexts", BasicWorklistContexts(), 1},
+		{"ModalityPerformedContexts", ModalityPerformedContexts(), 1},
+		{"StorageCommitmentContexts", StorageCommitmentContexts(), 1},
+	}
+	for _, c := range cases {
+		if len(c.got) != c.want {
+			t.Errorf("%s returned %d contexts, want %d", c.name, len(c.got), c.want)
+		}
+		for _, pc := range c.got {
+			if pc.ID%2 == 0 {
+				t.Errorf("%s context ID %d is even; IDs must be odd (PS3.8 9.3.2.2)", c.name, pc.ID)
+			}
+			if len(pc.TransferSyntaxes) != len(DefaultTransferSyntaxes) {
+				t.Errorf("%s context %d proposes %d transfer syntaxes, want the default %d",
+					c.name, pc.ID, len(pc.TransferSyntaxes), len(DefaultTransferSyntaxes))
+			}
+		}
+	}
+
+	// Fresh slice each call, matching the existing presets: mutating one return must not corrupt
+	// the next.
+	a := QueryRetrieveContexts()
+	b := QueryRetrieveContexts()
+	a[0].ID = 250
+	if b[0].ID == 250 {
+		t.Error("QueryRetrieveContexts() returns a shared slice; callers can corrupt each other")
+	}
+}
+
+// TestNewPresetAbstractSyntaxes verifies the exact SOP Class UIDs each M3 preset proposes,
+// against the DICOM registry and pynetdicom's presentation-context exports.
+func TestNewPresetAbstractSyntaxes(t *testing.T) {
+	qr := QueryRetrieveContexts()
+	wantQR := []dicom.SOPClassUID{
+		"1.2.840.10008.5.1.4.1.2.1.1", // Patient Root Q/R — FIND
+		"1.2.840.10008.5.1.4.1.2.1.2", // Patient Root Q/R — MOVE
+		"1.2.840.10008.5.1.4.1.2.1.3", // Patient Root Q/R — GET
+		"1.2.840.10008.5.1.4.1.2.2.1", // Study Root Q/R — FIND
+		"1.2.840.10008.5.1.4.1.2.2.2", // Study Root Q/R — MOVE
+		"1.2.840.10008.5.1.4.1.2.2.3", // Study Root Q/R — GET
+	}
+	for i, want := range wantQR {
+		if qr[i].AbstractSyntax != want {
+			t.Errorf("QueryRetrieveContexts()[%d].AbstractSyntax = %q, want %q", i, qr[i].AbstractSyntax, want)
+		}
+	}
+	if got := BasicWorklistContexts()[0].AbstractSyntax; got != dicom.SOPClassUID("1.2.840.10008.5.1.4.31") {
+		t.Errorf("BasicWorklistContexts abstract syntax = %q, want Modality Worklist 1.2.840.10008.5.1.4.31", got)
+	}
+	if got := ModalityPerformedContexts()[0].AbstractSyntax; got != dicom.SOPClassUID("1.2.840.10008.3.1.2.3.3") {
+		t.Errorf("ModalityPerformedContexts abstract syntax = %q, want MPPS 1.2.840.10008.3.1.2.3.3", got)
+	}
+	if got := StorageCommitmentContexts()[0].AbstractSyntax; got != dicom.SOPClassUID("1.2.840.10008.1.20.1") {
+		t.Errorf("StorageCommitmentContexts abstract syntax = %q, want Storage Commitment Push Model 1.2.840.10008.1.20.1", got)
+	}
+}
