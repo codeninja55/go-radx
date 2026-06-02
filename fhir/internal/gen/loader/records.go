@@ -8,17 +8,10 @@ import "encoding/json"
 // loader's single responsibility is to read, verify, decode, and index; the model
 // layer turns these flat records into the element-path tree.
 
-// bundle is the FHIR Bundle wrapper each definition file is. Its entries carry the
-// StructureDefinition / ValueSet / CodeSystem resources as raw JSON so the loader
-// can peek resourceType before decoding into the right record type.
-type bundle struct {
-	ResourceType string        `json:"resourceType"`
-	Type         string        `json:"type"`
-	Entry        []bundleEntry `json:"entry"`
-}
-
 // bundleEntry is a single Bundle.entry. The resource is kept raw so the loader can
-// dispatch on its resourceType.
+// dispatch on its resourceType. The outer Bundle object is consumed by streaming
+// decode (see loadFile), not as a whole struct, so the large resource file is
+// never fully materialised in memory at once.
 type bundleEntry struct {
 	FullURL  string          `json:"fullUrl"`
 	Resource json.RawMessage `json:"resource"`

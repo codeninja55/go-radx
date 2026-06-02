@@ -85,6 +85,131 @@ func TestVerifyChecksumsRejectsMissingManifest(t *testing.T) {
 	}
 }
 
+// vendoredR5Dir is the committed R5 bundle, relative to this package directory
+// (fhir/internal/gen/loader → fhir/internal/gen/testdata/definitions/r5).
+const vendoredR5Dir = "../testdata/definitions/r5"
+
+func TestLoadVendoredR5Bundle(t *testing.T) {
+	t.Parallel()
+
+	b, err := Load(vendoredR5Dir)
+	if err != nil {
+		t.Fatalf("Load(%q): %v", vendoredR5Dir, err)
+	}
+
+	wantResources := []string{
+		"Patient", "Observation", "Bundle", "OperationOutcome",
+		"ServiceRequest", "ImagingStudy", "DiagnosticReport",
+	}
+	for _, name := range wantResources {
+		sd, ok := b.StructureDefinition(name)
+		if !ok {
+			t.Errorf("resource %q not indexed by name", name)
+			continue
+		}
+		if sd.Kind != "resource" {
+			t.Errorf("%q kind = %q, want resource", name, sd.Kind)
+		}
+	}
+
+	wantDatatypes := []string{
+		"Reference", "Identifier", "CodeableConcept", "Quantity", "HumanName", "Period",
+	}
+	for _, name := range wantDatatypes {
+		sd, ok := b.StructureDefinition(name)
+		if !ok {
+			t.Errorf("datatype %q not indexed by name", name)
+			continue
+		}
+		if sd.Kind != "complex-type" {
+			t.Errorf("%q kind = %q, want complex-type", name, sd.Kind)
+		}
+	}
+
+	// Resolve a StructureDefinition by its canonical URL as well as by name.
+	const patientURL = "http://hl7.org/fhir/StructureDefinition/Patient"
+	if _, ok := b.StructureDefinitionByURL(patientURL); !ok {
+		t.Errorf("Patient not indexed by URL %q", patientURL)
+	}
+
+	// The administrative-gender value set must resolve (the required-binding enums
+	// in Increment 8 enumerate its codes).
+	const genderVS = "http://hl7.org/fhir/ValueSet/administrative-gender"
+	if _, ok := b.ValueSet(genderVS); !ok {
+		t.Errorf("administrative-gender value set not indexed by URL %q", genderVS)
+	}
+
+	// The resource count sits in a band rather than an exact number so a
+	// definition-bundle patch release does not break the test; the exact count is
+	// asserted in the conformance statement, not here.
+	n := b.ResourceCount()
+	if n < 140 || n > 170 {
+		t.Errorf("resource StructureDefinition count = %d, want within [140,170]", n)
+	}
+	t.Logf("loaded %d resource and %d datatype StructureDefinitions, %d value sets, %d code systems",
+		b.ResourceCount(), b.DatatypeCount(), b.ValueSetCount(), b.CodeSystemCount())
+}
+
+func TestLoadRejectsMissingValuesets(t *testing.T) {
+	t.Parallel()
+
+	// A temp bundle directory with only two of the three required files, plus a
+	// SHA256SUMS listing all three: Load must fail closed naming valuesets.json.
+	dir := t.TempDir()
+	types := []byte(`{"resourceType":"Bundle","entry":[]}`)
+	resources := []byte(`{"resourceType":"Bundle","entry":[]}`)
+	valuesets := []byte(`{"resourceType":"Bundle","entry":[]}`)
+	writeFile(t, dir, "profiles-types.json", types)
+	writeFile(t, dir, "profiles-resources.json", resources)
+	writeSums(t, dir, map[string]string{
+		"profiles-types.json":     sha256Hex(types),
+		"profiles-resources.json": sha256Hex(resources),
+		"valuesets.json":          sha256Hex(valuesets),
+	})
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("Load should fail when valuesets.json is missing")
+	}
+	var le *LoadError
+	if !errors.As(err, &le) {
+		t.Fatalf("error = %T, want *LoadError", err)
+	}
+	if !strings.Contains(le.Error(), "valuesets.json") {
+		t.Errorf("error %q should name the missing file", le.Error())
+	}
+}
+
+func TestLoadRejectsMalformedBundle(t *testing.T) {
+	t.Parallel()
+
+	// All three files present and checksum-correct, but one is not valid JSON:
+	// Load must fail closed naming that file rather than silently skipping it.
+	dir := t.TempDir()
+	good := []byte(`{"resourceType":"Bundle","entry":[]}`)
+	bad := []byte(`{"resourceType":"Bundle","entry":[`) // truncated
+	writeFile(t, dir, "profiles-types.json", good)
+	writeFile(t, dir, "profiles-resources.json", bad)
+	writeFile(t, dir, "valuesets.json", good)
+	writeSums(t, dir, map[string]string{
+		"profiles-types.json":     sha256Hex(good),
+		"profiles-resources.json": sha256Hex(bad),
+		"valuesets.json":          sha256Hex(good),
+	})
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("Load should fail on a malformed bundle file")
+	}
+	var le *LoadError
+	if !errors.As(err, &le) {
+		t.Fatalf("error = %T, want *LoadError", err)
+	}
+	if !strings.Contains(le.Error(), "profiles-resources.json") {
+		t.Errorf("error %q should name the malformed file", le.Error())
+	}
+}
+
 func writeFile(t *testing.T, dir, name string, data []byte) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
