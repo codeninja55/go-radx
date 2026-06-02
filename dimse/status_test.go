@@ -172,3 +172,25 @@ func TestQueryRetrieveStatusCategories(t *testing.T) {
 		t.Error("StatusFindPending.IsSuccess() must be false")
 	}
 }
+
+// TestNServiceStatusCategories exercises the Modality Worklist, Procedure Step (MPPS), and Storage
+// Commitment service-class tables (verified against pynetdicom MODALITY_WORKLIST/PROCEDURE_STEP/
+// STORAGE_COMMITMENT_SERVICE_CLASS_STATUS): Worklist is FIND-shaped (0xFF00/0xFF01 Pending);
+// ProcedureStep and StorageCommitment extend GENERAL_STATUS, so a general 0x0110 still categorises.
+func TestNServiceStatusCategories(t *testing.T) {
+	cases := []struct {
+		s    Status
+		want StatusCategory
+	}{
+		{StatusWorklistPending, StatusCategoryPending},
+		{NewStatus(0x0000, ServiceClassWorklist), StatusCategorySuccess},
+		{NewStatus(0x0000, ServiceClassProcedureStep), StatusCategorySuccess},
+		{NewStatus(0x0110, ServiceClassProcedureStep), StatusCategoryFailure}, // Processing Failure (general)
+		{NewStatus(0x0000, ServiceClassStorageCommitment), StatusCategorySuccess},
+	}
+	for _, c := range cases {
+		if got := c.s.Category(); got != c.want {
+			t.Errorf("%s.Category() = %s, want %s", c.s, got, c.want)
+		}
+	}
+}

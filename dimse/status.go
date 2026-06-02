@@ -191,6 +191,24 @@ var (
 	// more failures or warnings" (0xB000): the retrieve finished but at least one sub-operation
 	// C-STORE failed. It is a Warning, never laundered to success (PRD §9.2 fail-closed).
 	StatusGetSubOpsCompleteWithFailures = NewStatus(0xB000, ServiceClassGet)
+
+	// StatusWorklistPending is the Modality Worklist C-FIND Pending status (0xFF00): a worklist
+	// item is supplied and matching continues (PS3.4 K.4.1.1.4).
+	StatusWorklistPending = NewStatus(0xFF00, ServiceClassWorklist)
+	// StatusWorklistSuccess is the Modality Worklist C-FIND terminal success status (0x0000).
+	StatusWorklistSuccess = NewStatus(0x0000, ServiceClassWorklist)
+
+	// StatusMPPSSuccess is the MPPS (Procedure Step) success status (0x0000): the N-CREATE or N-SET
+	// was accepted (PS3.4 F.7.2).
+	StatusMPPSSuccess = NewStatus(0x0000, ServiceClassProcedureStep)
+	// StatusMPPSMayNoLongerBeUpdated is the MPPS Failure (0x0110): the Performed Procedure Step
+	// object may no longer be updated (it has already reached a final state).
+	StatusMPPSMayNoLongerBeUpdated = NewStatus(0x0110, ServiceClassProcedureStep)
+
+	// StatusStorageCommitmentSuccess is the Storage Commitment success status (0x0000): the
+	// N-ACTION request was accepted (the commitment result follows asynchronously via
+	// N-EVENT-REPORT). PS3.4 J.3.
+	StatusStorageCommitmentSuccess = NewStatus(0x0000, ServiceClassStorageCommitment)
 )
 
 // statusEntry is a categorised, human-readable status meaning in a service-class table.
@@ -215,6 +233,14 @@ func statusTable(sc ServiceClass) map[uint16]statusEntry {
 		return moveStatusTable
 	case ServiceClassGet:
 		return getStatusTable
+	case ServiceClassWorklist:
+		return worklistStatusTable
+	case ServiceClassProcedureStep:
+		return procedureStepStatusTable
+	case ServiceClassStorageCommitment:
+		// Storage Commitment defines no service-specific codes; it is GENERAL_STATUS verbatim,
+		// mirroring pynetdicom's STORAGE_COMMITMENT_SERVICE_CLASS_STATUS = GENERAL_STATUS.
+		return generalStatusTable
 	default:
 		return generalStatusTable
 	}
@@ -276,6 +302,28 @@ var getStatusTable = mergeGeneral(map[uint16]statusEntry{
 	0xB000: {StatusCategoryWarning, "Sub-operations Complete — One or More Failures or Warnings"},
 	0xC000: {StatusCategoryFailure, "Unable to Process"},
 	0xFF00: {StatusCategoryPending, "Sub-operations are continuing"},
+})
+
+// worklistStatusTable is the PS3.4 Annex K Modality Worklist service-class status table, ported
+// from pynetdicom's MODALITY_WORKLIST_SERVICE_CLASS_STATUS. It is FIND-shaped: 0xFF00/0xFF01 are
+// Pending, with the worklist-specific Optional-Keys wording on 0xFF01.
+var worklistStatusTable = mergeGeneral(map[uint16]statusEntry{
+	0x0000: {StatusCategorySuccess, ""},
+	0xA700: {StatusCategoryFailure, "Refused: Out of Resources"},
+	0xA900: {StatusCategoryFailure, "Identifier Does Not Match SOP Class"},
+	0xC000: {StatusCategoryFailure, "Unable to Process"},
+	0xFF00: {StatusCategoryPending, "Matches are continuing, current match supplied, optional keys supported"},
+	0xFF01: {StatusCategoryPending, "Matches are continuing, optional keys not supported"},
+})
+
+// procedureStepStatusTable is the MPPS (Performed Procedure Step) service-class status table,
+// ported from pynetdicom's PROCEDURE_STEP_STATUS (the procedure-step-specific codes merged over
+// GENERAL_STATUS). 0x0001 is the "optional attributes not supported" Warning; 0x0110 overrides the
+// general Processing Failure with the procedure-step-specific "may no longer be updated" meaning,
+// keeping the Failure category.
+var procedureStepStatusTable = mergeGeneral(map[uint16]statusEntry{
+	0x0001: {StatusCategoryWarning, "Requested Optional Attributes Are Not Supported"},
+	0x0110: {StatusCategoryFailure, "Performed Procedure Step Object May No Longer Be Updated"},
 })
 
 // storageStatusTable is the PS3.4 B.2.3 Storage service-class status table, ported from
