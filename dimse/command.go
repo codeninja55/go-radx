@@ -24,10 +24,16 @@ const (
 	CommandCEchoRQ CommandField = 0x0030
 	// CommandCEchoRSP is the C-ECHO response command field (PS3.7 §9.3.6).
 	CommandCEchoRSP CommandField = 0x8030
-	// CommandCMoveRQ is the C-MOVE request command field (PS3.7 §9.1.4). The C-MOVE service is
-	// M3 scope; the constant exists so the command-set encoder can carry Move Destination, the
-	// VR-AE element the DIMSE-007 regression exercises.
+	// CommandCMoveRQ is the C-MOVE request command field (PS3.7 §9.1.4, verified against pynetdicom
+	// dimse_messages.py C_MOVE_RQ 0x0021). It carries the Move Destination (0000,0600) AE Title and
+	// the query identifier; the SCP opens a separate association to the destination AE and C-STOREs
+	// each matched instance there as a sub-operation.
 	CommandCMoveRQ CommandField = 0x0021
+	// CommandCMoveRSP is the C-MOVE response command field (PS3.7 §9.1.4, pynetdicom C_MOVE_RSP
+	// 0x8021). A C-MOVE produces multiple responses: zero or more Pending RSPs each carrying the four
+	// sub-operation counts, then one terminal RSP carrying the final counts and status. No C-MOVE-RSP
+	// carries a dataset.
+	CommandCMoveRSP CommandField = 0x8021
 	// CommandCFindRQ is the C-FIND request command field (PS3.7 §9.1.2, verified against pynetdicom
 	// dimse_messages.py C_FIND_RQ 0x0020).
 	CommandCFindRQ CommandField = 0x0020
@@ -82,6 +88,10 @@ var (
 	tagCommandDataSetType        = dicom.NewTag(0x0000, 0x0800) // US
 	tagStatus                    = dicom.NewTag(0x0000, 0x0900) // US
 	tagAffectedSOPInstanceUID    = dicom.NewTag(0x0000, 0x1000) // UI
+	tagNumRemainingSubOps        = dicom.NewTag(0x0000, 0x1020) // US
+	tagNumCompletedSubOps        = dicom.NewTag(0x0000, 0x1021) // US
+	tagNumFailedSubOps           = dicom.NewTag(0x0000, 0x1022) // US
+	tagNumWarningSubOps          = dicom.NewTag(0x0000, 0x1023) // US
 	tagMoveOriginatorAETitle     = dicom.NewTag(0x0000, 0x1030) // AE
 	tagMoveOriginatorMessageID   = dicom.NewTag(0x0000, 0x1031) // US
 )
@@ -103,6 +113,10 @@ var commandVR = map[dicom.Tag]dicom.VR{
 	tagCommandDataSetType:        dicom.VRUS,
 	tagStatus:                    dicom.VRUS,
 	tagAffectedSOPInstanceUID:    dicom.VRUI,
+	tagNumRemainingSubOps:        dicom.VRUS,
+	tagNumCompletedSubOps:        dicom.VRUS,
+	tagNumFailedSubOps:           dicom.VRUS,
+	tagNumWarningSubOps:          dicom.VRUS,
 	tagMoveOriginatorAETitle:     dicom.VRAE,
 	tagMoveOriginatorMessageID:   dicom.VRUS,
 }
@@ -137,6 +151,16 @@ type CommandSet struct {
 	// status element is present only on responses.
 	HasStatus bool
 	Status    uint16
+	// The four sub-operation counts (0000,1020–0000,1023), VR US, carried by a C-MOVE-RSP and a
+	// C-GET-RSP — Remaining/Completed/Failed/Warning sub-operations (PS3.7 §9.1.4). HasSubOpCounts
+	// gates their presence: a C-MOVE/C-GET-RQ carries none, every C-MOVE/C-GET-RSP (Pending and
+	// terminal) carries all four, and they distinguish a present zero count from an absent element
+	// just as HasPriority/HasStatus do.
+	HasSubOpCounts         bool
+	RemainingSubOperations uint16
+	CompletedSubOperations uint16
+	FailedSubOperations    uint16
+	WarningSubOperations   uint16
 }
 
 // IsResponse reports whether the command field has its response bit (0x8000) set.
@@ -219,6 +243,12 @@ func (cs CommandSet) elements() []commandElement {
 	}
 	if cs.AffectedSOPInstanceUID != "" {
 		es = append(es, encodeCommandString(tagAffectedSOPInstanceUID, string(cs.AffectedSOPInstanceUID)))
+	}
+	if cs.HasSubOpCounts {
+		es = append(es, encodeCommandUS(tagNumRemainingSubOps, cs.RemainingSubOperations))
+		es = append(es, encodeCommandUS(tagNumCompletedSubOps, cs.CompletedSubOperations))
+		es = append(es, encodeCommandUS(tagNumFailedSubOps, cs.FailedSubOperations))
+		es = append(es, encodeCommandUS(tagNumWarningSubOps, cs.WarningSubOperations))
 	}
 	if cs.HasMoveOriginator {
 		es = append(es, encodeCommandString(tagMoveOriginatorAETitle, string(cs.MoveOriginatorAETitle)))
@@ -305,6 +335,18 @@ func (cs *CommandSet) applyElement(tag dicom.Tag, value []byte) {
 		cs.Status = decodeUS(value)
 	case tagAffectedSOPInstanceUID:
 		cs.AffectedSOPInstanceUID = dicom.UID(decodeUI(value))
+	case tagNumRemainingSubOps:
+		cs.HasSubOpCounts = true
+		cs.RemainingSubOperations = decodeUS(value)
+	case tagNumCompletedSubOps:
+		cs.HasSubOpCounts = true
+		cs.CompletedSubOperations = decodeUS(value)
+	case tagNumFailedSubOps:
+		cs.HasSubOpCounts = true
+		cs.FailedSubOperations = decodeUS(value)
+	case tagNumWarningSubOps:
+		cs.HasSubOpCounts = true
+		cs.WarningSubOperations = decodeUS(value)
 	case tagMoveOriginatorAETitle:
 		cs.HasMoveOriginator = true
 		cs.MoveOriginatorAETitle = AETitle(decodeAE(value))

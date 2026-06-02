@@ -443,6 +443,153 @@ func TestCCancelRQEncodes(t *testing.T) {
 	}
 }
 
+// TestCommandFieldCMoveValues pins the C-MOVE command field constants to their PS3.7 wire values
+// (verified against pynetdicom dimse_messages.py: C_MOVE_RQ 0x0021, C_MOVE_RSP 0x8021). The RQ
+// constant already exists from the M2 DIMSE-007 regression; the RSP is added in M3.
+func TestCommandFieldCMoveValues(t *testing.T) {
+	if CommandCMoveRQ != 0x0021 {
+		t.Errorf("CommandCMoveRQ = %#04x, want 0x0021", uint16(CommandCMoveRQ))
+	}
+	if CommandCMoveRSP != 0x8021 {
+		t.Errorf("CommandCMoveRSP = %#04x, want 0x8021", uint16(CommandCMoveRSP))
+	}
+}
+
+// TestCMoveRQRoundTrip round-trips a C-MOVE-RQ carrying the Affected SOP Class, the Message ID, the
+// priority, the Move Destination (0000,0600, VR AE), and the data-set-present flag (the identifier
+// follows). pynetdicom lists C_MOVE_RQ's command-set keywords as AffectedSOPClassUID, CommandField,
+// MessageID, Priority, CommandDataSetType, MoveDestination. A C-MOVE-RQ never carries the
+// sub-operation counts: they are present only on the RSP.
+func TestCMoveRQRoundTrip(t *testing.T) {
+	cs := CommandSet{
+		CommandField:        CommandCMoveRQ,
+		MessageID:           13,
+		AffectedSOPClassUID: dicom.UID("1.2.840.10008.5.1.4.1.2.2.2"), // Study Root Q/R - MOVE
+		Priority:            PriorityMedium,
+		HasPriority:         true,
+		MoveDestination:     AETitle("DEST-AE"),
+		CommandDataSetType:  CommandDataSetPresent,
+	}
+	encoded, err := cs.Encode()
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	assertIncreasingTagOrder(t, encoded)
+
+	groupLength := binary.LittleEndian.Uint32(encoded[8:12])
+	if int(groupLength) != len(encoded)-12 {
+		t.Errorf("group length = %d, want %d (bytes following the group-length element)",
+			groupLength, len(encoded)-12)
+	}
+
+	// A C-MOVE-RQ must NOT carry any of the four sub-operation count elements.
+	for _, tag := range []uint16{0x1020, 0x1021, 0x1022, 0x1023} {
+		if val := findCommandElementValue(t, encoded, 0x0000, tag); val != nil {
+			t.Errorf("C-MOVE-RQ encoded sub-operation count (0000,%04X); it carries none", tag)
+		}
+	}
+
+	got, err := DecodeCommandSet(encoded)
+	if err != nil {
+		t.Fatalf("DecodeCommandSet: %v", err)
+	}
+	if got.CommandField != CommandCMoveRQ {
+		t.Errorf("CommandField = %#04x, want C-MOVE-RQ", uint16(got.CommandField))
+	}
+	if got.MessageID != 13 {
+		t.Errorf("MessageID = %d, want 13", got.MessageID)
+	}
+	if got.MoveDestination != AETitle("DEST-AE") {
+		t.Errorf("MoveDestination = %q, want DEST-AE", got.MoveDestination)
+	}
+	if !got.HasPriority || got.Priority != PriorityMedium {
+		t.Errorf("priority = (has=%v, %#04x), want (true, medium)", got.HasPriority, got.Priority)
+	}
+	if !got.HasDataSet() {
+		t.Error("C-MOVE-RQ HasDataSet() = false, want true (an identifier follows)")
+	}
+	if got.HasSubOpCounts {
+		t.Error("C-MOVE-RQ decoded HasSubOpCounts = true; the RQ carries no sub-operation counts")
+	}
+
+	reencoded, err := got.Encode()
+	if err != nil {
+		t.Fatalf("re-Encode: %v", err)
+	}
+	if !bytes.Equal(encoded, reencoded) {
+		t.Errorf("encode->decode->encode is not byte-stable:\n first = %x\n second = %x", encoded, reencoded)
+	}
+}
+
+// TestCMoveRSPCarriesSubOperationCounts checks the C-MOVE-RSP shape: a Pending response (0xFF00)
+// carries the four sub-operation counts (Remaining 0000,1020 / Completed 0000,1021 / Failed
+// 0000,1022 / Warning 0000,1023, each VR US) gated by HasSubOpCounts, the status, and the
+// message-id-being-responded-to, and declares no data set. A terminal RSP equally carries the final
+// counts. The counts round-trip and the count elements appear in strictly increasing tag order.
+func TestCMoveRSPCarriesSubOperationCounts(t *testing.T) {
+	pending := CommandSet{
+		CommandField:              CommandCMoveRSP,
+		MessageIDBeingRespondedTo: 13,
+		AffectedSOPClassUID:       dicom.UID("1.2.840.10008.5.1.4.1.2.2.2"),
+		CommandDataSetType:        CommandDataSetNotPresent,
+		HasStatus:                 true,
+		Status:                    0xFF00,
+		HasSubOpCounts:            true,
+		RemainingSubOperations:    2,
+		CompletedSubOperations:    1,
+		FailedSubOperations:       0,
+		WarningSubOperations:      0,
+	}
+	encoded, err := pending.Encode()
+	if err != nil {
+		t.Fatalf("Encode pending: %v", err)
+	}
+	assertIncreasingTagOrder(t, encoded)
+
+	// All four count elements must be present and 2 bytes (US) wide.
+	for _, tag := range []uint16{0x1020, 0x1021, 0x1022, 0x1023} {
+		val := findCommandElementValue(t, encoded, 0x0000, tag)
+		if val == nil {
+			t.Errorf("Pending C-MOVE-RSP missing sub-operation count (0000,%04X)", tag)
+			continue
+		}
+		if len(val) != 2 {
+			t.Errorf("sub-operation count (0000,%04X) value length %d, want 2 (a US)", tag, len(val))
+		}
+	}
+
+	got, err := DecodeCommandSet(encoded)
+	if err != nil {
+		t.Fatalf("DecodeCommandSet pending: %v", err)
+	}
+	if got.CommandField != CommandCMoveRSP {
+		t.Errorf("CommandField = %#04x, want C-MOVE-RSP", uint16(got.CommandField))
+	}
+	if !got.HasStatus || got.Status != 0xFF00 {
+		t.Errorf("status = (has=%v, %#04x), want (true, 0xFF00 pending)", got.HasStatus, got.Status)
+	}
+	if !got.HasSubOpCounts {
+		t.Fatal("decoded HasSubOpCounts = false, want true (the RSP carried the counts)")
+	}
+	if got.RemainingSubOperations != 2 || got.CompletedSubOperations != 1 ||
+		got.FailedSubOperations != 0 || got.WarningSubOperations != 0 {
+		t.Errorf("counts = (rem=%d comp=%d fail=%d warn=%d), want (2 1 0 0)",
+			got.RemainingSubOperations, got.CompletedSubOperations,
+			got.FailedSubOperations, got.WarningSubOperations)
+	}
+	if got.HasDataSet() {
+		t.Error("C-MOVE-RSP HasDataSet() = true, want false (a C-MOVE-RSP carries no dataset)")
+	}
+
+	reencoded, err := got.Encode()
+	if err != nil {
+		t.Fatalf("re-Encode: %v", err)
+	}
+	if !bytes.Equal(encoded, reencoded) {
+		t.Errorf("encode->decode->encode is not byte-stable:\n first = %x\n second = %x", encoded, reencoded)
+	}
+}
+
 // findCommandElementValue walks an Implicit VR LE command set and returns the value bytes of the
 // element at (group,element), or nil if absent.
 func findCommandElementValue(t *testing.T, encoded []byte, group, element uint16) []byte {
