@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 #
-# Validate DICOM files with dcmtk's dciodvfy.
+# Validate DICOM files with dciodvfy from David Clunie's dicom3tools (NOT dcmtk —
+# dcmtk ships no IOD validator; dciodvfy is a dicom3tools program).
 #
 # Behaviour when dciodvfy is not installed:
 #   - On a developer machine: print a SKIP message and exit 0, so the suite is
-#     green without dcmtk.
+#     green without dicom3tools.
 #   - In CI (CI=true): exit non-zero, so a missing gate cannot silently rot
 #     (PRD §11.1).
 #
@@ -16,7 +17,7 @@ set -euo pipefail
 FIXTURE_DIR="testdata/dicom"
 
 if ! command -v dciodvfy >/dev/null 2>&1; then
-  msg="SKIP: dciodvfy not installed (install dcmtk to run the DICOM IOD validation gate)"
+  msg="SKIP: dciodvfy not installed (install dicom3tools to run the DICOM IOD validation gate)"
   if [ "${CI:-}" = "true" ]; then
     echo "FAIL: $msg" >&2
     echo "FAIL: CI=true requires dciodvfy; the conformance gate must run in CI." >&2

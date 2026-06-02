@@ -58,10 +58,13 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install dcmtk + pydicom
+      - name: Install dicom3tools (provides dciodvfy) + pydicom
         run: |
+          # dciodvfy is a David Clunie dicom3tools program (Ubuntu universe), NOT a dcmtk tool —
+          # dcmtk ships no IOD validator. The first CI run installed dcmtk and the gate correctly
+          # failed because dciodvfy was absent.
           sudo apt-get update
-          sudo apt-get install -y dcmtk python3-pip
+          sudo apt-get install -y dicom3tools python3-pip
           python3 -m pip install --break-system-packages pydicom
       - name: DICOM IOD validation (dciodvfy)
         run: mise run dicom:dciodvfy
