@@ -211,8 +211,11 @@ func (b *Bundle) loadEntries(dec *json.Decoder, name string) error {
 		if err := dec.Decode(&entry); err != nil {
 			return &LoadError{File: name, Detail: "decode bundle entry", Err: err}
 		}
+		// Every entry in a definition bundle is expected to carry a resource. An
+		// entry without one is a corrupted or wrong bundle; fail closed rather than
+		// silently dropping the definition.
 		if len(entry.Resource) == 0 {
-			continue
+			return &LoadError{File: name, Detail: "bundle entry has no resource"}
 		}
 		if err := b.indexResource(entry.Resource, name); err != nil {
 			return err

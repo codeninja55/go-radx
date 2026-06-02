@@ -59,6 +59,13 @@ type ElementDefinition struct {
 	IsModifier bool            `json:"isModifier"`
 	IsSummary  bool            `json:"isSummary"`
 
+	// ContentReference points at another element whose child structure this
+	// element reuses (a local "#Element.path" anchor), used for recursive or
+	// shared shapes such as CodeSystem.concept.concept and Bundle.entry.link. The
+	// model layer resolves it; the loader only captures it so a referencing
+	// element is not mistaken for an untyped leaf.
+	ContentReference string `json:"contentReference"`
+
 	// Fixed and Pattern capture the element's fixed[x]/pattern[x] constraint as
 	// raw JSON. The choice suffix (Fixed"Code", Pattern"CodeableConcept", ...) is
 	// not split out here; the model layer refines it. Captured via UnmarshalJSON

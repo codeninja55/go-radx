@@ -39,6 +39,12 @@ const patientStubJSON = `{
         "min": 0,
         "max": "1",
         "type": [{"code": "boolean"}, {"code": "dateTime"}]
+      },
+      {
+        "path": "Patient.link.other",
+        "min": 1,
+        "max": "1",
+        "contentReference": "#Patient.contact"
       }
     ]
   }
@@ -90,7 +96,7 @@ func TestStructureDefinitionDecode(t *testing.T) {
 	if sd.Snapshot == nil {
 		t.Fatal("Snapshot is nil")
 	}
-	if got, want := len(sd.Snapshot.Element), 3; got != want {
+	if got, want := len(sd.Snapshot.Element), 4; got != want {
 		t.Fatalf("Snapshot.Element count = %d, want %d", got, want)
 	}
 
@@ -98,8 +104,9 @@ func TestStructureDefinitionDecode(t *testing.T) {
 		sd.Snapshot.Element[0].Path,
 		sd.Snapshot.Element[1].Path,
 		sd.Snapshot.Element[2].Path,
+		sd.Snapshot.Element[3].Path,
 	}
-	wantPaths := []string{"Patient.id", "Patient.gender", "Patient.deceased[x]"}
+	wantPaths := []string{"Patient.id", "Patient.gender", "Patient.deceased[x]", "Patient.link.other"}
 	for i := range wantPaths {
 		if gotPaths[i] != wantPaths[i] {
 			t.Errorf("element %d path = %q, want %q", i, gotPaths[i], wantPaths[i])
@@ -136,6 +143,11 @@ func TestStructureDefinitionDecode(t *testing.T) {
 	if deceased.Type[0].Code != "boolean" || deceased.Type[1].Code != "dateTime" {
 		t.Errorf("Patient.deceased[x] types = %v, want [boolean dateTime]",
 			[]string{deceased.Type[0].Code, deceased.Type[1].Code})
+	}
+
+	link := sd.Snapshot.Element[3]
+	if link.ContentReference != "#Patient.contact" {
+		t.Errorf("Patient.link.other ContentReference = %q, want #Patient.contact", link.ContentReference)
 	}
 }
 

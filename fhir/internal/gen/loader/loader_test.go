@@ -312,6 +312,37 @@ func TestLoadRejectsTrailingContent(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsResourcelessEntry(t *testing.T) {
+	t.Parallel()
+
+	// A well-formed bundle whose entry carries no resource member: every
+	// definition-bundle entry is expected to carry a resource, so this must fail
+	// closed rather than silently dropping the definition.
+	dir := t.TempDir()
+	good := []byte(`{"resourceType":"Bundle","entry":[]}`)
+	resourceless := []byte(`{"resourceType":"Bundle","entry":[{"fullUrl":"http://example/x"}]}`)
+	writeFile(t, dir, "profiles-types.json", good)
+	writeFile(t, dir, "profiles-resources.json", resourceless)
+	writeFile(t, dir, "valuesets.json", good)
+	writeSums(t, dir, map[string]string{
+		"profiles-types.json":     sha256Hex(good),
+		"profiles-resources.json": sha256Hex(resourceless),
+		"valuesets.json":          sha256Hex(good),
+	})
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("Load should fail on a bundle entry with no resource")
+	}
+	var le *LoadError
+	if !errors.As(err, &le) {
+		t.Fatalf("error = %T, want *LoadError", err)
+	}
+	if !strings.Contains(le.Error(), "profiles-resources.json") {
+		t.Errorf("error %q should name the offending file", le.Error())
+	}
+}
+
 func writeFile(t *testing.T, dir, name string, data []byte) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
