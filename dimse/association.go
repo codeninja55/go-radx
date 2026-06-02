@@ -43,6 +43,23 @@ type Association struct {
 	// recorded here. Guarded by a.mu because the iterator body and LastError() may be called from
 	// different goroutines, though an Association is not safe for concurrent queries.
 	lastError error
+	// subOpCounts holds the four sub-operation counts (Remaining/Completed/Failed/Warning) from the
+	// most recently yielded C-MOVE/C-GET response on this association, refreshed on each yield so a
+	// caller can read progress via SubOperationCounts() inside or after the range loop. It is
+	// per-association like lastError (an Association is not safe for concurrent queries) and guarded
+	// by a.mu because the iterator body and SubOperationCounts() may run on different goroutines.
+	subOpCounts SubOperationCounts
+}
+
+// SubOperationCounts is the C-MOVE/C-GET sub-operation progress carried by each response: the
+// number of sub-operation C-STOREs still Remaining, and the running Completed/Failed/Warning tallies
+// (0000,1020–0000,1023, PS3.7 §9.1.4). The retrieve SCU reads it via Association.SubOperationCounts()
+// to track progress; the terminal response carries the final tallies.
+type SubOperationCounts struct {
+	Remaining uint16
+	Completed uint16
+	Failed    uint16
+	Warning   uint16
 }
 
 // nextMessageID returns the next Message ID for an operation on this association: a distinct,
@@ -92,6 +109,43 @@ func (a *Association) clearLastError() {
 	}
 	a.mu.Lock()
 	a.lastError = nil
+	a.mu.Unlock()
+}
+
+// SubOperationCounts returns the four sub-operation counts (Remaining/Completed/Failed/Warning) the
+// most recently yielded C-MOVE or C-GET response on this association carried. A retrieve SCU reads
+// it after each Pending yield to track progress, and after the loop to read the terminal tallies. It
+// is the zero value before the first retrieve and is reset at the start of each retrieve iterator,
+// so it is scoped to the most recent operation, not per-call. It is nil-safe.
+func (a *Association) SubOperationCounts() SubOperationCounts {
+	if a == nil {
+		return SubOperationCounts{}
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.subOpCounts
+}
+
+// setSubOperationCounts records the sub-operation counts a C-MOVE/C-GET response carried, read by
+// SubOperationCounts(). It is a no-op on a nil receiver.
+func (a *Association) setSubOperationCounts(c SubOperationCounts) {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.subOpCounts = c
+	a.mu.Unlock()
+}
+
+// clearSubOperationCounts resets the per-association sub-operation count slot at the start of a
+// retrieve iterator, so SubOperationCounts() reflects only the most recent operation. It is a no-op
+// on a nil receiver.
+func (a *Association) clearSubOperationCounts() {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.subOpCounts = SubOperationCounts{}
 	a.mu.Unlock()
 }
 

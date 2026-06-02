@@ -176,7 +176,7 @@ func (a *Association) Find(
 				// via LastError, never a silent end — otherwise a stalled C-FIND would finish with
 				// neither a terminal status nor an error.
 				if (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) && ctx.Err() != nil {
-					a.cancelOperation(ctx, conn, m, pcID, ts, msgID, svc)
+					a.cancelOperation(ctx, conn, m, pcID, ts, msgID, svc, CommandCFindRSP)
 					return
 				}
 				a.setLastError(err)
@@ -205,7 +205,7 @@ func (a *Association) Find(
 			if status.IsPending() {
 				if !yield(status, ds) {
 					// The caller broke out: cancel the in-flight operation and drain to terminal.
-					a.cancelOperation(ctx, conn, m, pcID, ts, msgID, svc)
+					a.cancelOperation(ctx, conn, m, pcID, ts, msgID, svc, CommandCFindRSP)
 					return
 				}
 				continue
@@ -288,7 +288,7 @@ func (a *Association) findPreflight(model dicom.SOPClassUID, level QueryLevel) e
 // not propagated, since the operation is ending. The drain leaves the association clean for reuse:
 // the SCP keeps sending already-queued Pending responses and a terminal RSP after the cancel, and
 // those must be consumed so they do not corrupt the next operation on the association.
-func (a *Association) cancelOperation(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, pcID uint8, ts dicom.TransferSyntax, msgID uint16, svc ServiceClass) {
+func (a *Association) cancelOperation(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, pcID uint8, ts dicom.TransferSyntax, msgID uint16, svc ServiceClass, rspField CommandField) {
 	cancelCtx, cancel := a.cancelContext(ctx)
 	defer cancel()
 	cmd := CommandSet{
@@ -302,25 +302,26 @@ func (a *Association) cancelOperation(ctx context.Context, conn *dul.Conn, m *du
 		a.setLastError(err)
 		return
 	}
-	a.drainToTerminal(cancelCtx, conn, m, ts, svc)
+	a.drainToTerminal(cancelCtx, conn, m, ts, svc, rspField)
 }
 
-// drainToTerminal reads C-FIND responses until a terminal (non-pending) status, discarding the
-// matching identifiers, so a cancelled query leaves the association stream clean for the next
-// operation. It is best-effort and bounded by ctx; a read fault records LastError and stops.
-func (a *Association) drainToTerminal(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, ts dicom.TransferSyntax, svc ServiceClass) {
+// drainToTerminal reads query/retrieve responses (the rspField command — C-FIND-RSP or C-MOVE-RSP)
+// until a terminal (non-pending) status, discarding the matching identifiers, so a cancelled
+// operation leaves the association stream clean for the next operation. It is best-effort and
+// bounded by ctx; a read fault records LastError and stops.
+func (a *Association) drainToTerminal(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, ts dicom.TransferSyntax, svc ServiceClass, rspField CommandField) {
 	for {
 		rsp, _, _, err := receiveMessage(ctx, conn, m, newMessageReassembler(ts))
 		if err != nil {
 			a.setLastError(err)
 			return
 		}
-		if rsp.CommandField != CommandCFindRSP || !rsp.HasStatus {
-			// A response that is not a well-formed C-FIND-RSP ends the drain; the stream is in an
-			// unexpected state, recorded for LastError.
+		if rsp.CommandField != rspField || !rsp.HasStatus {
+			// A response that is not a well-formed query/retrieve RSP ends the drain; the stream is in
+			// an unexpected state, recorded for LastError.
 			a.setLastError(&ProtocolError{
 				State:  m.CurrentState(),
-				Detail: "draining cancelled C-FIND: unexpected response while awaiting the terminal status",
+				Detail: "draining a cancelled query/retrieve: unexpected response while awaiting the terminal status",
 			})
 			return
 		}
