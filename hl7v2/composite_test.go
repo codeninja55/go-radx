@@ -1,6 +1,7 @@
 package hl7v2
 
 import (
+	"bytes"
 	"testing"
 	"time"
 )
@@ -87,6 +88,213 @@ func TestParseCXAndHD(t *testing.T) {
 	}
 	if cx.IdentifierTypeCode != "MR" {
 		t.Errorf("CX.IdentifierTypeCode = %q, want MR", cx.IdentifierTypeCode)
+	}
+}
+
+func TestParseCWESixComponents(t *testing.T) {
+	// A six-component CWE: code^text^system^altcode^alttext^altsystem.
+	full := parseRepetition([]byte("36643-5^CHEST XRAY^LN^36643^CHEST X-RAY^L"), DefaultEncoding())
+	cwe := parseCWE(full)
+	want := CWE{
+		Code:            "36643-5",
+		Text:            "CHEST XRAY",
+		CodingSystem:    "LN",
+		AltCode:         "36643",
+		AltText:         "CHEST X-RAY",
+		AltCodingSystem: "L",
+	}
+	if cwe != want {
+		t.Errorf("parseCWE(full) = %+v, want %+v", cwe, want)
+	}
+
+	// A three-component CWE leaves the alternate fields empty (absence is empty,
+	// not error).
+	partial := parseRepetition([]byte("24323-8^COMPREHENSIVE METABOLIC PANEL^LN"), DefaultEncoding())
+	cwe = parseCWE(partial)
+	if cwe.AltCode != "" || cwe.AltText != "" || cwe.AltCodingSystem != "" {
+		t.Errorf("parseCWE(partial) alternate fields = %q/%q/%q, want all empty",
+			cwe.AltCode, cwe.AltText, cwe.AltCodingSystem)
+	}
+}
+
+func TestParseXPNDegree(t *testing.T) {
+	// Family^Given^Middle^Suffix^Prefix^Degree^NameTypeCode.
+	r := parseRepetition([]byte("DOE^JOHN^A^JR^DR^PHD^L"), DefaultEncoding())
+	xpn := parseXPN(r)
+	if xpn.Degree != "PHD" {
+		t.Errorf("XPN.Degree = %q, want PHD", xpn.Degree)
+	}
+	// NameTypeCode must stay at component 7, not shift when Degree is read at 6.
+	if xpn.NameTypeCode != "L" {
+		t.Errorf("XPN.NameTypeCode = %q, want L", xpn.NameTypeCode)
+	}
+	if xpn.Prefix != "DR" {
+		t.Errorf("XPN.Prefix = %q, want DR", xpn.Prefix)
+	}
+}
+
+func TestParseXAD(t *testing.T) {
+	// Street^OtherDesignation^City^State^Zip^Country.
+	r := parseRepetition([]byte("123 MAIN ST^APT 4^METROPOLIS^NY^10001^USA"), DefaultEncoding())
+	xad := parseXAD(r)
+	want := XAD{
+		Street:           "123 MAIN ST",
+		OtherDesignation: "APT 4",
+		City:             "METROPOLIS",
+		State:            "NY",
+		Zip:              "10001",
+		Country:          "USA",
+	}
+	if xad != want {
+		t.Errorf("parseXAD = %+v, want %+v", xad, want)
+	}
+
+	// An absent address yields the zero XAD.
+	empty := parseRepetition([]byte(""), DefaultEncoding())
+	if got := parseXAD(empty); got != (XAD{}) {
+		t.Errorf("parseXAD(empty) = %+v, want zero XAD", got)
+	}
+}
+
+// renderRepetition renders a single Repetition with the given encoding, the same
+// way MarshalText renders one repetition of a field.
+func renderRepetition(r Repetition, enc EncodingCharacters) string {
+	var buf bytes.Buffer
+	r.render(&buf, enc)
+	return buf.String()
+}
+
+func TestCompositeRepetitionRenderers(t *testing.T) {
+	enc := DefaultEncoding()
+
+	// A CX with gaps: CX-2 and CX-3 empty, CX-4 a nested HD, CX-5 the type code.
+	cx := CX{
+		ID:                 "PATID1234",
+		AssigningAuthority: HD{NamespaceID: "HOSP"},
+		IdentifierTypeCode: "MR",
+	}
+	if got := renderRepetition(cx.repetition(), enc); got != "PATID1234^^^HOSP^MR" {
+		t.Errorf("CX render = %q, want PATID1234^^^HOSP^MR", got)
+	}
+
+	// A CWE with only its code renders with no trailing carets.
+	if got := renderRepetition(CWE{Code: "NM"}.repetition(), enc); got != "NM" {
+		t.Errorf("CWE render = %q, want NM", got)
+	}
+
+	// An HD with a full universal-ID triplet.
+	if got := renderRepetition(HD{NamespaceID: "HOSP", UniversalID: "1.2.3", UniversalIDType: "ISO"}.repetition(), enc); got != "HOSP^1.2.3^ISO" {
+		t.Errorf("HD render = %q, want HOSP^1.2.3^ISO", got)
+	}
+
+	// An XPN with Degree present at component 6 keeps NameTypeCode at 7.
+	xpn := XPN{Family: "DOE", Given: "JOHN", Degree: "PHD", NameTypeCode: "L"}
+	if got := renderRepetition(xpn.repetition(), enc); got != "DOE^JOHN^^^^PHD^L" {
+		t.Errorf("XPN render = %q, want DOE^JOHN^^^^PHD^L", got)
+	}
+
+	// An XAD round-trips its postal components.
+	xad := XAD{Street: "123 MAIN ST", City: "METROPOLIS", State: "NY", Zip: "10001", Country: "USA"}
+	if got := renderRepetition(xad.repetition(), enc); got != "123 MAIN ST^^METROPOLIS^NY^10001^USA" {
+		t.Errorf("XAD render = %q, want 123 MAIN ST^^METROPOLIS^NY^10001^USA", got)
+	}
+
+	// A wholly empty composite renders as the empty string (one empty component).
+	if got := renderRepetition(CWE{}.repetition(), enc); got != "" {
+		t.Errorf("empty CWE render = %q, want empty", got)
+	}
+}
+
+func TestCompositeRoundTrip(t *testing.T) {
+	enc := DefaultEncoding()
+
+	// parseThenRender parses raw into a typed composite and renders it back; it
+	// returns the rendered text so the test can assert render(parse(raw)) == raw.
+	// reparse re-parses the rendered text so the test can assert that the value
+	// survives parse → render → parse unchanged.
+	tests := []struct {
+		name     string
+		raw      string
+		render   func(string) string // render(parse(raw))
+		stableID bool                // raw round-trips byte-exact (no lossy components)
+	}{
+		// HD
+		{"HD/full", "HOSP^1.2.3^ISO", func(r string) string {
+			return renderRepetition(parseHD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"HD/namespace-only", "HOSP", func(r string) string {
+			return renderRepetition(parseHD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"HD/empty", "", func(r string) string {
+			return renderRepetition(parseHD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		// CX (CX-3 is not modelled, so a value carrying CX-3 is not byte-stable;
+		// the modelled-field cases below are.)
+		{"CX/id-authority-type", "PATID1234^^^HOSP^MR", func(r string) string {
+			return renderRepetition(parseCX(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CX/nested-hd", "9000^^^NS&1.2.3&ISO^MR", func(r string) string {
+			return renderRepetition(parseCX(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CX/id-only", "PATID1234", func(r string) string {
+			return renderRepetition(parseCX(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CX/empty", "", func(r string) string {
+			return renderRepetition(parseCX(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		// CWE
+		{"CWE/six", "36643-5^CHEST XRAY^LN^36643^CHEST X-RAY^L", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CWE/three", "24323-8^COMPREHENSIVE METABOLIC PANEL^LN", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CWE/code-only", "NM", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CWE/gappy", "NM^^L", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CWE/empty", "", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		// XPN
+		{"XPN/full", "DOE^JOHN^A^JR^DR^PHD^L", func(r string) string {
+			return renderRepetition(parseXPN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XPN/family-given", "DOE^JOHN", func(r string) string {
+			return renderRepetition(parseXPN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XPN/trailing-type", "DOE^JOHN^^^^^L", func(r string) string {
+			return renderRepetition(parseXPN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XPN/empty", "", func(r string) string {
+			return renderRepetition(parseXPN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		// XAD
+		{"XAD/full", "123 MAIN ST^APT 4^METROPOLIS^NY^10001^USA", func(r string) string {
+			return renderRepetition(parseXAD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XAD/street-city-state", "200 SAMPLE AVE^^METROPOLIS^NY", func(r string) string {
+			return renderRepetition(parseXAD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XAD/empty", "", func(r string) string {
+			return renderRepetition(parseXAD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.render(tc.raw)
+			if tc.stableID && got != tc.raw {
+				t.Errorf("render(parse(%q)) = %q, want byte-exact round-trip", tc.raw, got)
+			}
+			// parse → render → parse stability: re-rendering the already-rendered
+			// form must reproduce it (the value is fixed under the round-trip).
+			if again := tc.render(got); again != got {
+				t.Errorf("render(parse(render(parse(%q)))) = %q, want %q (not idempotent)", tc.raw, again, got)
+			}
+		})
 	}
 }
 
