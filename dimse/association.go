@@ -35,6 +35,14 @@ type Association struct {
 	// goroutine drives an association's primary operation, but C-GET/C-MOVE sub-operation send
 	// paths allocate IDs too, so the counter is read and bumped under a.mu (Codex DIMSE-016).
 	nextMsgID uint16
+	// lastError holds the transport/protocol fault, if any, that terminated the most recent
+	// query/retrieve iterator (C-FIND/C-GET/C-MOVE) before a clean terminal DIMSE status. It is
+	// per-association, not per-call: a query/retrieve iterator clears it on entry and sets it on a
+	// fault, and the caller reads it via LastError() immediately after the range loop (dimse.md
+	// "the streaming query contract"). A terminal Failure/Cancel Status is in-band data, never
+	// recorded here. Guarded by a.mu because the iterator body and LastError() may be called from
+	// different goroutines, though an Association is not safe for concurrent queries.
+	lastError error
 }
 
 // nextMessageID returns the next Message ID for an operation on this association: a distinct,
@@ -57,6 +65,47 @@ func (a *Association) nextMessageID() uint16 {
 // cap (Codex DIMSE-005).
 func (a *Association) sendCap() MaxPDULength {
 	return a.peerMaxPDULength.SendCap(a.localMaxPDULength)
+}
+
+// LastError returns the transport or protocol fault, if any, that terminated the most recent
+// query/retrieve iterator (Find/Get/Move) before a clean terminal DIMSE status — a dropped
+// connection, an A-ABORT, or a malformed PDU. It is nil when the operation completed with a clean
+// terminal status, and must be read immediately after the range loop, before starting another
+// query: it is scoped to the most recent iterator on this association, not per-call (dimse.md "the
+// streaming query contract"). A terminal Failure/Cancel Status is in-band data the caller inspects,
+// never reported here.
+func (a *Association) LastError() error {
+	if a == nil {
+		return nil
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.lastError
+}
+
+// clearLastError resets the per-association last-error slot at the start of a query/retrieve
+// iterator, so LastError() reflects only the most recent operation. It is a no-op on a nil
+// receiver (a pre-flight fault on an unestablished association has no slot to clear).
+func (a *Association) clearLastError() {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.lastError = nil
+	a.mu.Unlock()
+}
+
+// setLastError records the transport/protocol fault that ended a query/retrieve iterator. It is
+// read by LastError() after the range loop. It is a no-op on a nil receiver: a Find on a nil
+// *Association still yields a typed terminal failure, and LastError() (also nil-safe) returns nil
+// since there is no association to carry the error (Codex DIMSE-017).
+func (a *Association) setLastError(err error) {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.lastError = err
+	a.mu.Unlock()
 }
 
 // AssociateOption configures an outbound association (reserved for role selection,
