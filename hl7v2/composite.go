@@ -103,6 +103,28 @@ func parseXPN(r Repetition) XPN {
 	}
 }
 
+// XAD — extended address (PID-11, ...). Only the modelled postal components are
+// read; HL7's later XAD components (address type, geo coordinates, ...) are not.
+type XAD struct {
+	Street           string // XAD-1
+	OtherDesignation string // XAD-2
+	City             string // XAD-3
+	State            string // XAD-4
+	Zip              string // XAD-5
+	Country          string // XAD-6
+}
+
+func parseXAD(r Repetition) XAD {
+	return XAD{
+		Street:           r.component(1),
+		OtherDesignation: r.component(2),
+		City:             r.component(3),
+		State:            r.component(4),
+		Zip:              r.component(5),
+		Country:          r.component(6),
+	}
+}
+
 // Precision records how much of an HL7 timestamp was supplied, so a DTM never
 // fabricates the components the sender omitted (the same lexical-preserving
 // philosophy as dicom.DA).

@@ -132,6 +132,29 @@ func TestParseXPNDegree(t *testing.T) {
 	}
 }
 
+func TestParseXAD(t *testing.T) {
+	// Street^OtherDesignation^City^State^Zip^Country.
+	r := parseRepetition([]byte("123 MAIN ST^APT 4^METROPOLIS^NY^10001^USA"), DefaultEncoding())
+	xad := parseXAD(r)
+	want := XAD{
+		Street:           "123 MAIN ST",
+		OtherDesignation: "APT 4",
+		City:             "METROPOLIS",
+		State:            "NY",
+		Zip:              "10001",
+		Country:          "USA",
+	}
+	if xad != want {
+		t.Errorf("parseXAD = %+v, want %+v", xad, want)
+	}
+
+	// An absent address yields the zero XAD.
+	empty := parseRepetition([]byte(""), DefaultEncoding())
+	if got := parseXAD(empty); got != (XAD{}) {
+		t.Errorf("parseXAD(empty) = %+v, want zero XAD", got)
+	}
+}
+
 func TestParseCXNestedHDInSubcomponents(t *testing.T) {
 	// CX-4 may carry the HD as subcomponents: ID^^^NS&UID&ISO^MR
 	msg, err := Parse([]byte(
