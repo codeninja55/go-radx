@@ -13,11 +13,13 @@
 // safe default.
 //
 // CharLS is a C++ library; the cgo LDFLAGS link the C++ runtime in addition to the
-// pkg-config flags.
+// pkg-config flags. The runtime is platform-specific: libc++ on macOS (clang) and
+// libstdc++ on Linux (gcc), so the link flag is selected per GOOS.
 package dicom
 
 // #cgo pkg-config: charls
-// #cgo LDFLAGS: -lc++
+// #cgo darwin LDFLAGS: -lc++
+// #cgo linux LDFLAGS: -lstdc++
 // #include <stdlib.h>
 // #include "charls_bridge.h"
 import "C"
