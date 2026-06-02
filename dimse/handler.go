@@ -21,6 +21,11 @@ type OpInfo struct {
 	TransferSyntax dicom.TransferSyntax
 	MessageID      uint16
 	SOPClassUID    dicom.SOPClassUID
+	// MoveOriginatorAETitle is the Move Originator AE Title (0000,1030) a C-STORE-RQ carried when it
+	// is a sub-operation of a C-MOVE/C-GET — the AE that invoked the originating retrieve (PS3.7
+	// §9.1.1). It is empty for an everyday C-STORE that carries no originator. It is a protocol
+	// identifier (an AE Title), never a patient value, so it is safe to log.
+	MoveOriginatorAETitle AETitle
 }
 
 // EchoHandler answers a C-ECHO (Verification). A store-only SCP need not implement it; the
@@ -216,6 +221,11 @@ func serveStoreMessage(ctx context.Context, acc *acse.Acceptor, h StoreHandler, 
 	info.TransferSyntax = ts
 	info.MessageID = cmd.MessageID
 	info.SOPClassUID = dicom.SOPClassUID(cmd.AffectedSOPClassUID)
+	// Surface the Move Originator AE Title when the C-STORE is a C-MOVE/C-GET sub-operation, so a
+	// destination handler can attribute the instance to the AE that invoked the retrieve (PS3.7 §9.1.1).
+	if cmd.HasMoveOriginator {
+		info.MoveOriginatorAETitle = cmd.MoveOriginatorAETitle
+	}
 	status := h.Store(ctx, ds, info)
 
 	rsp := CommandSet{

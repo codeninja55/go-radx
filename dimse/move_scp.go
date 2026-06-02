@@ -84,11 +84,17 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 		return sendMoveResponse(ctx, acc, cmd, pcID, NewStatus(0xA702, ServiceClassMove), SubOperationCounts{})
 	}
 	// The destination association is tracked and released when the move ends — never fire-and-forget
-	// (PRD §9.4). The release rides a fresh short context so a cancelled move ctx does not also block
-	// the graceful release.
+	// (PRD §9.4). The release rides a fresh context (NOT the move ctx, which may be cancelled) bounded
+	// by the AE's ACSE timeout; a non-positive timeout means unbounded (mirroring AE.acseContext) so a
+	// Server configured with WithACSETimeout(0) still writes the A-RELEASE-RQ rather than handing the
+	// release an already-expired context.
 	defer func() {
-		releaseCtx, cancel := context.WithTimeout(context.Background(), move.ae.config().acseTimeout)
-		defer cancel()
+		releaseCtx := context.Background()
+		if d := move.ae.config().acseTimeout; d > 0 {
+			var cancel context.CancelFunc
+			releaseCtx, cancel = context.WithTimeout(releaseCtx, d)
+			defer cancel()
+		}
 		_ = destAssoc.Release(releaseCtx)
 	}()
 
@@ -129,10 +135,12 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 
 		// C-STORE the matched instance to the destination as a sub-operation, with a distinct non-zero
 		// Message ID from the destination association's allocator (DIMSE-016), propagating the move
-		// originator (this SCP's called AE Title and the original C-MOVE Message ID, PS3.7 §9.1.1).
+		// originator: the AE Title that INVOKED the C-MOVE (the calling AE of the inbound C-MOVE
+		// association) and the original C-MOVE Message ID (PS3.7 §9.1.1; the originator is the request
+		// SCU, not this Move SCP, so destinations attribute the retrieve to the right AE).
 		subStatus, storeErr := destAssoc.Store(ctx, instance,
 			WithStoreMessageID(destAssoc.nextMessageID()),
-			WithMoveOriginator(info.CalledAETitle, cmd.MessageID),
+			WithMoveOriginator(info.CallingAETitle, cmd.MessageID),
 		)
 		switch {
 		case storeErr != nil:
@@ -166,12 +174,13 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 }
 
 // moveTerminalStatus resolves the terminal C-MOVE-RSP status from the accumulated sub-operation
-// counts (parity with pynetdicom's QueryRetrieveMoveServiceClass): a clean Success when nothing
-// failed, the 0xA702 "unable to perform sub-operations" Failure when every sub-operation failed (and
-// at least one was attempted), and the 0xB000 "Sub-operations Complete — One or More Failures"
-// Warning when some failed but not all.
+// counts (parity with pynetdicom's QueryRetrieveMoveServiceClass): a clean Success only when every
+// sub-operation completed without failure or warning, the 0xA702 "unable to perform sub-operations"
+// Failure when every attempted sub-operation failed, and the 0xB000 "Sub-operations Complete — One
+// or More Failures" Warning when at least one sub-operation failed OR warned but not all failed
+// (PS3.4 C.4.2.1.5 — a warning is not laundered into Success, PRD §9.2).
 func moveTerminalStatus(counts SubOperationCounts) Status {
-	if counts.Failed == 0 {
+	if counts.Failed == 0 && counts.Warning == 0 {
 		return StatusMoveSuccess
 	}
 	attempted := counts.Completed + counts.Failed + counts.Warning

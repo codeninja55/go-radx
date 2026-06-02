@@ -92,12 +92,14 @@ func (h *movingFindHandler) Move(_ context.Context, query *dicom.DataSet, _ Quer
 }
 
 // recordingDestination is a StoreHandler used as the C-MOVE destination AE: it records the SOP
-// Instance UID and the Message ID of each sub-operation C-STORE it receives, so the move tests can
-// assert the instances arrived and the DIMSE-016 distinct-Message-ID rule holds.
+// Instance UID, the Message ID, and the Move Originator AE Title of each sub-operation C-STORE it
+// receives, so the move tests can assert the instances arrived, the DIMSE-016 distinct-Message-ID
+// rule holds, and the originator is the original C-MOVE requestor.
 type recordingDestination struct {
-	mu        sync.Mutex
-	instances []string
-	msgIDs    []uint16
+	mu          sync.Mutex
+	instances   []string
+	msgIDs      []uint16
+	originators []AETitle
 }
 
 func (d *recordingDestination) Store(_ context.Context, ds *dicom.DataSet, info OpInfo) Status {
@@ -105,6 +107,7 @@ func (d *recordingDestination) Store(_ context.Context, ds *dicom.DataSet, info 
 	d.mu.Lock()
 	d.instances = append(d.instances, sopInstance)
 	d.msgIDs = append(d.msgIDs, info.MessageID)
+	d.originators = append(d.originators, info.MoveOriginatorAETitle)
 	d.mu.Unlock()
 	return StatusStoreSuccess
 }
@@ -115,6 +118,12 @@ func (d *recordingDestination) snapshot() ([]string, []uint16) {
 	ins := append([]string(nil), d.instances...)
 	ids := append([]uint16(nil), d.msgIDs...)
 	return ins, ids
+}
+
+func (d *recordingDestination) originatorSnapshot() []AETitle {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]AETitle(nil), d.originators...)
 }
 
 // instanceDataset builds a minimal storable dataset carrying the SOP Class/Instance UID a C-STORE
@@ -248,6 +257,14 @@ func TestServerAnswersCMove(t *testing.T) {
 	handler.mu.Unlock()
 	if gotDest != destTitle {
 		t.Errorf("handler called with destination %q, want %q", gotDest, destTitle)
+	}
+
+	// Each sub-operation C-STORE must carry the Move Originator AE Title of the AE that INVOKED the
+	// C-MOVE (the calling SCU "MOVESCU"), not the Move SCP's own title (PS3.7 §9.1.1).
+	for _, orig := range dest.originatorSnapshot() {
+		if orig != AETitle("MOVESCU") {
+			t.Errorf("sub-operation Move Originator AE Title = %q, want the C-MOVE requestor MOVESCU", orig)
+		}
 	}
 }
 
@@ -386,6 +403,84 @@ func TestServeMoveTerminalWarningOnSubOpFailure(t *testing.T) {
 	}
 	if final.Completed != 2 {
 		t.Errorf("final Completed count = %d, want 2", final.Completed)
+	}
+}
+
+// warningDestination is a StoreHandler that returns a Storage Warning (Coercion of Data Elements,
+// 0xB000) for every instance — the instance is stored, but with a warning — so the SCP's terminal
+// status can be checked when sub-operations warn but none fail.
+type warningDestination struct{}
+
+func (d *warningDestination) Store(context.Context, *dicom.DataSet, OpInfo) Status {
+	return StatusStoreCoercionOfDataElements // 0xB000 Storage Warning
+}
+
+// startWarningDestinationSCP stands up a destination Store SCP that warns on every instance.
+func startWarningDestinationSCP(t *testing.T) (AETitle, string) {
+	t.Helper()
+	const destTitle = AETitle("RADX-DEST")
+	ae, err := NewAE(destTitle)
+	if err != nil {
+		t.Fatalf("NewAE destination: %v", err)
+	}
+	srv := NewServer(ae, StorageContexts(), &warningDestination{})
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		<-served
+	})
+	return destTitle, srv.Addr().String()
+}
+
+// TestServeMoveTerminalWarningOnSubOpWarning verifies that when every sub-operation C-STORE returns a
+// Warning (stored with a warning) and none fails, the SCP reports the terminal 0xB000 Warning, NOT
+// Success — a warning is not laundered into Success (PRD §9.2; the Codex round-1 finding).
+func TestServeMoveTerminalWarningOnSubOpWarning(t *testing.T) {
+	destTitle, destAddr := startWarningDestinationSCP(t)
+
+	handler := &movingFindHandler{instances: []*dicom.DataSet{
+		instanceDataset("1.2.3.1"),
+		instanceDataset("1.2.3.2"),
+	}}
+	moveAddr := startMoveServer(t, handler, map[AETitle]string{destTitle: destAddr})
+
+	assoc, ctx, cancel := dialMoveServerSCU(t, moveAddr)
+	defer cancel()
+
+	query := dicom.NewDataSet()
+	query.SetString(dicom.TagStudyInstanceUID, "1.2.3")
+
+	var terminal Status
+	var sawSuccess bool
+	for status := range assoc.Move(ctx, query, QueryLevelStudy, destTitle) {
+		if status.IsSuccess() {
+			sawSuccess = true
+		}
+		if !status.IsPending() {
+			terminal = status
+		}
+	}
+	if err := assoc.LastError(); err != nil {
+		t.Fatalf("Move LastError = %v, want nil", err)
+	}
+	_ = assoc.Release(ctx)
+
+	if sawSuccess {
+		t.Error("a warning-only move was laundered into a Success status (PRD §9.2)")
+	}
+	if !terminal.IsWarning() {
+		t.Errorf("terminal status = %s, want a Warning (0xB000 sub-operations complete with warnings)", terminal)
+	}
+	final := assoc.SubOperationCounts()
+	if final.Warning != 2 {
+		t.Errorf("final Warning count = %d, want 2", final.Warning)
+	}
+	if final.Failed != 0 {
+		t.Errorf("final Failed count = %d, want 0", final.Failed)
 	}
 }
 
