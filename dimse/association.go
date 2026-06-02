@@ -31,6 +31,25 @@ type Association struct {
 
 	mu       sync.Mutex
 	released bool
+	// nextMsgID is the high-water mark of the per-association Message ID allocator. A single
+	// goroutine drives an association's primary operation, but C-GET/C-MOVE sub-operation send
+	// paths allocate IDs too, so the counter is read and bumped under a.mu (Codex DIMSE-016).
+	nextMsgID uint16
+}
+
+// nextMessageID returns the next Message ID for an operation on this association: a distinct,
+// non-zero, monotonically increasing 16-bit value (1, 2, 3, …). It wraps past the reserved 0 at
+// the 16-bit boundary, so 0xFFFF is followed by 1. Sub-operation C-STOREs (C-GET/C-MOVE) and the
+// chained N-services use it so every in-flight request carries its own ID; the single-operation
+// C-ECHO/C-STORE paths keep their fixed echoMessageID/storeMessageID constants (Codex DIMSE-016).
+func (a *Association) nextMessageID() uint16 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.nextMsgID++
+	if a.nextMsgID == 0 {
+		a.nextMsgID = 1
+	}
+	return a.nextMsgID
 }
 
 // sendCap resolves the P-DATA-TF body byte cap for outbound DIMSE messages: the smaller of the
