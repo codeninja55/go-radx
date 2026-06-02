@@ -71,7 +71,12 @@ func Start(ctx context.Context) (*Container, error) {
 			// DicomAlwaysAllowFind defaults to false: without it Orthanc rejects a C-FIND from an
 			// unregistered calling AE, so the C-FIND interop SCU (which is not a registered modality)
 			// would be refused. Enable it so the query/retrieve gate can drive C-FIND directly.
-			"ORTHANC__DICOM_ALWAYS_ALLOW_FIND":    "true",
+			"ORTHANC__DICOM_ALWAYS_ALLOW_FIND": "true",
+			// DicomAlwaysAllowMove defaults to false: by default Orthanc blocks a C-MOVE from an
+			// unregistered calling AE (it verifies the remote modality). The C-MOVE interop SCU is not a
+			// registered modality, so enable it; the move DESTINATION still must be a registered
+			// modality (ConfigureModality) for Orthanc to resolve its host/port (Orthanc 1.9.7+).
+			"ORTHANC__DICOM_ALWAYS_ALLOW_MOVE":    "true",
 			"ORTHANC__REMOTE_ACCESS_ALLOWED":      "true",
 			"ORTHANC__UNKNOWN_SOP_CLASS_ACCEPTED": "true",
 		},
