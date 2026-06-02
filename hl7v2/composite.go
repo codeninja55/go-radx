@@ -5,6 +5,43 @@ import (
 	"time"
 )
 
+// componentsToRepetition builds a generic Repetition from an ordered list of
+// components, where each component is itself a list of subcomponent strings (a
+// flat component is a single-element list; a nested HD such as CX-4 carries its
+// namespace/universal-ID parts). Trailing wholly-empty components are trimmed so
+// the rendered form matches what the parser produces for the same value (a
+// CWE with only its code renders as "NM", not "NM^^^^^"), keeping composites
+// byte-stable through parse→render→parse. At least one component is always kept
+// so an empty composite renders as the empty string rather than nothing.
+func componentsToRepetition(components [][]string) Repetition {
+	end := len(components)
+	for end > 0 && componentIsEmpty(components[end-1]) {
+		end--
+	}
+	if end == 0 {
+		return Repetition{Components: []Component{{Subcomponents: []string{""}}}}
+	}
+	comps := make([]Component, end)
+	for i := 0; i < end; i++ {
+		subs := components[i]
+		if len(subs) == 0 {
+			subs = []string{""}
+		}
+		comps[i] = Component{Subcomponents: subs}
+	}
+	return Repetition{Components: comps}
+}
+
+// componentIsEmpty reports whether every subcomponent of a component is empty.
+func componentIsEmpty(subs []string) bool {
+	for _, s := range subs {
+		if s != "" {
+			return false
+		}
+	}
+	return true
+}
+
 // HD — hierarchic designator (namespace + universal ID). Used as the assigning
 // authority of a CX and the application/facility fields of MSH.
 type HD struct {
@@ -20,6 +57,27 @@ func parseHD(r Repetition) HD {
 		UniversalID:     r.component(2),
 		UniversalIDType: r.component(3),
 	}
+}
+
+// repetition renders an HD as a standalone composite, one component per part.
+func (h HD) repetition() Repetition {
+	return componentsToRepetition([][]string{
+		{h.NamespaceID},
+		{h.UniversalID},
+		{h.UniversalIDType},
+	})
+}
+
+// subcomponents returns an HD's parts as a subcomponent list, the form CX-4 (and
+// other nested-HD components) carries inside a single component. Trailing empty
+// parts are trimmed so the nested form is byte-stable like the standalone one.
+func (h HD) subcomponents() []string {
+	subs := []string{h.NamespaceID, h.UniversalID, h.UniversalIDType}
+	end := len(subs)
+	for end > 0 && subs[end-1] == "" {
+		end--
+	}
+	return subs[:end]
 }
 
 // CX — extended composite ID with check digit (PID-3, identifier + authority).
@@ -42,6 +100,18 @@ func parseCX(r Repetition) CX {
 	}
 }
 
+// repetition renders a CX, with its assigning authority (CX-4) as a nested HD
+// in the fourth component's subcomponents.
+func (c CX) repetition() Repetition {
+	return componentsToRepetition([][]string{
+		{c.ID},
+		{c.CheckDigit},
+		{""}, // CX-3 (code identifying the check digit scheme) is not modelled
+		c.AssigningAuthority.subcomponents(),
+		{c.IdentifierTypeCode},
+	})
+}
+
 // parseHDFromComponent reads an HD from the subcomponents of the n-th 1-based
 // component of r, which is how a nested HD (e.g. CX-4) is encoded.
 func parseHDFromComponent(r Repetition, n int) HD {
@@ -57,19 +127,38 @@ func parseHDFromComponent(r Repetition, n int) HD {
 }
 
 // CWE — coded with exceptions (supersedes the retired CE). Used for OBR-4 and
-// other coded values the converters map to CodeableConcept.
+// other coded values the converters map to CodeableConcept. The alternate
+// triplet (CWE-4/5/6) mirrors the primary one for a second coding system.
 type CWE struct {
-	Code         string // CWE-1
-	Text         string // CWE-2
-	CodingSystem string // CWE-3
+	Code            string // CWE-1
+	Text            string // CWE-2
+	CodingSystem    string // CWE-3
+	AltCode         string // CWE-4
+	AltText         string // CWE-5
+	AltCodingSystem string // CWE-6
 }
 
 func parseCWE(r Repetition) CWE {
 	return CWE{
-		Code:         r.component(1),
-		Text:         r.component(2),
-		CodingSystem: r.component(3),
+		Code:            r.component(1),
+		Text:            r.component(2),
+		CodingSystem:    r.component(3),
+		AltCode:         r.component(4),
+		AltText:         r.component(5),
+		AltCodingSystem: r.component(6),
 	}
+}
+
+// repetition renders a CWE across its six modelled components.
+func (c CWE) repetition() Repetition {
+	return componentsToRepetition([][]string{
+		{c.Code},
+		{c.Text},
+		{c.CodingSystem},
+		{c.AltCode},
+		{c.AltText},
+		{c.AltCodingSystem},
+	})
 }
 
 // XPN — extended person name (PID-5). Only the components the Patient converter
@@ -80,6 +169,7 @@ type XPN struct {
 	Middle       string // XPN-3 (second/further given names)
 	Suffix       string // XPN-4
 	Prefix       string // XPN-5
+	Degree       string // XPN-6
 	NameTypeCode string // XPN-7, e.g. "L" legal
 }
 
@@ -90,8 +180,56 @@ func parseXPN(r Repetition) XPN {
 		Middle:       r.component(3),
 		Suffix:       r.component(4),
 		Prefix:       r.component(5),
+		Degree:       r.component(6),
 		NameTypeCode: r.component(7),
 	}
+}
+
+// repetition renders an XPN, keeping Degree at component 6 and NameTypeCode at 7.
+func (x XPN) repetition() Repetition {
+	return componentsToRepetition([][]string{
+		{x.Family},
+		{x.Given},
+		{x.Middle},
+		{x.Suffix},
+		{x.Prefix},
+		{x.Degree},
+		{x.NameTypeCode},
+	})
+}
+
+// XAD — extended address (PID-11, ...). Only the modelled postal components are
+// read; HL7's later XAD components (address type, geo coordinates, ...) are not.
+type XAD struct {
+	Street           string // XAD-1
+	OtherDesignation string // XAD-2
+	City             string // XAD-3
+	State            string // XAD-4
+	Zip              string // XAD-5
+	Country          string // XAD-6
+}
+
+func parseXAD(r Repetition) XAD {
+	return XAD{
+		Street:           r.component(1),
+		OtherDesignation: r.component(2),
+		City:             r.component(3),
+		State:            r.component(4),
+		Zip:              r.component(5),
+		Country:          r.component(6),
+	}
+}
+
+// repetition renders an XAD across its six modelled postal components.
+func (x XAD) repetition() Repetition {
+	return componentsToRepetition([][]string{
+		{x.Street},
+		{x.OtherDesignation},
+		{x.City},
+		{x.State},
+		{x.Zip},
+		{x.Country},
+	})
 }
 
 // Precision records how much of an HL7 timestamp was supplied, so a DTM never
