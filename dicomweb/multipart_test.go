@@ -10,8 +10,6 @@ import (
 	"testing"
 )
 
-const mediaTypeDICOM = "application/dicom"
-
 func TestMultipartRoundTripTwoParts(t *testing.T) {
 	part1 := []byte("\x00first dicom payload\xff")
 	part2 := []byte("\x00second dicom payload\xff")
