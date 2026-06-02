@@ -135,12 +135,21 @@ jobs:
           sudo cmake --install charls-2.4.3/build
       - name: Refresh linker cache
         run: sudo ldconfig
+      # Discover where each from-source cmake actually installed its .pc and .so files and export
+      # them for the build/test/lint steps. The three libs disagree on libdir — libturbojpeg.pc
+      # landed outside the hardcoded path while OpenJPEG and CharLS did not — so discover rather than
+      # hardcode a fragile path list.
+      - name: Resolve pkg-config and linker paths
+        run: |
+          pc="$(find /usr/local -type d -name pkgconfig 2>/dev/null | sort -u | paste -sd: -)"
+          libs="$(find /usr/local -type f -name 'lib*.so*' -printf '%h\n' 2>/dev/null | sort -u | paste -sd: -)"
+          echo "pkgconfig dirs: $pc"
+          echo "lib dirs: $libs"
+          echo "PKG_CONFIG_PATH=$pc" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$libs" >> "$GITHUB_ENV"
       # Split into three steps so the job summary pinpoints which fails on Linux (the combined
       # step passes locally on macOS): the cgo build/link, the codec tests, or the tagged lint.
       - name: Build with codec tags
-        env:
-          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
-          LD_LIBRARY_PATH: /usr/local/lib:/usr/local/lib64
         run: |
           # Self-report the cause via annotations (gh run view shows annotations without admin log
           # access): first whether pkg-config sees the from-source libs, then the cgo build error.
@@ -159,12 +168,6 @@ jobs:
             exit 1
           fi
       - name: Test with codec tags
-        env:
-          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
-          LD_LIBRARY_PATH: /usr/local/lib:/usr/local/lib64
         run: go test -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
       - name: Lint with codec tags
-        env:
-          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
-          LD_LIBRARY_PATH: /usr/local/lib:/usr/local/lib64
         run: mise exec -- golangci-lint run --build-tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./...
