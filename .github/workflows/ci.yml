@@ -141,7 +141,23 @@ jobs:
         env:
           PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
           LD_LIBRARY_PATH: /usr/local/lib:/usr/local/lib64
-        run: go build -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./...
+        run: |
+          # Self-report the cause via annotations (gh run view shows annotations without admin log
+          # access): first whether pkg-config sees the from-source libs, then the cgo build error.
+          echo "--- pkg-config visibility (from-source codec libs) ---"
+          for p in libopenjp2 libturbojpeg charls; do
+            if pkg-config --exists "$p"; then
+              echo "$p $(pkg-config --modversion "$p") libs=[$(pkg-config --libs "$p")]"
+            else
+              echo "::error::pkg-config cannot find $p"
+            fi
+          done
+          echo "--- go build (codec tags) ---"
+          if ! go build -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./... 2>build.err; then
+            cat build.err
+            tail -n 8 build.err | sed 's/^/::error::build: /'
+            exit 1
+          fi
       - name: Test with codec tags
         env:
           PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
