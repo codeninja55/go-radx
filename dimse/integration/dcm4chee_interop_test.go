@@ -117,6 +117,82 @@ func TestInteropDcm4cheeCStore(t *testing.T) {
 	}
 }
 
+// TestInteropDcm4cheeCFind is the first M3 query/retrieve interop gate against dcm4chee-arc: a
+// vendored study is STOW-RS-stored into the archive, then a go-radx SCU drives a study-level C-FIND
+// (Association.Find, the Inc 2 iterator) against the archive and asserts the stored study's Study
+// Instance UID is returned as a Pending match with a terminal Success. It proves the streaming C-FIND
+// SCU interoperates with a second independent third-party C-FIND SCP.
+func TestInteropDcm4cheeCFind(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	defer cancel()
+
+	arc := startDcm4chee(ctx, t)
+	studyInstanceUID, sopInstanceUID := fixtureStudyAndInstanceUID(t)
+
+	// Store the fixture into the archive so it holds a study to find.
+	instance, err := os.ReadFile(storeFixture)
+	if err != nil {
+		t.Fatalf("read fixture bytes %s: %v", storeFixture, err)
+	}
+	if err := arc.StoreInstance(ctx, instance); err != nil {
+		t.Fatalf("STOW-RS fixture into dcm4chee: %v", err)
+	}
+	// The archive indexes asynchronously; wait for the instance before querying so the C-FIND matches.
+	if !waitForDcm4cheeInstance(ctx, t, arc, sopInstanceUID) {
+		t.Fatalf("dcm4chee did not index the stored instance %s before the C-FIND", sopInstanceUID)
+	}
+
+	calling, err := dimse.ParseAETitle("RADX-SCU")
+	if err != nil {
+		t.Fatalf("parse calling AE title: %v", err)
+	}
+	called, err := dimse.ParseAETitle(dcm4chee.AETitle)
+	if err != nil {
+		t.Fatalf("parse called AE title: %v", err)
+	}
+	ae, err := dimse.NewAE(calling)
+	if err != nil {
+		t.Fatalf("new AE: %v", err)
+	}
+
+	findAssoc, err := ae.Associate(ctx, arc.DICOMAddr(), called, dimse.QueryRetrieveContexts())
+	if err != nil {
+		t.Fatalf("associate for C-FIND: %v", err)
+	}
+	defer func() { _ = findAssoc.Release(ctx) }()
+
+	query := dicom.NewDataSet()
+	query.SetString(dicom.TagStudyInstanceUID, studyInstanceUID)
+
+	matched := false
+	terminalSuccess := false
+	for st, match := range findAssoc.Find(ctx, query, dimse.QueryLevelStudy) {
+		switch {
+		case st.IsPending():
+			if match == nil {
+				t.Error("Pending C-FIND match had a nil identifier")
+				continue
+			}
+			if uid, _ := match.GetString(dicom.TagStudyInstanceUID); uid == studyInstanceUID {
+				matched = true
+			}
+		case st.IsSuccess():
+			terminalSuccess = true
+		case st.IsFailure():
+			t.Errorf("C-FIND terminal status = %s, want Success", st)
+		}
+	}
+	if err := findAssoc.LastError(); err != nil {
+		t.Fatalf("C-FIND transport error: %v", err)
+	}
+	if !matched {
+		t.Errorf("C-FIND did not return the stored study %s", studyInstanceUID)
+	}
+	if !terminalSuccess {
+		t.Error("C-FIND did not end with a terminal Success status")
+	}
+}
+
 // waitForDcm4cheeInstance polls the archive's QIDO-RS API until the given SOP Instance UID appears or
 // the deadline elapses, accommodating dcm4chee's asynchronous indexing.
 func waitForDcm4cheeInstance(ctx context.Context, t *testing.T, arc *dcm4chee.Container, sopInstanceUID string) bool {

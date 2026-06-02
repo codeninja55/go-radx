@@ -148,6 +148,95 @@ func TestInteropOrthancCStore(t *testing.T) {
 	}
 }
 
+// TestInteropOrthancCFind is the first M3 query/retrieve interop gate against Orthanc: a go-radx SCU
+// stores a vendored study, then drives a study-level C-FIND (Association.Find, the Inc 2 iterator)
+// against Orthanc and asserts the stored study's Study Instance UID is returned as a Pending match
+// with a terminal Success. It proves the streaming C-FIND SCU interoperates with a real third-party
+// C-FIND SCP end to end.
+func TestInteropOrthancCFind(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	orth := startOrthanc(ctx, t)
+	ds, sopInstanceUID := readFixture(t)
+	studyInstanceUID, ok := ds.GetString(dicom.NewTag(0x0020, 0x000D))
+	if !ok || studyInstanceUID == "" {
+		t.Fatalf("fixture has no Study Instance UID (0020,000D)")
+	}
+
+	calling, err := dimse.ParseAETitle("RADX-SCU")
+	if err != nil {
+		t.Fatalf("parse calling AE title: %v", err)
+	}
+	called, err := dimse.ParseAETitle(orthanc.AETitle)
+	if err != nil {
+		t.Fatalf("parse called AE title: %v", err)
+	}
+	ae, err := dimse.NewAE(calling)
+	if err != nil {
+		t.Fatalf("new AE: %v", err)
+	}
+
+	// Store the fixture so Orthanc holds a study to find.
+	storeAssoc, err := ae.Associate(ctx, orth.DICOMAddr(), called, dimse.StorageContexts())
+	if err != nil {
+		t.Fatalf("associate for C-STORE: %v", err)
+	}
+	status, err := storeAssoc.Store(ctx, ds)
+	if err != nil {
+		t.Fatalf("C-STORE transport error: %v", err)
+	}
+	if !status.IsSuccess() {
+		t.Fatalf("C-STORE status = %s, want success", status)
+	}
+	if err := storeAssoc.Release(ctx); err != nil {
+		t.Fatalf("release C-STORE association: %v", err)
+	}
+
+	// Orthanc indexes asynchronously; wait for the instance before querying so the C-FIND has a match.
+	if !waitForInstance(ctx, t, orth, sopInstanceUID) {
+		t.Fatalf("Orthanc did not persist the stored instance %s before the C-FIND", sopInstanceUID)
+	}
+
+	// Study-level C-FIND filtered on the stored Study Instance UID.
+	findAssoc, err := ae.Associate(ctx, orth.DICOMAddr(), called, dimse.QueryRetrieveContexts())
+	if err != nil {
+		t.Fatalf("associate for C-FIND: %v", err)
+	}
+	defer func() { _ = findAssoc.Release(ctx) }()
+
+	query := dicom.NewDataSet()
+	query.SetString(dicom.TagStudyInstanceUID, studyInstanceUID)
+
+	matched := false
+	terminalSuccess := false
+	for st, match := range findAssoc.Find(ctx, query, dimse.QueryLevelStudy) {
+		switch {
+		case st.IsPending():
+			if match == nil {
+				t.Error("Pending C-FIND match had a nil identifier")
+				continue
+			}
+			if uid, _ := match.GetString(dicom.TagStudyInstanceUID); uid == studyInstanceUID {
+				matched = true
+			}
+		case st.IsSuccess():
+			terminalSuccess = true
+		case st.IsFailure():
+			t.Errorf("C-FIND terminal status = %s, want Success", st)
+		}
+	}
+	if err := findAssoc.LastError(); err != nil {
+		t.Fatalf("C-FIND transport error: %v", err)
+	}
+	if !matched {
+		t.Errorf("C-FIND did not return the stored study %s", studyInstanceUID)
+	}
+	if !terminalSuccess {
+		t.Error("C-FIND did not end with a terminal Success status")
+	}
+}
+
 // waitForInstance polls Orthanc's REST API until the given SOP Instance UID appears or the deadline
 // elapses, accommodating Orthanc's asynchronous indexing.
 func waitForInstance(ctx context.Context, t *testing.T, orth *orthanc.Container, sopInstanceUID string) bool {

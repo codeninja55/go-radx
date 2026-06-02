@@ -63,11 +63,15 @@ func Start(ctx context.Context) (*Container, error) {
 			wait.ForHTTP("/system").WithPort(httpPort).WithStartupTimeout(120*time.Second),
 		),
 		Env: map[string]string{
-			"ORTHANC__DICOM_AET":                  AETitle,
-			"ORTHANC__DICOM_CHECK_CALLED_AET":     "false",
-			"ORTHANC__AUTHENTICATION_ENABLED":     "false",
-			"ORTHANC__DICOM_ALWAYS_ALLOW_ECHO":    "true",
-			"ORTHANC__DICOM_ALWAYS_ALLOW_STORE":   "true",
+			"ORTHANC__DICOM_AET":                AETitle,
+			"ORTHANC__DICOM_CHECK_CALLED_AET":   "false",
+			"ORTHANC__AUTHENTICATION_ENABLED":   "false",
+			"ORTHANC__DICOM_ALWAYS_ALLOW_ECHO":  "true",
+			"ORTHANC__DICOM_ALWAYS_ALLOW_STORE": "true",
+			// DicomAlwaysAllowFind defaults to false: without it Orthanc rejects a C-FIND from an
+			// unregistered calling AE, so the C-FIND interop SCU (which is not a registered modality)
+			// would be refused. Enable it so the query/retrieve gate can drive C-FIND directly.
+			"ORTHANC__DICOM_ALWAYS_ALLOW_FIND":    "true",
 			"ORTHANC__REMOTE_ACCESS_ALLOWED":      "true",
 			"ORTHANC__UNKNOWN_SOP_CLASS_ACCEPTED": "true",
 		},
