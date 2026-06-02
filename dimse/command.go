@@ -28,6 +28,17 @@ const (
 	// M3 scope; the constant exists so the command-set encoder can carry Move Destination, the
 	// VR-AE element the DIMSE-007 regression exercises.
 	CommandCMoveRQ CommandField = 0x0021
+	// CommandCFindRQ is the C-FIND request command field (PS3.7 §9.1.2, verified against pynetdicom
+	// dimse_messages.py C_FIND_RQ 0x0020).
+	CommandCFindRQ CommandField = 0x0020
+	// CommandCFindRSP is the C-FIND response command field (PS3.7 §9.1.2, pynetdicom C_FIND_RSP
+	// 0x8020). A C-FIND query produces multiple responses: zero or more Pending RSPs each carrying a
+	// matching identifier, then one terminal RSP carrying only a status.
+	CommandCFindRSP CommandField = 0x8020
+	// CommandCCancelRQ is the C-CANCEL-FIND/GET/MOVE request command field (PS3.7 §9.3.2.3,
+	// pynetdicom C_CANCEL_RQ 0x0FFF). It has no response bit but carries Message ID Being Responded
+	// To (0000,0120) — the Message ID of the operation being cancelled — not Message ID (0000,0110).
+	CommandCCancelRQ CommandField = 0x0FFF
 )
 
 // Priority is the DIMSE operation priority (0000,0700), a US value (PS3.7 §10.3.1). The wire
@@ -131,6 +142,14 @@ type CommandSet struct {
 // IsResponse reports whether the command field has its response bit (0x8000) set.
 func (cs CommandSet) IsResponse() bool { return uint16(cs.CommandField)&commandResponseBit != 0 }
 
+// usesRespondedToMessageID reports whether the command set carries Message ID Being Responded To
+// (0000,0120) rather than Message ID (0000,0110). Every response does; so does a C-CANCEL-RQ, which
+// references the operation being cancelled by its Message ID Being Responded To even though it has
+// no response bit (PS3.7 §9.3.2.3).
+func (cs CommandSet) usesRespondedToMessageID() bool {
+	return cs.IsResponse() || cs.CommandField == CommandCCancelRQ
+}
+
 // HasDataSet reports whether the command declares a data set follows (CommandDataSetType is any
 // value other than 0x0101). A C-ECHO never carries one.
 func (cs CommandSet) HasDataSet() bool { return cs.CommandDataSetType != CommandDataSetNotPresent }
@@ -183,7 +202,7 @@ func (cs CommandSet) elements() []commandElement {
 		es = append(es, encodeCommandString(tagAffectedSOPClassUID, string(cs.AffectedSOPClassUID)))
 	}
 	es = append(es, encodeCommandUS(tagCommandField, uint16(cs.CommandField)))
-	if cs.IsResponse() {
+	if cs.usesRespondedToMessageID() {
 		es = append(es, encodeCommandUS(tagMessageIDBeingRespondedTo, cs.MessageIDBeingRespondedTo))
 	} else {
 		es = append(es, encodeCommandUS(tagMessageID, cs.MessageID))
