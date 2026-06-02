@@ -135,12 +135,20 @@ jobs:
           sudo cmake --install charls-2.4.3/build
       - name: Refresh linker cache
         run: sudo ldconfig
-      - name: Build, test & lint with codec tags
+      # Split into three steps so the job summary pinpoints which fails on Linux (the combined
+      # step passes locally on macOS): the cgo build/link, the codec tests, or the tagged lint.
+      - name: Build with codec tags
         env:
           PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
           LD_LIBRARY_PATH: /usr/local/lib:/usr/local/lib64
-        run: |
-          TAGS="dicom_openjpeg dicom_libjpeg dicom_charls"
-          go build -tags "$TAGS" ./...
-          go test -tags "$TAGS" ./dicom/...
-          mise exec -- golangci-lint run --build-tags "$TAGS" ./...
+        run: go build -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./...
+      - name: Test with codec tags
+        env:
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
+          LD_LIBRARY_PATH: /usr/local/lib:/usr/local/lib64
+        run: go test -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
+      - name: Lint with codec tags
+        env:
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig
+          LD_LIBRARY_PATH: /usr/local/lib:/usr/local/lib64
+        run: mise exec -- golangci-lint run --build-tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./...
