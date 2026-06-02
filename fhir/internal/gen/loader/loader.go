@@ -109,6 +109,19 @@ func (b *Bundle) CodeSystemCount() int { return len(b.csByURL) }
 // closed: a checksum mismatch, a missing required file, a malformed bundle, or an
 // undecodable entry returns a typed *LoadError. Load never reaches the network.
 func Load(dir string) (*Bundle, error) {
+	// Every required file must be pinned in the manifest before anything is
+	// parsed: an incomplete or edited SHA256SUMS that omits a required file would
+	// otherwise let Load parse it unpinned, defeating the fail-closed guarantee.
+	sums, err := readSums(dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, name := range requiredFiles {
+		if _, ok := sums[name]; !ok {
+			return nil, &LoadError{File: name, Detail: "required file not pinned in " + sumsFile}
+		}
+	}
+
 	if err := verifyChecksums(dir); err != nil {
 		return nil, err
 	}
@@ -170,6 +183,16 @@ func (b *Bundle) loadFile(path, name string) error {
 		if err := b.loadEntries(dec, name); err != nil {
 			return err
 		}
+	}
+
+	// Consume the closing '}' of the outer Bundle object and confirm there is no
+	// trailing content. Without this a truncated file (one whose object is never
+	// closed) or a file with garbage after the bundle would be accepted as valid.
+	if _, err := dec.Token(); err != nil {
+		return &LoadError{File: name, Detail: "close bundle object", Err: err}
+	}
+	if dec.More() {
+		return &LoadError{File: name, Detail: "unexpected trailing content after bundle"}
 	}
 	return nil
 }

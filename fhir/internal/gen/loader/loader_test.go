@@ -210,6 +210,96 @@ func TestLoadRejectsMalformedBundle(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsUnpinnedRequiredFile(t *testing.T) {
+	t.Parallel()
+
+	// All three required files exist and the listed ones hash correctly, but the
+	// manifest omits valuesets.json. An incomplete manifest must fail closed
+	// rather than letting Load parse the unpinned file.
+	dir := t.TempDir()
+	body := []byte(`{"resourceType":"Bundle","entry":[]}`)
+	for _, name := range requiredFiles {
+		writeFile(t, dir, name, body)
+	}
+	writeSums(t, dir, map[string]string{
+		"profiles-types.json":     sha256Hex(body),
+		"profiles-resources.json": sha256Hex(body),
+		// valuesets.json deliberately omitted.
+	})
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("Load should reject a required file missing from the manifest")
+	}
+	var le *LoadError
+	if !errors.As(err, &le) {
+		t.Fatalf("error = %T, want *LoadError", err)
+	}
+	if !strings.Contains(le.Error(), "valuesets.json") {
+		t.Errorf("error %q should name the unpinned file", le.Error())
+	}
+}
+
+func TestLoadRejectsTruncatedBundleObject(t *testing.T) {
+	t.Parallel()
+
+	// The entry array closes but the outer object is never closed. Without
+	// consuming the final delimiter Load would accept this as an empty bundle;
+	// it must fail closed instead.
+	dir := t.TempDir()
+	good := []byte(`{"resourceType":"Bundle","entry":[]}`)
+	truncated := []byte(`{"resourceType":"Bundle","entry":[]`) // missing closing '}'
+	writeFile(t, dir, "profiles-types.json", truncated)
+	writeFile(t, dir, "profiles-resources.json", good)
+	writeFile(t, dir, "valuesets.json", good)
+	writeSums(t, dir, map[string]string{
+		"profiles-types.json":     sha256Hex(truncated),
+		"profiles-resources.json": sha256Hex(good),
+		"valuesets.json":          sha256Hex(good),
+	})
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("Load should fail on a truncated bundle object")
+	}
+	var le *LoadError
+	if !errors.As(err, &le) {
+		t.Fatalf("error = %T, want *LoadError", err)
+	}
+	if !strings.Contains(le.Error(), "profiles-types.json") {
+		t.Errorf("error %q should name the truncated file", le.Error())
+	}
+}
+
+func TestLoadRejectsTrailingContent(t *testing.T) {
+	t.Parallel()
+
+	// Garbage after the bundle object must be rejected, not silently ignored.
+	dir := t.TempDir()
+	good := []byte(`{"resourceType":"Bundle","entry":[]}`)
+	trailing := []byte(`{"resourceType":"Bundle","entry":[]} {"junk":1}`)
+	writeFile(t, dir, "profiles-types.json", good)
+	writeFile(t, dir, "profiles-resources.json", trailing)
+	writeFile(t, dir, "valuesets.json", good)
+	writeSums(t, dir, map[string]string{
+		"profiles-types.json":     sha256Hex(good),
+		"profiles-resources.json": sha256Hex(trailing),
+		"valuesets.json":          sha256Hex(good),
+	})
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("Load should fail on trailing content after the bundle object")
+	}
+	var le *LoadError
+	if !errors.As(err, &le) {
+		t.Fatalf("error = %T, want *LoadError", err)
+	}
+	if !strings.Contains(le.Error(), "profiles-resources.json") {
+		t.Errorf("error %q should name the offending file", le.Error())
+	}
+}
+
 func writeFile(t *testing.T, dir, name string, data []byte) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
