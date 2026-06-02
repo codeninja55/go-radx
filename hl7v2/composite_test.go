@@ -1,6 +1,7 @@
 package hl7v2
 
 import (
+	"bytes"
 	"testing"
 	"time"
 )
@@ -152,6 +153,55 @@ func TestParseXAD(t *testing.T) {
 	empty := parseRepetition([]byte(""), DefaultEncoding())
 	if got := parseXAD(empty); got != (XAD{}) {
 		t.Errorf("parseXAD(empty) = %+v, want zero XAD", got)
+	}
+}
+
+// renderRepetition renders a single Repetition with the given encoding, the same
+// way MarshalText renders one repetition of a field.
+func renderRepetition(r Repetition, enc EncodingCharacters) string {
+	var buf bytes.Buffer
+	r.render(&buf, enc)
+	return buf.String()
+}
+
+func TestCompositeRepetitionRenderers(t *testing.T) {
+	enc := DefaultEncoding()
+
+	// A CX with gaps: CX-2 and CX-3 empty, CX-4 a nested HD, CX-5 the type code.
+	cx := CX{
+		ID:                 "PATID1234",
+		AssigningAuthority: HD{NamespaceID: "HOSP"},
+		IdentifierTypeCode: "MR",
+	}
+	if got := renderRepetition(cx.repetition(), enc); got != "PATID1234^^^HOSP^MR" {
+		t.Errorf("CX render = %q, want PATID1234^^^HOSP^MR", got)
+	}
+
+	// A CWE with only its code renders with no trailing carets.
+	if got := renderRepetition(CWE{Code: "NM"}.repetition(), enc); got != "NM" {
+		t.Errorf("CWE render = %q, want NM", got)
+	}
+
+	// An HD with a full universal-ID triplet.
+	if got := renderRepetition(HD{NamespaceID: "HOSP", UniversalID: "1.2.3", UniversalIDType: "ISO"}.repetition(), enc); got != "HOSP^1.2.3^ISO" {
+		t.Errorf("HD render = %q, want HOSP^1.2.3^ISO", got)
+	}
+
+	// An XPN with Degree present at component 6 keeps NameTypeCode at 7.
+	xpn := XPN{Family: "DOE", Given: "JOHN", Degree: "PHD", NameTypeCode: "L"}
+	if got := renderRepetition(xpn.repetition(), enc); got != "DOE^JOHN^^^^PHD^L" {
+		t.Errorf("XPN render = %q, want DOE^JOHN^^^^PHD^L", got)
+	}
+
+	// An XAD round-trips its postal components.
+	xad := XAD{Street: "123 MAIN ST", City: "METROPOLIS", State: "NY", Zip: "10001", Country: "USA"}
+	if got := renderRepetition(xad.repetition(), enc); got != "123 MAIN ST^^METROPOLIS^NY^10001^USA" {
+		t.Errorf("XAD render = %q, want 123 MAIN ST^^METROPOLIS^NY^10001^USA", got)
+	}
+
+	// A wholly empty composite renders as the empty string (one empty component).
+	if got := renderRepetition(CWE{}.repetition(), enc); got != "" {
+		t.Errorf("empty CWE render = %q, want empty", got)
 	}
 }
 
