@@ -57,18 +57,25 @@ func parseHDFromComponent(r Repetition, n int) HD {
 }
 
 // CWE — coded with exceptions (supersedes the retired CE). Used for OBR-4 and
-// other coded values the converters map to CodeableConcept.
+// other coded values the converters map to CodeableConcept. The alternate
+// triplet (CWE-4/5/6) mirrors the primary one for a second coding system.
 type CWE struct {
-	Code         string // CWE-1
-	Text         string // CWE-2
-	CodingSystem string // CWE-3
+	Code            string // CWE-1
+	Text            string // CWE-2
+	CodingSystem    string // CWE-3
+	AltCode         string // CWE-4
+	AltText         string // CWE-5
+	AltCodingSystem string // CWE-6
 }
 
 func parseCWE(r Repetition) CWE {
 	return CWE{
-		Code:         r.component(1),
-		Text:         r.component(2),
-		CodingSystem: r.component(3),
+		Code:            r.component(1),
+		Text:            r.component(2),
+		CodingSystem:    r.component(3),
+		AltCode:         r.component(4),
+		AltText:         r.component(5),
+		AltCodingSystem: r.component(6),
 	}
 }
 

@@ -90,6 +90,32 @@ func TestParseCXAndHD(t *testing.T) {
 	}
 }
 
+func TestParseCWESixComponents(t *testing.T) {
+	// A six-component CWE: code^text^system^altcode^alttext^altsystem.
+	full := parseRepetition([]byte("36643-5^CHEST XRAY^LN^36643^CHEST X-RAY^L"), DefaultEncoding())
+	cwe := parseCWE(full)
+	want := CWE{
+		Code:            "36643-5",
+		Text:            "CHEST XRAY",
+		CodingSystem:    "LN",
+		AltCode:         "36643",
+		AltText:         "CHEST X-RAY",
+		AltCodingSystem: "L",
+	}
+	if cwe != want {
+		t.Errorf("parseCWE(full) = %+v, want %+v", cwe, want)
+	}
+
+	// A three-component CWE leaves the alternate fields empty (absence is empty,
+	// not error).
+	partial := parseRepetition([]byte("24323-8^COMPREHENSIVE METABOLIC PANEL^LN"), DefaultEncoding())
+	cwe = parseCWE(partial)
+	if cwe.AltCode != "" || cwe.AltText != "" || cwe.AltCodingSystem != "" {
+		t.Errorf("parseCWE(partial) alternate fields = %q/%q/%q, want all empty",
+			cwe.AltCode, cwe.AltText, cwe.AltCodingSystem)
+	}
+}
+
 func TestParseCXNestedHDInSubcomponents(t *testing.T) {
 	// CX-4 may carry the HD as subcomponents: ID^^^NS&UID&ISO^MR
 	msg, err := Parse([]byte(
