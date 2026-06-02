@@ -1,15 +1,10 @@
 # CI for the go-radx re-foundation.
 #
-# UNVALIDATED UNTIL FIRST RUN: this workflow was authored offline against the repository's mise
-# tasks, build tags, and pinned tool versions, but it has never executed (the re-foundation history
-# is not yet on a GitHub remote). The pure-Go jobs (lint-test, conformance, interop, govulncheck) are
-# high-confidence; the `codecs` job builds three native libraries from source and is the most likely
-# to need flag/version iteration on the first real run — see the note on that job.
-#
 # Design: the default build is pure-Go (CGO_ENABLED=0); the C-backed pixel codecs live behind the
 # dicom_openjpeg / dicom_libjpeg / dicom_charls build tags, so only the `codecs` job needs the native
-# libraries. The conformance gates (tools/dicom-conformance/*) skip on a dev box but FAIL when
-# CI=true, so this is where they finally run for real.
+# libraries (built from source, since Ubuntu apt ships older versions than the codecs require). The
+# conformance gate (tools/dicom-conformance) skips on a dev box but FAILS when CI=true, so this is
+# where it runs for real — validating go-radx's writer output, not the borrowed fixture corpus.
 
 name: ci
 
@@ -21,6 +16,11 @@ on:
 
 permissions:
   contents: read
+
+# Opt Node20-based actions (jdx/mise-action) into the Node24 runtime ahead of the forced migration,
+# silencing the deprecation warning.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   lint-test:
@@ -101,11 +101,10 @@ jobs:
         run: govulncheck ./...
 
   codecs:
-    # UNVALIDATED — highest-risk job. The C-backed pixel codecs are pinned to OpenJPEG 2.5.4,
-    # libjpeg-turbo 3.1.4, and CharLS 2.4.3 (the versions the local build links via Homebrew).
-    # Ubuntu apt ships older releases — notably libjpeg-turbo 2.x, which lacks the TJPARAM_LOSSLESS
-    # API codec_libjpeg.go uses — so the libraries are built from source here. The exact release tags
-    # and cmake flags below have NOT been validated against a real CI run and may need iteration.
+    # The C-backed pixel codecs are pinned to OpenJPEG 2.5.4, libjpeg-turbo 3.1.4, and CharLS 2.4.3
+    # (the versions the local build links via Homebrew). Ubuntu apt ships older releases — notably
+    # libjpeg-turbo 2.x, which lacks the TJPARAM_LOSSLESS API codec_libjpeg.go uses — so the
+    # libraries are built from source here.
     name: CGo pixel codecs (native libs from source)
     runs-on: ubuntu-latest
     steps:
@@ -138,40 +137,19 @@ jobs:
           sudo cmake --install charls-2.4.3/build
       - name: Refresh linker cache
         run: sudo ldconfig
-      # Discover where each from-source cmake actually installed its .pc and .so files and export
-      # them for the build/test/lint steps. The three libs disagree on libdir — libturbojpeg.pc
-      # landed outside the hardcoded path while OpenJPEG and CharLS did not — so discover rather than
-      # hardcode a fragile path list.
+      # Discover where each from-source cmake installed its .pc and .so files under /usr/local and
+      # export them for the build/test/lint steps, instead of hardcoding a libdir that the three libs
+      # disagree on (lib vs lib64 vs a multiarch dir).
       - name: Resolve pkg-config and linker paths
         run: |
-          pc="$(find /usr/local /opt -type d -name pkgconfig 2>/dev/null | sort -u | paste -sd: -)"
-          libs="$(find /usr/local /opt -type f -name 'lib*.so*' -printf '%h\n' 2>/dev/null | sort -u | paste -sd: -)"
-          echo "pkgconfig dirs: $pc"
-          echo "lib dirs: $libs"
+          pc="$(find /usr/local -type d -name pkgconfig 2>/dev/null | sort -u | paste -sd: -)"
+          libs="$(find /usr/local -type f -name 'lib*.so*' -printf '%h\n' 2>/dev/null | sort -u | paste -sd: -)"
           echo "PKG_CONFIG_PATH=$pc" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$libs" >> "$GITHUB_ENV"
       # Split into three steps so the job summary pinpoints which fails on Linux (the combined
       # step passes locally on macOS): the cgo build/link, the codec tests, or the tagged lint.
       - name: Build with codec tags
-        run: |
-          # Self-report the cause via annotations (gh run view shows annotations without admin log
-          # access): first whether pkg-config sees the from-source libs, then the cgo build error.
-          echo "::error::PKG_CONFIG_PATH=[$PKG_CONFIG_PATH]"
-          find /usr/local /opt -name 'libturbojpeg*.pc' 2>/dev/null | sed 's/^/::error::libturbojpeg.pc on-disk: /' || true
-          echo "--- pkg-config visibility (from-source codec libs) ---"
-          for p in libopenjp2 libturbojpeg charls; do
-            if pkg-config --exists "$p"; then
-              echo "$p $(pkg-config --modversion "$p") libs=[$(pkg-config --libs "$p")]"
-            else
-              echo "::error::pkg-config cannot find $p"
-            fi
-          done
-          echo "--- go build (codec tags) ---"
-          if ! go build -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./... 2>build.err; then
-            cat build.err
-            tail -n 8 build.err | sed 's/^/::error::build: /'
-            exit 1
-          fi
+        run: go build -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./...
       - name: Test with codec tags
         run: go test -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
       - name: Lint with codec tags
