@@ -99,6 +99,13 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 	}()
 
 	// Derive a cancellable context for the handler so Server.Shutdown stops its iterator.
+	//
+	// TODO(M8): honor an interleaved inbound C-CANCEL-RQ during the sub-operation store loop, mirroring
+	// the C-FIND cancel watcher (newFindCancelWatcher). Today the SCP honors cooperative cancellation
+	// via the dispatch context (Server.Shutdown) but does not read the association for a C-CANCEL-RQ
+	// while storing, so an SCU that breaks its Move iterator mid-retrieve only sees the cancel take
+	// effect after the move completes (its cancel-drain reaches the terminal RSP, never wedging — the
+	// association stays clean — but cancellation is not prompt). Deferred per the M3 plan scope.
 	handlerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -190,10 +197,15 @@ func moveTerminalStatus(counts SubOperationCounts) Status {
 	return StatusMoveSubOpsCompleteWithFailures
 }
 
-// sendMoveResponse writes one C-MOVE-RSP carrying the status and the four sub-operation counts (a
-// C-MOVE-RSP never carries a dataset), echoing the request's Affected SOP Class UID and Message ID
-// into the Message ID Being Responded To. Both Pending and terminal responses carry the running
-// counts so the SCU can track progress.
+// sendMoveResponse writes one C-MOVE-RSP carrying the status and the running Completed/Failed/Warning
+// sub-operation counts (a C-MOVE-RSP never carries a dataset), echoing the request's Affected SOP
+// Class UID and Message ID into the Message ID Being Responded To. Both Pending and terminal responses
+// carry the tallies so the SCU can track progress.
+//
+// NumberOfRemainingSubOperations (0000,1020) is OMITTED: the handler streams matches without a
+// pre-count, so the SCP does not know the outstanding total, and PS3.4 C.4.2.1.5 makes that element
+// conditional (present only when known, absent on the terminal). Omitting it reports honest
+// progress rather than advertising a misleading Remaining of zero (the Codex review finding).
 func sendMoveResponse(ctx context.Context, acc *acse.Acceptor, cmd CommandSet, pcID uint8, status Status, counts SubOperationCounts) error {
 	rsp := CommandSet{
 		CommandField:              CommandCMoveRSP,
@@ -203,7 +215,7 @@ func sendMoveResponse(ctx context.Context, acc *acse.Acceptor, cmd CommandSet, p
 		Status:                    status.Code,
 		CommandDataSetType:        CommandDataSetNotPresent,
 		HasSubOpCounts:            true,
-		RemainingSubOperations:    counts.Remaining,
+		OmitRemainingSubOp:        true,
 		CompletedSubOperations:    counts.Completed,
 		FailedSubOperations:       counts.Failed,
 		WarningSubOperations:      counts.Warning,

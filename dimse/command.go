@@ -154,9 +154,16 @@ type CommandSet struct {
 	// The four sub-operation counts (0000,1020–0000,1023), VR US, carried by a C-MOVE-RSP and a
 	// C-GET-RSP — Remaining/Completed/Failed/Warning sub-operations (PS3.7 §9.1.4). HasSubOpCounts
 	// gates their presence: a C-MOVE/C-GET-RQ carries none, every C-MOVE/C-GET-RSP (Pending and
-	// terminal) carries all four, and they distinguish a present zero count from an absent element
-	// just as HasPriority/HasStatus do.
+	// terminal) carries them, and they distinguish a present zero count from an absent element just
+	// as HasPriority/HasStatus do.
+	//
+	// NumberOfRemainingSubOperations (0000,1020) is conditional (PS3.4 C.4.2.1.5 / C.4.3.1.4): it is
+	// present only when the responder knows the count of outstanding sub-operations, and SHALL be
+	// absent on the terminal response. OmitRemainingSubOp suppresses just that element while the other
+	// three counts are still emitted, so a responder that streams matches without a pre-count reports
+	// honest Completed/Failed/Warning tallies rather than advertising a misleading Remaining of zero.
 	HasSubOpCounts         bool
+	OmitRemainingSubOp     bool
 	RemainingSubOperations uint16
 	CompletedSubOperations uint16
 	FailedSubOperations    uint16
@@ -245,7 +252,11 @@ func (cs CommandSet) elements() []commandElement {
 		es = append(es, encodeCommandString(tagAffectedSOPInstanceUID, string(cs.AffectedSOPInstanceUID)))
 	}
 	if cs.HasSubOpCounts {
-		es = append(es, encodeCommandUS(tagNumRemainingSubOps, cs.RemainingSubOperations))
+		// NumberOfRemainingSubOperations is conditional: omit it when the responder does not know the
+		// outstanding count (a streaming retrieve) and on the terminal response (PS3.4 C.4.2.1.5).
+		if !cs.OmitRemainingSubOp {
+			es = append(es, encodeCommandUS(tagNumRemainingSubOps, cs.RemainingSubOperations))
+		}
 		es = append(es, encodeCommandUS(tagNumCompletedSubOps, cs.CompletedSubOperations))
 		es = append(es, encodeCommandUS(tagNumFailedSubOps, cs.FailedSubOperations))
 		es = append(es, encodeCommandUS(tagNumWarningSubOps, cs.WarningSubOperations))

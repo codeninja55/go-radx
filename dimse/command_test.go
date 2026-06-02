@@ -590,6 +590,56 @@ func TestCMoveRSPCarriesSubOperationCounts(t *testing.T) {
 	}
 }
 
+// TestCMoveRSPOmitsRemainingSubOp checks that OmitRemainingSubOp suppresses only the conditional
+// NumberOfRemainingSubOperations (0000,1020) element while the Completed/Failed/Warning counts are
+// still emitted and round-trip — the standards-valid shape a streaming C-MOVE SCP sends when it does
+// not know the outstanding count (PS3.4 C.4.2.1.5).
+func TestCMoveRSPOmitsRemainingSubOp(t *testing.T) {
+	rsp := CommandSet{
+		CommandField:              CommandCMoveRSP,
+		MessageIDBeingRespondedTo: 13,
+		AffectedSOPClassUID:       dicom.UID("1.2.840.10008.5.1.4.1.2.2.2"),
+		CommandDataSetType:        CommandDataSetNotPresent,
+		HasStatus:                 true,
+		Status:                    0xFF00,
+		HasSubOpCounts:            true,
+		OmitRemainingSubOp:        true,
+		CompletedSubOperations:    3,
+		FailedSubOperations:       1,
+		WarningSubOperations:      0,
+	}
+	encoded, err := rsp.Encode()
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	assertIncreasingTagOrder(t, encoded)
+
+	// NumberOfRemainingSubOperations (0000,1020) must be ABSENT; the other three must be present.
+	if val := findCommandElementValue(t, encoded, 0x0000, 0x1020); val != nil {
+		t.Error("OmitRemainingSubOp did not suppress NumberOfRemainingSubOperations (0000,1020)")
+	}
+	for _, tag := range []uint16{0x1021, 0x1022, 0x1023} {
+		if val := findCommandElementValue(t, encoded, 0x0000, tag); val == nil {
+			t.Errorf("count (0000,%04X) absent; only Remaining should be omitted", tag)
+		}
+	}
+
+	got, err := DecodeCommandSet(encoded)
+	if err != nil {
+		t.Fatalf("DecodeCommandSet: %v", err)
+	}
+	if !got.HasSubOpCounts {
+		t.Fatal("decoded HasSubOpCounts = false, want true (Completed/Failed/Warning were present)")
+	}
+	if got.RemainingSubOperations != 0 {
+		t.Errorf("decoded Remaining = %d, want 0 (the element was omitted)", got.RemainingSubOperations)
+	}
+	if got.CompletedSubOperations != 3 || got.FailedSubOperations != 1 || got.WarningSubOperations != 0 {
+		t.Errorf("decoded counts = (comp=%d fail=%d warn=%d), want (3 1 0)",
+			got.CompletedSubOperations, got.FailedSubOperations, got.WarningSubOperations)
+	}
+}
+
 // findCommandElementValue walks an Implicit VR LE command set and returns the value bytes of the
 // element at (group,element), or nil if absent.
 func findCommandElementValue(t *testing.T, encoded []byte, group, element uint16) []byte {
