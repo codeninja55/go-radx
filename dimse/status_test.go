@@ -142,3 +142,33 @@ func TestStorageStatusTable(t *testing.T) {
 		t.Errorf("0xA7FF (Out of Resources band) IsFailure() = false, want true")
 	}
 }
+
+// TestQueryRetrieveStatusCategories exercises the C-FIND/C-GET/C-MOVE service-class tables
+// (verified against pynetdicom QR_FIND/QR_MOVE/QR_GET_SERVICE_CLASS_STATUS): the same numeric
+// code categorises differently from Storage — 0xFF00/0xFF01 are Pending, 0xB000 is the
+// C-GET/C-MOVE "one or more sub-operations failed" Warning (not a failure), and 0xA801 is the
+// C-MOVE "Move Destination Unknown" Failure.
+func TestQueryRetrieveStatusCategories(t *testing.T) {
+	cases := []struct {
+		name string
+		s    Status
+		want StatusCategory
+	}{
+		{"find pending", StatusFindPending, StatusCategoryPending},
+		{"find pending optional-keys", NewStatus(0xFF01, ServiceClassFind), StatusCategoryPending},
+		{"find success", StatusFindSuccess, StatusCategorySuccess},
+		{"move sub-ops failure warning", NewStatus(0xB000, ServiceClassMove), StatusCategoryWarning},
+		{"move destination unknown", StatusMoveDestinationUnknown, StatusCategoryFailure},
+		{"get sub-ops failure warning", NewStatus(0xB000, ServiceClassGet), StatusCategoryWarning},
+		{"cancel", NewStatus(0xFE00, ServiceClassMove), StatusCategoryCancel},
+	}
+	for _, c := range cases {
+		if got := c.s.Category(); got != c.want {
+			t.Errorf("%s: Category() = %s, want %s", c.name, got, c.want)
+		}
+	}
+	// A pending status must NEVER read as success, the laundering bug the typed model prevents.
+	if StatusFindPending.IsSuccess() {
+		t.Error("StatusFindPending.IsSuccess() must be false")
+	}
+}
