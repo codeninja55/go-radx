@@ -55,11 +55,17 @@ type Association struct {
 // number of sub-operation C-STOREs still Remaining, and the running Completed/Failed/Warning tallies
 // (0000,1020–0000,1023, PS3.7 §9.1.4). The retrieve SCU reads it via Association.SubOperationCounts()
 // to track progress; the terminal response carries the final tallies.
+//
+// NumberOfRemainingSubOperations (0000,1020) is conditional (PS3.4 C.4.2.1.5): a peer omits it when
+// the outstanding total is unknown and on the terminal response. RemainingKnown reports whether the
+// most recent response actually carried it, so a caller can tell an unknown/omitted Remaining (the
+// Remaining field is then 0 only as a default) apart from a genuine zero remaining.
 type SubOperationCounts struct {
-	Remaining uint16
-	Completed uint16
-	Failed    uint16
-	Warning   uint16
+	Remaining      uint16
+	RemainingKnown bool
+	Completed      uint16
+	Failed         uint16
+	Warning        uint16
 }
 
 // nextMessageID returns the next Message ID for an operation on this association: a distinct,

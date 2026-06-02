@@ -103,7 +103,7 @@ func (a *Association) Move(
 		// Message ID and drains the outstanding responses to the terminal, leaving the association
 		// clean for reuse.
 		for {
-			rsp, _, _, err := receiveMessage(opCtx, conn, m, newMessageReassembler(ts))
+			rsp, rspDS, _, err := receiveMessage(opCtx, conn, m, newMessageReassembler(ts))
 			if err != nil {
 				// A cancelled or expired PARENT ctx is the cancellation contract: send a C-CANCEL and
 				// drain. A deadline that fired only on opCtx (the DIMSE timeout, parent still live) is a
@@ -136,25 +136,33 @@ func (a *Association) Move(
 
 			// Refresh the sub-operation counts a caller reads via SubOperationCounts(). A response that
 			// omits the counts (some peers send a bare terminal) leaves the previous tallies in place.
+			// RemainingKnown records whether the conditional NumberOfRemainingSubOperations element was
+			// actually present, so a caller distinguishes an omitted/unknown Remaining from a genuine 0.
 			if rsp.HasSubOpCounts {
 				a.setSubOperationCounts(SubOperationCounts{
-					Remaining: rsp.RemainingSubOperations,
-					Completed: rsp.CompletedSubOperations,
-					Failed:    rsp.FailedSubOperations,
-					Warning:   rsp.WarningSubOperations,
+					Remaining:      rsp.RemainingSubOperations,
+					RemainingKnown: rsp.HasRemainingSubOp,
+					Completed:      rsp.CompletedSubOperations,
+					Failed:         rsp.FailedSubOperations,
+					Warning:        rsp.WarningSubOperations,
 				})
 			}
 
 			status := NewStatus(rsp.Status, svc)
 			if status.IsPending() {
+				// A Pending C-MOVE-RSP carries no dataset (only the sub-operation counts); yield nil.
 				if !yield(status, nil) {
 					a.cancelOperation(ctx, conn, m, pcID, ts, msgID, svc, CommandCMoveRSP)
 					return
 				}
 				continue
 			}
-			// Terminal status (Success/Warning/Cancel/Failure): yield it last with no dataset.
-			yield(status, nil)
+			// Terminal status (Success/Warning/Cancel/Failure): yield it last, carrying any identifier
+			// the peer attached. A terminal Warning/Failure C-MOVE-RSP MAY carry a Failed SOP Instance
+			// UID List (0008,0058) identifier dataset (PS3.4 C.4.2.1.6); surface it through the
+			// iterator's dataset slot so a caller can inspect which instances failed, rather than
+			// discarding it (rspDS is nil when the peer attached none, e.g. on a clean Success).
+			yield(status, rspDS)
 			return
 		}
 	}

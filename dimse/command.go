@@ -159,11 +159,14 @@ type CommandSet struct {
 	//
 	// NumberOfRemainingSubOperations (0000,1020) is conditional (PS3.4 C.4.2.1.5 / C.4.3.1.4): it is
 	// present only when the responder knows the count of outstanding sub-operations, and SHALL be
-	// absent on the terminal response. OmitRemainingSubOp suppresses just that element while the other
-	// three counts are still emitted, so a responder that streams matches without a pre-count reports
-	// honest Completed/Failed/Warning tallies rather than advertising a misleading Remaining of zero.
+	// absent on the terminal response. OmitRemainingSubOp suppresses just that element on encode while
+	// the other three counts are still emitted, so a responder that streams matches without a
+	// pre-count reports honest Completed/Failed/Warning tallies rather than a misleading Remaining of
+	// zero. On decode, HasRemainingSubOp records whether the element was actually present, so a reader
+	// can tell an unknown/omitted Remaining apart from a genuine zero.
 	HasSubOpCounts         bool
 	OmitRemainingSubOp     bool
+	HasRemainingSubOp      bool
 	RemainingSubOperations uint16
 	CompletedSubOperations uint16
 	FailedSubOperations    uint16
@@ -348,6 +351,7 @@ func (cs *CommandSet) applyElement(tag dicom.Tag, value []byte) {
 		cs.AffectedSOPInstanceUID = dicom.UID(decodeUI(value))
 	case tagNumRemainingSubOps:
 		cs.HasSubOpCounts = true
+		cs.HasRemainingSubOp = true
 		cs.RemainingSubOperations = decodeUS(value)
 	case tagNumCompletedSubOps:
 		cs.HasSubOpCounts = true

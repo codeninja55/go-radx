@@ -13,14 +13,18 @@ import (
 	"github.com/codeninja55/go-radx/dimse/dul"
 )
 
-// moveResponse is a canned C-MOVE-RSP the mock SCP returns: a status code and the four
-// sub-operation counts the RSP carries (Remaining/Completed/Failed/Warning).
+// moveResponse is a canned C-MOVE-RSP the mock SCP returns: a status code, the four sub-operation
+// counts the RSP carries (Remaining/Completed/Failed/Warning), an optional identifier dataset (a
+// terminal Warning/Failure MAY carry a Failed SOP Instance UID List), and a flag to suppress the
+// conditional Remaining element so the SCU's RemainingKnown can be exercised.
 type moveResponse struct {
-	status    uint16
-	remaining uint16
-	completed uint16
-	failed    uint16
-	warning   uint16
+	status        uint16
+	remaining     uint16
+	completed     uint16
+	failed        uint16
+	warning       uint16
+	omitRemaining bool
+	identifier    *dicom.DataSet
 }
 
 // moveSCPObservation is what the mock C-MOVE SCP captured from the SCU's request.
@@ -119,12 +123,16 @@ func serveCannedMove(ctx context.Context, acc *acse.Acceptor, responses []moveRe
 			Status:                    r.status,
 			CommandDataSetType:        CommandDataSetNotPresent,
 			HasSubOpCounts:            true,
+			OmitRemainingSubOp:        r.omitRemaining,
 			RemainingSubOperations:    r.remaining,
 			CompletedSubOperations:    r.completed,
 			FailedSubOperations:       r.failed,
 			WarningSubOperations:      r.warning,
 		}
-		if serr := sendCommand(ctx, conn, m, pcID, rsp); serr != nil {
+		if r.identifier != nil {
+			rsp.CommandDataSetType = CommandDataSetPresent
+		}
+		if serr := sendMessage(ctx, conn, m, pcID, rsp, r.identifier, ts, MaxPDULength(16382)); serr != nil {
 			obs.mu.Lock()
 			obs.err = serr
 			obs.mu.Unlock()
@@ -237,6 +245,95 @@ func TestMoveSCUReportsCounts(t *testing.T) {
 	final := assoc.SubOperationCounts()
 	if final.Completed != 2 || final.Remaining != 0 {
 		t.Errorf("final counts = %+v, want Completed 2, Remaining 0", final)
+	}
+}
+
+// TestMoveYieldsTerminalIdentifier verifies that a terminal Warning C-MOVE-RSP carrying an
+// identifier dataset (the Failed SOP Instance UID List, PS3.4 C.4.2.1.6) is surfaced through the
+// iterator's dataset slot rather than discarded — the Codex round-3 finding. A caller must be able
+// to inspect which instances failed.
+func TestMoveYieldsTerminalIdentifier(t *testing.T) {
+	failedList := dicom.NewDataSet()
+	failedList.SetString(dicom.NewTag(0x0008, 0x0058), "1.2.3.99") // Failed SOP Instance UID List
+
+	addr, _ := startMoveSCP(t, []moveResponse{
+		{status: StatusMovePending.Code, remaining: 1, completed: 0},
+		{status: StatusMoveSubOpsCompleteWithFailures.Code, completed: 0, failed: 1, identifier: failedList},
+	})
+	assoc, ctx, cancel := dialMoveSCU(t, addr)
+	defer cancel()
+
+	query := dicom.NewDataSet()
+	query.SetString(dicom.TagStudyInstanceUID, "1.2.3.1")
+
+	var terminalDS *dicom.DataSet
+	var terminalSeen bool
+	for status, ds := range assoc.Move(ctx, query, QueryLevelStudy, AETitle("DEST-AE")) {
+		if status.IsPending() {
+			if ds != nil {
+				t.Error("Pending C-MOVE-RSP yielded a non-nil dataset; a C-MOVE Pending carries none")
+			}
+			continue
+		}
+		terminalSeen = true
+		terminalDS = ds
+	}
+	if err := assoc.LastError(); err != nil {
+		t.Fatalf("Move LastError = %v, want nil", err)
+	}
+	_ = assoc.Release(ctx)
+
+	if !terminalSeen {
+		t.Fatal("iterator never yielded a terminal status")
+	}
+	if terminalDS == nil {
+		t.Fatal("terminal C-MOVE-RSP identifier (Failed SOP Instance UID List) was discarded; want it yielded")
+	}
+	uid, _ := terminalDS.GetString(dicom.NewTag(0x0008, 0x0058))
+	if uid != "1.2.3.99" {
+		t.Errorf("terminal identifier Failed SOP Instance UID List = %q, want 1.2.3.99", uid)
+	}
+}
+
+// TestMoveRemainingKnownReflectsPresence verifies the SCU's SubOperationCounts.RemainingKnown
+// distinguishes a present NumberOfRemainingSubOperations from an omitted one (the Codex round-3
+// finding): a Pending carrying the element reports RemainingKnown true, and a Pending that omits it
+// reports RemainingKnown false with Remaining left at its zero default (unknown, not a genuine 0).
+func TestMoveRemainingKnownReflectsPresence(t *testing.T) {
+	addr, _ := startMoveSCP(t, []moveResponse{
+		{status: StatusMovePending.Code, remaining: 3, completed: 0},        // Remaining present
+		{status: StatusMovePending.Code, omitRemaining: true, completed: 1}, // Remaining omitted
+		{status: StatusMoveSuccess.Code, omitRemaining: true, completed: 1}, // terminal omits Remaining
+	})
+	assoc, ctx, cancel := dialMoveSCU(t, addr)
+	defer cancel()
+
+	query := dicom.NewDataSet()
+	query.SetString(dicom.TagStudyInstanceUID, "1.2.3.1")
+
+	var counts []SubOperationCounts
+	for status := range assoc.Move(ctx, query, QueryLevelStudy, AETitle("DEST-AE")) {
+		if status.IsPending() {
+			counts = append(counts, assoc.SubOperationCounts())
+		}
+	}
+	if err := assoc.LastError(); err != nil {
+		t.Fatalf("Move LastError = %v, want nil", err)
+	}
+	_ = assoc.Release(ctx)
+
+	if len(counts) != 2 {
+		t.Fatalf("saw %d Pending responses, want 2", len(counts))
+	}
+	if !counts[0].RemainingKnown || counts[0].Remaining != 3 {
+		t.Errorf("first Pending counts = %+v, want RemainingKnown true with Remaining 3", counts[0])
+	}
+	if counts[1].RemainingKnown {
+		t.Errorf("second Pending counts = %+v, want RemainingKnown false (the element was omitted)", counts[1])
+	}
+	// The terminal also omits Remaining: RemainingKnown must be false, not a misleading known 0.
+	if final := assoc.SubOperationCounts(); final.RemainingKnown {
+		t.Errorf("terminal counts = %+v, want RemainingKnown false (terminal omits Remaining)", final)
 	}
 }
 
