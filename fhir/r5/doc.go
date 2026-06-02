@@ -8,5 +8,10 @@
 // as r5.Element and is never conflated with a DICOM data element, and the FHIR
 // Reference datatype is never used for a DICOM referenced-SOP UID pair.
 //
+// This package is produced by the build-time generator in fhir/internal/gen and
+// is never hand-edited; `go generate ./fhir/...` reproduces it byte-for-byte from
+// the pinned StructureDefinition bundle. The hand-written M2 walking-skeleton
+// resources still live here until the generator supersedes them.
+//
 // See docs/reference/fhir.md for the public API.
 package r5

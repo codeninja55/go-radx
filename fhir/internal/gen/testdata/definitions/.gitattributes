@@ -1,0 +1,7 @@
+# The vendored HL7 FHIR definition bundles are checksum-pinned reference data.
+# Treat them as binary so git performs no EOL or other normalisation: the bytes
+# on disk must match SHA256SUMS exactly, because the generator's loader verifies
+# the SHA-256 fail-closed before parsing. Any normalisation would silently break
+# the pin.
+*.json -text
+SHA256SUMS -text
