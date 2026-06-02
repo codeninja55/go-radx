@@ -205,6 +205,99 @@ func TestCompositeRepetitionRenderers(t *testing.T) {
 	}
 }
 
+func TestCompositeRoundTrip(t *testing.T) {
+	enc := DefaultEncoding()
+
+	// parseThenRender parses raw into a typed composite and renders it back; it
+	// returns the rendered text so the test can assert render(parse(raw)) == raw.
+	// reparse re-parses the rendered text so the test can assert that the value
+	// survives parse → render → parse unchanged.
+	tests := []struct {
+		name     string
+		raw      string
+		render   func(string) string // render(parse(raw))
+		stableID bool                // raw round-trips byte-exact (no lossy components)
+	}{
+		// HD
+		{"HD/full", "HOSP^1.2.3^ISO", func(r string) string {
+			return renderRepetition(parseHD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"HD/namespace-only", "HOSP", func(r string) string {
+			return renderRepetition(parseHD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"HD/empty", "", func(r string) string {
+			return renderRepetition(parseHD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		// CX (CX-3 is not modelled, so a value carrying CX-3 is not byte-stable;
+		// the modelled-field cases below are.)
+		{"CX/id-authority-type", "PATID1234^^^HOSP^MR", func(r string) string {
+			return renderRepetition(parseCX(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CX/nested-hd", "9000^^^NS&1.2.3&ISO^MR", func(r string) string {
+			return renderRepetition(parseCX(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CX/id-only", "PATID1234", func(r string) string {
+			return renderRepetition(parseCX(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CX/empty", "", func(r string) string {
+			return renderRepetition(parseCX(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		// CWE
+		{"CWE/six", "36643-5^CHEST XRAY^LN^36643^CHEST X-RAY^L", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CWE/three", "24323-8^COMPREHENSIVE METABOLIC PANEL^LN", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CWE/code-only", "NM", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CWE/gappy", "NM^^L", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"CWE/empty", "", func(r string) string {
+			return renderRepetition(parseCWE(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		// XPN
+		{"XPN/full", "DOE^JOHN^A^JR^DR^PHD^L", func(r string) string {
+			return renderRepetition(parseXPN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XPN/family-given", "DOE^JOHN", func(r string) string {
+			return renderRepetition(parseXPN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XPN/trailing-type", "DOE^JOHN^^^^^L", func(r string) string {
+			return renderRepetition(parseXPN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XPN/empty", "", func(r string) string {
+			return renderRepetition(parseXPN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		// XAD
+		{"XAD/full", "123 MAIN ST^APT 4^METROPOLIS^NY^10001^USA", func(r string) string {
+			return renderRepetition(parseXAD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XAD/street-city-state", "200 SAMPLE AVE^^METROPOLIS^NY", func(r string) string {
+			return renderRepetition(parseXAD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XAD/empty", "", func(r string) string {
+			return renderRepetition(parseXAD(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.render(tc.raw)
+			if tc.stableID && got != tc.raw {
+				t.Errorf("render(parse(%q)) = %q, want byte-exact round-trip", tc.raw, got)
+			}
+			// parse → render → parse stability: re-rendering the already-rendered
+			// form must reproduce it (the value is fixed under the round-trip).
+			if again := tc.render(got); again != got {
+				t.Errorf("render(parse(render(parse(%q)))) = %q, want %q (not idempotent)", tc.raw, again, got)
+			}
+		})
+	}
+}
+
 func TestParseCXNestedHDInSubcomponents(t *testing.T) {
 	// CX-4 may carry the HD as subcomponents: ID^^^NS&UID&ISO^MR
 	msg, err := Parse([]byte(
