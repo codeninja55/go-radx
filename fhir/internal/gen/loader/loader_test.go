@@ -274,29 +274,41 @@ func TestLoadRejectsTruncatedBundleObject(t *testing.T) {
 func TestLoadRejectsTrailingContent(t *testing.T) {
 	t.Parallel()
 
-	// Garbage after the bundle object must be rejected, not silently ignored.
-	dir := t.TempDir()
+	// Garbage after the bundle object must be rejected, not silently ignored. The
+	// closing-delimiter cases ("}}", "]") are the ones json.Decoder.More() cannot
+	// catch at the top level, so they are exercised explicitly.
 	good := []byte(`{"resourceType":"Bundle","entry":[]}`)
-	trailing := []byte(`{"resourceType":"Bundle","entry":[]} {"junk":1}`)
-	writeFile(t, dir, "profiles-types.json", good)
-	writeFile(t, dir, "profiles-resources.json", trailing)
-	writeFile(t, dir, "valuesets.json", good)
-	writeSums(t, dir, map[string]string{
-		"profiles-types.json":     sha256Hex(good),
-		"profiles-resources.json": sha256Hex(trailing),
-		"valuesets.json":          sha256Hex(good),
-	})
+	cases := map[string][]byte{
+		"object":          []byte(`{"resourceType":"Bundle","entry":[]} {"junk":1}`),
+		"closing-brace":   []byte(`{"resourceType":"Bundle","entry":[]}}`),
+		"closing-bracket": []byte(`{"resourceType":"Bundle","entry":[]}]`),
+		"scalar":          []byte(`{"resourceType":"Bundle","entry":[]} 7`),
+	}
+	for label, trailing := range cases {
+		t.Run(label, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			writeFile(t, dir, "profiles-types.json", good)
+			writeFile(t, dir, "profiles-resources.json", trailing)
+			writeFile(t, dir, "valuesets.json", good)
+			writeSums(t, dir, map[string]string{
+				"profiles-types.json":     sha256Hex(good),
+				"profiles-resources.json": sha256Hex(trailing),
+				"valuesets.json":          sha256Hex(good),
+			})
 
-	_, err := Load(dir)
-	if err == nil {
-		t.Fatal("Load should fail on trailing content after the bundle object")
-	}
-	var le *LoadError
-	if !errors.As(err, &le) {
-		t.Fatalf("error = %T, want *LoadError", err)
-	}
-	if !strings.Contains(le.Error(), "profiles-resources.json") {
-		t.Errorf("error %q should name the offending file", le.Error())
+			_, err := Load(dir)
+			if err == nil {
+				t.Fatal("Load should fail on trailing content after the bundle object")
+			}
+			var le *LoadError
+			if !errors.As(err, &le) {
+				t.Fatalf("error = %T, want *LoadError", err)
+			}
+			if !strings.Contains(le.Error(), "profiles-resources.json") {
+				t.Errorf("error %q should name the offending file", le.Error())
+			}
+		})
 	}
 }
 

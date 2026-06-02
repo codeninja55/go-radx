@@ -185,13 +185,16 @@ func (b *Bundle) loadFile(path, name string) error {
 		}
 	}
 
-	// Consume the closing '}' of the outer Bundle object and confirm there is no
-	// trailing content. Without this a truncated file (one whose object is never
-	// closed) or a file with garbage after the bundle would be accepted as valid.
+	// Consume the closing '}' of the outer Bundle object, then require the stream
+	// to be at EOF. Without consuming the delimiter a truncated file (whose object
+	// is never closed) would be accepted; without the explicit EOF check a file
+	// with trailing garbage would be accepted. dec.More() is not a reliable
+	// end-of-stream test at the top level (it returns false for trailing bytes
+	// beginning with '}' or ']'), so the next Token call must return io.EOF.
 	if _, err := dec.Token(); err != nil {
 		return &LoadError{File: name, Detail: "close bundle object", Err: err}
 	}
-	if dec.More() {
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return &LoadError{File: name, Detail: "unexpected trailing content after bundle"}
 	}
 	return nil
