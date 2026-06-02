@@ -87,6 +87,7 @@ type XPN struct {
 	Middle       string // XPN-3 (second/further given names)
 	Suffix       string // XPN-4
 	Prefix       string // XPN-5
+	Degree       string // XPN-6
 	NameTypeCode string // XPN-7, e.g. "L" legal
 }
 
@@ -97,6 +98,7 @@ func parseXPN(r Repetition) XPN {
 		Middle:       r.component(3),
 		Suffix:       r.component(4),
 		Prefix:       r.component(5),
+		Degree:       r.component(6),
 		NameTypeCode: r.component(7),
 	}
 }

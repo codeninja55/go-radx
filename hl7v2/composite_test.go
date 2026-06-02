@@ -116,6 +116,22 @@ func TestParseCWESixComponents(t *testing.T) {
 	}
 }
 
+func TestParseXPNDegree(t *testing.T) {
+	// Family^Given^Middle^Suffix^Prefix^Degree^NameTypeCode.
+	r := parseRepetition([]byte("DOE^JOHN^A^JR^DR^PHD^L"), DefaultEncoding())
+	xpn := parseXPN(r)
+	if xpn.Degree != "PHD" {
+		t.Errorf("XPN.Degree = %q, want PHD", xpn.Degree)
+	}
+	// NameTypeCode must stay at component 7, not shift when Degree is read at 6.
+	if xpn.NameTypeCode != "L" {
+		t.Errorf("XPN.NameTypeCode = %q, want L", xpn.NameTypeCode)
+	}
+	if xpn.Prefix != "DR" {
+		t.Errorf("XPN.Prefix = %q, want DR", xpn.Prefix)
+	}
+}
+
 func TestParseCXNestedHDInSubcomponents(t *testing.T) {
 	// CX-4 may carry the HD as subcomponents: ID^^^NS&UID&ISO^MR
 	msg, err := Parse([]byte(
