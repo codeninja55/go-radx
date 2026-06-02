@@ -334,6 +334,17 @@ func (a *Acceptor) AcceptedContexts() []pdu.PresentationContextAC { return a.acc
 // PeerMaxPDULength reports the maximum PDU length the peer advertised (0 = unlimited).
 func (r *Requestor) PeerMaxPDULength() uint32 { return r.peerMax }
 
+// PeerMaxPDULength reports the maximum PDU length the SCU advertised in its A-ASSOCIATE-RQ user
+// information (acceptor side, 0 = unlimited). The SCP must not send a P-DATA-TF larger than this, so
+// a dataset-bearing response (a C-FIND Pending identifier) fragments within it. It is 0 before the
+// association is established.
+func (a *Acceptor) PeerMaxPDULength() uint32 {
+	if a.request == nil {
+		return 0
+	}
+	return a.request.UserInfo.MaxPDULength
+}
+
 // PeerImplementationClassUID reports the Implementation Class UID the acceptor advertised in the
 // A-ASSOCIATE-AC user information (PS3.7 D.3.3.2), or "" when the acceptor sent none.
 func (r *Requestor) PeerImplementationClassUID() string { return r.peerImplementationClassUID }

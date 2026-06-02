@@ -148,6 +148,221 @@ func TestInteropOrthancCStore(t *testing.T) {
 	}
 }
 
+// TestInteropOrthancCFind is the first M3 query/retrieve interop gate against Orthanc: a go-radx SCU
+// stores a vendored study, then drives a study-level C-FIND (Association.Find, the Inc 2 iterator)
+// against Orthanc and asserts the stored study's Study Instance UID is returned as a Pending match
+// with a terminal Success. It proves the streaming C-FIND SCU interoperates with a real third-party
+// C-FIND SCP end to end.
+func TestInteropOrthancCFind(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	orth := startOrthanc(ctx, t)
+	ds, sopInstanceUID := readFixture(t)
+	studyInstanceUID, ok := ds.GetString(dicom.NewTag(0x0020, 0x000D))
+	if !ok || studyInstanceUID == "" {
+		t.Fatalf("fixture has no Study Instance UID (0020,000D)")
+	}
+
+	calling, err := dimse.ParseAETitle("RADX-SCU")
+	if err != nil {
+		t.Fatalf("parse calling AE title: %v", err)
+	}
+	called, err := dimse.ParseAETitle(orthanc.AETitle)
+	if err != nil {
+		t.Fatalf("parse called AE title: %v", err)
+	}
+	ae, err := dimse.NewAE(calling)
+	if err != nil {
+		t.Fatalf("new AE: %v", err)
+	}
+
+	// Store the fixture so Orthanc holds a study to find.
+	storeAssoc, err := ae.Associate(ctx, orth.DICOMAddr(), called, dimse.StorageContexts())
+	if err != nil {
+		t.Fatalf("associate for C-STORE: %v", err)
+	}
+	status, err := storeAssoc.Store(ctx, ds)
+	if err != nil {
+		t.Fatalf("C-STORE transport error: %v", err)
+	}
+	if !status.IsSuccess() {
+		t.Fatalf("C-STORE status = %s, want success", status)
+	}
+	if err := storeAssoc.Release(ctx); err != nil {
+		t.Fatalf("release C-STORE association: %v", err)
+	}
+
+	// Orthanc indexes asynchronously; wait for the instance before querying so the C-FIND has a match.
+	if !waitForInstance(ctx, t, orth, sopInstanceUID) {
+		t.Fatalf("Orthanc did not persist the stored instance %s before the C-FIND", sopInstanceUID)
+	}
+
+	// Study-level C-FIND filtered on the stored Study Instance UID.
+	findAssoc, err := ae.Associate(ctx, orth.DICOMAddr(), called, dimse.QueryRetrieveContexts())
+	if err != nil {
+		t.Fatalf("associate for C-FIND: %v", err)
+	}
+	defer func() { _ = findAssoc.Release(ctx) }()
+
+	query := dicom.NewDataSet()
+	query.SetString(dicom.TagStudyInstanceUID, studyInstanceUID)
+
+	matched := false
+	terminalSuccess := false
+	for st, match := range findAssoc.Find(ctx, query, dimse.QueryLevelStudy) {
+		switch {
+		case st.IsPending():
+			if match == nil {
+				t.Error("Pending C-FIND match had a nil identifier")
+				continue
+			}
+			if uid, _ := match.GetString(dicom.TagStudyInstanceUID); uid == studyInstanceUID {
+				matched = true
+			}
+		case st.IsSuccess():
+			terminalSuccess = true
+		case st.IsFailure():
+			t.Errorf("C-FIND terminal status = %s, want Success", st)
+		}
+	}
+	if err := findAssoc.LastError(); err != nil {
+		t.Fatalf("C-FIND transport error: %v", err)
+	}
+	if !matched {
+		t.Errorf("C-FIND did not return the stored study %s", studyInstanceUID)
+	}
+	if !terminalSuccess {
+		t.Error("C-FIND did not end with a terminal Success status")
+	}
+}
+
+// TestInteropOrthancCMove is the M3 C-MOVE interop gate against Orthanc, exercising go-radx as the
+// C-MOVE SCU AND as the sub-operation C-STORE destination. A vendored study is stored into Orthanc;
+// a go-radx Store SCP (the Move Destination AE) is stood up on a container-reachable interface and
+// registered as a modality in Orthanc; the go-radx SCU then drives Association.Move against Orthanc
+// naming that SCP as the Move Destination. Orthanc, as the C-MOVE SCP, resolves the destination and
+// C-STOREs the matched instance back to the go-radx SCP. The test asserts the SCP handler received
+// the exact SOP Instance UID and the move ended with a success-class terminal status.
+func TestInteropOrthancCMove(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	orth := startOrthanc(ctx, t)
+	ds, sopInstanceUID := readFixture(t)
+	studyInstanceUID, ok := ds.GetString(dicom.NewTag(0x0020, 0x000D))
+	if !ok || studyInstanceUID == "" {
+		t.Fatalf("fixture has no Study Instance UID (0020,000D)")
+	}
+
+	calling, err := dimse.ParseAETitle("RADX-SCU")
+	if err != nil {
+		t.Fatalf("parse calling AE title: %v", err)
+	}
+	called, err := dimse.ParseAETitle(orthanc.AETitle)
+	if err != nil {
+		t.Fatalf("parse called AE title: %v", err)
+	}
+	ae, err := dimse.NewAE(calling)
+	if err != nil {
+		t.Fatalf("new AE: %v", err)
+	}
+
+	// Store the fixture so Orthanc holds a study to move, then wait for it to index.
+	storeAssoc, err := ae.Associate(ctx, orth.DICOMAddr(), called, dimse.StorageContexts())
+	if err != nil {
+		t.Fatalf("associate for C-STORE: %v", err)
+	}
+	if status, serr := storeAssoc.Store(ctx, ds); serr != nil || !status.IsSuccess() {
+		t.Fatalf("seed C-STORE status=%s err=%v, want success", status, serr)
+	}
+	if err := storeAssoc.Release(ctx); err != nil {
+		t.Fatalf("release seed C-STORE association: %v", err)
+	}
+	if !waitForInstance(ctx, t, orth, sopInstanceUID) {
+		t.Fatalf("Orthanc did not persist the seed instance %s before the C-MOVE", sopInstanceUID)
+	}
+
+	// Stand up the go-radx Store SCP that is the Move Destination AE, bound on a container-reachable
+	// interface (NOT loopback) so Orthanc can dial back to it via host.docker.internal.
+	destTitle, err := dimse.ParseAETitle("RADX-DEST")
+	if err != nil {
+		t.Fatalf("parse destination AE title: %v", err)
+	}
+	destAE, err := dimse.NewAE(destTitle)
+	if err != nil {
+		t.Fatalf("new destination AE: %v", err)
+	}
+	handler := &recordingStore{}
+	destSrv := dimse.NewServer(destAE, dimse.StorageContexts(), handler)
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- destSrv.ListenAndServe(ctx, "0.0.0.0:0") }()
+	destAddr := waitForAddr(t, destSrv)
+	_, destPortStr, err := net.SplitHostPort(destAddr)
+	if err != nil {
+		t.Fatalf("split destination addr %q: %v", destAddr, err)
+	}
+	destPort, err := strconv.Atoi(destPortStr)
+	if err != nil {
+		t.Fatalf("parse destination port %q: %v", destPortStr, err)
+	}
+
+	// Register the go-radx Store SCP as a modality in Orthanc so the C-MOVE SCP can resolve the Move
+	// Destination AE to host.docker.internal:destPort.
+	if err := orth.ConfigureModality(ctx, string(destTitle), orthanc.HostAccessHost, destPort); err != nil {
+		t.Fatalf("configure go-radx destination modality in Orthanc: %v", err)
+	}
+
+	// Drive the C-MOVE from go-radx against Orthanc, naming the go-radx Store SCP as the destination.
+	moveAssoc, err := ae.Associate(ctx, orth.DICOMAddr(), called, dimse.QueryRetrieveContexts())
+	if err != nil {
+		t.Fatalf("associate for C-MOVE: %v", err)
+	}
+	defer func() { _ = moveAssoc.Release(ctx) }()
+
+	query := dicom.NewDataSet()
+	query.SetString(dicom.TagStudyInstanceUID, studyInstanceUID)
+
+	var terminal dimse.Status
+	var terminalSeen bool
+	for status := range moveAssoc.Move(ctx, query, dimse.QueryLevelStudy, destTitle) {
+		if !status.IsPending() {
+			terminal = status
+			terminalSeen = true
+		}
+	}
+	if err := moveAssoc.LastError(); err != nil {
+		t.Fatalf("C-MOVE transport error: %v", err)
+	}
+	if !terminalSeen || (!terminal.IsSuccess() && !terminal.IsWarning()) {
+		t.Fatalf("C-MOVE terminal status = %s (seen=%v), want success-class", terminal, terminalSeen)
+	}
+	if counts := moveAssoc.SubOperationCounts(); counts.Completed < 1 {
+		t.Errorf("C-MOVE final Completed sub-operations = %d, want >= 1", counts.Completed)
+	}
+
+	// The go-radx Store SCP (the Move Destination) must have received the exact instance Orthanc moved.
+	received := handler.snapshot()
+	found := false
+	for _, got := range received {
+		if got == sopInstanceUID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("go-radx Move Destination received %v, want the moved instance %s", received, sopInstanceUID)
+	}
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+	if err := destSrv.Shutdown(shutdownCtx); err != nil {
+		t.Fatalf("destination server shutdown: %v", err)
+	}
+	if err := <-serveErr; err != nil {
+		t.Fatalf("destination ListenAndServe returned an error: %v", err)
+	}
+}
+
 // waitForInstance polls Orthanc's REST API until the given SOP Instance UID appears or the deadline
 // elapses, accommodating Orthanc's asynchronous indexing.
 func waitForInstance(ctx context.Context, t *testing.T, orth *orthanc.Container, sopInstanceUID string) bool {

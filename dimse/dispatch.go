@@ -38,7 +38,7 @@ import (
 // when it is positive: a peer that completes negotiation then sends nothing must not hold a capacity
 // slot and a goroutine forever (a slot-exhaustion DoS — Codex/concurrency review). On the timeout
 // the read returns context.DeadlineExceeded, the association ends, and the Server releases the slot.
-func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.AcceptParams, acseTimeout, networkTimeout time.Duration, h any) error {
+func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.AcceptParams, acseTimeout, networkTimeout time.Duration, h any, move moveSupport) error {
 	negotiateCtx := ctx
 	if acseTimeout > 0 {
 		var cancel context.CancelFunc
@@ -80,7 +80,7 @@ func dispatchAssociation(ctx context.Context, conn *dul.Conn, params acse.Accept
 			// The peer aborted or closed the transport in an orderly way; the association is over.
 			return conn.Close()
 		case inboundMessage:
-			if derr := dispatchMessage(ctx, acc, h, cmd, ds, pcID, calling, called); derr != nil {
+			if derr := dispatchMessage(ctx, acc, h, move, cmd, ds, pcID, calling, called); derr != nil {
 				return derr
 			}
 		}
@@ -177,6 +177,7 @@ func dispatchMessage(
 	ctx context.Context,
 	acc *acse.Acceptor,
 	h any,
+	move moveSupport,
 	cmd CommandSet,
 	ds *dicom.DataSet,
 	pcID uint8,
@@ -207,6 +208,26 @@ func dispatchMessage(
 		}
 		_, err := serveStoreMessage(ctx, acc, sh, cmd, ds, pcID, base)
 		return err
+	case CommandCFindRQ:
+		fh, ok := h.(FindHandler)
+		if !ok {
+			return refuseUnsupportedFind(ctx, acc, cmd, pcID)
+		}
+		return serveFindMessage(ctx, acc, fh, cmd, ds, pcID, base)
+	case CommandCMoveRQ:
+		mh, ok := h.(MoveHandler)
+		if !ok {
+			return refuseUnsupportedMove(ctx, acc, cmd, pcID)
+		}
+		return serveMoveMessage(ctx, acc, mh, move, cmd, ds, pcID, base)
+	case CommandCCancelRQ:
+		// A C-CANCEL-RQ that reaches the top-level dispatch refers to no in-flight operation: the
+		// query it would cancel either already terminated, or its terminal RSP raced ahead of the
+		// SCP consuming the cancel during the drain. PS3.7 §9.3.2.3 directs the SCP to IGNORE a
+		// C-CANCEL for an operation it is not currently processing, so it is dropped silently here
+		// rather than faulting the association — otherwise an SCU that breaks a C-FIND just as the
+		// query completes would have its association closed, breaking release/reuse.
+		return nil
 	default:
 		return &ProtocolError{
 			State:  acc.Machine().CurrentState(),

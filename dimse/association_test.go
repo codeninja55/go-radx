@@ -151,6 +151,32 @@ func TestOperationOnUnestablishedAssociationReturnsTypedError(t *testing.T) {
 	}
 }
 
+// TestAssociationMessageIDAllocator is the DIMSE-016 foundation: the per-association allocator
+// hands out distinct, non-zero, monotonically increasing Message IDs for the sub-operation-bearing
+// and chained services. A fixed MessageID: 0 miscounted failures and hung against compliant peers.
+func TestAssociationMessageIDAllocator(t *testing.T) {
+	a := &Association{}
+	first := a.nextMessageID()
+	second := a.nextMessageID()
+	if first == 0 || second == 0 {
+		t.Fatalf("message IDs must be non-zero, got %d and %d", first, second)
+	}
+	if second != first+1 {
+		t.Errorf("expected monotonic IDs, got %d then %d", first, second)
+	}
+}
+
+// TestAssociationMessageIDSkipsZeroOnWrap verifies the 16-bit counter wraps past 0 (which is the
+// reserved "no operation" sentinel a sub-operation must never use): from 0xFFFF the next ID is 1,
+// not 0.
+func TestAssociationMessageIDSkipsZeroOnWrap(t *testing.T) {
+	a := &Association{nextMsgID: 0xFFFF}
+	got := a.nextMessageID()
+	if got != 1 {
+		t.Errorf("nextMessageID after 0xFFFF = %d, want 1 (skip the reserved 0)", got)
+	}
+}
+
 func TestAssociateRejectsInvalidCalledTitle(t *testing.T) {
 	ae, _ := NewAE(AETitle("REQUESTOR"))
 	ctx := context.Background()

@@ -31,6 +31,56 @@ type Association struct {
 
 	mu       sync.Mutex
 	released bool
+	// nextMsgID is the high-water mark of the per-association Message ID allocator. A single
+	// goroutine drives an association's primary operation, but C-GET/C-MOVE sub-operation send
+	// paths allocate IDs too, so the counter is read and bumped under a.mu (Codex DIMSE-016).
+	nextMsgID uint16
+	// lastError holds the transport/protocol fault, if any, that terminated the most recent
+	// query/retrieve iterator (C-FIND/C-GET/C-MOVE) before a clean terminal DIMSE status. It is
+	// per-association, not per-call: a query/retrieve iterator clears it on entry and sets it on a
+	// fault, and the caller reads it via LastError() immediately after the range loop (dimse.md
+	// "the streaming query contract"). A terminal Failure/Cancel Status is in-band data, never
+	// recorded here. Guarded by a.mu because the iterator body and LastError() may be called from
+	// different goroutines, though an Association is not safe for concurrent queries.
+	lastError error
+	// subOpCounts holds the four sub-operation counts (Remaining/Completed/Failed/Warning) from the
+	// most recently yielded C-MOVE/C-GET response on this association, refreshed on each yield so a
+	// caller can read progress via SubOperationCounts() inside or after the range loop. It is
+	// per-association like lastError (an Association is not safe for concurrent queries) and guarded
+	// by a.mu because the iterator body and SubOperationCounts() may run on different goroutines.
+	subOpCounts SubOperationCounts
+}
+
+// SubOperationCounts is the C-MOVE/C-GET sub-operation progress carried by each response: the
+// number of sub-operation C-STOREs still Remaining, and the running Completed/Failed/Warning tallies
+// (0000,1020–0000,1023, PS3.7 §9.1.4). The retrieve SCU reads it via Association.SubOperationCounts()
+// to track progress; the terminal response carries the final tallies.
+//
+// NumberOfRemainingSubOperations (0000,1020) is conditional (PS3.4 C.4.2.1.5): a peer omits it when
+// the outstanding total is unknown and on the terminal response. RemainingKnown reports whether the
+// most recent response actually carried it, so a caller can tell an unknown/omitted Remaining (the
+// Remaining field is then 0 only as a default) apart from a genuine zero remaining.
+type SubOperationCounts struct {
+	Remaining      uint16
+	RemainingKnown bool
+	Completed      uint16
+	Failed         uint16
+	Warning        uint16
+}
+
+// nextMessageID returns the next Message ID for an operation on this association: a distinct,
+// non-zero, monotonically increasing 16-bit value (1, 2, 3, …). It wraps past the reserved 0 at
+// the 16-bit boundary, so 0xFFFF is followed by 1. Sub-operation C-STOREs (C-GET/C-MOVE) and the
+// chained N-services use it so every in-flight request carries its own ID; the single-operation
+// C-ECHO/C-STORE paths keep their fixed echoMessageID/storeMessageID constants (Codex DIMSE-016).
+func (a *Association) nextMessageID() uint16 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.nextMsgID++
+	if a.nextMsgID == 0 {
+		a.nextMsgID = 1
+	}
+	return a.nextMsgID
 }
 
 // sendCap resolves the P-DATA-TF body byte cap for outbound DIMSE messages: the smaller of the
@@ -38,6 +88,84 @@ type Association struct {
 // cap (Codex DIMSE-005).
 func (a *Association) sendCap() MaxPDULength {
 	return a.peerMaxPDULength.SendCap(a.localMaxPDULength)
+}
+
+// LastError returns the transport or protocol fault, if any, that terminated the most recent
+// query/retrieve iterator (Find/Get/Move) before a clean terminal DIMSE status — a dropped
+// connection, an A-ABORT, or a malformed PDU. It is nil when the operation completed with a clean
+// terminal status, and must be read immediately after the range loop, before starting another
+// query: it is scoped to the most recent iterator on this association, not per-call (dimse.md "the
+// streaming query contract"). A terminal Failure/Cancel Status is in-band data the caller inspects,
+// never reported here.
+func (a *Association) LastError() error {
+	if a == nil {
+		return nil
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.lastError
+}
+
+// clearLastError resets the per-association last-error slot at the start of a query/retrieve
+// iterator, so LastError() reflects only the most recent operation. It is a no-op on a nil
+// receiver (a pre-flight fault on an unestablished association has no slot to clear).
+func (a *Association) clearLastError() {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.lastError = nil
+	a.mu.Unlock()
+}
+
+// SubOperationCounts returns the four sub-operation counts (Remaining/Completed/Failed/Warning) the
+// most recently yielded C-MOVE or C-GET response on this association carried. A retrieve SCU reads
+// it after each Pending yield to track progress, and after the loop to read the terminal tallies. It
+// is the zero value before the first retrieve and is reset at the start of each retrieve iterator,
+// so it is scoped to the most recent operation, not per-call. It is nil-safe.
+func (a *Association) SubOperationCounts() SubOperationCounts {
+	if a == nil {
+		return SubOperationCounts{}
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.subOpCounts
+}
+
+// setSubOperationCounts records the sub-operation counts a C-MOVE/C-GET response carried, read by
+// SubOperationCounts(). It is a no-op on a nil receiver.
+func (a *Association) setSubOperationCounts(c SubOperationCounts) {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.subOpCounts = c
+	a.mu.Unlock()
+}
+
+// clearSubOperationCounts resets the per-association sub-operation count slot at the start of a
+// retrieve iterator, so SubOperationCounts() reflects only the most recent operation. It is a no-op
+// on a nil receiver.
+func (a *Association) clearSubOperationCounts() {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.subOpCounts = SubOperationCounts{}
+	a.mu.Unlock()
+}
+
+// setLastError records the transport/protocol fault that ended a query/retrieve iterator. It is
+// read by LastError() after the range loop. It is a no-op on a nil receiver: a Find on a nil
+// *Association still yields a typed terminal failure, and LastError() (also nil-safe) returns nil
+// since there is no association to carry the error (Codex DIMSE-017).
+func (a *Association) setLastError(err error) {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.lastError = err
+	a.mu.Unlock()
 }
 
 // AssociateOption configures an outbound association (reserved for role selection,
