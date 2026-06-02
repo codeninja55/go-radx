@@ -24,6 +24,18 @@ type ReferencedSOPInstance struct {
 	SOPInstanceUID SOPInstanceUID
 }
 
+// FailedSOPInstance is a referenced SOP Instance the peer rejected, carrying the
+// Failure Reason (0008,1197) code that says why. It is the single shape reused
+// wherever a service reports a per-instance rejection: the Failed SOP Sequence
+// (0008,1198) of a STOW-RS store response (dicomweb) and a Storage Commitment
+// N-EVENT-REPORT failure list (dimse) speak the same vocabulary, so neither
+// re-declares it. The reason code is a uint16 status; FailureReasonName renders it
+// by registered name for diagnostics.
+type FailedSOPInstance struct {
+	ReferencedSOPInstance
+	FailureReason uint16 // the (0008,1197) Failure Reason code
+}
+
 // codeItem builds the single Code Sequence Macro item dataset for c: the code value
 // (0008,0100), coding scheme designator (0008,0102), and code meaning (0008,0104).
 func codeItem(c ConceptNameCode) *DataSet {
