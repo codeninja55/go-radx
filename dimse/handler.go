@@ -3,6 +3,7 @@ package dimse
 import (
 	"context"
 	"fmt"
+	"iter"
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/acse"
@@ -38,12 +39,30 @@ type StoreHandler interface {
 	Store(ctx context.Context, ds *dicom.DataSet, info OpInfo) Status
 }
 
+// FindHandler answers a C-FIND query, mirroring the SCU iterator (dimse.md "SCP handlers and the
+// event model"). It yields one (Status, identifier) pair per match — a Pending status
+// (0xFF00/0xFF01) carrying the matching identifier dataset — and the dispatcher sends one Pending
+// C-FIND-RSP per yield. When the iterator ends, the dispatcher sends a terminal C-FIND-RSP carrying
+// the iterator's final status (Success/Warning/Failure) and no dataset; a handler that yields no
+// match at all still terminates with a single Success RSP (the no-hang contract). A worklist-only
+// SCP implements FindHandler alone (interface segregation, PRD §8.2).
+//
+// The handler MUST observe its context: the dispatcher cancels it when the SCU sends a C-CANCEL-RQ
+// mid-query (and on Server.Shutdown), so a handler that selects on ctx.Done() — or threads ctx
+// through its match resolution — stops promptly. A handler that ignores its context cannot be woken
+// (Go cannot forcibly kill a goroutine).
+type FindHandler interface {
+	// Find yields (Status, identifier) for each C-FIND match. A Pending status carries the matching
+	// identifier; the iterator ends after the matches are exhausted.
+	Find(ctx context.Context, query *dicom.DataSet, level QueryLevel, info OpInfo) iter.Seq2[Status, *dicom.DataSet]
+}
+
 // Handler answers inbound DIMSE-C operations dispatched by the SCP. An intervention operation is
 // answered with a typed Status, so a handler cannot forget to answer (PRD §8.2). It is the union
 // of the per-service capabilities; an SCP that supports only some services implements the narrower
-// interfaces (EchoHandler, StoreHandler) and the dispatcher type-asserts for each. A handler
-// returning success on work it did not do is a defect (PRD §9.2 fail-closed). The query/retrieve
-// capabilities (Find/Get/Move) join this union with their services in M3.
+// interfaces (EchoHandler, StoreHandler, FindHandler) and the dispatcher type-asserts for each. A
+// handler returning success on work it did not do is a defect (PRD §9.2 fail-closed). The remaining
+// query/retrieve capabilities (Get/Move) join this union with their services in later M3 increments.
 //
 // A handler MUST observe the context it is passed: Server.Shutdown cancels it, and a handler that
 // selects on ctx.Done() (or threads ctx through its I/O) is woken cooperatively and returns
@@ -52,6 +71,7 @@ type StoreHandler interface {
 type Handler interface {
 	EchoHandler
 	StoreHandler
+	FindHandler
 }
 
 // serveEcho services one inbound C-ECHO over an established acceptor association: it reads the
@@ -285,6 +305,36 @@ func validateEchoContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (di
 			"C-ECHO-RQ Affected SOP Class %q is not the Verification SOP Class", cmd.AffectedSOPClassUID)}
 	}
 	return nil
+}
+
+// validateFindContext fails closed when a C-FIND-RQ arrives on a presentation context whose
+// negotiated abstract syntax is not a Query/Retrieve FIND information model, OR when the command's
+// Affected SOP Class UID is not that same negotiated FIND model. Either lets a peer run a query
+// outside the negotiated/declared SOP Class, bypassing presentation-context negotiation (PS3.4 C.4
+// makes the C-FIND-RQ Affected SOP Class UID Type 1) — the same protocol fault the C-STORE and
+// C-ECHO paths reject, kept symmetric across the context and the command checks.
+func validateFindContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (dicom.SOPClassUID, bool), state State) error {
+	abstract, ok := abstractFor(pcID)
+	if !ok || !isFindModel(abstract) {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-FIND arrived on presentation context %d whose abstract syntax %q is not a Query/Retrieve FIND information model",
+			pcID, abstract)}
+	}
+	if dicom.SOPClassUID(cmd.AffectedSOPClassUID) != abstract {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-FIND Affected SOP Class %q does not match the abstract syntax negotiated for presentation context %d",
+			cmd.AffectedSOPClassUID, pcID)}
+	}
+	return nil
+}
+
+// isFindModel reports whether the SOP Class is one of the C-FIND information models go-radx serves
+// as an SCP (the Patient Root / Study Root FIND models and the Modality Worklist FIND model). It
+// reuses the findModels set the SCU side validates a WithQueryModel against, so the SCU and SCP
+// agree on what a FIND context is.
+func isFindModel(sopClass dicom.SOPClassUID) bool {
+	_, ok := findModels[sopClass]
+	return ok
 }
 
 // validateStoreInstance fails closed when a C-STORE-RQ's mandatory Affected SOP Instance UID is

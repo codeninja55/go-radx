@@ -207,6 +207,20 @@ func dispatchMessage(
 		}
 		_, err := serveStoreMessage(ctx, acc, sh, cmd, ds, pcID, base)
 		return err
+	case CommandCFindRQ:
+		fh, ok := h.(FindHandler)
+		if !ok {
+			return refuseUnsupportedFind(ctx, acc, cmd, pcID)
+		}
+		return serveFindMessage(ctx, acc, fh, cmd, ds, pcID, base)
+	case CommandCCancelRQ:
+		// A C-CANCEL-RQ that reaches the top-level dispatch refers to no in-flight operation: the
+		// query it would cancel either already terminated, or its terminal RSP raced ahead of the
+		// SCP consuming the cancel during the drain. PS3.7 §9.3.2.3 directs the SCP to IGNORE a
+		// C-CANCEL for an operation it is not currently processing, so it is dropped silently here
+		// rather than faulting the association — otherwise an SCU that breaks a C-FIND just as the
+		// query completes would have its association closed, breaking release/reuse.
+		return nil
 	default:
 		return &ProtocolError{
 			State:  acc.Machine().CurrentState(),
