@@ -1,6 +1,6 @@
 module github.com/codeninja55/go-radx
 
-go 1.26.3
+go 1.26.4
 
 require (
 	github.com/testcontainers/testcontainers-go v0.40.0
