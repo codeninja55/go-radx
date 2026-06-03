@@ -53,7 +53,13 @@ legacy codebase (`legacy-main`) and are not continued here.
 - Cross-standard converter slice: DICOM to ImagingStudy, HL7 ORM to ServiceRequest, and
   DICOM SR to DiagnosticReport, with an end-to-end walking-skeleton proof.
 
+### Security
+
+- Pinned the Go toolchain to 1.26.4 to clear two standard-library advisories,
+  `GO-2026-5039` (`net/textproto`) and `GO-2026-5037` (`crypto/x509`). ([#38])
+
 [Unreleased]: https://github.com/codeninja55/go-radx/commits/main
 [#34]: https://github.com/codeninja55/go-radx/pull/34
 [#35]: https://github.com/codeninja55/go-radx/pull/35
 [#36]: https://github.com/codeninja55/go-radx/pull/36
+[#38]: https://github.com/codeninja55/go-radx/pull/38
