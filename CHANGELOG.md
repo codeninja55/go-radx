@@ -72,6 +72,11 @@ legacy codebase (`legacy-main`) and are not continued here.
 - Conformance-statement scaffolds for DICOMweb, DIMSE, cross-standard conversion, and the CLI/server surface, each
   flagged as not yet shipped; resolved the dangling DICOMweb cross-reference in the DICOM statement; annotated the
   HL7 v2 and FHIR statements where they declared scope ahead of the implementation.
+- Cross-cutting conformance statement (`docs/conformance/cross-cutting.md`) covering the engineering posture shared
+  across every subsystem: supply chain, interop determinism, the interop matrix, build and module layout, coverage
+  targets, concurrency posture, conformance-drift methodology, and governance. It links every per-subsystem statement
+  and records an honest gate-enforcement note — CI runs on every push and pull request to `main` but is currently
+  advisory, since the `main` branch ruleset is disabled — flagged as a known gap against the Phase 0 definition.
 
 ### Removed
 
