@@ -12,6 +12,14 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Extended the CI `interop` job into a matrix over three legs — `dimse`, `dicomweb`, and `convert` —
+  so the previously-uninvoked DICOMweb STOW/WADO and convert end-to-end interop tests now run against
+  the pinned Orthanc image, closing the regression window where they compiled but no job ran them.
+  Each leg invokes a `mise run interop:<leg>` task (a new `interop:convert` task joins the existing
+  `interop:dimse`/`interop:dicomweb`), and a normally-skipped negative-control guard
+  (`TestInteropGuardBrokenDICOMWebPathFails`, gated by `RADX_INTEROP_REGRESSION_GUARD`) proves the
+  DICOMweb gate bites. The interop-matrix coverage section of the cross-cutting conformance statement
+  now documents the matrix.
 - Structured logging via `go.uber.org/zap` in a new root `logging` package: a `NewLogger`
   constructor, context injection (`WithContext`/`FromContext`, with a no-op fallback and no
   package global), and PHI-aware field helpers (`DICOMTag`, `HL7Field`, `FHIRPath`) that render
