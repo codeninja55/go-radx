@@ -105,6 +105,16 @@ legacy codebase (`legacy-main`) and are not continued here.
   database stays live so a newly disclosed advisory still fails the gate. Reconciled the `cmd/radx`
   module's `go.mod` to Go 1.26.4 so every module and CI job runs the single pinned toolchain. The
   supply-chain section of the cross-cutting conformance statement now documents both pins.
+- Pinned every reference tool and interop image the conformance and interop gates depend on, so a
+  gate result is reproducible rather than dependent on whatever a runner pulls. The Orthanc and
+  dcm4chee-arc testcontainers images are now pinned by immutable `@sha256:` digest (Orthanc was
+  `:latest`; the dcm4chee-arc stack was tag-only). The `conformance` job pins `dicom3tools` to the
+  exact Ubuntu archive version and `pydicom` to `3.0.2`. A new `tools/versions` manifest records
+  every pin (including the FHIR `validator_cli.jar` mechanism, pinned to release `6.9.9` ahead of
+  its Phase 1 gate), and a new `tools/pin-drift.sh` check — run as the `pin-drift` step of the
+  `lint-test` job and via `mise run pin-drift` — fails CI if any reference floats back to an
+  unpinned tag. The interop-determinism section of the cross-cutting conformance statement now
+  documents the contract.
 
 [Unreleased]: https://github.com/codeninja55/go-radx/commits/main
 [#34]: https://github.com/codeninja55/go-radx/pull/34

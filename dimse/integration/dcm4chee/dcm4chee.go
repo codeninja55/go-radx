@@ -40,13 +40,16 @@ const (
 	httpPort  = "8080/tcp"
 )
 
-// ldapImage, dbImage, and arcImage pin the three dcm4chee-arc container images. The archive image is
-// the PostgreSQL-backed WildFly application; the other two are its LDAP configuration store and its
-// database, resolved by the ldapAlias and dbAlias network aliases below.
+// ldapImage, dbImage, and arcImage pin the three dcm4chee-arc container images by immutable digest so
+// an interop run resolves the same bytes on every runner. The archive image is the PostgreSQL-backed
+// WildFly application; the other two are its LDAP configuration store and its database, resolved by
+// the ldapAlias and dbAlias network aliases below. The tag before each digest is the human-readable
+// version; bumping any of them is a deliberate, reviewed change — re-resolve with `docker buildx
+// imagetools inspect <image>:<version>` and update the digest and the tag together.
 const (
-	ldapImage = "dcm4che/slapd-dcm4chee:2.6.10-34.2"
-	dbImage   = "dcm4che/postgres-dcm4chee:17.4-34"
-	arcImage  = "dcm4che/dcm4chee-arc-psql:5.34.2"
+	ldapImage = "dcm4che/slapd-dcm4chee:2.6.10-34.2@sha256:5c04ced61e943af2175c69ec7955c28bbaf676c50b5876c02e1437261cfaeefc"
+	dbImage   = "dcm4che/postgres-dcm4chee:17.4-34@sha256:728c3055b894127c661a1645ffd0ccc2ad6461b86e957e245a9cc9bbc9c499e2"
+	arcImage  = "dcm4che/dcm4chee-arc-psql:5.34.2@sha256:316eba283d3c8538e4c3b954edcdd59572f76aa7271ca6336ddf771703082f8c"
 )
 
 // ldapAlias and dbAlias are the network aliases the archive resolves its dependencies by. The
