@@ -11,14 +11,16 @@
 coverage.*
 cover.html
 
-# Go workspace (local multi-module dev convenience; not for consumers)
-go.work
+# Go workspace lock file (generated; the committed go.work ties the root and cmd/radx modules)
 go.work.sum
 
 # OS / editor
 .DS_Store
 *.swp
 *~
+
+# Agent worktrees (isolated per-task checkouts; never committed)
+.claude/worktrees/
 
 # Environment / secrets (never commit; see PRD §9.8)
 .env

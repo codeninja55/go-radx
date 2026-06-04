@@ -39,11 +39,13 @@ fixed run to run rather than dependent on whichever release the proxy resolves a
 database stays live — `govulncheck` queries `vuln.go.dev` by default — so a freshly disclosed advisory still fails
 the gate; the pin fixes the analysis tooling, not the advisory feed.
 
-Two drift surfaces remain open against this posture and are owned elsewhere in the cross-cutting contract. The Go
+The `cmd/radx` module is scanned too: the `cmd-radx` job runs the same `@v1.3.0`-pinned `govulncheck` against the CLI
+module's own dependency graph, so a vulnerability in a CLI-only dependency fails CI rather than passing unscanned. See
+[Build and module layout](#build-and-module-layout-gowork-cmdradx-ci) for how that module is built and gated.
+
+One drift surface remains open against this posture and is owned elsewhere in the cross-cutting contract. The Go
 version pin is held in agreement by review today, not by an automated check that fails when the three declarations
-diverge. And `cmd/radx` is a separate module that the `govulncheck` job does not yet scan — closing that is tracked
-under [Build and module layout](#build-and-module-layout-gowork-cmdradx-ci), which will bring `cmd/radx` into CI under
-the same pinned toolchain.
+diverge.
 
 ## Interop determinism: pinned tools and images
 
@@ -131,11 +133,28 @@ wired — its pin is recorded but no leg invokes it, as noted under
 
 ## Build and module layout (go.work, cmd/radx CI)
 
-Not yet authored. This section will declare the multi-module build contract: the library packages at the module root,
-the separate `cmd/radx` module that carries the CLI's dependency graph so library consumers do not inherit it, the Go
-workspace (`go.work`) that composes them, and how `cmd/radx` is built and vetted in CI under the same pinned toolchain.
-Two pieces of that target are not yet present: there is no `go.work` tying the modules, and the CI workflow does not
-build or vet the `cmd/radx` module, so the module is uncompiled and unvetted in CI today.
+go-radx is two Go modules. The library packages live at the repository root (`github.com/codeninja55/go-radx`); the
+`radx` command-line interface lives in its own module under `cmd/radx` (`github.com/codeninja55/go-radx/cmd/radx`) so
+that consumers importing the library packages do not inherit the CLI's dependency graph. Both modules declare the same
+pinned Go toolchain, `go 1.26.4`, in agreement with the `[tools]` table in `mise.toml`, as the
+[Supply chain](#supply-chain) posture requires.
+
+A Go workspace ties the two modules. The committed `go.work` at the repository root declares `go 1.26.4` and
+`use (. ./cmd/radx)`, so a local `go build ./...`, `go vet ./...`, or editor tooling sees both modules as one tree
+without per-module directory switches. The `go.work.sum` lock file is generated and stays git-ignored; the `go.work`
+file itself is committed because it is the workspace contract, not a local convenience. The workspace does **not**
+widen the existing library jobs' scope: the `./...` package pattern stops at the nested `cmd/radx` module boundary, so
+`go build ./...`, `go vet ./...`, `go test -race ./...`, `golangci-lint run ./...`, and `govulncheck ./...` run from the
+root still resolve to the root module only. The `lint-test`, `codecs`, and `govulncheck` jobs are therefore unaffected
+by the presence of `go.work`.
+
+The `cmd-radx` job builds, vets, lints, and vulnerability-scans the CLI module so it is no longer uncompiled and
+unvetted in CI. It runs from `cmd/radx` with `GOWORK=off`, which makes every step resolve against the module's own
+`go.mod`/`go.sum` rather than the workspace — the module is gated exactly as a downstream consumer building the CLI
+would see it, not as a workspace shortcut. The four steps are `go build ./...`, `go vet ./...`,
+`golangci-lint run ./...` (the same mise-pinned `2.12.2` the library jobs use), and `govulncheck ./...` (the same
+`@v1.3.0`-pinned scanner the root [Supply chain](#supply-chain) gate uses, resolved via `go run …@v1.3.0` under the
+mise-provided Go). The job runs on every push and pull request to `main` alongside the other gates.
 
 ## Coverage targets and critical-path enumeration
 
@@ -170,11 +189,12 @@ release is tagged.
 
 ## Gate enforcement status
 
-The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines five jobs:
+The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines six jobs:
 `lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, and `go test -race ./...`),
 `conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`), `interop` (the testcontainers matrix over the DIMSE,
-DICOMweb, and convert legs), `govulncheck` (the vulnerability scan), and `codecs` (the C-backed pixel codecs built from
-source). These jobs report status on every pull request.
+DICOMweb, and convert legs), `govulncheck` (the vulnerability scan of the root module), `cmd-radx` (build, vet, lint,
+and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed pixel codecs built from source). These
+jobs report status on every pull request.
 
 They are **currently advisory, not merge-blocking.** The `main` branch ruleset exists but its enforcement is set to
 *disabled*, and `main` has no branch-protection configured, so a red CI run does not block a merge at the GitHub level.

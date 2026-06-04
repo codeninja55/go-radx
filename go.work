@@ -1,0 +1,13 @@
+go 1.26.4
+
+// go-radx is two modules: the library at the repository root and the radx CLI in its own
+// module (cmd/radx) so library consumers do not inherit the CLI's dependency graph. This
+// workspace composes both so editor tooling and cross-module commands resolve them as one
+// tree, with the CLI building against the in-tree library rather than a published version.
+// It does not widen the `./...` pattern: that pattern stops at the nested cmd/radx module
+// boundary, so `go build ./...` / `go test ./...` from the root still cover the root module
+// only. The cmd-radx CI job sets GOWORK=off to build cmd/radx against its own go.mod/go.sum.
+use (
+	.
+	./cmd/radx
+)

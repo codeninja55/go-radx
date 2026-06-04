@@ -12,6 +12,13 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- A root `go.work` workspace tying the library root module and the separate `cmd/radx` CLI module,
+  and a `cmd-radx` CI job that builds, vets, lints, and pin-scans (`govulncheck@v1.3.0`) the CLI
+  module on every push and pull request to `main`. The job runs with `GOWORK=off` so it gates the
+  module against its own `go.mod`/`go.sum` as a downstream consumer would. The existing library jobs
+  are unaffected because the `./...` pattern stops at the nested module boundary. `.claude/worktrees/`
+  is now git-ignored. The build-and-module-layout sections of the cross-cutting and CLI/server
+  conformance statements document the layout.
 - Extended the CI `interop` job into a matrix over three legs — `dimse`, `dicomweb`, and `convert` —
   so the previously-uninvoked DICOMweb STOW/WADO and convert end-to-end interop tests now run against
   the pinned Orthanc image, closing the regression window where they compiled but no job ran them.
