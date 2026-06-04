@@ -15,6 +15,9 @@ legacy codebase (`legacy-main`) and are not continued here.
 - Root governance docs (`SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`), a `README.md`
   declaring the pre-1.0 "everything experimental" stability posture, and a one-line stability
   marker in each top-level public package's godoc.
+- DICOM data-layer fuzz targets for `dicom.Read` (Part 10 / dataset reader) and
+  `dicom.ReadPixelDataFrom` (pixel reader, including the encapsulated path), plus
+  version-controlled seed corpora for those and the existing DIMSE PDU targets.
 
 #### DIMSE query/retrieve depth (M3) — [#36]
 

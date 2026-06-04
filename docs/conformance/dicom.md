@@ -392,6 +392,24 @@ guarantees are:
   values (PRD §8.2, §9.1). Servers and the reference daemon bind to loopback unless an explicit non-loopback bind is
   configured.
 
+### Fuzzing posture
+
+The untrusted-binary surfaces are exercised by Go native fuzz targets that guard the hostile-input guarantees above:
+on a malformed or truncated input the reader must return rather than panic or over-allocate. The targets discard the
+returned error and assert only the survival property (no panic, and under the scheduled harness no hang or runaway
+allocation); the typed-error contract for each rejection is asserted by the unit tests. The data-layer targets live in
+`dicom/fuzz_test.go`:
+
+- `FuzzRead` drives `dicom.Read`, the Part 10 / dataset reader.
+- `FuzzReadPixelDataFrom` drives `dicom.ReadPixelDataFrom`, including the encapsulated fragment-stream path.
+
+The DIMSE PDU targets live in `dimse/pdu/`: `FuzzReadPDU` (whole-PDU dispatch), `FuzzDecodeAssociateAC`
+(A-ASSOCIATE-AC sub-item length math), and `FuzzDecodePDV` (presentation-data-value framing). Each target ships a
+version-controlled seed corpus under its package's `testdata/fuzz/<FuzzName>/` directory: minimal, well-formed objects
+with synthetic identifiers alongside hostile regression seeds (truncated, oversized-length), so a normal `go test`
+replays both as regression cases. The targets are intended to run in CI with `hang=fail` so a hang or a crash fails the
+build; that scheduled fuzz job is wired separately.
+
 ## Worked examples
 
 ### C-ECHO against a reference PACS
