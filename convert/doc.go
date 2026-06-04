@@ -13,4 +13,6 @@
 //
 // See docs/reference/convert.md and the cross-standard table in
 // UBIQUITOUS_LANGUAGE.md.
+//
+// Stability: experimental. Pre-1.0; the API may change between v0.x releases.
 package convert

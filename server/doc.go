@@ -12,4 +12,6 @@
 // immediately.
 //
 // See docs/reference/servers.md for the public API.
+//
+// Stability: experimental. Pre-1.0; the API may change between v0.x releases.
 package server

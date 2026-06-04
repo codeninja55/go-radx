@@ -12,4 +12,6 @@
 //
 // See docs/reference/dimse.md for the public API and docs/conformance/dicom.md for
 // the supported SOP classes and negotiation features.
+//
+// Stability: experimental. Pre-1.0; the API may change between v0.x releases.
 package dimse

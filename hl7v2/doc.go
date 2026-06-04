@@ -9,4 +9,6 @@
 //
 // See docs/reference/hl7v2.md for the public API and docs/conformance/hl7v2.md for
 // the supported message types.
+//
+// Stability: experimental. Pre-1.0; the API may change between v0.x releases.
 package hl7v2
