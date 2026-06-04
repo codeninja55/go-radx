@@ -31,6 +31,11 @@ jobs:
       - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: pin-drift (reference tools + interop images pinned)
+        # Fails if a reference tool or interop image floated back to an unpinned reference (a
+        # `:latest` image tag, an `@latest` install, or an unpinned pip/apt install). Pins of record
+        # live in tools/versions.
+        run: mise run pin-drift
       - name: gofmt
         run: |
           unformatted="$(gofmt -l .)"
@@ -63,9 +68,19 @@ jobs:
           # dciodvfy is a David Clunie dicom3tools program (Ubuntu universe), NOT a dcmtk tool —
           # dcmtk ships no IOD validator. The first CI run installed dcmtk and the gate correctly
           # failed because dciodvfy was absent.
+          #
+          # Both reference tools are version-pinned so the conformance result is reproducible rather
+          # than dependent on whatever the runner resolves at install time:
+          #   * dicom3tools is pinned to the exact Ubuntu (noble) archive version. apt has no
+          #     point-in-time snapshot here, so if the runner image rolls the package forward this
+          #     install fails loudly — that is the intended signal to re-pin deliberately, not a
+          #     silent float. Re-resolve with `apt-cache policy dicom3tools` and bump the version
+          #     here together with the pin noted in docs/conformance/cross-cutting.md.
+          #   * pydicom is pinned to an exact PyPI release; 3.x is required because the round-trip
+          #     gate uses save_as(enforce_file_format=...), a pydicom 3.0 API.
           sudo apt-get update
-          sudo apt-get install -y dicom3tools python3-pip
-          python3 -m pip install --break-system-packages pydicom
+          sudo apt-get install -y python3-pip 'dicom3tools=1.00~20240118131615-1'
+          python3 -m pip install --break-system-packages 'pydicom==3.0.2'
       - name: DICOM IOD validation (dciodvfy)
         run: mise run dicom:dciodvfy
       - name: pydicom round-trip

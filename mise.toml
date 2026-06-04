@@ -70,3 +70,7 @@ run = "python3 tools/dicom-conformance/pydicom_roundtrip.py testdata/dicom"
 [tasks."lint"]
 description = "Run golangci-lint (2.x, Go 1.26 compatible)"
 run = "golangci-lint run ./..."
+
+[tasks."pin-drift"]
+description = "Fail if any reference tool or interop image has floated back to an unpinned reference"
+run = "tools/pin-drift.sh"

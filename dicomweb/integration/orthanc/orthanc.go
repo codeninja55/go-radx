@@ -28,9 +28,12 @@ const httpPort = "8042/tcp"
 // default. The interop client's base URL is the REST origin plus this root.
 const dicomWebRoot = "/dicom-web"
 
-// image pins the maintained upstream Orthanc image, which bundles the DICOMweb plugin
-// and honours the ORTHANC__* environment overrides used below.
-const image = "orthancteam/orthanc:latest"
+// image pins the maintained upstream Orthanc image by immutable digest so an interop run resolves the
+// same bytes on every runner. It bundles the DICOMweb plugin and honours the ORTHANC__* environment
+// overrides used below. The digest is the 26.6.0 multi-arch index; bumping it is a deliberate,
+// reviewed change — re-resolve with `docker buildx imagetools inspect orthancteam/orthanc:<version>`
+// and update the digest and the version in this comment together.
+const image = "orthancteam/orthanc:26.6.0@sha256:510ef4ce24699104244b00d2b93350a801fc2f1c6b0bfc6a1f15e546bff2d1f4"
 
 // Container wraps a started Orthanc instance and the host-side address its mapped REST
 // port resolves to.

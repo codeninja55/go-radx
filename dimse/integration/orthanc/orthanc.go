@@ -32,9 +32,12 @@ const (
 	httpPort  = "8042/tcp"
 )
 
-// image pins the Orthanc container image. orthancteam/orthanc is the maintained upstream image and
-// honours the ORTHANC__* environment overrides used below.
-const image = "orthancteam/orthanc:latest"
+// image pins the Orthanc container image by immutable digest so an interop run resolves the same
+// bytes on every runner. orthancteam/orthanc is the maintained upstream image and honours the
+// ORTHANC__* environment overrides used below. The digest is the 26.6.0 multi-arch index; bumping it
+// is a deliberate, reviewed change — re-resolve with `docker buildx imagetools inspect
+// orthancteam/orthanc:<version>` and update the digest and the version in this comment together.
+const image = "orthancteam/orthanc:26.6.0@sha256:510ef4ce24699104244b00d2b93350a801fc2f1c6b0bfc6a1f15e546bff2d1f4"
 
 // HostAccessHost is the hostname a container uses to reach a service bound on the Docker host. The
 // host-gateway ExtraHost wired in Start makes it resolvable on plain Linux/CI as well as on Docker
