@@ -100,6 +100,11 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 - Pinned the Go toolchain to 1.26.4 to clear two standard-library advisories,
   `GO-2026-5039` (`net/textproto`) and `GO-2026-5037` (`crypto/x509`). ([#38])
+- Pinned the `govulncheck` scanner to `v1.3.0` in the CI vulnerability job (was floating on
+  `@latest`) so the scanner's analysis behaviour no longer drifts between runs; the vulnerability
+  database stays live so a newly disclosed advisory still fails the gate. Reconciled the `cmd/radx`
+  module's `go.mod` to Go 1.26.4 so every module and CI job runs the single pinned toolchain. The
+  supply-chain section of the cross-cutting conformance statement now documents both pins.
 
 [Unreleased]: https://github.com/codeninja55/go-radx/commits/main
 [#34]: https://github.com/codeninja55/go-radx/pull/34

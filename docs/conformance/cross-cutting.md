@@ -26,13 +26,24 @@ engineering contract that makes their claims trustworthy and repeatable.
 
 ## Supply chain
 
-Not yet authored. This section will declare the supply-chain posture: the single-toolchain policy (one pinned Go
-version across every CI job and every module) and the `govulncheck` vulnerability scan that runs against the module. It
-will record where each pin lives, how `govulncheck` itself is invoked, and the drift-control that keeps the declared
-versions and the resolved versions in agreement. Two gaps stand today against that target. The toolchain is not yet
-uniform: the module root and `mise.toml` pin Go 1.26.4, but the `cmd/radx` module's `go.mod` still declares 1.26.3.
-And `govulncheck` is installed floating with `@latest` in the `govulncheck` CI job rather than pinned to a known
-version, so a scan result is not yet reproducible.
+go-radx runs on a single pinned Go toolchain across every CI job and every module. The version is Go 1.26.4, declared in
+three places that must stay in agreement: the module root `go.mod`, the `cmd/radx` module's `go.mod`, and the `[tools]`
+table in `mise.toml`. `mise.toml` is the installer of record — `jdx/mise-action` provisions that toolchain for the
+`lint-test`, `conformance`, `interop`, and `codecs` jobs — while the `govulncheck` job pins the same `1.26.4` through
+`actions/setup-go`, since it does not run under mise.
+
+The `govulncheck` vulnerability scan runs on every push and pull request to `main` against the module root (`go.mod`).
+The scanner itself is pinned to a released version: the job runs
+`go install golang.org/x/vuln/cmd/govulncheck@v1.3.0` rather than `@latest`, so the scanner's analysis behaviour is
+fixed run to run rather than dependent on whichever release the proxy resolves at install time. The vulnerability
+database stays live — `govulncheck` queries `vuln.go.dev` by default — so a freshly disclosed advisory still fails
+the gate; the pin fixes the analysis tooling, not the advisory feed.
+
+Two drift surfaces remain open against this posture and are owned elsewhere in the cross-cutting contract. The Go
+version pin is held in agreement by review today, not by an automated check that fails when the three declarations
+diverge. And `cmd/radx` is a separate module that the `govulncheck` job does not yet scan — closing that is tracked
+under [Build and module layout](#build-and-module-layout-gowork-cmdradx-ci), which will bring `cmd/radx` into CI under
+the same pinned toolchain.
 
 ## Interop determinism: pinned tools and images
 
