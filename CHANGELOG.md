@@ -12,6 +12,10 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Root governance docs (`SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`), a `README.md`
+  declaring the pre-1.0 "everything experimental" stability posture, and a one-line stability
+  marker in each top-level public package's godoc.
+
 #### DIMSE query/retrieve depth (M3) — [#36]
 
 - C-FIND SCU iterator and SCP handler with dispatch routing and presentation-context guards.
