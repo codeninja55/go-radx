@@ -50,6 +50,11 @@ legacy codebase (`legacy-main`) and are not continued here.
   flagged as not yet shipped; resolved the dangling DICOMweb cross-reference in the DICOM statement; annotated the
   HL7 v2 and FHIR statements where they declared scope ahead of the implementation.
 
+### Removed
+
+- Stopped tracking the compiled `cmd/radx/radx` binary and added it to `.gitignore`; the CLI
+  is rebuilt on demand into an ignored path.
+
 ### Foundation (already on `main`)
 
 - DICOM data layer: data elements, value representations, transfer syntaxes, and Part 10
