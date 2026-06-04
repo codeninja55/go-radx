@@ -23,6 +23,13 @@ legacy codebase (`legacy-main`) and are not continued here.
 - DICOM data-layer fuzz targets for `dicom.Read` (Part 10 / dataset reader) and
   `dicom.ReadPixelDataFrom` (pixel reader, including the encapsulated path), plus
   version-controlled seed corpora for those and the existing DIMSE PDU targets.
+- Library-wide PHI-default sanity sweep in a new `internal/phisweep` package
+  (`go test ./internal/phisweep/`): it exercises representative DICOM and HL7 v2
+  entry points at default verbosity over fixtures carrying synthetic PHI sentinel
+  tokens and fails if any token surfaces in stdout, stderr, a returned error
+  string, or the structured log. A deliberately-leaking negative case proves the
+  sweep detects a planted leak in each sink. The swept sinks are documented in the
+  CLI/server conformance statement.
 
 #### DICOM benchmark baseline (Phase 0)
 
