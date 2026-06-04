@@ -40,6 +40,12 @@ legacy codebase (`legacy-main`) and are not continued here.
   R5 definition bundle (fail-closed on resource-less entries, unpinned required files,
   truncated bundles, and trailing garbage).
 
+### Documentation
+
+- Conformance-statement scaffolds for DICOMweb, DIMSE, cross-standard conversion, and the CLI/server surface, each
+  flagged as not yet shipped; resolved the dangling DICOMweb cross-reference in the DICOM statement; annotated the
+  HL7 v2 and FHIR statements where they declared scope ahead of the implementation.
+
 ### Foundation (already on `main`)
 
 - DICOM data layer: data elements, value representations, transfer syntaxes, and Part 10

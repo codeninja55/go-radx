@@ -20,7 +20,7 @@ that audit and to `pynetdicom/sop_class.py` and `pynetdicom/presentation.py`. Wh
 than the full `pynetdicom` preset, that is stated explicitly with the reason.
 
 This statement covers the DICOM data layer (Part 10 files, datasets, transfer syntaxes) and DIMSE networking (Part 7,
-Part 8). DICOMweb (WADO-RS / STOW-RS / QIDO-RS) has its own conformance statement; the two share the
+Part 8). DICOMweb (WADO-RS / STOW-RS / QIDO-RS) has its own [conformance statement](./dicomweb.md); the two share the
 `dicom.TransferSyntax` and SOP Class UID vocabulary but negotiate transport differently.
 
 ## Scope summary

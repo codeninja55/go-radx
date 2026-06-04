@@ -43,6 +43,11 @@ In scope for v1:
 - MLLP transport: a blocking client and a `context`-aware server, both with a configurable maximum frame length.
 - Acknowledgement construction (`BuildACK`) honouring original-mode and enhanced-mode acknowledgement codes.
 
+> **Implementation status: PARTIAL.** This list is the v1 target. Of it, the parse tree, the typed segments and
+> composites, encoding-character derivation and `DTM` precision, the typed `ORM` view, and the `AckCode` enum with its
+> predicates ship today. The typed `ADT`/`OMG`/`ORU`/`ACK` views, batch/file container parsing, MLLP transport, and
+> `BuildACK` are **NOT YET SHIPPED**; the per-section banners below mark exactly which surface each describes.
+
 Out of scope for v1 is listed explicitly in [Conformance scope and limits](#conformance-scope-and-limits). Notably:
 HL7 v2 XML encoding, FHIR-based v2 representations, inline character-set switching inside escape sequences, the full
 catalogue of trigger events beyond the radiology set, and message-level conformance-profile validation are all out of
@@ -105,6 +110,10 @@ non-standard delimiters round-trips correctly.
 
 ### Typed message types in scope
 
+> **Implementation status: PARTIAL.** Only the typed `ORM` view (with `OrderGroup` and `Orders()`) ships today. The
+> `ADT`, `OMG`, `ORU`, and `ACK` typed views and their `As*` constructors described below are NOT YET SHIPPED; until
+> they land, those message types parse into the generic six-level tree but have no dedicated typed view.
+
 `MessageType` is the `MSH-9` composite `code^trigger^structure` (e.g. `ORU^R01^ORU_R01`). The trigger event is only
 `MSH-9.2` (glossary). The in-scope message views are `ADT`, `ORM`, `OMG`, `ORU`, and `ACK`, each obtained from a parsed
 `*Message` via the `As*` view functions in the reference. `ORU.Results()` and `ORM.Orders()` expose the within-message
@@ -137,6 +146,10 @@ an unspecified time. The `Precision` enum and the resolving accessors are in the
 
 ### Acknowledgement (ACK) in scope
 
+> **Implementation status: PARTIAL.** The `AckCode` typed enum and its `IsPositive()` / `IsError()` / `IsReject()`
+> predicates ship today. `BuildACK` and the typed `ACK` message view are NOT YET SHIPPED; the spec-correct response
+> construction described below is the planned design.
+
 There is no "NACK" message in HL7 (glossary). A negative acknowledgement is an `ACK` whose `MSA-1` carries a rejecting
 code. go-radx models `AckCode` as a typed enum over HL7 Table 0008, covering both original-mode (`AA`/`AE`/`AR`) and
 enhanced-mode (`CA`/`CE`/`CR`) acknowledgement codes, with the predicates `IsPositive()` (AA or CA), `IsError()` (AE or
@@ -145,6 +158,10 @@ sender/receiver application and facility, echoes the inbound control ID into `MS
 `ACK`, and sets `MSA-1` to the chosen code. Signatures are in the API reference.
 
 ### MLLP transport in scope
+
+> **Implementation status: NOT YET SHIPPED.** The MLLP `Client`, `Server`, and `Handler` described below are not yet
+> implemented; the `hl7v2` package currently has no transport layer. The behaviour in this section is the planned
+> design.
 
 MLLP (Minimal Lower Layer Protocol) frames each message as `0x0B` `<message>` `0x1C` `0x0D` over TCP (glossary).
 go-radx adds `context` cancellation and a configurable maximum frame length to guard against a hostile or runaway peer
@@ -159,6 +176,9 @@ API reference.
 
 ### Batch and file containers in scope
 
+> **Implementation status: NOT YET SHIPPED.** The `Batch` and `File` container types and the `ParseBatch` / `ParseFile`
+> functions described below are not yet implemented. The behaviour in this section is the planned design.
+
 `Batch` (`BHS`/`BTS`) and `File` (`FHS`/`FTS`) are optional bulk containers. The headers and trailers are present
 together or not at all — a header without its trailer (or vice versa) is a malformed container, matching the reference
 library's "both or neither" rule. "File" here is the HL7 batch-protocol container, not an OS or `.dcm` file (glossary).
@@ -166,6 +186,9 @@ library's "both or neither" rule. "File" here is the HL7 batch-protocol containe
 reference.
 
 ## Supported message types and trigger events
+
+> **Implementation status: PARTIAL.** Of the message types in the table below, only `ORM` has a shipped typed view
+> today. `ADT`, `OMG`, `ORU`, and `ACK` are NOT YET SHIPPED as typed views; their rows describe the planned scope.
 
 The following message types are typed and conformance-tested in v1. Other trigger events of these message types parse
 into the generic tree but do not get a dedicated typed view.

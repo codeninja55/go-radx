@@ -64,6 +64,13 @@ directly (it remains the most deployed release and US Core runs on it) rather th
 
 ### In scope (v1)
 
+> **Implementation status: PARTIAL.** The full generated resource set is NOT YET SHIPPED. Today `fhir/r4` is an empty
+> shell (its package doc states generation lands in milestone M6b) and `fhir/r5` carries only the hand-written
+> walking-skeleton resources (`ImagingStudy`, `DiagnosticReport`, `ServiceRequest`, and their datatypes), not the full
+> generated R5 set. The "every resource and backbone element … all of which compile-test" guarantee below describes
+> the target once the generator runs, not the current code. See the next section's banner for which workflow resources
+> actually ship today.
+
 - Typed Go models for **every resource and backbone element** of R4 4.0.1 and R5 5.0.0, all of which compile-test.
 - The **radiology + clinical workflow resource set** (enumerated below), which is conformance-tested against the HL7
   FHIR validator and exercised by the cross-standard conversions and the walking skeleton.
@@ -107,6 +114,13 @@ Two tiers of guarantee apply, and the distinction is load-bearing for what a con
    go-radx asserts conformant JSON output, not merely "it compiles."
 
 The conformance-tested set is the radiology and clinical workflow resources required to close the PRD §5.1 loop:
+
+> **Implementation status: PARTIAL.** The table below is the target workflow set. Today only `ImagingStudy`,
+> `DiagnosticReport`, and `ServiceRequest` ship, and only in R5; `Observation`, `Patient`, `Encounter`, `Bundle`, and
+> `OperationOutcome` are NOT YET SHIPPED in either release, and there are no R4 resources yet. The converters that
+> exist are correspondingly R5-only: `convert.DICOMToImagingStudyR5`, `convert.SRToDiagnosticReportR5`, and
+> `convert.ORMToServiceRequestR5`. The remaining converters named below (the `…R4` twins, `DiagnosticReportToSR`,
+> `ORUToDiagnosticReport`, `ADTToPatient`, `ADTToEncounter`) are not yet implemented.
 
 | Resource | Role in the workflow | Releases |
 |----------|----------------------|----------|
