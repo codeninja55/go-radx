@@ -12,6 +12,11 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Structured logging via `go.uber.org/zap` in a new root `logging` package: a `NewLogger`
+  constructor, context injection (`WithContext`/`FromContext`, with a no-op fallback and no
+  package global), and PHI-aware field helpers (`DICOMTag`, `HL7Field`, `FHIRPath`) that render
+  DICOM/HL7/FHIR concepts by name and refuse raw patient values by construction. The PHI policy
+  is documented in the CLI/server conformance statement.
 - Root governance docs (`SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`), a `README.md`
   declaring the pre-1.0 "everything experimental" stability posture, and a one-line stability
   marker in each top-level public package's godoc.

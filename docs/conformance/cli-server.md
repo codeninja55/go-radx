@@ -28,11 +28,33 @@ its flag contract and documented exit codes. The design is in `docs/reference/cl
 
 ## Structured logging and PHI policy
 
-Not yet authored. This section will declare the operational logging contract: structured logging via `go.uber.org/zap`,
-the context-injected logger convention, and the PHI policy — **no Protected Health Information is logged unless the
-operator explicitly opts in** (CLAUDE.md, PRD §9). It will state which fields are redacted by default, how the opt-in
-is expressed, and how the CLI and servers honour the same policy. Until authored, treat the default as PHI-suppressing
-and verify against the implementation when it lands.
+Structured logging uses [`go.uber.org/zap`](https://pkg.go.dev/go.uber.org/zap) and lives in the `logging` package at
+the module root. The CLI and the embeddable servers, once wired, will obtain their logger from this package and honour
+the policy below; the package itself is implemented today even though the operator-facing CLI is not.
+
+The contract has two parts, both following the PRD's observability and PHI rules (PRD §9.10, §9.1):
+
+- **Context-injected logger, no global.** The logger is constructed once at the composition root via
+  `logging.NewLogger`. It flows through call chains on `context.Context`: `logging.WithContext(ctx, logger)` attaches it
+  and `logging.FromContext(ctx)` retrieves it. There is no package-global logger. `FromContext` returns a safe no-op
+  logger when none is attached, so library code logs unconditionally without a nil check and a bare context never
+  panics.
+- **No PHI is logged at default verbosity.** No Protected Health Information — patient names, identifiers, dates,
+  element values, query text, or file paths that embed them — is logged unless the operator explicitly raises
+  verbosity. The package's field helpers render DICOM, HL7 v2, and FHIR concepts **by name, never by value**:
+  `DICOMTag(group, element, keyword)` logs the tag coordinate and dictionary keyword (for example `(0010,0010)` /
+  `PatientName`), `HL7Field(segment, field)` logs the segment-and-field locator (for example `PID-5`), and
+  `FHIRPath(path)` logs the element path (for example `Patient.name.family`). Each helper takes a structural locator,
+  not patient data, so the API refuses raw patient values by construction — there is deliberately no helper that logs
+  an element's value. As defense-in-depth, each string locator is shape-validated against its concept's grammar, so a
+  value misrouted into a locator slot (`DOE^JANE`, a date, an MRN, a raw `PID|...` segment) is redacted rather than
+  logged. Shape validation cannot tell a bare identifier-shaped token (a surname like `Smith`) from a real keyword;
+  binding a locator to the canonical DICOM/HL7 vocabulary is the caller's responsibility at the domain-package
+  boundary, which owns those dictionaries.
+
+PHI governance beyond these safe defaults — encryption at rest, retention and erasure, access control, and audit — is
+the integrating consumer's responsibility (PRD §9.1). The library ships the safe default and the structural field
+vocabulary, not a compliance regime.
 
 ## Build and module layout
 
