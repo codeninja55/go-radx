@@ -327,6 +327,29 @@ consumer opts in (PRD §8.2 opinionated default). Reading a file preserves its t
 deliberate, opt-in `Transcode`-style call in the library, surfaced on the CLI as `radx store --transcode` (see
 `docs/reference/cli.md`).
 
+### Performance baseline
+
+The Part 10 dataset decode and per-transfer-syntax codec hot paths carry committed benchmark baselines so a regression
+is a visible, reviewable change rather than silent drift (PRD §9.3, minimise allocations in hot paths). The baselines
+are recorded as `go test -bench` output that `benchstat` consumes directly.
+
+The default-build baseline, [`benchmarks/dicom-baseline.txt`](benchmarks/dicom-baseline.txt), is the pure-Go build
+(`CGO_ENABLED=0`, no codec build tags). It covers `BenchmarkReadFile` (the full Part 10 decode), the bare-dataset
+`BenchmarkDecodeDataSet` and `BenchmarkEncodeDataSet`, and the pure-Go RLE Lossless `BenchmarkRLECodecDecode` and
+`BenchmarkRLECodecEncode`. `BenchmarkReadFile` is the load-bearing measurement: it records the Part 10 decode
+allocation profile, where the per-decode `B/op` is roughly twice the on-disk file size, so the known Part 10 decode
+allocation cost is defended against silent growth.
+
+The CGo-codecs baseline, [`benchmarks/dicom-codecs-baseline.txt`](benchmarks/dicom-codecs-baseline.txt), is recorded
+with the `dicom_openjpeg dicom_libjpeg dicom_charls` build tags (the CI `codecs` job native-library matrix). It covers
+per-transfer-syntax decode, and lossless encode where a codec is encode-capable, across the compressed fixtures:
+JPEG-LS via CharLS, JPEG Baseline / Extended / Lossless via libjpeg-turbo, and JPEG 2000 and HTJ2K via OpenJPEG. The
+codec benchmarks that require a C library live behind the matching build tag, so the default build compiles and runs
+the pure-Go benchmarks unchanged.
+
+Regenerate a baseline with the command recorded in each file's header, and compare a candidate run with
+`benchstat <baseline>.txt <candidate>.txt`.
+
 ## Association negotiation
 
 go-radx negotiates associations through `dimse.AE`, `AE.Associate(...)`, and `dimse.NewServer(...)`. The negotiation
