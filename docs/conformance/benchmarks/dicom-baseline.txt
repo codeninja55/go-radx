@@ -1,0 +1,85 @@
+# go-radx DICOM benchmark baseline — default (pure-Go) build
+#
+# Recorded with: go test -bench=. -benchtime=100x -count=6 -run=^$ ./dicom/
+# CGO_ENABLED=0 default build (no codec build tags). Lines beginning with # are
+# benchstat comments. Compare a new run against this file with:
+#   benchstat docs/conformance/benchmarks/dicom-baseline.txt <new-run>.txt
+#
+# BenchmarkReadFile defends the Part 10 decode allocation profile (the ~2x-of-file-size
+# B/op the dataset reader is known to incur); BenchmarkDecodeDataSet isolates the bare
+# dataset decode. The pure-Go RLE Lossless codec is the only pixel codec available
+# without a CGo build tag; the JPEG-family per-transfer-syntax codecs are recorded in
+# dicom-codecs-baseline.txt behind their build tags.
+#
+goos: darwin
+goarch: arm64
+pkg: github.com/codeninja55/go-radx/dicom
+cpu: Apple M1
+BenchmarkReadFile/liver.dcm-8         	     100	    236398 ns/op	 434.14 MB/s	  245491 B/op	    1564 allocs/op
+BenchmarkReadFile/liver.dcm-8         	     100	    153253 ns/op	 669.68 MB/s	  245383 B/op	    1564 allocs/op
+BenchmarkReadFile/liver.dcm-8         	     100	    118281 ns/op	 867.68 MB/s	  245383 B/op	    1564 allocs/op
+BenchmarkReadFile/liver.dcm-8         	     100	    103413 ns/op	 992.43 MB/s	  245383 B/op	    1564 allocs/op
+BenchmarkReadFile/liver.dcm-8         	     100	     89085 ns/op	1152.05 MB/s	  245451 B/op	    1564 allocs/op
+BenchmarkReadFile/liver.dcm-8         	     100	     85686 ns/op	1197.74 MB/s	  245399 B/op	    1564 allocs/op
+BenchmarkReadFile/MR2_UNCI.dcm-8      	     100	    342222 ns/op	6134.27 MB/s	 4232642 B/op	    1104 allocs/op
+BenchmarkReadFile/MR2_UNCI.dcm-8      	     100	    335230 ns/op	6262.23 MB/s	 4232668 B/op	    1104 allocs/op
+BenchmarkReadFile/MR2_UNCI.dcm-8      	     100	    327051 ns/op	6418.84 MB/s	 4232667 B/op	    1104 allocs/op
+BenchmarkReadFile/MR2_UNCI.dcm-8      	     100	    324658 ns/op	6466.14 MB/s	 4232670 B/op	    1104 allocs/op
+BenchmarkReadFile/MR2_UNCI.dcm-8      	     100	    330950 ns/op	6343.22 MB/s	 4232667 B/op	    1104 allocs/op
+BenchmarkReadFile/MR2_UNCI.dcm-8      	     100	    342578 ns/op	6127.90 MB/s	 4232666 B/op	    1104 allocs/op
+BenchmarkReadFile/SC_rgb_expb.dcm-8   	     100	     36316 ns/op	 861.55 MB/s	   83588 B/op	     395 allocs/op
+BenchmarkReadFile/SC_rgb_expb.dcm-8   	     100	     32815 ns/op	 953.45 MB/s	   83587 B/op	     395 allocs/op
+BenchmarkReadFile/SC_rgb_expb.dcm-8   	     100	     31697 ns/op	 987.09 MB/s	   83587 B/op	     395 allocs/op
+BenchmarkReadFile/SC_rgb_expb.dcm-8   	     100	     32597 ns/op	 959.84 MB/s	   83588 B/op	     395 allocs/op
+BenchmarkReadFile/SC_rgb_expb.dcm-8   	     100	     31158 ns/op	1004.16 MB/s	   83587 B/op	     395 allocs/op
+BenchmarkReadFile/SC_rgb_expb.dcm-8   	     100	     31432 ns/op	 995.42 MB/s	   83587 B/op	     395 allocs/op
+BenchmarkReadFile/MR-SIEMENS-DICOM-WithOverlays.dcm-8         	     100	    183488 ns/op	2784.53 MB/s	 1089850 B/op	    1381 allocs/op
+BenchmarkReadFile/MR-SIEMENS-DICOM-WithOverlays.dcm-8         	     100	    186929 ns/op	2733.28 MB/s	 1089847 B/op	    1381 allocs/op
+BenchmarkReadFile/MR-SIEMENS-DICOM-WithOverlays.dcm-8         	     100	    181612 ns/op	2813.30 MB/s	 1089859 B/op	    1381 allocs/op
+BenchmarkReadFile/MR-SIEMENS-DICOM-WithOverlays.dcm-8         	     100	    172662 ns/op	2959.12 MB/s	 1089847 B/op	    1381 allocs/op
+BenchmarkReadFile/MR-SIEMENS-DICOM-WithOverlays.dcm-8         	     100	    182605 ns/op	2798.00 MB/s	 1089836 B/op	    1381 allocs/op
+BenchmarkReadFile/MR-SIEMENS-DICOM-WithOverlays.dcm-8         	     100	    161795 ns/op	3157.86 MB/s	 1089767 B/op	    1381 allocs/op
+BenchmarkReadFile/basic-text-sr.dcm-8                         	     100	     45168 ns/op	  65.71 MB/s	   37392 B/op	    1239 allocs/op
+BenchmarkReadFile/basic-text-sr.dcm-8                         	     100	     44981 ns/op	  65.98 MB/s	   37392 B/op	    1239 allocs/op
+BenchmarkReadFile/basic-text-sr.dcm-8                         	     100	     44102 ns/op	  67.30 MB/s	   37392 B/op	    1239 allocs/op
+BenchmarkReadFile/basic-text-sr.dcm-8                         	     100	     43519 ns/op	  68.20 MB/s	   37392 B/op	    1239 allocs/op
+BenchmarkReadFile/basic-text-sr.dcm-8                         	     100	     44145 ns/op	  67.23 MB/s	   37392 B/op	    1239 allocs/op
+BenchmarkReadFile/basic-text-sr.dcm-8                         	     100	     43686 ns/op	  67.94 MB/s	   37392 B/op	    1239 allocs/op
+BenchmarkRLECodecDecode-8                                     	     100	    444826 ns/op	 1572865 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8                                     	     100	    438109 ns/op	 1572866 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8                                     	     100	    413937 ns/op	 1572867 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8                                     	     100	    411405 ns/op	 1572866 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8                                     	     100	    534849 ns/op	 1572865 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8                                     	     100	    423447 ns/op	 1572864 B/op	       6 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8                  	     100	    107443 ns/op	 609.96 MB/s	  188353 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8                  	     100	    101970 ns/op	 642.70 MB/s	  188352 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8                  	     100	    104938 ns/op	 624.52 MB/s	  188353 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8                  	     100	    102353 ns/op	 640.29 MB/s	  188352 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8                  	     100	    103272 ns/op	 634.60 MB/s	  188354 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8                  	     100	    103348 ns/op	 634.13 MB/s	  188353 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8                 	     100	    248534 ns/op	 527.38 MB/s	  644482 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8                 	     100	    246369 ns/op	 532.02 MB/s	  644481 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8                 	     100	    246019 ns/op	 532.77 MB/s	  644480 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8                 	     100	    246033 ns/op	 532.74 MB/s	  644480 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8                 	     100	    249446 ns/op	 525.45 MB/s	  644480 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8                 	     100	    250441 ns/op	 523.36 MB/s	  644481 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8                   	     100	    567588 ns/op	 346.39 MB/s	 1683638 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8                   	     100	    559002 ns/op	 351.71 MB/s	 1683638 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8                   	     100	    555476 ns/op	 353.94 MB/s	 1683638 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8                   	     100	    556807 ns/op	 353.10 MB/s	 1683643 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8                   	     100	    555730 ns/op	 353.78 MB/s	 1683640 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8                   	     100	    651495 ns/op	 301.78 MB/s	 1683641 B/op	      70 allocs/op
+BenchmarkEncodeDataSet-8                                      	     100	    144235 ns/op	14552.14 MB/s	 2099844 B/op	     353 allocs/op
+BenchmarkEncodeDataSet-8                                      	     100	    132805 ns/op	15804.54 MB/s	 2099843 B/op	     353 allocs/op
+BenchmarkEncodeDataSet-8                                      	     100	    134059 ns/op	15656.73 MB/s	 2099840 B/op	     353 allocs/op
+BenchmarkEncodeDataSet-8                                      	     100	    138815 ns/op	15120.24 MB/s	 2099842 B/op	     353 allocs/op
+BenchmarkEncodeDataSet-8                                      	     100	    132787 ns/op	15806.67 MB/s	 2099842 B/op	     353 allocs/op
+BenchmarkEncodeDataSet-8                                      	     100	    131608 ns/op	15948.30 MB/s	 2099845 B/op	     353 allocs/op
+BenchmarkDecodeDataSet-8                                      	     100	    314513 ns/op	6673.55 MB/s	 4226071 B/op	    1023 allocs/op
+BenchmarkDecodeDataSet-8                                      	     100	    304208 ns/op	6899.62 MB/s	 4226071 B/op	    1023 allocs/op
+BenchmarkDecodeDataSet-8                                      	     100	    321860 ns/op	6521.23 MB/s	 4226072 B/op	    1023 allocs/op
+BenchmarkDecodeDataSet-8                                      	     100	    321640 ns/op	6525.69 MB/s	 4226071 B/op	    1023 allocs/op
+BenchmarkDecodeDataSet-8                                      	     100	    320990 ns/op	6538.90 MB/s	 4226071 B/op	    1023 allocs/op
+BenchmarkDecodeDataSet-8                                      	     100	    312110 ns/op	6724.94 MB/s	 4226072 B/op	    1023 allocs/op
+PASS
+ok  	github.com/codeninja55/go-radx/dicom	2.119s
