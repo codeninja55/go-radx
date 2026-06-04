@@ -47,14 +47,49 @@ the same pinned toolchain.
 
 ## Interop determinism: pinned tools and images
 
-Not yet authored. This section will declare the determinism contract for the interop and conformance gates: the pinned
-versions of the reference tools (`dciodvfy` from dicom3tools, `pydicom`, the from-source C codec libraries) and the
-pinned digests of the interop container images (Orthanc, dcm4chee-arc), so an interop result is reproducible rather than
-dependent on whatever a runner happens to pull. Several inputs still float against that target. The C codec libraries
-are version-pinned and built from source, but `dciodvfy` (from `dicom3tools`) and `pydicom` are installed unpinned via
-`apt-get` and `pip`, and the Orthanc image is referenced as `orthancteam/orthanc:latest` in both the DIMSE and DICOMweb
-interop harnesses; the dcm4chee-arc images are tag-pinned but not digest-pinned. Closing those is the work of pinning
-the reference tools and interop image digests and adding a pin-drift check.
+Every external input the interop and conformance gates run today is pinned, so a gate result is reproducible rather than
+dependent on whatever a runner happens to pull. The pins are held next to where each tool or image is invoked, indexed
+in one human-readable manifest at [`tools/versions`](../../tools/versions), and enforced by a
+[pin-drift check](#pin-drift-enforcement) that fails CI if any reference floats back to an unpinned tag. The one input
+that is *not* yet a fixed-byte pin is the FHIR validator, which no gate invokes yet; it is pinned by mechanism and
+release version, with its asset digest deferred until the gate is wired, as called out below.
+
+The reference tools the gates run are version-pinned. The `conformance` job installs `dicom3tools` (which provides the
+`dciodvfy` IOD validator) at the exact Ubuntu noble archive version `1.00~20240118131615-1` via `apt-get`, and `pydicom`
+at the exact PyPI release `3.0.2` via `pip` — the 3.x line is required because the round-trip gate uses
+`save_as(enforce_file_format=...)`, a pydicom 3.0 API. `apt` has no point-in-time archive snapshot, so the
+`dicom3tools` pin is the exact version string and the install fails loudly if the runner image rolls the package
+forward; that failure is the intended signal to re-pin deliberately, not a silent float. The C codec libraries
+(`OpenJPEG`, `libjpeg-turbo`, `CharLS`) remain version-pinned and built from source in the `codecs` job, as the
+[Supply chain](#supply-chain) posture already requires.
+
+The interop container images are pinned by immutable digest, which is stronger than a tag: a tag can be re-pushed, a
+digest cannot. The Orthanc image used by both the DIMSE and DICOMweb harnesses is
+`orthancteam/orthanc:26.6.0@sha256:510ef4ce24699104244b00d2b93350a801fc2f1c6b0bfc6a1f15e546bff2d1f4`. The dcm4chee-arc
+stack is three digest-pinned images — `dcm4che/slapd-dcm4chee:2.6.10-34.2`, `dcm4che/postgres-dcm4chee:17.4-34`, and
+`dcm4che/dcm4chee-arc-psql:5.34.2`, each carrying its `@sha256:` digest in the testcontainers helper. The human-readable
+version tag is retained alongside each digest for legibility, but the digest is what binds. Re-resolving a digest after
+a deliberate version bump is `docker buildx imagetools inspect <image>:<version>`.
+
+The FHIR validator is pinned by mechanism and release version ahead of use, not yet by asset digest. The mechanism
+decision is the official HL7 `validator_cli.jar` from the `hapifhir/org.hl7.fhir.core` releases (not a container): the
+jar is the canonical reference, runs on the JDK every runner can provision, resolves to a single GitHub release asset,
+and avoids a second container-registry dependency. The pinned release is recorded as `6.9.9` in
+[`tools/versions`](../../tools/versions). CI does not invoke the validator yet — that is the M6a (Phase 1) FHIR
+conformance gate — so this is a recorded decision rather than a live, byte-pinned input. When the gate is wired, its
+runner must download exactly that release asset, record the asset SHA-256 in the manifest, and verify it before use,
+closing the validator to a fixed-byte pin like the tools and images above.
+
+### Pin-drift enforcement
+
+The pin-drift check ([`tools/pin-drift.sh`](../../tools/pin-drift.sh), run in CI as the `pin-drift` step of the
+`lint-test` job and locally via `mise run pin-drift`) scans the files that pull external tools and images — the CI
+workflow, `mise.toml`, and the testcontainers helpers — and fails if any of them reintroduces an unpinned reference: a
+`:latest` (or other floating) image tag, an image tag without an `@sha256:` digest, an `@latest` install, a `mise`
+`[tools]` entry pinned to `"latest"`, or a `pip` / `apt-get` install of a known reference tool without an exact version
+pin (a non-exact specifier such as `~=` / `>=`, or the apt target-release form `tool/suite`, is treated as drift). It
+enforces the *shape* of a pin (that an exact one is present), not the exact value — bumping a pin stays a deliberate,
+reviewed change recorded in [`tools/versions`](../../tools/versions).
 
 ## Interop-matrix coverage
 
