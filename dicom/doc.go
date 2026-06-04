@@ -4,4 +4,6 @@
 //
 // See docs/reference/dicom.md for the public API and docs/conformance/dicom.md for the
 // supported subset.
+//
+// Stability: experimental. Pre-1.0; the API may change between v0.x releases.
 package dicom

@@ -11,6 +11,8 @@
 //
 // See docs/reference/fhir.md for the public API and docs/conformance/fhir.md for
 // the supported releases and resources.
+//
+// Stability: experimental. Pre-1.0; the API may change between v0.x releases.
 package fhir
 
 import "errors"
