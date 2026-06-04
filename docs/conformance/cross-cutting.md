@@ -93,9 +93,41 @@ reviewed change recorded in [`tools/versions`](../../tools/versions).
 
 ## Interop-matrix coverage
 
-Not yet authored. This section will enumerate which subsystems are exercised against which reference origin servers and
-validators, and the gaps that remain — so a reader can see at a glance which conformance claims are interop-backed
-today and which are still asserted against unit fixtures only.
+The `interop` job in `.github/workflows/ci.yml` runs as a matrix over three legs — `dimse`, `dicomweb`, and
+`convert` — each on its own runner. The legs all drive containers through testcontainers, so isolating them keeps the
+memory-heavy DIMSE `dcm4chee-arc` stack (LDAP + PostgreSQL + WildFly) off the same runner as the Orthanc-only DICOMweb
+and convert legs; `fail-fast: false` reports every leg even when one fails. Each leg invokes the matching
+`mise run interop:<leg>` task, so the CI command and the local command stay in agreement. Every container the legs
+start resolves to the digest-pinned images recorded under
+[Interop determinism](#interop-determinism-pinned-tools-and-images).
+
+Each subsystem is exercised against a real reference origin server, not only unit fixtures:
+
+| Leg | Subsystem | Reference origin(s) | What it proves |
+|-----|-----------|---------------------|----------------|
+| `dimse` | DIMSE | Orthanc + dcm4chee-arc | C-ECHO / C-STORE / C-FIND / C-GET / C-MOVE against two independent SCPs |
+| `dicomweb` | DICOMweb | Orthanc (DICOMweb plugin) | STOW-RS store then WADO-RS retrieve round-trip |
+| `convert` | convert (+ DIMSE, DICOMweb, HL7 v2, FHIR) | Orthanc | the M2 walking-skeleton six-leg end-to-end proof |
+
+The `convert` leg is the cross-standard end-to-end proof: it C-STOREs to an Orthanc DIMSE SCP, STOW/WADO round-trips
+against a separate Orthanc DICOMweb endpoint, then runs the three pure-conversion legs (HL7 ORM to ServiceRequest, DICOM
+SR to DiagnosticReport, DICOM instance to ImagingStudy) in-process. Before this matrix, the `dicomweb/integration` and
+`convert` interop tests compiled under `go build -tags interop ./...` but no CI job invoked them; only the `dimse` leg
+ran. The matrix closes that regression window so a break in the DICOMweb or convert round-trip fails CI rather than
+passing unnoticed.
+
+The DICOMweb interop net carries a negative control that proves the gate bites without leaving a failing test in CI.
+`TestInteropGuardBrokenDICOMWebPathFails` (in `dicomweb/integration`, behind the `interop` tag) starts the same real
+Orthanc origin the positive test uses but points the client at a DICOMweb root that does not exist on the server,
+then asserts the STOW-RS store fails — a passing store there would mean the gate could go green against an origin
+that never accepted the instance. The guard is skipped unless `RADX_INTEROP_REGRESSION_GUARD=1` is set, so the matrix
+stays green; run it on demand to confirm the gate catches a DICOMweb regression.
+
+Two gaps remain against full interop-backed coverage. The HL7 v2 and FHIR subsystems are exercised only in-process
+today (the convert leg's conversion legs run against vendored fixtures, not a live HL7 listener or FHIR server), so
+their conformance claims rest on unit fixtures rather than a reference origin. And the FHIR validator gate is not yet
+wired — its pin is recorded but no leg invokes it, as noted under
+[Interop determinism](#interop-determinism-pinned-tools-and-images).
 
 ## Build and module layout (go.work, cmd/radx CI)
 
@@ -140,9 +172,9 @@ release is tagged.
 
 The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines five jobs:
 `lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, and `go test -race ./...`),
-`conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`), `interop` (the DIMSE testcontainers gate),
-`govulncheck` (the vulnerability scan), and `codecs` (the C-backed pixel codecs built from source). These jobs report
-status on every pull request.
+`conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`), `interop` (the testcontainers matrix over the DIMSE,
+DICOMweb, and convert legs), `govulncheck` (the vulnerability scan), and `codecs` (the C-backed pixel codecs built from
+source). These jobs report status on every pull request.
 
 They are **currently advisory, not merge-blocking.** The `main` branch ruleset exists but its enforcement is set to
 *disabled*, and `main` has no branch-protection configured, so a red CI run does not block a merge at the GitHub level.
