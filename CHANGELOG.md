@@ -19,6 +19,14 @@ legacy codebase (`legacy-main`) and are not continued here.
   `dicom.ReadPixelDataFrom` (pixel reader, including the encapsulated path), plus
   version-controlled seed corpora for those and the existing DIMSE PDU targets.
 
+#### DICOM benchmark baseline (Phase 0)
+
+- Part 10 dataset decode (`BenchmarkReadFile`) and pure-Go RLE Lossless codec encode/decode
+  benchmarks in the default build, plus per-transfer-syntax JPEG-family codec benchmarks
+  behind the `dicom_openjpeg`, `dicom_libjpeg`, and `dicom_charls` build tags.
+- Committed benchstat-comparable baselines under `docs/conformance/benchmarks/`, referenced
+  from a performance section in the DICOM conformance statement.
+
 #### DIMSE query/retrieve depth (M3) — [#36]
 
 - C-FIND SCU iterator and SCP handler with dispatch routing and presentation-context guards.
