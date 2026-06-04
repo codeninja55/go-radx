@@ -58,6 +58,29 @@ PHI governance beyond these safe defaults — encryption at rest, retention and 
 the integrating consumer's responsibility (PRD §9.1). The library ships the safe defaults and the structural field
 vocabulary, not a compliance regime.
 
+### PHI-default sanity sweep
+
+The no-PHI-by-default behaviour is test-enforced, not convention-enforced, by a library-wide sanity sweep (PRD §11.2).
+The sweep lives in `internal/phisweep` and runs as `go test ./internal/phisweep/` (Unix only: it redirects the
+process file descriptors 1 and 2, which the matrix builds on Linux and macOS). It builds DICOM datasets and HL7 v2
+messages carrying known, distinctive PHI sentinel tokens (synthetic values such as `SENTINEL^PHI^DONOTLOG`, never real
+patient data), exercises representative entry points and parsers at default verbosity — `dicom.ReadFile` and dataset
+access, `hl7v2.Parse` with segment/field accessors and round-trip marshalling, seeded with the `testdata/dicom` and
+`testdata/hl7v2` fixtures — and scans every observable sink for any sentinel. A single appearance fails the sweep.
+
+The sweep scans four sinks, the channels through which a careless path could surface a value at default verbosity:
+
+| Sink | What it captures |
+|------|------------------|
+| `stdout` | The process standard output stream, redirected through an OS pipe for the run. |
+| `stderr` | The process standard error stream, redirected through an OS pipe for the run. |
+| `error` | The strings of any errors returned by an exercised entry point. |
+| `log` | The structured-log output captured from the `logging` package at default (info) verbosity. |
+
+A deliberately-leaking negative case plants a sentinel into each sink in turn and asserts the sweep detects it, so the
+gate is proven to bite rather than merely assumed to. As new server and CLI paths land, they extend the sweep's
+exercised entry points; the four swept sinks are the stable contract.
+
 ## Build and module layout
 
 Not yet authored. This section will declare the build and module contract: `cmd/radx` lives in its own Go module so
