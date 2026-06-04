@@ -87,18 +87,31 @@ jobs:
         run: mise run dicom:pydicom
 
   interop:
-    name: DIMSE interop gate (testcontainers — Orthanc + dcm4chee-arc)
+    name: Interop gate (${{ matrix.leg }} — testcontainers)
     runs-on: ubuntu-latest
+    strategy:
+      # Run each interop leg on its own runner rather than serially on one. The legs all
+      # drive containers; isolating them keeps the memory-heavy DIMSE dcm4chee-arc stack
+      # (LDAP + PostgreSQL + WildFly) off the same runner as the Orthanc-only DICOMweb and
+      # convert legs, and fail-fast: false reports every leg even when one fails.
+      fail-fast: false
+      matrix:
+        # Each leg names the mise task that runs it, so CI and `mise run interop:*` stay in
+        # agreement. dimse is the C-STORE/C-FIND/C-GET/C-MOVE net against Orthanc + dcm4chee-arc;
+        # dicomweb is the STOW/WADO round-trip against Orthanc; convert is the cross-standard
+        # walking-skeleton end-to-end proof, whose DIMSE and DICOMweb legs run against Orthanc.
+        leg: [dimse, dicomweb, convert]
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: DIMSE interop tests
+      - name: ${{ matrix.leg }} interop tests
         # GitHub-hosted ubuntu runners ship Docker; testcontainers manages the Orthanc and
-        # dcm4chee-arc stacks. The dcm4chee-arc stack (LDAP + PostgreSQL + WildFly) is memory-heavy
-        # for a standard runner — watch this job if the runner is resource-constrained.
-        run: go test -tags interop -count=1 ./dimse/integration/...
+        # dcm4chee-arc stacks behind the pinned image digests. The dcm4chee-arc stack the dimse
+        # leg starts is memory-heavy for a standard runner — watch that leg if the runner is
+        # resource-constrained.
+        run: mise run interop:${{ matrix.leg }}
 
   govulncheck:
     name: Go vulnerability scan

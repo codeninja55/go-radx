@@ -53,11 +53,15 @@ run = "go test -race -cover ./dimse/... ./dicomweb/... ./hl7v2/... ./fhir/... ./
 
 [tasks."interop:dimse"]
 description = "Run the DIMSE interop gate against the Orthanc/dcm4chee-arc containers"
-run = "go test -tags interop -v ./dimse/integration/..."
+run = "go test -tags interop -count=1 -v ./dimse/integration/..."
 
 [tasks."interop:dicomweb"]
 description = "Run the DICOMweb interop gate against the Orthanc container"
-run = "go test -tags interop -v ./dicomweb/integration/..."
+run = "go test -tags interop -count=1 -v ./dicomweb/integration/..."
+
+[tasks."interop:convert"]
+description = "Run the cross-standard convert end-to-end interop gate against the Orthanc containers"
+run = "go test -tags interop -count=1 -v ./convert/..."
 
 [tasks."dicom:dciodvfy"]
 description = "Validate written DICOM files with dcmtk dciodvfy (skips if absent)"
