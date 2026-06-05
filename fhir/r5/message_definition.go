@@ -18,7 +18,8 @@ type MessageDefinition struct {
 	Identifier              []Identifier                       `json:"identifier,omitempty"`
 	Version                 *string                            `json:"version,omitempty"`
 	VersionElement          *fhir.PrimitiveElement             `json:"-"`
-	VersionAlgorithm        *string                            `json:"versionAlgorithm,omitempty"`
+	VersionAlgorithmString  *FHIRString                        `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding  *Coding                            `json:"versionAlgorithmCoding,omitempty"`
 	Name                    *string                            `json:"name,omitempty"`
 	NameElement             *fhir.PrimitiveElement             `json:"-"`
 	Title                   *string                            `json:"title,omitempty"`
@@ -48,7 +49,8 @@ type MessageDefinition struct {
 	BaseElement             *fhir.PrimitiveElement             `json:"-"`
 	Parent                  []string                           `json:"parent,omitempty"`
 	ParentElement           []*fhir.PrimitiveElement           `json:"-"`
-	Event                   *Coding                            `json:"event,omitempty"`
+	EventCoding             *Coding                            `json:"eventCoding,omitempty"`
+	EventURI                *FHIRURI                           `json:"eventURI,omitempty"`
 	Category                *string                            `json:"category,omitempty"`
 	CategoryElement         *fhir.PrimitiveElement             `json:"-"`
 	Focus                   []MessageDefinitionFocus           `json:"focus,omitempty"`
@@ -321,6 +323,88 @@ func (v *MessageDefinition) UnmarshalJSON(data []byte) error {
 	}
 	type alias MessageDefinition
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MessageDefinitionVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMessageDefinitionVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MessageDefinitionVersionAlgorithm interface{ isMessageDefinitionVersionAlgorithm() }
+
+func (FHIRString) isMessageDefinitionVersionAlgorithm() {}
+func (Coding) isMessageDefinitionVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MessageDefinition) VersionAlgorithm() (MessageDefinitionVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isMessageDefinitionVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageDefinition) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageDefinition) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
+// MessageDefinitionEvent is the sealed value interface for the event[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMessageDefinitionEvent marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MessageDefinitionEvent interface{ isMessageDefinitionEvent() }
+
+func (Coding) isMessageDefinitionEvent()  {}
+func (FHIRURI) isMessageDefinitionEvent() {}
+
+// Event returns the value set in the event[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MessageDefinition) Event() (MessageDefinitionEvent, bool) {
+	switch {
+	case r.EventCoding != nil:
+		return *r.EventCoding, true
+	case r.EventURI != nil:
+		return *r.EventURI, true
+	}
+	return nil, false
+}
+
+// SetEventCoding sets event[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageDefinition) SetEventCoding(v Coding) {
+	r.EventCoding = nil
+	r.EventURI = nil
+	r.EventCoding = &v
+}
+
+// SetEventURI sets event[x] to a FHIRURI (the
+// release primitive wrapper that carries the isMessageDefinitionEvent marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageDefinition) SetEventURI(v FHIRURI) {
+	r.EventCoding = nil
+	r.EventURI = nil
+	r.EventURI = &v
 }
 
 // MessageDefinitionAllowedResponse is a generated nested backbone element.

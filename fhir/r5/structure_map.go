@@ -13,40 +13,41 @@ const StructureMapResourceType = "StructureMap"
 // StructureMap is the generated FHIR StructureMap resource.
 type StructureMap struct {
 	DomainResource
-	URL                   *string                  `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement   `json:"-"`
-	Identifier            []Identifier             `json:"identifier,omitempty"`
-	Version               *string                  `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement   `json:"-"`
-	VersionAlgorithm      *string                  `json:"versionAlgorithm,omitempty"`
-	Name                  *string                  `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement   `json:"-"`
-	Title                 *string                  `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement   `json:"-"`
-	Status                *string                  `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement   `json:"-"`
-	Experimental          *bool                    `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement   `json:"-"`
-	Date                  *string                  `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement   `json:"-"`
-	Publisher             *string                  `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement   `json:"-"`
-	Contact               []ContactDetail          `json:"contact,omitempty"`
-	Description           *string                  `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement   `json:"-"`
-	UseContext            []UsageContext           `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept        `json:"jurisdiction,omitempty"`
-	Purpose               *string                  `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement   `json:"-"`
-	Copyright             *string                  `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement   `json:"-"`
-	CopyrightLabel        *string                  `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement   `json:"-"`
-	Structure             []StructureMapStructure  `json:"structure,omitempty"`
-	Import                []string                 `json:"import,omitempty"`
-	ImportElement         []*fhir.PrimitiveElement `json:"-"`
-	Const                 []StructureMapConst      `json:"const,omitempty"`
-	Group                 []StructureMapGroup      `json:"group,omitempty"`
+	URL                    *string                  `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement   `json:"-"`
+	Identifier             []Identifier             `json:"identifier,omitempty"`
+	Version                *string                  `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement   `json:"-"`
+	VersionAlgorithmString *FHIRString              `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                  `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                  `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement   `json:"-"`
+	Title                  *string                  `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement   `json:"-"`
+	Status                 *string                  `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement   `json:"-"`
+	Experimental           *bool                    `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement   `json:"-"`
+	Date                   *string                  `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement   `json:"-"`
+	Publisher              *string                  `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement   `json:"-"`
+	Contact                []ContactDetail          `json:"contact,omitempty"`
+	Description            *string                  `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement   `json:"-"`
+	UseContext             []UsageContext           `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept        `json:"jurisdiction,omitempty"`
+	Purpose                *string                  `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement   `json:"-"`
+	Copyright              *string                  `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement   `json:"-"`
+	CopyrightLabel         *string                  `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement   `json:"-"`
+	Structure              []StructureMapStructure  `json:"structure,omitempty"`
+	Import                 []string                 `json:"import,omitempty"`
+	ImportElement          []*fhir.PrimitiveElement `json:"-"`
+	Const                  []StructureMapConst      `json:"const,omitempty"`
+	Group                  []StructureMapGroup      `json:"group,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "StructureMap".
@@ -251,6 +252,47 @@ func (v *StructureMap) UnmarshalJSON(data []byte) error {
 	}
 	type alias StructureMap
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// StructureMapVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isStructureMapVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type StructureMapVersionAlgorithm interface{ isStructureMapVersionAlgorithm() }
+
+func (FHIRString) isStructureMapVersionAlgorithm() {}
+func (Coding) isStructureMapVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *StructureMap) VersionAlgorithm() (StructureMapVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isStructureMapVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMap) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMap) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
 }
 
 // StructureMapConst is a generated nested backbone element.
@@ -971,7 +1013,183 @@ func (v *StructureMapGroupRuleTarget) UnmarshalJSON(data []byte) error {
 // StructureMapGroupRuleTargetParameter is a generated nested backbone element.
 type StructureMapGroupRuleTargetParameter struct {
 	BackboneElement
-	Value *string `json:"value,omitempty"`
+	ValueID       *FHIRID       `json:"valueID,omitempty"`
+	ValueString   *FHIRString   `json:"valueString,omitempty"`
+	ValueBoolean  *FHIRBoolean  `json:"valueBoolean,omitempty"`
+	ValueInteger  *FHIRInteger  `json:"valueInteger,omitempty"`
+	ValueDecimal  *FHIRDecimal  `json:"valueDecimal,omitempty"`
+	ValueDate     *FHIRDate     `json:"valueDate,omitempty"`
+	ValueTime     *FHIRTime     `json:"valueTime,omitempty"`
+	ValueDateTime *FHIRDateTime `json:"valueDateTime,omitempty"`
+}
+
+// StructureMapGroupRuleTargetParameterValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isStructureMapGroupRuleTargetParameterValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type StructureMapGroupRuleTargetParameterValue interface{ isStructureMapGroupRuleTargetParameterValue() }
+
+func (FHIRID) isStructureMapGroupRuleTargetParameterValue()       {}
+func (FHIRString) isStructureMapGroupRuleTargetParameterValue()   {}
+func (FHIRBoolean) isStructureMapGroupRuleTargetParameterValue()  {}
+func (FHIRInteger) isStructureMapGroupRuleTargetParameterValue()  {}
+func (FHIRDecimal) isStructureMapGroupRuleTargetParameterValue()  {}
+func (FHIRDate) isStructureMapGroupRuleTargetParameterValue()     {}
+func (FHIRTime) isStructureMapGroupRuleTargetParameterValue()     {}
+func (FHIRDateTime) isStructureMapGroupRuleTargetParameterValue() {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *StructureMapGroupRuleTargetParameter) Value() (StructureMapGroupRuleTargetParameterValue, bool) {
+	switch {
+	case r.ValueID != nil:
+		return *r.ValueID, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueTime != nil:
+		return *r.ValueTime, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	}
+	return nil, false
+}
+
+// SetValueID sets value[x] to a FHIRID (the
+// release primitive wrapper that carries the isStructureMapGroupRuleTargetParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMapGroupRuleTargetParameter) SetValueID(v FHIRID) {
+	r.ValueID = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValueID = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isStructureMapGroupRuleTargetParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMapGroupRuleTargetParameter) SetValueString(v FHIRString) {
+	r.ValueID = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValueString = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isStructureMapGroupRuleTargetParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMapGroupRuleTargetParameter) SetValueBoolean(v FHIRBoolean) {
+	r.ValueID = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isStructureMapGroupRuleTargetParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMapGroupRuleTargetParameter) SetValueInteger(v FHIRInteger) {
+	r.ValueID = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValueInteger = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isStructureMapGroupRuleTargetParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMapGroupRuleTargetParameter) SetValueDecimal(v FHIRDecimal) {
+	r.ValueID = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isStructureMapGroupRuleTargetParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMapGroupRuleTargetParameter) SetValueDate(v FHIRDate) {
+	r.ValueID = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValueDate = &v
+}
+
+// SetValueTime sets value[x] to a FHIRTime (the
+// release primitive wrapper that carries the isStructureMapGroupRuleTargetParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMapGroupRuleTargetParameter) SetValueTime(v FHIRTime) {
+	r.ValueID = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValueTime = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isStructureMapGroupRuleTargetParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *StructureMapGroupRuleTargetParameter) SetValueDateTime(v FHIRDateTime) {
+	r.ValueID = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValueDateTime = &v
 }
 
 // StructureMapStructure is a generated nested backbone element.

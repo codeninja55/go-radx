@@ -349,7 +349,51 @@ func (v *TestReportSetupActionAssert) UnmarshalJSON(data []byte) error {
 // TestReportSetupActionAssertRequirement is a generated nested backbone element.
 type TestReportSetupActionAssertRequirement struct {
 	BackboneElement
-	Link *string `json:"link,omitempty"`
+	LinkURI       *FHIRURI       `json:"linkURI,omitempty"`
+	LinkCanonical *FHIRCanonical `json:"linkCanonical,omitempty"`
+}
+
+// TestReportSetupActionAssertRequirementLink is the sealed value interface for the link[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isTestReportSetupActionAssertRequirementLink marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type TestReportSetupActionAssertRequirementLink interface{ isTestReportSetupActionAssertRequirementLink() }
+
+func (FHIRURI) isTestReportSetupActionAssertRequirementLink()       {}
+func (FHIRCanonical) isTestReportSetupActionAssertRequirementLink() {}
+
+// Link returns the value set in the link[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *TestReportSetupActionAssertRequirement) Link() (TestReportSetupActionAssertRequirementLink, bool) {
+	switch {
+	case r.LinkURI != nil:
+		return *r.LinkURI, true
+	case r.LinkCanonical != nil:
+		return *r.LinkCanonical, true
+	}
+	return nil, false
+}
+
+// SetLinkURI sets link[x] to a FHIRURI (the
+// release primitive wrapper that carries the isTestReportSetupActionAssertRequirementLink marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestReportSetupActionAssertRequirement) SetLinkURI(v FHIRURI) {
+	r.LinkURI = nil
+	r.LinkCanonical = nil
+	r.LinkURI = &v
+}
+
+// SetLinkCanonical sets link[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isTestReportSetupActionAssertRequirementLink marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestReportSetupActionAssertRequirement) SetLinkCanonical(v FHIRCanonical) {
+	r.LinkURI = nil
+	r.LinkCanonical = nil
+	r.LinkCanonical = &v
 }
 
 // TestReportSetupActionOperation is a generated nested backbone element.

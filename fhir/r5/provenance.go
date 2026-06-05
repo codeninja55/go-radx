@@ -13,21 +13,22 @@ const ProvenanceResourceType = "Provenance"
 // Provenance is the generated FHIR Provenance resource.
 type Provenance struct {
 	DomainResource
-	Target          []Reference              `json:"target,omitempty"`
-	Occurred        *Period                  `json:"occurred,omitempty"`
-	Recorded        *string                  `json:"recorded,omitempty"`
-	RecordedElement *fhir.PrimitiveElement   `json:"-"`
-	Policy          []string                 `json:"policy,omitempty"`
-	PolicyElement   []*fhir.PrimitiveElement `json:"-"`
-	Location        *Reference               `json:"location,omitempty"`
-	Authorization   []CodeableReference      `json:"authorization,omitempty"`
-	Activity        *CodeableConcept         `json:"activity,omitempty"`
-	BasedOn         []Reference              `json:"basedOn,omitempty"`
-	Patient         *Reference               `json:"patient,omitempty"`
-	Encounter       *Reference               `json:"encounter,omitempty"`
-	Agent           []ProvenanceAgent        `json:"agent,omitempty"`
-	Entity          []ProvenanceEntity       `json:"entity,omitempty"`
-	Signature       []Signature              `json:"signature,omitempty"`
+	Target           []Reference              `json:"target,omitempty"`
+	OccurredPeriod   *Period                  `json:"occurredPeriod,omitempty"`
+	OccurredDateTime *FHIRDateTime            `json:"occurredDateTime,omitempty"`
+	Recorded         *string                  `json:"recorded,omitempty"`
+	RecordedElement  *fhir.PrimitiveElement   `json:"-"`
+	Policy           []string                 `json:"policy,omitempty"`
+	PolicyElement    []*fhir.PrimitiveElement `json:"-"`
+	Location         *Reference               `json:"location,omitempty"`
+	Authorization    []CodeableReference      `json:"authorization,omitempty"`
+	Activity         *CodeableConcept         `json:"activity,omitempty"`
+	BasedOn          []Reference              `json:"basedOn,omitempty"`
+	Patient          *Reference               `json:"patient,omitempty"`
+	Encounter        *Reference               `json:"encounter,omitempty"`
+	Agent            []ProvenanceAgent        `json:"agent,omitempty"`
+	Entity           []ProvenanceEntity       `json:"entity,omitempty"`
+	Signature        []Signature              `json:"signature,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "Provenance".
@@ -100,6 +101,47 @@ func (v *Provenance) UnmarshalJSON(data []byte) error {
 	}
 	type alias Provenance
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ProvenanceOccurred is the sealed value interface for the occurred[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isProvenanceOccurred marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ProvenanceOccurred interface{ isProvenanceOccurred() }
+
+func (Period) isProvenanceOccurred()       {}
+func (FHIRDateTime) isProvenanceOccurred() {}
+
+// Occurred returns the value set in the occurred[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Provenance) Occurred() (ProvenanceOccurred, bool) {
+	switch {
+	case r.OccurredPeriod != nil:
+		return *r.OccurredPeriod, true
+	case r.OccurredDateTime != nil:
+		return *r.OccurredDateTime, true
+	}
+	return nil, false
+}
+
+// SetOccurredPeriod sets occurred[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Provenance) SetOccurredPeriod(v Period) {
+	r.OccurredPeriod = nil
+	r.OccurredDateTime = nil
+	r.OccurredPeriod = &v
+}
+
+// SetOccurredDateTime sets occurred[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isProvenanceOccurred marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Provenance) SetOccurredDateTime(v FHIRDateTime) {
+	r.OccurredPeriod = nil
+	r.OccurredDateTime = nil
+	r.OccurredDateTime = &v
 }
 
 // ProvenanceAgent is a generated nested backbone element.

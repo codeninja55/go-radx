@@ -13,51 +13,54 @@ const ConceptMapResourceType = "ConceptMap"
 // ConceptMap is the generated FHIR ConceptMap resource.
 type ConceptMap struct {
 	DomainResource
-	URL                   *string                         `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement          `json:"-"`
-	Identifier            []Identifier                    `json:"identifier,omitempty"`
-	Version               *string                         `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement          `json:"-"`
-	VersionAlgorithm      *string                         `json:"versionAlgorithm,omitempty"`
-	Name                  *string                         `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement          `json:"-"`
-	Title                 *string                         `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement          `json:"-"`
-	Status                *string                         `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement          `json:"-"`
-	Experimental          *bool                           `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement          `json:"-"`
-	Date                  *string                         `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement          `json:"-"`
-	Publisher             *string                         `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement          `json:"-"`
-	Contact               []ContactDetail                 `json:"contact,omitempty"`
-	Description           *string                         `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement          `json:"-"`
-	UseContext            []UsageContext                  `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept               `json:"jurisdiction,omitempty"`
-	Purpose               *string                         `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement          `json:"-"`
-	Copyright             *string                         `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement          `json:"-"`
-	CopyrightLabel        *string                         `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement          `json:"-"`
-	ApprovalDate          *string                         `json:"approvalDate,omitempty"`
-	ApprovalDateElement   *fhir.PrimitiveElement          `json:"-"`
-	LastReviewDate        *string                         `json:"lastReviewDate,omitempty"`
-	LastReviewDateElement *fhir.PrimitiveElement          `json:"-"`
-	EffectivePeriod       *Period                         `json:"effectivePeriod,omitempty"`
-	Topic                 []CodeableConcept               `json:"topic,omitempty"`
-	Author                []ContactDetail                 `json:"author,omitempty"`
-	Editor                []ContactDetail                 `json:"editor,omitempty"`
-	Reviewer              []ContactDetail                 `json:"reviewer,omitempty"`
-	Endorser              []ContactDetail                 `json:"endorser,omitempty"`
-	RelatedArtifact       []RelatedArtifact               `json:"relatedArtifact,omitempty"`
-	Property              []ConceptMapProperty            `json:"property,omitempty"`
-	AdditionalAttribute   []ConceptMapAdditionalAttribute `json:"additionalAttribute,omitempty"`
-	SourceScope           *string                         `json:"sourceScope,omitempty"`
-	TargetScope           *string                         `json:"targetScope,omitempty"`
-	Group                 []ConceptMapGroup               `json:"group,omitempty"`
+	URL                    *string                         `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement          `json:"-"`
+	Identifier             []Identifier                    `json:"identifier,omitempty"`
+	Version                *string                         `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement          `json:"-"`
+	VersionAlgorithmString *FHIRString                     `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                         `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                         `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement          `json:"-"`
+	Title                  *string                         `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement          `json:"-"`
+	Status                 *string                         `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement          `json:"-"`
+	Experimental           *bool                           `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement          `json:"-"`
+	Date                   *string                         `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement          `json:"-"`
+	Publisher              *string                         `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement          `json:"-"`
+	Contact                []ContactDetail                 `json:"contact,omitempty"`
+	Description            *string                         `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement          `json:"-"`
+	UseContext             []UsageContext                  `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept               `json:"jurisdiction,omitempty"`
+	Purpose                *string                         `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement          `json:"-"`
+	Copyright              *string                         `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement          `json:"-"`
+	CopyrightLabel         *string                         `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement          `json:"-"`
+	ApprovalDate           *string                         `json:"approvalDate,omitempty"`
+	ApprovalDateElement    *fhir.PrimitiveElement          `json:"-"`
+	LastReviewDate         *string                         `json:"lastReviewDate,omitempty"`
+	LastReviewDateElement  *fhir.PrimitiveElement          `json:"-"`
+	EffectivePeriod        *Period                         `json:"effectivePeriod,omitempty"`
+	Topic                  []CodeableConcept               `json:"topic,omitempty"`
+	Author                 []ContactDetail                 `json:"author,omitempty"`
+	Editor                 []ContactDetail                 `json:"editor,omitempty"`
+	Reviewer               []ContactDetail                 `json:"reviewer,omitempty"`
+	Endorser               []ContactDetail                 `json:"endorser,omitempty"`
+	RelatedArtifact        []RelatedArtifact               `json:"relatedArtifact,omitempty"`
+	Property               []ConceptMapProperty            `json:"property,omitempty"`
+	AdditionalAttribute    []ConceptMapAdditionalAttribute `json:"additionalAttribute,omitempty"`
+	SourceScopeURI         *FHIRURI                        `json:"sourceScopeURI,omitempty"`
+	SourceScopeCanonical   *FHIRCanonical                  `json:"sourceScopeCanonical,omitempty"`
+	TargetScopeURI         *FHIRURI                        `json:"targetScopeURI,omitempty"`
+	TargetScopeCanonical   *FHIRCanonical                  `json:"targetScopeCanonical,omitempty"`
+	Group                  []ConceptMapGroup               `json:"group,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "ConceptMap".
@@ -274,6 +277,133 @@ func (v *ConceptMap) UnmarshalJSON(data []byte) error {
 	}
 	type alias ConceptMap
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ConceptMapVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isConceptMapVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ConceptMapVersionAlgorithm interface{ isConceptMapVersionAlgorithm() }
+
+func (FHIRString) isConceptMapVersionAlgorithm() {}
+func (Coding) isConceptMapVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ConceptMap) VersionAlgorithm() (ConceptMapVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isConceptMapVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMap) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMap) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
+// ConceptMapSourceScope is the sealed value interface for the sourceScope[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isConceptMapSourceScope marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ConceptMapSourceScope interface{ isConceptMapSourceScope() }
+
+func (FHIRURI) isConceptMapSourceScope()       {}
+func (FHIRCanonical) isConceptMapSourceScope() {}
+
+// SourceScope returns the value set in the sourceScope[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ConceptMap) SourceScope() (ConceptMapSourceScope, bool) {
+	switch {
+	case r.SourceScopeURI != nil:
+		return *r.SourceScopeURI, true
+	case r.SourceScopeCanonical != nil:
+		return *r.SourceScopeCanonical, true
+	}
+	return nil, false
+}
+
+// SetSourceScopeURI sets sourceScope[x] to a FHIRURI (the
+// release primitive wrapper that carries the isConceptMapSourceScope marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMap) SetSourceScopeURI(v FHIRURI) {
+	r.SourceScopeURI = nil
+	r.SourceScopeCanonical = nil
+	r.SourceScopeURI = &v
+}
+
+// SetSourceScopeCanonical sets sourceScope[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isConceptMapSourceScope marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMap) SetSourceScopeCanonical(v FHIRCanonical) {
+	r.SourceScopeURI = nil
+	r.SourceScopeCanonical = nil
+	r.SourceScopeCanonical = &v
+}
+
+// ConceptMapTargetScope is the sealed value interface for the targetScope[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isConceptMapTargetScope marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ConceptMapTargetScope interface{ isConceptMapTargetScope() }
+
+func (FHIRURI) isConceptMapTargetScope()       {}
+func (FHIRCanonical) isConceptMapTargetScope() {}
+
+// TargetScope returns the value set in the targetScope[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ConceptMap) TargetScope() (ConceptMapTargetScope, bool) {
+	switch {
+	case r.TargetScopeURI != nil:
+		return *r.TargetScopeURI, true
+	case r.TargetScopeCanonical != nil:
+		return *r.TargetScopeCanonical, true
+	}
+	return nil, false
+}
+
+// SetTargetScopeURI sets targetScope[x] to a FHIRURI (the
+// release primitive wrapper that carries the isConceptMapTargetScope marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMap) SetTargetScopeURI(v FHIRURI) {
+	r.TargetScopeURI = nil
+	r.TargetScopeCanonical = nil
+	r.TargetScopeURI = &v
+}
+
+// SetTargetScopeCanonical sets targetScope[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isConceptMapTargetScope marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMap) SetTargetScopeCanonical(v FHIRCanonical) {
+	r.TargetScopeURI = nil
+	r.TargetScopeCanonical = nil
+	r.TargetScopeCanonical = &v
 }
 
 // ConceptMapAdditionalAttribute is a generated nested backbone element.
@@ -661,7 +791,11 @@ type ConceptMapGroupElementTargetDependsOn struct {
 	BackboneElement
 	Attribute        *string                `json:"attribute,omitempty"`
 	AttributeElement *fhir.PrimitiveElement `json:"-"`
-	Value            *string                `json:"value,omitempty"`
+	ValueCode        *FHIRCode              `json:"valueCode,omitempty"`
+	ValueCoding      *Coding                `json:"valueCoding,omitempty"`
+	ValueString      *FHIRString            `json:"valueString,omitempty"`
+	ValueBoolean     *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueQuantity    *Quantity              `json:"valueQuantity,omitempty"`
 	ValueSet         *string                `json:"valueSet,omitempty"`
 	ValueSetElement  *fhir.PrimitiveElement `json:"-"`
 }
@@ -726,12 +860,111 @@ func (v *ConceptMapGroupElementTargetDependsOn) UnmarshalJSON(data []byte) error
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ConceptMapGroupElementTargetDependsOnValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isConceptMapGroupElementTargetDependsOnValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ConceptMapGroupElementTargetDependsOnValue interface{ isConceptMapGroupElementTargetDependsOnValue() }
+
+func (FHIRCode) isConceptMapGroupElementTargetDependsOnValue()    {}
+func (Coding) isConceptMapGroupElementTargetDependsOnValue()      {}
+func (FHIRString) isConceptMapGroupElementTargetDependsOnValue()  {}
+func (FHIRBoolean) isConceptMapGroupElementTargetDependsOnValue() {}
+func (Quantity) isConceptMapGroupElementTargetDependsOnValue()    {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ConceptMapGroupElementTargetDependsOn) Value() (ConceptMapGroupElementTargetDependsOnValue, bool) {
+	switch {
+	case r.ValueCode != nil:
+		return *r.ValueCode, true
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	}
+	return nil, false
+}
+
+// SetValueCode sets value[x] to a FHIRCode (the
+// release primitive wrapper that carries the isConceptMapGroupElementTargetDependsOnValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetDependsOn) SetValueCode(v FHIRCode) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueCode = &v
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetDependsOn) SetValueCoding(v Coding) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueCoding = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isConceptMapGroupElementTargetDependsOnValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetDependsOn) SetValueString(v FHIRString) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueString = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isConceptMapGroupElementTargetDependsOnValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetDependsOn) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetDependsOn) SetValueQuantity(v Quantity) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueQuantity = &v
+}
+
 // ConceptMapGroupElementTargetProperty is a generated nested backbone element.
 type ConceptMapGroupElementTargetProperty struct {
 	BackboneElement
-	Code        *string                `json:"code,omitempty"`
-	CodeElement *fhir.PrimitiveElement `json:"-"`
-	Value       *Coding                `json:"value,omitempty"`
+	Code          *string                `json:"code,omitempty"`
+	CodeElement   *fhir.PrimitiveElement `json:"-"`
+	ValueCoding   *Coding                `json:"valueCoding,omitempty"`
+	ValueString   *FHIRString            `json:"valueString,omitempty"`
+	ValueInteger  *FHIRInteger           `json:"valueInteger,omitempty"`
+	ValueBoolean  *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueDateTime *FHIRDateTime          `json:"valueDateTime,omitempty"`
+	ValueDecimal  *FHIRDecimal           `json:"valueDecimal,omitempty"`
+	ValueCode     *FHIRCode              `json:"valueCode,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -780,6 +1013,147 @@ func (v *ConceptMapGroupElementTargetProperty) UnmarshalJSON(data []byte) error 
 	}
 	type alias ConceptMapGroupElementTargetProperty
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ConceptMapGroupElementTargetPropertyValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isConceptMapGroupElementTargetPropertyValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ConceptMapGroupElementTargetPropertyValue interface{ isConceptMapGroupElementTargetPropertyValue() }
+
+func (Coding) isConceptMapGroupElementTargetPropertyValue()       {}
+func (FHIRString) isConceptMapGroupElementTargetPropertyValue()   {}
+func (FHIRInteger) isConceptMapGroupElementTargetPropertyValue()  {}
+func (FHIRBoolean) isConceptMapGroupElementTargetPropertyValue()  {}
+func (FHIRDateTime) isConceptMapGroupElementTargetPropertyValue() {}
+func (FHIRDecimal) isConceptMapGroupElementTargetPropertyValue()  {}
+func (FHIRCode) isConceptMapGroupElementTargetPropertyValue()     {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ConceptMapGroupElementTargetProperty) Value() (ConceptMapGroupElementTargetPropertyValue, bool) {
+	switch {
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	case r.ValueCode != nil:
+		return *r.ValueCode, true
+	}
+	return nil, false
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetProperty) SetValueCoding(v Coding) {
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = nil
+	r.ValueCoding = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isConceptMapGroupElementTargetPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetProperty) SetValueString(v FHIRString) {
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = nil
+	r.ValueString = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isConceptMapGroupElementTargetPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetProperty) SetValueInteger(v FHIRInteger) {
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = nil
+	r.ValueInteger = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isConceptMapGroupElementTargetPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetProperty) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isConceptMapGroupElementTargetPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetProperty) SetValueDateTime(v FHIRDateTime) {
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = nil
+	r.ValueDateTime = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isConceptMapGroupElementTargetPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetProperty) SetValueDecimal(v FHIRDecimal) {
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = nil
+	r.ValueDecimal = &v
+}
+
+// SetValueCode sets value[x] to a FHIRCode (the
+// release primitive wrapper that carries the isConceptMapGroupElementTargetPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConceptMapGroupElementTargetProperty) SetValueCode(v FHIRCode) {
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = nil
+	r.ValueCode = &v
 }
 
 // ConceptMapGroupUnmapped is a generated nested backbone element.

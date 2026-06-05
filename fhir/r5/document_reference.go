@@ -218,7 +218,66 @@ type DocumentReferenceContent struct {
 // DocumentReferenceContentProfile is a generated nested backbone element.
 type DocumentReferenceContentProfile struct {
 	BackboneElement
-	Value *Coding `json:"value,omitempty"`
+	ValueCoding    *Coding        `json:"valueCoding,omitempty"`
+	ValueURI       *FHIRURI       `json:"valueURI,omitempty"`
+	ValueCanonical *FHIRCanonical `json:"valueCanonical,omitempty"`
+}
+
+// DocumentReferenceContentProfileValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDocumentReferenceContentProfileValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DocumentReferenceContentProfileValue interface{ isDocumentReferenceContentProfileValue() }
+
+func (Coding) isDocumentReferenceContentProfileValue()        {}
+func (FHIRURI) isDocumentReferenceContentProfileValue()       {}
+func (FHIRCanonical) isDocumentReferenceContentProfileValue() {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DocumentReferenceContentProfile) Value() (DocumentReferenceContentProfileValue, bool) {
+	switch {
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueURI != nil:
+		return *r.ValueURI, true
+	case r.ValueCanonical != nil:
+		return *r.ValueCanonical, true
+	}
+	return nil, false
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DocumentReferenceContentProfile) SetValueCoding(v Coding) {
+	r.ValueCoding = nil
+	r.ValueURI = nil
+	r.ValueCanonical = nil
+	r.ValueCoding = &v
+}
+
+// SetValueURI sets value[x] to a FHIRURI (the
+// release primitive wrapper that carries the isDocumentReferenceContentProfileValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DocumentReferenceContentProfile) SetValueURI(v FHIRURI) {
+	r.ValueCoding = nil
+	r.ValueURI = nil
+	r.ValueCanonical = nil
+	r.ValueURI = &v
+}
+
+// SetValueCanonical sets value[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isDocumentReferenceContentProfileValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DocumentReferenceContentProfile) SetValueCanonical(v FHIRCanonical) {
+	r.ValueCoding = nil
+	r.ValueURI = nil
+	r.ValueCanonical = nil
+	r.ValueCanonical = &v
 }
 
 // DocumentReferenceRelatesTo is a generated nested backbone element.

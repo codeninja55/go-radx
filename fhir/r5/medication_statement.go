@@ -21,7 +21,9 @@ type MedicationStatement struct {
 	Medication                       *CodeableReference            `json:"medication,omitempty"`
 	Subject                          *Reference                    `json:"subject,omitempty"`
 	Encounter                        *Reference                    `json:"encounter,omitempty"`
-	Effective                        *string                       `json:"effective,omitempty"`
+	EffectiveDateTime                *FHIRDateTime                 `json:"effectiveDateTime,omitempty"`
+	EffectivePeriod                  *Period                       `json:"effectivePeriod,omitempty"`
+	EffectiveTiming                  *Timing                       `json:"effectiveTiming,omitempty"`
 	DateAsserted                     *string                       `json:"dateAsserted,omitempty"`
 	DateAssertedElement              *fhir.PrimitiveElement        `json:"-"`
 	InformationSource                []Reference                   `json:"informationSource,omitempty"`
@@ -117,6 +119,61 @@ func (v *MedicationStatement) UnmarshalJSON(data []byte) error {
 	}
 	type alias MedicationStatement
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MedicationStatementEffective is the sealed value interface for the effective[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationStatementEffective marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationStatementEffective interface{ isMedicationStatementEffective() }
+
+func (FHIRDateTime) isMedicationStatementEffective() {}
+func (Period) isMedicationStatementEffective()       {}
+func (Timing) isMedicationStatementEffective()       {}
+
+// Effective returns the value set in the effective[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationStatement) Effective() (MedicationStatementEffective, bool) {
+	switch {
+	case r.EffectiveDateTime != nil:
+		return *r.EffectiveDateTime, true
+	case r.EffectivePeriod != nil:
+		return *r.EffectivePeriod, true
+	case r.EffectiveTiming != nil:
+		return *r.EffectiveTiming, true
+	}
+	return nil, false
+}
+
+// SetEffectiveDateTime sets effective[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isMedicationStatementEffective marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationStatement) SetEffectiveDateTime(v FHIRDateTime) {
+	r.EffectiveDateTime = nil
+	r.EffectivePeriod = nil
+	r.EffectiveTiming = nil
+	r.EffectiveDateTime = &v
+}
+
+// SetEffectivePeriod sets effective[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationStatement) SetEffectivePeriod(v Period) {
+	r.EffectiveDateTime = nil
+	r.EffectivePeriod = nil
+	r.EffectiveTiming = nil
+	r.EffectivePeriod = &v
+}
+
+// SetEffectiveTiming sets effective[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationStatement) SetEffectiveTiming(v Timing) {
+	r.EffectiveDateTime = nil
+	r.EffectivePeriod = nil
+	r.EffectiveTiming = nil
+	r.EffectiveTiming = &v
 }
 
 // MedicationStatementAdherence is a generated nested backbone element.

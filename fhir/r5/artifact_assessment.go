@@ -16,7 +16,8 @@ type ArtifactAssessment struct {
 	Identifier            []Identifier                `json:"identifier,omitempty"`
 	Title                 *string                     `json:"title,omitempty"`
 	TitleElement          *fhir.PrimitiveElement      `json:"-"`
-	CiteAs                *Reference                  `json:"citeAs,omitempty"`
+	CiteAsReference       *Reference                  `json:"citeAsReference,omitempty"`
+	CiteAsMarkdown        *FHIRMarkdown               `json:"citeAsMarkdown,omitempty"`
 	Date                  *string                     `json:"date,omitempty"`
 	DateElement           *fhir.PrimitiveElement      `json:"-"`
 	Copyright             *string                     `json:"copyright,omitempty"`
@@ -25,7 +26,9 @@ type ArtifactAssessment struct {
 	ApprovalDateElement   *fhir.PrimitiveElement      `json:"-"`
 	LastReviewDate        *string                     `json:"lastReviewDate,omitempty"`
 	LastReviewDateElement *fhir.PrimitiveElement      `json:"-"`
-	Artifact              *Reference                  `json:"artifact,omitempty"`
+	ArtifactReference     *Reference                  `json:"artifactReference,omitempty"`
+	ArtifactCanonical     *FHIRCanonical              `json:"artifactCanonical,omitempty"`
+	ArtifactURI           *FHIRURI                    `json:"artifactURI,omitempty"`
 	Content               []ArtifactAssessmentContent `json:"content,omitempty"`
 	WorkflowStatus        *string                     `json:"workflowStatus,omitempty"`
 	WorkflowStatusElement *fhir.PrimitiveElement      `json:"-"`
@@ -163,6 +166,104 @@ func (v *ArtifactAssessment) UnmarshalJSON(data []byte) error {
 	}
 	type alias ArtifactAssessment
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ArtifactAssessmentCiteAs is the sealed value interface for the citeAs[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isArtifactAssessmentCiteAs marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ArtifactAssessmentCiteAs interface{ isArtifactAssessmentCiteAs() }
+
+func (Reference) isArtifactAssessmentCiteAs()    {}
+func (FHIRMarkdown) isArtifactAssessmentCiteAs() {}
+
+// CiteAs returns the value set in the citeAs[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ArtifactAssessment) CiteAs() (ArtifactAssessmentCiteAs, bool) {
+	switch {
+	case r.CiteAsReference != nil:
+		return *r.CiteAsReference, true
+	case r.CiteAsMarkdown != nil:
+		return *r.CiteAsMarkdown, true
+	}
+	return nil, false
+}
+
+// SetCiteAsReference sets citeAs[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ArtifactAssessment) SetCiteAsReference(v Reference) {
+	r.CiteAsReference = nil
+	r.CiteAsMarkdown = nil
+	r.CiteAsReference = &v
+}
+
+// SetCiteAsMarkdown sets citeAs[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isArtifactAssessmentCiteAs marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ArtifactAssessment) SetCiteAsMarkdown(v FHIRMarkdown) {
+	r.CiteAsReference = nil
+	r.CiteAsMarkdown = nil
+	r.CiteAsMarkdown = &v
+}
+
+// ArtifactAssessmentArtifact is the sealed value interface for the artifact[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isArtifactAssessmentArtifact marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ArtifactAssessmentArtifact interface{ isArtifactAssessmentArtifact() }
+
+func (Reference) isArtifactAssessmentArtifact()     {}
+func (FHIRCanonical) isArtifactAssessmentArtifact() {}
+func (FHIRURI) isArtifactAssessmentArtifact()       {}
+
+// Artifact returns the value set in the artifact[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ArtifactAssessment) Artifact() (ArtifactAssessmentArtifact, bool) {
+	switch {
+	case r.ArtifactReference != nil:
+		return *r.ArtifactReference, true
+	case r.ArtifactCanonical != nil:
+		return *r.ArtifactCanonical, true
+	case r.ArtifactURI != nil:
+		return *r.ArtifactURI, true
+	}
+	return nil, false
+}
+
+// SetArtifactReference sets artifact[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ArtifactAssessment) SetArtifactReference(v Reference) {
+	r.ArtifactReference = nil
+	r.ArtifactCanonical = nil
+	r.ArtifactURI = nil
+	r.ArtifactReference = &v
+}
+
+// SetArtifactCanonical sets artifact[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isArtifactAssessmentArtifact marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ArtifactAssessment) SetArtifactCanonical(v FHIRCanonical) {
+	r.ArtifactReference = nil
+	r.ArtifactCanonical = nil
+	r.ArtifactURI = nil
+	r.ArtifactCanonical = &v
+}
+
+// SetArtifactURI sets artifact[x] to a FHIRURI (the
+// release primitive wrapper that carries the isArtifactAssessmentArtifact marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ArtifactAssessment) SetArtifactURI(v FHIRURI) {
+	r.ArtifactReference = nil
+	r.ArtifactCanonical = nil
+	r.ArtifactURI = nil
+	r.ArtifactURI = &v
 }
 
 // ArtifactAssessmentContent is a generated nested backbone element.

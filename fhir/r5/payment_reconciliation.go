@@ -238,20 +238,22 @@ func (v *PaymentReconciliation) UnmarshalJSON(data []byte) error {
 // PaymentReconciliationAllocation is a generated nested backbone element.
 type PaymentReconciliationAllocation struct {
 	BackboneElement
-	Identifier  *Identifier            `json:"identifier,omitempty"`
-	Predecessor *Identifier            `json:"predecessor,omitempty"`
-	Target      *Reference             `json:"target,omitempty"`
-	TargetItem  *string                `json:"targetItem,omitempty"`
-	Encounter   *Reference             `json:"encounter,omitempty"`
-	Account     *Reference             `json:"account,omitempty"`
-	Type        *CodeableConcept       `json:"type,omitempty"`
-	Submitter   *Reference             `json:"submitter,omitempty"`
-	Response    *Reference             `json:"response,omitempty"`
-	Date        *string                `json:"date,omitempty"`
-	DateElement *fhir.PrimitiveElement `json:"-"`
-	Responsible *Reference             `json:"responsible,omitempty"`
-	Payee       *Reference             `json:"payee,omitempty"`
-	Amount      *Money                 `json:"amount,omitempty"`
+	Identifier            *Identifier            `json:"identifier,omitempty"`
+	Predecessor           *Identifier            `json:"predecessor,omitempty"`
+	Target                *Reference             `json:"target,omitempty"`
+	TargetItemString      *FHIRString            `json:"targetItemString,omitempty"`
+	TargetItemIdentifier  *Identifier            `json:"targetItemIdentifier,omitempty"`
+	TargetItemPositiveInt *FHIRPositiveInt       `json:"targetItemPositiveInt,omitempty"`
+	Encounter             *Reference             `json:"encounter,omitempty"`
+	Account               *Reference             `json:"account,omitempty"`
+	Type                  *CodeableConcept       `json:"type,omitempty"`
+	Submitter             *Reference             `json:"submitter,omitempty"`
+	Response              *Reference             `json:"response,omitempty"`
+	Date                  *string                `json:"date,omitempty"`
+	DateElement           *fhir.PrimitiveElement `json:"-"`
+	Responsible           *Reference             `json:"responsible,omitempty"`
+	Payee                 *Reference             `json:"payee,omitempty"`
+	Amount                *Money                 `json:"amount,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -300,6 +302,63 @@ func (v *PaymentReconciliationAllocation) UnmarshalJSON(data []byte) error {
 	}
 	type alias PaymentReconciliationAllocation
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// PaymentReconciliationAllocationTargetItem is the sealed value interface for the targetItem[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPaymentReconciliationAllocationTargetItem marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PaymentReconciliationAllocationTargetItem interface{ isPaymentReconciliationAllocationTargetItem() }
+
+func (FHIRString) isPaymentReconciliationAllocationTargetItem()      {}
+func (Identifier) isPaymentReconciliationAllocationTargetItem()      {}
+func (FHIRPositiveInt) isPaymentReconciliationAllocationTargetItem() {}
+
+// TargetItem returns the value set in the targetItem[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PaymentReconciliationAllocation) TargetItem() (PaymentReconciliationAllocationTargetItem, bool) {
+	switch {
+	case r.TargetItemString != nil:
+		return *r.TargetItemString, true
+	case r.TargetItemIdentifier != nil:
+		return *r.TargetItemIdentifier, true
+	case r.TargetItemPositiveInt != nil:
+		return *r.TargetItemPositiveInt, true
+	}
+	return nil, false
+}
+
+// SetTargetItemString sets targetItem[x] to a FHIRString (the
+// release primitive wrapper that carries the isPaymentReconciliationAllocationTargetItem marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PaymentReconciliationAllocation) SetTargetItemString(v FHIRString) {
+	r.TargetItemString = nil
+	r.TargetItemIdentifier = nil
+	r.TargetItemPositiveInt = nil
+	r.TargetItemString = &v
+}
+
+// SetTargetItemIdentifier sets targetItem[x] to a Identifier and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PaymentReconciliationAllocation) SetTargetItemIdentifier(v Identifier) {
+	r.TargetItemString = nil
+	r.TargetItemIdentifier = nil
+	r.TargetItemPositiveInt = nil
+	r.TargetItemIdentifier = &v
+}
+
+// SetTargetItemPositiveInt sets targetItem[x] to a FHIRPositiveInt (the
+// release primitive wrapper that carries the isPaymentReconciliationAllocationTargetItem marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PaymentReconciliationAllocation) SetTargetItemPositiveInt(v FHIRPositiveInt) {
+	r.TargetItemString = nil
+	r.TargetItemIdentifier = nil
+	r.TargetItemPositiveInt = nil
+	r.TargetItemPositiveInt = &v
 }
 
 // PaymentReconciliationProcessNote is a generated nested backbone element.

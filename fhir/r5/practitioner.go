@@ -22,7 +22,8 @@ type Practitioner struct {
 	GenderElement    *fhir.PrimitiveElement      `json:"-"`
 	BirthDate        *string                     `json:"birthDate,omitempty"`
 	BirthDateElement *fhir.PrimitiveElement      `json:"-"`
-	Deceased         *bool                       `json:"deceased,omitempty"`
+	DeceasedBoolean  *FHIRBoolean                `json:"deceasedBoolean,omitempty"`
+	DeceasedDateTime *FHIRDateTime               `json:"deceasedDateTime,omitempty"`
 	Address          []Address                   `json:"address,omitempty"`
 	Photo            []Attachment                `json:"photo,omitempty"`
 	Qualification    []PractitionerQualification `json:"qualification,omitempty"`
@@ -111,6 +112,49 @@ func (v *Practitioner) UnmarshalJSON(data []byte) error {
 	}
 	type alias Practitioner
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// PractitionerDeceased is the sealed value interface for the deceased[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPractitionerDeceased marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PractitionerDeceased interface{ isPractitionerDeceased() }
+
+func (FHIRBoolean) isPractitionerDeceased()  {}
+func (FHIRDateTime) isPractitionerDeceased() {}
+
+// Deceased returns the value set in the deceased[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Practitioner) Deceased() (PractitionerDeceased, bool) {
+	switch {
+	case r.DeceasedBoolean != nil:
+		return *r.DeceasedBoolean, true
+	case r.DeceasedDateTime != nil:
+		return *r.DeceasedDateTime, true
+	}
+	return nil, false
+}
+
+// SetDeceasedBoolean sets deceased[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isPractitionerDeceased marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Practitioner) SetDeceasedBoolean(v FHIRBoolean) {
+	r.DeceasedBoolean = nil
+	r.DeceasedDateTime = nil
+	r.DeceasedBoolean = &v
+}
+
+// SetDeceasedDateTime sets deceased[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isPractitionerDeceased marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Practitioner) SetDeceasedDateTime(v FHIRDateTime) {
+	r.DeceasedBoolean = nil
+	r.DeceasedDateTime = nil
+	r.DeceasedDateTime = &v
 }
 
 // PractitionerCommunication is a generated nested backbone element.

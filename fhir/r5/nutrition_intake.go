@@ -26,10 +26,12 @@ type NutritionIntake struct {
 	Code                         *CodeableConcept                 `json:"code,omitempty"`
 	Subject                      *Reference                       `json:"subject,omitempty"`
 	Encounter                    *Reference                       `json:"encounter,omitempty"`
-	Occurrence                   *string                          `json:"occurrence,omitempty"`
+	OccurrenceDateTime           *FHIRDateTime                    `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod             *Period                          `json:"occurrencePeriod,omitempty"`
 	Recorded                     *string                          `json:"recorded,omitempty"`
 	RecordedElement              *fhir.PrimitiveElement           `json:"-"`
-	Reported                     *bool                            `json:"reported,omitempty"`
+	ReportedBoolean              *FHIRBoolean                     `json:"reportedBoolean,omitempty"`
+	ReportedReference            *Reference                       `json:"reportedReference,omitempty"`
 	ConsumedItem                 []NutritionIntakeConsumedItem    `json:"consumedItem,omitempty"`
 	IngredientLabel              []NutritionIntakeIngredientLabel `json:"ingredientLabel,omitempty"`
 	Performer                    []NutritionIntakePerformer       `json:"performer,omitempty"`
@@ -133,6 +135,88 @@ func (v *NutritionIntake) UnmarshalJSON(data []byte) error {
 	}
 	type alias NutritionIntake
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// NutritionIntakeOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isNutritionIntakeOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type NutritionIntakeOccurrence interface{ isNutritionIntakeOccurrence() }
+
+func (FHIRDateTime) isNutritionIntakeOccurrence() {}
+func (Period) isNutritionIntakeOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *NutritionIntake) Occurrence() (NutritionIntakeOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isNutritionIntakeOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionIntake) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionIntake) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrencePeriod = &v
+}
+
+// NutritionIntakeReported is the sealed value interface for the reported[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isNutritionIntakeReported marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type NutritionIntakeReported interface{ isNutritionIntakeReported() }
+
+func (FHIRBoolean) isNutritionIntakeReported() {}
+func (Reference) isNutritionIntakeReported()   {}
+
+// Reported returns the value set in the reported[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *NutritionIntake) Reported() (NutritionIntakeReported, bool) {
+	switch {
+	case r.ReportedBoolean != nil:
+		return *r.ReportedBoolean, true
+	case r.ReportedReference != nil:
+		return *r.ReportedReference, true
+	}
+	return nil, false
+}
+
+// SetReportedBoolean sets reported[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isNutritionIntakeReported marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionIntake) SetReportedBoolean(v FHIRBoolean) {
+	r.ReportedBoolean = nil
+	r.ReportedReference = nil
+	r.ReportedBoolean = &v
+}
+
+// SetReportedReference sets reported[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionIntake) SetReportedReference(v Reference) {
+	r.ReportedBoolean = nil
+	r.ReportedReference = nil
+	r.ReportedReference = &v
 }
 
 // NutritionIntakeConsumedItem is a generated nested backbone element.

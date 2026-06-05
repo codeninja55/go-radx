@@ -13,46 +13,47 @@ const QuestionnaireResourceType = "Questionnaire"
 // Questionnaire is the generated FHIR Questionnaire resource.
 type Questionnaire struct {
 	DomainResource
-	URL                   *string                  `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement   `json:"-"`
-	Identifier            []Identifier             `json:"identifier,omitempty"`
-	Version               *string                  `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement   `json:"-"`
-	VersionAlgorithm      *string                  `json:"versionAlgorithm,omitempty"`
-	Name                  *string                  `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement   `json:"-"`
-	Title                 *string                  `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement   `json:"-"`
-	DerivedFrom           []string                 `json:"derivedFrom,omitempty"`
-	DerivedFromElement    []*fhir.PrimitiveElement `json:"-"`
-	Status                *string                  `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement   `json:"-"`
-	Experimental          *bool                    `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement   `json:"-"`
-	SubjectType           []string                 `json:"subjectType,omitempty"`
-	SubjectTypeElement    []*fhir.PrimitiveElement `json:"-"`
-	Date                  *string                  `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement   `json:"-"`
-	Publisher             *string                  `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement   `json:"-"`
-	Contact               []ContactDetail          `json:"contact,omitempty"`
-	Description           *string                  `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement   `json:"-"`
-	UseContext            []UsageContext           `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept        `json:"jurisdiction,omitempty"`
-	Purpose               *string                  `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement   `json:"-"`
-	Copyright             *string                  `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement   `json:"-"`
-	CopyrightLabel        *string                  `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement   `json:"-"`
-	ApprovalDate          *string                  `json:"approvalDate,omitempty"`
-	ApprovalDateElement   *fhir.PrimitiveElement   `json:"-"`
-	LastReviewDate        *string                  `json:"lastReviewDate,omitempty"`
-	LastReviewDateElement *fhir.PrimitiveElement   `json:"-"`
-	EffectivePeriod       *Period                  `json:"effectivePeriod,omitempty"`
-	Code                  []Coding                 `json:"code,omitempty"`
-	Item                  []QuestionnaireItem      `json:"item,omitempty"`
+	URL                    *string                  `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement   `json:"-"`
+	Identifier             []Identifier             `json:"identifier,omitempty"`
+	Version                *string                  `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement   `json:"-"`
+	VersionAlgorithmString *FHIRString              `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                  `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                  `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement   `json:"-"`
+	Title                  *string                  `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement   `json:"-"`
+	DerivedFrom            []string                 `json:"derivedFrom,omitempty"`
+	DerivedFromElement     []*fhir.PrimitiveElement `json:"-"`
+	Status                 *string                  `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement   `json:"-"`
+	Experimental           *bool                    `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement   `json:"-"`
+	SubjectType            []string                 `json:"subjectType,omitempty"`
+	SubjectTypeElement     []*fhir.PrimitiveElement `json:"-"`
+	Date                   *string                  `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement   `json:"-"`
+	Publisher              *string                  `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement   `json:"-"`
+	Contact                []ContactDetail          `json:"contact,omitempty"`
+	Description            *string                  `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement   `json:"-"`
+	UseContext             []UsageContext           `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept        `json:"jurisdiction,omitempty"`
+	Purpose                *string                  `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement   `json:"-"`
+	Copyright              *string                  `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement   `json:"-"`
+	CopyrightLabel         *string                  `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement   `json:"-"`
+	ApprovalDate           *string                  `json:"approvalDate,omitempty"`
+	ApprovalDateElement    *fhir.PrimitiveElement   `json:"-"`
+	LastReviewDate         *string                  `json:"lastReviewDate,omitempty"`
+	LastReviewDateElement  *fhir.PrimitiveElement   `json:"-"`
+	EffectivePeriod        *Period                  `json:"effectivePeriod,omitempty"`
+	Code                   []Coding                 `json:"code,omitempty"`
+	Item                   []QuestionnaireItem      `json:"item,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "Questionnaire".
@@ -295,6 +296,47 @@ func (v *Questionnaire) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// QuestionnaireVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isQuestionnaireVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type QuestionnaireVersionAlgorithm interface{ isQuestionnaireVersionAlgorithm() }
+
+func (FHIRString) isQuestionnaireVersionAlgorithm() {}
+func (Coding) isQuestionnaireVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Questionnaire) VersionAlgorithm() (QuestionnaireVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isQuestionnaireVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Questionnaire) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Questionnaire) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
 // QuestionnaireItem is a generated nested backbone element.
 type QuestionnaireItem struct {
 	BackboneElement
@@ -526,7 +568,12 @@ func (v *QuestionnaireItem) UnmarshalJSON(data []byte) error {
 // QuestionnaireItemAnswerOption is a generated nested backbone element.
 type QuestionnaireItemAnswerOption struct {
 	BackboneElement
-	Value                  *int32                 `json:"value,omitempty"`
+	ValueInteger           *FHIRInteger           `json:"valueInteger,omitempty"`
+	ValueDate              *FHIRDate              `json:"valueDate,omitempty"`
+	ValueTime              *FHIRTime              `json:"valueTime,omitempty"`
+	ValueString            *FHIRString            `json:"valueString,omitempty"`
+	ValueCoding            *Coding                `json:"valueCoding,omitempty"`
+	ValueReference         *Reference             `json:"valueReference,omitempty"`
 	InitialSelected        *bool                  `json:"initialSelected,omitempty"`
 	InitialSelectedElement *fhir.PrimitiveElement `json:"-"`
 }
@@ -579,6 +626,121 @@ func (v *QuestionnaireItemAnswerOption) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// QuestionnaireItemAnswerOptionValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isQuestionnaireItemAnswerOptionValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type QuestionnaireItemAnswerOptionValue interface{ isQuestionnaireItemAnswerOptionValue() }
+
+func (FHIRInteger) isQuestionnaireItemAnswerOptionValue() {}
+func (FHIRDate) isQuestionnaireItemAnswerOptionValue()    {}
+func (FHIRTime) isQuestionnaireItemAnswerOptionValue()    {}
+func (FHIRString) isQuestionnaireItemAnswerOptionValue()  {}
+func (Coding) isQuestionnaireItemAnswerOptionValue()      {}
+func (Reference) isQuestionnaireItemAnswerOptionValue()   {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *QuestionnaireItemAnswerOption) Value() (QuestionnaireItemAnswerOptionValue, bool) {
+	switch {
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueTime != nil:
+		return *r.ValueTime, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isQuestionnaireItemAnswerOptionValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemAnswerOption) SetValueInteger(v FHIRInteger) {
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueCoding = nil
+	r.ValueReference = nil
+	r.ValueInteger = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isQuestionnaireItemAnswerOptionValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemAnswerOption) SetValueDate(v FHIRDate) {
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueCoding = nil
+	r.ValueReference = nil
+	r.ValueDate = &v
+}
+
+// SetValueTime sets value[x] to a FHIRTime (the
+// release primitive wrapper that carries the isQuestionnaireItemAnswerOptionValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemAnswerOption) SetValueTime(v FHIRTime) {
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueCoding = nil
+	r.ValueReference = nil
+	r.ValueTime = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isQuestionnaireItemAnswerOptionValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemAnswerOption) SetValueString(v FHIRString) {
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueCoding = nil
+	r.ValueReference = nil
+	r.ValueString = &v
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemAnswerOption) SetValueCoding(v Coding) {
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueCoding = nil
+	r.ValueReference = nil
+	r.ValueCoding = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemAnswerOption) SetValueReference(v Reference) {
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueCoding = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
+}
+
 // QuestionnaireItemEnableWhen is a generated nested backbone element.
 type QuestionnaireItemEnableWhen struct {
 	BackboneElement
@@ -586,7 +748,16 @@ type QuestionnaireItemEnableWhen struct {
 	QuestionElement *fhir.PrimitiveElement `json:"-"`
 	Operator        *string                `json:"operator,omitempty"`
 	OperatorElement *fhir.PrimitiveElement `json:"-"`
-	Answer          *bool                  `json:"answer,omitempty"`
+	AnswerBoolean   *FHIRBoolean           `json:"answerBoolean,omitempty"`
+	AnswerDecimal   *FHIRDecimal           `json:"answerDecimal,omitempty"`
+	AnswerInteger   *FHIRInteger           `json:"answerInteger,omitempty"`
+	AnswerDate      *FHIRDate              `json:"answerDate,omitempty"`
+	AnswerDateTime  *FHIRDateTime          `json:"answerDateTime,omitempty"`
+	AnswerTime      *FHIRTime              `json:"answerTime,omitempty"`
+	AnswerString    *FHIRString            `json:"answerString,omitempty"`
+	AnswerCoding    *Coding                `json:"answerCoding,omitempty"`
+	AnswerQuantity  *Quantity              `json:"answerQuantity,omitempty"`
+	AnswerReference *Reference             `json:"answerReference,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -649,8 +820,525 @@ func (v *QuestionnaireItemEnableWhen) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// QuestionnaireItemEnableWhenAnswer is the sealed value interface for the answer[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isQuestionnaireItemEnableWhenAnswer marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type QuestionnaireItemEnableWhenAnswer interface{ isQuestionnaireItemEnableWhenAnswer() }
+
+func (FHIRBoolean) isQuestionnaireItemEnableWhenAnswer()  {}
+func (FHIRDecimal) isQuestionnaireItemEnableWhenAnswer()  {}
+func (FHIRInteger) isQuestionnaireItemEnableWhenAnswer()  {}
+func (FHIRDate) isQuestionnaireItemEnableWhenAnswer()     {}
+func (FHIRDateTime) isQuestionnaireItemEnableWhenAnswer() {}
+func (FHIRTime) isQuestionnaireItemEnableWhenAnswer()     {}
+func (FHIRString) isQuestionnaireItemEnableWhenAnswer()   {}
+func (Coding) isQuestionnaireItemEnableWhenAnswer()       {}
+func (Quantity) isQuestionnaireItemEnableWhenAnswer()     {}
+func (Reference) isQuestionnaireItemEnableWhenAnswer()    {}
+
+// Answer returns the value set in the answer[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *QuestionnaireItemEnableWhen) Answer() (QuestionnaireItemEnableWhenAnswer, bool) {
+	switch {
+	case r.AnswerBoolean != nil:
+		return *r.AnswerBoolean, true
+	case r.AnswerDecimal != nil:
+		return *r.AnswerDecimal, true
+	case r.AnswerInteger != nil:
+		return *r.AnswerInteger, true
+	case r.AnswerDate != nil:
+		return *r.AnswerDate, true
+	case r.AnswerDateTime != nil:
+		return *r.AnswerDateTime, true
+	case r.AnswerTime != nil:
+		return *r.AnswerTime, true
+	case r.AnswerString != nil:
+		return *r.AnswerString, true
+	case r.AnswerCoding != nil:
+		return *r.AnswerCoding, true
+	case r.AnswerQuantity != nil:
+		return *r.AnswerQuantity, true
+	case r.AnswerReference != nil:
+		return *r.AnswerReference, true
+	}
+	return nil, false
+}
+
+// SetAnswerBoolean sets answer[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isQuestionnaireItemEnableWhenAnswer marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerBoolean(v FHIRBoolean) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerBoolean = &v
+}
+
+// SetAnswerDecimal sets answer[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isQuestionnaireItemEnableWhenAnswer marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerDecimal(v FHIRDecimal) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerDecimal = &v
+}
+
+// SetAnswerInteger sets answer[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isQuestionnaireItemEnableWhenAnswer marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerInteger(v FHIRInteger) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerInteger = &v
+}
+
+// SetAnswerDate sets answer[x] to a FHIRDate (the
+// release primitive wrapper that carries the isQuestionnaireItemEnableWhenAnswer marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerDate(v FHIRDate) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerDate = &v
+}
+
+// SetAnswerDateTime sets answer[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isQuestionnaireItemEnableWhenAnswer marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerDateTime(v FHIRDateTime) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerDateTime = &v
+}
+
+// SetAnswerTime sets answer[x] to a FHIRTime (the
+// release primitive wrapper that carries the isQuestionnaireItemEnableWhenAnswer marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerTime(v FHIRTime) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerTime = &v
+}
+
+// SetAnswerString sets answer[x] to a FHIRString (the
+// release primitive wrapper that carries the isQuestionnaireItemEnableWhenAnswer marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerString(v FHIRString) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerString = &v
+}
+
+// SetAnswerCoding sets answer[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerCoding(v Coding) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerCoding = &v
+}
+
+// SetAnswerQuantity sets answer[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerQuantity(v Quantity) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerQuantity = &v
+}
+
+// SetAnswerReference sets answer[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemEnableWhen) SetAnswerReference(v Reference) {
+	r.AnswerBoolean = nil
+	r.AnswerDecimal = nil
+	r.AnswerInteger = nil
+	r.AnswerDate = nil
+	r.AnswerDateTime = nil
+	r.AnswerTime = nil
+	r.AnswerString = nil
+	r.AnswerCoding = nil
+	r.AnswerQuantity = nil
+	r.AnswerReference = nil
+	r.AnswerReference = &v
+}
+
 // QuestionnaireItemInitial is a generated nested backbone element.
 type QuestionnaireItemInitial struct {
 	BackboneElement
-	Value *bool `json:"value,omitempty"`
+	ValueBoolean    *FHIRBoolean  `json:"valueBoolean,omitempty"`
+	ValueDecimal    *FHIRDecimal  `json:"valueDecimal,omitempty"`
+	ValueInteger    *FHIRInteger  `json:"valueInteger,omitempty"`
+	ValueDate       *FHIRDate     `json:"valueDate,omitempty"`
+	ValueDateTime   *FHIRDateTime `json:"valueDateTime,omitempty"`
+	ValueTime       *FHIRTime     `json:"valueTime,omitempty"`
+	ValueString     *FHIRString   `json:"valueString,omitempty"`
+	ValueURI        *FHIRURI      `json:"valueURI,omitempty"`
+	ValueAttachment *Attachment   `json:"valueAttachment,omitempty"`
+	ValueCoding     *Coding       `json:"valueCoding,omitempty"`
+	ValueQuantity   *Quantity     `json:"valueQuantity,omitempty"`
+	ValueReference  *Reference    `json:"valueReference,omitempty"`
+}
+
+// QuestionnaireItemInitialValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isQuestionnaireItemInitialValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type QuestionnaireItemInitialValue interface{ isQuestionnaireItemInitialValue() }
+
+func (FHIRBoolean) isQuestionnaireItemInitialValue()  {}
+func (FHIRDecimal) isQuestionnaireItemInitialValue()  {}
+func (FHIRInteger) isQuestionnaireItemInitialValue()  {}
+func (FHIRDate) isQuestionnaireItemInitialValue()     {}
+func (FHIRDateTime) isQuestionnaireItemInitialValue() {}
+func (FHIRTime) isQuestionnaireItemInitialValue()     {}
+func (FHIRString) isQuestionnaireItemInitialValue()   {}
+func (FHIRURI) isQuestionnaireItemInitialValue()      {}
+func (Attachment) isQuestionnaireItemInitialValue()   {}
+func (Coding) isQuestionnaireItemInitialValue()       {}
+func (Quantity) isQuestionnaireItemInitialValue()     {}
+func (Reference) isQuestionnaireItemInitialValue()    {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *QuestionnaireItemInitial) Value() (QuestionnaireItemInitialValue, bool) {
+	switch {
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValueTime != nil:
+		return *r.ValueTime, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueURI != nil:
+		return *r.ValueURI, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isQuestionnaireItemInitialValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueBoolean(v FHIRBoolean) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isQuestionnaireItemInitialValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueDecimal(v FHIRDecimal) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueDecimal = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isQuestionnaireItemInitialValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueInteger(v FHIRInteger) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueInteger = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isQuestionnaireItemInitialValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueDate(v FHIRDate) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueDate = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isQuestionnaireItemInitialValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueDateTime(v FHIRDateTime) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueDateTime = &v
+}
+
+// SetValueTime sets value[x] to a FHIRTime (the
+// release primitive wrapper that carries the isQuestionnaireItemInitialValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueTime(v FHIRTime) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueTime = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isQuestionnaireItemInitialValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueString(v FHIRString) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueString = &v
+}
+
+// SetValueURI sets value[x] to a FHIRURI (the
+// release primitive wrapper that carries the isQuestionnaireItemInitialValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueURI(v FHIRURI) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueURI = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueAttachment(v Attachment) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueCoding(v Coding) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueCoding = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueQuantity(v Quantity) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *QuestionnaireItemInitial) SetValueReference(v Reference) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
 }

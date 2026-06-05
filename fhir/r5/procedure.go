@@ -28,11 +28,17 @@ type Procedure struct {
 	Subject                      *Reference               `json:"subject,omitempty"`
 	Focus                        *Reference               `json:"focus,omitempty"`
 	Encounter                    *Reference               `json:"encounter,omitempty"`
-	Occurrence                   *string                  `json:"occurrence,omitempty"`
+	OccurrenceDateTime           *FHIRDateTime            `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod             *Period                  `json:"occurrencePeriod,omitempty"`
+	OccurrenceString             *FHIRString              `json:"occurrenceString,omitempty"`
+	OccurrenceAge                *Age                     `json:"occurrenceAge,omitempty"`
+	OccurrenceRange              *Range                   `json:"occurrenceRange,omitempty"`
+	OccurrenceTiming             *Timing                  `json:"occurrenceTiming,omitempty"`
 	Recorded                     *string                  `json:"recorded,omitempty"`
 	RecordedElement              *fhir.PrimitiveElement   `json:"-"`
 	Recorder                     *Reference               `json:"recorder,omitempty"`
-	Reported                     *bool                    `json:"reported,omitempty"`
+	ReportedBoolean              *FHIRBoolean             `json:"reportedBoolean,omitempty"`
+	ReportedReference            *Reference               `json:"reportedReference,omitempty"`
 	Performer                    []ProcedurePerformer     `json:"performer,omitempty"`
 	Location                     *Reference               `json:"location,omitempty"`
 	Reason                       []CodeableReference      `json:"reason,omitempty"`
@@ -141,6 +147,158 @@ func (v *Procedure) UnmarshalJSON(data []byte) error {
 	}
 	type alias Procedure
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ProcedureOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isProcedureOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ProcedureOccurrence interface{ isProcedureOccurrence() }
+
+func (FHIRDateTime) isProcedureOccurrence() {}
+func (Period) isProcedureOccurrence()       {}
+func (FHIRString) isProcedureOccurrence()   {}
+func (Age) isProcedureOccurrence()          {}
+func (Range) isProcedureOccurrence()        {}
+func (Timing) isProcedureOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Procedure) Occurrence() (ProcedureOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	case r.OccurrenceString != nil:
+		return *r.OccurrenceString, true
+	case r.OccurrenceAge != nil:
+		return *r.OccurrenceAge, true
+	case r.OccurrenceRange != nil:
+		return *r.OccurrenceRange, true
+	case r.OccurrenceTiming != nil:
+		return *r.OccurrenceTiming, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isProcedureOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Procedure) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceString = nil
+	r.OccurrenceAge = nil
+	r.OccurrenceRange = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Procedure) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceString = nil
+	r.OccurrenceAge = nil
+	r.OccurrenceRange = nil
+	r.OccurrenceTiming = nil
+	r.OccurrencePeriod = &v
+}
+
+// SetOccurrenceString sets occurrence[x] to a FHIRString (the
+// release primitive wrapper that carries the isProcedureOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Procedure) SetOccurrenceString(v FHIRString) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceString = nil
+	r.OccurrenceAge = nil
+	r.OccurrenceRange = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceString = &v
+}
+
+// SetOccurrenceAge sets occurrence[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Procedure) SetOccurrenceAge(v Age) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceString = nil
+	r.OccurrenceAge = nil
+	r.OccurrenceRange = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceAge = &v
+}
+
+// SetOccurrenceRange sets occurrence[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Procedure) SetOccurrenceRange(v Range) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceString = nil
+	r.OccurrenceAge = nil
+	r.OccurrenceRange = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceRange = &v
+}
+
+// SetOccurrenceTiming sets occurrence[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Procedure) SetOccurrenceTiming(v Timing) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceString = nil
+	r.OccurrenceAge = nil
+	r.OccurrenceRange = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceTiming = &v
+}
+
+// ProcedureReported is the sealed value interface for the reported[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isProcedureReported marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ProcedureReported interface{ isProcedureReported() }
+
+func (FHIRBoolean) isProcedureReported() {}
+func (Reference) isProcedureReported()   {}
+
+// Reported returns the value set in the reported[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Procedure) Reported() (ProcedureReported, bool) {
+	switch {
+	case r.ReportedBoolean != nil:
+		return *r.ReportedBoolean, true
+	case r.ReportedReference != nil:
+		return *r.ReportedReference, true
+	}
+	return nil, false
+}
+
+// SetReportedBoolean sets reported[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isProcedureReported marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Procedure) SetReportedBoolean(v FHIRBoolean) {
+	r.ReportedBoolean = nil
+	r.ReportedReference = nil
+	r.ReportedBoolean = &v
+}
+
+// SetReportedReference sets reported[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Procedure) SetReportedReference(v Reference) {
+	r.ReportedBoolean = nil
+	r.ReportedReference = nil
+	r.ReportedReference = &v
 }
 
 // ProcedureFocalDevice is a generated nested backbone element.

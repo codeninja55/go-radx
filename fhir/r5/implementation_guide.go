@@ -13,45 +13,46 @@ const ImplementationGuideResourceType = "ImplementationGuide"
 // ImplementationGuide is the generated FHIR ImplementationGuide resource.
 type ImplementationGuide struct {
 	DomainResource
-	URL                   *string                        `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement         `json:"-"`
-	Identifier            []Identifier                   `json:"identifier,omitempty"`
-	Version               *string                        `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement         `json:"-"`
-	VersionAlgorithm      *string                        `json:"versionAlgorithm,omitempty"`
-	Name                  *string                        `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement         `json:"-"`
-	Title                 *string                        `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement         `json:"-"`
-	Status                *string                        `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement         `json:"-"`
-	Experimental          *bool                          `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement         `json:"-"`
-	Date                  *string                        `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement         `json:"-"`
-	Publisher             *string                        `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement         `json:"-"`
-	Contact               []ContactDetail                `json:"contact,omitempty"`
-	Description           *string                        `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement         `json:"-"`
-	UseContext            []UsageContext                 `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept              `json:"jurisdiction,omitempty"`
-	Purpose               *string                        `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement         `json:"-"`
-	Copyright             *string                        `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement         `json:"-"`
-	CopyrightLabel        *string                        `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement         `json:"-"`
-	PackageId             *string                        `json:"packageId,omitempty"`
-	PackageIdElement      *fhir.PrimitiveElement         `json:"-"`
-	License               *string                        `json:"license,omitempty"`
-	LicenseElement        *fhir.PrimitiveElement         `json:"-"`
-	FhirVersion           []string                       `json:"fhirVersion,omitempty"`
-	FhirVersionElement    []*fhir.PrimitiveElement       `json:"-"`
-	DependsOn             []ImplementationGuideDependsOn `json:"dependsOn,omitempty"`
-	Global                []ImplementationGuideGlobal    `json:"global,omitempty"`
-	Definition            *ImplementationGuideDefinition `json:"definition,omitempty"`
-	Manifest              *ImplementationGuideManifest   `json:"manifest,omitempty"`
+	URL                    *string                        `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement         `json:"-"`
+	Identifier             []Identifier                   `json:"identifier,omitempty"`
+	Version                *string                        `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement         `json:"-"`
+	VersionAlgorithmString *FHIRString                    `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                        `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                        `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement         `json:"-"`
+	Title                  *string                        `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement         `json:"-"`
+	Status                 *string                        `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement         `json:"-"`
+	Experimental           *bool                          `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement         `json:"-"`
+	Date                   *string                        `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement         `json:"-"`
+	Publisher              *string                        `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement         `json:"-"`
+	Contact                []ContactDetail                `json:"contact,omitempty"`
+	Description            *string                        `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement         `json:"-"`
+	UseContext             []UsageContext                 `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept              `json:"jurisdiction,omitempty"`
+	Purpose                *string                        `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement         `json:"-"`
+	Copyright              *string                        `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement         `json:"-"`
+	CopyrightLabel         *string                        `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement         `json:"-"`
+	PackageId              *string                        `json:"packageId,omitempty"`
+	PackageIdElement       *fhir.PrimitiveElement         `json:"-"`
+	License                *string                        `json:"license,omitempty"`
+	LicenseElement         *fhir.PrimitiveElement         `json:"-"`
+	FhirVersion            []string                       `json:"fhirVersion,omitempty"`
+	FhirVersionElement     []*fhir.PrimitiveElement       `json:"-"`
+	DependsOn              []ImplementationGuideDependsOn `json:"dependsOn,omitempty"`
+	Global                 []ImplementationGuideGlobal    `json:"global,omitempty"`
+	Definition             *ImplementationGuideDefinition `json:"definition,omitempty"`
+	Manifest               *ImplementationGuideManifest   `json:"manifest,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "ImplementationGuide".
@@ -282,6 +283,47 @@ func (v *ImplementationGuide) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ImplementationGuideVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isImplementationGuideVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ImplementationGuideVersionAlgorithm interface{ isImplementationGuideVersionAlgorithm() }
+
+func (FHIRString) isImplementationGuideVersionAlgorithm() {}
+func (Coding) isImplementationGuideVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ImplementationGuide) VersionAlgorithm() (ImplementationGuideVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isImplementationGuideVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ImplementationGuide) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ImplementationGuide) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
 // ImplementationGuideDefinition is a generated nested backbone element.
 type ImplementationGuideDefinition struct {
 	BackboneElement
@@ -364,7 +406,9 @@ func (v *ImplementationGuideDefinitionGrouping) UnmarshalJSON(data []byte) error
 // ImplementationGuideDefinitionPage is a generated nested backbone element.
 type ImplementationGuideDefinitionPage struct {
 	BackboneElement
-	Source            *string                             `json:"source,omitempty"`
+	SourceURL         *FHIRURL                            `json:"sourceURL,omitempty"`
+	SourceString      *FHIRString                         `json:"sourceString,omitempty"`
+	SourceMarkdown    *FHIRMarkdown                       `json:"sourceMarkdown,omitempty"`
 	Name              *string                             `json:"name,omitempty"`
 	NameElement       *fhir.PrimitiveElement              `json:"-"`
 	Title             *string                             `json:"title,omitempty"`
@@ -444,6 +488,65 @@ func (v *ImplementationGuideDefinitionPage) UnmarshalJSON(data []byte) error {
 	}
 	type alias ImplementationGuideDefinitionPage
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ImplementationGuideDefinitionPageSource is the sealed value interface for the source[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isImplementationGuideDefinitionPageSource marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ImplementationGuideDefinitionPageSource interface{ isImplementationGuideDefinitionPageSource() }
+
+func (FHIRURL) isImplementationGuideDefinitionPageSource()      {}
+func (FHIRString) isImplementationGuideDefinitionPageSource()   {}
+func (FHIRMarkdown) isImplementationGuideDefinitionPageSource() {}
+
+// Source returns the value set in the source[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ImplementationGuideDefinitionPage) Source() (ImplementationGuideDefinitionPageSource, bool) {
+	switch {
+	case r.SourceURL != nil:
+		return *r.SourceURL, true
+	case r.SourceString != nil:
+		return *r.SourceString, true
+	case r.SourceMarkdown != nil:
+		return *r.SourceMarkdown, true
+	}
+	return nil, false
+}
+
+// SetSourceURL sets source[x] to a FHIRURL (the
+// release primitive wrapper that carries the isImplementationGuideDefinitionPageSource marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ImplementationGuideDefinitionPage) SetSourceURL(v FHIRURL) {
+	r.SourceURL = nil
+	r.SourceString = nil
+	r.SourceMarkdown = nil
+	r.SourceURL = &v
+}
+
+// SetSourceString sets source[x] to a FHIRString (the
+// release primitive wrapper that carries the isImplementationGuideDefinitionPageSource marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ImplementationGuideDefinitionPage) SetSourceString(v FHIRString) {
+	r.SourceURL = nil
+	r.SourceString = nil
+	r.SourceMarkdown = nil
+	r.SourceString = &v
+}
+
+// SetSourceMarkdown sets source[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isImplementationGuideDefinitionPageSource marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ImplementationGuideDefinitionPage) SetSourceMarkdown(v FHIRMarkdown) {
+	r.SourceURL = nil
+	r.SourceString = nil
+	r.SourceMarkdown = nil
+	r.SourceMarkdown = &v
 }
 
 // ImplementationGuideDefinitionParameter is a generated nested backbone element.

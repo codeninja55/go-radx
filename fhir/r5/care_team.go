@@ -103,8 +103,48 @@ func (v *CareTeam) UnmarshalJSON(data []byte) error {
 // CareTeamParticipant is a generated nested backbone element.
 type CareTeamParticipant struct {
 	BackboneElement
-	Role       *CodeableConcept `json:"role,omitempty"`
-	Member     *Reference       `json:"member,omitempty"`
-	OnBehalfOf *Reference       `json:"onBehalfOf,omitempty"`
-	Coverage   *Period          `json:"coverage,omitempty"`
+	Role           *CodeableConcept `json:"role,omitempty"`
+	Member         *Reference       `json:"member,omitempty"`
+	OnBehalfOf     *Reference       `json:"onBehalfOf,omitempty"`
+	CoveragePeriod *Period          `json:"coveragePeriod,omitempty"`
+	CoverageTiming *Timing          `json:"coverageTiming,omitempty"`
+}
+
+// CareTeamParticipantCoverage is the sealed value interface for the coverage[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCareTeamParticipantCoverage marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CareTeamParticipantCoverage interface{ isCareTeamParticipantCoverage() }
+
+func (Period) isCareTeamParticipantCoverage() {}
+func (Timing) isCareTeamParticipantCoverage() {}
+
+// Coverage returns the value set in the coverage[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CareTeamParticipant) Coverage() (CareTeamParticipantCoverage, bool) {
+	switch {
+	case r.CoveragePeriod != nil:
+		return *r.CoveragePeriod, true
+	case r.CoverageTiming != nil:
+		return *r.CoverageTiming, true
+	}
+	return nil, false
+}
+
+// SetCoveragePeriod sets coverage[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CareTeamParticipant) SetCoveragePeriod(v Period) {
+	r.CoveragePeriod = nil
+	r.CoverageTiming = nil
+	r.CoveragePeriod = &v
+}
+
+// SetCoverageTiming sets coverage[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CareTeamParticipant) SetCoverageTiming(v Timing) {
+	r.CoveragePeriod = nil
+	r.CoverageTiming = nil
+	r.CoverageTiming = &v
 }

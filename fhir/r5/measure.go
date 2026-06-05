@@ -18,7 +18,8 @@ type Measure struct {
 	Identifier                             []Identifier              `json:"identifier,omitempty"`
 	Version                                *string                   `json:"version,omitempty"`
 	VersionElement                         *fhir.PrimitiveElement    `json:"-"`
-	VersionAlgorithm                       *string                   `json:"versionAlgorithm,omitempty"`
+	VersionAlgorithmString                 *FHIRString               `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding                 *Coding                   `json:"versionAlgorithmCoding,omitempty"`
 	Name                                   *string                   `json:"name,omitempty"`
 	NameElement                            *fhir.PrimitiveElement    `json:"-"`
 	Title                                  *string                   `json:"title,omitempty"`
@@ -29,7 +30,8 @@ type Measure struct {
 	StatusElement                          *fhir.PrimitiveElement    `json:"-"`
 	Experimental                           *bool                     `json:"experimental,omitempty"`
 	ExperimentalElement                    *fhir.PrimitiveElement    `json:"-"`
-	Subject                                *CodeableConcept          `json:"subject,omitempty"`
+	SubjectCodeableConcept                 *CodeableConcept          `json:"subjectCodeableConcept,omitempty"`
+	SubjectReference                       *Reference                `json:"subjectReference,omitempty"`
 	Basis                                  *string                   `json:"basis,omitempty"`
 	BasisElement                           *fhir.PrimitiveElement    `json:"-"`
 	Date                                   *string                   `json:"date,omitempty"`
@@ -420,6 +422,86 @@ func (v *Measure) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// MeasureVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMeasureVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MeasureVersionAlgorithm interface{ isMeasureVersionAlgorithm() }
+
+func (FHIRString) isMeasureVersionAlgorithm() {}
+func (Coding) isMeasureVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Measure) VersionAlgorithm() (MeasureVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isMeasureVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Measure) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Measure) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
+// MeasureSubject is the sealed value interface for the subject[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMeasureSubject marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MeasureSubject interface{ isMeasureSubject() }
+
+func (CodeableConcept) isMeasureSubject() {}
+func (Reference) isMeasureSubject()       {}
+
+// Subject returns the value set in the subject[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Measure) Subject() (MeasureSubject, bool) {
+	switch {
+	case r.SubjectCodeableConcept != nil:
+		return *r.SubjectCodeableConcept, true
+	case r.SubjectReference != nil:
+		return *r.SubjectReference, true
+	}
+	return nil, false
+}
+
+// SetSubjectCodeableConcept sets subject[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Measure) SetSubjectCodeableConcept(v CodeableConcept) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCodeableConcept = &v
+}
+
+// SetSubjectReference sets subject[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Measure) SetSubjectReference(v Reference) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectReference = &v
+}
+
 // MeasureGroup is a generated nested backbone element.
 type MeasureGroup struct {
 	BackboneElement
@@ -429,7 +511,8 @@ type MeasureGroup struct {
 	Description            *string                  `json:"description,omitempty"`
 	DescriptionElement     *fhir.PrimitiveElement   `json:"-"`
 	Type                   []CodeableConcept        `json:"type,omitempty"`
-	Subject                *CodeableConcept         `json:"subject,omitempty"`
+	SubjectCodeableConcept *CodeableConcept         `json:"subjectCodeableConcept,omitempty"`
+	SubjectReference       *Reference               `json:"subjectReference,omitempty"`
 	Basis                  *string                  `json:"basis,omitempty"`
 	BasisElement           *fhir.PrimitiveElement   `json:"-"`
 	Scoring                *CodeableConcept         `json:"scoring,omitempty"`
@@ -537,6 +620,45 @@ func (v *MeasureGroup) UnmarshalJSON(data []byte) error {
 	}
 	type alias MeasureGroup
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MeasureGroupSubject is the sealed value interface for the subject[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMeasureGroupSubject marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MeasureGroupSubject interface{ isMeasureGroupSubject() }
+
+func (CodeableConcept) isMeasureGroupSubject() {}
+func (Reference) isMeasureGroupSubject()       {}
+
+// Subject returns the value set in the subject[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MeasureGroup) Subject() (MeasureGroupSubject, bool) {
+	switch {
+	case r.SubjectCodeableConcept != nil:
+		return *r.SubjectCodeableConcept, true
+	case r.SubjectReference != nil:
+		return *r.SubjectReference, true
+	}
+	return nil, false
+}
+
+// SetSubjectCodeableConcept sets subject[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureGroup) SetSubjectCodeableConcept(v CodeableConcept) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCodeableConcept = &v
+}
+
+// SetSubjectReference sets subject[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureGroup) SetSubjectReference(v Reference) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectReference = &v
 }
 
 // MeasureGroupPopulation is a generated nested backbone element.

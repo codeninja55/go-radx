@@ -258,17 +258,19 @@ func (v *MolecularSequenceRelativeEdit) UnmarshalJSON(data []byte) error {
 // MolecularSequenceRelativeStartingSequence is a generated nested backbone element.
 type MolecularSequenceRelativeStartingSequence struct {
 	BackboneElement
-	GenomeAssembly     *CodeableConcept       `json:"genomeAssembly,omitempty"`
-	Chromosome         *CodeableConcept       `json:"chromosome,omitempty"`
-	Sequence           *CodeableConcept       `json:"sequence,omitempty"`
-	WindowStart        *int32                 `json:"windowStart,omitempty"`
-	WindowStartElement *fhir.PrimitiveElement `json:"-"`
-	WindowEnd          *int32                 `json:"windowEnd,omitempty"`
-	WindowEndElement   *fhir.PrimitiveElement `json:"-"`
-	Orientation        *string                `json:"orientation,omitempty"`
-	OrientationElement *fhir.PrimitiveElement `json:"-"`
-	Strand             *string                `json:"strand,omitempty"`
-	StrandElement      *fhir.PrimitiveElement `json:"-"`
+	GenomeAssembly          *CodeableConcept       `json:"genomeAssembly,omitempty"`
+	Chromosome              *CodeableConcept       `json:"chromosome,omitempty"`
+	SequenceCodeableConcept *CodeableConcept       `json:"sequenceCodeableConcept,omitempty"`
+	SequenceString          *FHIRString            `json:"sequenceString,omitempty"`
+	SequenceReference       *Reference             `json:"sequenceReference,omitempty"`
+	WindowStart             *int32                 `json:"windowStart,omitempty"`
+	WindowStartElement      *fhir.PrimitiveElement `json:"-"`
+	WindowEnd               *int32                 `json:"windowEnd,omitempty"`
+	WindowEndElement        *fhir.PrimitiveElement `json:"-"`
+	Orientation             *string                `json:"orientation,omitempty"`
+	OrientationElement      *fhir.PrimitiveElement `json:"-"`
+	Strand                  *string                `json:"strand,omitempty"`
+	StrandElement           *fhir.PrimitiveElement `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -353,4 +355,59 @@ func (v *MolecularSequenceRelativeStartingSequence) UnmarshalJSON(data []byte) e
 	}
 	type alias MolecularSequenceRelativeStartingSequence
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MolecularSequenceRelativeStartingSequenceSequence is the sealed value interface for the sequence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMolecularSequenceRelativeStartingSequenceSequence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MolecularSequenceRelativeStartingSequenceSequence interface{ isMolecularSequenceRelativeStartingSequenceSequence() }
+
+func (CodeableConcept) isMolecularSequenceRelativeStartingSequenceSequence() {}
+func (FHIRString) isMolecularSequenceRelativeStartingSequenceSequence()      {}
+func (Reference) isMolecularSequenceRelativeStartingSequenceSequence()       {}
+
+// Sequence returns the value set in the sequence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MolecularSequenceRelativeStartingSequence) Sequence() (MolecularSequenceRelativeStartingSequenceSequence, bool) {
+	switch {
+	case r.SequenceCodeableConcept != nil:
+		return *r.SequenceCodeableConcept, true
+	case r.SequenceString != nil:
+		return *r.SequenceString, true
+	case r.SequenceReference != nil:
+		return *r.SequenceReference, true
+	}
+	return nil, false
+}
+
+// SetSequenceCodeableConcept sets sequence[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MolecularSequenceRelativeStartingSequence) SetSequenceCodeableConcept(v CodeableConcept) {
+	r.SequenceCodeableConcept = nil
+	r.SequenceString = nil
+	r.SequenceReference = nil
+	r.SequenceCodeableConcept = &v
+}
+
+// SetSequenceString sets sequence[x] to a FHIRString (the
+// release primitive wrapper that carries the isMolecularSequenceRelativeStartingSequenceSequence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MolecularSequenceRelativeStartingSequence) SetSequenceString(v FHIRString) {
+	r.SequenceCodeableConcept = nil
+	r.SequenceString = nil
+	r.SequenceReference = nil
+	r.SequenceString = &v
+}
+
+// SetSequenceReference sets sequence[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MolecularSequenceRelativeStartingSequence) SetSequenceReference(v Reference) {
+	r.SequenceCodeableConcept = nil
+	r.SequenceString = nil
+	r.SequenceReference = nil
+	r.SequenceReference = &v
 }

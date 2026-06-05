@@ -107,14 +107,249 @@ func (v *BiologicallyDerivedProduct) UnmarshalJSON(data []byte) error {
 // BiologicallyDerivedProductCollection is a generated nested backbone element.
 type BiologicallyDerivedProductCollection struct {
 	BackboneElement
-	Collector *Reference `json:"collector,omitempty"`
-	Source    *Reference `json:"source,omitempty"`
-	Collected *string    `json:"collected,omitempty"`
+	Collector         *Reference    `json:"collector,omitempty"`
+	Source            *Reference    `json:"source,omitempty"`
+	CollectedDateTime *FHIRDateTime `json:"collectedDateTime,omitempty"`
+	CollectedPeriod   *Period       `json:"collectedPeriod,omitempty"`
+}
+
+// BiologicallyDerivedProductCollectionCollected is the sealed value interface for the collected[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isBiologicallyDerivedProductCollectionCollected marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type BiologicallyDerivedProductCollectionCollected interface{ isBiologicallyDerivedProductCollectionCollected() }
+
+func (FHIRDateTime) isBiologicallyDerivedProductCollectionCollected() {}
+func (Period) isBiologicallyDerivedProductCollectionCollected()       {}
+
+// Collected returns the value set in the collected[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *BiologicallyDerivedProductCollection) Collected() (BiologicallyDerivedProductCollectionCollected, bool) {
+	switch {
+	case r.CollectedDateTime != nil:
+		return *r.CollectedDateTime, true
+	case r.CollectedPeriod != nil:
+		return *r.CollectedPeriod, true
+	}
+	return nil, false
+}
+
+// SetCollectedDateTime sets collected[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isBiologicallyDerivedProductCollectionCollected marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductCollection) SetCollectedDateTime(v FHIRDateTime) {
+	r.CollectedDateTime = nil
+	r.CollectedPeriod = nil
+	r.CollectedDateTime = &v
+}
+
+// SetCollectedPeriod sets collected[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductCollection) SetCollectedPeriod(v Period) {
+	r.CollectedDateTime = nil
+	r.CollectedPeriod = nil
+	r.CollectedPeriod = &v
 }
 
 // BiologicallyDerivedProductProperty is a generated nested backbone element.
 type BiologicallyDerivedProductProperty struct {
 	BackboneElement
-	Type  *CodeableConcept `json:"type,omitempty"`
-	Value *bool            `json:"value,omitempty"`
+	Type                 *CodeableConcept `json:"type,omitempty"`
+	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
+	ValueInteger         *FHIRInteger     `json:"valueInteger,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValuePeriod          *Period          `json:"valuePeriod,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueRange           *Range           `json:"valueRange,omitempty"`
+	ValueRatio           *Ratio           `json:"valueRatio,omitempty"`
+	ValueString          *FHIRString      `json:"valueString,omitempty"`
+	ValueAttachment      *Attachment      `json:"valueAttachment,omitempty"`
+}
+
+// BiologicallyDerivedProductPropertyValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isBiologicallyDerivedProductPropertyValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type BiologicallyDerivedProductPropertyValue interface{ isBiologicallyDerivedProductPropertyValue() }
+
+func (FHIRBoolean) isBiologicallyDerivedProductPropertyValue()     {}
+func (FHIRInteger) isBiologicallyDerivedProductPropertyValue()     {}
+func (CodeableConcept) isBiologicallyDerivedProductPropertyValue() {}
+func (Period) isBiologicallyDerivedProductPropertyValue()          {}
+func (Quantity) isBiologicallyDerivedProductPropertyValue()        {}
+func (Range) isBiologicallyDerivedProductPropertyValue()           {}
+func (Ratio) isBiologicallyDerivedProductPropertyValue()           {}
+func (FHIRString) isBiologicallyDerivedProductPropertyValue()      {}
+func (Attachment) isBiologicallyDerivedProductPropertyValue()      {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *BiologicallyDerivedProductProperty) Value() (BiologicallyDerivedProductPropertyValue, bool) {
+	switch {
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValuePeriod != nil:
+		return *r.ValuePeriod, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueRatio != nil:
+		return *r.ValueRatio, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	}
+	return nil, false
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isBiologicallyDerivedProductPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductProperty) SetValueBoolean(v FHIRBoolean) {
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueCodeableConcept = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueString = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isBiologicallyDerivedProductPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductProperty) SetValueInteger(v FHIRInteger) {
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueCodeableConcept = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueString = nil
+	r.ValueAttachment = nil
+	r.ValueInteger = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductProperty) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueCodeableConcept = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueString = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValuePeriod sets value[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductProperty) SetValuePeriod(v Period) {
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueCodeableConcept = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueString = nil
+	r.ValueAttachment = nil
+	r.ValuePeriod = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductProperty) SetValueQuantity(v Quantity) {
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueCodeableConcept = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueString = nil
+	r.ValueAttachment = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductProperty) SetValueRange(v Range) {
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueCodeableConcept = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueString = nil
+	r.ValueAttachment = nil
+	r.ValueRange = &v
+}
+
+// SetValueRatio sets value[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductProperty) SetValueRatio(v Ratio) {
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueCodeableConcept = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueString = nil
+	r.ValueAttachment = nil
+	r.ValueRatio = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isBiologicallyDerivedProductPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductProperty) SetValueString(v FHIRString) {
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueCodeableConcept = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueString = nil
+	r.ValueAttachment = nil
+	r.ValueString = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *BiologicallyDerivedProductProperty) SetValueAttachment(v Attachment) {
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueCodeableConcept = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueString = nil
+	r.ValueAttachment = nil
+	r.ValueAttachment = &v
 }

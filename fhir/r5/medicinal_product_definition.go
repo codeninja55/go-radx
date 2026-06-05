@@ -149,8 +149,151 @@ func (v *MedicinalProductDefinition) UnmarshalJSON(data []byte) error {
 // MedicinalProductDefinitionCharacteristic is a generated nested backbone element.
 type MedicinalProductDefinitionCharacteristic struct {
 	BackboneElement
-	Type  *CodeableConcept `json:"type,omitempty"`
-	Value *CodeableConcept `json:"value,omitempty"`
+	Type                 *CodeableConcept `json:"type,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValueMarkdown        *FHIRMarkdown    `json:"valueMarkdown,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueInteger         *FHIRInteger     `json:"valueInteger,omitempty"`
+	ValueDate            *FHIRDate        `json:"valueDate,omitempty"`
+	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
+	ValueAttachment      *Attachment      `json:"valueAttachment,omitempty"`
+}
+
+// MedicinalProductDefinitionCharacteristicValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicinalProductDefinitionCharacteristicValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicinalProductDefinitionCharacteristicValue interface{ isMedicinalProductDefinitionCharacteristicValue() }
+
+func (CodeableConcept) isMedicinalProductDefinitionCharacteristicValue() {}
+func (FHIRMarkdown) isMedicinalProductDefinitionCharacteristicValue()    {}
+func (Quantity) isMedicinalProductDefinitionCharacteristicValue()        {}
+func (FHIRInteger) isMedicinalProductDefinitionCharacteristicValue()     {}
+func (FHIRDate) isMedicinalProductDefinitionCharacteristicValue()        {}
+func (FHIRBoolean) isMedicinalProductDefinitionCharacteristicValue()     {}
+func (Attachment) isMedicinalProductDefinitionCharacteristicValue()      {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicinalProductDefinitionCharacteristic) Value() (MedicinalProductDefinitionCharacteristicValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueMarkdown != nil:
+		return *r.ValueMarkdown, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicinalProductDefinitionCharacteristic) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueMarkdown = nil
+	r.ValueQuantity = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueMarkdown sets value[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isMedicinalProductDefinitionCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicinalProductDefinitionCharacteristic) SetValueMarkdown(v FHIRMarkdown) {
+	r.ValueCodeableConcept = nil
+	r.ValueMarkdown = nil
+	r.ValueQuantity = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueMarkdown = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicinalProductDefinitionCharacteristic) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueMarkdown = nil
+	r.ValueQuantity = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isMedicinalProductDefinitionCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicinalProductDefinitionCharacteristic) SetValueInteger(v FHIRInteger) {
+	r.ValueCodeableConcept = nil
+	r.ValueMarkdown = nil
+	r.ValueQuantity = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueInteger = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isMedicinalProductDefinitionCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicinalProductDefinitionCharacteristic) SetValueDate(v FHIRDate) {
+	r.ValueCodeableConcept = nil
+	r.ValueMarkdown = nil
+	r.ValueQuantity = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueDate = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isMedicinalProductDefinitionCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicinalProductDefinitionCharacteristic) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueMarkdown = nil
+	r.ValueQuantity = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicinalProductDefinitionCharacteristic) SetValueAttachment(v Attachment) {
+	r.ValueCodeableConcept = nil
+	r.ValueMarkdown = nil
+	r.ValueQuantity = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueAttachment = &v
 }
 
 // MedicinalProductDefinitionContact is a generated nested backbone element.

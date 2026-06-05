@@ -13,43 +13,44 @@ const TestPlanResourceType = "TestPlan"
 // TestPlan is the generated FHIR TestPlan resource.
 type TestPlan struct {
 	DomainResource
-	URL                   *string                `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement `json:"-"`
-	Identifier            []Identifier           `json:"identifier,omitempty"`
-	Version               *string                `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement `json:"-"`
-	VersionAlgorithm      *string                `json:"versionAlgorithm,omitempty"`
-	Name                  *string                `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement `json:"-"`
-	Title                 *string                `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement `json:"-"`
-	Status                *string                `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement `json:"-"`
-	Experimental          *bool                  `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement `json:"-"`
-	Date                  *string                `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement `json:"-"`
-	Publisher             *string                `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement `json:"-"`
-	Contact               []ContactDetail        `json:"contact,omitempty"`
-	Description           *string                `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement `json:"-"`
-	UseContext            []UsageContext         `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept      `json:"jurisdiction,omitempty"`
-	Purpose               *string                `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement `json:"-"`
-	Copyright             *string                `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement `json:"-"`
-	CopyrightLabel        *string                `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement `json:"-"`
-	Category              []CodeableConcept      `json:"category,omitempty"`
-	Scope                 []Reference            `json:"scope,omitempty"`
-	TestTools             *string                `json:"testTools,omitempty"`
-	TestToolsElement      *fhir.PrimitiveElement `json:"-"`
-	Dependency            []TestPlanDependency   `json:"dependency,omitempty"`
-	ExitCriteria          *string                `json:"exitCriteria,omitempty"`
-	ExitCriteriaElement   *fhir.PrimitiveElement `json:"-"`
-	TestCase              []TestPlanTestCase     `json:"testCase,omitempty"`
+	URL                    *string                `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement `json:"-"`
+	Identifier             []Identifier           `json:"identifier,omitempty"`
+	Version                *string                `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement `json:"-"`
+	VersionAlgorithmString *FHIRString            `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement `json:"-"`
+	Title                  *string                `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement `json:"-"`
+	Status                 *string                `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement `json:"-"`
+	Experimental           *bool                  `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement `json:"-"`
+	Date                   *string                `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement `json:"-"`
+	Publisher              *string                `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement `json:"-"`
+	Contact                []ContactDetail        `json:"contact,omitempty"`
+	Description            *string                `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement `json:"-"`
+	UseContext             []UsageContext         `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept      `json:"jurisdiction,omitempty"`
+	Purpose                *string                `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement `json:"-"`
+	Copyright              *string                `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement `json:"-"`
+	CopyrightLabel         *string                `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement `json:"-"`
+	Category               []CodeableConcept      `json:"category,omitempty"`
+	Scope                  []Reference            `json:"scope,omitempty"`
+	TestTools              *string                `json:"testTools,omitempty"`
+	TestToolsElement       *fhir.PrimitiveElement `json:"-"`
+	Dependency             []TestPlanDependency   `json:"dependency,omitempty"`
+	ExitCriteria           *string                `json:"exitCriteria,omitempty"`
+	ExitCriteriaElement    *fhir.PrimitiveElement `json:"-"`
+	TestCase               []TestPlanTestCase     `json:"testCase,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "TestPlan".
@@ -268,6 +269,47 @@ func (v *TestPlan) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// TestPlanVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isTestPlanVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type TestPlanVersionAlgorithm interface{ isTestPlanVersionAlgorithm() }
+
+func (FHIRString) isTestPlanVersionAlgorithm() {}
+func (Coding) isTestPlanVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *TestPlan) VersionAlgorithm() (TestPlanVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isTestPlanVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestPlan) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestPlan) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
 // TestPlanDependency is a generated nested backbone element.
 type TestPlanDependency struct {
 	BackboneElement
@@ -395,9 +437,51 @@ type TestPlanTestCaseAssertion struct {
 // TestPlanTestCaseTestData is a generated nested backbone element.
 type TestPlanTestCaseTestData struct {
 	BackboneElement
-	Type    *Coding    `json:"type,omitempty"`
-	Content *Reference `json:"content,omitempty"`
-	Source  *string    `json:"source,omitempty"`
+	Type            *Coding     `json:"type,omitempty"`
+	Content         *Reference  `json:"content,omitempty"`
+	SourceString    *FHIRString `json:"sourceString,omitempty"`
+	SourceReference *Reference  `json:"sourceReference,omitempty"`
+}
+
+// TestPlanTestCaseTestDataSource is the sealed value interface for the source[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isTestPlanTestCaseTestDataSource marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type TestPlanTestCaseTestDataSource interface{ isTestPlanTestCaseTestDataSource() }
+
+func (FHIRString) isTestPlanTestCaseTestDataSource() {}
+func (Reference) isTestPlanTestCaseTestDataSource()  {}
+
+// Source returns the value set in the source[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *TestPlanTestCaseTestData) Source() (TestPlanTestCaseTestDataSource, bool) {
+	switch {
+	case r.SourceString != nil:
+		return *r.SourceString, true
+	case r.SourceReference != nil:
+		return *r.SourceReference, true
+	}
+	return nil, false
+}
+
+// SetSourceString sets source[x] to a FHIRString (the
+// release primitive wrapper that carries the isTestPlanTestCaseTestDataSource marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestPlanTestCaseTestData) SetSourceString(v FHIRString) {
+	r.SourceString = nil
+	r.SourceReference = nil
+	r.SourceString = &v
+}
+
+// SetSourceReference sets source[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestPlanTestCaseTestData) SetSourceReference(v Reference) {
+	r.SourceString = nil
+	r.SourceReference = nil
+	r.SourceReference = &v
 }
 
 // TestPlanTestCaseTestRun is a generated nested backbone element.
@@ -459,6 +543,48 @@ func (v *TestPlanTestCaseTestRun) UnmarshalJSON(data []byte) error {
 // TestPlanTestCaseTestRunScript is a generated nested backbone element.
 type TestPlanTestCaseTestRunScript struct {
 	BackboneElement
-	Language *CodeableConcept `json:"language,omitempty"`
-	Source   *string          `json:"source,omitempty"`
+	Language        *CodeableConcept `json:"language,omitempty"`
+	SourceString    *FHIRString      `json:"sourceString,omitempty"`
+	SourceReference *Reference       `json:"sourceReference,omitempty"`
+}
+
+// TestPlanTestCaseTestRunScriptSource is the sealed value interface for the source[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isTestPlanTestCaseTestRunScriptSource marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type TestPlanTestCaseTestRunScriptSource interface{ isTestPlanTestCaseTestRunScriptSource() }
+
+func (FHIRString) isTestPlanTestCaseTestRunScriptSource() {}
+func (Reference) isTestPlanTestCaseTestRunScriptSource()  {}
+
+// Source returns the value set in the source[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *TestPlanTestCaseTestRunScript) Source() (TestPlanTestCaseTestRunScriptSource, bool) {
+	switch {
+	case r.SourceString != nil:
+		return *r.SourceString, true
+	case r.SourceReference != nil:
+		return *r.SourceReference, true
+	}
+	return nil, false
+}
+
+// SetSourceString sets source[x] to a FHIRString (the
+// release primitive wrapper that carries the isTestPlanTestCaseTestRunScriptSource marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestPlanTestCaseTestRunScript) SetSourceString(v FHIRString) {
+	r.SourceString = nil
+	r.SourceReference = nil
+	r.SourceString = &v
+}
+
+// SetSourceReference sets source[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestPlanTestCaseTestRunScript) SetSourceReference(v Reference) {
+	r.SourceString = nil
+	r.SourceReference = nil
+	r.SourceReference = &v
 }

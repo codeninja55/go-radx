@@ -10,19 +10,20 @@ import (
 // DataRequirement is the generated FHIR DataRequirement datatype.
 type DataRequirement struct {
 	Element
-	Type               *string                      `json:"type,omitempty"`
-	TypeElement        *fhir.PrimitiveElement       `json:"-"`
-	Profile            []string                     `json:"profile,omitempty"`
-	ProfileElement     []*fhir.PrimitiveElement     `json:"-"`
-	Subject            *CodeableConcept             `json:"subject,omitempty"`
-	MustSupport        []string                     `json:"mustSupport,omitempty"`
-	MustSupportElement []*fhir.PrimitiveElement     `json:"-"`
-	CodeFilter         []DataRequirementCodeFilter  `json:"codeFilter,omitempty"`
-	DateFilter         []DataRequirementDateFilter  `json:"dateFilter,omitempty"`
-	ValueFilter        []DataRequirementValueFilter `json:"valueFilter,omitempty"`
-	Limit              *int32                       `json:"limit,omitempty"`
-	LimitElement       *fhir.PrimitiveElement       `json:"-"`
-	Sort               []DataRequirementSort        `json:"sort,omitempty"`
+	Type                   *string                      `json:"type,omitempty"`
+	TypeElement            *fhir.PrimitiveElement       `json:"-"`
+	Profile                []string                     `json:"profile,omitempty"`
+	ProfileElement         []*fhir.PrimitiveElement     `json:"-"`
+	SubjectCodeableConcept *CodeableConcept             `json:"subjectCodeableConcept,omitempty"`
+	SubjectReference       *Reference                   `json:"subjectReference,omitempty"`
+	MustSupport            []string                     `json:"mustSupport,omitempty"`
+	MustSupportElement     []*fhir.PrimitiveElement     `json:"-"`
+	CodeFilter             []DataRequirementCodeFilter  `json:"codeFilter,omitempty"`
+	DateFilter             []DataRequirementDateFilter  `json:"dateFilter,omitempty"`
+	ValueFilter            []DataRequirementValueFilter `json:"valueFilter,omitempty"`
+	Limit                  *int32                       `json:"limit,omitempty"`
+	LimitElement           *fhir.PrimitiveElement       `json:"-"`
+	Sort                   []DataRequirementSort        `json:"sort,omitempty"`
 }
 
 // MarshalJSON folds the primitive "_field" siblings into the encoded value: a scalar
@@ -109,6 +110,45 @@ func (v *DataRequirement) UnmarshalJSON(data []byte) error {
 	}
 	type alias DataRequirement
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// DataRequirementSubject is the sealed value interface for the subject[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDataRequirementSubject marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DataRequirementSubject interface{ isDataRequirementSubject() }
+
+func (CodeableConcept) isDataRequirementSubject() {}
+func (Reference) isDataRequirementSubject()       {}
+
+// Subject returns the value set in the subject[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DataRequirement) Subject() (DataRequirementSubject, bool) {
+	switch {
+	case r.SubjectCodeableConcept != nil:
+		return *r.SubjectCodeableConcept, true
+	case r.SubjectReference != nil:
+		return *r.SubjectReference, true
+	}
+	return nil, false
+}
+
+// SetSubjectCodeableConcept sets subject[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DataRequirement) SetSubjectCodeableConcept(v CodeableConcept) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCodeableConcept = &v
+}
+
+// SetSubjectReference sets subject[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DataRequirement) SetSubjectReference(v Reference) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectReference = &v
 }
 
 // DataRequirementCodeFilter is a generated nested backbone element.
@@ -202,7 +242,9 @@ type DataRequirementDateFilter struct {
 	PathElement        *fhir.PrimitiveElement `json:"-"`
 	SearchParam        *string                `json:"searchParam,omitempty"`
 	SearchParamElement *fhir.PrimitiveElement `json:"-"`
-	Value              *string                `json:"value,omitempty"`
+	ValueDateTime      *FHIRDateTime          `json:"valueDateTime,omitempty"`
+	ValuePeriod        *Period                `json:"valuePeriod,omitempty"`
+	ValueDuration      *Duration              `json:"valueDuration,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -263,6 +305,61 @@ func (v *DataRequirementDateFilter) UnmarshalJSON(data []byte) error {
 	}
 	type alias DataRequirementDateFilter
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// DataRequirementDateFilterValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDataRequirementDateFilterValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DataRequirementDateFilterValue interface{ isDataRequirementDateFilterValue() }
+
+func (FHIRDateTime) isDataRequirementDateFilterValue() {}
+func (Period) isDataRequirementDateFilterValue()       {}
+func (Duration) isDataRequirementDateFilterValue()     {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DataRequirementDateFilter) Value() (DataRequirementDateFilterValue, bool) {
+	switch {
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValuePeriod != nil:
+		return *r.ValuePeriod, true
+	case r.ValueDuration != nil:
+		return *r.ValueDuration, true
+	}
+	return nil, false
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isDataRequirementDateFilterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DataRequirementDateFilter) SetValueDateTime(v FHIRDateTime) {
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueDuration = nil
+	r.ValueDateTime = &v
+}
+
+// SetValuePeriod sets value[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DataRequirementDateFilter) SetValuePeriod(v Period) {
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueDuration = nil
+	r.ValuePeriod = &v
+}
+
+// SetValueDuration sets value[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DataRequirementDateFilter) SetValueDuration(v Duration) {
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueDuration = nil
+	r.ValueDuration = &v
 }
 
 // DataRequirementSort is a generated nested backbone element.
@@ -343,7 +440,9 @@ type DataRequirementValueFilter struct {
 	SearchParamElement *fhir.PrimitiveElement `json:"-"`
 	Comparator         *string                `json:"comparator,omitempty"`
 	ComparatorElement  *fhir.PrimitiveElement `json:"-"`
-	Value              *string                `json:"value,omitempty"`
+	ValueDateTime      *FHIRDateTime          `json:"valueDateTime,omitempty"`
+	ValuePeriod        *Period                `json:"valuePeriod,omitempty"`
+	ValueDuration      *Duration              `json:"valueDuration,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -416,4 +515,59 @@ func (v *DataRequirementValueFilter) UnmarshalJSON(data []byte) error {
 	}
 	type alias DataRequirementValueFilter
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// DataRequirementValueFilterValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDataRequirementValueFilterValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DataRequirementValueFilterValue interface{ isDataRequirementValueFilterValue() }
+
+func (FHIRDateTime) isDataRequirementValueFilterValue() {}
+func (Period) isDataRequirementValueFilterValue()       {}
+func (Duration) isDataRequirementValueFilterValue()     {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DataRequirementValueFilter) Value() (DataRequirementValueFilterValue, bool) {
+	switch {
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValuePeriod != nil:
+		return *r.ValuePeriod, true
+	case r.ValueDuration != nil:
+		return *r.ValueDuration, true
+	}
+	return nil, false
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isDataRequirementValueFilterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DataRequirementValueFilter) SetValueDateTime(v FHIRDateTime) {
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueDuration = nil
+	r.ValueDateTime = &v
+}
+
+// SetValuePeriod sets value[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DataRequirementValueFilter) SetValuePeriod(v Period) {
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueDuration = nil
+	r.ValuePeriod = &v
+}
+
+// SetValueDuration sets value[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DataRequirementValueFilter) SetValueDuration(v Duration) {
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueDuration = nil
+	r.ValueDuration = &v
 }

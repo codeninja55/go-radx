@@ -22,10 +22,12 @@ type Patient struct {
 	GenderElement        *fhir.PrimitiveElement `json:"-"`
 	BirthDate            *string                `json:"birthDate,omitempty"`
 	BirthDateElement     *fhir.PrimitiveElement `json:"-"`
-	Deceased             *bool                  `json:"deceased,omitempty"`
+	DeceasedBoolean      *FHIRBoolean           `json:"deceasedBoolean,omitempty"`
+	DeceasedDateTime     *FHIRDateTime          `json:"deceasedDateTime,omitempty"`
 	Address              []Address              `json:"address,omitempty"`
 	MaritalStatus        *CodeableConcept       `json:"maritalStatus,omitempty"`
-	MultipleBirth        *bool                  `json:"multipleBirth,omitempty"`
+	MultipleBirthBoolean *FHIRBoolean           `json:"multipleBirthBoolean,omitempty"`
+	MultipleBirthInteger *FHIRInteger           `json:"multipleBirthInteger,omitempty"`
 	Photo                []Attachment           `json:"photo,omitempty"`
 	Contact              []PatientContact       `json:"contact,omitempty"`
 	Communication        []PatientCommunication `json:"communication,omitempty"`
@@ -116,6 +118,92 @@ func (v *Patient) UnmarshalJSON(data []byte) error {
 	}
 	type alias Patient
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// PatientDeceased is the sealed value interface for the deceased[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPatientDeceased marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PatientDeceased interface{ isPatientDeceased() }
+
+func (FHIRBoolean) isPatientDeceased()  {}
+func (FHIRDateTime) isPatientDeceased() {}
+
+// Deceased returns the value set in the deceased[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Patient) Deceased() (PatientDeceased, bool) {
+	switch {
+	case r.DeceasedBoolean != nil:
+		return *r.DeceasedBoolean, true
+	case r.DeceasedDateTime != nil:
+		return *r.DeceasedDateTime, true
+	}
+	return nil, false
+}
+
+// SetDeceasedBoolean sets deceased[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isPatientDeceased marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Patient) SetDeceasedBoolean(v FHIRBoolean) {
+	r.DeceasedBoolean = nil
+	r.DeceasedDateTime = nil
+	r.DeceasedBoolean = &v
+}
+
+// SetDeceasedDateTime sets deceased[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isPatientDeceased marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Patient) SetDeceasedDateTime(v FHIRDateTime) {
+	r.DeceasedBoolean = nil
+	r.DeceasedDateTime = nil
+	r.DeceasedDateTime = &v
+}
+
+// PatientMultipleBirth is the sealed value interface for the multipleBirth[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPatientMultipleBirth marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PatientMultipleBirth interface{ isPatientMultipleBirth() }
+
+func (FHIRBoolean) isPatientMultipleBirth() {}
+func (FHIRInteger) isPatientMultipleBirth() {}
+
+// MultipleBirth returns the value set in the multipleBirth[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Patient) MultipleBirth() (PatientMultipleBirth, bool) {
+	switch {
+	case r.MultipleBirthBoolean != nil:
+		return *r.MultipleBirthBoolean, true
+	case r.MultipleBirthInteger != nil:
+		return *r.MultipleBirthInteger, true
+	}
+	return nil, false
+}
+
+// SetMultipleBirthBoolean sets multipleBirth[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isPatientMultipleBirth marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Patient) SetMultipleBirthBoolean(v FHIRBoolean) {
+	r.MultipleBirthBoolean = nil
+	r.MultipleBirthInteger = nil
+	r.MultipleBirthBoolean = &v
+}
+
+// SetMultipleBirthInteger sets multipleBirth[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isPatientMultipleBirth marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Patient) SetMultipleBirthInteger(v FHIRInteger) {
+	r.MultipleBirthBoolean = nil
+	r.MultipleBirthInteger = nil
+	r.MultipleBirthInteger = &v
 }
 
 // PatientCommunication is a generated nested backbone element.

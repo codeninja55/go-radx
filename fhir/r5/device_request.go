@@ -35,7 +35,9 @@ type DeviceRequest struct {
 	Parameter                    []DeviceRequestParameter `json:"parameter,omitempty"`
 	Subject                      *Reference               `json:"subject,omitempty"`
 	Encounter                    *Reference               `json:"encounter,omitempty"`
-	Occurrence                   *string                  `json:"occurrence,omitempty"`
+	OccurrenceDateTime           *FHIRDateTime            `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod             *Period                  `json:"occurrencePeriod,omitempty"`
+	OccurrenceTiming             *Timing                  `json:"occurrenceTiming,omitempty"`
 	AuthoredOn                   *string                  `json:"authoredOn,omitempty"`
 	AuthoredOnElement            *fhir.PrimitiveElement   `json:"-"`
 	Requester                    *Reference               `json:"requester,omitempty"`
@@ -206,9 +208,138 @@ func (v *DeviceRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// DeviceRequestOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDeviceRequestOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DeviceRequestOccurrence interface{ isDeviceRequestOccurrence() }
+
+func (FHIRDateTime) isDeviceRequestOccurrence() {}
+func (Period) isDeviceRequestOccurrence()       {}
+func (Timing) isDeviceRequestOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DeviceRequest) Occurrence() (DeviceRequestOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	case r.OccurrenceTiming != nil:
+		return *r.OccurrenceTiming, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isDeviceRequestOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceRequest) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceRequest) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrencePeriod = &v
+}
+
+// SetOccurrenceTiming sets occurrence[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceRequest) SetOccurrenceTiming(v Timing) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceTiming = &v
+}
+
 // DeviceRequestParameter is a generated nested backbone element.
 type DeviceRequestParameter struct {
 	BackboneElement
-	Code  *CodeableConcept `json:"code,omitempty"`
-	Value *CodeableConcept `json:"value,omitempty"`
+	Code                 *CodeableConcept `json:"code,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueRange           *Range           `json:"valueRange,omitempty"`
+	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
+}
+
+// DeviceRequestParameterValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDeviceRequestParameterValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DeviceRequestParameterValue interface{ isDeviceRequestParameterValue() }
+
+func (CodeableConcept) isDeviceRequestParameterValue() {}
+func (Quantity) isDeviceRequestParameterValue()        {}
+func (Range) isDeviceRequestParameterValue()           {}
+func (FHIRBoolean) isDeviceRequestParameterValue()     {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DeviceRequestParameter) Value() (DeviceRequestParameterValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceRequestParameter) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueBoolean = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceRequestParameter) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceRequestParameter) SetValueRange(v Range) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueBoolean = nil
+	r.ValueRange = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isDeviceRequestParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceRequestParameter) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueBoolean = nil
+	r.ValueBoolean = &v
 }

@@ -148,13 +148,18 @@ func (v *MeasureReport) UnmarshalJSON(data []byte) error {
 // MeasureReportGroup is a generated nested backbone element.
 type MeasureReportGroup struct {
 	BackboneElement
-	LinkId        *string                        `json:"linkId,omitempty"`
-	LinkIdElement *fhir.PrimitiveElement         `json:"-"`
-	Code          *CodeableConcept               `json:"code,omitempty"`
-	Subject       *Reference                     `json:"subject,omitempty"`
-	Population    []MeasureReportGroupPopulation `json:"population,omitempty"`
-	MeasureScore  *Quantity                      `json:"measureScore,omitempty"`
-	Stratifier    []MeasureReportGroupStratifier `json:"stratifier,omitempty"`
+	LinkId                      *string                        `json:"linkId,omitempty"`
+	LinkIdElement               *fhir.PrimitiveElement         `json:"-"`
+	Code                        *CodeableConcept               `json:"code,omitempty"`
+	Subject                     *Reference                     `json:"subject,omitempty"`
+	Population                  []MeasureReportGroupPopulation `json:"population,omitempty"`
+	MeasureScoreQuantity        *Quantity                      `json:"measureScoreQuantity,omitempty"`
+	MeasureScoreDateTime        *FHIRDateTime                  `json:"measureScoreDateTime,omitempty"`
+	MeasureScoreCodeableConcept *CodeableConcept               `json:"measureScoreCodeableConcept,omitempty"`
+	MeasureScorePeriod          *Period                        `json:"measureScorePeriod,omitempty"`
+	MeasureScoreRange           *Range                         `json:"measureScoreRange,omitempty"`
+	MeasureScoreDuration        *Duration                      `json:"measureScoreDuration,omitempty"`
+	Stratifier                  []MeasureReportGroupStratifier `json:"stratifier,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -203,6 +208,115 @@ func (v *MeasureReportGroup) UnmarshalJSON(data []byte) error {
 	}
 	type alias MeasureReportGroup
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MeasureReportGroupMeasureScore is the sealed value interface for the measureScore[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMeasureReportGroupMeasureScore marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MeasureReportGroupMeasureScore interface{ isMeasureReportGroupMeasureScore() }
+
+func (Quantity) isMeasureReportGroupMeasureScore()        {}
+func (FHIRDateTime) isMeasureReportGroupMeasureScore()    {}
+func (CodeableConcept) isMeasureReportGroupMeasureScore() {}
+func (Period) isMeasureReportGroupMeasureScore()          {}
+func (Range) isMeasureReportGroupMeasureScore()           {}
+func (Duration) isMeasureReportGroupMeasureScore()        {}
+
+// MeasureScore returns the value set in the measureScore[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MeasureReportGroup) MeasureScore() (MeasureReportGroupMeasureScore, bool) {
+	switch {
+	case r.MeasureScoreQuantity != nil:
+		return *r.MeasureScoreQuantity, true
+	case r.MeasureScoreDateTime != nil:
+		return *r.MeasureScoreDateTime, true
+	case r.MeasureScoreCodeableConcept != nil:
+		return *r.MeasureScoreCodeableConcept, true
+	case r.MeasureScorePeriod != nil:
+		return *r.MeasureScorePeriod, true
+	case r.MeasureScoreRange != nil:
+		return *r.MeasureScoreRange, true
+	case r.MeasureScoreDuration != nil:
+		return *r.MeasureScoreDuration, true
+	}
+	return nil, false
+}
+
+// SetMeasureScoreQuantity sets measureScore[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroup) SetMeasureScoreQuantity(v Quantity) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreQuantity = &v
+}
+
+// SetMeasureScoreDateTime sets measureScore[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isMeasureReportGroupMeasureScore marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroup) SetMeasureScoreDateTime(v FHIRDateTime) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreDateTime = &v
+}
+
+// SetMeasureScoreCodeableConcept sets measureScore[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroup) SetMeasureScoreCodeableConcept(v CodeableConcept) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreCodeableConcept = &v
+}
+
+// SetMeasureScorePeriod sets measureScore[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroup) SetMeasureScorePeriod(v Period) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScorePeriod = &v
+}
+
+// SetMeasureScoreRange sets measureScore[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroup) SetMeasureScoreRange(v Range) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreRange = &v
+}
+
+// SetMeasureScoreDuration sets measureScore[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroup) SetMeasureScoreDuration(v Duration) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreDuration = &v
 }
 
 // MeasureReportGroupPopulation is a generated nested backbone element.
@@ -338,19 +452,230 @@ func (v *MeasureReportGroupStratifier) UnmarshalJSON(data []byte) error {
 // MeasureReportGroupStratifierStratum is a generated nested backbone element.
 type MeasureReportGroupStratifierStratum struct {
 	BackboneElement
-	Value        *CodeableConcept                               `json:"value,omitempty"`
-	Component    []MeasureReportGroupStratifierStratumComponent `json:"component,omitempty"`
-	Population   []MeasureReportGroupPopulation                 `json:"population,omitempty"`
-	MeasureScore *Quantity                                      `json:"measureScore,omitempty"`
+	ValueCodeableConcept        *CodeableConcept                               `json:"valueCodeableConcept,omitempty"`
+	ValueBoolean                *FHIRBoolean                                   `json:"valueBoolean,omitempty"`
+	ValueQuantity               *Quantity                                      `json:"valueQuantity,omitempty"`
+	ValueRange                  *Range                                         `json:"valueRange,omitempty"`
+	ValueReference              *Reference                                     `json:"valueReference,omitempty"`
+	Component                   []MeasureReportGroupStratifierStratumComponent `json:"component,omitempty"`
+	Population                  []MeasureReportGroupPopulation                 `json:"population,omitempty"`
+	MeasureScoreQuantity        *Quantity                                      `json:"measureScoreQuantity,omitempty"`
+	MeasureScoreDateTime        *FHIRDateTime                                  `json:"measureScoreDateTime,omitempty"`
+	MeasureScoreCodeableConcept *CodeableConcept                               `json:"measureScoreCodeableConcept,omitempty"`
+	MeasureScorePeriod          *Period                                        `json:"measureScorePeriod,omitempty"`
+	MeasureScoreRange           *Range                                         `json:"measureScoreRange,omitempty"`
+	MeasureScoreDuration        *Duration                                      `json:"measureScoreDuration,omitempty"`
+}
+
+// MeasureReportGroupStratifierStratumValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMeasureReportGroupStratifierStratumValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MeasureReportGroupStratifierStratumValue interface{ isMeasureReportGroupStratifierStratumValue() }
+
+func (CodeableConcept) isMeasureReportGroupStratifierStratumValue() {}
+func (FHIRBoolean) isMeasureReportGroupStratifierStratumValue()     {}
+func (Quantity) isMeasureReportGroupStratifierStratumValue()        {}
+func (Range) isMeasureReportGroupStratifierStratumValue()           {}
+func (Reference) isMeasureReportGroupStratifierStratumValue()       {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MeasureReportGroupStratifierStratum) Value() (MeasureReportGroupStratifierStratumValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isMeasureReportGroupStratifierStratumValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetValueRange(v Range) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueRange = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetValueReference(v Reference) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
+}
+
+// MeasureReportGroupStratifierStratumMeasureScore is the sealed value interface for the measureScore[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMeasureReportGroupStratifierStratumMeasureScore marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MeasureReportGroupStratifierStratumMeasureScore interface{ isMeasureReportGroupStratifierStratumMeasureScore() }
+
+func (Quantity) isMeasureReportGroupStratifierStratumMeasureScore()        {}
+func (FHIRDateTime) isMeasureReportGroupStratifierStratumMeasureScore()    {}
+func (CodeableConcept) isMeasureReportGroupStratifierStratumMeasureScore() {}
+func (Period) isMeasureReportGroupStratifierStratumMeasureScore()          {}
+func (Range) isMeasureReportGroupStratifierStratumMeasureScore()           {}
+func (Duration) isMeasureReportGroupStratifierStratumMeasureScore()        {}
+
+// MeasureScore returns the value set in the measureScore[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MeasureReportGroupStratifierStratum) MeasureScore() (MeasureReportGroupStratifierStratumMeasureScore, bool) {
+	switch {
+	case r.MeasureScoreQuantity != nil:
+		return *r.MeasureScoreQuantity, true
+	case r.MeasureScoreDateTime != nil:
+		return *r.MeasureScoreDateTime, true
+	case r.MeasureScoreCodeableConcept != nil:
+		return *r.MeasureScoreCodeableConcept, true
+	case r.MeasureScorePeriod != nil:
+		return *r.MeasureScorePeriod, true
+	case r.MeasureScoreRange != nil:
+		return *r.MeasureScoreRange, true
+	case r.MeasureScoreDuration != nil:
+		return *r.MeasureScoreDuration, true
+	}
+	return nil, false
+}
+
+// SetMeasureScoreQuantity sets measureScore[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetMeasureScoreQuantity(v Quantity) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreQuantity = &v
+}
+
+// SetMeasureScoreDateTime sets measureScore[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isMeasureReportGroupStratifierStratumMeasureScore marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetMeasureScoreDateTime(v FHIRDateTime) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreDateTime = &v
+}
+
+// SetMeasureScoreCodeableConcept sets measureScore[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetMeasureScoreCodeableConcept(v CodeableConcept) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreCodeableConcept = &v
+}
+
+// SetMeasureScorePeriod sets measureScore[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetMeasureScorePeriod(v Period) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScorePeriod = &v
+}
+
+// SetMeasureScoreRange sets measureScore[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetMeasureScoreRange(v Range) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreRange = &v
+}
+
+// SetMeasureScoreDuration sets measureScore[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratum) SetMeasureScoreDuration(v Duration) {
+	r.MeasureScoreQuantity = nil
+	r.MeasureScoreDateTime = nil
+	r.MeasureScoreCodeableConcept = nil
+	r.MeasureScorePeriod = nil
+	r.MeasureScoreRange = nil
+	r.MeasureScoreDuration = nil
+	r.MeasureScoreDuration = &v
 }
 
 // MeasureReportGroupStratifierStratumComponent is a generated nested backbone element.
 type MeasureReportGroupStratifierStratumComponent struct {
 	BackboneElement
-	LinkId        *string                `json:"linkId,omitempty"`
-	LinkIdElement *fhir.PrimitiveElement `json:"-"`
-	Code          *CodeableConcept       `json:"code,omitempty"`
-	Value         *CodeableConcept       `json:"value,omitempty"`
+	LinkId               *string                `json:"linkId,omitempty"`
+	LinkIdElement        *fhir.PrimitiveElement `json:"-"`
+	Code                 *CodeableConcept       `json:"code,omitempty"`
+	ValueCodeableConcept *CodeableConcept       `json:"valueCodeableConcept,omitempty"`
+	ValueBoolean         *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueQuantity        *Quantity              `json:"valueQuantity,omitempty"`
+	ValueRange           *Range                 `json:"valueRange,omitempty"`
+	ValueReference       *Reference             `json:"valueReference,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -399,4 +724,93 @@ func (v *MeasureReportGroupStratifierStratumComponent) UnmarshalJSON(data []byte
 	}
 	type alias MeasureReportGroupStratifierStratumComponent
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MeasureReportGroupStratifierStratumComponentValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMeasureReportGroupStratifierStratumComponentValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MeasureReportGroupStratifierStratumComponentValue interface{ isMeasureReportGroupStratifierStratumComponentValue() }
+
+func (CodeableConcept) isMeasureReportGroupStratifierStratumComponentValue() {}
+func (FHIRBoolean) isMeasureReportGroupStratifierStratumComponentValue()     {}
+func (Quantity) isMeasureReportGroupStratifierStratumComponentValue()        {}
+func (Range) isMeasureReportGroupStratifierStratumComponentValue()           {}
+func (Reference) isMeasureReportGroupStratifierStratumComponentValue()       {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MeasureReportGroupStratifierStratumComponent) Value() (MeasureReportGroupStratifierStratumComponentValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratumComponent) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isMeasureReportGroupStratifierStratumComponentValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratumComponent) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratumComponent) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratumComponent) SetValueRange(v Range) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueRange = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MeasureReportGroupStratifierStratumComponent) SetValueReference(v Reference) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
 }

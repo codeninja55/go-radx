@@ -13,7 +13,8 @@ const MessageHeaderResourceType = "MessageHeader"
 // MessageHeader is the generated FHIR MessageHeader resource.
 type MessageHeader struct {
 	DomainResource
-	Event             *Coding                    `json:"event,omitempty"`
+	EventCoding       *Coding                    `json:"eventCoding,omitempty"`
+	EventCanonical    *FHIRCanonical             `json:"eventCanonical,omitempty"`
 	Destination       []MessageHeaderDestination `json:"destination,omitempty"`
 	Sender            *Reference                 `json:"sender,omitempty"`
 	Author            *Reference                 `json:"author,omitempty"`
@@ -86,14 +87,56 @@ func (v *MessageHeader) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// MessageHeaderEvent is the sealed value interface for the event[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMessageHeaderEvent marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MessageHeaderEvent interface{ isMessageHeaderEvent() }
+
+func (Coding) isMessageHeaderEvent()        {}
+func (FHIRCanonical) isMessageHeaderEvent() {}
+
+// Event returns the value set in the event[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MessageHeader) Event() (MessageHeaderEvent, bool) {
+	switch {
+	case r.EventCoding != nil:
+		return *r.EventCoding, true
+	case r.EventCanonical != nil:
+		return *r.EventCanonical, true
+	}
+	return nil, false
+}
+
+// SetEventCoding sets event[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageHeader) SetEventCoding(v Coding) {
+	r.EventCoding = nil
+	r.EventCanonical = nil
+	r.EventCoding = &v
+}
+
+// SetEventCanonical sets event[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isMessageHeaderEvent marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageHeader) SetEventCanonical(v FHIRCanonical) {
+	r.EventCoding = nil
+	r.EventCanonical = nil
+	r.EventCanonical = &v
+}
+
 // MessageHeaderDestination is a generated nested backbone element.
 type MessageHeaderDestination struct {
 	BackboneElement
-	Endpoint    *string                `json:"endpoint,omitempty"`
-	Name        *string                `json:"name,omitempty"`
-	NameElement *fhir.PrimitiveElement `json:"-"`
-	Target      *Reference             `json:"target,omitempty"`
-	Receiver    *Reference             `json:"receiver,omitempty"`
+	EndpointURL       *FHIRURL               `json:"endpointURL,omitempty"`
+	EndpointReference *Reference             `json:"endpointReference,omitempty"`
+	Name              *string                `json:"name,omitempty"`
+	NameElement       *fhir.PrimitiveElement `json:"-"`
+	Target            *Reference             `json:"target,omitempty"`
+	Receiver          *Reference             `json:"receiver,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -142,6 +185,47 @@ func (v *MessageHeaderDestination) UnmarshalJSON(data []byte) error {
 	}
 	type alias MessageHeaderDestination
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MessageHeaderDestinationEndpoint is the sealed value interface for the endpoint[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMessageHeaderDestinationEndpoint marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MessageHeaderDestinationEndpoint interface{ isMessageHeaderDestinationEndpoint() }
+
+func (FHIRURL) isMessageHeaderDestinationEndpoint()   {}
+func (Reference) isMessageHeaderDestinationEndpoint() {}
+
+// Endpoint returns the value set in the endpoint[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MessageHeaderDestination) Endpoint() (MessageHeaderDestinationEndpoint, bool) {
+	switch {
+	case r.EndpointURL != nil:
+		return *r.EndpointURL, true
+	case r.EndpointReference != nil:
+		return *r.EndpointReference, true
+	}
+	return nil, false
+}
+
+// SetEndpointURL sets endpoint[x] to a FHIRURL (the
+// release primitive wrapper that carries the isMessageHeaderDestinationEndpoint marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageHeaderDestination) SetEndpointURL(v FHIRURL) {
+	r.EndpointURL = nil
+	r.EndpointReference = nil
+	r.EndpointURL = &v
+}
+
+// SetEndpointReference sets endpoint[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageHeaderDestination) SetEndpointReference(v Reference) {
+	r.EndpointURL = nil
+	r.EndpointReference = nil
+	r.EndpointReference = &v
 }
 
 // MessageHeaderResponse is a generated nested backbone element.
@@ -204,14 +288,15 @@ func (v *MessageHeaderResponse) UnmarshalJSON(data []byte) error {
 // MessageHeaderSource is a generated nested backbone element.
 type MessageHeaderSource struct {
 	BackboneElement
-	Endpoint        *string                `json:"endpoint,omitempty"`
-	Name            *string                `json:"name,omitempty"`
-	NameElement     *fhir.PrimitiveElement `json:"-"`
-	Software        *string                `json:"software,omitempty"`
-	SoftwareElement *fhir.PrimitiveElement `json:"-"`
-	Version         *string                `json:"version,omitempty"`
-	VersionElement  *fhir.PrimitiveElement `json:"-"`
-	Contact         *ContactPoint          `json:"contact,omitempty"`
+	EndpointURL       *FHIRURL               `json:"endpointURL,omitempty"`
+	EndpointReference *Reference             `json:"endpointReference,omitempty"`
+	Name              *string                `json:"name,omitempty"`
+	NameElement       *fhir.PrimitiveElement `json:"-"`
+	Software          *string                `json:"software,omitempty"`
+	SoftwareElement   *fhir.PrimitiveElement `json:"-"`
+	Version           *string                `json:"version,omitempty"`
+	VersionElement    *fhir.PrimitiveElement `json:"-"`
+	Contact           *ContactPoint          `json:"contact,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -284,4 +369,45 @@ func (v *MessageHeaderSource) UnmarshalJSON(data []byte) error {
 	}
 	type alias MessageHeaderSource
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MessageHeaderSourceEndpoint is the sealed value interface for the endpoint[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMessageHeaderSourceEndpoint marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MessageHeaderSourceEndpoint interface{ isMessageHeaderSourceEndpoint() }
+
+func (FHIRURL) isMessageHeaderSourceEndpoint()   {}
+func (Reference) isMessageHeaderSourceEndpoint() {}
+
+// Endpoint returns the value set in the endpoint[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MessageHeaderSource) Endpoint() (MessageHeaderSourceEndpoint, bool) {
+	switch {
+	case r.EndpointURL != nil:
+		return *r.EndpointURL, true
+	case r.EndpointReference != nil:
+		return *r.EndpointReference, true
+	}
+	return nil, false
+}
+
+// SetEndpointURL sets endpoint[x] to a FHIRURL (the
+// release primitive wrapper that carries the isMessageHeaderSourceEndpoint marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageHeaderSource) SetEndpointURL(v FHIRURL) {
+	r.EndpointURL = nil
+	r.EndpointReference = nil
+	r.EndpointURL = &v
+}
+
+// SetEndpointReference sets endpoint[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MessageHeaderSource) SetEndpointReference(v Reference) {
+	r.EndpointURL = nil
+	r.EndpointReference = nil
+	r.EndpointReference = &v
 }

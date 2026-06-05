@@ -13,58 +13,62 @@ const PlanDefinitionResourceType = "PlanDefinition"
 // PlanDefinition is the generated FHIR PlanDefinition resource.
 type PlanDefinition struct {
 	DomainResource
-	URL                   *string                  `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement   `json:"-"`
-	Identifier            []Identifier             `json:"identifier,omitempty"`
-	Version               *string                  `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement   `json:"-"`
-	VersionAlgorithm      *string                  `json:"versionAlgorithm,omitempty"`
-	Name                  *string                  `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement   `json:"-"`
-	Title                 *string                  `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement   `json:"-"`
-	Subtitle              *string                  `json:"subtitle,omitempty"`
-	SubtitleElement       *fhir.PrimitiveElement   `json:"-"`
-	Type                  *CodeableConcept         `json:"type,omitempty"`
-	Status                *string                  `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement   `json:"-"`
-	Experimental          *bool                    `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement   `json:"-"`
-	Subject               *CodeableConcept         `json:"subject,omitempty"`
-	Date                  *string                  `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement   `json:"-"`
-	Publisher             *string                  `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement   `json:"-"`
-	Contact               []ContactDetail          `json:"contact,omitempty"`
-	Description           *string                  `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement   `json:"-"`
-	UseContext            []UsageContext           `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept        `json:"jurisdiction,omitempty"`
-	Purpose               *string                  `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement   `json:"-"`
-	Usage                 *string                  `json:"usage,omitempty"`
-	UsageElement          *fhir.PrimitiveElement   `json:"-"`
-	Copyright             *string                  `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement   `json:"-"`
-	CopyrightLabel        *string                  `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement   `json:"-"`
-	ApprovalDate          *string                  `json:"approvalDate,omitempty"`
-	ApprovalDateElement   *fhir.PrimitiveElement   `json:"-"`
-	LastReviewDate        *string                  `json:"lastReviewDate,omitempty"`
-	LastReviewDateElement *fhir.PrimitiveElement   `json:"-"`
-	EffectivePeriod       *Period                  `json:"effectivePeriod,omitempty"`
-	Topic                 []CodeableConcept        `json:"topic,omitempty"`
-	Author                []ContactDetail          `json:"author,omitempty"`
-	Editor                []ContactDetail          `json:"editor,omitempty"`
-	Reviewer              []ContactDetail          `json:"reviewer,omitempty"`
-	Endorser              []ContactDetail          `json:"endorser,omitempty"`
-	RelatedArtifact       []RelatedArtifact        `json:"relatedArtifact,omitempty"`
-	Library               []string                 `json:"library,omitempty"`
-	LibraryElement        []*fhir.PrimitiveElement `json:"-"`
-	Goal                  []PlanDefinitionGoal     `json:"goal,omitempty"`
-	Actor                 []PlanDefinitionActor    `json:"actor,omitempty"`
-	Action                []PlanDefinitionAction   `json:"action,omitempty"`
-	AsNeeded              *bool                    `json:"asNeeded,omitempty"`
+	URL                     *string                  `json:"url,omitempty"`
+	URLElement              *fhir.PrimitiveElement   `json:"-"`
+	Identifier              []Identifier             `json:"identifier,omitempty"`
+	Version                 *string                  `json:"version,omitempty"`
+	VersionElement          *fhir.PrimitiveElement   `json:"-"`
+	VersionAlgorithmString  *FHIRString              `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding  *Coding                  `json:"versionAlgorithmCoding,omitempty"`
+	Name                    *string                  `json:"name,omitempty"`
+	NameElement             *fhir.PrimitiveElement   `json:"-"`
+	Title                   *string                  `json:"title,omitempty"`
+	TitleElement            *fhir.PrimitiveElement   `json:"-"`
+	Subtitle                *string                  `json:"subtitle,omitempty"`
+	SubtitleElement         *fhir.PrimitiveElement   `json:"-"`
+	Type                    *CodeableConcept         `json:"type,omitempty"`
+	Status                  *string                  `json:"status,omitempty"`
+	StatusElement           *fhir.PrimitiveElement   `json:"-"`
+	Experimental            *bool                    `json:"experimental,omitempty"`
+	ExperimentalElement     *fhir.PrimitiveElement   `json:"-"`
+	SubjectCodeableConcept  *CodeableConcept         `json:"subjectCodeableConcept,omitempty"`
+	SubjectReference        *Reference               `json:"subjectReference,omitempty"`
+	SubjectCanonical        *FHIRCanonical           `json:"subjectCanonical,omitempty"`
+	Date                    *string                  `json:"date,omitempty"`
+	DateElement             *fhir.PrimitiveElement   `json:"-"`
+	Publisher               *string                  `json:"publisher,omitempty"`
+	PublisherElement        *fhir.PrimitiveElement   `json:"-"`
+	Contact                 []ContactDetail          `json:"contact,omitempty"`
+	Description             *string                  `json:"description,omitempty"`
+	DescriptionElement      *fhir.PrimitiveElement   `json:"-"`
+	UseContext              []UsageContext           `json:"useContext,omitempty"`
+	Jurisdiction            []CodeableConcept        `json:"jurisdiction,omitempty"`
+	Purpose                 *string                  `json:"purpose,omitempty"`
+	PurposeElement          *fhir.PrimitiveElement   `json:"-"`
+	Usage                   *string                  `json:"usage,omitempty"`
+	UsageElement            *fhir.PrimitiveElement   `json:"-"`
+	Copyright               *string                  `json:"copyright,omitempty"`
+	CopyrightElement        *fhir.PrimitiveElement   `json:"-"`
+	CopyrightLabel          *string                  `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement   *fhir.PrimitiveElement   `json:"-"`
+	ApprovalDate            *string                  `json:"approvalDate,omitempty"`
+	ApprovalDateElement     *fhir.PrimitiveElement   `json:"-"`
+	LastReviewDate          *string                  `json:"lastReviewDate,omitempty"`
+	LastReviewDateElement   *fhir.PrimitiveElement   `json:"-"`
+	EffectivePeriod         *Period                  `json:"effectivePeriod,omitempty"`
+	Topic                   []CodeableConcept        `json:"topic,omitempty"`
+	Author                  []ContactDetail          `json:"author,omitempty"`
+	Editor                  []ContactDetail          `json:"editor,omitempty"`
+	Reviewer                []ContactDetail          `json:"reviewer,omitempty"`
+	Endorser                []ContactDetail          `json:"endorser,omitempty"`
+	RelatedArtifact         []RelatedArtifact        `json:"relatedArtifact,omitempty"`
+	Library                 []string                 `json:"library,omitempty"`
+	LibraryElement          []*fhir.PrimitiveElement `json:"-"`
+	Goal                    []PlanDefinitionGoal     `json:"goal,omitempty"`
+	Actor                   []PlanDefinitionActor    `json:"actor,omitempty"`
+	Action                  []PlanDefinitionAction   `json:"action,omitempty"`
+	AsNeededBoolean         *FHIRBoolean             `json:"asNeededBoolean,omitempty"`
+	AsNeededCodeableConcept *CodeableConcept         `json:"asNeededCodeableConcept,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "PlanDefinition".
@@ -319,6 +323,143 @@ func (v *PlanDefinition) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// PlanDefinitionVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPlanDefinitionVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PlanDefinitionVersionAlgorithm interface{ isPlanDefinitionVersionAlgorithm() }
+
+func (FHIRString) isPlanDefinitionVersionAlgorithm() {}
+func (Coding) isPlanDefinitionVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PlanDefinition) VersionAlgorithm() (PlanDefinitionVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isPlanDefinitionVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinition) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinition) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
+// PlanDefinitionSubject is the sealed value interface for the subject[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPlanDefinitionSubject marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PlanDefinitionSubject interface{ isPlanDefinitionSubject() }
+
+func (CodeableConcept) isPlanDefinitionSubject() {}
+func (Reference) isPlanDefinitionSubject()       {}
+func (FHIRCanonical) isPlanDefinitionSubject()   {}
+
+// Subject returns the value set in the subject[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PlanDefinition) Subject() (PlanDefinitionSubject, bool) {
+	switch {
+	case r.SubjectCodeableConcept != nil:
+		return *r.SubjectCodeableConcept, true
+	case r.SubjectReference != nil:
+		return *r.SubjectReference, true
+	case r.SubjectCanonical != nil:
+		return *r.SubjectCanonical, true
+	}
+	return nil, false
+}
+
+// SetSubjectCodeableConcept sets subject[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinition) SetSubjectCodeableConcept(v CodeableConcept) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCanonical = nil
+	r.SubjectCodeableConcept = &v
+}
+
+// SetSubjectReference sets subject[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinition) SetSubjectReference(v Reference) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCanonical = nil
+	r.SubjectReference = &v
+}
+
+// SetSubjectCanonical sets subject[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isPlanDefinitionSubject marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinition) SetSubjectCanonical(v FHIRCanonical) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCanonical = nil
+	r.SubjectCanonical = &v
+}
+
+// PlanDefinitionAsNeeded is the sealed value interface for the asNeeded[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPlanDefinitionAsNeeded marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PlanDefinitionAsNeeded interface{ isPlanDefinitionAsNeeded() }
+
+func (FHIRBoolean) isPlanDefinitionAsNeeded()     {}
+func (CodeableConcept) isPlanDefinitionAsNeeded() {}
+
+// AsNeeded returns the value set in the asNeeded[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PlanDefinition) AsNeeded() (PlanDefinitionAsNeeded, bool) {
+	switch {
+	case r.AsNeededBoolean != nil:
+		return *r.AsNeededBoolean, true
+	case r.AsNeededCodeableConcept != nil:
+		return *r.AsNeededCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetAsNeededBoolean sets asNeeded[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isPlanDefinitionAsNeeded marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinition) SetAsNeededBoolean(v FHIRBoolean) {
+	r.AsNeededBoolean = nil
+	r.AsNeededCodeableConcept = nil
+	r.AsNeededBoolean = &v
+}
+
+// SetAsNeededCodeableConcept sets asNeeded[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinition) SetAsNeededCodeableConcept(v CodeableConcept) {
+	r.AsNeededBoolean = nil
+	r.AsNeededCodeableConcept = nil
+	r.AsNeededCodeableConcept = &v
+}
+
 // PlanDefinitionAction is a generated nested backbone element.
 type PlanDefinitionAction struct {
 	BackboneElement
@@ -339,13 +480,18 @@ type PlanDefinitionAction struct {
 	Documentation              []RelatedArtifact                   `json:"documentation,omitempty"`
 	GoalId                     []string                            `json:"goalId,omitempty"`
 	GoalIdElement              []*fhir.PrimitiveElement            `json:"-"`
-	Subject                    *CodeableConcept                    `json:"subject,omitempty"`
+	SubjectCodeableConcept     *CodeableConcept                    `json:"subjectCodeableConcept,omitempty"`
+	SubjectReference           *Reference                          `json:"subjectReference,omitempty"`
+	SubjectCanonical           *FHIRCanonical                      `json:"subjectCanonical,omitempty"`
 	Trigger                    []TriggerDefinition                 `json:"trigger,omitempty"`
 	Condition                  []PlanDefinitionActionCondition     `json:"condition,omitempty"`
 	Input                      []PlanDefinitionActionInput         `json:"input,omitempty"`
 	Output                     []PlanDefinitionActionInput         `json:"output,omitempty"`
 	RelatedAction              []PlanDefinitionActionRelatedAction `json:"relatedAction,omitempty"`
-	Timing                     *Age                                `json:"timing,omitempty"`
+	TimingAge                  *Age                                `json:"timingAge,omitempty"`
+	TimingDuration             *Duration                           `json:"timingDuration,omitempty"`
+	TimingRange                *Range                              `json:"timingRange,omitempty"`
+	TimingTiming               *Timing                             `json:"timingTiming,omitempty"`
 	Location                   *CodeableReference                  `json:"location,omitempty"`
 	Participant                []PlanDefinitionActionParticipant   `json:"participant,omitempty"`
 	Type                       *CodeableConcept                    `json:"type,omitempty"`
@@ -359,7 +505,8 @@ type PlanDefinitionAction struct {
 	PrecheckBehaviorElement    *fhir.PrimitiveElement              `json:"-"`
 	CardinalityBehavior        *string                             `json:"cardinalityBehavior,omitempty"`
 	CardinalityBehaviorElement *fhir.PrimitiveElement              `json:"-"`
-	Definition                 *string                             `json:"definition,omitempty"`
+	DefinitionCanonical        *FHIRCanonical                      `json:"definitionCanonical,omitempty"`
+	DefinitionURI              *FHIRURI                            `json:"definitionURI,omitempty"`
 	Transform                  *string                             `json:"transform,omitempty"`
 	TransformElement           *fhir.PrimitiveElement              `json:"-"`
 	DynamicValue               []PlanDefinitionActionDynamicValue  `json:"dynamicValue,omitempty"`
@@ -556,6 +703,173 @@ func (v *PlanDefinitionAction) UnmarshalJSON(data []byte) error {
 	}
 	type alias PlanDefinitionAction
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// PlanDefinitionActionSubject is the sealed value interface for the subject[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPlanDefinitionActionSubject marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PlanDefinitionActionSubject interface{ isPlanDefinitionActionSubject() }
+
+func (CodeableConcept) isPlanDefinitionActionSubject() {}
+func (Reference) isPlanDefinitionActionSubject()       {}
+func (FHIRCanonical) isPlanDefinitionActionSubject()   {}
+
+// Subject returns the value set in the subject[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PlanDefinitionAction) Subject() (PlanDefinitionActionSubject, bool) {
+	switch {
+	case r.SubjectCodeableConcept != nil:
+		return *r.SubjectCodeableConcept, true
+	case r.SubjectReference != nil:
+		return *r.SubjectReference, true
+	case r.SubjectCanonical != nil:
+		return *r.SubjectCanonical, true
+	}
+	return nil, false
+}
+
+// SetSubjectCodeableConcept sets subject[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionAction) SetSubjectCodeableConcept(v CodeableConcept) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCanonical = nil
+	r.SubjectCodeableConcept = &v
+}
+
+// SetSubjectReference sets subject[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionAction) SetSubjectReference(v Reference) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCanonical = nil
+	r.SubjectReference = &v
+}
+
+// SetSubjectCanonical sets subject[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isPlanDefinitionActionSubject marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionAction) SetSubjectCanonical(v FHIRCanonical) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCanonical = nil
+	r.SubjectCanonical = &v
+}
+
+// PlanDefinitionActionTiming is the sealed value interface for the timing[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPlanDefinitionActionTiming marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PlanDefinitionActionTiming interface{ isPlanDefinitionActionTiming() }
+
+func (Age) isPlanDefinitionActionTiming()      {}
+func (Duration) isPlanDefinitionActionTiming() {}
+func (Range) isPlanDefinitionActionTiming()    {}
+func (Timing) isPlanDefinitionActionTiming()   {}
+
+// Timing returns the value set in the timing[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PlanDefinitionAction) Timing() (PlanDefinitionActionTiming, bool) {
+	switch {
+	case r.TimingAge != nil:
+		return *r.TimingAge, true
+	case r.TimingDuration != nil:
+		return *r.TimingDuration, true
+	case r.TimingRange != nil:
+		return *r.TimingRange, true
+	case r.TimingTiming != nil:
+		return *r.TimingTiming, true
+	}
+	return nil, false
+}
+
+// SetTimingAge sets timing[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionAction) SetTimingAge(v Age) {
+	r.TimingAge = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingAge = &v
+}
+
+// SetTimingDuration sets timing[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionAction) SetTimingDuration(v Duration) {
+	r.TimingAge = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingDuration = &v
+}
+
+// SetTimingRange sets timing[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionAction) SetTimingRange(v Range) {
+	r.TimingAge = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingRange = &v
+}
+
+// SetTimingTiming sets timing[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionAction) SetTimingTiming(v Timing) {
+	r.TimingAge = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingTiming = &v
+}
+
+// PlanDefinitionActionDefinition is the sealed value interface for the definition[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPlanDefinitionActionDefinition marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PlanDefinitionActionDefinition interface{ isPlanDefinitionActionDefinition() }
+
+func (FHIRCanonical) isPlanDefinitionActionDefinition() {}
+func (FHIRURI) isPlanDefinitionActionDefinition()       {}
+
+// Definition returns the value set in the definition[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PlanDefinitionAction) Definition() (PlanDefinitionActionDefinition, bool) {
+	switch {
+	case r.DefinitionCanonical != nil:
+		return *r.DefinitionCanonical, true
+	case r.DefinitionURI != nil:
+		return *r.DefinitionURI, true
+	}
+	return nil, false
+}
+
+// SetDefinitionCanonical sets definition[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isPlanDefinitionActionDefinition marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionAction) SetDefinitionCanonical(v FHIRCanonical) {
+	r.DefinitionCanonical = nil
+	r.DefinitionURI = nil
+	r.DefinitionCanonical = &v
+}
+
+// SetDefinitionURI sets definition[x] to a FHIRURI (the
+// release primitive wrapper that carries the isPlanDefinitionActionDefinition marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionAction) SetDefinitionURI(v FHIRURI) {
+	r.DefinitionCanonical = nil
+	r.DefinitionURI = nil
+	r.DefinitionURI = &v
 }
 
 // PlanDefinitionActionCondition is a generated nested backbone element.
@@ -835,7 +1149,8 @@ type PlanDefinitionActionRelatedAction struct {
 	RelationshipElement    *fhir.PrimitiveElement `json:"-"`
 	EndRelationship        *string                `json:"endRelationship,omitempty"`
 	EndRelationshipElement *fhir.PrimitiveElement `json:"-"`
-	Offset                 *Duration              `json:"offset,omitempty"`
+	OffsetDuration         *Duration              `json:"offsetDuration,omitempty"`
+	OffsetRange            *Range                 `json:"offsetRange,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -908,6 +1223,45 @@ func (v *PlanDefinitionActionRelatedAction) UnmarshalJSON(data []byte) error {
 	}
 	type alias PlanDefinitionActionRelatedAction
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// PlanDefinitionActionRelatedActionOffset is the sealed value interface for the offset[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPlanDefinitionActionRelatedActionOffset marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PlanDefinitionActionRelatedActionOffset interface{ isPlanDefinitionActionRelatedActionOffset() }
+
+func (Duration) isPlanDefinitionActionRelatedActionOffset() {}
+func (Range) isPlanDefinitionActionRelatedActionOffset()    {}
+
+// Offset returns the value set in the offset[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PlanDefinitionActionRelatedAction) Offset() (PlanDefinitionActionRelatedActionOffset, bool) {
+	switch {
+	case r.OffsetDuration != nil:
+		return *r.OffsetDuration, true
+	case r.OffsetRange != nil:
+		return *r.OffsetRange, true
+	}
+	return nil, false
+}
+
+// SetOffsetDuration sets offset[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionActionRelatedAction) SetOffsetDuration(v Duration) {
+	r.OffsetDuration = nil
+	r.OffsetRange = nil
+	r.OffsetDuration = &v
+}
+
+// SetOffsetRange sets offset[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionActionRelatedAction) SetOffsetRange(v Range) {
+	r.OffsetDuration = nil
+	r.OffsetRange = nil
+	r.OffsetRange = &v
 }
 
 // PlanDefinitionActor is a generated nested backbone element.
@@ -1066,7 +1420,148 @@ type PlanDefinitionGoal struct {
 // PlanDefinitionGoalTarget is a generated nested backbone element.
 type PlanDefinitionGoalTarget struct {
 	BackboneElement
-	Measure *CodeableConcept `json:"measure,omitempty"`
-	Detail  *Quantity        `json:"detail,omitempty"`
-	Due     *Duration        `json:"due,omitempty"`
+	Measure               *CodeableConcept `json:"measure,omitempty"`
+	DetailQuantity        *Quantity        `json:"detailQuantity,omitempty"`
+	DetailRange           *Range           `json:"detailRange,omitempty"`
+	DetailCodeableConcept *CodeableConcept `json:"detailCodeableConcept,omitempty"`
+	DetailString          *FHIRString      `json:"detailString,omitempty"`
+	DetailBoolean         *FHIRBoolean     `json:"detailBoolean,omitempty"`
+	DetailInteger         *FHIRInteger     `json:"detailInteger,omitempty"`
+	DetailRatio           *Ratio           `json:"detailRatio,omitempty"`
+	Due                   *Duration        `json:"due,omitempty"`
+}
+
+// PlanDefinitionGoalTargetDetail is the sealed value interface for the detail[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPlanDefinitionGoalTargetDetail marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PlanDefinitionGoalTargetDetail interface{ isPlanDefinitionGoalTargetDetail() }
+
+func (Quantity) isPlanDefinitionGoalTargetDetail()        {}
+func (Range) isPlanDefinitionGoalTargetDetail()           {}
+func (CodeableConcept) isPlanDefinitionGoalTargetDetail() {}
+func (FHIRString) isPlanDefinitionGoalTargetDetail()      {}
+func (FHIRBoolean) isPlanDefinitionGoalTargetDetail()     {}
+func (FHIRInteger) isPlanDefinitionGoalTargetDetail()     {}
+func (Ratio) isPlanDefinitionGoalTargetDetail()           {}
+
+// Detail returns the value set in the detail[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PlanDefinitionGoalTarget) Detail() (PlanDefinitionGoalTargetDetail, bool) {
+	switch {
+	case r.DetailQuantity != nil:
+		return *r.DetailQuantity, true
+	case r.DetailRange != nil:
+		return *r.DetailRange, true
+	case r.DetailCodeableConcept != nil:
+		return *r.DetailCodeableConcept, true
+	case r.DetailString != nil:
+		return *r.DetailString, true
+	case r.DetailBoolean != nil:
+		return *r.DetailBoolean, true
+	case r.DetailInteger != nil:
+		return *r.DetailInteger, true
+	case r.DetailRatio != nil:
+		return *r.DetailRatio, true
+	}
+	return nil, false
+}
+
+// SetDetailQuantity sets detail[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionGoalTarget) SetDetailQuantity(v Quantity) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailQuantity = &v
+}
+
+// SetDetailRange sets detail[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionGoalTarget) SetDetailRange(v Range) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailRange = &v
+}
+
+// SetDetailCodeableConcept sets detail[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionGoalTarget) SetDetailCodeableConcept(v CodeableConcept) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailCodeableConcept = &v
+}
+
+// SetDetailString sets detail[x] to a FHIRString (the
+// release primitive wrapper that carries the isPlanDefinitionGoalTargetDetail marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionGoalTarget) SetDetailString(v FHIRString) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailString = &v
+}
+
+// SetDetailBoolean sets detail[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isPlanDefinitionGoalTargetDetail marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionGoalTarget) SetDetailBoolean(v FHIRBoolean) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailBoolean = &v
+}
+
+// SetDetailInteger sets detail[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isPlanDefinitionGoalTargetDetail marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionGoalTarget) SetDetailInteger(v FHIRInteger) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailInteger = &v
+}
+
+// SetDetailRatio sets detail[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PlanDefinitionGoalTarget) SetDetailRatio(v Ratio) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailRatio = &v
 }

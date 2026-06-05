@@ -178,17 +178,23 @@ type IngredientSubstance struct {
 // IngredientSubstanceStrength is a generated nested backbone element.
 type IngredientSubstanceStrength struct {
 	BackboneElement
-	Presentation             *Ratio                                         `json:"presentation,omitempty"`
-	TextPresentation         *string                                        `json:"textPresentation,omitempty"`
-	TextPresentationElement  *fhir.PrimitiveElement                         `json:"-"`
-	Concentration            *Ratio                                         `json:"concentration,omitempty"`
-	TextConcentration        *string                                        `json:"textConcentration,omitempty"`
-	TextConcentrationElement *fhir.PrimitiveElement                         `json:"-"`
-	Basis                    *CodeableConcept                               `json:"basis,omitempty"`
-	MeasurementPoint         *string                                        `json:"measurementPoint,omitempty"`
-	MeasurementPointElement  *fhir.PrimitiveElement                         `json:"-"`
-	Country                  []CodeableConcept                              `json:"country,omitempty"`
-	ReferenceStrength        []IngredientSubstanceStrengthReferenceStrength `json:"referenceStrength,omitempty"`
+	PresentationRatio            *Ratio                                         `json:"presentationRatio,omitempty"`
+	PresentationRatioRange       *RatioRange                                    `json:"presentationRatioRange,omitempty"`
+	PresentationCodeableConcept  *CodeableConcept                               `json:"presentationCodeableConcept,omitempty"`
+	PresentationQuantity         *Quantity                                      `json:"presentationQuantity,omitempty"`
+	TextPresentation             *string                                        `json:"textPresentation,omitempty"`
+	TextPresentationElement      *fhir.PrimitiveElement                         `json:"-"`
+	ConcentrationRatio           *Ratio                                         `json:"concentrationRatio,omitempty"`
+	ConcentrationRatioRange      *RatioRange                                    `json:"concentrationRatioRange,omitempty"`
+	ConcentrationCodeableConcept *CodeableConcept                               `json:"concentrationCodeableConcept,omitempty"`
+	ConcentrationQuantity        *Quantity                                      `json:"concentrationQuantity,omitempty"`
+	TextConcentration            *string                                        `json:"textConcentration,omitempty"`
+	TextConcentrationElement     *fhir.PrimitiveElement                         `json:"-"`
+	Basis                        *CodeableConcept                               `json:"basis,omitempty"`
+	MeasurementPoint             *string                                        `json:"measurementPoint,omitempty"`
+	MeasurementPointElement      *fhir.PrimitiveElement                         `json:"-"`
+	Country                      []CodeableConcept                              `json:"country,omitempty"`
+	ReferenceStrength            []IngredientSubstanceStrengthReferenceStrength `json:"referenceStrength,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -263,11 +269,151 @@ func (v *IngredientSubstanceStrength) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// IngredientSubstanceStrengthPresentation is the sealed value interface for the presentation[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isIngredientSubstanceStrengthPresentation marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type IngredientSubstanceStrengthPresentation interface{ isIngredientSubstanceStrengthPresentation() }
+
+func (Ratio) isIngredientSubstanceStrengthPresentation()           {}
+func (RatioRange) isIngredientSubstanceStrengthPresentation()      {}
+func (CodeableConcept) isIngredientSubstanceStrengthPresentation() {}
+func (Quantity) isIngredientSubstanceStrengthPresentation()        {}
+
+// Presentation returns the value set in the presentation[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *IngredientSubstanceStrength) Presentation() (IngredientSubstanceStrengthPresentation, bool) {
+	switch {
+	case r.PresentationRatio != nil:
+		return *r.PresentationRatio, true
+	case r.PresentationRatioRange != nil:
+		return *r.PresentationRatioRange, true
+	case r.PresentationCodeableConcept != nil:
+		return *r.PresentationCodeableConcept, true
+	case r.PresentationQuantity != nil:
+		return *r.PresentationQuantity, true
+	}
+	return nil, false
+}
+
+// SetPresentationRatio sets presentation[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrength) SetPresentationRatio(v Ratio) {
+	r.PresentationRatio = nil
+	r.PresentationRatioRange = nil
+	r.PresentationCodeableConcept = nil
+	r.PresentationQuantity = nil
+	r.PresentationRatio = &v
+}
+
+// SetPresentationRatioRange sets presentation[x] to a RatioRange and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrength) SetPresentationRatioRange(v RatioRange) {
+	r.PresentationRatio = nil
+	r.PresentationRatioRange = nil
+	r.PresentationCodeableConcept = nil
+	r.PresentationQuantity = nil
+	r.PresentationRatioRange = &v
+}
+
+// SetPresentationCodeableConcept sets presentation[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrength) SetPresentationCodeableConcept(v CodeableConcept) {
+	r.PresentationRatio = nil
+	r.PresentationRatioRange = nil
+	r.PresentationCodeableConcept = nil
+	r.PresentationQuantity = nil
+	r.PresentationCodeableConcept = &v
+}
+
+// SetPresentationQuantity sets presentation[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrength) SetPresentationQuantity(v Quantity) {
+	r.PresentationRatio = nil
+	r.PresentationRatioRange = nil
+	r.PresentationCodeableConcept = nil
+	r.PresentationQuantity = nil
+	r.PresentationQuantity = &v
+}
+
+// IngredientSubstanceStrengthConcentration is the sealed value interface for the concentration[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isIngredientSubstanceStrengthConcentration marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type IngredientSubstanceStrengthConcentration interface{ isIngredientSubstanceStrengthConcentration() }
+
+func (Ratio) isIngredientSubstanceStrengthConcentration()           {}
+func (RatioRange) isIngredientSubstanceStrengthConcentration()      {}
+func (CodeableConcept) isIngredientSubstanceStrengthConcentration() {}
+func (Quantity) isIngredientSubstanceStrengthConcentration()        {}
+
+// Concentration returns the value set in the concentration[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *IngredientSubstanceStrength) Concentration() (IngredientSubstanceStrengthConcentration, bool) {
+	switch {
+	case r.ConcentrationRatio != nil:
+		return *r.ConcentrationRatio, true
+	case r.ConcentrationRatioRange != nil:
+		return *r.ConcentrationRatioRange, true
+	case r.ConcentrationCodeableConcept != nil:
+		return *r.ConcentrationCodeableConcept, true
+	case r.ConcentrationQuantity != nil:
+		return *r.ConcentrationQuantity, true
+	}
+	return nil, false
+}
+
+// SetConcentrationRatio sets concentration[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrength) SetConcentrationRatio(v Ratio) {
+	r.ConcentrationRatio = nil
+	r.ConcentrationRatioRange = nil
+	r.ConcentrationCodeableConcept = nil
+	r.ConcentrationQuantity = nil
+	r.ConcentrationRatio = &v
+}
+
+// SetConcentrationRatioRange sets concentration[x] to a RatioRange and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrength) SetConcentrationRatioRange(v RatioRange) {
+	r.ConcentrationRatio = nil
+	r.ConcentrationRatioRange = nil
+	r.ConcentrationCodeableConcept = nil
+	r.ConcentrationQuantity = nil
+	r.ConcentrationRatioRange = &v
+}
+
+// SetConcentrationCodeableConcept sets concentration[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrength) SetConcentrationCodeableConcept(v CodeableConcept) {
+	r.ConcentrationRatio = nil
+	r.ConcentrationRatioRange = nil
+	r.ConcentrationCodeableConcept = nil
+	r.ConcentrationQuantity = nil
+	r.ConcentrationCodeableConcept = &v
+}
+
+// SetConcentrationQuantity sets concentration[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrength) SetConcentrationQuantity(v Quantity) {
+	r.ConcentrationRatio = nil
+	r.ConcentrationRatioRange = nil
+	r.ConcentrationCodeableConcept = nil
+	r.ConcentrationQuantity = nil
+	r.ConcentrationQuantity = &v
+}
+
 // IngredientSubstanceStrengthReferenceStrength is a generated nested backbone element.
 type IngredientSubstanceStrengthReferenceStrength struct {
 	BackboneElement
 	Substance               *CodeableReference     `json:"substance,omitempty"`
-	Strength                *Ratio                 `json:"strength,omitempty"`
+	StrengthRatio           *Ratio                 `json:"strengthRatio,omitempty"`
+	StrengthRatioRange      *RatioRange            `json:"strengthRatioRange,omitempty"`
+	StrengthQuantity        *Quantity              `json:"strengthQuantity,omitempty"`
 	MeasurementPoint        *string                `json:"measurementPoint,omitempty"`
 	MeasurementPointElement *fhir.PrimitiveElement `json:"-"`
 	Country                 []CodeableConcept      `json:"country,omitempty"`
@@ -319,4 +465,57 @@ func (v *IngredientSubstanceStrengthReferenceStrength) UnmarshalJSON(data []byte
 	}
 	type alias IngredientSubstanceStrengthReferenceStrength
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// IngredientSubstanceStrengthReferenceStrengthStrength is the sealed value interface for the strength[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isIngredientSubstanceStrengthReferenceStrengthStrength marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type IngredientSubstanceStrengthReferenceStrengthStrength interface{ isIngredientSubstanceStrengthReferenceStrengthStrength() }
+
+func (Ratio) isIngredientSubstanceStrengthReferenceStrengthStrength()      {}
+func (RatioRange) isIngredientSubstanceStrengthReferenceStrengthStrength() {}
+func (Quantity) isIngredientSubstanceStrengthReferenceStrengthStrength()   {}
+
+// Strength returns the value set in the strength[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *IngredientSubstanceStrengthReferenceStrength) Strength() (IngredientSubstanceStrengthReferenceStrengthStrength, bool) {
+	switch {
+	case r.StrengthRatio != nil:
+		return *r.StrengthRatio, true
+	case r.StrengthRatioRange != nil:
+		return *r.StrengthRatioRange, true
+	case r.StrengthQuantity != nil:
+		return *r.StrengthQuantity, true
+	}
+	return nil, false
+}
+
+// SetStrengthRatio sets strength[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrengthReferenceStrength) SetStrengthRatio(v Ratio) {
+	r.StrengthRatio = nil
+	r.StrengthRatioRange = nil
+	r.StrengthQuantity = nil
+	r.StrengthRatio = &v
+}
+
+// SetStrengthRatioRange sets strength[x] to a RatioRange and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrengthReferenceStrength) SetStrengthRatioRange(v RatioRange) {
+	r.StrengthRatio = nil
+	r.StrengthRatioRange = nil
+	r.StrengthQuantity = nil
+	r.StrengthRatioRange = &v
+}
+
+// SetStrengthQuantity sets strength[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *IngredientSubstanceStrengthReferenceStrength) SetStrengthQuantity(v Quantity) {
+	r.StrengthRatio = nil
+	r.StrengthRatioRange = nil
+	r.StrengthQuantity = nil
+	r.StrengthQuantity = &v
 }

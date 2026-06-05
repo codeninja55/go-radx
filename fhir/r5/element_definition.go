@@ -10,65 +10,242 @@ import (
 // ElementDefinition is the generated FHIR ElementDefinition datatype.
 type ElementDefinition struct {
 	BackboneElement
-	Path                       *string                       `json:"path,omitempty"`
-	PathElement                *fhir.PrimitiveElement        `json:"-"`
-	Representation             []string                      `json:"representation,omitempty"`
-	RepresentationElement      []*fhir.PrimitiveElement      `json:"-"`
-	SliceName                  *string                       `json:"sliceName,omitempty"`
-	SliceNameElement           *fhir.PrimitiveElement        `json:"-"`
-	SliceIsConstraining        *bool                         `json:"sliceIsConstraining,omitempty"`
-	SliceIsConstrainingElement *fhir.PrimitiveElement        `json:"-"`
-	Label                      *string                       `json:"label,omitempty"`
-	LabelElement               *fhir.PrimitiveElement        `json:"-"`
-	Code                       []Coding                      `json:"code,omitempty"`
-	Slicing                    *ElementDefinitionSlicing     `json:"slicing,omitempty"`
-	Short                      *string                       `json:"short,omitempty"`
-	ShortElement               *fhir.PrimitiveElement        `json:"-"`
-	Definition                 *string                       `json:"definition,omitempty"`
-	DefinitionElement          *fhir.PrimitiveElement        `json:"-"`
-	Comment                    *string                       `json:"comment,omitempty"`
-	CommentElement             *fhir.PrimitiveElement        `json:"-"`
-	Requirements               *string                       `json:"requirements,omitempty"`
-	RequirementsElement        *fhir.PrimitiveElement        `json:"-"`
-	Alias                      []string                      `json:"alias,omitempty"`
-	AliasElement               []*fhir.PrimitiveElement      `json:"-"`
-	Min                        *int32                        `json:"min,omitempty"`
-	MinElement                 *fhir.PrimitiveElement        `json:"-"`
-	Max                        *string                       `json:"max,omitempty"`
-	MaxElement                 *fhir.PrimitiveElement        `json:"-"`
-	Base                       *ElementDefinitionBase        `json:"base,omitempty"`
-	ContentReference           *string                       `json:"contentReference,omitempty"`
-	ContentReferenceElement    *fhir.PrimitiveElement        `json:"-"`
-	Type                       []ElementDefinitionType       `json:"type,omitempty"`
-	DefaultValue               *string                       `json:"defaultValue,omitempty"`
-	MeaningWhenMissing         *string                       `json:"meaningWhenMissing,omitempty"`
-	MeaningWhenMissingElement  *fhir.PrimitiveElement        `json:"-"`
-	OrderMeaning               *string                       `json:"orderMeaning,omitempty"`
-	OrderMeaningElement        *fhir.PrimitiveElement        `json:"-"`
-	Fixed                      *string                       `json:"fixed,omitempty"`
-	Pattern                    *string                       `json:"pattern,omitempty"`
-	Example                    []ElementDefinitionExample    `json:"example,omitempty"`
-	MinValue                   *string                       `json:"minValue,omitempty"`
-	MaxValue                   *string                       `json:"maxValue,omitempty"`
-	MaxLength                  *int32                        `json:"maxLength,omitempty"`
-	MaxLengthElement           *fhir.PrimitiveElement        `json:"-"`
-	Condition                  []string                      `json:"condition,omitempty"`
-	ConditionElement           []*fhir.PrimitiveElement      `json:"-"`
-	Constraint                 []ElementDefinitionConstraint `json:"constraint,omitempty"`
-	MustHaveValue              *bool                         `json:"mustHaveValue,omitempty"`
-	MustHaveValueElement       *fhir.PrimitiveElement        `json:"-"`
-	ValueAlternatives          []string                      `json:"valueAlternatives,omitempty"`
-	ValueAlternativesElement   []*fhir.PrimitiveElement      `json:"-"`
-	MustSupport                *bool                         `json:"mustSupport,omitempty"`
-	MustSupportElement         *fhir.PrimitiveElement        `json:"-"`
-	IsModifier                 *bool                         `json:"isModifier,omitempty"`
-	IsModifierElement          *fhir.PrimitiveElement        `json:"-"`
-	IsModifierReason           *string                       `json:"isModifierReason,omitempty"`
-	IsModifierReasonElement    *fhir.PrimitiveElement        `json:"-"`
-	IsSummary                  *bool                         `json:"isSummary,omitempty"`
-	IsSummaryElement           *fhir.PrimitiveElement        `json:"-"`
-	Binding                    *ElementDefinitionBinding     `json:"binding,omitempty"`
-	Mapping                    []ElementDefinitionMapping    `json:"mapping,omitempty"`
+	Path                              *string                       `json:"path,omitempty"`
+	PathElement                       *fhir.PrimitiveElement        `json:"-"`
+	Representation                    []string                      `json:"representation,omitempty"`
+	RepresentationElement             []*fhir.PrimitiveElement      `json:"-"`
+	SliceName                         *string                       `json:"sliceName,omitempty"`
+	SliceNameElement                  *fhir.PrimitiveElement        `json:"-"`
+	SliceIsConstraining               *bool                         `json:"sliceIsConstraining,omitempty"`
+	SliceIsConstrainingElement        *fhir.PrimitiveElement        `json:"-"`
+	Label                             *string                       `json:"label,omitempty"`
+	LabelElement                      *fhir.PrimitiveElement        `json:"-"`
+	Code                              []Coding                      `json:"code,omitempty"`
+	Slicing                           *ElementDefinitionSlicing     `json:"slicing,omitempty"`
+	Short                             *string                       `json:"short,omitempty"`
+	ShortElement                      *fhir.PrimitiveElement        `json:"-"`
+	Definition                        *string                       `json:"definition,omitempty"`
+	DefinitionElement                 *fhir.PrimitiveElement        `json:"-"`
+	Comment                           *string                       `json:"comment,omitempty"`
+	CommentElement                    *fhir.PrimitiveElement        `json:"-"`
+	Requirements                      *string                       `json:"requirements,omitempty"`
+	RequirementsElement               *fhir.PrimitiveElement        `json:"-"`
+	Alias                             []string                      `json:"alias,omitempty"`
+	AliasElement                      []*fhir.PrimitiveElement      `json:"-"`
+	Min                               *int32                        `json:"min,omitempty"`
+	MinElement                        *fhir.PrimitiveElement        `json:"-"`
+	Max                               *string                       `json:"max,omitempty"`
+	MaxElement                        *fhir.PrimitiveElement        `json:"-"`
+	Base                              *ElementDefinitionBase        `json:"base,omitempty"`
+	ContentReference                  *string                       `json:"contentReference,omitempty"`
+	ContentReferenceElement           *fhir.PrimitiveElement        `json:"-"`
+	Type                              []ElementDefinitionType       `json:"type,omitempty"`
+	DefaultValueBase64Binary          *FHIRBase64Binary             `json:"defaultValueBase64Binary,omitempty"`
+	DefaultValueBoolean               *FHIRBoolean                  `json:"defaultValueBoolean,omitempty"`
+	DefaultValueCanonical             *FHIRCanonical                `json:"defaultValueCanonical,omitempty"`
+	DefaultValueCode                  *FHIRCode                     `json:"defaultValueCode,omitempty"`
+	DefaultValueDate                  *FHIRDate                     `json:"defaultValueDate,omitempty"`
+	DefaultValueDateTime              *FHIRDateTime                 `json:"defaultValueDateTime,omitempty"`
+	DefaultValueDecimal               *FHIRDecimal                  `json:"defaultValueDecimal,omitempty"`
+	DefaultValueID                    *FHIRID                       `json:"defaultValueID,omitempty"`
+	DefaultValueInstant               *FHIRInstant                  `json:"defaultValueInstant,omitempty"`
+	DefaultValueInteger               *FHIRInteger                  `json:"defaultValueInteger,omitempty"`
+	DefaultValueInteger64             *FHIRInteger64                `json:"defaultValueInteger64,omitempty"`
+	DefaultValueMarkdown              *FHIRMarkdown                 `json:"defaultValueMarkdown,omitempty"`
+	DefaultValueOid                   *FHIROID                      `json:"defaultValueOid,omitempty"`
+	DefaultValuePositiveInt           *FHIRPositiveInt              `json:"defaultValuePositiveInt,omitempty"`
+	DefaultValueString                *FHIRString                   `json:"defaultValueString,omitempty"`
+	DefaultValueTime                  *FHIRTime                     `json:"defaultValueTime,omitempty"`
+	DefaultValueUnsignedInt           *FHIRUnsignedInt              `json:"defaultValueUnsignedInt,omitempty"`
+	DefaultValueURI                   *FHIRURI                      `json:"defaultValueURI,omitempty"`
+	DefaultValueURL                   *FHIRURL                      `json:"defaultValueURL,omitempty"`
+	DefaultValueUuid                  *FHIRUUID                     `json:"defaultValueUuid,omitempty"`
+	DefaultValueAddress               *Address                      `json:"defaultValueAddress,omitempty"`
+	DefaultValueAge                   *Age                          `json:"defaultValueAge,omitempty"`
+	DefaultValueAnnotation            *Annotation                   `json:"defaultValueAnnotation,omitempty"`
+	DefaultValueAttachment            *Attachment                   `json:"defaultValueAttachment,omitempty"`
+	DefaultValueCodeableConcept       *CodeableConcept              `json:"defaultValueCodeableConcept,omitempty"`
+	DefaultValueCodeableReference     *CodeableReference            `json:"defaultValueCodeableReference,omitempty"`
+	DefaultValueCoding                *Coding                       `json:"defaultValueCoding,omitempty"`
+	DefaultValueContactPoint          *ContactPoint                 `json:"defaultValueContactPoint,omitempty"`
+	DefaultValueCount                 *Count                        `json:"defaultValueCount,omitempty"`
+	DefaultValueDistance              *Distance                     `json:"defaultValueDistance,omitempty"`
+	DefaultValueDuration              *Duration                     `json:"defaultValueDuration,omitempty"`
+	DefaultValueHumanName             *HumanName                    `json:"defaultValueHumanName,omitempty"`
+	DefaultValueIdentifier            *Identifier                   `json:"defaultValueIdentifier,omitempty"`
+	DefaultValueMoney                 *Money                        `json:"defaultValueMoney,omitempty"`
+	DefaultValuePeriod                *Period                       `json:"defaultValuePeriod,omitempty"`
+	DefaultValueQuantity              *Quantity                     `json:"defaultValueQuantity,omitempty"`
+	DefaultValueRange                 *Range                        `json:"defaultValueRange,omitempty"`
+	DefaultValueRatio                 *Ratio                        `json:"defaultValueRatio,omitempty"`
+	DefaultValueRatioRange            *RatioRange                   `json:"defaultValueRatioRange,omitempty"`
+	DefaultValueReference             *Reference                    `json:"defaultValueReference,omitempty"`
+	DefaultValueSampledData           *SampledData                  `json:"defaultValueSampledData,omitempty"`
+	DefaultValueSignature             *Signature                    `json:"defaultValueSignature,omitempty"`
+	DefaultValueTiming                *Timing                       `json:"defaultValueTiming,omitempty"`
+	DefaultValueContactDetail         *ContactDetail                `json:"defaultValueContactDetail,omitempty"`
+	DefaultValueDataRequirement       *DataRequirement              `json:"defaultValueDataRequirement,omitempty"`
+	DefaultValueExpression            *Expression                   `json:"defaultValueExpression,omitempty"`
+	DefaultValueParameterDefinition   *ParameterDefinition          `json:"defaultValueParameterDefinition,omitempty"`
+	DefaultValueRelatedArtifact       *RelatedArtifact              `json:"defaultValueRelatedArtifact,omitempty"`
+	DefaultValueTriggerDefinition     *TriggerDefinition            `json:"defaultValueTriggerDefinition,omitempty"`
+	DefaultValueUsageContext          *UsageContext                 `json:"defaultValueUsageContext,omitempty"`
+	DefaultValueAvailability          *Availability                 `json:"defaultValueAvailability,omitempty"`
+	DefaultValueExtendedContactDetail *ExtendedContactDetail        `json:"defaultValueExtendedContactDetail,omitempty"`
+	DefaultValueDosage                *Dosage                       `json:"defaultValueDosage,omitempty"`
+	DefaultValueMeta                  *Meta                         `json:"defaultValueMeta,omitempty"`
+	MeaningWhenMissing                *string                       `json:"meaningWhenMissing,omitempty"`
+	MeaningWhenMissingElement         *fhir.PrimitiveElement        `json:"-"`
+	OrderMeaning                      *string                       `json:"orderMeaning,omitempty"`
+	OrderMeaningElement               *fhir.PrimitiveElement        `json:"-"`
+	FixedBase64Binary                 *FHIRBase64Binary             `json:"fixedBase64Binary,omitempty"`
+	FixedBoolean                      *FHIRBoolean                  `json:"fixedBoolean,omitempty"`
+	FixedCanonical                    *FHIRCanonical                `json:"fixedCanonical,omitempty"`
+	FixedCode                         *FHIRCode                     `json:"fixedCode,omitempty"`
+	FixedDate                         *FHIRDate                     `json:"fixedDate,omitempty"`
+	FixedDateTime                     *FHIRDateTime                 `json:"fixedDateTime,omitempty"`
+	FixedDecimal                      *FHIRDecimal                  `json:"fixedDecimal,omitempty"`
+	FixedID                           *FHIRID                       `json:"fixedID,omitempty"`
+	FixedInstant                      *FHIRInstant                  `json:"fixedInstant,omitempty"`
+	FixedInteger                      *FHIRInteger                  `json:"fixedInteger,omitempty"`
+	FixedInteger64                    *FHIRInteger64                `json:"fixedInteger64,omitempty"`
+	FixedMarkdown                     *FHIRMarkdown                 `json:"fixedMarkdown,omitempty"`
+	FixedOid                          *FHIROID                      `json:"fixedOid,omitempty"`
+	FixedPositiveInt                  *FHIRPositiveInt              `json:"fixedPositiveInt,omitempty"`
+	FixedString                       *FHIRString                   `json:"fixedString,omitempty"`
+	FixedTime                         *FHIRTime                     `json:"fixedTime,omitempty"`
+	FixedUnsignedInt                  *FHIRUnsignedInt              `json:"fixedUnsignedInt,omitempty"`
+	FixedURI                          *FHIRURI                      `json:"fixedURI,omitempty"`
+	FixedURL                          *FHIRURL                      `json:"fixedURL,omitempty"`
+	FixedUuid                         *FHIRUUID                     `json:"fixedUuid,omitempty"`
+	FixedAddress                      *Address                      `json:"fixedAddress,omitempty"`
+	FixedAge                          *Age                          `json:"fixedAge,omitempty"`
+	FixedAnnotation                   *Annotation                   `json:"fixedAnnotation,omitempty"`
+	FixedAttachment                   *Attachment                   `json:"fixedAttachment,omitempty"`
+	FixedCodeableConcept              *CodeableConcept              `json:"fixedCodeableConcept,omitempty"`
+	FixedCodeableReference            *CodeableReference            `json:"fixedCodeableReference,omitempty"`
+	FixedCoding                       *Coding                       `json:"fixedCoding,omitempty"`
+	FixedContactPoint                 *ContactPoint                 `json:"fixedContactPoint,omitempty"`
+	FixedCount                        *Count                        `json:"fixedCount,omitempty"`
+	FixedDistance                     *Distance                     `json:"fixedDistance,omitempty"`
+	FixedDuration                     *Duration                     `json:"fixedDuration,omitempty"`
+	FixedHumanName                    *HumanName                    `json:"fixedHumanName,omitempty"`
+	FixedIdentifier                   *Identifier                   `json:"fixedIdentifier,omitempty"`
+	FixedMoney                        *Money                        `json:"fixedMoney,omitempty"`
+	FixedPeriod                       *Period                       `json:"fixedPeriod,omitempty"`
+	FixedQuantity                     *Quantity                     `json:"fixedQuantity,omitempty"`
+	FixedRange                        *Range                        `json:"fixedRange,omitempty"`
+	FixedRatio                        *Ratio                        `json:"fixedRatio,omitempty"`
+	FixedRatioRange                   *RatioRange                   `json:"fixedRatioRange,omitempty"`
+	FixedReference                    *Reference                    `json:"fixedReference,omitempty"`
+	FixedSampledData                  *SampledData                  `json:"fixedSampledData,omitempty"`
+	FixedSignature                    *Signature                    `json:"fixedSignature,omitempty"`
+	FixedTiming                       *Timing                       `json:"fixedTiming,omitempty"`
+	FixedContactDetail                *ContactDetail                `json:"fixedContactDetail,omitempty"`
+	FixedDataRequirement              *DataRequirement              `json:"fixedDataRequirement,omitempty"`
+	FixedExpression                   *Expression                   `json:"fixedExpression,omitempty"`
+	FixedParameterDefinition          *ParameterDefinition          `json:"fixedParameterDefinition,omitempty"`
+	FixedRelatedArtifact              *RelatedArtifact              `json:"fixedRelatedArtifact,omitempty"`
+	FixedTriggerDefinition            *TriggerDefinition            `json:"fixedTriggerDefinition,omitempty"`
+	FixedUsageContext                 *UsageContext                 `json:"fixedUsageContext,omitempty"`
+	FixedAvailability                 *Availability                 `json:"fixedAvailability,omitempty"`
+	FixedExtendedContactDetail        *ExtendedContactDetail        `json:"fixedExtendedContactDetail,omitempty"`
+	FixedDosage                       *Dosage                       `json:"fixedDosage,omitempty"`
+	FixedMeta                         *Meta                         `json:"fixedMeta,omitempty"`
+	PatternBase64Binary               *FHIRBase64Binary             `json:"patternBase64Binary,omitempty"`
+	PatternBoolean                    *FHIRBoolean                  `json:"patternBoolean,omitempty"`
+	PatternCanonical                  *FHIRCanonical                `json:"patternCanonical,omitempty"`
+	PatternCode                       *FHIRCode                     `json:"patternCode,omitempty"`
+	PatternDate                       *FHIRDate                     `json:"patternDate,omitempty"`
+	PatternDateTime                   *FHIRDateTime                 `json:"patternDateTime,omitempty"`
+	PatternDecimal                    *FHIRDecimal                  `json:"patternDecimal,omitempty"`
+	PatternID                         *FHIRID                       `json:"patternID,omitempty"`
+	PatternInstant                    *FHIRInstant                  `json:"patternInstant,omitempty"`
+	PatternInteger                    *FHIRInteger                  `json:"patternInteger,omitempty"`
+	PatternInteger64                  *FHIRInteger64                `json:"patternInteger64,omitempty"`
+	PatternMarkdown                   *FHIRMarkdown                 `json:"patternMarkdown,omitempty"`
+	PatternOid                        *FHIROID                      `json:"patternOid,omitempty"`
+	PatternPositiveInt                *FHIRPositiveInt              `json:"patternPositiveInt,omitempty"`
+	PatternString                     *FHIRString                   `json:"patternString,omitempty"`
+	PatternTime                       *FHIRTime                     `json:"patternTime,omitempty"`
+	PatternUnsignedInt                *FHIRUnsignedInt              `json:"patternUnsignedInt,omitempty"`
+	PatternURI                        *FHIRURI                      `json:"patternURI,omitempty"`
+	PatternURL                        *FHIRURL                      `json:"patternURL,omitempty"`
+	PatternUuid                       *FHIRUUID                     `json:"patternUuid,omitempty"`
+	PatternAddress                    *Address                      `json:"patternAddress,omitempty"`
+	PatternAge                        *Age                          `json:"patternAge,omitempty"`
+	PatternAnnotation                 *Annotation                   `json:"patternAnnotation,omitempty"`
+	PatternAttachment                 *Attachment                   `json:"patternAttachment,omitempty"`
+	PatternCodeableConcept            *CodeableConcept              `json:"patternCodeableConcept,omitempty"`
+	PatternCodeableReference          *CodeableReference            `json:"patternCodeableReference,omitempty"`
+	PatternCoding                     *Coding                       `json:"patternCoding,omitempty"`
+	PatternContactPoint               *ContactPoint                 `json:"patternContactPoint,omitempty"`
+	PatternCount                      *Count                        `json:"patternCount,omitempty"`
+	PatternDistance                   *Distance                     `json:"patternDistance,omitempty"`
+	PatternDuration                   *Duration                     `json:"patternDuration,omitempty"`
+	PatternHumanName                  *HumanName                    `json:"patternHumanName,omitempty"`
+	PatternIdentifier                 *Identifier                   `json:"patternIdentifier,omitempty"`
+	PatternMoney                      *Money                        `json:"patternMoney,omitempty"`
+	PatternPeriod                     *Period                       `json:"patternPeriod,omitempty"`
+	PatternQuantity                   *Quantity                     `json:"patternQuantity,omitempty"`
+	PatternRange                      *Range                        `json:"patternRange,omitempty"`
+	PatternRatio                      *Ratio                        `json:"patternRatio,omitempty"`
+	PatternRatioRange                 *RatioRange                   `json:"patternRatioRange,omitempty"`
+	PatternReference                  *Reference                    `json:"patternReference,omitempty"`
+	PatternSampledData                *SampledData                  `json:"patternSampledData,omitempty"`
+	PatternSignature                  *Signature                    `json:"patternSignature,omitempty"`
+	PatternTiming                     *Timing                       `json:"patternTiming,omitempty"`
+	PatternContactDetail              *ContactDetail                `json:"patternContactDetail,omitempty"`
+	PatternDataRequirement            *DataRequirement              `json:"patternDataRequirement,omitempty"`
+	PatternExpression                 *Expression                   `json:"patternExpression,omitempty"`
+	PatternParameterDefinition        *ParameterDefinition          `json:"patternParameterDefinition,omitempty"`
+	PatternRelatedArtifact            *RelatedArtifact              `json:"patternRelatedArtifact,omitempty"`
+	PatternTriggerDefinition          *TriggerDefinition            `json:"patternTriggerDefinition,omitempty"`
+	PatternUsageContext               *UsageContext                 `json:"patternUsageContext,omitempty"`
+	PatternAvailability               *Availability                 `json:"patternAvailability,omitempty"`
+	PatternExtendedContactDetail      *ExtendedContactDetail        `json:"patternExtendedContactDetail,omitempty"`
+	PatternDosage                     *Dosage                       `json:"patternDosage,omitempty"`
+	PatternMeta                       *Meta                         `json:"patternMeta,omitempty"`
+	Example                           []ElementDefinitionExample    `json:"example,omitempty"`
+	MinValueDate                      *FHIRDate                     `json:"minValueDate,omitempty"`
+	MinValueDateTime                  *FHIRDateTime                 `json:"minValueDateTime,omitempty"`
+	MinValueInstant                   *FHIRInstant                  `json:"minValueInstant,omitempty"`
+	MinValueTime                      *FHIRTime                     `json:"minValueTime,omitempty"`
+	MinValueDecimal                   *FHIRDecimal                  `json:"minValueDecimal,omitempty"`
+	MinValueInteger                   *FHIRInteger                  `json:"minValueInteger,omitempty"`
+	MinValueInteger64                 *FHIRInteger64                `json:"minValueInteger64,omitempty"`
+	MinValuePositiveInt               *FHIRPositiveInt              `json:"minValuePositiveInt,omitempty"`
+	MinValueUnsignedInt               *FHIRUnsignedInt              `json:"minValueUnsignedInt,omitempty"`
+	MinValueQuantity                  *Quantity                     `json:"minValueQuantity,omitempty"`
+	MaxValueDate                      *FHIRDate                     `json:"maxValueDate,omitempty"`
+	MaxValueDateTime                  *FHIRDateTime                 `json:"maxValueDateTime,omitempty"`
+	MaxValueInstant                   *FHIRInstant                  `json:"maxValueInstant,omitempty"`
+	MaxValueTime                      *FHIRTime                     `json:"maxValueTime,omitempty"`
+	MaxValueDecimal                   *FHIRDecimal                  `json:"maxValueDecimal,omitempty"`
+	MaxValueInteger                   *FHIRInteger                  `json:"maxValueInteger,omitempty"`
+	MaxValueInteger64                 *FHIRInteger64                `json:"maxValueInteger64,omitempty"`
+	MaxValuePositiveInt               *FHIRPositiveInt              `json:"maxValuePositiveInt,omitempty"`
+	MaxValueUnsignedInt               *FHIRUnsignedInt              `json:"maxValueUnsignedInt,omitempty"`
+	MaxValueQuantity                  *Quantity                     `json:"maxValueQuantity,omitempty"`
+	MaxLength                         *int32                        `json:"maxLength,omitempty"`
+	MaxLengthElement                  *fhir.PrimitiveElement        `json:"-"`
+	Condition                         []string                      `json:"condition,omitempty"`
+	ConditionElement                  []*fhir.PrimitiveElement      `json:"-"`
+	Constraint                        []ElementDefinitionConstraint `json:"constraint,omitempty"`
+	MustHaveValue                     *bool                         `json:"mustHaveValue,omitempty"`
+	MustHaveValueElement              *fhir.PrimitiveElement        `json:"-"`
+	ValueAlternatives                 []string                      `json:"valueAlternatives,omitempty"`
+	ValueAlternativesElement          []*fhir.PrimitiveElement      `json:"-"`
+	MustSupport                       *bool                         `json:"mustSupport,omitempty"`
+	MustSupportElement                *fhir.PrimitiveElement        `json:"-"`
+	IsModifier                        *bool                         `json:"isModifier,omitempty"`
+	IsModifierElement                 *fhir.PrimitiveElement        `json:"-"`
+	IsModifierReason                  *string                       `json:"isModifierReason,omitempty"`
+	IsModifierReasonElement           *fhir.PrimitiveElement        `json:"-"`
+	IsSummary                         *bool                         `json:"isSummary,omitempty"`
+	IsSummaryElement                  *fhir.PrimitiveElement        `json:"-"`
+	Binding                           *ElementDefinitionBinding     `json:"binding,omitempty"`
+	Mapping                           []ElementDefinitionMapping    `json:"mapping,omitempty"`
 }
 
 // MarshalJSON folds the primitive "_field" siblings into the encoded value: a scalar
@@ -383,6 +560,10833 @@ func (v *ElementDefinition) UnmarshalJSON(data []byte) error {
 	}
 	type alias ElementDefinition
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ElementDefinitionDefaultValue is the sealed value interface for the defaultValue[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isElementDefinitionDefaultValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ElementDefinitionDefaultValue interface{ isElementDefinitionDefaultValue() }
+
+func (FHIRBase64Binary) isElementDefinitionDefaultValue()      {}
+func (FHIRBoolean) isElementDefinitionDefaultValue()           {}
+func (FHIRCanonical) isElementDefinitionDefaultValue()         {}
+func (FHIRCode) isElementDefinitionDefaultValue()              {}
+func (FHIRDate) isElementDefinitionDefaultValue()              {}
+func (FHIRDateTime) isElementDefinitionDefaultValue()          {}
+func (FHIRDecimal) isElementDefinitionDefaultValue()           {}
+func (FHIRID) isElementDefinitionDefaultValue()                {}
+func (FHIRInstant) isElementDefinitionDefaultValue()           {}
+func (FHIRInteger) isElementDefinitionDefaultValue()           {}
+func (FHIRInteger64) isElementDefinitionDefaultValue()         {}
+func (FHIRMarkdown) isElementDefinitionDefaultValue()          {}
+func (FHIROID) isElementDefinitionDefaultValue()               {}
+func (FHIRPositiveInt) isElementDefinitionDefaultValue()       {}
+func (FHIRString) isElementDefinitionDefaultValue()            {}
+func (FHIRTime) isElementDefinitionDefaultValue()              {}
+func (FHIRUnsignedInt) isElementDefinitionDefaultValue()       {}
+func (FHIRURI) isElementDefinitionDefaultValue()               {}
+func (FHIRURL) isElementDefinitionDefaultValue()               {}
+func (FHIRUUID) isElementDefinitionDefaultValue()              {}
+func (Address) isElementDefinitionDefaultValue()               {}
+func (Age) isElementDefinitionDefaultValue()                   {}
+func (Annotation) isElementDefinitionDefaultValue()            {}
+func (Attachment) isElementDefinitionDefaultValue()            {}
+func (CodeableConcept) isElementDefinitionDefaultValue()       {}
+func (CodeableReference) isElementDefinitionDefaultValue()     {}
+func (Coding) isElementDefinitionDefaultValue()                {}
+func (ContactPoint) isElementDefinitionDefaultValue()          {}
+func (Count) isElementDefinitionDefaultValue()                 {}
+func (Distance) isElementDefinitionDefaultValue()              {}
+func (Duration) isElementDefinitionDefaultValue()              {}
+func (HumanName) isElementDefinitionDefaultValue()             {}
+func (Identifier) isElementDefinitionDefaultValue()            {}
+func (Money) isElementDefinitionDefaultValue()                 {}
+func (Period) isElementDefinitionDefaultValue()                {}
+func (Quantity) isElementDefinitionDefaultValue()              {}
+func (Range) isElementDefinitionDefaultValue()                 {}
+func (Ratio) isElementDefinitionDefaultValue()                 {}
+func (RatioRange) isElementDefinitionDefaultValue()            {}
+func (Reference) isElementDefinitionDefaultValue()             {}
+func (SampledData) isElementDefinitionDefaultValue()           {}
+func (Signature) isElementDefinitionDefaultValue()             {}
+func (Timing) isElementDefinitionDefaultValue()                {}
+func (ContactDetail) isElementDefinitionDefaultValue()         {}
+func (DataRequirement) isElementDefinitionDefaultValue()       {}
+func (Expression) isElementDefinitionDefaultValue()            {}
+func (ParameterDefinition) isElementDefinitionDefaultValue()   {}
+func (RelatedArtifact) isElementDefinitionDefaultValue()       {}
+func (TriggerDefinition) isElementDefinitionDefaultValue()     {}
+func (UsageContext) isElementDefinitionDefaultValue()          {}
+func (Availability) isElementDefinitionDefaultValue()          {}
+func (ExtendedContactDetail) isElementDefinitionDefaultValue() {}
+func (Dosage) isElementDefinitionDefaultValue()                {}
+func (Meta) isElementDefinitionDefaultValue()                  {}
+
+// DefaultValue returns the value set in the defaultValue[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ElementDefinition) DefaultValue() (ElementDefinitionDefaultValue, bool) {
+	switch {
+	case r.DefaultValueBase64Binary != nil:
+		return *r.DefaultValueBase64Binary, true
+	case r.DefaultValueBoolean != nil:
+		return *r.DefaultValueBoolean, true
+	case r.DefaultValueCanonical != nil:
+		return *r.DefaultValueCanonical, true
+	case r.DefaultValueCode != nil:
+		return *r.DefaultValueCode, true
+	case r.DefaultValueDate != nil:
+		return *r.DefaultValueDate, true
+	case r.DefaultValueDateTime != nil:
+		return *r.DefaultValueDateTime, true
+	case r.DefaultValueDecimal != nil:
+		return *r.DefaultValueDecimal, true
+	case r.DefaultValueID != nil:
+		return *r.DefaultValueID, true
+	case r.DefaultValueInstant != nil:
+		return *r.DefaultValueInstant, true
+	case r.DefaultValueInteger != nil:
+		return *r.DefaultValueInteger, true
+	case r.DefaultValueInteger64 != nil:
+		return *r.DefaultValueInteger64, true
+	case r.DefaultValueMarkdown != nil:
+		return *r.DefaultValueMarkdown, true
+	case r.DefaultValueOid != nil:
+		return *r.DefaultValueOid, true
+	case r.DefaultValuePositiveInt != nil:
+		return *r.DefaultValuePositiveInt, true
+	case r.DefaultValueString != nil:
+		return *r.DefaultValueString, true
+	case r.DefaultValueTime != nil:
+		return *r.DefaultValueTime, true
+	case r.DefaultValueUnsignedInt != nil:
+		return *r.DefaultValueUnsignedInt, true
+	case r.DefaultValueURI != nil:
+		return *r.DefaultValueURI, true
+	case r.DefaultValueURL != nil:
+		return *r.DefaultValueURL, true
+	case r.DefaultValueUuid != nil:
+		return *r.DefaultValueUuid, true
+	case r.DefaultValueAddress != nil:
+		return *r.DefaultValueAddress, true
+	case r.DefaultValueAge != nil:
+		return *r.DefaultValueAge, true
+	case r.DefaultValueAnnotation != nil:
+		return *r.DefaultValueAnnotation, true
+	case r.DefaultValueAttachment != nil:
+		return *r.DefaultValueAttachment, true
+	case r.DefaultValueCodeableConcept != nil:
+		return *r.DefaultValueCodeableConcept, true
+	case r.DefaultValueCodeableReference != nil:
+		return *r.DefaultValueCodeableReference, true
+	case r.DefaultValueCoding != nil:
+		return *r.DefaultValueCoding, true
+	case r.DefaultValueContactPoint != nil:
+		return *r.DefaultValueContactPoint, true
+	case r.DefaultValueCount != nil:
+		return *r.DefaultValueCount, true
+	case r.DefaultValueDistance != nil:
+		return *r.DefaultValueDistance, true
+	case r.DefaultValueDuration != nil:
+		return *r.DefaultValueDuration, true
+	case r.DefaultValueHumanName != nil:
+		return *r.DefaultValueHumanName, true
+	case r.DefaultValueIdentifier != nil:
+		return *r.DefaultValueIdentifier, true
+	case r.DefaultValueMoney != nil:
+		return *r.DefaultValueMoney, true
+	case r.DefaultValuePeriod != nil:
+		return *r.DefaultValuePeriod, true
+	case r.DefaultValueQuantity != nil:
+		return *r.DefaultValueQuantity, true
+	case r.DefaultValueRange != nil:
+		return *r.DefaultValueRange, true
+	case r.DefaultValueRatio != nil:
+		return *r.DefaultValueRatio, true
+	case r.DefaultValueRatioRange != nil:
+		return *r.DefaultValueRatioRange, true
+	case r.DefaultValueReference != nil:
+		return *r.DefaultValueReference, true
+	case r.DefaultValueSampledData != nil:
+		return *r.DefaultValueSampledData, true
+	case r.DefaultValueSignature != nil:
+		return *r.DefaultValueSignature, true
+	case r.DefaultValueTiming != nil:
+		return *r.DefaultValueTiming, true
+	case r.DefaultValueContactDetail != nil:
+		return *r.DefaultValueContactDetail, true
+	case r.DefaultValueDataRequirement != nil:
+		return *r.DefaultValueDataRequirement, true
+	case r.DefaultValueExpression != nil:
+		return *r.DefaultValueExpression, true
+	case r.DefaultValueParameterDefinition != nil:
+		return *r.DefaultValueParameterDefinition, true
+	case r.DefaultValueRelatedArtifact != nil:
+		return *r.DefaultValueRelatedArtifact, true
+	case r.DefaultValueTriggerDefinition != nil:
+		return *r.DefaultValueTriggerDefinition, true
+	case r.DefaultValueUsageContext != nil:
+		return *r.DefaultValueUsageContext, true
+	case r.DefaultValueAvailability != nil:
+		return *r.DefaultValueAvailability, true
+	case r.DefaultValueExtendedContactDetail != nil:
+		return *r.DefaultValueExtendedContactDetail, true
+	case r.DefaultValueDosage != nil:
+		return *r.DefaultValueDosage, true
+	case r.DefaultValueMeta != nil:
+		return *r.DefaultValueMeta, true
+	}
+	return nil, false
+}
+
+// SetDefaultValueBase64Binary sets defaultValue[x] to a FHIRBase64Binary (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueBase64Binary(v FHIRBase64Binary) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueBase64Binary = &v
+}
+
+// SetDefaultValueBoolean sets defaultValue[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueBoolean(v FHIRBoolean) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueBoolean = &v
+}
+
+// SetDefaultValueCanonical sets defaultValue[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueCanonical(v FHIRCanonical) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueCanonical = &v
+}
+
+// SetDefaultValueCode sets defaultValue[x] to a FHIRCode (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueCode(v FHIRCode) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueCode = &v
+}
+
+// SetDefaultValueDate sets defaultValue[x] to a FHIRDate (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueDate(v FHIRDate) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueDate = &v
+}
+
+// SetDefaultValueDateTime sets defaultValue[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueDateTime(v FHIRDateTime) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueDateTime = &v
+}
+
+// SetDefaultValueDecimal sets defaultValue[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueDecimal(v FHIRDecimal) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueDecimal = &v
+}
+
+// SetDefaultValueID sets defaultValue[x] to a FHIRID (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueID(v FHIRID) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueID = &v
+}
+
+// SetDefaultValueInstant sets defaultValue[x] to a FHIRInstant (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueInstant(v FHIRInstant) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueInstant = &v
+}
+
+// SetDefaultValueInteger sets defaultValue[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueInteger(v FHIRInteger) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueInteger = &v
+}
+
+// SetDefaultValueInteger64 sets defaultValue[x] to a FHIRInteger64 (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueInteger64(v FHIRInteger64) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueInteger64 = &v
+}
+
+// SetDefaultValueMarkdown sets defaultValue[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueMarkdown(v FHIRMarkdown) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueMarkdown = &v
+}
+
+// SetDefaultValueOid sets defaultValue[x] to a FHIROID (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueOid(v FHIROID) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueOid = &v
+}
+
+// SetDefaultValuePositiveInt sets defaultValue[x] to a FHIRPositiveInt (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValuePositiveInt(v FHIRPositiveInt) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValuePositiveInt = &v
+}
+
+// SetDefaultValueString sets defaultValue[x] to a FHIRString (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueString(v FHIRString) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueString = &v
+}
+
+// SetDefaultValueTime sets defaultValue[x] to a FHIRTime (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueTime(v FHIRTime) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueTime = &v
+}
+
+// SetDefaultValueUnsignedInt sets defaultValue[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueUnsignedInt(v FHIRUnsignedInt) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueUnsignedInt = &v
+}
+
+// SetDefaultValueURI sets defaultValue[x] to a FHIRURI (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueURI(v FHIRURI) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueURI = &v
+}
+
+// SetDefaultValueURL sets defaultValue[x] to a FHIRURL (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueURL(v FHIRURL) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueURL = &v
+}
+
+// SetDefaultValueUuid sets defaultValue[x] to a FHIRUUID (the
+// release primitive wrapper that carries the isElementDefinitionDefaultValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueUuid(v FHIRUUID) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueUuid = &v
+}
+
+// SetDefaultValueAddress sets defaultValue[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueAddress(v Address) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueAddress = &v
+}
+
+// SetDefaultValueAge sets defaultValue[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueAge(v Age) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueAge = &v
+}
+
+// SetDefaultValueAnnotation sets defaultValue[x] to a Annotation and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueAnnotation(v Annotation) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueAnnotation = &v
+}
+
+// SetDefaultValueAttachment sets defaultValue[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueAttachment(v Attachment) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueAttachment = &v
+}
+
+// SetDefaultValueCodeableConcept sets defaultValue[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueCodeableConcept(v CodeableConcept) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueCodeableConcept = &v
+}
+
+// SetDefaultValueCodeableReference sets defaultValue[x] to a CodeableReference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueCodeableReference(v CodeableReference) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueCodeableReference = &v
+}
+
+// SetDefaultValueCoding sets defaultValue[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueCoding(v Coding) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueCoding = &v
+}
+
+// SetDefaultValueContactPoint sets defaultValue[x] to a ContactPoint and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueContactPoint(v ContactPoint) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueContactPoint = &v
+}
+
+// SetDefaultValueCount sets defaultValue[x] to a Count and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueCount(v Count) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueCount = &v
+}
+
+// SetDefaultValueDistance sets defaultValue[x] to a Distance and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueDistance(v Distance) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueDistance = &v
+}
+
+// SetDefaultValueDuration sets defaultValue[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueDuration(v Duration) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueDuration = &v
+}
+
+// SetDefaultValueHumanName sets defaultValue[x] to a HumanName and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueHumanName(v HumanName) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueHumanName = &v
+}
+
+// SetDefaultValueIdentifier sets defaultValue[x] to a Identifier and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueIdentifier(v Identifier) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueIdentifier = &v
+}
+
+// SetDefaultValueMoney sets defaultValue[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueMoney(v Money) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueMoney = &v
+}
+
+// SetDefaultValuePeriod sets defaultValue[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValuePeriod(v Period) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValuePeriod = &v
+}
+
+// SetDefaultValueQuantity sets defaultValue[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueQuantity(v Quantity) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueQuantity = &v
+}
+
+// SetDefaultValueRange sets defaultValue[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueRange(v Range) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueRange = &v
+}
+
+// SetDefaultValueRatio sets defaultValue[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueRatio(v Ratio) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueRatio = &v
+}
+
+// SetDefaultValueRatioRange sets defaultValue[x] to a RatioRange and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueRatioRange(v RatioRange) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueRatioRange = &v
+}
+
+// SetDefaultValueReference sets defaultValue[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueReference(v Reference) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueReference = &v
+}
+
+// SetDefaultValueSampledData sets defaultValue[x] to a SampledData and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueSampledData(v SampledData) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueSampledData = &v
+}
+
+// SetDefaultValueSignature sets defaultValue[x] to a Signature and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueSignature(v Signature) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueSignature = &v
+}
+
+// SetDefaultValueTiming sets defaultValue[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueTiming(v Timing) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueTiming = &v
+}
+
+// SetDefaultValueContactDetail sets defaultValue[x] to a ContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueContactDetail(v ContactDetail) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueContactDetail = &v
+}
+
+// SetDefaultValueDataRequirement sets defaultValue[x] to a DataRequirement and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueDataRequirement(v DataRequirement) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueDataRequirement = &v
+}
+
+// SetDefaultValueExpression sets defaultValue[x] to a Expression and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueExpression(v Expression) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueExpression = &v
+}
+
+// SetDefaultValueParameterDefinition sets defaultValue[x] to a ParameterDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueParameterDefinition(v ParameterDefinition) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueParameterDefinition = &v
+}
+
+// SetDefaultValueRelatedArtifact sets defaultValue[x] to a RelatedArtifact and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueRelatedArtifact(v RelatedArtifact) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueRelatedArtifact = &v
+}
+
+// SetDefaultValueTriggerDefinition sets defaultValue[x] to a TriggerDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueTriggerDefinition(v TriggerDefinition) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueTriggerDefinition = &v
+}
+
+// SetDefaultValueUsageContext sets defaultValue[x] to a UsageContext and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueUsageContext(v UsageContext) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueUsageContext = &v
+}
+
+// SetDefaultValueAvailability sets defaultValue[x] to a Availability and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueAvailability(v Availability) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueAvailability = &v
+}
+
+// SetDefaultValueExtendedContactDetail sets defaultValue[x] to a ExtendedContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueExtendedContactDetail(v ExtendedContactDetail) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueExtendedContactDetail = &v
+}
+
+// SetDefaultValueDosage sets defaultValue[x] to a Dosage and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueDosage(v Dosage) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueDosage = &v
+}
+
+// SetDefaultValueMeta sets defaultValue[x] to a Meta and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetDefaultValueMeta(v Meta) {
+	r.DefaultValueBase64Binary = nil
+	r.DefaultValueBoolean = nil
+	r.DefaultValueCanonical = nil
+	r.DefaultValueCode = nil
+	r.DefaultValueDate = nil
+	r.DefaultValueDateTime = nil
+	r.DefaultValueDecimal = nil
+	r.DefaultValueID = nil
+	r.DefaultValueInstant = nil
+	r.DefaultValueInteger = nil
+	r.DefaultValueInteger64 = nil
+	r.DefaultValueMarkdown = nil
+	r.DefaultValueOid = nil
+	r.DefaultValuePositiveInt = nil
+	r.DefaultValueString = nil
+	r.DefaultValueTime = nil
+	r.DefaultValueUnsignedInt = nil
+	r.DefaultValueURI = nil
+	r.DefaultValueURL = nil
+	r.DefaultValueUuid = nil
+	r.DefaultValueAddress = nil
+	r.DefaultValueAge = nil
+	r.DefaultValueAnnotation = nil
+	r.DefaultValueAttachment = nil
+	r.DefaultValueCodeableConcept = nil
+	r.DefaultValueCodeableReference = nil
+	r.DefaultValueCoding = nil
+	r.DefaultValueContactPoint = nil
+	r.DefaultValueCount = nil
+	r.DefaultValueDistance = nil
+	r.DefaultValueDuration = nil
+	r.DefaultValueHumanName = nil
+	r.DefaultValueIdentifier = nil
+	r.DefaultValueMoney = nil
+	r.DefaultValuePeriod = nil
+	r.DefaultValueQuantity = nil
+	r.DefaultValueRange = nil
+	r.DefaultValueRatio = nil
+	r.DefaultValueRatioRange = nil
+	r.DefaultValueReference = nil
+	r.DefaultValueSampledData = nil
+	r.DefaultValueSignature = nil
+	r.DefaultValueTiming = nil
+	r.DefaultValueContactDetail = nil
+	r.DefaultValueDataRequirement = nil
+	r.DefaultValueExpression = nil
+	r.DefaultValueParameterDefinition = nil
+	r.DefaultValueRelatedArtifact = nil
+	r.DefaultValueTriggerDefinition = nil
+	r.DefaultValueUsageContext = nil
+	r.DefaultValueAvailability = nil
+	r.DefaultValueExtendedContactDetail = nil
+	r.DefaultValueDosage = nil
+	r.DefaultValueMeta = nil
+	r.DefaultValueMeta = &v
+}
+
+// ElementDefinitionFixed is the sealed value interface for the fixed[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isElementDefinitionFixed marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ElementDefinitionFixed interface{ isElementDefinitionFixed() }
+
+func (FHIRBase64Binary) isElementDefinitionFixed()      {}
+func (FHIRBoolean) isElementDefinitionFixed()           {}
+func (FHIRCanonical) isElementDefinitionFixed()         {}
+func (FHIRCode) isElementDefinitionFixed()              {}
+func (FHIRDate) isElementDefinitionFixed()              {}
+func (FHIRDateTime) isElementDefinitionFixed()          {}
+func (FHIRDecimal) isElementDefinitionFixed()           {}
+func (FHIRID) isElementDefinitionFixed()                {}
+func (FHIRInstant) isElementDefinitionFixed()           {}
+func (FHIRInteger) isElementDefinitionFixed()           {}
+func (FHIRInteger64) isElementDefinitionFixed()         {}
+func (FHIRMarkdown) isElementDefinitionFixed()          {}
+func (FHIROID) isElementDefinitionFixed()               {}
+func (FHIRPositiveInt) isElementDefinitionFixed()       {}
+func (FHIRString) isElementDefinitionFixed()            {}
+func (FHIRTime) isElementDefinitionFixed()              {}
+func (FHIRUnsignedInt) isElementDefinitionFixed()       {}
+func (FHIRURI) isElementDefinitionFixed()               {}
+func (FHIRURL) isElementDefinitionFixed()               {}
+func (FHIRUUID) isElementDefinitionFixed()              {}
+func (Address) isElementDefinitionFixed()               {}
+func (Age) isElementDefinitionFixed()                   {}
+func (Annotation) isElementDefinitionFixed()            {}
+func (Attachment) isElementDefinitionFixed()            {}
+func (CodeableConcept) isElementDefinitionFixed()       {}
+func (CodeableReference) isElementDefinitionFixed()     {}
+func (Coding) isElementDefinitionFixed()                {}
+func (ContactPoint) isElementDefinitionFixed()          {}
+func (Count) isElementDefinitionFixed()                 {}
+func (Distance) isElementDefinitionFixed()              {}
+func (Duration) isElementDefinitionFixed()              {}
+func (HumanName) isElementDefinitionFixed()             {}
+func (Identifier) isElementDefinitionFixed()            {}
+func (Money) isElementDefinitionFixed()                 {}
+func (Period) isElementDefinitionFixed()                {}
+func (Quantity) isElementDefinitionFixed()              {}
+func (Range) isElementDefinitionFixed()                 {}
+func (Ratio) isElementDefinitionFixed()                 {}
+func (RatioRange) isElementDefinitionFixed()            {}
+func (Reference) isElementDefinitionFixed()             {}
+func (SampledData) isElementDefinitionFixed()           {}
+func (Signature) isElementDefinitionFixed()             {}
+func (Timing) isElementDefinitionFixed()                {}
+func (ContactDetail) isElementDefinitionFixed()         {}
+func (DataRequirement) isElementDefinitionFixed()       {}
+func (Expression) isElementDefinitionFixed()            {}
+func (ParameterDefinition) isElementDefinitionFixed()   {}
+func (RelatedArtifact) isElementDefinitionFixed()       {}
+func (TriggerDefinition) isElementDefinitionFixed()     {}
+func (UsageContext) isElementDefinitionFixed()          {}
+func (Availability) isElementDefinitionFixed()          {}
+func (ExtendedContactDetail) isElementDefinitionFixed() {}
+func (Dosage) isElementDefinitionFixed()                {}
+func (Meta) isElementDefinitionFixed()                  {}
+
+// Fixed returns the value set in the fixed[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ElementDefinition) Fixed() (ElementDefinitionFixed, bool) {
+	switch {
+	case r.FixedBase64Binary != nil:
+		return *r.FixedBase64Binary, true
+	case r.FixedBoolean != nil:
+		return *r.FixedBoolean, true
+	case r.FixedCanonical != nil:
+		return *r.FixedCanonical, true
+	case r.FixedCode != nil:
+		return *r.FixedCode, true
+	case r.FixedDate != nil:
+		return *r.FixedDate, true
+	case r.FixedDateTime != nil:
+		return *r.FixedDateTime, true
+	case r.FixedDecimal != nil:
+		return *r.FixedDecimal, true
+	case r.FixedID != nil:
+		return *r.FixedID, true
+	case r.FixedInstant != nil:
+		return *r.FixedInstant, true
+	case r.FixedInteger != nil:
+		return *r.FixedInteger, true
+	case r.FixedInteger64 != nil:
+		return *r.FixedInteger64, true
+	case r.FixedMarkdown != nil:
+		return *r.FixedMarkdown, true
+	case r.FixedOid != nil:
+		return *r.FixedOid, true
+	case r.FixedPositiveInt != nil:
+		return *r.FixedPositiveInt, true
+	case r.FixedString != nil:
+		return *r.FixedString, true
+	case r.FixedTime != nil:
+		return *r.FixedTime, true
+	case r.FixedUnsignedInt != nil:
+		return *r.FixedUnsignedInt, true
+	case r.FixedURI != nil:
+		return *r.FixedURI, true
+	case r.FixedURL != nil:
+		return *r.FixedURL, true
+	case r.FixedUuid != nil:
+		return *r.FixedUuid, true
+	case r.FixedAddress != nil:
+		return *r.FixedAddress, true
+	case r.FixedAge != nil:
+		return *r.FixedAge, true
+	case r.FixedAnnotation != nil:
+		return *r.FixedAnnotation, true
+	case r.FixedAttachment != nil:
+		return *r.FixedAttachment, true
+	case r.FixedCodeableConcept != nil:
+		return *r.FixedCodeableConcept, true
+	case r.FixedCodeableReference != nil:
+		return *r.FixedCodeableReference, true
+	case r.FixedCoding != nil:
+		return *r.FixedCoding, true
+	case r.FixedContactPoint != nil:
+		return *r.FixedContactPoint, true
+	case r.FixedCount != nil:
+		return *r.FixedCount, true
+	case r.FixedDistance != nil:
+		return *r.FixedDistance, true
+	case r.FixedDuration != nil:
+		return *r.FixedDuration, true
+	case r.FixedHumanName != nil:
+		return *r.FixedHumanName, true
+	case r.FixedIdentifier != nil:
+		return *r.FixedIdentifier, true
+	case r.FixedMoney != nil:
+		return *r.FixedMoney, true
+	case r.FixedPeriod != nil:
+		return *r.FixedPeriod, true
+	case r.FixedQuantity != nil:
+		return *r.FixedQuantity, true
+	case r.FixedRange != nil:
+		return *r.FixedRange, true
+	case r.FixedRatio != nil:
+		return *r.FixedRatio, true
+	case r.FixedRatioRange != nil:
+		return *r.FixedRatioRange, true
+	case r.FixedReference != nil:
+		return *r.FixedReference, true
+	case r.FixedSampledData != nil:
+		return *r.FixedSampledData, true
+	case r.FixedSignature != nil:
+		return *r.FixedSignature, true
+	case r.FixedTiming != nil:
+		return *r.FixedTiming, true
+	case r.FixedContactDetail != nil:
+		return *r.FixedContactDetail, true
+	case r.FixedDataRequirement != nil:
+		return *r.FixedDataRequirement, true
+	case r.FixedExpression != nil:
+		return *r.FixedExpression, true
+	case r.FixedParameterDefinition != nil:
+		return *r.FixedParameterDefinition, true
+	case r.FixedRelatedArtifact != nil:
+		return *r.FixedRelatedArtifact, true
+	case r.FixedTriggerDefinition != nil:
+		return *r.FixedTriggerDefinition, true
+	case r.FixedUsageContext != nil:
+		return *r.FixedUsageContext, true
+	case r.FixedAvailability != nil:
+		return *r.FixedAvailability, true
+	case r.FixedExtendedContactDetail != nil:
+		return *r.FixedExtendedContactDetail, true
+	case r.FixedDosage != nil:
+		return *r.FixedDosage, true
+	case r.FixedMeta != nil:
+		return *r.FixedMeta, true
+	}
+	return nil, false
+}
+
+// SetFixedBase64Binary sets fixed[x] to a FHIRBase64Binary (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedBase64Binary(v FHIRBase64Binary) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedBase64Binary = &v
+}
+
+// SetFixedBoolean sets fixed[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedBoolean(v FHIRBoolean) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedBoolean = &v
+}
+
+// SetFixedCanonical sets fixed[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedCanonical(v FHIRCanonical) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedCanonical = &v
+}
+
+// SetFixedCode sets fixed[x] to a FHIRCode (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedCode(v FHIRCode) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedCode = &v
+}
+
+// SetFixedDate sets fixed[x] to a FHIRDate (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedDate(v FHIRDate) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedDate = &v
+}
+
+// SetFixedDateTime sets fixed[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedDateTime(v FHIRDateTime) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedDateTime = &v
+}
+
+// SetFixedDecimal sets fixed[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedDecimal(v FHIRDecimal) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedDecimal = &v
+}
+
+// SetFixedID sets fixed[x] to a FHIRID (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedID(v FHIRID) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedID = &v
+}
+
+// SetFixedInstant sets fixed[x] to a FHIRInstant (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedInstant(v FHIRInstant) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedInstant = &v
+}
+
+// SetFixedInteger sets fixed[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedInteger(v FHIRInteger) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedInteger = &v
+}
+
+// SetFixedInteger64 sets fixed[x] to a FHIRInteger64 (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedInteger64(v FHIRInteger64) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedInteger64 = &v
+}
+
+// SetFixedMarkdown sets fixed[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedMarkdown(v FHIRMarkdown) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedMarkdown = &v
+}
+
+// SetFixedOid sets fixed[x] to a FHIROID (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedOid(v FHIROID) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedOid = &v
+}
+
+// SetFixedPositiveInt sets fixed[x] to a FHIRPositiveInt (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedPositiveInt(v FHIRPositiveInt) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedPositiveInt = &v
+}
+
+// SetFixedString sets fixed[x] to a FHIRString (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedString(v FHIRString) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedString = &v
+}
+
+// SetFixedTime sets fixed[x] to a FHIRTime (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedTime(v FHIRTime) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedTime = &v
+}
+
+// SetFixedUnsignedInt sets fixed[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedUnsignedInt(v FHIRUnsignedInt) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedUnsignedInt = &v
+}
+
+// SetFixedURI sets fixed[x] to a FHIRURI (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedURI(v FHIRURI) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedURI = &v
+}
+
+// SetFixedURL sets fixed[x] to a FHIRURL (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedURL(v FHIRURL) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedURL = &v
+}
+
+// SetFixedUuid sets fixed[x] to a FHIRUUID (the
+// release primitive wrapper that carries the isElementDefinitionFixed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedUuid(v FHIRUUID) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedUuid = &v
+}
+
+// SetFixedAddress sets fixed[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedAddress(v Address) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedAddress = &v
+}
+
+// SetFixedAge sets fixed[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedAge(v Age) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedAge = &v
+}
+
+// SetFixedAnnotation sets fixed[x] to a Annotation and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedAnnotation(v Annotation) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedAnnotation = &v
+}
+
+// SetFixedAttachment sets fixed[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedAttachment(v Attachment) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedAttachment = &v
+}
+
+// SetFixedCodeableConcept sets fixed[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedCodeableConcept(v CodeableConcept) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedCodeableConcept = &v
+}
+
+// SetFixedCodeableReference sets fixed[x] to a CodeableReference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedCodeableReference(v CodeableReference) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedCodeableReference = &v
+}
+
+// SetFixedCoding sets fixed[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedCoding(v Coding) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedCoding = &v
+}
+
+// SetFixedContactPoint sets fixed[x] to a ContactPoint and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedContactPoint(v ContactPoint) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedContactPoint = &v
+}
+
+// SetFixedCount sets fixed[x] to a Count and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedCount(v Count) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedCount = &v
+}
+
+// SetFixedDistance sets fixed[x] to a Distance and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedDistance(v Distance) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedDistance = &v
+}
+
+// SetFixedDuration sets fixed[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedDuration(v Duration) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedDuration = &v
+}
+
+// SetFixedHumanName sets fixed[x] to a HumanName and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedHumanName(v HumanName) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedHumanName = &v
+}
+
+// SetFixedIdentifier sets fixed[x] to a Identifier and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedIdentifier(v Identifier) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedIdentifier = &v
+}
+
+// SetFixedMoney sets fixed[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedMoney(v Money) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedMoney = &v
+}
+
+// SetFixedPeriod sets fixed[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedPeriod(v Period) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedPeriod = &v
+}
+
+// SetFixedQuantity sets fixed[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedQuantity(v Quantity) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedQuantity = &v
+}
+
+// SetFixedRange sets fixed[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedRange(v Range) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedRange = &v
+}
+
+// SetFixedRatio sets fixed[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedRatio(v Ratio) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedRatio = &v
+}
+
+// SetFixedRatioRange sets fixed[x] to a RatioRange and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedRatioRange(v RatioRange) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedRatioRange = &v
+}
+
+// SetFixedReference sets fixed[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedReference(v Reference) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedReference = &v
+}
+
+// SetFixedSampledData sets fixed[x] to a SampledData and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedSampledData(v SampledData) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedSampledData = &v
+}
+
+// SetFixedSignature sets fixed[x] to a Signature and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedSignature(v Signature) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedSignature = &v
+}
+
+// SetFixedTiming sets fixed[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedTiming(v Timing) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedTiming = &v
+}
+
+// SetFixedContactDetail sets fixed[x] to a ContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedContactDetail(v ContactDetail) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedContactDetail = &v
+}
+
+// SetFixedDataRequirement sets fixed[x] to a DataRequirement and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedDataRequirement(v DataRequirement) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedDataRequirement = &v
+}
+
+// SetFixedExpression sets fixed[x] to a Expression and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedExpression(v Expression) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedExpression = &v
+}
+
+// SetFixedParameterDefinition sets fixed[x] to a ParameterDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedParameterDefinition(v ParameterDefinition) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedParameterDefinition = &v
+}
+
+// SetFixedRelatedArtifact sets fixed[x] to a RelatedArtifact and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedRelatedArtifact(v RelatedArtifact) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedRelatedArtifact = &v
+}
+
+// SetFixedTriggerDefinition sets fixed[x] to a TriggerDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedTriggerDefinition(v TriggerDefinition) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedTriggerDefinition = &v
+}
+
+// SetFixedUsageContext sets fixed[x] to a UsageContext and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedUsageContext(v UsageContext) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedUsageContext = &v
+}
+
+// SetFixedAvailability sets fixed[x] to a Availability and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedAvailability(v Availability) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedAvailability = &v
+}
+
+// SetFixedExtendedContactDetail sets fixed[x] to a ExtendedContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedExtendedContactDetail(v ExtendedContactDetail) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedExtendedContactDetail = &v
+}
+
+// SetFixedDosage sets fixed[x] to a Dosage and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedDosage(v Dosage) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedDosage = &v
+}
+
+// SetFixedMeta sets fixed[x] to a Meta and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetFixedMeta(v Meta) {
+	r.FixedBase64Binary = nil
+	r.FixedBoolean = nil
+	r.FixedCanonical = nil
+	r.FixedCode = nil
+	r.FixedDate = nil
+	r.FixedDateTime = nil
+	r.FixedDecimal = nil
+	r.FixedID = nil
+	r.FixedInstant = nil
+	r.FixedInteger = nil
+	r.FixedInteger64 = nil
+	r.FixedMarkdown = nil
+	r.FixedOid = nil
+	r.FixedPositiveInt = nil
+	r.FixedString = nil
+	r.FixedTime = nil
+	r.FixedUnsignedInt = nil
+	r.FixedURI = nil
+	r.FixedURL = nil
+	r.FixedUuid = nil
+	r.FixedAddress = nil
+	r.FixedAge = nil
+	r.FixedAnnotation = nil
+	r.FixedAttachment = nil
+	r.FixedCodeableConcept = nil
+	r.FixedCodeableReference = nil
+	r.FixedCoding = nil
+	r.FixedContactPoint = nil
+	r.FixedCount = nil
+	r.FixedDistance = nil
+	r.FixedDuration = nil
+	r.FixedHumanName = nil
+	r.FixedIdentifier = nil
+	r.FixedMoney = nil
+	r.FixedPeriod = nil
+	r.FixedQuantity = nil
+	r.FixedRange = nil
+	r.FixedRatio = nil
+	r.FixedRatioRange = nil
+	r.FixedReference = nil
+	r.FixedSampledData = nil
+	r.FixedSignature = nil
+	r.FixedTiming = nil
+	r.FixedContactDetail = nil
+	r.FixedDataRequirement = nil
+	r.FixedExpression = nil
+	r.FixedParameterDefinition = nil
+	r.FixedRelatedArtifact = nil
+	r.FixedTriggerDefinition = nil
+	r.FixedUsageContext = nil
+	r.FixedAvailability = nil
+	r.FixedExtendedContactDetail = nil
+	r.FixedDosage = nil
+	r.FixedMeta = nil
+	r.FixedMeta = &v
+}
+
+// ElementDefinitionPattern is the sealed value interface for the pattern[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isElementDefinitionPattern marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ElementDefinitionPattern interface{ isElementDefinitionPattern() }
+
+func (FHIRBase64Binary) isElementDefinitionPattern()      {}
+func (FHIRBoolean) isElementDefinitionPattern()           {}
+func (FHIRCanonical) isElementDefinitionPattern()         {}
+func (FHIRCode) isElementDefinitionPattern()              {}
+func (FHIRDate) isElementDefinitionPattern()              {}
+func (FHIRDateTime) isElementDefinitionPattern()          {}
+func (FHIRDecimal) isElementDefinitionPattern()           {}
+func (FHIRID) isElementDefinitionPattern()                {}
+func (FHIRInstant) isElementDefinitionPattern()           {}
+func (FHIRInteger) isElementDefinitionPattern()           {}
+func (FHIRInteger64) isElementDefinitionPattern()         {}
+func (FHIRMarkdown) isElementDefinitionPattern()          {}
+func (FHIROID) isElementDefinitionPattern()               {}
+func (FHIRPositiveInt) isElementDefinitionPattern()       {}
+func (FHIRString) isElementDefinitionPattern()            {}
+func (FHIRTime) isElementDefinitionPattern()              {}
+func (FHIRUnsignedInt) isElementDefinitionPattern()       {}
+func (FHIRURI) isElementDefinitionPattern()               {}
+func (FHIRURL) isElementDefinitionPattern()               {}
+func (FHIRUUID) isElementDefinitionPattern()              {}
+func (Address) isElementDefinitionPattern()               {}
+func (Age) isElementDefinitionPattern()                   {}
+func (Annotation) isElementDefinitionPattern()            {}
+func (Attachment) isElementDefinitionPattern()            {}
+func (CodeableConcept) isElementDefinitionPattern()       {}
+func (CodeableReference) isElementDefinitionPattern()     {}
+func (Coding) isElementDefinitionPattern()                {}
+func (ContactPoint) isElementDefinitionPattern()          {}
+func (Count) isElementDefinitionPattern()                 {}
+func (Distance) isElementDefinitionPattern()              {}
+func (Duration) isElementDefinitionPattern()              {}
+func (HumanName) isElementDefinitionPattern()             {}
+func (Identifier) isElementDefinitionPattern()            {}
+func (Money) isElementDefinitionPattern()                 {}
+func (Period) isElementDefinitionPattern()                {}
+func (Quantity) isElementDefinitionPattern()              {}
+func (Range) isElementDefinitionPattern()                 {}
+func (Ratio) isElementDefinitionPattern()                 {}
+func (RatioRange) isElementDefinitionPattern()            {}
+func (Reference) isElementDefinitionPattern()             {}
+func (SampledData) isElementDefinitionPattern()           {}
+func (Signature) isElementDefinitionPattern()             {}
+func (Timing) isElementDefinitionPattern()                {}
+func (ContactDetail) isElementDefinitionPattern()         {}
+func (DataRequirement) isElementDefinitionPattern()       {}
+func (Expression) isElementDefinitionPattern()            {}
+func (ParameterDefinition) isElementDefinitionPattern()   {}
+func (RelatedArtifact) isElementDefinitionPattern()       {}
+func (TriggerDefinition) isElementDefinitionPattern()     {}
+func (UsageContext) isElementDefinitionPattern()          {}
+func (Availability) isElementDefinitionPattern()          {}
+func (ExtendedContactDetail) isElementDefinitionPattern() {}
+func (Dosage) isElementDefinitionPattern()                {}
+func (Meta) isElementDefinitionPattern()                  {}
+
+// Pattern returns the value set in the pattern[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ElementDefinition) Pattern() (ElementDefinitionPattern, bool) {
+	switch {
+	case r.PatternBase64Binary != nil:
+		return *r.PatternBase64Binary, true
+	case r.PatternBoolean != nil:
+		return *r.PatternBoolean, true
+	case r.PatternCanonical != nil:
+		return *r.PatternCanonical, true
+	case r.PatternCode != nil:
+		return *r.PatternCode, true
+	case r.PatternDate != nil:
+		return *r.PatternDate, true
+	case r.PatternDateTime != nil:
+		return *r.PatternDateTime, true
+	case r.PatternDecimal != nil:
+		return *r.PatternDecimal, true
+	case r.PatternID != nil:
+		return *r.PatternID, true
+	case r.PatternInstant != nil:
+		return *r.PatternInstant, true
+	case r.PatternInteger != nil:
+		return *r.PatternInteger, true
+	case r.PatternInteger64 != nil:
+		return *r.PatternInteger64, true
+	case r.PatternMarkdown != nil:
+		return *r.PatternMarkdown, true
+	case r.PatternOid != nil:
+		return *r.PatternOid, true
+	case r.PatternPositiveInt != nil:
+		return *r.PatternPositiveInt, true
+	case r.PatternString != nil:
+		return *r.PatternString, true
+	case r.PatternTime != nil:
+		return *r.PatternTime, true
+	case r.PatternUnsignedInt != nil:
+		return *r.PatternUnsignedInt, true
+	case r.PatternURI != nil:
+		return *r.PatternURI, true
+	case r.PatternURL != nil:
+		return *r.PatternURL, true
+	case r.PatternUuid != nil:
+		return *r.PatternUuid, true
+	case r.PatternAddress != nil:
+		return *r.PatternAddress, true
+	case r.PatternAge != nil:
+		return *r.PatternAge, true
+	case r.PatternAnnotation != nil:
+		return *r.PatternAnnotation, true
+	case r.PatternAttachment != nil:
+		return *r.PatternAttachment, true
+	case r.PatternCodeableConcept != nil:
+		return *r.PatternCodeableConcept, true
+	case r.PatternCodeableReference != nil:
+		return *r.PatternCodeableReference, true
+	case r.PatternCoding != nil:
+		return *r.PatternCoding, true
+	case r.PatternContactPoint != nil:
+		return *r.PatternContactPoint, true
+	case r.PatternCount != nil:
+		return *r.PatternCount, true
+	case r.PatternDistance != nil:
+		return *r.PatternDistance, true
+	case r.PatternDuration != nil:
+		return *r.PatternDuration, true
+	case r.PatternHumanName != nil:
+		return *r.PatternHumanName, true
+	case r.PatternIdentifier != nil:
+		return *r.PatternIdentifier, true
+	case r.PatternMoney != nil:
+		return *r.PatternMoney, true
+	case r.PatternPeriod != nil:
+		return *r.PatternPeriod, true
+	case r.PatternQuantity != nil:
+		return *r.PatternQuantity, true
+	case r.PatternRange != nil:
+		return *r.PatternRange, true
+	case r.PatternRatio != nil:
+		return *r.PatternRatio, true
+	case r.PatternRatioRange != nil:
+		return *r.PatternRatioRange, true
+	case r.PatternReference != nil:
+		return *r.PatternReference, true
+	case r.PatternSampledData != nil:
+		return *r.PatternSampledData, true
+	case r.PatternSignature != nil:
+		return *r.PatternSignature, true
+	case r.PatternTiming != nil:
+		return *r.PatternTiming, true
+	case r.PatternContactDetail != nil:
+		return *r.PatternContactDetail, true
+	case r.PatternDataRequirement != nil:
+		return *r.PatternDataRequirement, true
+	case r.PatternExpression != nil:
+		return *r.PatternExpression, true
+	case r.PatternParameterDefinition != nil:
+		return *r.PatternParameterDefinition, true
+	case r.PatternRelatedArtifact != nil:
+		return *r.PatternRelatedArtifact, true
+	case r.PatternTriggerDefinition != nil:
+		return *r.PatternTriggerDefinition, true
+	case r.PatternUsageContext != nil:
+		return *r.PatternUsageContext, true
+	case r.PatternAvailability != nil:
+		return *r.PatternAvailability, true
+	case r.PatternExtendedContactDetail != nil:
+		return *r.PatternExtendedContactDetail, true
+	case r.PatternDosage != nil:
+		return *r.PatternDosage, true
+	case r.PatternMeta != nil:
+		return *r.PatternMeta, true
+	}
+	return nil, false
+}
+
+// SetPatternBase64Binary sets pattern[x] to a FHIRBase64Binary (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternBase64Binary(v FHIRBase64Binary) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternBase64Binary = &v
+}
+
+// SetPatternBoolean sets pattern[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternBoolean(v FHIRBoolean) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternBoolean = &v
+}
+
+// SetPatternCanonical sets pattern[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternCanonical(v FHIRCanonical) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternCanonical = &v
+}
+
+// SetPatternCode sets pattern[x] to a FHIRCode (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternCode(v FHIRCode) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternCode = &v
+}
+
+// SetPatternDate sets pattern[x] to a FHIRDate (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternDate(v FHIRDate) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternDate = &v
+}
+
+// SetPatternDateTime sets pattern[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternDateTime(v FHIRDateTime) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternDateTime = &v
+}
+
+// SetPatternDecimal sets pattern[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternDecimal(v FHIRDecimal) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternDecimal = &v
+}
+
+// SetPatternID sets pattern[x] to a FHIRID (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternID(v FHIRID) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternID = &v
+}
+
+// SetPatternInstant sets pattern[x] to a FHIRInstant (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternInstant(v FHIRInstant) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternInstant = &v
+}
+
+// SetPatternInteger sets pattern[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternInteger(v FHIRInteger) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternInteger = &v
+}
+
+// SetPatternInteger64 sets pattern[x] to a FHIRInteger64 (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternInteger64(v FHIRInteger64) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternInteger64 = &v
+}
+
+// SetPatternMarkdown sets pattern[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternMarkdown(v FHIRMarkdown) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternMarkdown = &v
+}
+
+// SetPatternOid sets pattern[x] to a FHIROID (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternOid(v FHIROID) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternOid = &v
+}
+
+// SetPatternPositiveInt sets pattern[x] to a FHIRPositiveInt (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternPositiveInt(v FHIRPositiveInt) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternPositiveInt = &v
+}
+
+// SetPatternString sets pattern[x] to a FHIRString (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternString(v FHIRString) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternString = &v
+}
+
+// SetPatternTime sets pattern[x] to a FHIRTime (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternTime(v FHIRTime) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternTime = &v
+}
+
+// SetPatternUnsignedInt sets pattern[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternUnsignedInt(v FHIRUnsignedInt) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternUnsignedInt = &v
+}
+
+// SetPatternURI sets pattern[x] to a FHIRURI (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternURI(v FHIRURI) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternURI = &v
+}
+
+// SetPatternURL sets pattern[x] to a FHIRURL (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternURL(v FHIRURL) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternURL = &v
+}
+
+// SetPatternUuid sets pattern[x] to a FHIRUUID (the
+// release primitive wrapper that carries the isElementDefinitionPattern marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternUuid(v FHIRUUID) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternUuid = &v
+}
+
+// SetPatternAddress sets pattern[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternAddress(v Address) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternAddress = &v
+}
+
+// SetPatternAge sets pattern[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternAge(v Age) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternAge = &v
+}
+
+// SetPatternAnnotation sets pattern[x] to a Annotation and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternAnnotation(v Annotation) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternAnnotation = &v
+}
+
+// SetPatternAttachment sets pattern[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternAttachment(v Attachment) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternAttachment = &v
+}
+
+// SetPatternCodeableConcept sets pattern[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternCodeableConcept(v CodeableConcept) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternCodeableConcept = &v
+}
+
+// SetPatternCodeableReference sets pattern[x] to a CodeableReference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternCodeableReference(v CodeableReference) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternCodeableReference = &v
+}
+
+// SetPatternCoding sets pattern[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternCoding(v Coding) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternCoding = &v
+}
+
+// SetPatternContactPoint sets pattern[x] to a ContactPoint and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternContactPoint(v ContactPoint) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternContactPoint = &v
+}
+
+// SetPatternCount sets pattern[x] to a Count and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternCount(v Count) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternCount = &v
+}
+
+// SetPatternDistance sets pattern[x] to a Distance and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternDistance(v Distance) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternDistance = &v
+}
+
+// SetPatternDuration sets pattern[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternDuration(v Duration) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternDuration = &v
+}
+
+// SetPatternHumanName sets pattern[x] to a HumanName and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternHumanName(v HumanName) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternHumanName = &v
+}
+
+// SetPatternIdentifier sets pattern[x] to a Identifier and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternIdentifier(v Identifier) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternIdentifier = &v
+}
+
+// SetPatternMoney sets pattern[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternMoney(v Money) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternMoney = &v
+}
+
+// SetPatternPeriod sets pattern[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternPeriod(v Period) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternPeriod = &v
+}
+
+// SetPatternQuantity sets pattern[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternQuantity(v Quantity) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternQuantity = &v
+}
+
+// SetPatternRange sets pattern[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternRange(v Range) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternRange = &v
+}
+
+// SetPatternRatio sets pattern[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternRatio(v Ratio) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternRatio = &v
+}
+
+// SetPatternRatioRange sets pattern[x] to a RatioRange and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternRatioRange(v RatioRange) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternRatioRange = &v
+}
+
+// SetPatternReference sets pattern[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternReference(v Reference) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternReference = &v
+}
+
+// SetPatternSampledData sets pattern[x] to a SampledData and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternSampledData(v SampledData) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternSampledData = &v
+}
+
+// SetPatternSignature sets pattern[x] to a Signature and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternSignature(v Signature) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternSignature = &v
+}
+
+// SetPatternTiming sets pattern[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternTiming(v Timing) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternTiming = &v
+}
+
+// SetPatternContactDetail sets pattern[x] to a ContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternContactDetail(v ContactDetail) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternContactDetail = &v
+}
+
+// SetPatternDataRequirement sets pattern[x] to a DataRequirement and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternDataRequirement(v DataRequirement) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternDataRequirement = &v
+}
+
+// SetPatternExpression sets pattern[x] to a Expression and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternExpression(v Expression) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternExpression = &v
+}
+
+// SetPatternParameterDefinition sets pattern[x] to a ParameterDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternParameterDefinition(v ParameterDefinition) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternParameterDefinition = &v
+}
+
+// SetPatternRelatedArtifact sets pattern[x] to a RelatedArtifact and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternRelatedArtifact(v RelatedArtifact) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternRelatedArtifact = &v
+}
+
+// SetPatternTriggerDefinition sets pattern[x] to a TriggerDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternTriggerDefinition(v TriggerDefinition) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternTriggerDefinition = &v
+}
+
+// SetPatternUsageContext sets pattern[x] to a UsageContext and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternUsageContext(v UsageContext) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternUsageContext = &v
+}
+
+// SetPatternAvailability sets pattern[x] to a Availability and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternAvailability(v Availability) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternAvailability = &v
+}
+
+// SetPatternExtendedContactDetail sets pattern[x] to a ExtendedContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternExtendedContactDetail(v ExtendedContactDetail) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternExtendedContactDetail = &v
+}
+
+// SetPatternDosage sets pattern[x] to a Dosage and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternDosage(v Dosage) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternDosage = &v
+}
+
+// SetPatternMeta sets pattern[x] to a Meta and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetPatternMeta(v Meta) {
+	r.PatternBase64Binary = nil
+	r.PatternBoolean = nil
+	r.PatternCanonical = nil
+	r.PatternCode = nil
+	r.PatternDate = nil
+	r.PatternDateTime = nil
+	r.PatternDecimal = nil
+	r.PatternID = nil
+	r.PatternInstant = nil
+	r.PatternInteger = nil
+	r.PatternInteger64 = nil
+	r.PatternMarkdown = nil
+	r.PatternOid = nil
+	r.PatternPositiveInt = nil
+	r.PatternString = nil
+	r.PatternTime = nil
+	r.PatternUnsignedInt = nil
+	r.PatternURI = nil
+	r.PatternURL = nil
+	r.PatternUuid = nil
+	r.PatternAddress = nil
+	r.PatternAge = nil
+	r.PatternAnnotation = nil
+	r.PatternAttachment = nil
+	r.PatternCodeableConcept = nil
+	r.PatternCodeableReference = nil
+	r.PatternCoding = nil
+	r.PatternContactPoint = nil
+	r.PatternCount = nil
+	r.PatternDistance = nil
+	r.PatternDuration = nil
+	r.PatternHumanName = nil
+	r.PatternIdentifier = nil
+	r.PatternMoney = nil
+	r.PatternPeriod = nil
+	r.PatternQuantity = nil
+	r.PatternRange = nil
+	r.PatternRatio = nil
+	r.PatternRatioRange = nil
+	r.PatternReference = nil
+	r.PatternSampledData = nil
+	r.PatternSignature = nil
+	r.PatternTiming = nil
+	r.PatternContactDetail = nil
+	r.PatternDataRequirement = nil
+	r.PatternExpression = nil
+	r.PatternParameterDefinition = nil
+	r.PatternRelatedArtifact = nil
+	r.PatternTriggerDefinition = nil
+	r.PatternUsageContext = nil
+	r.PatternAvailability = nil
+	r.PatternExtendedContactDetail = nil
+	r.PatternDosage = nil
+	r.PatternMeta = nil
+	r.PatternMeta = &v
+}
+
+// ElementDefinitionMinValue is the sealed value interface for the minValue[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isElementDefinitionMinValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ElementDefinitionMinValue interface{ isElementDefinitionMinValue() }
+
+func (FHIRDate) isElementDefinitionMinValue()        {}
+func (FHIRDateTime) isElementDefinitionMinValue()    {}
+func (FHIRInstant) isElementDefinitionMinValue()     {}
+func (FHIRTime) isElementDefinitionMinValue()        {}
+func (FHIRDecimal) isElementDefinitionMinValue()     {}
+func (FHIRInteger) isElementDefinitionMinValue()     {}
+func (FHIRInteger64) isElementDefinitionMinValue()   {}
+func (FHIRPositiveInt) isElementDefinitionMinValue() {}
+func (FHIRUnsignedInt) isElementDefinitionMinValue() {}
+func (Quantity) isElementDefinitionMinValue()        {}
+
+// MinValue returns the value set in the minValue[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ElementDefinition) MinValue() (ElementDefinitionMinValue, bool) {
+	switch {
+	case r.MinValueDate != nil:
+		return *r.MinValueDate, true
+	case r.MinValueDateTime != nil:
+		return *r.MinValueDateTime, true
+	case r.MinValueInstant != nil:
+		return *r.MinValueInstant, true
+	case r.MinValueTime != nil:
+		return *r.MinValueTime, true
+	case r.MinValueDecimal != nil:
+		return *r.MinValueDecimal, true
+	case r.MinValueInteger != nil:
+		return *r.MinValueInteger, true
+	case r.MinValueInteger64 != nil:
+		return *r.MinValueInteger64, true
+	case r.MinValuePositiveInt != nil:
+		return *r.MinValuePositiveInt, true
+	case r.MinValueUnsignedInt != nil:
+		return *r.MinValueUnsignedInt, true
+	case r.MinValueQuantity != nil:
+		return *r.MinValueQuantity, true
+	}
+	return nil, false
+}
+
+// SetMinValueDate sets minValue[x] to a FHIRDate (the
+// release primitive wrapper that carries the isElementDefinitionMinValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValueDate(v FHIRDate) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValueDate = &v
+}
+
+// SetMinValueDateTime sets minValue[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isElementDefinitionMinValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValueDateTime(v FHIRDateTime) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValueDateTime = &v
+}
+
+// SetMinValueInstant sets minValue[x] to a FHIRInstant (the
+// release primitive wrapper that carries the isElementDefinitionMinValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValueInstant(v FHIRInstant) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValueInstant = &v
+}
+
+// SetMinValueTime sets minValue[x] to a FHIRTime (the
+// release primitive wrapper that carries the isElementDefinitionMinValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValueTime(v FHIRTime) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValueTime = &v
+}
+
+// SetMinValueDecimal sets minValue[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isElementDefinitionMinValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValueDecimal(v FHIRDecimal) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValueDecimal = &v
+}
+
+// SetMinValueInteger sets minValue[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isElementDefinitionMinValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValueInteger(v FHIRInteger) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValueInteger = &v
+}
+
+// SetMinValueInteger64 sets minValue[x] to a FHIRInteger64 (the
+// release primitive wrapper that carries the isElementDefinitionMinValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValueInteger64(v FHIRInteger64) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValueInteger64 = &v
+}
+
+// SetMinValuePositiveInt sets minValue[x] to a FHIRPositiveInt (the
+// release primitive wrapper that carries the isElementDefinitionMinValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValuePositiveInt(v FHIRPositiveInt) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValuePositiveInt = &v
+}
+
+// SetMinValueUnsignedInt sets minValue[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isElementDefinitionMinValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValueUnsignedInt(v FHIRUnsignedInt) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValueUnsignedInt = &v
+}
+
+// SetMinValueQuantity sets minValue[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMinValueQuantity(v Quantity) {
+	r.MinValueDate = nil
+	r.MinValueDateTime = nil
+	r.MinValueInstant = nil
+	r.MinValueTime = nil
+	r.MinValueDecimal = nil
+	r.MinValueInteger = nil
+	r.MinValueInteger64 = nil
+	r.MinValuePositiveInt = nil
+	r.MinValueUnsignedInt = nil
+	r.MinValueQuantity = nil
+	r.MinValueQuantity = &v
+}
+
+// ElementDefinitionMaxValue is the sealed value interface for the maxValue[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isElementDefinitionMaxValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ElementDefinitionMaxValue interface{ isElementDefinitionMaxValue() }
+
+func (FHIRDate) isElementDefinitionMaxValue()        {}
+func (FHIRDateTime) isElementDefinitionMaxValue()    {}
+func (FHIRInstant) isElementDefinitionMaxValue()     {}
+func (FHIRTime) isElementDefinitionMaxValue()        {}
+func (FHIRDecimal) isElementDefinitionMaxValue()     {}
+func (FHIRInteger) isElementDefinitionMaxValue()     {}
+func (FHIRInteger64) isElementDefinitionMaxValue()   {}
+func (FHIRPositiveInt) isElementDefinitionMaxValue() {}
+func (FHIRUnsignedInt) isElementDefinitionMaxValue() {}
+func (Quantity) isElementDefinitionMaxValue()        {}
+
+// MaxValue returns the value set in the maxValue[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ElementDefinition) MaxValue() (ElementDefinitionMaxValue, bool) {
+	switch {
+	case r.MaxValueDate != nil:
+		return *r.MaxValueDate, true
+	case r.MaxValueDateTime != nil:
+		return *r.MaxValueDateTime, true
+	case r.MaxValueInstant != nil:
+		return *r.MaxValueInstant, true
+	case r.MaxValueTime != nil:
+		return *r.MaxValueTime, true
+	case r.MaxValueDecimal != nil:
+		return *r.MaxValueDecimal, true
+	case r.MaxValueInteger != nil:
+		return *r.MaxValueInteger, true
+	case r.MaxValueInteger64 != nil:
+		return *r.MaxValueInteger64, true
+	case r.MaxValuePositiveInt != nil:
+		return *r.MaxValuePositiveInt, true
+	case r.MaxValueUnsignedInt != nil:
+		return *r.MaxValueUnsignedInt, true
+	case r.MaxValueQuantity != nil:
+		return *r.MaxValueQuantity, true
+	}
+	return nil, false
+}
+
+// SetMaxValueDate sets maxValue[x] to a FHIRDate (the
+// release primitive wrapper that carries the isElementDefinitionMaxValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValueDate(v FHIRDate) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValueDate = &v
+}
+
+// SetMaxValueDateTime sets maxValue[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isElementDefinitionMaxValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValueDateTime(v FHIRDateTime) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValueDateTime = &v
+}
+
+// SetMaxValueInstant sets maxValue[x] to a FHIRInstant (the
+// release primitive wrapper that carries the isElementDefinitionMaxValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValueInstant(v FHIRInstant) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValueInstant = &v
+}
+
+// SetMaxValueTime sets maxValue[x] to a FHIRTime (the
+// release primitive wrapper that carries the isElementDefinitionMaxValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValueTime(v FHIRTime) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValueTime = &v
+}
+
+// SetMaxValueDecimal sets maxValue[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isElementDefinitionMaxValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValueDecimal(v FHIRDecimal) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValueDecimal = &v
+}
+
+// SetMaxValueInteger sets maxValue[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isElementDefinitionMaxValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValueInteger(v FHIRInteger) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValueInteger = &v
+}
+
+// SetMaxValueInteger64 sets maxValue[x] to a FHIRInteger64 (the
+// release primitive wrapper that carries the isElementDefinitionMaxValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValueInteger64(v FHIRInteger64) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValueInteger64 = &v
+}
+
+// SetMaxValuePositiveInt sets maxValue[x] to a FHIRPositiveInt (the
+// release primitive wrapper that carries the isElementDefinitionMaxValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValuePositiveInt(v FHIRPositiveInt) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValuePositiveInt = &v
+}
+
+// SetMaxValueUnsignedInt sets maxValue[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isElementDefinitionMaxValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValueUnsignedInt(v FHIRUnsignedInt) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValueUnsignedInt = &v
+}
+
+// SetMaxValueQuantity sets maxValue[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinition) SetMaxValueQuantity(v Quantity) {
+	r.MaxValueDate = nil
+	r.MaxValueDateTime = nil
+	r.MaxValueInstant = nil
+	r.MaxValueTime = nil
+	r.MaxValueDecimal = nil
+	r.MaxValueInteger = nil
+	r.MaxValueInteger64 = nil
+	r.MaxValuePositiveInt = nil
+	r.MaxValueUnsignedInt = nil
+	r.MaxValueQuantity = nil
+	r.MaxValueQuantity = &v
 }
 
 // ElementDefinitionBase is a generated nested backbone element.
@@ -806,9 +11810,62 @@ func (v *ElementDefinitionConstraint) UnmarshalJSON(data []byte) error {
 // ElementDefinitionExample is a generated nested backbone element.
 type ElementDefinitionExample struct {
 	Element
-	Label        *string                `json:"label,omitempty"`
-	LabelElement *fhir.PrimitiveElement `json:"-"`
-	Value        *string                `json:"value,omitempty"`
+	Label                      *string                `json:"label,omitempty"`
+	LabelElement               *fhir.PrimitiveElement `json:"-"`
+	ValueBase64Binary          *FHIRBase64Binary      `json:"valueBase64Binary,omitempty"`
+	ValueBoolean               *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueCanonical             *FHIRCanonical         `json:"valueCanonical,omitempty"`
+	ValueCode                  *FHIRCode              `json:"valueCode,omitempty"`
+	ValueDate                  *FHIRDate              `json:"valueDate,omitempty"`
+	ValueDateTime              *FHIRDateTime          `json:"valueDateTime,omitempty"`
+	ValueDecimal               *FHIRDecimal           `json:"valueDecimal,omitempty"`
+	ValueID                    *FHIRID                `json:"valueID,omitempty"`
+	ValueInstant               *FHIRInstant           `json:"valueInstant,omitempty"`
+	ValueInteger               *FHIRInteger           `json:"valueInteger,omitempty"`
+	ValueInteger64             *FHIRInteger64         `json:"valueInteger64,omitempty"`
+	ValueMarkdown              *FHIRMarkdown          `json:"valueMarkdown,omitempty"`
+	ValueOid                   *FHIROID               `json:"valueOid,omitempty"`
+	ValuePositiveInt           *FHIRPositiveInt       `json:"valuePositiveInt,omitempty"`
+	ValueString                *FHIRString            `json:"valueString,omitempty"`
+	ValueTime                  *FHIRTime              `json:"valueTime,omitempty"`
+	ValueUnsignedInt           *FHIRUnsignedInt       `json:"valueUnsignedInt,omitempty"`
+	ValueURI                   *FHIRURI               `json:"valueURI,omitempty"`
+	ValueURL                   *FHIRURL               `json:"valueURL,omitempty"`
+	ValueUuid                  *FHIRUUID              `json:"valueUuid,omitempty"`
+	ValueAddress               *Address               `json:"valueAddress,omitempty"`
+	ValueAge                   *Age                   `json:"valueAge,omitempty"`
+	ValueAnnotation            *Annotation            `json:"valueAnnotation,omitempty"`
+	ValueAttachment            *Attachment            `json:"valueAttachment,omitempty"`
+	ValueCodeableConcept       *CodeableConcept       `json:"valueCodeableConcept,omitempty"`
+	ValueCodeableReference     *CodeableReference     `json:"valueCodeableReference,omitempty"`
+	ValueCoding                *Coding                `json:"valueCoding,omitempty"`
+	ValueContactPoint          *ContactPoint          `json:"valueContactPoint,omitempty"`
+	ValueCount                 *Count                 `json:"valueCount,omitempty"`
+	ValueDistance              *Distance              `json:"valueDistance,omitempty"`
+	ValueDuration              *Duration              `json:"valueDuration,omitempty"`
+	ValueHumanName             *HumanName             `json:"valueHumanName,omitempty"`
+	ValueIdentifier            *Identifier            `json:"valueIdentifier,omitempty"`
+	ValueMoney                 *Money                 `json:"valueMoney,omitempty"`
+	ValuePeriod                *Period                `json:"valuePeriod,omitempty"`
+	ValueQuantity              *Quantity              `json:"valueQuantity,omitempty"`
+	ValueRange                 *Range                 `json:"valueRange,omitempty"`
+	ValueRatio                 *Ratio                 `json:"valueRatio,omitempty"`
+	ValueRatioRange            *RatioRange            `json:"valueRatioRange,omitempty"`
+	ValueReference             *Reference             `json:"valueReference,omitempty"`
+	ValueSampledData           *SampledData           `json:"valueSampledData,omitempty"`
+	ValueSignature             *Signature             `json:"valueSignature,omitempty"`
+	ValueTiming                *Timing                `json:"valueTiming,omitempty"`
+	ValueContactDetail         *ContactDetail         `json:"valueContactDetail,omitempty"`
+	ValueDataRequirement       *DataRequirement       `json:"valueDataRequirement,omitempty"`
+	ValueExpression            *Expression            `json:"valueExpression,omitempty"`
+	ValueParameterDefinition   *ParameterDefinition   `json:"valueParameterDefinition,omitempty"`
+	ValueRelatedArtifact       *RelatedArtifact       `json:"valueRelatedArtifact,omitempty"`
+	ValueTriggerDefinition     *TriggerDefinition     `json:"valueTriggerDefinition,omitempty"`
+	ValueUsageContext          *UsageContext          `json:"valueUsageContext,omitempty"`
+	ValueAvailability          *Availability          `json:"valueAvailability,omitempty"`
+	ValueExtendedContactDetail *ExtendedContactDetail `json:"valueExtendedContactDetail,omitempty"`
+	ValueDosage                *Dosage                `json:"valueDosage,omitempty"`
+	ValueMeta                  *Meta                  `json:"valueMeta,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -857,6 +11914,3465 @@ func (v *ElementDefinitionExample) UnmarshalJSON(data []byte) error {
 	}
 	type alias ElementDefinitionExample
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ElementDefinitionExampleValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isElementDefinitionExampleValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ElementDefinitionExampleValue interface{ isElementDefinitionExampleValue() }
+
+func (FHIRBase64Binary) isElementDefinitionExampleValue()      {}
+func (FHIRBoolean) isElementDefinitionExampleValue()           {}
+func (FHIRCanonical) isElementDefinitionExampleValue()         {}
+func (FHIRCode) isElementDefinitionExampleValue()              {}
+func (FHIRDate) isElementDefinitionExampleValue()              {}
+func (FHIRDateTime) isElementDefinitionExampleValue()          {}
+func (FHIRDecimal) isElementDefinitionExampleValue()           {}
+func (FHIRID) isElementDefinitionExampleValue()                {}
+func (FHIRInstant) isElementDefinitionExampleValue()           {}
+func (FHIRInteger) isElementDefinitionExampleValue()           {}
+func (FHIRInteger64) isElementDefinitionExampleValue()         {}
+func (FHIRMarkdown) isElementDefinitionExampleValue()          {}
+func (FHIROID) isElementDefinitionExampleValue()               {}
+func (FHIRPositiveInt) isElementDefinitionExampleValue()       {}
+func (FHIRString) isElementDefinitionExampleValue()            {}
+func (FHIRTime) isElementDefinitionExampleValue()              {}
+func (FHIRUnsignedInt) isElementDefinitionExampleValue()       {}
+func (FHIRURI) isElementDefinitionExampleValue()               {}
+func (FHIRURL) isElementDefinitionExampleValue()               {}
+func (FHIRUUID) isElementDefinitionExampleValue()              {}
+func (Address) isElementDefinitionExampleValue()               {}
+func (Age) isElementDefinitionExampleValue()                   {}
+func (Annotation) isElementDefinitionExampleValue()            {}
+func (Attachment) isElementDefinitionExampleValue()            {}
+func (CodeableConcept) isElementDefinitionExampleValue()       {}
+func (CodeableReference) isElementDefinitionExampleValue()     {}
+func (Coding) isElementDefinitionExampleValue()                {}
+func (ContactPoint) isElementDefinitionExampleValue()          {}
+func (Count) isElementDefinitionExampleValue()                 {}
+func (Distance) isElementDefinitionExampleValue()              {}
+func (Duration) isElementDefinitionExampleValue()              {}
+func (HumanName) isElementDefinitionExampleValue()             {}
+func (Identifier) isElementDefinitionExampleValue()            {}
+func (Money) isElementDefinitionExampleValue()                 {}
+func (Period) isElementDefinitionExampleValue()                {}
+func (Quantity) isElementDefinitionExampleValue()              {}
+func (Range) isElementDefinitionExampleValue()                 {}
+func (Ratio) isElementDefinitionExampleValue()                 {}
+func (RatioRange) isElementDefinitionExampleValue()            {}
+func (Reference) isElementDefinitionExampleValue()             {}
+func (SampledData) isElementDefinitionExampleValue()           {}
+func (Signature) isElementDefinitionExampleValue()             {}
+func (Timing) isElementDefinitionExampleValue()                {}
+func (ContactDetail) isElementDefinitionExampleValue()         {}
+func (DataRequirement) isElementDefinitionExampleValue()       {}
+func (Expression) isElementDefinitionExampleValue()            {}
+func (ParameterDefinition) isElementDefinitionExampleValue()   {}
+func (RelatedArtifact) isElementDefinitionExampleValue()       {}
+func (TriggerDefinition) isElementDefinitionExampleValue()     {}
+func (UsageContext) isElementDefinitionExampleValue()          {}
+func (Availability) isElementDefinitionExampleValue()          {}
+func (ExtendedContactDetail) isElementDefinitionExampleValue() {}
+func (Dosage) isElementDefinitionExampleValue()                {}
+func (Meta) isElementDefinitionExampleValue()                  {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ElementDefinitionExample) Value() (ElementDefinitionExampleValue, bool) {
+	switch {
+	case r.ValueBase64Binary != nil:
+		return *r.ValueBase64Binary, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueCanonical != nil:
+		return *r.ValueCanonical, true
+	case r.ValueCode != nil:
+		return *r.ValueCode, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	case r.ValueID != nil:
+		return *r.ValueID, true
+	case r.ValueInstant != nil:
+		return *r.ValueInstant, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueInteger64 != nil:
+		return *r.ValueInteger64, true
+	case r.ValueMarkdown != nil:
+		return *r.ValueMarkdown, true
+	case r.ValueOid != nil:
+		return *r.ValueOid, true
+	case r.ValuePositiveInt != nil:
+		return *r.ValuePositiveInt, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueTime != nil:
+		return *r.ValueTime, true
+	case r.ValueUnsignedInt != nil:
+		return *r.ValueUnsignedInt, true
+	case r.ValueURI != nil:
+		return *r.ValueURI, true
+	case r.ValueURL != nil:
+		return *r.ValueURL, true
+	case r.ValueUuid != nil:
+		return *r.ValueUuid, true
+	case r.ValueAddress != nil:
+		return *r.ValueAddress, true
+	case r.ValueAge != nil:
+		return *r.ValueAge, true
+	case r.ValueAnnotation != nil:
+		return *r.ValueAnnotation, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueCodeableReference != nil:
+		return *r.ValueCodeableReference, true
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueContactPoint != nil:
+		return *r.ValueContactPoint, true
+	case r.ValueCount != nil:
+		return *r.ValueCount, true
+	case r.ValueDistance != nil:
+		return *r.ValueDistance, true
+	case r.ValueDuration != nil:
+		return *r.ValueDuration, true
+	case r.ValueHumanName != nil:
+		return *r.ValueHumanName, true
+	case r.ValueIdentifier != nil:
+		return *r.ValueIdentifier, true
+	case r.ValueMoney != nil:
+		return *r.ValueMoney, true
+	case r.ValuePeriod != nil:
+		return *r.ValuePeriod, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueRatio != nil:
+		return *r.ValueRatio, true
+	case r.ValueRatioRange != nil:
+		return *r.ValueRatioRange, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	case r.ValueSampledData != nil:
+		return *r.ValueSampledData, true
+	case r.ValueSignature != nil:
+		return *r.ValueSignature, true
+	case r.ValueTiming != nil:
+		return *r.ValueTiming, true
+	case r.ValueContactDetail != nil:
+		return *r.ValueContactDetail, true
+	case r.ValueDataRequirement != nil:
+		return *r.ValueDataRequirement, true
+	case r.ValueExpression != nil:
+		return *r.ValueExpression, true
+	case r.ValueParameterDefinition != nil:
+		return *r.ValueParameterDefinition, true
+	case r.ValueRelatedArtifact != nil:
+		return *r.ValueRelatedArtifact, true
+	case r.ValueTriggerDefinition != nil:
+		return *r.ValueTriggerDefinition, true
+	case r.ValueUsageContext != nil:
+		return *r.ValueUsageContext, true
+	case r.ValueAvailability != nil:
+		return *r.ValueAvailability, true
+	case r.ValueExtendedContactDetail != nil:
+		return *r.ValueExtendedContactDetail, true
+	case r.ValueDosage != nil:
+		return *r.ValueDosage, true
+	case r.ValueMeta != nil:
+		return *r.ValueMeta, true
+	}
+	return nil, false
+}
+
+// SetValueBase64Binary sets value[x] to a FHIRBase64Binary (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueBase64Binary(v FHIRBase64Binary) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueBase64Binary = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueBoolean(v FHIRBoolean) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueCanonical sets value[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueCanonical(v FHIRCanonical) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCanonical = &v
+}
+
+// SetValueCode sets value[x] to a FHIRCode (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueCode(v FHIRCode) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCode = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueDate(v FHIRDate) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDate = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueDateTime(v FHIRDateTime) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDateTime = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueDecimal(v FHIRDecimal) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDecimal = &v
+}
+
+// SetValueID sets value[x] to a FHIRID (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueID(v FHIRID) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueID = &v
+}
+
+// SetValueInstant sets value[x] to a FHIRInstant (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueInstant(v FHIRInstant) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueInstant = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueInteger(v FHIRInteger) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueInteger = &v
+}
+
+// SetValueInteger64 sets value[x] to a FHIRInteger64 (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueInteger64(v FHIRInteger64) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueInteger64 = &v
+}
+
+// SetValueMarkdown sets value[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueMarkdown(v FHIRMarkdown) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueMarkdown = &v
+}
+
+// SetValueOid sets value[x] to a FHIROID (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueOid(v FHIROID) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueOid = &v
+}
+
+// SetValuePositiveInt sets value[x] to a FHIRPositiveInt (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValuePositiveInt(v FHIRPositiveInt) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValuePositiveInt = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueString(v FHIRString) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueString = &v
+}
+
+// SetValueTime sets value[x] to a FHIRTime (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueTime(v FHIRTime) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueTime = &v
+}
+
+// SetValueUnsignedInt sets value[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueUnsignedInt(v FHIRUnsignedInt) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueUnsignedInt = &v
+}
+
+// SetValueURI sets value[x] to a FHIRURI (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueURI(v FHIRURI) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueURI = &v
+}
+
+// SetValueURL sets value[x] to a FHIRURL (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueURL(v FHIRURL) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueURL = &v
+}
+
+// SetValueUuid sets value[x] to a FHIRUUID (the
+// release primitive wrapper that carries the isElementDefinitionExampleValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueUuid(v FHIRUUID) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueUuid = &v
+}
+
+// SetValueAddress sets value[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueAddress(v Address) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAddress = &v
+}
+
+// SetValueAge sets value[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueAge(v Age) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAge = &v
+}
+
+// SetValueAnnotation sets value[x] to a Annotation and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueAnnotation(v Annotation) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAnnotation = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueAttachment(v Attachment) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueCodeableReference sets value[x] to a CodeableReference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueCodeableReference(v CodeableReference) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCodeableReference = &v
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueCoding(v Coding) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCoding = &v
+}
+
+// SetValueContactPoint sets value[x] to a ContactPoint and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueContactPoint(v ContactPoint) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueContactPoint = &v
+}
+
+// SetValueCount sets value[x] to a Count and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueCount(v Count) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCount = &v
+}
+
+// SetValueDistance sets value[x] to a Distance and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueDistance(v Distance) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDistance = &v
+}
+
+// SetValueDuration sets value[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueDuration(v Duration) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDuration = &v
+}
+
+// SetValueHumanName sets value[x] to a HumanName and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueHumanName(v HumanName) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueHumanName = &v
+}
+
+// SetValueIdentifier sets value[x] to a Identifier and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueIdentifier(v Identifier) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueIdentifier = &v
+}
+
+// SetValueMoney sets value[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueMoney(v Money) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueMoney = &v
+}
+
+// SetValuePeriod sets value[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValuePeriod(v Period) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValuePeriod = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueQuantity(v Quantity) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueRange(v Range) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueRange = &v
+}
+
+// SetValueRatio sets value[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueRatio(v Ratio) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueRatio = &v
+}
+
+// SetValueRatioRange sets value[x] to a RatioRange and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueRatioRange(v RatioRange) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueRatioRange = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueReference(v Reference) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueReference = &v
+}
+
+// SetValueSampledData sets value[x] to a SampledData and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueSampledData(v SampledData) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueSampledData = &v
+}
+
+// SetValueSignature sets value[x] to a Signature and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueSignature(v Signature) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueSignature = &v
+}
+
+// SetValueTiming sets value[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueTiming(v Timing) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueTiming = &v
+}
+
+// SetValueContactDetail sets value[x] to a ContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueContactDetail(v ContactDetail) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueContactDetail = &v
+}
+
+// SetValueDataRequirement sets value[x] to a DataRequirement and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueDataRequirement(v DataRequirement) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDataRequirement = &v
+}
+
+// SetValueExpression sets value[x] to a Expression and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueExpression(v Expression) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueExpression = &v
+}
+
+// SetValueParameterDefinition sets value[x] to a ParameterDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueParameterDefinition(v ParameterDefinition) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueParameterDefinition = &v
+}
+
+// SetValueRelatedArtifact sets value[x] to a RelatedArtifact and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueRelatedArtifact(v RelatedArtifact) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueRelatedArtifact = &v
+}
+
+// SetValueTriggerDefinition sets value[x] to a TriggerDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueTriggerDefinition(v TriggerDefinition) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueTriggerDefinition = &v
+}
+
+// SetValueUsageContext sets value[x] to a UsageContext and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueUsageContext(v UsageContext) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueUsageContext = &v
+}
+
+// SetValueAvailability sets value[x] to a Availability and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueAvailability(v Availability) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAvailability = &v
+}
+
+// SetValueExtendedContactDetail sets value[x] to a ExtendedContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueExtendedContactDetail(v ExtendedContactDetail) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueExtendedContactDetail = &v
+}
+
+// SetValueDosage sets value[x] to a Dosage and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueDosage(v Dosage) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDosage = &v
+}
+
+// SetValueMeta sets value[x] to a Meta and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ElementDefinitionExample) SetValueMeta(v Meta) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueMeta = &v
 }
 
 // ElementDefinitionMapping is a generated nested backbone element.

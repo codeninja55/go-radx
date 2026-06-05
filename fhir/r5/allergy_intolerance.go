@@ -24,7 +24,11 @@ type AllergyIntolerance struct {
 	Code                  *CodeableConcept                `json:"code,omitempty"`
 	Patient               *Reference                      `json:"patient,omitempty"`
 	Encounter             *Reference                      `json:"encounter,omitempty"`
-	Onset                 *string                         `json:"onset,omitempty"`
+	OnsetDateTime         *FHIRDateTime                   `json:"onsetDateTime,omitempty"`
+	OnsetAge              *Age                            `json:"onsetAge,omitempty"`
+	OnsetPeriod           *Period                         `json:"onsetPeriod,omitempty"`
+	OnsetRange            *Range                          `json:"onsetRange,omitempty"`
+	OnsetString           *FHIRString                     `json:"onsetString,omitempty"`
 	RecordedDate          *string                         `json:"recordedDate,omitempty"`
 	RecordedDateElement   *fhir.PrimitiveElement          `json:"-"`
 	Participant           []AllergyIntoleranceParticipant `json:"participant,omitempty"`
@@ -128,6 +132,97 @@ func (v *AllergyIntolerance) UnmarshalJSON(data []byte) error {
 	}
 	type alias AllergyIntolerance
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// AllergyIntoleranceOnset is the sealed value interface for the onset[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isAllergyIntoleranceOnset marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type AllergyIntoleranceOnset interface{ isAllergyIntoleranceOnset() }
+
+func (FHIRDateTime) isAllergyIntoleranceOnset() {}
+func (Age) isAllergyIntoleranceOnset()          {}
+func (Period) isAllergyIntoleranceOnset()       {}
+func (Range) isAllergyIntoleranceOnset()        {}
+func (FHIRString) isAllergyIntoleranceOnset()   {}
+
+// Onset returns the value set in the onset[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *AllergyIntolerance) Onset() (AllergyIntoleranceOnset, bool) {
+	switch {
+	case r.OnsetDateTime != nil:
+		return *r.OnsetDateTime, true
+	case r.OnsetAge != nil:
+		return *r.OnsetAge, true
+	case r.OnsetPeriod != nil:
+		return *r.OnsetPeriod, true
+	case r.OnsetRange != nil:
+		return *r.OnsetRange, true
+	case r.OnsetString != nil:
+		return *r.OnsetString, true
+	}
+	return nil, false
+}
+
+// SetOnsetDateTime sets onset[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isAllergyIntoleranceOnset marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AllergyIntolerance) SetOnsetDateTime(v FHIRDateTime) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetDateTime = &v
+}
+
+// SetOnsetAge sets onset[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AllergyIntolerance) SetOnsetAge(v Age) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetAge = &v
+}
+
+// SetOnsetPeriod sets onset[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AllergyIntolerance) SetOnsetPeriod(v Period) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetPeriod = &v
+}
+
+// SetOnsetRange sets onset[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AllergyIntolerance) SetOnsetRange(v Range) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetRange = &v
+}
+
+// SetOnsetString sets onset[x] to a FHIRString (the
+// release primitive wrapper that carries the isAllergyIntoleranceOnset marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AllergyIntolerance) SetOnsetString(v FHIRString) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetString = &v
 }
 
 // AllergyIntoleranceParticipant is a generated nested backbone element.

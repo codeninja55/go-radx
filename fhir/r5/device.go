@@ -368,8 +368,149 @@ func (v *DeviceName) UnmarshalJSON(data []byte) error {
 // DeviceProperty is a generated nested backbone element.
 type DeviceProperty struct {
 	BackboneElement
-	Type  *CodeableConcept `json:"type,omitempty"`
-	Value *Quantity        `json:"value,omitempty"`
+	Type                 *CodeableConcept `json:"type,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValueString          *FHIRString      `json:"valueString,omitempty"`
+	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
+	ValueInteger         *FHIRInteger     `json:"valueInteger,omitempty"`
+	ValueRange           *Range           `json:"valueRange,omitempty"`
+	ValueAttachment      *Attachment      `json:"valueAttachment,omitempty"`
+}
+
+// DevicePropertyValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDevicePropertyValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DevicePropertyValue interface{ isDevicePropertyValue() }
+
+func (Quantity) isDevicePropertyValue()        {}
+func (CodeableConcept) isDevicePropertyValue() {}
+func (FHIRString) isDevicePropertyValue()      {}
+func (FHIRBoolean) isDevicePropertyValue()     {}
+func (FHIRInteger) isDevicePropertyValue()     {}
+func (Range) isDevicePropertyValue()           {}
+func (Attachment) isDevicePropertyValue()      {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DeviceProperty) Value() (DevicePropertyValue, bool) {
+	switch {
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	}
+	return nil, false
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceProperty) SetValueQuantity(v Quantity) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueAttachment = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceProperty) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isDevicePropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceProperty) SetValueString(v FHIRString) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueAttachment = nil
+	r.ValueString = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isDevicePropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceProperty) SetValueBoolean(v FHIRBoolean) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isDevicePropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceProperty) SetValueInteger(v FHIRInteger) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueAttachment = nil
+	r.ValueInteger = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceProperty) SetValueRange(v Range) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueAttachment = nil
+	r.ValueRange = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceProperty) SetValueAttachment(v Attachment) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueAttachment = nil
+	r.ValueAttachment = &v
 }
 
 // DeviceUdiCarrier is a generated nested backbone element.

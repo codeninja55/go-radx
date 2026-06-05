@@ -13,51 +13,52 @@ const ValueSetResourceType = "ValueSet"
 // ValueSet is the generated FHIR ValueSet resource.
 type ValueSet struct {
 	DomainResource
-	URL                   *string                `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement `json:"-"`
-	Identifier            []Identifier           `json:"identifier,omitempty"`
-	Version               *string                `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement `json:"-"`
-	VersionAlgorithm      *string                `json:"versionAlgorithm,omitempty"`
-	Name                  *string                `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement `json:"-"`
-	Title                 *string                `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement `json:"-"`
-	Status                *string                `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement `json:"-"`
-	Experimental          *bool                  `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement `json:"-"`
-	Date                  *string                `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement `json:"-"`
-	Publisher             *string                `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement `json:"-"`
-	Contact               []ContactDetail        `json:"contact,omitempty"`
-	Description           *string                `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement `json:"-"`
-	UseContext            []UsageContext         `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept      `json:"jurisdiction,omitempty"`
-	Immutable             *bool                  `json:"immutable,omitempty"`
-	ImmutableElement      *fhir.PrimitiveElement `json:"-"`
-	Purpose               *string                `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement `json:"-"`
-	Copyright             *string                `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement `json:"-"`
-	CopyrightLabel        *string                `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement `json:"-"`
-	ApprovalDate          *string                `json:"approvalDate,omitempty"`
-	ApprovalDateElement   *fhir.PrimitiveElement `json:"-"`
-	LastReviewDate        *string                `json:"lastReviewDate,omitempty"`
-	LastReviewDateElement *fhir.PrimitiveElement `json:"-"`
-	EffectivePeriod       *Period                `json:"effectivePeriod,omitempty"`
-	Topic                 []CodeableConcept      `json:"topic,omitempty"`
-	Author                []ContactDetail        `json:"author,omitempty"`
-	Editor                []ContactDetail        `json:"editor,omitempty"`
-	Reviewer              []ContactDetail        `json:"reviewer,omitempty"`
-	Endorser              []ContactDetail        `json:"endorser,omitempty"`
-	RelatedArtifact       []RelatedArtifact      `json:"relatedArtifact,omitempty"`
-	Compose               *ValueSetCompose       `json:"compose,omitempty"`
-	Expansion             *ValueSetExpansion     `json:"expansion,omitempty"`
-	Scope                 *ValueSetScope         `json:"scope,omitempty"`
+	URL                    *string                `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement `json:"-"`
+	Identifier             []Identifier           `json:"identifier,omitempty"`
+	Version                *string                `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement `json:"-"`
+	VersionAlgorithmString *FHIRString            `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement `json:"-"`
+	Title                  *string                `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement `json:"-"`
+	Status                 *string                `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement `json:"-"`
+	Experimental           *bool                  `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement `json:"-"`
+	Date                   *string                `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement `json:"-"`
+	Publisher              *string                `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement `json:"-"`
+	Contact                []ContactDetail        `json:"contact,omitempty"`
+	Description            *string                `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement `json:"-"`
+	UseContext             []UsageContext         `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept      `json:"jurisdiction,omitempty"`
+	Immutable              *bool                  `json:"immutable,omitempty"`
+	ImmutableElement       *fhir.PrimitiveElement `json:"-"`
+	Purpose                *string                `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement `json:"-"`
+	Copyright              *string                `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement `json:"-"`
+	CopyrightLabel         *string                `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement `json:"-"`
+	ApprovalDate           *string                `json:"approvalDate,omitempty"`
+	ApprovalDateElement    *fhir.PrimitiveElement `json:"-"`
+	LastReviewDate         *string                `json:"lastReviewDate,omitempty"`
+	LastReviewDateElement  *fhir.PrimitiveElement `json:"-"`
+	EffectivePeriod        *Period                `json:"effectivePeriod,omitempty"`
+	Topic                  []CodeableConcept      `json:"topic,omitempty"`
+	Author                 []ContactDetail        `json:"author,omitempty"`
+	Editor                 []ContactDetail        `json:"editor,omitempty"`
+	Reviewer               []ContactDetail        `json:"reviewer,omitempty"`
+	Endorser               []ContactDetail        `json:"endorser,omitempty"`
+	RelatedArtifact        []RelatedArtifact      `json:"relatedArtifact,omitempty"`
+	Compose                *ValueSetCompose       `json:"compose,omitempty"`
+	Expansion              *ValueSetExpansion     `json:"expansion,omitempty"`
+	Scope                  *ValueSetScope         `json:"scope,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "ValueSet".
@@ -286,6 +287,47 @@ func (v *ValueSet) UnmarshalJSON(data []byte) error {
 	}
 	type alias ValueSet
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ValueSetVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isValueSetVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ValueSetVersionAlgorithm interface{ isValueSetVersionAlgorithm() }
+
+func (FHIRString) isValueSetVersionAlgorithm() {}
+func (Coding) isValueSetVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ValueSet) VersionAlgorithm() (ValueSetVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isValueSetVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSet) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSet) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
 }
 
 // ValueSetCompose is a generated nested backbone element.
@@ -941,10 +983,16 @@ func (v *ValueSetExpansionContains) UnmarshalJSON(data []byte) error {
 // ValueSetExpansionContainsProperty is a generated nested backbone element.
 type ValueSetExpansionContainsProperty struct {
 	BackboneElement
-	Code        *string                                        `json:"code,omitempty"`
-	CodeElement *fhir.PrimitiveElement                         `json:"-"`
-	Value       *string                                        `json:"value,omitempty"`
-	SubProperty []ValueSetExpansionContainsPropertySubProperty `json:"subProperty,omitempty"`
+	Code          *string                                        `json:"code,omitempty"`
+	CodeElement   *fhir.PrimitiveElement                         `json:"-"`
+	ValueCode     *FHIRCode                                      `json:"valueCode,omitempty"`
+	ValueCoding   *Coding                                        `json:"valueCoding,omitempty"`
+	ValueString   *FHIRString                                    `json:"valueString,omitempty"`
+	ValueInteger  *FHIRInteger                                   `json:"valueInteger,omitempty"`
+	ValueBoolean  *FHIRBoolean                                   `json:"valueBoolean,omitempty"`
+	ValueDateTime *FHIRDateTime                                  `json:"valueDateTime,omitempty"`
+	ValueDecimal  *FHIRDecimal                                   `json:"valueDecimal,omitempty"`
+	SubProperty   []ValueSetExpansionContainsPropertySubProperty `json:"subProperty,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -995,12 +1043,159 @@ func (v *ValueSetExpansionContainsProperty) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ValueSetExpansionContainsPropertyValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isValueSetExpansionContainsPropertyValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ValueSetExpansionContainsPropertyValue interface{ isValueSetExpansionContainsPropertyValue() }
+
+func (FHIRCode) isValueSetExpansionContainsPropertyValue()     {}
+func (Coding) isValueSetExpansionContainsPropertyValue()       {}
+func (FHIRString) isValueSetExpansionContainsPropertyValue()   {}
+func (FHIRInteger) isValueSetExpansionContainsPropertyValue()  {}
+func (FHIRBoolean) isValueSetExpansionContainsPropertyValue()  {}
+func (FHIRDateTime) isValueSetExpansionContainsPropertyValue() {}
+func (FHIRDecimal) isValueSetExpansionContainsPropertyValue()  {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ValueSetExpansionContainsProperty) Value() (ValueSetExpansionContainsPropertyValue, bool) {
+	switch {
+	case r.ValueCode != nil:
+		return *r.ValueCode, true
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	}
+	return nil, false
+}
+
+// SetValueCode sets value[x] to a FHIRCode (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsProperty) SetValueCode(v FHIRCode) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = &v
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsProperty) SetValueCoding(v Coding) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCoding = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsProperty) SetValueString(v FHIRString) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueString = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsProperty) SetValueInteger(v FHIRInteger) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsProperty) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsProperty) SetValueDateTime(v FHIRDateTime) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueDateTime = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsProperty) SetValueDecimal(v FHIRDecimal) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueDecimal = &v
+}
+
 // ValueSetExpansionContainsPropertySubProperty is a generated nested backbone element.
 type ValueSetExpansionContainsPropertySubProperty struct {
 	BackboneElement
-	Code        *string                `json:"code,omitempty"`
-	CodeElement *fhir.PrimitiveElement `json:"-"`
-	Value       *string                `json:"value,omitempty"`
+	Code          *string                `json:"code,omitempty"`
+	CodeElement   *fhir.PrimitiveElement `json:"-"`
+	ValueCode     *FHIRCode              `json:"valueCode,omitempty"`
+	ValueCoding   *Coding                `json:"valueCoding,omitempty"`
+	ValueString   *FHIRString            `json:"valueString,omitempty"`
+	ValueInteger  *FHIRInteger           `json:"valueInteger,omitempty"`
+	ValueBoolean  *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueDateTime *FHIRDateTime          `json:"valueDateTime,omitempty"`
+	ValueDecimal  *FHIRDecimal           `json:"valueDecimal,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -1051,12 +1246,159 @@ func (v *ValueSetExpansionContainsPropertySubProperty) UnmarshalJSON(data []byte
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ValueSetExpansionContainsPropertySubPropertyValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isValueSetExpansionContainsPropertySubPropertyValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ValueSetExpansionContainsPropertySubPropertyValue interface{ isValueSetExpansionContainsPropertySubPropertyValue() }
+
+func (FHIRCode) isValueSetExpansionContainsPropertySubPropertyValue()     {}
+func (Coding) isValueSetExpansionContainsPropertySubPropertyValue()       {}
+func (FHIRString) isValueSetExpansionContainsPropertySubPropertyValue()   {}
+func (FHIRInteger) isValueSetExpansionContainsPropertySubPropertyValue()  {}
+func (FHIRBoolean) isValueSetExpansionContainsPropertySubPropertyValue()  {}
+func (FHIRDateTime) isValueSetExpansionContainsPropertySubPropertyValue() {}
+func (FHIRDecimal) isValueSetExpansionContainsPropertySubPropertyValue()  {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ValueSetExpansionContainsPropertySubProperty) Value() (ValueSetExpansionContainsPropertySubPropertyValue, bool) {
+	switch {
+	case r.ValueCode != nil:
+		return *r.ValueCode, true
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	}
+	return nil, false
+}
+
+// SetValueCode sets value[x] to a FHIRCode (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertySubPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsPropertySubProperty) SetValueCode(v FHIRCode) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = &v
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsPropertySubProperty) SetValueCoding(v Coding) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCoding = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertySubPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsPropertySubProperty) SetValueString(v FHIRString) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueString = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertySubPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsPropertySubProperty) SetValueInteger(v FHIRInteger) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertySubPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsPropertySubProperty) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertySubPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsPropertySubProperty) SetValueDateTime(v FHIRDateTime) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueDateTime = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isValueSetExpansionContainsPropertySubPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionContainsPropertySubProperty) SetValueDecimal(v FHIRDecimal) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueDecimal = &v
+}
+
 // ValueSetExpansionParameter is a generated nested backbone element.
 type ValueSetExpansionParameter struct {
 	BackboneElement
-	Name        *string                `json:"name,omitempty"`
-	NameElement *fhir.PrimitiveElement `json:"-"`
-	Value       *string                `json:"value,omitempty"`
+	Name          *string                `json:"name,omitempty"`
+	NameElement   *fhir.PrimitiveElement `json:"-"`
+	ValueString   *FHIRString            `json:"valueString,omitempty"`
+	ValueBoolean  *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueInteger  *FHIRInteger           `json:"valueInteger,omitempty"`
+	ValueDecimal  *FHIRDecimal           `json:"valueDecimal,omitempty"`
+	ValueURI      *FHIRURI               `json:"valueURI,omitempty"`
+	ValueCode     *FHIRCode              `json:"valueCode,omitempty"`
+	ValueDateTime *FHIRDateTime          `json:"valueDateTime,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -1105,6 +1447,149 @@ func (v *ValueSetExpansionParameter) UnmarshalJSON(data []byte) error {
 	}
 	type alias ValueSetExpansionParameter
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ValueSetExpansionParameterValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isValueSetExpansionParameterValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ValueSetExpansionParameterValue interface{ isValueSetExpansionParameterValue() }
+
+func (FHIRString) isValueSetExpansionParameterValue()   {}
+func (FHIRBoolean) isValueSetExpansionParameterValue()  {}
+func (FHIRInteger) isValueSetExpansionParameterValue()  {}
+func (FHIRDecimal) isValueSetExpansionParameterValue()  {}
+func (FHIRURI) isValueSetExpansionParameterValue()      {}
+func (FHIRCode) isValueSetExpansionParameterValue()     {}
+func (FHIRDateTime) isValueSetExpansionParameterValue() {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ValueSetExpansionParameter) Value() (ValueSetExpansionParameterValue, bool) {
+	switch {
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	case r.ValueURI != nil:
+		return *r.ValueURI, true
+	case r.ValueCode != nil:
+		return *r.ValueCode, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	}
+	return nil, false
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isValueSetExpansionParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionParameter) SetValueString(v FHIRString) {
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueURI = nil
+	r.ValueCode = nil
+	r.ValueDateTime = nil
+	r.ValueString = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isValueSetExpansionParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionParameter) SetValueBoolean(v FHIRBoolean) {
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueURI = nil
+	r.ValueCode = nil
+	r.ValueDateTime = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isValueSetExpansionParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionParameter) SetValueInteger(v FHIRInteger) {
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueURI = nil
+	r.ValueCode = nil
+	r.ValueDateTime = nil
+	r.ValueInteger = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isValueSetExpansionParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionParameter) SetValueDecimal(v FHIRDecimal) {
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueURI = nil
+	r.ValueCode = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = &v
+}
+
+// SetValueURI sets value[x] to a FHIRURI (the
+// release primitive wrapper that carries the isValueSetExpansionParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionParameter) SetValueURI(v FHIRURI) {
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueURI = nil
+	r.ValueCode = nil
+	r.ValueDateTime = nil
+	r.ValueURI = &v
+}
+
+// SetValueCode sets value[x] to a FHIRCode (the
+// release primitive wrapper that carries the isValueSetExpansionParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionParameter) SetValueCode(v FHIRCode) {
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueURI = nil
+	r.ValueCode = nil
+	r.ValueDateTime = nil
+	r.ValueCode = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isValueSetExpansionParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ValueSetExpansionParameter) SetValueDateTime(v FHIRDateTime) {
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueURI = nil
+	r.ValueCode = nil
+	r.ValueDateTime = nil
+	r.ValueDateTime = &v
 }
 
 // ValueSetExpansionProperty is a generated nested backbone element.

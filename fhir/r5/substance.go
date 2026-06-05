@@ -127,6 +127,46 @@ func (v *Substance) UnmarshalJSON(data []byte) error {
 // SubstanceIngredient is a generated nested backbone element.
 type SubstanceIngredient struct {
 	BackboneElement
-	Quantity  *Ratio           `json:"quantity,omitempty"`
-	Substance *CodeableConcept `json:"substance,omitempty"`
+	Quantity                 *Ratio           `json:"quantity,omitempty"`
+	SubstanceCodeableConcept *CodeableConcept `json:"substanceCodeableConcept,omitempty"`
+	SubstanceReference       *Reference       `json:"substanceReference,omitempty"`
+}
+
+// SubstanceIngredientSubstance is the sealed value interface for the substance[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSubstanceIngredientSubstance marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SubstanceIngredientSubstance interface{ isSubstanceIngredientSubstance() }
+
+func (CodeableConcept) isSubstanceIngredientSubstance() {}
+func (Reference) isSubstanceIngredientSubstance()       {}
+
+// Substance returns the value set in the substance[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SubstanceIngredient) Substance() (SubstanceIngredientSubstance, bool) {
+	switch {
+	case r.SubstanceCodeableConcept != nil:
+		return *r.SubstanceCodeableConcept, true
+	case r.SubstanceReference != nil:
+		return *r.SubstanceReference, true
+	}
+	return nil, false
+}
+
+// SetSubstanceCodeableConcept sets substance[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceIngredient) SetSubstanceCodeableConcept(v CodeableConcept) {
+	r.SubstanceCodeableConcept = nil
+	r.SubstanceReference = nil
+	r.SubstanceCodeableConcept = &v
+}
+
+// SetSubstanceReference sets substance[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceIngredient) SetSubstanceReference(v Reference) {
+	r.SubstanceCodeableConcept = nil
+	r.SubstanceReference = nil
+	r.SubstanceReference = &v
 }

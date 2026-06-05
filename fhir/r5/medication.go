@@ -157,10 +157,12 @@ func (v *MedicationBatch) UnmarshalJSON(data []byte) error {
 // MedicationIngredient is a generated nested backbone element.
 type MedicationIngredient struct {
 	BackboneElement
-	Item            *CodeableReference     `json:"item,omitempty"`
-	IsActive        *bool                  `json:"isActive,omitempty"`
-	IsActiveElement *fhir.PrimitiveElement `json:"-"`
-	Strength        *Ratio                 `json:"strength,omitempty"`
+	Item                    *CodeableReference     `json:"item,omitempty"`
+	IsActive                *bool                  `json:"isActive,omitempty"`
+	IsActiveElement         *fhir.PrimitiveElement `json:"-"`
+	StrengthRatio           *Ratio                 `json:"strengthRatio,omitempty"`
+	StrengthCodeableConcept *CodeableConcept       `json:"strengthCodeableConcept,omitempty"`
+	StrengthQuantity        *Quantity              `json:"strengthQuantity,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -209,4 +211,57 @@ func (v *MedicationIngredient) UnmarshalJSON(data []byte) error {
 	}
 	type alias MedicationIngredient
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MedicationIngredientStrength is the sealed value interface for the strength[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationIngredientStrength marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationIngredientStrength interface{ isMedicationIngredientStrength() }
+
+func (Ratio) isMedicationIngredientStrength()           {}
+func (CodeableConcept) isMedicationIngredientStrength() {}
+func (Quantity) isMedicationIngredientStrength()        {}
+
+// Strength returns the value set in the strength[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationIngredient) Strength() (MedicationIngredientStrength, bool) {
+	switch {
+	case r.StrengthRatio != nil:
+		return *r.StrengthRatio, true
+	case r.StrengthCodeableConcept != nil:
+		return *r.StrengthCodeableConcept, true
+	case r.StrengthQuantity != nil:
+		return *r.StrengthQuantity, true
+	}
+	return nil, false
+}
+
+// SetStrengthRatio sets strength[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationIngredient) SetStrengthRatio(v Ratio) {
+	r.StrengthRatio = nil
+	r.StrengthCodeableConcept = nil
+	r.StrengthQuantity = nil
+	r.StrengthRatio = &v
+}
+
+// SetStrengthCodeableConcept sets strength[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationIngredient) SetStrengthCodeableConcept(v CodeableConcept) {
+	r.StrengthRatio = nil
+	r.StrengthCodeableConcept = nil
+	r.StrengthQuantity = nil
+	r.StrengthCodeableConcept = &v
+}
+
+// SetStrengthQuantity sets strength[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationIngredient) SetStrengthQuantity(v Quantity) {
+	r.StrengthRatio = nil
+	r.StrengthCodeableConcept = nil
+	r.StrengthQuantity = nil
+	r.StrengthQuantity = &v
 }

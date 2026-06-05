@@ -24,7 +24,9 @@ type ChargeItem struct {
 	Code                       *CodeableConcept         `json:"code,omitempty"`
 	Subject                    *Reference               `json:"subject,omitempty"`
 	Encounter                  *Reference               `json:"encounter,omitempty"`
-	Occurrence                 *string                  `json:"occurrence,omitempty"`
+	OccurrenceDateTime         *FHIRDateTime            `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod           *Period                  `json:"occurrencePeriod,omitempty"`
+	OccurrenceTiming           *Timing                  `json:"occurrenceTiming,omitempty"`
 	Performer                  []ChargeItemPerformer    `json:"performer,omitempty"`
 	PerformingOrganization     *Reference               `json:"performingOrganization,omitempty"`
 	RequestingOrganization     *Reference               `json:"requestingOrganization,omitempty"`
@@ -139,6 +141,61 @@ func (v *ChargeItem) UnmarshalJSON(data []byte) error {
 	}
 	type alias ChargeItem
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ChargeItemOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isChargeItemOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ChargeItemOccurrence interface{ isChargeItemOccurrence() }
+
+func (FHIRDateTime) isChargeItemOccurrence() {}
+func (Period) isChargeItemOccurrence()       {}
+func (Timing) isChargeItemOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ChargeItem) Occurrence() (ChargeItemOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	case r.OccurrenceTiming != nil:
+		return *r.OccurrenceTiming, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isChargeItemOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ChargeItem) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ChargeItem) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrencePeriod = &v
+}
+
+// SetOccurrenceTiming sets occurrence[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ChargeItem) SetOccurrenceTiming(v Timing) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceTiming = &v
 }
 
 // ChargeItemPerformer is a generated nested backbone element.

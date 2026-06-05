@@ -13,46 +13,47 @@ const TestScriptResourceType = "TestScript"
 // TestScript is the generated FHIR TestScript resource.
 type TestScript struct {
 	DomainResource
-	URL                   *string                  `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement   `json:"-"`
-	Identifier            []Identifier             `json:"identifier,omitempty"`
-	Version               *string                  `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement   `json:"-"`
-	VersionAlgorithm      *string                  `json:"versionAlgorithm,omitempty"`
-	Name                  *string                  `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement   `json:"-"`
-	Title                 *string                  `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement   `json:"-"`
-	Status                *string                  `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement   `json:"-"`
-	Experimental          *bool                    `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement   `json:"-"`
-	Date                  *string                  `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement   `json:"-"`
-	Publisher             *string                  `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement   `json:"-"`
-	Contact               []ContactDetail          `json:"contact,omitempty"`
-	Description           *string                  `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement   `json:"-"`
-	UseContext            []UsageContext           `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept        `json:"jurisdiction,omitempty"`
-	Purpose               *string                  `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement   `json:"-"`
-	Copyright             *string                  `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement   `json:"-"`
-	CopyrightLabel        *string                  `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement   `json:"-"`
-	Origin                []TestScriptOrigin       `json:"origin,omitempty"`
-	Destination           []TestScriptOrigin       `json:"destination,omitempty"`
-	Metadata              *TestScriptMetadata      `json:"metadata,omitempty"`
-	Scope                 []TestScriptScope        `json:"scope,omitempty"`
-	Fixture               []TestScriptFixture      `json:"fixture,omitempty"`
-	Profile               []string                 `json:"profile,omitempty"`
-	ProfileElement        []*fhir.PrimitiveElement `json:"-"`
-	Variable              []TestScriptVariable     `json:"variable,omitempty"`
-	Setup                 *TestScriptSetup         `json:"setup,omitempty"`
-	Test                  []TestScriptTest         `json:"test,omitempty"`
-	Teardown              *TestScriptTeardown      `json:"teardown,omitempty"`
+	URL                    *string                  `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement   `json:"-"`
+	Identifier             []Identifier             `json:"identifier,omitempty"`
+	Version                *string                  `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement   `json:"-"`
+	VersionAlgorithmString *FHIRString              `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                  `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                  `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement   `json:"-"`
+	Title                  *string                  `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement   `json:"-"`
+	Status                 *string                  `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement   `json:"-"`
+	Experimental           *bool                    `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement   `json:"-"`
+	Date                   *string                  `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement   `json:"-"`
+	Publisher              *string                  `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement   `json:"-"`
+	Contact                []ContactDetail          `json:"contact,omitempty"`
+	Description            *string                  `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement   `json:"-"`
+	UseContext             []UsageContext           `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept        `json:"jurisdiction,omitempty"`
+	Purpose                *string                  `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement   `json:"-"`
+	Copyright              *string                  `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement   `json:"-"`
+	CopyrightLabel         *string                  `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement   `json:"-"`
+	Origin                 []TestScriptOrigin       `json:"origin,omitempty"`
+	Destination            []TestScriptOrigin       `json:"destination,omitempty"`
+	Metadata               *TestScriptMetadata      `json:"metadata,omitempty"`
+	Scope                  []TestScriptScope        `json:"scope,omitempty"`
+	Fixture                []TestScriptFixture      `json:"fixture,omitempty"`
+	Profile                []string                 `json:"profile,omitempty"`
+	ProfileElement         []*fhir.PrimitiveElement `json:"-"`
+	Variable               []TestScriptVariable     `json:"variable,omitempty"`
+	Setup                  *TestScriptSetup         `json:"setup,omitempty"`
+	Test                   []TestScriptTest         `json:"test,omitempty"`
+	Teardown               *TestScriptTeardown      `json:"teardown,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "TestScript".
@@ -257,6 +258,47 @@ func (v *TestScript) UnmarshalJSON(data []byte) error {
 	}
 	type alias TestScript
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// TestScriptVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isTestScriptVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type TestScriptVersionAlgorithm interface{ isTestScriptVersionAlgorithm() }
+
+func (FHIRString) isTestScriptVersionAlgorithm() {}
+func (Coding) isTestScriptVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *TestScript) VersionAlgorithm() (TestScriptVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isTestScriptVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestScript) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestScript) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
 }
 
 // TestScriptFixture is a generated nested backbone element.
@@ -1065,7 +1107,51 @@ func (v *TestScriptSetupActionAssert) UnmarshalJSON(data []byte) error {
 // TestScriptSetupActionAssertRequirement is a generated nested backbone element.
 type TestScriptSetupActionAssertRequirement struct {
 	BackboneElement
-	Link *string `json:"link,omitempty"`
+	LinkURI       *FHIRURI       `json:"linkURI,omitempty"`
+	LinkCanonical *FHIRCanonical `json:"linkCanonical,omitempty"`
+}
+
+// TestScriptSetupActionAssertRequirementLink is the sealed value interface for the link[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isTestScriptSetupActionAssertRequirementLink marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type TestScriptSetupActionAssertRequirementLink interface{ isTestScriptSetupActionAssertRequirementLink() }
+
+func (FHIRURI) isTestScriptSetupActionAssertRequirementLink()       {}
+func (FHIRCanonical) isTestScriptSetupActionAssertRequirementLink() {}
+
+// Link returns the value set in the link[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *TestScriptSetupActionAssertRequirement) Link() (TestScriptSetupActionAssertRequirementLink, bool) {
+	switch {
+	case r.LinkURI != nil:
+		return *r.LinkURI, true
+	case r.LinkCanonical != nil:
+		return *r.LinkCanonical, true
+	}
+	return nil, false
+}
+
+// SetLinkURI sets link[x] to a FHIRURI (the
+// release primitive wrapper that carries the isTestScriptSetupActionAssertRequirementLink marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestScriptSetupActionAssertRequirement) SetLinkURI(v FHIRURI) {
+	r.LinkURI = nil
+	r.LinkCanonical = nil
+	r.LinkURI = &v
+}
+
+// SetLinkCanonical sets link[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isTestScriptSetupActionAssertRequirementLink marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TestScriptSetupActionAssertRequirement) SetLinkCanonical(v FHIRCanonical) {
+	r.LinkURI = nil
+	r.LinkCanonical = nil
+	r.LinkCanonical = &v
 }
 
 // TestScriptSetupActionOperation is a generated nested backbone element.

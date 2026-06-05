@@ -29,11 +29,19 @@ type FamilyMemberHistory struct {
 	NameElement                  *fhir.PrimitiveElement           `json:"-"`
 	Relationship                 *CodeableConcept                 `json:"relationship,omitempty"`
 	Sex                          *CodeableConcept                 `json:"sex,omitempty"`
-	Born                         *Period                          `json:"born,omitempty"`
-	Age                          *Age                             `json:"age,omitempty"`
+	BornPeriod                   *Period                          `json:"bornPeriod,omitempty"`
+	BornDate                     *FHIRDate                        `json:"bornDate,omitempty"`
+	BornString                   *FHIRString                      `json:"bornString,omitempty"`
+	AgeAge                       *Age                             `json:"ageAge,omitempty"`
+	AgeRange                     *Range                           `json:"ageRange,omitempty"`
+	AgeString                    *FHIRString                      `json:"ageString,omitempty"`
 	EstimatedAge                 *bool                            `json:"estimatedAge,omitempty"`
 	EstimatedAgeElement          *fhir.PrimitiveElement           `json:"-"`
-	Deceased                     *bool                            `json:"deceased,omitempty"`
+	DeceasedBoolean              *FHIRBoolean                     `json:"deceasedBoolean,omitempty"`
+	DeceasedAge                  *Age                             `json:"deceasedAge,omitempty"`
+	DeceasedRange                *Range                           `json:"deceasedRange,omitempty"`
+	DeceasedDate                 *FHIRDate                        `json:"deceasedDate,omitempty"`
+	DeceasedString               *FHIRString                      `json:"deceasedString,omitempty"`
 	Reason                       []CodeableReference              `json:"reason,omitempty"`
 	Note                         []Annotation                     `json:"note,omitempty"`
 	Condition                    []FamilyMemberHistoryCondition   `json:"condition,omitempty"`
@@ -160,6 +168,211 @@ func (v *FamilyMemberHistory) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// FamilyMemberHistoryBorn is the sealed value interface for the born[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isFamilyMemberHistoryBorn marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type FamilyMemberHistoryBorn interface{ isFamilyMemberHistoryBorn() }
+
+func (Period) isFamilyMemberHistoryBorn()     {}
+func (FHIRDate) isFamilyMemberHistoryBorn()   {}
+func (FHIRString) isFamilyMemberHistoryBorn() {}
+
+// Born returns the value set in the born[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *FamilyMemberHistory) Born() (FamilyMemberHistoryBorn, bool) {
+	switch {
+	case r.BornPeriod != nil:
+		return *r.BornPeriod, true
+	case r.BornDate != nil:
+		return *r.BornDate, true
+	case r.BornString != nil:
+		return *r.BornString, true
+	}
+	return nil, false
+}
+
+// SetBornPeriod sets born[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetBornPeriod(v Period) {
+	r.BornPeriod = nil
+	r.BornDate = nil
+	r.BornString = nil
+	r.BornPeriod = &v
+}
+
+// SetBornDate sets born[x] to a FHIRDate (the
+// release primitive wrapper that carries the isFamilyMemberHistoryBorn marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetBornDate(v FHIRDate) {
+	r.BornPeriod = nil
+	r.BornDate = nil
+	r.BornString = nil
+	r.BornDate = &v
+}
+
+// SetBornString sets born[x] to a FHIRString (the
+// release primitive wrapper that carries the isFamilyMemberHistoryBorn marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetBornString(v FHIRString) {
+	r.BornPeriod = nil
+	r.BornDate = nil
+	r.BornString = nil
+	r.BornString = &v
+}
+
+// FamilyMemberHistoryAge is the sealed value interface for the age[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isFamilyMemberHistoryAge marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type FamilyMemberHistoryAge interface{ isFamilyMemberHistoryAge() }
+
+func (Age) isFamilyMemberHistoryAge()        {}
+func (Range) isFamilyMemberHistoryAge()      {}
+func (FHIRString) isFamilyMemberHistoryAge() {}
+
+// Age returns the value set in the age[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *FamilyMemberHistory) Age() (FamilyMemberHistoryAge, bool) {
+	switch {
+	case r.AgeAge != nil:
+		return *r.AgeAge, true
+	case r.AgeRange != nil:
+		return *r.AgeRange, true
+	case r.AgeString != nil:
+		return *r.AgeString, true
+	}
+	return nil, false
+}
+
+// SetAgeAge sets age[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetAgeAge(v Age) {
+	r.AgeAge = nil
+	r.AgeRange = nil
+	r.AgeString = nil
+	r.AgeAge = &v
+}
+
+// SetAgeRange sets age[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetAgeRange(v Range) {
+	r.AgeAge = nil
+	r.AgeRange = nil
+	r.AgeString = nil
+	r.AgeRange = &v
+}
+
+// SetAgeString sets age[x] to a FHIRString (the
+// release primitive wrapper that carries the isFamilyMemberHistoryAge marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetAgeString(v FHIRString) {
+	r.AgeAge = nil
+	r.AgeRange = nil
+	r.AgeString = nil
+	r.AgeString = &v
+}
+
+// FamilyMemberHistoryDeceased is the sealed value interface for the deceased[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isFamilyMemberHistoryDeceased marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type FamilyMemberHistoryDeceased interface{ isFamilyMemberHistoryDeceased() }
+
+func (FHIRBoolean) isFamilyMemberHistoryDeceased() {}
+func (Age) isFamilyMemberHistoryDeceased()         {}
+func (Range) isFamilyMemberHistoryDeceased()       {}
+func (FHIRDate) isFamilyMemberHistoryDeceased()    {}
+func (FHIRString) isFamilyMemberHistoryDeceased()  {}
+
+// Deceased returns the value set in the deceased[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *FamilyMemberHistory) Deceased() (FamilyMemberHistoryDeceased, bool) {
+	switch {
+	case r.DeceasedBoolean != nil:
+		return *r.DeceasedBoolean, true
+	case r.DeceasedAge != nil:
+		return *r.DeceasedAge, true
+	case r.DeceasedRange != nil:
+		return *r.DeceasedRange, true
+	case r.DeceasedDate != nil:
+		return *r.DeceasedDate, true
+	case r.DeceasedString != nil:
+		return *r.DeceasedString, true
+	}
+	return nil, false
+}
+
+// SetDeceasedBoolean sets deceased[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isFamilyMemberHistoryDeceased marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetDeceasedBoolean(v FHIRBoolean) {
+	r.DeceasedBoolean = nil
+	r.DeceasedAge = nil
+	r.DeceasedRange = nil
+	r.DeceasedDate = nil
+	r.DeceasedString = nil
+	r.DeceasedBoolean = &v
+}
+
+// SetDeceasedAge sets deceased[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetDeceasedAge(v Age) {
+	r.DeceasedBoolean = nil
+	r.DeceasedAge = nil
+	r.DeceasedRange = nil
+	r.DeceasedDate = nil
+	r.DeceasedString = nil
+	r.DeceasedAge = &v
+}
+
+// SetDeceasedRange sets deceased[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetDeceasedRange(v Range) {
+	r.DeceasedBoolean = nil
+	r.DeceasedAge = nil
+	r.DeceasedRange = nil
+	r.DeceasedDate = nil
+	r.DeceasedString = nil
+	r.DeceasedRange = &v
+}
+
+// SetDeceasedDate sets deceased[x] to a FHIRDate (the
+// release primitive wrapper that carries the isFamilyMemberHistoryDeceased marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetDeceasedDate(v FHIRDate) {
+	r.DeceasedBoolean = nil
+	r.DeceasedAge = nil
+	r.DeceasedRange = nil
+	r.DeceasedDate = nil
+	r.DeceasedString = nil
+	r.DeceasedDate = &v
+}
+
+// SetDeceasedString sets deceased[x] to a FHIRString (the
+// release primitive wrapper that carries the isFamilyMemberHistoryDeceased marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistory) SetDeceasedString(v FHIRString) {
+	r.DeceasedBoolean = nil
+	r.DeceasedAge = nil
+	r.DeceasedRange = nil
+	r.DeceasedDate = nil
+	r.DeceasedString = nil
+	r.DeceasedString = &v
+}
+
 // FamilyMemberHistoryCondition is a generated nested backbone element.
 type FamilyMemberHistoryCondition struct {
 	BackboneElement
@@ -167,7 +380,10 @@ type FamilyMemberHistoryCondition struct {
 	Outcome                   *CodeableConcept       `json:"outcome,omitempty"`
 	ContributedToDeath        *bool                  `json:"contributedToDeath,omitempty"`
 	ContributedToDeathElement *fhir.PrimitiveElement `json:"-"`
-	Onset                     *Age                   `json:"onset,omitempty"`
+	OnsetAge                  *Age                   `json:"onsetAge,omitempty"`
+	OnsetRange                *Range                 `json:"onsetRange,omitempty"`
+	OnsetPeriod               *Period                `json:"onsetPeriod,omitempty"`
+	OnsetString               *FHIRString            `json:"onsetString,omitempty"`
 	Note                      []Annotation           `json:"note,omitempty"`
 }
 
@@ -219,6 +435,77 @@ func (v *FamilyMemberHistoryCondition) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// FamilyMemberHistoryConditionOnset is the sealed value interface for the onset[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isFamilyMemberHistoryConditionOnset marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type FamilyMemberHistoryConditionOnset interface{ isFamilyMemberHistoryConditionOnset() }
+
+func (Age) isFamilyMemberHistoryConditionOnset()        {}
+func (Range) isFamilyMemberHistoryConditionOnset()      {}
+func (Period) isFamilyMemberHistoryConditionOnset()     {}
+func (FHIRString) isFamilyMemberHistoryConditionOnset() {}
+
+// Onset returns the value set in the onset[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *FamilyMemberHistoryCondition) Onset() (FamilyMemberHistoryConditionOnset, bool) {
+	switch {
+	case r.OnsetAge != nil:
+		return *r.OnsetAge, true
+	case r.OnsetRange != nil:
+		return *r.OnsetRange, true
+	case r.OnsetPeriod != nil:
+		return *r.OnsetPeriod, true
+	case r.OnsetString != nil:
+		return *r.OnsetString, true
+	}
+	return nil, false
+}
+
+// SetOnsetAge sets onset[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistoryCondition) SetOnsetAge(v Age) {
+	r.OnsetAge = nil
+	r.OnsetRange = nil
+	r.OnsetPeriod = nil
+	r.OnsetString = nil
+	r.OnsetAge = &v
+}
+
+// SetOnsetRange sets onset[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistoryCondition) SetOnsetRange(v Range) {
+	r.OnsetAge = nil
+	r.OnsetRange = nil
+	r.OnsetPeriod = nil
+	r.OnsetString = nil
+	r.OnsetRange = &v
+}
+
+// SetOnsetPeriod sets onset[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistoryCondition) SetOnsetPeriod(v Period) {
+	r.OnsetAge = nil
+	r.OnsetRange = nil
+	r.OnsetPeriod = nil
+	r.OnsetString = nil
+	r.OnsetPeriod = &v
+}
+
+// SetOnsetString sets onset[x] to a FHIRString (the
+// release primitive wrapper that carries the isFamilyMemberHistoryConditionOnset marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistoryCondition) SetOnsetString(v FHIRString) {
+	r.OnsetAge = nil
+	r.OnsetRange = nil
+	r.OnsetPeriod = nil
+	r.OnsetString = nil
+	r.OnsetString = &v
+}
+
 // FamilyMemberHistoryParticipant is a generated nested backbone element.
 type FamilyMemberHistoryParticipant struct {
 	BackboneElement
@@ -233,7 +520,11 @@ type FamilyMemberHistoryProcedure struct {
 	Outcome                   *CodeableConcept       `json:"outcome,omitempty"`
 	ContributedToDeath        *bool                  `json:"contributedToDeath,omitempty"`
 	ContributedToDeathElement *fhir.PrimitiveElement `json:"-"`
-	Performed                 *Age                   `json:"performed,omitempty"`
+	PerformedAge              *Age                   `json:"performedAge,omitempty"`
+	PerformedRange            *Range                 `json:"performedRange,omitempty"`
+	PerformedPeriod           *Period                `json:"performedPeriod,omitempty"`
+	PerformedString           *FHIRString            `json:"performedString,omitempty"`
+	PerformedDateTime         *FHIRDateTime          `json:"performedDateTime,omitempty"`
 	Note                      []Annotation           `json:"note,omitempty"`
 }
 
@@ -283,4 +574,95 @@ func (v *FamilyMemberHistoryProcedure) UnmarshalJSON(data []byte) error {
 	}
 	type alias FamilyMemberHistoryProcedure
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// FamilyMemberHistoryProcedurePerformed is the sealed value interface for the performed[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isFamilyMemberHistoryProcedurePerformed marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type FamilyMemberHistoryProcedurePerformed interface{ isFamilyMemberHistoryProcedurePerformed() }
+
+func (Age) isFamilyMemberHistoryProcedurePerformed()          {}
+func (Range) isFamilyMemberHistoryProcedurePerformed()        {}
+func (Period) isFamilyMemberHistoryProcedurePerformed()       {}
+func (FHIRString) isFamilyMemberHistoryProcedurePerformed()   {}
+func (FHIRDateTime) isFamilyMemberHistoryProcedurePerformed() {}
+
+// Performed returns the value set in the performed[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *FamilyMemberHistoryProcedure) Performed() (FamilyMemberHistoryProcedurePerformed, bool) {
+	switch {
+	case r.PerformedAge != nil:
+		return *r.PerformedAge, true
+	case r.PerformedRange != nil:
+		return *r.PerformedRange, true
+	case r.PerformedPeriod != nil:
+		return *r.PerformedPeriod, true
+	case r.PerformedString != nil:
+		return *r.PerformedString, true
+	case r.PerformedDateTime != nil:
+		return *r.PerformedDateTime, true
+	}
+	return nil, false
+}
+
+// SetPerformedAge sets performed[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistoryProcedure) SetPerformedAge(v Age) {
+	r.PerformedAge = nil
+	r.PerformedRange = nil
+	r.PerformedPeriod = nil
+	r.PerformedString = nil
+	r.PerformedDateTime = nil
+	r.PerformedAge = &v
+}
+
+// SetPerformedRange sets performed[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistoryProcedure) SetPerformedRange(v Range) {
+	r.PerformedAge = nil
+	r.PerformedRange = nil
+	r.PerformedPeriod = nil
+	r.PerformedString = nil
+	r.PerformedDateTime = nil
+	r.PerformedRange = &v
+}
+
+// SetPerformedPeriod sets performed[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistoryProcedure) SetPerformedPeriod(v Period) {
+	r.PerformedAge = nil
+	r.PerformedRange = nil
+	r.PerformedPeriod = nil
+	r.PerformedString = nil
+	r.PerformedDateTime = nil
+	r.PerformedPeriod = &v
+}
+
+// SetPerformedString sets performed[x] to a FHIRString (the
+// release primitive wrapper that carries the isFamilyMemberHistoryProcedurePerformed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistoryProcedure) SetPerformedString(v FHIRString) {
+	r.PerformedAge = nil
+	r.PerformedRange = nil
+	r.PerformedPeriod = nil
+	r.PerformedString = nil
+	r.PerformedDateTime = nil
+	r.PerformedString = &v
+}
+
+// SetPerformedDateTime sets performed[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isFamilyMemberHistoryProcedurePerformed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *FamilyMemberHistoryProcedure) SetPerformedDateTime(v FHIRDateTime) {
+	r.PerformedAge = nil
+	r.PerformedRange = nil
+	r.PerformedPeriod = nil
+	r.PerformedString = nil
+	r.PerformedDateTime = nil
+	r.PerformedDateTime = &v
 }

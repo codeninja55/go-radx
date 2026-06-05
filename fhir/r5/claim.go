@@ -137,10 +137,11 @@ func (v *Claim) UnmarshalJSON(data []byte) error {
 // ClaimAccident is a generated nested backbone element.
 type ClaimAccident struct {
 	BackboneElement
-	Date        *string                `json:"date,omitempty"`
-	DateElement *fhir.PrimitiveElement `json:"-"`
-	Type        *CodeableConcept       `json:"type,omitempty"`
-	Location    *Address               `json:"location,omitempty"`
+	Date              *string                `json:"date,omitempty"`
+	DateElement       *fhir.PrimitiveElement `json:"-"`
+	Type              *CodeableConcept       `json:"type,omitempty"`
+	LocationAddress   *Address               `json:"locationAddress,omitempty"`
+	LocationReference *Reference             `json:"locationReference,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -189,6 +190,45 @@ func (v *ClaimAccident) UnmarshalJSON(data []byte) error {
 	}
 	type alias ClaimAccident
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ClaimAccidentLocation is the sealed value interface for the location[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClaimAccidentLocation marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClaimAccidentLocation interface{ isClaimAccidentLocation() }
+
+func (Address) isClaimAccidentLocation()   {}
+func (Reference) isClaimAccidentLocation() {}
+
+// Location returns the value set in the location[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClaimAccident) Location() (ClaimAccidentLocation, bool) {
+	switch {
+	case r.LocationAddress != nil:
+		return *r.LocationAddress, true
+	case r.LocationReference != nil:
+		return *r.LocationReference, true
+	}
+	return nil, false
+}
+
+// SetLocationAddress sets location[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimAccident) SetLocationAddress(v Address) {
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationAddress = &v
+}
+
+// SetLocationReference sets location[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimAccident) SetLocationReference(v Reference) {
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationReference = &v
 }
 
 // ClaimCareTeam is a generated nested backbone element.
@@ -266,11 +306,12 @@ func (v *ClaimCareTeam) UnmarshalJSON(data []byte) error {
 // ClaimDiagnosis is a generated nested backbone element.
 type ClaimDiagnosis struct {
 	BackboneElement
-	Sequence        *int32                 `json:"sequence,omitempty"`
-	SequenceElement *fhir.PrimitiveElement `json:"-"`
-	Diagnosis       *CodeableConcept       `json:"diagnosis,omitempty"`
-	Type            []CodeableConcept      `json:"type,omitempty"`
-	OnAdmission     *CodeableConcept       `json:"onAdmission,omitempty"`
+	Sequence                 *int32                 `json:"sequence,omitempty"`
+	SequenceElement          *fhir.PrimitiveElement `json:"-"`
+	DiagnosisCodeableConcept *CodeableConcept       `json:"diagnosisCodeableConcept,omitempty"`
+	DiagnosisReference       *Reference             `json:"diagnosisReference,omitempty"`
+	Type                     []CodeableConcept      `json:"type,omitempty"`
+	OnAdmission              *CodeableConcept       `json:"onAdmission,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -321,11 +362,92 @@ func (v *ClaimDiagnosis) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ClaimDiagnosisDiagnosis is the sealed value interface for the diagnosis[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClaimDiagnosisDiagnosis marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClaimDiagnosisDiagnosis interface{ isClaimDiagnosisDiagnosis() }
+
+func (CodeableConcept) isClaimDiagnosisDiagnosis() {}
+func (Reference) isClaimDiagnosisDiagnosis()       {}
+
+// Diagnosis returns the value set in the diagnosis[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClaimDiagnosis) Diagnosis() (ClaimDiagnosisDiagnosis, bool) {
+	switch {
+	case r.DiagnosisCodeableConcept != nil:
+		return *r.DiagnosisCodeableConcept, true
+	case r.DiagnosisReference != nil:
+		return *r.DiagnosisReference, true
+	}
+	return nil, false
+}
+
+// SetDiagnosisCodeableConcept sets diagnosis[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimDiagnosis) SetDiagnosisCodeableConcept(v CodeableConcept) {
+	r.DiagnosisCodeableConcept = nil
+	r.DiagnosisReference = nil
+	r.DiagnosisCodeableConcept = &v
+}
+
+// SetDiagnosisReference sets diagnosis[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimDiagnosis) SetDiagnosisReference(v Reference) {
+	r.DiagnosisCodeableConcept = nil
+	r.DiagnosisReference = nil
+	r.DiagnosisReference = &v
+}
+
 // ClaimEvent is a generated nested backbone element.
 type ClaimEvent struct {
 	BackboneElement
-	Type *CodeableConcept `json:"type,omitempty"`
-	When *string          `json:"when,omitempty"`
+	Type         *CodeableConcept `json:"type,omitempty"`
+	WhenDateTime *FHIRDateTime    `json:"whenDateTime,omitempty"`
+	WhenPeriod   *Period          `json:"whenPeriod,omitempty"`
+}
+
+// ClaimEventWhen is the sealed value interface for the when[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClaimEventWhen marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClaimEventWhen interface{ isClaimEventWhen() }
+
+func (FHIRDateTime) isClaimEventWhen() {}
+func (Period) isClaimEventWhen()       {}
+
+// When returns the value set in the when[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClaimEvent) When() (ClaimEventWhen, bool) {
+	switch {
+	case r.WhenDateTime != nil:
+		return *r.WhenDateTime, true
+	case r.WhenPeriod != nil:
+		return *r.WhenPeriod, true
+	}
+	return nil, false
+}
+
+// SetWhenDateTime sets when[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isClaimEventWhen marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimEvent) SetWhenDateTime(v FHIRDateTime) {
+	r.WhenDateTime = nil
+	r.WhenPeriod = nil
+	r.WhenDateTime = &v
+}
+
+// SetWhenPeriod sets when[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimEvent) SetWhenPeriod(v Period) {
+	r.WhenDateTime = nil
+	r.WhenPeriod = nil
+	r.WhenPeriod = &v
 }
 
 // ClaimInsurance is a generated nested backbone element.
@@ -449,8 +571,11 @@ type ClaimItem struct {
 	Request                    []Reference              `json:"request,omitempty"`
 	Modifier                   []CodeableConcept        `json:"modifier,omitempty"`
 	ProgramCode                []CodeableConcept        `json:"programCode,omitempty"`
-	Serviced                   *string                  `json:"serviced,omitempty"`
-	Location                   *CodeableConcept         `json:"location,omitempty"`
+	ServicedDate               *FHIRDate                `json:"servicedDate,omitempty"`
+	ServicedPeriod             *Period                  `json:"servicedPeriod,omitempty"`
+	LocationCodeableConcept    *CodeableConcept         `json:"locationCodeableConcept,omitempty"`
+	LocationAddress            *Address                 `json:"locationAddress,omitempty"`
+	LocationReference          *Reference               `json:"locationReference,omitempty"`
 	PatientPaid                *Money                   `json:"patientPaid,omitempty"`
 	Quantity                   *Quantity                `json:"quantity,omitempty"`
 	UnitPrice                  *Money                   `json:"unitPrice,omitempty"`
@@ -570,6 +695,100 @@ func (v *ClaimItem) UnmarshalJSON(data []byte) error {
 	}
 	type alias ClaimItem
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ClaimItemServiced is the sealed value interface for the serviced[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClaimItemServiced marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClaimItemServiced interface{ isClaimItemServiced() }
+
+func (FHIRDate) isClaimItemServiced() {}
+func (Period) isClaimItemServiced()   {}
+
+// Serviced returns the value set in the serviced[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClaimItem) Serviced() (ClaimItemServiced, bool) {
+	switch {
+	case r.ServicedDate != nil:
+		return *r.ServicedDate, true
+	case r.ServicedPeriod != nil:
+		return *r.ServicedPeriod, true
+	}
+	return nil, false
+}
+
+// SetServicedDate sets serviced[x] to a FHIRDate (the
+// release primitive wrapper that carries the isClaimItemServiced marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimItem) SetServicedDate(v FHIRDate) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedDate = &v
+}
+
+// SetServicedPeriod sets serviced[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimItem) SetServicedPeriod(v Period) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedPeriod = &v
+}
+
+// ClaimItemLocation is the sealed value interface for the location[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClaimItemLocation marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClaimItemLocation interface{ isClaimItemLocation() }
+
+func (CodeableConcept) isClaimItemLocation() {}
+func (Address) isClaimItemLocation()         {}
+func (Reference) isClaimItemLocation()       {}
+
+// Location returns the value set in the location[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClaimItem) Location() (ClaimItemLocation, bool) {
+	switch {
+	case r.LocationCodeableConcept != nil:
+		return *r.LocationCodeableConcept, true
+	case r.LocationAddress != nil:
+		return *r.LocationAddress, true
+	case r.LocationReference != nil:
+		return *r.LocationReference, true
+	}
+	return nil, false
+}
+
+// SetLocationCodeableConcept sets location[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimItem) SetLocationCodeableConcept(v CodeableConcept) {
+	r.LocationCodeableConcept = nil
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationCodeableConcept = &v
+}
+
+// SetLocationAddress sets location[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimItem) SetLocationAddress(v Address) {
+	r.LocationCodeableConcept = nil
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationAddress = &v
+}
+
+// SetLocationReference sets location[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimItem) SetLocationReference(v Reference) {
+	r.LocationCodeableConcept = nil
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationReference = &v
 }
 
 // ClaimItemBodySite is a generated nested backbone element.
@@ -754,13 +973,14 @@ type ClaimPayee struct {
 // ClaimProcedure is a generated nested backbone element.
 type ClaimProcedure struct {
 	BackboneElement
-	Sequence        *int32                 `json:"sequence,omitempty"`
-	SequenceElement *fhir.PrimitiveElement `json:"-"`
-	Type            []CodeableConcept      `json:"type,omitempty"`
-	Date            *string                `json:"date,omitempty"`
-	DateElement     *fhir.PrimitiveElement `json:"-"`
-	Procedure       *CodeableConcept       `json:"procedure,omitempty"`
-	Udi             []Reference            `json:"udi,omitempty"`
+	Sequence                 *int32                 `json:"sequence,omitempty"`
+	SequenceElement          *fhir.PrimitiveElement `json:"-"`
+	Type                     []CodeableConcept      `json:"type,omitempty"`
+	Date                     *string                `json:"date,omitempty"`
+	DateElement              *fhir.PrimitiveElement `json:"-"`
+	ProcedureCodeableConcept *CodeableConcept       `json:"procedureCodeableConcept,omitempty"`
+	ProcedureReference       *Reference             `json:"procedureReference,omitempty"`
+	Udi                      []Reference            `json:"udi,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -823,6 +1043,45 @@ func (v *ClaimProcedure) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ClaimProcedureProcedure is the sealed value interface for the procedure[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClaimProcedureProcedure marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClaimProcedureProcedure interface{ isClaimProcedureProcedure() }
+
+func (CodeableConcept) isClaimProcedureProcedure() {}
+func (Reference) isClaimProcedureProcedure()       {}
+
+// Procedure returns the value set in the procedure[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClaimProcedure) Procedure() (ClaimProcedureProcedure, bool) {
+	switch {
+	case r.ProcedureCodeableConcept != nil:
+		return *r.ProcedureCodeableConcept, true
+	case r.ProcedureReference != nil:
+		return *r.ProcedureReference, true
+	}
+	return nil, false
+}
+
+// SetProcedureCodeableConcept sets procedure[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimProcedure) SetProcedureCodeableConcept(v CodeableConcept) {
+	r.ProcedureCodeableConcept = nil
+	r.ProcedureReference = nil
+	r.ProcedureCodeableConcept = &v
+}
+
+// SetProcedureReference sets procedure[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimProcedure) SetProcedureReference(v Reference) {
+	r.ProcedureCodeableConcept = nil
+	r.ProcedureReference = nil
+	r.ProcedureReference = &v
+}
+
 // ClaimRelated is a generated nested backbone element.
 type ClaimRelated struct {
 	BackboneElement
@@ -838,8 +1097,14 @@ type ClaimSupportingInfo struct {
 	SequenceElement *fhir.PrimitiveElement `json:"-"`
 	Category        *CodeableConcept       `json:"category,omitempty"`
 	Code            *CodeableConcept       `json:"code,omitempty"`
-	Timing          *string                `json:"timing,omitempty"`
-	Value           *bool                  `json:"value,omitempty"`
+	TimingDate      *FHIRDate              `json:"timingDate,omitempty"`
+	TimingPeriod    *Period                `json:"timingPeriod,omitempty"`
+	ValueBoolean    *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueString     *FHIRString            `json:"valueString,omitempty"`
+	ValueQuantity   *Quantity              `json:"valueQuantity,omitempty"`
+	ValueAttachment *Attachment            `json:"valueAttachment,omitempty"`
+	ValueReference  *Reference             `json:"valueReference,omitempty"`
+	ValueIdentifier *Identifier            `json:"valueIdentifier,omitempty"`
 	Reason          *CodeableConcept       `json:"reason,omitempty"`
 }
 
@@ -889,4 +1154,156 @@ func (v *ClaimSupportingInfo) UnmarshalJSON(data []byte) error {
 	}
 	type alias ClaimSupportingInfo
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ClaimSupportingInfoTiming is the sealed value interface for the timing[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClaimSupportingInfoTiming marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClaimSupportingInfoTiming interface{ isClaimSupportingInfoTiming() }
+
+func (FHIRDate) isClaimSupportingInfoTiming() {}
+func (Period) isClaimSupportingInfoTiming()   {}
+
+// Timing returns the value set in the timing[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClaimSupportingInfo) Timing() (ClaimSupportingInfoTiming, bool) {
+	switch {
+	case r.TimingDate != nil:
+		return *r.TimingDate, true
+	case r.TimingPeriod != nil:
+		return *r.TimingPeriod, true
+	}
+	return nil, false
+}
+
+// SetTimingDate sets timing[x] to a FHIRDate (the
+// release primitive wrapper that carries the isClaimSupportingInfoTiming marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimSupportingInfo) SetTimingDate(v FHIRDate) {
+	r.TimingDate = nil
+	r.TimingPeriod = nil
+	r.TimingDate = &v
+}
+
+// SetTimingPeriod sets timing[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimSupportingInfo) SetTimingPeriod(v Period) {
+	r.TimingDate = nil
+	r.TimingPeriod = nil
+	r.TimingPeriod = &v
+}
+
+// ClaimSupportingInfoValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClaimSupportingInfoValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClaimSupportingInfoValue interface{ isClaimSupportingInfoValue() }
+
+func (FHIRBoolean) isClaimSupportingInfoValue() {}
+func (FHIRString) isClaimSupportingInfoValue()  {}
+func (Quantity) isClaimSupportingInfoValue()    {}
+func (Attachment) isClaimSupportingInfoValue()  {}
+func (Reference) isClaimSupportingInfoValue()   {}
+func (Identifier) isClaimSupportingInfoValue()  {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClaimSupportingInfo) Value() (ClaimSupportingInfoValue, bool) {
+	switch {
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	case r.ValueIdentifier != nil:
+		return *r.ValueIdentifier, true
+	}
+	return nil, false
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isClaimSupportingInfoValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimSupportingInfo) SetValueBoolean(v FHIRBoolean) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isClaimSupportingInfoValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimSupportingInfo) SetValueString(v FHIRString) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueString = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimSupportingInfo) SetValueQuantity(v Quantity) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimSupportingInfo) SetValueAttachment(v Attachment) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimSupportingInfo) SetValueReference(v Reference) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueReference = &v
+}
+
+// SetValueIdentifier sets value[x] to a Identifier and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClaimSupportingInfo) SetValueIdentifier(v Identifier) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueIdentifier = &v
 }

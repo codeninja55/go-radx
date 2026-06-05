@@ -24,7 +24,9 @@ type MedicationAdministration struct {
 	Subject               *Reference                          `json:"subject,omitempty"`
 	Encounter             *Reference                          `json:"encounter,omitempty"`
 	SupportingInformation []Reference                         `json:"supportingInformation,omitempty"`
-	Occurence             *string                             `json:"occurence,omitempty"`
+	OccurenceDateTime     *FHIRDateTime                       `json:"occurenceDateTime,omitempty"`
+	OccurencePeriod       *Period                             `json:"occurencePeriod,omitempty"`
+	OccurenceTiming       *Timing                             `json:"occurenceTiming,omitempty"`
 	Recorded              *string                             `json:"recorded,omitempty"`
 	RecordedElement       *fhir.PrimitiveElement              `json:"-"`
 	IsSubPotent           *bool                               `json:"isSubPotent,omitempty"`
@@ -123,16 +125,72 @@ func (v *MedicationAdministration) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// MedicationAdministrationOccurence is the sealed value interface for the occurence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationAdministrationOccurence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationAdministrationOccurence interface{ isMedicationAdministrationOccurence() }
+
+func (FHIRDateTime) isMedicationAdministrationOccurence() {}
+func (Period) isMedicationAdministrationOccurence()       {}
+func (Timing) isMedicationAdministrationOccurence()       {}
+
+// Occurence returns the value set in the occurence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationAdministration) Occurence() (MedicationAdministrationOccurence, bool) {
+	switch {
+	case r.OccurenceDateTime != nil:
+		return *r.OccurenceDateTime, true
+	case r.OccurencePeriod != nil:
+		return *r.OccurencePeriod, true
+	case r.OccurenceTiming != nil:
+		return *r.OccurenceTiming, true
+	}
+	return nil, false
+}
+
+// SetOccurenceDateTime sets occurence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isMedicationAdministrationOccurence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationAdministration) SetOccurenceDateTime(v FHIRDateTime) {
+	r.OccurenceDateTime = nil
+	r.OccurencePeriod = nil
+	r.OccurenceTiming = nil
+	r.OccurenceDateTime = &v
+}
+
+// SetOccurencePeriod sets occurence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationAdministration) SetOccurencePeriod(v Period) {
+	r.OccurenceDateTime = nil
+	r.OccurencePeriod = nil
+	r.OccurenceTiming = nil
+	r.OccurencePeriod = &v
+}
+
+// SetOccurenceTiming sets occurence[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationAdministration) SetOccurenceTiming(v Timing) {
+	r.OccurenceDateTime = nil
+	r.OccurencePeriod = nil
+	r.OccurenceTiming = nil
+	r.OccurenceTiming = &v
+}
+
 // MedicationAdministrationDosage is a generated nested backbone element.
 type MedicationAdministrationDosage struct {
 	BackboneElement
-	Text        *string                `json:"text,omitempty"`
-	TextElement *fhir.PrimitiveElement `json:"-"`
-	Site        *CodeableConcept       `json:"site,omitempty"`
-	Route       *CodeableConcept       `json:"route,omitempty"`
-	Method      *CodeableConcept       `json:"method,omitempty"`
-	Dose        *Quantity              `json:"dose,omitempty"`
-	Rate        *Ratio                 `json:"rate,omitempty"`
+	Text         *string                `json:"text,omitempty"`
+	TextElement  *fhir.PrimitiveElement `json:"-"`
+	Site         *CodeableConcept       `json:"site,omitempty"`
+	Route        *CodeableConcept       `json:"route,omitempty"`
+	Method       *CodeableConcept       `json:"method,omitempty"`
+	Dose         *Quantity              `json:"dose,omitempty"`
+	RateRatio    *Ratio                 `json:"rateRatio,omitempty"`
+	RateQuantity *Quantity              `json:"rateQuantity,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -181,6 +239,45 @@ func (v *MedicationAdministrationDosage) UnmarshalJSON(data []byte) error {
 	}
 	type alias MedicationAdministrationDosage
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// MedicationAdministrationDosageRate is the sealed value interface for the rate[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationAdministrationDosageRate marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationAdministrationDosageRate interface{ isMedicationAdministrationDosageRate() }
+
+func (Ratio) isMedicationAdministrationDosageRate()    {}
+func (Quantity) isMedicationAdministrationDosageRate() {}
+
+// Rate returns the value set in the rate[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationAdministrationDosage) Rate() (MedicationAdministrationDosageRate, bool) {
+	switch {
+	case r.RateRatio != nil:
+		return *r.RateRatio, true
+	case r.RateQuantity != nil:
+		return *r.RateQuantity, true
+	}
+	return nil, false
+}
+
+// SetRateRatio sets rate[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationAdministrationDosage) SetRateRatio(v Ratio) {
+	r.RateRatio = nil
+	r.RateQuantity = nil
+	r.RateRatio = &v
+}
+
+// SetRateQuantity sets rate[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationAdministrationDosage) SetRateQuantity(v Quantity) {
+	r.RateRatio = nil
+	r.RateQuantity = nil
+	r.RateQuantity = &v
 }
 
 // MedicationAdministrationPerformer is a generated nested backbone element.

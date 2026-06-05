@@ -206,10 +206,11 @@ func (v *ExplanationOfBenefit) UnmarshalJSON(data []byte) error {
 // ExplanationOfBenefitAccident is a generated nested backbone element.
 type ExplanationOfBenefitAccident struct {
 	BackboneElement
-	Date        *string                `json:"date,omitempty"`
-	DateElement *fhir.PrimitiveElement `json:"-"`
-	Type        *CodeableConcept       `json:"type,omitempty"`
-	Location    *Address               `json:"location,omitempty"`
+	Date              *string                `json:"date,omitempty"`
+	DateElement       *fhir.PrimitiveElement `json:"-"`
+	Type              *CodeableConcept       `json:"type,omitempty"`
+	LocationAddress   *Address               `json:"locationAddress,omitempty"`
+	LocationReference *Reference             `json:"locationReference,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -260,6 +261,45 @@ func (v *ExplanationOfBenefitAccident) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ExplanationOfBenefitAccidentLocation is the sealed value interface for the location[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitAccidentLocation marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitAccidentLocation interface{ isExplanationOfBenefitAccidentLocation() }
+
+func (Address) isExplanationOfBenefitAccidentLocation()   {}
+func (Reference) isExplanationOfBenefitAccidentLocation() {}
+
+// Location returns the value set in the location[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitAccident) Location() (ExplanationOfBenefitAccidentLocation, bool) {
+	switch {
+	case r.LocationAddress != nil:
+		return *r.LocationAddress, true
+	case r.LocationReference != nil:
+		return *r.LocationReference, true
+	}
+	return nil, false
+}
+
+// SetLocationAddress sets location[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitAccident) SetLocationAddress(v Address) {
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationAddress = &v
+}
+
+// SetLocationReference sets location[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitAccident) SetLocationReference(v Reference) {
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationReference = &v
+}
+
 // ExplanationOfBenefitAddItem is a generated nested backbone element.
 type ExplanationOfBenefitAddItem struct {
 	BackboneElement
@@ -277,8 +317,11 @@ type ExplanationOfBenefitAddItem struct {
 	Request                  []Reference                            `json:"request,omitempty"`
 	Modifier                 []CodeableConcept                      `json:"modifier,omitempty"`
 	ProgramCode              []CodeableConcept                      `json:"programCode,omitempty"`
-	Serviced                 *string                                `json:"serviced,omitempty"`
-	Location                 *CodeableConcept                       `json:"location,omitempty"`
+	ServicedDate             *FHIRDate                              `json:"servicedDate,omitempty"`
+	ServicedPeriod           *Period                                `json:"servicedPeriod,omitempty"`
+	LocationCodeableConcept  *CodeableConcept                       `json:"locationCodeableConcept,omitempty"`
+	LocationAddress          *Address                               `json:"locationAddress,omitempty"`
+	LocationReference        *Reference                             `json:"locationReference,omitempty"`
 	PatientPaid              *Money                                 `json:"patientPaid,omitempty"`
 	Quantity                 *Quantity                              `json:"quantity,omitempty"`
 	UnitPrice                *Money                                 `json:"unitPrice,omitempty"`
@@ -388,6 +431,100 @@ func (v *ExplanationOfBenefitAddItem) UnmarshalJSON(data []byte) error {
 	}
 	type alias ExplanationOfBenefitAddItem
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ExplanationOfBenefitAddItemServiced is the sealed value interface for the serviced[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitAddItemServiced marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitAddItemServiced interface{ isExplanationOfBenefitAddItemServiced() }
+
+func (FHIRDate) isExplanationOfBenefitAddItemServiced() {}
+func (Period) isExplanationOfBenefitAddItemServiced()   {}
+
+// Serviced returns the value set in the serviced[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitAddItem) Serviced() (ExplanationOfBenefitAddItemServiced, bool) {
+	switch {
+	case r.ServicedDate != nil:
+		return *r.ServicedDate, true
+	case r.ServicedPeriod != nil:
+		return *r.ServicedPeriod, true
+	}
+	return nil, false
+}
+
+// SetServicedDate sets serviced[x] to a FHIRDate (the
+// release primitive wrapper that carries the isExplanationOfBenefitAddItemServiced marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitAddItem) SetServicedDate(v FHIRDate) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedDate = &v
+}
+
+// SetServicedPeriod sets serviced[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitAddItem) SetServicedPeriod(v Period) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedPeriod = &v
+}
+
+// ExplanationOfBenefitAddItemLocation is the sealed value interface for the location[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitAddItemLocation marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitAddItemLocation interface{ isExplanationOfBenefitAddItemLocation() }
+
+func (CodeableConcept) isExplanationOfBenefitAddItemLocation() {}
+func (Address) isExplanationOfBenefitAddItemLocation()         {}
+func (Reference) isExplanationOfBenefitAddItemLocation()       {}
+
+// Location returns the value set in the location[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitAddItem) Location() (ExplanationOfBenefitAddItemLocation, bool) {
+	switch {
+	case r.LocationCodeableConcept != nil:
+		return *r.LocationCodeableConcept, true
+	case r.LocationAddress != nil:
+		return *r.LocationAddress, true
+	case r.LocationReference != nil:
+		return *r.LocationReference, true
+	}
+	return nil, false
+}
+
+// SetLocationCodeableConcept sets location[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitAddItem) SetLocationCodeableConcept(v CodeableConcept) {
+	r.LocationCodeableConcept = nil
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationCodeableConcept = &v
+}
+
+// SetLocationAddress sets location[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitAddItem) SetLocationAddress(v Address) {
+	r.LocationCodeableConcept = nil
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationAddress = &v
+}
+
+// SetLocationReference sets location[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitAddItem) SetLocationReference(v Reference) {
+	r.LocationCodeableConcept = nil
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationReference = &v
 }
 
 // ExplanationOfBenefitAddItemDetail is a generated nested backbone element.
@@ -644,9 +781,110 @@ func (v *ExplanationOfBenefitBenefitBalance) UnmarshalJSON(data []byte) error {
 // ExplanationOfBenefitBenefitBalanceFinancial is a generated nested backbone element.
 type ExplanationOfBenefitBenefitBalanceFinancial struct {
 	BackboneElement
-	Type    *CodeableConcept `json:"type,omitempty"`
-	Allowed *int32           `json:"allowed,omitempty"`
-	Used    *int32           `json:"used,omitempty"`
+	Type               *CodeableConcept `json:"type,omitempty"`
+	AllowedUnsignedInt *FHIRUnsignedInt `json:"allowedUnsignedInt,omitempty"`
+	AllowedString      *FHIRString      `json:"allowedString,omitempty"`
+	AllowedMoney       *Money           `json:"allowedMoney,omitempty"`
+	UsedUnsignedInt    *FHIRUnsignedInt `json:"usedUnsignedInt,omitempty"`
+	UsedMoney          *Money           `json:"usedMoney,omitempty"`
+}
+
+// ExplanationOfBenefitBenefitBalanceFinancialAllowed is the sealed value interface for the allowed[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitBenefitBalanceFinancialAllowed marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitBenefitBalanceFinancialAllowed interface{ isExplanationOfBenefitBenefitBalanceFinancialAllowed() }
+
+func (FHIRUnsignedInt) isExplanationOfBenefitBenefitBalanceFinancialAllowed() {}
+func (FHIRString) isExplanationOfBenefitBenefitBalanceFinancialAllowed()      {}
+func (Money) isExplanationOfBenefitBenefitBalanceFinancialAllowed()           {}
+
+// Allowed returns the value set in the allowed[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitBenefitBalanceFinancial) Allowed() (ExplanationOfBenefitBenefitBalanceFinancialAllowed, bool) {
+	switch {
+	case r.AllowedUnsignedInt != nil:
+		return *r.AllowedUnsignedInt, true
+	case r.AllowedString != nil:
+		return *r.AllowedString, true
+	case r.AllowedMoney != nil:
+		return *r.AllowedMoney, true
+	}
+	return nil, false
+}
+
+// SetAllowedUnsignedInt sets allowed[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isExplanationOfBenefitBenefitBalanceFinancialAllowed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitBenefitBalanceFinancial) SetAllowedUnsignedInt(v FHIRUnsignedInt) {
+	r.AllowedUnsignedInt = nil
+	r.AllowedString = nil
+	r.AllowedMoney = nil
+	r.AllowedUnsignedInt = &v
+}
+
+// SetAllowedString sets allowed[x] to a FHIRString (the
+// release primitive wrapper that carries the isExplanationOfBenefitBenefitBalanceFinancialAllowed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitBenefitBalanceFinancial) SetAllowedString(v FHIRString) {
+	r.AllowedUnsignedInt = nil
+	r.AllowedString = nil
+	r.AllowedMoney = nil
+	r.AllowedString = &v
+}
+
+// SetAllowedMoney sets allowed[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitBenefitBalanceFinancial) SetAllowedMoney(v Money) {
+	r.AllowedUnsignedInt = nil
+	r.AllowedString = nil
+	r.AllowedMoney = nil
+	r.AllowedMoney = &v
+}
+
+// ExplanationOfBenefitBenefitBalanceFinancialUsed is the sealed value interface for the used[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitBenefitBalanceFinancialUsed marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitBenefitBalanceFinancialUsed interface{ isExplanationOfBenefitBenefitBalanceFinancialUsed() }
+
+func (FHIRUnsignedInt) isExplanationOfBenefitBenefitBalanceFinancialUsed() {}
+func (Money) isExplanationOfBenefitBenefitBalanceFinancialUsed()           {}
+
+// Used returns the value set in the used[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitBenefitBalanceFinancial) Used() (ExplanationOfBenefitBenefitBalanceFinancialUsed, bool) {
+	switch {
+	case r.UsedUnsignedInt != nil:
+		return *r.UsedUnsignedInt, true
+	case r.UsedMoney != nil:
+		return *r.UsedMoney, true
+	}
+	return nil, false
+}
+
+// SetUsedUnsignedInt sets used[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isExplanationOfBenefitBenefitBalanceFinancialUsed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitBenefitBalanceFinancial) SetUsedUnsignedInt(v FHIRUnsignedInt) {
+	r.UsedUnsignedInt = nil
+	r.UsedMoney = nil
+	r.UsedUnsignedInt = &v
+}
+
+// SetUsedMoney sets used[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitBenefitBalanceFinancial) SetUsedMoney(v Money) {
+	r.UsedUnsignedInt = nil
+	r.UsedMoney = nil
+	r.UsedMoney = &v
 }
 
 // ExplanationOfBenefitCareTeam is a generated nested backbone element.
@@ -724,11 +962,12 @@ func (v *ExplanationOfBenefitCareTeam) UnmarshalJSON(data []byte) error {
 // ExplanationOfBenefitDiagnosis is a generated nested backbone element.
 type ExplanationOfBenefitDiagnosis struct {
 	BackboneElement
-	Sequence        *int32                 `json:"sequence,omitempty"`
-	SequenceElement *fhir.PrimitiveElement `json:"-"`
-	Diagnosis       *CodeableConcept       `json:"diagnosis,omitempty"`
-	Type            []CodeableConcept      `json:"type,omitempty"`
-	OnAdmission     *CodeableConcept       `json:"onAdmission,omitempty"`
+	Sequence                 *int32                 `json:"sequence,omitempty"`
+	SequenceElement          *fhir.PrimitiveElement `json:"-"`
+	DiagnosisCodeableConcept *CodeableConcept       `json:"diagnosisCodeableConcept,omitempty"`
+	DiagnosisReference       *Reference             `json:"diagnosisReference,omitempty"`
+	Type                     []CodeableConcept      `json:"type,omitempty"`
+	OnAdmission              *CodeableConcept       `json:"onAdmission,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -779,11 +1018,92 @@ func (v *ExplanationOfBenefitDiagnosis) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ExplanationOfBenefitDiagnosisDiagnosis is the sealed value interface for the diagnosis[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitDiagnosisDiagnosis marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitDiagnosisDiagnosis interface{ isExplanationOfBenefitDiagnosisDiagnosis() }
+
+func (CodeableConcept) isExplanationOfBenefitDiagnosisDiagnosis() {}
+func (Reference) isExplanationOfBenefitDiagnosisDiagnosis()       {}
+
+// Diagnosis returns the value set in the diagnosis[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitDiagnosis) Diagnosis() (ExplanationOfBenefitDiagnosisDiagnosis, bool) {
+	switch {
+	case r.DiagnosisCodeableConcept != nil:
+		return *r.DiagnosisCodeableConcept, true
+	case r.DiagnosisReference != nil:
+		return *r.DiagnosisReference, true
+	}
+	return nil, false
+}
+
+// SetDiagnosisCodeableConcept sets diagnosis[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitDiagnosis) SetDiagnosisCodeableConcept(v CodeableConcept) {
+	r.DiagnosisCodeableConcept = nil
+	r.DiagnosisReference = nil
+	r.DiagnosisCodeableConcept = &v
+}
+
+// SetDiagnosisReference sets diagnosis[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitDiagnosis) SetDiagnosisReference(v Reference) {
+	r.DiagnosisCodeableConcept = nil
+	r.DiagnosisReference = nil
+	r.DiagnosisReference = &v
+}
+
 // ExplanationOfBenefitEvent is a generated nested backbone element.
 type ExplanationOfBenefitEvent struct {
 	BackboneElement
-	Type *CodeableConcept `json:"type,omitempty"`
-	When *string          `json:"when,omitempty"`
+	Type         *CodeableConcept `json:"type,omitempty"`
+	WhenDateTime *FHIRDateTime    `json:"whenDateTime,omitempty"`
+	WhenPeriod   *Period          `json:"whenPeriod,omitempty"`
+}
+
+// ExplanationOfBenefitEventWhen is the sealed value interface for the when[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitEventWhen marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitEventWhen interface{ isExplanationOfBenefitEventWhen() }
+
+func (FHIRDateTime) isExplanationOfBenefitEventWhen() {}
+func (Period) isExplanationOfBenefitEventWhen()       {}
+
+// When returns the value set in the when[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitEvent) When() (ExplanationOfBenefitEventWhen, bool) {
+	switch {
+	case r.WhenDateTime != nil:
+		return *r.WhenDateTime, true
+	case r.WhenPeriod != nil:
+		return *r.WhenPeriod, true
+	}
+	return nil, false
+}
+
+// SetWhenDateTime sets when[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isExplanationOfBenefitEventWhen marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitEvent) SetWhenDateTime(v FHIRDateTime) {
+	r.WhenDateTime = nil
+	r.WhenPeriod = nil
+	r.WhenDateTime = &v
+}
+
+// SetWhenPeriod sets when[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitEvent) SetWhenPeriod(v Period) {
+	r.WhenDateTime = nil
+	r.WhenPeriod = nil
+	r.WhenPeriod = &v
 }
 
 // ExplanationOfBenefitInsurance is a generated nested backbone element.
@@ -877,8 +1197,11 @@ type ExplanationOfBenefitItem struct {
 	Request                    []Reference                            `json:"request,omitempty"`
 	Modifier                   []CodeableConcept                      `json:"modifier,omitempty"`
 	ProgramCode                []CodeableConcept                      `json:"programCode,omitempty"`
-	Serviced                   *string                                `json:"serviced,omitempty"`
-	Location                   *CodeableConcept                       `json:"location,omitempty"`
+	ServicedDate               *FHIRDate                              `json:"servicedDate,omitempty"`
+	ServicedPeriod             *Period                                `json:"servicedPeriod,omitempty"`
+	LocationCodeableConcept    *CodeableConcept                       `json:"locationCodeableConcept,omitempty"`
+	LocationAddress            *Address                               `json:"locationAddress,omitempty"`
+	LocationReference          *Reference                             `json:"locationReference,omitempty"`
 	PatientPaid                *Money                                 `json:"patientPaid,omitempty"`
 	Quantity                   *Quantity                              `json:"quantity,omitempty"`
 	UnitPrice                  *Money                                 `json:"unitPrice,omitempty"`
@@ -1014,6 +1337,100 @@ func (v *ExplanationOfBenefitItem) UnmarshalJSON(data []byte) error {
 	}
 	type alias ExplanationOfBenefitItem
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ExplanationOfBenefitItemServiced is the sealed value interface for the serviced[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitItemServiced marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitItemServiced interface{ isExplanationOfBenefitItemServiced() }
+
+func (FHIRDate) isExplanationOfBenefitItemServiced() {}
+func (Period) isExplanationOfBenefitItemServiced()   {}
+
+// Serviced returns the value set in the serviced[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitItem) Serviced() (ExplanationOfBenefitItemServiced, bool) {
+	switch {
+	case r.ServicedDate != nil:
+		return *r.ServicedDate, true
+	case r.ServicedPeriod != nil:
+		return *r.ServicedPeriod, true
+	}
+	return nil, false
+}
+
+// SetServicedDate sets serviced[x] to a FHIRDate (the
+// release primitive wrapper that carries the isExplanationOfBenefitItemServiced marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitItem) SetServicedDate(v FHIRDate) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedDate = &v
+}
+
+// SetServicedPeriod sets serviced[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitItem) SetServicedPeriod(v Period) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedPeriod = &v
+}
+
+// ExplanationOfBenefitItemLocation is the sealed value interface for the location[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitItemLocation marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitItemLocation interface{ isExplanationOfBenefitItemLocation() }
+
+func (CodeableConcept) isExplanationOfBenefitItemLocation() {}
+func (Address) isExplanationOfBenefitItemLocation()         {}
+func (Reference) isExplanationOfBenefitItemLocation()       {}
+
+// Location returns the value set in the location[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitItem) Location() (ExplanationOfBenefitItemLocation, bool) {
+	switch {
+	case r.LocationCodeableConcept != nil:
+		return *r.LocationCodeableConcept, true
+	case r.LocationAddress != nil:
+		return *r.LocationAddress, true
+	case r.LocationReference != nil:
+		return *r.LocationReference, true
+	}
+	return nil, false
+}
+
+// SetLocationCodeableConcept sets location[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitItem) SetLocationCodeableConcept(v CodeableConcept) {
+	r.LocationCodeableConcept = nil
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationCodeableConcept = &v
+}
+
+// SetLocationAddress sets location[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitItem) SetLocationAddress(v Address) {
+	r.LocationCodeableConcept = nil
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationAddress = &v
+}
+
+// SetLocationReference sets location[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitItem) SetLocationReference(v Reference) {
+	r.LocationCodeableConcept = nil
+	r.LocationAddress = nil
+	r.LocationReference = nil
+	r.LocationReference = &v
 }
 
 // ExplanationOfBenefitItemAdjudication is a generated nested backbone element.
@@ -1357,13 +1774,14 @@ func (v *ExplanationOfBenefitPayment) UnmarshalJSON(data []byte) error {
 // ExplanationOfBenefitProcedure is a generated nested backbone element.
 type ExplanationOfBenefitProcedure struct {
 	BackboneElement
-	Sequence        *int32                 `json:"sequence,omitempty"`
-	SequenceElement *fhir.PrimitiveElement `json:"-"`
-	Type            []CodeableConcept      `json:"type,omitempty"`
-	Date            *string                `json:"date,omitempty"`
-	DateElement     *fhir.PrimitiveElement `json:"-"`
-	Procedure       *CodeableConcept       `json:"procedure,omitempty"`
-	Udi             []Reference            `json:"udi,omitempty"`
+	Sequence                 *int32                 `json:"sequence,omitempty"`
+	SequenceElement          *fhir.PrimitiveElement `json:"-"`
+	Type                     []CodeableConcept      `json:"type,omitempty"`
+	Date                     *string                `json:"date,omitempty"`
+	DateElement              *fhir.PrimitiveElement `json:"-"`
+	ProcedureCodeableConcept *CodeableConcept       `json:"procedureCodeableConcept,omitempty"`
+	ProcedureReference       *Reference             `json:"procedureReference,omitempty"`
+	Udi                      []Reference            `json:"udi,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -1424,6 +1842,45 @@ func (v *ExplanationOfBenefitProcedure) UnmarshalJSON(data []byte) error {
 	}
 	type alias ExplanationOfBenefitProcedure
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ExplanationOfBenefitProcedureProcedure is the sealed value interface for the procedure[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitProcedureProcedure marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitProcedureProcedure interface{ isExplanationOfBenefitProcedureProcedure() }
+
+func (CodeableConcept) isExplanationOfBenefitProcedureProcedure() {}
+func (Reference) isExplanationOfBenefitProcedureProcedure()       {}
+
+// Procedure returns the value set in the procedure[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitProcedure) Procedure() (ExplanationOfBenefitProcedureProcedure, bool) {
+	switch {
+	case r.ProcedureCodeableConcept != nil:
+		return *r.ProcedureCodeableConcept, true
+	case r.ProcedureReference != nil:
+		return *r.ProcedureReference, true
+	}
+	return nil, false
+}
+
+// SetProcedureCodeableConcept sets procedure[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitProcedure) SetProcedureCodeableConcept(v CodeableConcept) {
+	r.ProcedureCodeableConcept = nil
+	r.ProcedureReference = nil
+	r.ProcedureCodeableConcept = &v
+}
+
+// SetProcedureReference sets procedure[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitProcedure) SetProcedureReference(v Reference) {
+	r.ProcedureCodeableConcept = nil
+	r.ProcedureReference = nil
+	r.ProcedureReference = &v
 }
 
 // ExplanationOfBenefitProcessNote is a generated nested backbone element.
@@ -1512,8 +1969,14 @@ type ExplanationOfBenefitSupportingInfo struct {
 	SequenceElement *fhir.PrimitiveElement `json:"-"`
 	Category        *CodeableConcept       `json:"category,omitempty"`
 	Code            *CodeableConcept       `json:"code,omitempty"`
-	Timing          *string                `json:"timing,omitempty"`
-	Value           *bool                  `json:"value,omitempty"`
+	TimingDate      *FHIRDate              `json:"timingDate,omitempty"`
+	TimingPeriod    *Period                `json:"timingPeriod,omitempty"`
+	ValueBoolean    *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueString     *FHIRString            `json:"valueString,omitempty"`
+	ValueQuantity   *Quantity              `json:"valueQuantity,omitempty"`
+	ValueAttachment *Attachment            `json:"valueAttachment,omitempty"`
+	ValueReference  *Reference             `json:"valueReference,omitempty"`
+	ValueIdentifier *Identifier            `json:"valueIdentifier,omitempty"`
 	Reason          *Coding                `json:"reason,omitempty"`
 }
 
@@ -1563,6 +2026,158 @@ func (v *ExplanationOfBenefitSupportingInfo) UnmarshalJSON(data []byte) error {
 	}
 	type alias ExplanationOfBenefitSupportingInfo
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ExplanationOfBenefitSupportingInfoTiming is the sealed value interface for the timing[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitSupportingInfoTiming marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitSupportingInfoTiming interface{ isExplanationOfBenefitSupportingInfoTiming() }
+
+func (FHIRDate) isExplanationOfBenefitSupportingInfoTiming() {}
+func (Period) isExplanationOfBenefitSupportingInfoTiming()   {}
+
+// Timing returns the value set in the timing[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitSupportingInfo) Timing() (ExplanationOfBenefitSupportingInfoTiming, bool) {
+	switch {
+	case r.TimingDate != nil:
+		return *r.TimingDate, true
+	case r.TimingPeriod != nil:
+		return *r.TimingPeriod, true
+	}
+	return nil, false
+}
+
+// SetTimingDate sets timing[x] to a FHIRDate (the
+// release primitive wrapper that carries the isExplanationOfBenefitSupportingInfoTiming marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitSupportingInfo) SetTimingDate(v FHIRDate) {
+	r.TimingDate = nil
+	r.TimingPeriod = nil
+	r.TimingDate = &v
+}
+
+// SetTimingPeriod sets timing[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitSupportingInfo) SetTimingPeriod(v Period) {
+	r.TimingDate = nil
+	r.TimingPeriod = nil
+	r.TimingPeriod = &v
+}
+
+// ExplanationOfBenefitSupportingInfoValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExplanationOfBenefitSupportingInfoValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExplanationOfBenefitSupportingInfoValue interface{ isExplanationOfBenefitSupportingInfoValue() }
+
+func (FHIRBoolean) isExplanationOfBenefitSupportingInfoValue() {}
+func (FHIRString) isExplanationOfBenefitSupportingInfoValue()  {}
+func (Quantity) isExplanationOfBenefitSupportingInfoValue()    {}
+func (Attachment) isExplanationOfBenefitSupportingInfoValue()  {}
+func (Reference) isExplanationOfBenefitSupportingInfoValue()   {}
+func (Identifier) isExplanationOfBenefitSupportingInfoValue()  {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExplanationOfBenefitSupportingInfo) Value() (ExplanationOfBenefitSupportingInfoValue, bool) {
+	switch {
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	case r.ValueIdentifier != nil:
+		return *r.ValueIdentifier, true
+	}
+	return nil, false
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isExplanationOfBenefitSupportingInfoValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitSupportingInfo) SetValueBoolean(v FHIRBoolean) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isExplanationOfBenefitSupportingInfoValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitSupportingInfo) SetValueString(v FHIRString) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueString = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitSupportingInfo) SetValueQuantity(v Quantity) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitSupportingInfo) SetValueAttachment(v Attachment) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitSupportingInfo) SetValueReference(v Reference) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueReference = &v
+}
+
+// SetValueIdentifier sets value[x] to a Identifier and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExplanationOfBenefitSupportingInfo) SetValueIdentifier(v Identifier) {
+	r.ValueBoolean = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueIdentifier = nil
+	r.ValueIdentifier = &v
 }
 
 // ExplanationOfBenefitTotal is a generated nested backbone element.

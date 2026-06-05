@@ -121,15 +121,97 @@ func (v *Specimen) UnmarshalJSON(data []byte) error {
 // SpecimenCollection is a generated nested backbone element.
 type SpecimenCollection struct {
 	BackboneElement
-	Collector     *Reference         `json:"collector,omitempty"`
-	Collected     *string            `json:"collected,omitempty"`
-	Duration      *Duration          `json:"duration,omitempty"`
-	Quantity      *Quantity          `json:"quantity,omitempty"`
-	Method        *CodeableConcept   `json:"method,omitempty"`
-	Device        *CodeableReference `json:"device,omitempty"`
-	Procedure     *Reference         `json:"procedure,omitempty"`
-	BodySite      *CodeableReference `json:"bodySite,omitempty"`
-	FastingStatus *CodeableConcept   `json:"fastingStatus,omitempty"`
+	Collector                    *Reference         `json:"collector,omitempty"`
+	CollectedDateTime            *FHIRDateTime      `json:"collectedDateTime,omitempty"`
+	CollectedPeriod              *Period            `json:"collectedPeriod,omitempty"`
+	Duration                     *Duration          `json:"duration,omitempty"`
+	Quantity                     *Quantity          `json:"quantity,omitempty"`
+	Method                       *CodeableConcept   `json:"method,omitempty"`
+	Device                       *CodeableReference `json:"device,omitempty"`
+	Procedure                    *Reference         `json:"procedure,omitempty"`
+	BodySite                     *CodeableReference `json:"bodySite,omitempty"`
+	FastingStatusCodeableConcept *CodeableConcept   `json:"fastingStatusCodeableConcept,omitempty"`
+	FastingStatusDuration        *Duration          `json:"fastingStatusDuration,omitempty"`
+}
+
+// SpecimenCollectionCollected is the sealed value interface for the collected[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSpecimenCollectionCollected marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SpecimenCollectionCollected interface{ isSpecimenCollectionCollected() }
+
+func (FHIRDateTime) isSpecimenCollectionCollected() {}
+func (Period) isSpecimenCollectionCollected()       {}
+
+// Collected returns the value set in the collected[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SpecimenCollection) Collected() (SpecimenCollectionCollected, bool) {
+	switch {
+	case r.CollectedDateTime != nil:
+		return *r.CollectedDateTime, true
+	case r.CollectedPeriod != nil:
+		return *r.CollectedPeriod, true
+	}
+	return nil, false
+}
+
+// SetCollectedDateTime sets collected[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isSpecimenCollectionCollected marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenCollection) SetCollectedDateTime(v FHIRDateTime) {
+	r.CollectedDateTime = nil
+	r.CollectedPeriod = nil
+	r.CollectedDateTime = &v
+}
+
+// SetCollectedPeriod sets collected[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenCollection) SetCollectedPeriod(v Period) {
+	r.CollectedDateTime = nil
+	r.CollectedPeriod = nil
+	r.CollectedPeriod = &v
+}
+
+// SpecimenCollectionFastingStatus is the sealed value interface for the fastingStatus[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSpecimenCollectionFastingStatus marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SpecimenCollectionFastingStatus interface{ isSpecimenCollectionFastingStatus() }
+
+func (CodeableConcept) isSpecimenCollectionFastingStatus() {}
+func (Duration) isSpecimenCollectionFastingStatus()        {}
+
+// FastingStatus returns the value set in the fastingStatus[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SpecimenCollection) FastingStatus() (SpecimenCollectionFastingStatus, bool) {
+	switch {
+	case r.FastingStatusCodeableConcept != nil:
+		return *r.FastingStatusCodeableConcept, true
+	case r.FastingStatusDuration != nil:
+		return *r.FastingStatusDuration, true
+	}
+	return nil, false
+}
+
+// SetFastingStatusCodeableConcept sets fastingStatus[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenCollection) SetFastingStatusCodeableConcept(v CodeableConcept) {
+	r.FastingStatusCodeableConcept = nil
+	r.FastingStatusDuration = nil
+	r.FastingStatusCodeableConcept = &v
+}
+
+// SetFastingStatusDuration sets fastingStatus[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenCollection) SetFastingStatusDuration(v Duration) {
+	r.FastingStatusCodeableConcept = nil
+	r.FastingStatusDuration = nil
+	r.FastingStatusDuration = &v
 }
 
 // SpecimenContainer is a generated nested backbone element.
@@ -203,7 +285,8 @@ type SpecimenProcessing struct {
 	DescriptionElement *fhir.PrimitiveElement `json:"-"`
 	Method             *CodeableConcept       `json:"method,omitempty"`
 	Additive           []Reference            `json:"additive,omitempty"`
-	Time               *string                `json:"time,omitempty"`
+	TimeDateTime       *FHIRDateTime          `json:"timeDateTime,omitempty"`
+	TimePeriod         *Period                `json:"timePeriod,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -252,4 +335,45 @@ func (v *SpecimenProcessing) UnmarshalJSON(data []byte) error {
 	}
 	type alias SpecimenProcessing
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// SpecimenProcessingTime is the sealed value interface for the time[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSpecimenProcessingTime marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SpecimenProcessingTime interface{ isSpecimenProcessingTime() }
+
+func (FHIRDateTime) isSpecimenProcessingTime() {}
+func (Period) isSpecimenProcessingTime()       {}
+
+// Time returns the value set in the time[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SpecimenProcessing) Time() (SpecimenProcessingTime, bool) {
+	switch {
+	case r.TimeDateTime != nil:
+		return *r.TimeDateTime, true
+	case r.TimePeriod != nil:
+		return *r.TimePeriod, true
+	}
+	return nil, false
+}
+
+// SetTimeDateTime sets time[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isSpecimenProcessingTime marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenProcessing) SetTimeDateTime(v FHIRDateTime) {
+	r.TimeDateTime = nil
+	r.TimePeriod = nil
+	r.TimeDateTime = &v
+}
+
+// SetTimePeriod sets time[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenProcessing) SetTimePeriod(v Period) {
+	r.TimeDateTime = nil
+	r.TimePeriod = nil
+	r.TimePeriod = &v
 }

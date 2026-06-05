@@ -119,7 +119,102 @@ func (v *Dosage) UnmarshalJSON(data []byte) error {
 // DosageDoseAndRate is a generated nested backbone element.
 type DosageDoseAndRate struct {
 	Element
-	Type *CodeableConcept `json:"type,omitempty"`
-	Dose *Range           `json:"dose,omitempty"`
-	Rate *Ratio           `json:"rate,omitempty"`
+	Type         *CodeableConcept `json:"type,omitempty"`
+	DoseRange    *Range           `json:"doseRange,omitempty"`
+	DoseQuantity *Quantity        `json:"doseQuantity,omitempty"`
+	RateRatio    *Ratio           `json:"rateRatio,omitempty"`
+	RateRange    *Range           `json:"rateRange,omitempty"`
+	RateQuantity *Quantity        `json:"rateQuantity,omitempty"`
+}
+
+// DosageDoseAndRateDose is the sealed value interface for the dose[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDosageDoseAndRateDose marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DosageDoseAndRateDose interface{ isDosageDoseAndRateDose() }
+
+func (Range) isDosageDoseAndRateDose()    {}
+func (Quantity) isDosageDoseAndRateDose() {}
+
+// Dose returns the value set in the dose[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DosageDoseAndRate) Dose() (DosageDoseAndRateDose, bool) {
+	switch {
+	case r.DoseRange != nil:
+		return *r.DoseRange, true
+	case r.DoseQuantity != nil:
+		return *r.DoseQuantity, true
+	}
+	return nil, false
+}
+
+// SetDoseRange sets dose[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DosageDoseAndRate) SetDoseRange(v Range) {
+	r.DoseRange = nil
+	r.DoseQuantity = nil
+	r.DoseRange = &v
+}
+
+// SetDoseQuantity sets dose[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DosageDoseAndRate) SetDoseQuantity(v Quantity) {
+	r.DoseRange = nil
+	r.DoseQuantity = nil
+	r.DoseQuantity = &v
+}
+
+// DosageDoseAndRateRate is the sealed value interface for the rate[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDosageDoseAndRateRate marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DosageDoseAndRateRate interface{ isDosageDoseAndRateRate() }
+
+func (Ratio) isDosageDoseAndRateRate()    {}
+func (Range) isDosageDoseAndRateRate()    {}
+func (Quantity) isDosageDoseAndRateRate() {}
+
+// Rate returns the value set in the rate[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DosageDoseAndRate) Rate() (DosageDoseAndRateRate, bool) {
+	switch {
+	case r.RateRatio != nil:
+		return *r.RateRatio, true
+	case r.RateRange != nil:
+		return *r.RateRange, true
+	case r.RateQuantity != nil:
+		return *r.RateQuantity, true
+	}
+	return nil, false
+}
+
+// SetRateRatio sets rate[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DosageDoseAndRate) SetRateRatio(v Ratio) {
+	r.RateRatio = nil
+	r.RateRange = nil
+	r.RateQuantity = nil
+	r.RateRatio = &v
+}
+
+// SetRateRange sets rate[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DosageDoseAndRate) SetRateRange(v Range) {
+	r.RateRatio = nil
+	r.RateRange = nil
+	r.RateQuantity = nil
+	r.RateRange = &v
+}
+
+// SetRateQuantity sets rate[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DosageDoseAndRate) SetRateQuantity(v Quantity) {
+	r.RateRatio = nil
+	r.RateRange = nil
+	r.RateQuantity = nil
+	r.RateQuantity = &v
 }

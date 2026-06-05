@@ -13,52 +13,54 @@ const EvidenceResourceType = "Evidence"
 // Evidence is the generated FHIR Evidence resource.
 type Evidence struct {
 	DomainResource
-	URL                   *string                      `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement       `json:"-"`
-	Identifier            []Identifier                 `json:"identifier,omitempty"`
-	Version               *string                      `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement       `json:"-"`
-	VersionAlgorithm      *string                      `json:"versionAlgorithm,omitempty"`
-	Name                  *string                      `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement       `json:"-"`
-	Title                 *string                      `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement       `json:"-"`
-	CiteAs                *Reference                   `json:"citeAs,omitempty"`
-	Status                *string                      `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement       `json:"-"`
-	Experimental          *bool                        `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement       `json:"-"`
-	Date                  *string                      `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement       `json:"-"`
-	ApprovalDate          *string                      `json:"approvalDate,omitempty"`
-	ApprovalDateElement   *fhir.PrimitiveElement       `json:"-"`
-	LastReviewDate        *string                      `json:"lastReviewDate,omitempty"`
-	LastReviewDateElement *fhir.PrimitiveElement       `json:"-"`
-	Publisher             *string                      `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement       `json:"-"`
-	Contact               []ContactDetail              `json:"contact,omitempty"`
-	Author                []ContactDetail              `json:"author,omitempty"`
-	Editor                []ContactDetail              `json:"editor,omitempty"`
-	Reviewer              []ContactDetail              `json:"reviewer,omitempty"`
-	Endorser              []ContactDetail              `json:"endorser,omitempty"`
-	UseContext            []UsageContext               `json:"useContext,omitempty"`
-	Purpose               *string                      `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement       `json:"-"`
-	Copyright             *string                      `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement       `json:"-"`
-	CopyrightLabel        *string                      `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement       `json:"-"`
-	RelatedArtifact       []RelatedArtifact            `json:"relatedArtifact,omitempty"`
-	Description           *string                      `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement       `json:"-"`
-	Assertion             *string                      `json:"assertion,omitempty"`
-	AssertionElement      *fhir.PrimitiveElement       `json:"-"`
-	Note                  []Annotation                 `json:"note,omitempty"`
-	VariableDefinition    []EvidenceVariableDefinition `json:"variableDefinition,omitempty"`
-	SynthesisType         *CodeableConcept             `json:"synthesisType,omitempty"`
-	StudyDesign           []CodeableConcept            `json:"studyDesign,omitempty"`
-	Statistic             []EvidenceStatistic          `json:"statistic,omitempty"`
-	Certainty             []EvidenceCertainty          `json:"certainty,omitempty"`
+	URL                    *string                      `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement       `json:"-"`
+	Identifier             []Identifier                 `json:"identifier,omitempty"`
+	Version                *string                      `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement       `json:"-"`
+	VersionAlgorithmString *FHIRString                  `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                      `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                      `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement       `json:"-"`
+	Title                  *string                      `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement       `json:"-"`
+	CiteAsReference        *Reference                   `json:"citeAsReference,omitempty"`
+	CiteAsMarkdown         *FHIRMarkdown                `json:"citeAsMarkdown,omitempty"`
+	Status                 *string                      `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement       `json:"-"`
+	Experimental           *bool                        `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement       `json:"-"`
+	Date                   *string                      `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement       `json:"-"`
+	ApprovalDate           *string                      `json:"approvalDate,omitempty"`
+	ApprovalDateElement    *fhir.PrimitiveElement       `json:"-"`
+	LastReviewDate         *string                      `json:"lastReviewDate,omitempty"`
+	LastReviewDateElement  *fhir.PrimitiveElement       `json:"-"`
+	Publisher              *string                      `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement       `json:"-"`
+	Contact                []ContactDetail              `json:"contact,omitempty"`
+	Author                 []ContactDetail              `json:"author,omitempty"`
+	Editor                 []ContactDetail              `json:"editor,omitempty"`
+	Reviewer               []ContactDetail              `json:"reviewer,omitempty"`
+	Endorser               []ContactDetail              `json:"endorser,omitempty"`
+	UseContext             []UsageContext               `json:"useContext,omitempty"`
+	Purpose                *string                      `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement       `json:"-"`
+	Copyright              *string                      `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement       `json:"-"`
+	CopyrightLabel         *string                      `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement       `json:"-"`
+	RelatedArtifact        []RelatedArtifact            `json:"relatedArtifact,omitempty"`
+	Description            *string                      `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement       `json:"-"`
+	Assertion              *string                      `json:"assertion,omitempty"`
+	AssertionElement       *fhir.PrimitiveElement       `json:"-"`
+	Note                   []Annotation                 `json:"note,omitempty"`
+	VariableDefinition     []EvidenceVariableDefinition `json:"variableDefinition,omitempty"`
+	SynthesisType          *CodeableConcept             `json:"synthesisType,omitempty"`
+	StudyDesign            []CodeableConcept            `json:"studyDesign,omitempty"`
+	Statistic              []EvidenceStatistic          `json:"statistic,omitempty"`
+	Certainty              []EvidenceCertainty          `json:"certainty,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "Evidence".
@@ -287,6 +289,88 @@ func (v *Evidence) UnmarshalJSON(data []byte) error {
 	}
 	type alias Evidence
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// EvidenceVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceVersionAlgorithm interface{ isEvidenceVersionAlgorithm() }
+
+func (FHIRString) isEvidenceVersionAlgorithm() {}
+func (Coding) isEvidenceVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Evidence) VersionAlgorithm() (EvidenceVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isEvidenceVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Evidence) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Evidence) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
+// EvidenceCiteAs is the sealed value interface for the citeAs[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceCiteAs marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceCiteAs interface{ isEvidenceCiteAs() }
+
+func (Reference) isEvidenceCiteAs()    {}
+func (FHIRMarkdown) isEvidenceCiteAs() {}
+
+// CiteAs returns the value set in the citeAs[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Evidence) CiteAs() (EvidenceCiteAs, bool) {
+	switch {
+	case r.CiteAsReference != nil:
+		return *r.CiteAsReference, true
+	case r.CiteAsMarkdown != nil:
+		return *r.CiteAsMarkdown, true
+	}
+	return nil, false
+}
+
+// SetCiteAsReference sets citeAs[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Evidence) SetCiteAsReference(v Reference) {
+	r.CiteAsReference = nil
+	r.CiteAsMarkdown = nil
+	r.CiteAsReference = &v
+}
+
+// SetCiteAsMarkdown sets citeAs[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isEvidenceCiteAs marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Evidence) SetCiteAsMarkdown(v FHIRMarkdown) {
+	r.CiteAsReference = nil
+	r.CiteAsMarkdown = nil
+	r.CiteAsMarkdown = &v
 }
 
 // EvidenceCertainty is a generated nested backbone element.

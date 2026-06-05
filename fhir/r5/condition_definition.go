@@ -13,49 +13,50 @@ const ConditionDefinitionResourceType = "ConditionDefinition"
 // ConditionDefinition is the generated FHIR ConditionDefinition resource.
 type ConditionDefinition struct {
 	DomainResource
-	URL                 *string                            `json:"url,omitempty"`
-	URLElement          *fhir.PrimitiveElement             `json:"-"`
-	Identifier          []Identifier                       `json:"identifier,omitempty"`
-	Version             *string                            `json:"version,omitempty"`
-	VersionElement      *fhir.PrimitiveElement             `json:"-"`
-	VersionAlgorithm    *string                            `json:"versionAlgorithm,omitempty"`
-	Name                *string                            `json:"name,omitempty"`
-	NameElement         *fhir.PrimitiveElement             `json:"-"`
-	Title               *string                            `json:"title,omitempty"`
-	TitleElement        *fhir.PrimitiveElement             `json:"-"`
-	Subtitle            *string                            `json:"subtitle,omitempty"`
-	SubtitleElement     *fhir.PrimitiveElement             `json:"-"`
-	Status              *string                            `json:"status,omitempty"`
-	StatusElement       *fhir.PrimitiveElement             `json:"-"`
-	Experimental        *bool                              `json:"experimental,omitempty"`
-	ExperimentalElement *fhir.PrimitiveElement             `json:"-"`
-	Date                *string                            `json:"date,omitempty"`
-	DateElement         *fhir.PrimitiveElement             `json:"-"`
-	Publisher           *string                            `json:"publisher,omitempty"`
-	PublisherElement    *fhir.PrimitiveElement             `json:"-"`
-	Contact             []ContactDetail                    `json:"contact,omitempty"`
-	Description         *string                            `json:"description,omitempty"`
-	DescriptionElement  *fhir.PrimitiveElement             `json:"-"`
-	UseContext          []UsageContext                     `json:"useContext,omitempty"`
-	Jurisdiction        []CodeableConcept                  `json:"jurisdiction,omitempty"`
-	Code                *CodeableConcept                   `json:"code,omitempty"`
-	Severity            *CodeableConcept                   `json:"severity,omitempty"`
-	BodySite            *CodeableConcept                   `json:"bodySite,omitempty"`
-	Stage               *CodeableConcept                   `json:"stage,omitempty"`
-	HasSeverity         *bool                              `json:"hasSeverity,omitempty"`
-	HasSeverityElement  *fhir.PrimitiveElement             `json:"-"`
-	HasBodySite         *bool                              `json:"hasBodySite,omitempty"`
-	HasBodySiteElement  *fhir.PrimitiveElement             `json:"-"`
-	HasStage            *bool                              `json:"hasStage,omitempty"`
-	HasStageElement     *fhir.PrimitiveElement             `json:"-"`
-	Definition          []string                           `json:"definition,omitempty"`
-	DefinitionElement   []*fhir.PrimitiveElement           `json:"-"`
-	Observation         []ConditionDefinitionObservation   `json:"observation,omitempty"`
-	Medication          []ConditionDefinitionObservation   `json:"medication,omitempty"`
-	Precondition        []ConditionDefinitionPrecondition  `json:"precondition,omitempty"`
-	Team                []Reference                        `json:"team,omitempty"`
-	Questionnaire       []ConditionDefinitionQuestionnaire `json:"questionnaire,omitempty"`
-	Plan                []ConditionDefinitionPlan          `json:"plan,omitempty"`
+	URL                    *string                            `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement             `json:"-"`
+	Identifier             []Identifier                       `json:"identifier,omitempty"`
+	Version                *string                            `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement             `json:"-"`
+	VersionAlgorithmString *FHIRString                        `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                            `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                            `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement             `json:"-"`
+	Title                  *string                            `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement             `json:"-"`
+	Subtitle               *string                            `json:"subtitle,omitempty"`
+	SubtitleElement        *fhir.PrimitiveElement             `json:"-"`
+	Status                 *string                            `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement             `json:"-"`
+	Experimental           *bool                              `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement             `json:"-"`
+	Date                   *string                            `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement             `json:"-"`
+	Publisher              *string                            `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement             `json:"-"`
+	Contact                []ContactDetail                    `json:"contact,omitempty"`
+	Description            *string                            `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement             `json:"-"`
+	UseContext             []UsageContext                     `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept                  `json:"jurisdiction,omitempty"`
+	Code                   *CodeableConcept                   `json:"code,omitempty"`
+	Severity               *CodeableConcept                   `json:"severity,omitempty"`
+	BodySite               *CodeableConcept                   `json:"bodySite,omitempty"`
+	Stage                  *CodeableConcept                   `json:"stage,omitempty"`
+	HasSeverity            *bool                              `json:"hasSeverity,omitempty"`
+	HasSeverityElement     *fhir.PrimitiveElement             `json:"-"`
+	HasBodySite            *bool                              `json:"hasBodySite,omitempty"`
+	HasBodySiteElement     *fhir.PrimitiveElement             `json:"-"`
+	HasStage               *bool                              `json:"hasStage,omitempty"`
+	HasStageElement        *fhir.PrimitiveElement             `json:"-"`
+	Definition             []string                           `json:"definition,omitempty"`
+	DefinitionElement      []*fhir.PrimitiveElement           `json:"-"`
+	Observation            []ConditionDefinitionObservation   `json:"observation,omitempty"`
+	Medication             []ConditionDefinitionObservation   `json:"medication,omitempty"`
+	Precondition           []ConditionDefinitionPrecondition  `json:"precondition,omitempty"`
+	Team                   []Reference                        `json:"team,omitempty"`
+	Questionnaire          []ConditionDefinitionQuestionnaire `json:"questionnaire,omitempty"`
+	Plan                   []ConditionDefinitionPlan          `json:"plan,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "ConditionDefinition".
@@ -274,6 +275,47 @@ func (v *ConditionDefinition) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ConditionDefinitionVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isConditionDefinitionVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ConditionDefinitionVersionAlgorithm interface{ isConditionDefinitionVersionAlgorithm() }
+
+func (FHIRString) isConditionDefinitionVersionAlgorithm() {}
+func (Coding) isConditionDefinitionVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ConditionDefinition) VersionAlgorithm() (ConditionDefinitionVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isConditionDefinitionVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConditionDefinition) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConditionDefinition) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
 // ConditionDefinitionObservation is a generated nested backbone element.
 type ConditionDefinitionObservation struct {
 	BackboneElement
@@ -291,10 +333,11 @@ type ConditionDefinitionPlan struct {
 // ConditionDefinitionPrecondition is a generated nested backbone element.
 type ConditionDefinitionPrecondition struct {
 	BackboneElement
-	Type        *string                `json:"type,omitempty"`
-	TypeElement *fhir.PrimitiveElement `json:"-"`
-	Code        *CodeableConcept       `json:"code,omitempty"`
-	Value       *CodeableConcept       `json:"value,omitempty"`
+	Type                 *string                `json:"type,omitempty"`
+	TypeElement          *fhir.PrimitiveElement `json:"-"`
+	Code                 *CodeableConcept       `json:"code,omitempty"`
+	ValueCodeableConcept *CodeableConcept       `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity              `json:"valueQuantity,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -343,6 +386,45 @@ func (v *ConditionDefinitionPrecondition) UnmarshalJSON(data []byte) error {
 	}
 	type alias ConditionDefinitionPrecondition
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ConditionDefinitionPreconditionValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isConditionDefinitionPreconditionValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ConditionDefinitionPreconditionValue interface{ isConditionDefinitionPreconditionValue() }
+
+func (CodeableConcept) isConditionDefinitionPreconditionValue() {}
+func (Quantity) isConditionDefinitionPreconditionValue()        {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ConditionDefinitionPrecondition) Value() (ConditionDefinitionPreconditionValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConditionDefinitionPrecondition) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ConditionDefinitionPrecondition) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueQuantity = &v
 }
 
 // ConditionDefinitionQuestionnaire is a generated nested backbone element.

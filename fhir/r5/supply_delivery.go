@@ -13,18 +13,20 @@ const SupplyDeliveryResourceType = "SupplyDelivery"
 // SupplyDelivery is the generated FHIR SupplyDelivery resource.
 type SupplyDelivery struct {
 	DomainResource
-	Identifier    []Identifier                 `json:"identifier,omitempty"`
-	BasedOn       []Reference                  `json:"basedOn,omitempty"`
-	PartOf        []Reference                  `json:"partOf,omitempty"`
-	Status        *string                      `json:"status,omitempty"`
-	StatusElement *fhir.PrimitiveElement       `json:"-"`
-	Patient       *Reference                   `json:"patient,omitempty"`
-	Type          *CodeableConcept             `json:"type,omitempty"`
-	SuppliedItem  []SupplyDeliverySuppliedItem `json:"suppliedItem,omitempty"`
-	Occurrence    *string                      `json:"occurrence,omitempty"`
-	Supplier      *Reference                   `json:"supplier,omitempty"`
-	Destination   *Reference                   `json:"destination,omitempty"`
-	Receiver      []Reference                  `json:"receiver,omitempty"`
+	Identifier         []Identifier                 `json:"identifier,omitempty"`
+	BasedOn            []Reference                  `json:"basedOn,omitempty"`
+	PartOf             []Reference                  `json:"partOf,omitempty"`
+	Status             *string                      `json:"status,omitempty"`
+	StatusElement      *fhir.PrimitiveElement       `json:"-"`
+	Patient            *Reference                   `json:"patient,omitempty"`
+	Type               *CodeableConcept             `json:"type,omitempty"`
+	SuppliedItem       []SupplyDeliverySuppliedItem `json:"suppliedItem,omitempty"`
+	OccurrenceDateTime *FHIRDateTime                `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod   *Period                      `json:"occurrencePeriod,omitempty"`
+	OccurrenceTiming   *Timing                      `json:"occurrenceTiming,omitempty"`
+	Supplier           *Reference                   `json:"supplier,omitempty"`
+	Destination        *Reference                   `json:"destination,omitempty"`
+	Receiver           []Reference                  `json:"receiver,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "SupplyDelivery".
@@ -87,9 +89,104 @@ func (v *SupplyDelivery) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// SupplyDeliveryOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSupplyDeliveryOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SupplyDeliveryOccurrence interface{ isSupplyDeliveryOccurrence() }
+
+func (FHIRDateTime) isSupplyDeliveryOccurrence() {}
+func (Period) isSupplyDeliveryOccurrence()       {}
+func (Timing) isSupplyDeliveryOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SupplyDelivery) Occurrence() (SupplyDeliveryOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	case r.OccurrenceTiming != nil:
+		return *r.OccurrenceTiming, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isSupplyDeliveryOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyDelivery) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyDelivery) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrencePeriod = &v
+}
+
+// SetOccurrenceTiming sets occurrence[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyDelivery) SetOccurrenceTiming(v Timing) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceTiming = &v
+}
+
 // SupplyDeliverySuppliedItem is a generated nested backbone element.
 type SupplyDeliverySuppliedItem struct {
 	BackboneElement
-	Quantity *Quantity        `json:"quantity,omitempty"`
-	Item     *CodeableConcept `json:"item,omitempty"`
+	Quantity            *Quantity        `json:"quantity,omitempty"`
+	ItemCodeableConcept *CodeableConcept `json:"itemCodeableConcept,omitempty"`
+	ItemReference       *Reference       `json:"itemReference,omitempty"`
+}
+
+// SupplyDeliverySuppliedItemItem is the sealed value interface for the item[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSupplyDeliverySuppliedItemItem marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SupplyDeliverySuppliedItemItem interface{ isSupplyDeliverySuppliedItemItem() }
+
+func (CodeableConcept) isSupplyDeliverySuppliedItemItem() {}
+func (Reference) isSupplyDeliverySuppliedItemItem()       {}
+
+// Item returns the value set in the item[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SupplyDeliverySuppliedItem) Item() (SupplyDeliverySuppliedItemItem, bool) {
+	switch {
+	case r.ItemCodeableConcept != nil:
+		return *r.ItemCodeableConcept, true
+	case r.ItemReference != nil:
+		return *r.ItemReference, true
+	}
+	return nil, false
+}
+
+// SetItemCodeableConcept sets item[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyDeliverySuppliedItem) SetItemCodeableConcept(v CodeableConcept) {
+	r.ItemCodeableConcept = nil
+	r.ItemReference = nil
+	r.ItemCodeableConcept = &v
+}
+
+// SetItemReference sets item[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyDeliverySuppliedItem) SetItemReference(v Reference) {
+	r.ItemCodeableConcept = nil
+	r.ItemReference = nil
+	r.ItemReference = &v
 }

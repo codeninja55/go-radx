@@ -105,9 +105,150 @@ func (v *AdministrableProductDefinition) UnmarshalJSON(data []byte) error {
 // AdministrableProductDefinitionProperty is a generated nested backbone element.
 type AdministrableProductDefinitionProperty struct {
 	BackboneElement
-	Type   *CodeableConcept `json:"type,omitempty"`
-	Value  *CodeableConcept `json:"value,omitempty"`
-	Status *CodeableConcept `json:"status,omitempty"`
+	Type                 *CodeableConcept `json:"type,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueDate            *FHIRDate        `json:"valueDate,omitempty"`
+	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
+	ValueMarkdown        *FHIRMarkdown    `json:"valueMarkdown,omitempty"`
+	ValueAttachment      *Attachment      `json:"valueAttachment,omitempty"`
+	ValueReference       *Reference       `json:"valueReference,omitempty"`
+	Status               *CodeableConcept `json:"status,omitempty"`
+}
+
+// AdministrableProductDefinitionPropertyValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isAdministrableProductDefinitionPropertyValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type AdministrableProductDefinitionPropertyValue interface{ isAdministrableProductDefinitionPropertyValue() }
+
+func (CodeableConcept) isAdministrableProductDefinitionPropertyValue() {}
+func (Quantity) isAdministrableProductDefinitionPropertyValue()        {}
+func (FHIRDate) isAdministrableProductDefinitionPropertyValue()        {}
+func (FHIRBoolean) isAdministrableProductDefinitionPropertyValue()     {}
+func (FHIRMarkdown) isAdministrableProductDefinitionPropertyValue()    {}
+func (Attachment) isAdministrableProductDefinitionPropertyValue()      {}
+func (Reference) isAdministrableProductDefinitionPropertyValue()       {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *AdministrableProductDefinitionProperty) Value() (AdministrableProductDefinitionPropertyValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueMarkdown != nil:
+		return *r.ValueMarkdown, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdministrableProductDefinitionProperty) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueMarkdown = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdministrableProductDefinitionProperty) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueMarkdown = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isAdministrableProductDefinitionPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdministrableProductDefinitionProperty) SetValueDate(v FHIRDate) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueMarkdown = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueDate = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isAdministrableProductDefinitionPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdministrableProductDefinitionProperty) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueMarkdown = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueMarkdown sets value[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isAdministrableProductDefinitionPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdministrableProductDefinitionProperty) SetValueMarkdown(v FHIRMarkdown) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueMarkdown = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueMarkdown = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdministrableProductDefinitionProperty) SetValueAttachment(v Attachment) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueMarkdown = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdministrableProductDefinitionProperty) SetValueReference(v Reference) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueMarkdown = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
 }
 
 // AdministrableProductDefinitionRouteOfAdministration is a generated nested backbone element.

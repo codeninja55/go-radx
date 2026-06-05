@@ -181,7 +181,12 @@ type RequestOrchestrationAction struct {
 	Input                      []RequestOrchestrationActionInput         `json:"input,omitempty"`
 	Output                     []RequestOrchestrationActionInput         `json:"output,omitempty"`
 	RelatedAction              []RequestOrchestrationActionRelatedAction `json:"relatedAction,omitempty"`
-	Timing                     *string                                   `json:"timing,omitempty"`
+	TimingDateTime             *FHIRDateTime                             `json:"timingDateTime,omitempty"`
+	TimingAge                  *Age                                      `json:"timingAge,omitempty"`
+	TimingPeriod               *Period                                   `json:"timingPeriod,omitempty"`
+	TimingDuration             *Duration                                 `json:"timingDuration,omitempty"`
+	TimingRange                *Range                                    `json:"timingRange,omitempty"`
+	TimingTiming               *Timing                                   `json:"timingTiming,omitempty"`
 	Location                   *CodeableReference                        `json:"location,omitempty"`
 	Participant                []RequestOrchestrationActionParticipant   `json:"participant,omitempty"`
 	Type                       *CodeableConcept                          `json:"type,omitempty"`
@@ -196,7 +201,8 @@ type RequestOrchestrationAction struct {
 	CardinalityBehavior        *string                                   `json:"cardinalityBehavior,omitempty"`
 	CardinalityBehaviorElement *fhir.PrimitiveElement                    `json:"-"`
 	Resource                   *Reference                                `json:"resource,omitempty"`
-	Definition                 *string                                   `json:"definition,omitempty"`
+	DefinitionCanonical        *FHIRCanonical                            `json:"definitionCanonical,omitempty"`
+	DefinitionURI              *FHIRURI                                  `json:"definitionURI,omitempty"`
 	Transform                  *string                                   `json:"transform,omitempty"`
 	TransformElement           *fhir.PrimitiveElement                    `json:"-"`
 	DynamicValue               []RequestOrchestrationActionDynamicValue  `json:"dynamicValue,omitempty"`
@@ -381,6 +387,158 @@ func (v *RequestOrchestrationAction) UnmarshalJSON(data []byte) error {
 	}
 	type alias RequestOrchestrationAction
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// RequestOrchestrationActionTiming is the sealed value interface for the timing[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isRequestOrchestrationActionTiming marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type RequestOrchestrationActionTiming interface{ isRequestOrchestrationActionTiming() }
+
+func (FHIRDateTime) isRequestOrchestrationActionTiming() {}
+func (Age) isRequestOrchestrationActionTiming()          {}
+func (Period) isRequestOrchestrationActionTiming()       {}
+func (Duration) isRequestOrchestrationActionTiming()     {}
+func (Range) isRequestOrchestrationActionTiming()        {}
+func (Timing) isRequestOrchestrationActionTiming()       {}
+
+// Timing returns the value set in the timing[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *RequestOrchestrationAction) Timing() (RequestOrchestrationActionTiming, bool) {
+	switch {
+	case r.TimingDateTime != nil:
+		return *r.TimingDateTime, true
+	case r.TimingAge != nil:
+		return *r.TimingAge, true
+	case r.TimingPeriod != nil:
+		return *r.TimingPeriod, true
+	case r.TimingDuration != nil:
+		return *r.TimingDuration, true
+	case r.TimingRange != nil:
+		return *r.TimingRange, true
+	case r.TimingTiming != nil:
+		return *r.TimingTiming, true
+	}
+	return nil, false
+}
+
+// SetTimingDateTime sets timing[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isRequestOrchestrationActionTiming marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationAction) SetTimingDateTime(v FHIRDateTime) {
+	r.TimingDateTime = nil
+	r.TimingAge = nil
+	r.TimingPeriod = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingDateTime = &v
+}
+
+// SetTimingAge sets timing[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationAction) SetTimingAge(v Age) {
+	r.TimingDateTime = nil
+	r.TimingAge = nil
+	r.TimingPeriod = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingAge = &v
+}
+
+// SetTimingPeriod sets timing[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationAction) SetTimingPeriod(v Period) {
+	r.TimingDateTime = nil
+	r.TimingAge = nil
+	r.TimingPeriod = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingPeriod = &v
+}
+
+// SetTimingDuration sets timing[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationAction) SetTimingDuration(v Duration) {
+	r.TimingDateTime = nil
+	r.TimingAge = nil
+	r.TimingPeriod = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingDuration = &v
+}
+
+// SetTimingRange sets timing[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationAction) SetTimingRange(v Range) {
+	r.TimingDateTime = nil
+	r.TimingAge = nil
+	r.TimingPeriod = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingRange = &v
+}
+
+// SetTimingTiming sets timing[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationAction) SetTimingTiming(v Timing) {
+	r.TimingDateTime = nil
+	r.TimingAge = nil
+	r.TimingPeriod = nil
+	r.TimingDuration = nil
+	r.TimingRange = nil
+	r.TimingTiming = nil
+	r.TimingTiming = &v
+}
+
+// RequestOrchestrationActionDefinition is the sealed value interface for the definition[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isRequestOrchestrationActionDefinition marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type RequestOrchestrationActionDefinition interface{ isRequestOrchestrationActionDefinition() }
+
+func (FHIRCanonical) isRequestOrchestrationActionDefinition() {}
+func (FHIRURI) isRequestOrchestrationActionDefinition()       {}
+
+// Definition returns the value set in the definition[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *RequestOrchestrationAction) Definition() (RequestOrchestrationActionDefinition, bool) {
+	switch {
+	case r.DefinitionCanonical != nil:
+		return *r.DefinitionCanonical, true
+	case r.DefinitionURI != nil:
+		return *r.DefinitionURI, true
+	}
+	return nil, false
+}
+
+// SetDefinitionCanonical sets definition[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isRequestOrchestrationActionDefinition marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationAction) SetDefinitionCanonical(v FHIRCanonical) {
+	r.DefinitionCanonical = nil
+	r.DefinitionURI = nil
+	r.DefinitionCanonical = &v
+}
+
+// SetDefinitionURI sets definition[x] to a FHIRURI (the
+// release primitive wrapper that carries the isRequestOrchestrationActionDefinition marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationAction) SetDefinitionURI(v FHIRURI) {
+	r.DefinitionCanonical = nil
+	r.DefinitionURI = nil
+	r.DefinitionURI = &v
 }
 
 // RequestOrchestrationActionCondition is a generated nested backbone element.
@@ -575,7 +733,8 @@ type RequestOrchestrationActionParticipant struct {
 	TypeReference        *Reference             `json:"typeReference,omitempty"`
 	Role                 *CodeableConcept       `json:"role,omitempty"`
 	Function             *CodeableConcept       `json:"function,omitempty"`
-	Actor                *string                `json:"actor,omitempty"`
+	ActorCanonical       *FHIRCanonical         `json:"actorCanonical,omitempty"`
+	ActorReference       *Reference             `json:"actorReference,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -638,6 +797,47 @@ func (v *RequestOrchestrationActionParticipant) UnmarshalJSON(data []byte) error
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// RequestOrchestrationActionParticipantActor is the sealed value interface for the actor[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isRequestOrchestrationActionParticipantActor marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type RequestOrchestrationActionParticipantActor interface{ isRequestOrchestrationActionParticipantActor() }
+
+func (FHIRCanonical) isRequestOrchestrationActionParticipantActor() {}
+func (Reference) isRequestOrchestrationActionParticipantActor()     {}
+
+// Actor returns the value set in the actor[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *RequestOrchestrationActionParticipant) Actor() (RequestOrchestrationActionParticipantActor, bool) {
+	switch {
+	case r.ActorCanonical != nil:
+		return *r.ActorCanonical, true
+	case r.ActorReference != nil:
+		return *r.ActorReference, true
+	}
+	return nil, false
+}
+
+// SetActorCanonical sets actor[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isRequestOrchestrationActionParticipantActor marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationActionParticipant) SetActorCanonical(v FHIRCanonical) {
+	r.ActorCanonical = nil
+	r.ActorReference = nil
+	r.ActorCanonical = &v
+}
+
+// SetActorReference sets actor[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationActionParticipant) SetActorReference(v Reference) {
+	r.ActorCanonical = nil
+	r.ActorReference = nil
+	r.ActorReference = &v
+}
+
 // RequestOrchestrationActionRelatedAction is a generated nested backbone element.
 type RequestOrchestrationActionRelatedAction struct {
 	BackboneElement
@@ -647,7 +847,8 @@ type RequestOrchestrationActionRelatedAction struct {
 	RelationshipElement    *fhir.PrimitiveElement `json:"-"`
 	EndRelationship        *string                `json:"endRelationship,omitempty"`
 	EndRelationshipElement *fhir.PrimitiveElement `json:"-"`
-	Offset                 *Duration              `json:"offset,omitempty"`
+	OffsetDuration         *Duration              `json:"offsetDuration,omitempty"`
+	OffsetRange            *Range                 `json:"offsetRange,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -720,4 +921,43 @@ func (v *RequestOrchestrationActionRelatedAction) UnmarshalJSON(data []byte) err
 	}
 	type alias RequestOrchestrationActionRelatedAction
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// RequestOrchestrationActionRelatedActionOffset is the sealed value interface for the offset[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isRequestOrchestrationActionRelatedActionOffset marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type RequestOrchestrationActionRelatedActionOffset interface{ isRequestOrchestrationActionRelatedActionOffset() }
+
+func (Duration) isRequestOrchestrationActionRelatedActionOffset() {}
+func (Range) isRequestOrchestrationActionRelatedActionOffset()    {}
+
+// Offset returns the value set in the offset[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *RequestOrchestrationActionRelatedAction) Offset() (RequestOrchestrationActionRelatedActionOffset, bool) {
+	switch {
+	case r.OffsetDuration != nil:
+		return *r.OffsetDuration, true
+	case r.OffsetRange != nil:
+		return *r.OffsetRange, true
+	}
+	return nil, false
+}
+
+// SetOffsetDuration sets offset[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationActionRelatedAction) SetOffsetDuration(v Duration) {
+	r.OffsetDuration = nil
+	r.OffsetRange = nil
+	r.OffsetDuration = &v
+}
+
+// SetOffsetRange sets offset[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RequestOrchestrationActionRelatedAction) SetOffsetRange(v Range) {
+	r.OffsetDuration = nil
+	r.OffsetRange = nil
+	r.OffsetRange = &v
 }

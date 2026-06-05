@@ -10,11 +10,12 @@ import (
 // Annotation is the generated FHIR Annotation datatype.
 type Annotation struct {
 	Element
-	Author      *Reference             `json:"author,omitempty"`
-	Time        *string                `json:"time,omitempty"`
-	TimeElement *fhir.PrimitiveElement `json:"-"`
-	Text        *string                `json:"text,omitempty"`
-	TextElement *fhir.PrimitiveElement `json:"-"`
+	AuthorReference *Reference             `json:"authorReference,omitempty"`
+	AuthorString    *FHIRString            `json:"authorString,omitempty"`
+	Time            *string                `json:"time,omitempty"`
+	TimeElement     *fhir.PrimitiveElement `json:"-"`
+	Text            *string                `json:"text,omitempty"`
+	TextElement     *fhir.PrimitiveElement `json:"-"`
 }
 
 // MarshalJSON folds the primitive "_field" siblings into the encoded value: a scalar
@@ -77,4 +78,45 @@ func (v *Annotation) UnmarshalJSON(data []byte) error {
 	}
 	type alias Annotation
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// AnnotationAuthor is the sealed value interface for the author[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isAnnotationAuthor marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type AnnotationAuthor interface{ isAnnotationAuthor() }
+
+func (Reference) isAnnotationAuthor()  {}
+func (FHIRString) isAnnotationAuthor() {}
+
+// Author returns the value set in the author[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Annotation) Author() (AnnotationAuthor, bool) {
+	switch {
+	case r.AuthorReference != nil:
+		return *r.AuthorReference, true
+	case r.AuthorString != nil:
+		return *r.AuthorString, true
+	}
+	return nil, false
+}
+
+// SetAuthorReference sets author[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Annotation) SetAuthorReference(v Reference) {
+	r.AuthorReference = nil
+	r.AuthorString = nil
+	r.AuthorReference = &v
+}
+
+// SetAuthorString sets author[x] to a FHIRString (the
+// release primitive wrapper that carries the isAnnotationAuthor marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Annotation) SetAuthorString(v FHIRString) {
+	r.AuthorReference = nil
+	r.AuthorString = nil
+	r.AuthorString = &v
 }

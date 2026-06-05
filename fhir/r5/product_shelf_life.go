@@ -6,6 +6,48 @@ package r5
 type ProductShelfLife struct {
 	BackboneElement
 	Type                         *CodeableConcept  `json:"type,omitempty"`
-	Period                       *Duration         `json:"period,omitempty"`
+	PeriodDuration               *Duration         `json:"periodDuration,omitempty"`
+	PeriodString                 *FHIRString       `json:"periodString,omitempty"`
 	SpecialPrecautionsForStorage []CodeableConcept `json:"specialPrecautionsForStorage,omitempty"`
+}
+
+// ProductShelfLifePeriod is the sealed value interface for the period[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isProductShelfLifePeriod marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ProductShelfLifePeriod interface{ isProductShelfLifePeriod() }
+
+func (Duration) isProductShelfLifePeriod()   {}
+func (FHIRString) isProductShelfLifePeriod() {}
+
+// Period returns the value set in the period[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ProductShelfLife) Period() (ProductShelfLifePeriod, bool) {
+	switch {
+	case r.PeriodDuration != nil:
+		return *r.PeriodDuration, true
+	case r.PeriodString != nil:
+		return *r.PeriodString, true
+	}
+	return nil, false
+}
+
+// SetPeriodDuration sets period[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ProductShelfLife) SetPeriodDuration(v Duration) {
+	r.PeriodDuration = nil
+	r.PeriodString = nil
+	r.PeriodDuration = &v
+}
+
+// SetPeriodString sets period[x] to a FHIRString (the
+// release primitive wrapper that carries the isProductShelfLifePeriod marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ProductShelfLife) SetPeriodString(v FHIRString) {
+	r.PeriodDuration = nil
+	r.PeriodString = nil
+	r.PeriodString = &v
 }

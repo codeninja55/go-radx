@@ -18,7 +18,8 @@ type SpecimenDefinition struct {
 	Identifier                  *Identifier                    `json:"identifier,omitempty"`
 	Version                     *string                        `json:"version,omitempty"`
 	VersionElement              *fhir.PrimitiveElement         `json:"-"`
-	VersionAlgorithm            *string                        `json:"versionAlgorithm,omitempty"`
+	VersionAlgorithmString      *FHIRString                    `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding      *Coding                        `json:"versionAlgorithmCoding,omitempty"`
 	Name                        *string                        `json:"name,omitempty"`
 	NameElement                 *fhir.PrimitiveElement         `json:"-"`
 	Title                       *string                        `json:"title,omitempty"`
@@ -31,7 +32,8 @@ type SpecimenDefinition struct {
 	StatusElement               *fhir.PrimitiveElement         `json:"-"`
 	Experimental                *bool                          `json:"experimental,omitempty"`
 	ExperimentalElement         *fhir.PrimitiveElement         `json:"-"`
-	Subject                     *CodeableConcept               `json:"subject,omitempty"`
+	SubjectCodeableConcept      *CodeableConcept               `json:"subjectCodeableConcept,omitempty"`
+	SubjectReference            *Reference                     `json:"subjectReference,omitempty"`
 	Date                        *string                        `json:"date,omitempty"`
 	DateElement                 *fhir.PrimitiveElement         `json:"-"`
 	Publisher                   *string                        `json:"publisher,omitempty"`
@@ -312,6 +314,86 @@ func (v *SpecimenDefinition) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// SpecimenDefinitionVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSpecimenDefinitionVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SpecimenDefinitionVersionAlgorithm interface{ isSpecimenDefinitionVersionAlgorithm() }
+
+func (FHIRString) isSpecimenDefinitionVersionAlgorithm() {}
+func (Coding) isSpecimenDefinitionVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SpecimenDefinition) VersionAlgorithm() (SpecimenDefinitionVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isSpecimenDefinitionVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenDefinition) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenDefinition) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
+// SpecimenDefinitionSubject is the sealed value interface for the subject[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSpecimenDefinitionSubject marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SpecimenDefinitionSubject interface{ isSpecimenDefinitionSubject() }
+
+func (CodeableConcept) isSpecimenDefinitionSubject() {}
+func (Reference) isSpecimenDefinitionSubject()       {}
+
+// Subject returns the value set in the subject[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SpecimenDefinition) Subject() (SpecimenDefinitionSubject, bool) {
+	switch {
+	case r.SubjectCodeableConcept != nil:
+		return *r.SubjectCodeableConcept, true
+	case r.SubjectReference != nil:
+		return *r.SubjectReference, true
+	}
+	return nil, false
+}
+
+// SetSubjectCodeableConcept sets subject[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenDefinition) SetSubjectCodeableConcept(v CodeableConcept) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCodeableConcept = &v
+}
+
+// SetSubjectReference sets subject[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenDefinition) SetSubjectReference(v Reference) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectReference = &v
+}
+
 // SpecimenDefinitionTypeTested is a generated nested backbone element.
 type SpecimenDefinitionTypeTested struct {
 	BackboneElement
@@ -418,16 +500,17 @@ func (v *SpecimenDefinitionTypeTested) UnmarshalJSON(data []byte) error {
 // SpecimenDefinitionTypeTestedContainer is a generated nested backbone element.
 type SpecimenDefinitionTypeTestedContainer struct {
 	BackboneElement
-	Material           *CodeableConcept                                `json:"material,omitempty"`
-	Type               *CodeableConcept                                `json:"type,omitempty"`
-	Cap                *CodeableConcept                                `json:"cap,omitempty"`
-	Description        *string                                         `json:"description,omitempty"`
-	DescriptionElement *fhir.PrimitiveElement                          `json:"-"`
-	Capacity           *Quantity                                       `json:"capacity,omitempty"`
-	MinimumVolume      *Quantity                                       `json:"minimumVolume,omitempty"`
-	Additive           []SpecimenDefinitionTypeTestedContainerAdditive `json:"additive,omitempty"`
-	Preparation        *string                                         `json:"preparation,omitempty"`
-	PreparationElement *fhir.PrimitiveElement                          `json:"-"`
+	Material              *CodeableConcept                                `json:"material,omitempty"`
+	Type                  *CodeableConcept                                `json:"type,omitempty"`
+	Cap                   *CodeableConcept                                `json:"cap,omitempty"`
+	Description           *string                                         `json:"description,omitempty"`
+	DescriptionElement    *fhir.PrimitiveElement                          `json:"-"`
+	Capacity              *Quantity                                       `json:"capacity,omitempty"`
+	MinimumVolumeQuantity *Quantity                                       `json:"minimumVolumeQuantity,omitempty"`
+	MinimumVolumeString   *FHIRString                                     `json:"minimumVolumeString,omitempty"`
+	Additive              []SpecimenDefinitionTypeTestedContainerAdditive `json:"additive,omitempty"`
+	Preparation           *string                                         `json:"preparation,omitempty"`
+	PreparationElement    *fhir.PrimitiveElement                          `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -490,10 +573,91 @@ func (v *SpecimenDefinitionTypeTestedContainer) UnmarshalJSON(data []byte) error
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// SpecimenDefinitionTypeTestedContainerMinimumVolume is the sealed value interface for the minimumVolume[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSpecimenDefinitionTypeTestedContainerMinimumVolume marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SpecimenDefinitionTypeTestedContainerMinimumVolume interface{ isSpecimenDefinitionTypeTestedContainerMinimumVolume() }
+
+func (Quantity) isSpecimenDefinitionTypeTestedContainerMinimumVolume()   {}
+func (FHIRString) isSpecimenDefinitionTypeTestedContainerMinimumVolume() {}
+
+// MinimumVolume returns the value set in the minimumVolume[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SpecimenDefinitionTypeTestedContainer) MinimumVolume() (SpecimenDefinitionTypeTestedContainerMinimumVolume, bool) {
+	switch {
+	case r.MinimumVolumeQuantity != nil:
+		return *r.MinimumVolumeQuantity, true
+	case r.MinimumVolumeString != nil:
+		return *r.MinimumVolumeString, true
+	}
+	return nil, false
+}
+
+// SetMinimumVolumeQuantity sets minimumVolume[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenDefinitionTypeTestedContainer) SetMinimumVolumeQuantity(v Quantity) {
+	r.MinimumVolumeQuantity = nil
+	r.MinimumVolumeString = nil
+	r.MinimumVolumeQuantity = &v
+}
+
+// SetMinimumVolumeString sets minimumVolume[x] to a FHIRString (the
+// release primitive wrapper that carries the isSpecimenDefinitionTypeTestedContainerMinimumVolume marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenDefinitionTypeTestedContainer) SetMinimumVolumeString(v FHIRString) {
+	r.MinimumVolumeQuantity = nil
+	r.MinimumVolumeString = nil
+	r.MinimumVolumeString = &v
+}
+
 // SpecimenDefinitionTypeTestedContainerAdditive is a generated nested backbone element.
 type SpecimenDefinitionTypeTestedContainerAdditive struct {
 	BackboneElement
-	Additive *CodeableConcept `json:"additive,omitempty"`
+	AdditiveCodeableConcept *CodeableConcept `json:"additiveCodeableConcept,omitempty"`
+	AdditiveReference       *Reference       `json:"additiveReference,omitempty"`
+}
+
+// SpecimenDefinitionTypeTestedContainerAdditiveAdditive is the sealed value interface for the additive[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSpecimenDefinitionTypeTestedContainerAdditiveAdditive marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SpecimenDefinitionTypeTestedContainerAdditiveAdditive interface{ isSpecimenDefinitionTypeTestedContainerAdditiveAdditive() }
+
+func (CodeableConcept) isSpecimenDefinitionTypeTestedContainerAdditiveAdditive() {}
+func (Reference) isSpecimenDefinitionTypeTestedContainerAdditiveAdditive()       {}
+
+// Additive returns the value set in the additive[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SpecimenDefinitionTypeTestedContainerAdditive) Additive() (SpecimenDefinitionTypeTestedContainerAdditiveAdditive, bool) {
+	switch {
+	case r.AdditiveCodeableConcept != nil:
+		return *r.AdditiveCodeableConcept, true
+	case r.AdditiveReference != nil:
+		return *r.AdditiveReference, true
+	}
+	return nil, false
+}
+
+// SetAdditiveCodeableConcept sets additive[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenDefinitionTypeTestedContainerAdditive) SetAdditiveCodeableConcept(v CodeableConcept) {
+	r.AdditiveCodeableConcept = nil
+	r.AdditiveReference = nil
+	r.AdditiveCodeableConcept = &v
+}
+
+// SetAdditiveReference sets additive[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SpecimenDefinitionTypeTestedContainerAdditive) SetAdditiveReference(v Reference) {
+	r.AdditiveCodeableConcept = nil
+	r.AdditiveReference = nil
+	r.AdditiveReference = &v
 }
 
 // SpecimenDefinitionTypeTestedHandling is a generated nested backbone element.

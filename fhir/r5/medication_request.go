@@ -273,6 +273,48 @@ type MedicationRequestDispenseRequestInitialFill struct {
 // MedicationRequestSubstitution is a generated nested backbone element.
 type MedicationRequestSubstitution struct {
 	BackboneElement
-	Allowed *bool            `json:"allowed,omitempty"`
-	Reason  *CodeableConcept `json:"reason,omitempty"`
+	AllowedBoolean         *FHIRBoolean     `json:"allowedBoolean,omitempty"`
+	AllowedCodeableConcept *CodeableConcept `json:"allowedCodeableConcept,omitempty"`
+	Reason                 *CodeableConcept `json:"reason,omitempty"`
+}
+
+// MedicationRequestSubstitutionAllowed is the sealed value interface for the allowed[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationRequestSubstitutionAllowed marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationRequestSubstitutionAllowed interface{ isMedicationRequestSubstitutionAllowed() }
+
+func (FHIRBoolean) isMedicationRequestSubstitutionAllowed()     {}
+func (CodeableConcept) isMedicationRequestSubstitutionAllowed() {}
+
+// Allowed returns the value set in the allowed[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationRequestSubstitution) Allowed() (MedicationRequestSubstitutionAllowed, bool) {
+	switch {
+	case r.AllowedBoolean != nil:
+		return *r.AllowedBoolean, true
+	case r.AllowedCodeableConcept != nil:
+		return *r.AllowedCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetAllowedBoolean sets allowed[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isMedicationRequestSubstitutionAllowed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationRequestSubstitution) SetAllowedBoolean(v FHIRBoolean) {
+	r.AllowedBoolean = nil
+	r.AllowedCodeableConcept = nil
+	r.AllowedBoolean = &v
+}
+
+// SetAllowedCodeableConcept sets allowed[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationRequestSubstitution) SetAllowedCodeableConcept(v CodeableConcept) {
+	r.AllowedBoolean = nil
+	r.AllowedCodeableConcept = nil
+	r.AllowedCodeableConcept = &v
 }

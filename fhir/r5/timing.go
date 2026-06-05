@@ -69,7 +69,9 @@ func (v *Timing) UnmarshalJSON(data []byte) error {
 // TimingRepeat is a generated nested backbone element.
 type TimingRepeat struct {
 	Element
-	Bounds              *Duration                `json:"bounds,omitempty"`
+	BoundsDuration      *Duration                `json:"boundsDuration,omitempty"`
+	BoundsRange         *Range                   `json:"boundsRange,omitempty"`
+	BoundsPeriod        *Period                  `json:"boundsPeriod,omitempty"`
 	Count               *int32                   `json:"count,omitempty"`
 	CountElement        *fhir.PrimitiveElement   `json:"-"`
 	CountMax            *int32                   `json:"countMax,omitempty"`
@@ -302,4 +304,57 @@ func (v *TimingRepeat) UnmarshalJSON(data []byte) error {
 	}
 	type alias TimingRepeat
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// TimingRepeatBounds is the sealed value interface for the bounds[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isTimingRepeatBounds marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type TimingRepeatBounds interface{ isTimingRepeatBounds() }
+
+func (Duration) isTimingRepeatBounds() {}
+func (Range) isTimingRepeatBounds()    {}
+func (Period) isTimingRepeatBounds()   {}
+
+// Bounds returns the value set in the bounds[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *TimingRepeat) Bounds() (TimingRepeatBounds, bool) {
+	switch {
+	case r.BoundsDuration != nil:
+		return *r.BoundsDuration, true
+	case r.BoundsRange != nil:
+		return *r.BoundsRange, true
+	case r.BoundsPeriod != nil:
+		return *r.BoundsPeriod, true
+	}
+	return nil, false
+}
+
+// SetBoundsDuration sets bounds[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TimingRepeat) SetBoundsDuration(v Duration) {
+	r.BoundsDuration = nil
+	r.BoundsRange = nil
+	r.BoundsPeriod = nil
+	r.BoundsDuration = &v
+}
+
+// SetBoundsRange sets bounds[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TimingRepeat) SetBoundsRange(v Range) {
+	r.BoundsDuration = nil
+	r.BoundsRange = nil
+	r.BoundsPeriod = nil
+	r.BoundsRange = &v
+}
+
+// SetBoundsPeriod sets bounds[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TimingRepeat) SetBoundsPeriod(v Period) {
+	r.BoundsDuration = nil
+	r.BoundsRange = nil
+	r.BoundsPeriod = nil
+	r.BoundsPeriod = &v
 }

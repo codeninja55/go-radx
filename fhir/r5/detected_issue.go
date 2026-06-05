@@ -13,24 +13,25 @@ const DetectedIssueResourceType = "DetectedIssue"
 // DetectedIssue is the generated FHIR DetectedIssue resource.
 type DetectedIssue struct {
 	DomainResource
-	Identifier       []Identifier              `json:"identifier,omitempty"`
-	Status           *string                   `json:"status,omitempty"`
-	StatusElement    *fhir.PrimitiveElement    `json:"-"`
-	Category         []CodeableConcept         `json:"category,omitempty"`
-	Code             *CodeableConcept          `json:"code,omitempty"`
-	Severity         *string                   `json:"severity,omitempty"`
-	SeverityElement  *fhir.PrimitiveElement    `json:"-"`
-	Subject          *Reference                `json:"subject,omitempty"`
-	Encounter        *Reference                `json:"encounter,omitempty"`
-	Identified       *string                   `json:"identified,omitempty"`
-	Author           *Reference                `json:"author,omitempty"`
-	Implicated       []Reference               `json:"implicated,omitempty"`
-	Evidence         []DetectedIssueEvidence   `json:"evidence,omitempty"`
-	Detail           *string                   `json:"detail,omitempty"`
-	DetailElement    *fhir.PrimitiveElement    `json:"-"`
-	Reference        *string                   `json:"reference,omitempty"`
-	ReferenceElement *fhir.PrimitiveElement    `json:"-"`
-	Mitigation       []DetectedIssueMitigation `json:"mitigation,omitempty"`
+	Identifier         []Identifier              `json:"identifier,omitempty"`
+	Status             *string                   `json:"status,omitempty"`
+	StatusElement      *fhir.PrimitiveElement    `json:"-"`
+	Category           []CodeableConcept         `json:"category,omitempty"`
+	Code               *CodeableConcept          `json:"code,omitempty"`
+	Severity           *string                   `json:"severity,omitempty"`
+	SeverityElement    *fhir.PrimitiveElement    `json:"-"`
+	Subject            *Reference                `json:"subject,omitempty"`
+	Encounter          *Reference                `json:"encounter,omitempty"`
+	IdentifiedDateTime *FHIRDateTime             `json:"identifiedDateTime,omitempty"`
+	IdentifiedPeriod   *Period                   `json:"identifiedPeriod,omitempty"`
+	Author             *Reference                `json:"author,omitempty"`
+	Implicated         []Reference               `json:"implicated,omitempty"`
+	Evidence           []DetectedIssueEvidence   `json:"evidence,omitempty"`
+	Detail             *string                   `json:"detail,omitempty"`
+	DetailElement      *fhir.PrimitiveElement    `json:"-"`
+	Reference          *string                   `json:"reference,omitempty"`
+	ReferenceElement   *fhir.PrimitiveElement    `json:"-"`
+	Mitigation         []DetectedIssueMitigation `json:"mitigation,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "DetectedIssue".
@@ -127,6 +128,47 @@ func (v *DetectedIssue) UnmarshalJSON(data []byte) error {
 	}
 	type alias DetectedIssue
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// DetectedIssueIdentified is the sealed value interface for the identified[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDetectedIssueIdentified marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DetectedIssueIdentified interface{ isDetectedIssueIdentified() }
+
+func (FHIRDateTime) isDetectedIssueIdentified() {}
+func (Period) isDetectedIssueIdentified()       {}
+
+// Identified returns the value set in the identified[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DetectedIssue) Identified() (DetectedIssueIdentified, bool) {
+	switch {
+	case r.IdentifiedDateTime != nil:
+		return *r.IdentifiedDateTime, true
+	case r.IdentifiedPeriod != nil:
+		return *r.IdentifiedPeriod, true
+	}
+	return nil, false
+}
+
+// SetIdentifiedDateTime sets identified[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isDetectedIssueIdentified marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DetectedIssue) SetIdentifiedDateTime(v FHIRDateTime) {
+	r.IdentifiedDateTime = nil
+	r.IdentifiedPeriod = nil
+	r.IdentifiedDateTime = &v
+}
+
+// SetIdentifiedPeriod sets identified[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DetectedIssue) SetIdentifiedPeriod(v Period) {
+	r.IdentifiedDateTime = nil
+	r.IdentifiedPeriod = nil
+	r.IdentifiedPeriod = &v
 }
 
 // DetectedIssueEvidence is a generated nested backbone element.

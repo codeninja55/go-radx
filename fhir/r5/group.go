@@ -155,11 +155,15 @@ func (v *Group) UnmarshalJSON(data []byte) error {
 // GroupCharacteristic is a generated nested backbone element.
 type GroupCharacteristic struct {
 	BackboneElement
-	Code           *CodeableConcept       `json:"code,omitempty"`
-	Value          *CodeableConcept       `json:"value,omitempty"`
-	Exclude        *bool                  `json:"exclude,omitempty"`
-	ExcludeElement *fhir.PrimitiveElement `json:"-"`
-	Period         *Period                `json:"period,omitempty"`
+	Code                 *CodeableConcept       `json:"code,omitempty"`
+	ValueCodeableConcept *CodeableConcept       `json:"valueCodeableConcept,omitempty"`
+	ValueBoolean         *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueQuantity        *Quantity              `json:"valueQuantity,omitempty"`
+	ValueRange           *Range                 `json:"valueRange,omitempty"`
+	ValueReference       *Reference             `json:"valueReference,omitempty"`
+	Exclude              *bool                  `json:"exclude,omitempty"`
+	ExcludeElement       *fhir.PrimitiveElement `json:"-"`
+	Period               *Period                `json:"period,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -208,6 +212,95 @@ func (v *GroupCharacteristic) UnmarshalJSON(data []byte) error {
 	}
 	type alias GroupCharacteristic
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// GroupCharacteristicValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isGroupCharacteristicValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type GroupCharacteristicValue interface{ isGroupCharacteristicValue() }
+
+func (CodeableConcept) isGroupCharacteristicValue() {}
+func (FHIRBoolean) isGroupCharacteristicValue()     {}
+func (Quantity) isGroupCharacteristicValue()        {}
+func (Range) isGroupCharacteristicValue()           {}
+func (Reference) isGroupCharacteristicValue()       {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *GroupCharacteristic) Value() (GroupCharacteristicValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GroupCharacteristic) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isGroupCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GroupCharacteristic) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GroupCharacteristic) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GroupCharacteristic) SetValueRange(v Range) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueRange = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GroupCharacteristic) SetValueReference(v Reference) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
 }
 
 // GroupMember is a generated nested backbone element.

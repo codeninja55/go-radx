@@ -18,7 +18,8 @@ type CapabilityStatement struct {
 	Identifier                 []Identifier                       `json:"identifier,omitempty"`
 	Version                    *string                            `json:"version,omitempty"`
 	VersionElement             *fhir.PrimitiveElement             `json:"-"`
-	VersionAlgorithm           *string                            `json:"versionAlgorithm,omitempty"`
+	VersionAlgorithmString     *FHIRString                        `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding     *Coding                            `json:"versionAlgorithmCoding,omitempty"`
 	Name                       *string                            `json:"name,omitempty"`
 	NameElement                *fhir.PrimitiveElement             `json:"-"`
 	Title                      *string                            `json:"title,omitempty"`
@@ -351,6 +352,47 @@ func (v *CapabilityStatement) UnmarshalJSON(data []byte) error {
 	}
 	type alias CapabilityStatement
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// CapabilityStatementVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCapabilityStatementVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CapabilityStatementVersionAlgorithm interface{ isCapabilityStatementVersionAlgorithm() }
+
+func (FHIRString) isCapabilityStatementVersionAlgorithm() {}
+func (Coding) isCapabilityStatementVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CapabilityStatement) VersionAlgorithm() (CapabilityStatementVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isCapabilityStatementVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CapabilityStatement) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CapabilityStatement) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
 }
 
 // CapabilityStatementDocument is a generated nested backbone element.

@@ -227,6 +227,101 @@ type PackagedProductDefinitionPackagingContainedItem struct {
 // PackagedProductDefinitionPackagingProperty is a generated nested backbone element.
 type PackagedProductDefinitionPackagingProperty struct {
 	BackboneElement
-	Type  *CodeableConcept `json:"type,omitempty"`
-	Value *CodeableConcept `json:"value,omitempty"`
+	Type                 *CodeableConcept `json:"type,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueDate            *FHIRDate        `json:"valueDate,omitempty"`
+	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
+	ValueAttachment      *Attachment      `json:"valueAttachment,omitempty"`
+}
+
+// PackagedProductDefinitionPackagingPropertyValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isPackagedProductDefinitionPackagingPropertyValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type PackagedProductDefinitionPackagingPropertyValue interface{ isPackagedProductDefinitionPackagingPropertyValue() }
+
+func (CodeableConcept) isPackagedProductDefinitionPackagingPropertyValue() {}
+func (Quantity) isPackagedProductDefinitionPackagingPropertyValue()        {}
+func (FHIRDate) isPackagedProductDefinitionPackagingPropertyValue()        {}
+func (FHIRBoolean) isPackagedProductDefinitionPackagingPropertyValue()     {}
+func (Attachment) isPackagedProductDefinitionPackagingPropertyValue()      {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *PackagedProductDefinitionPackagingProperty) Value() (PackagedProductDefinitionPackagingPropertyValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PackagedProductDefinitionPackagingProperty) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PackagedProductDefinitionPackagingProperty) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isPackagedProductDefinitionPackagingPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PackagedProductDefinitionPackagingProperty) SetValueDate(v FHIRDate) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueDate = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isPackagedProductDefinitionPackagingPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PackagedProductDefinitionPackagingProperty) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *PackagedProductDefinitionPackagingProperty) SetValueAttachment(v Attachment) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueAttachment = &v
 }

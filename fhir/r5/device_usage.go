@@ -21,7 +21,9 @@ type DeviceUsage struct {
 	Patient             *Reference             `json:"patient,omitempty"`
 	DerivedFrom         []Reference            `json:"derivedFrom,omitempty"`
 	Context             *Reference             `json:"context,omitempty"`
-	Timing              *Timing                `json:"timing,omitempty"`
+	TimingTiming        *Timing                `json:"timingTiming,omitempty"`
+	TimingPeriod        *Period                `json:"timingPeriod,omitempty"`
+	TimingDateTime      *FHIRDateTime          `json:"timingDateTime,omitempty"`
 	DateAsserted        *string                `json:"dateAsserted,omitempty"`
 	DateAssertedElement *fhir.PrimitiveElement `json:"-"`
 	UsageStatus         *CodeableConcept       `json:"usageStatus,omitempty"`
@@ -104,6 +106,61 @@ func (v *DeviceUsage) UnmarshalJSON(data []byte) error {
 	}
 	type alias DeviceUsage
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// DeviceUsageTiming is the sealed value interface for the timing[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isDeviceUsageTiming marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type DeviceUsageTiming interface{ isDeviceUsageTiming() }
+
+func (Timing) isDeviceUsageTiming()       {}
+func (Period) isDeviceUsageTiming()       {}
+func (FHIRDateTime) isDeviceUsageTiming() {}
+
+// Timing returns the value set in the timing[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *DeviceUsage) Timing() (DeviceUsageTiming, bool) {
+	switch {
+	case r.TimingTiming != nil:
+		return *r.TimingTiming, true
+	case r.TimingPeriod != nil:
+		return *r.TimingPeriod, true
+	case r.TimingDateTime != nil:
+		return *r.TimingDateTime, true
+	}
+	return nil, false
+}
+
+// SetTimingTiming sets timing[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceUsage) SetTimingTiming(v Timing) {
+	r.TimingTiming = nil
+	r.TimingPeriod = nil
+	r.TimingDateTime = nil
+	r.TimingTiming = &v
+}
+
+// SetTimingPeriod sets timing[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceUsage) SetTimingPeriod(v Period) {
+	r.TimingTiming = nil
+	r.TimingPeriod = nil
+	r.TimingDateTime = nil
+	r.TimingPeriod = &v
+}
+
+// SetTimingDateTime sets timing[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isDeviceUsageTiming marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *DeviceUsage) SetTimingDateTime(v FHIRDateTime) {
+	r.TimingTiming = nil
+	r.TimingPeriod = nil
+	r.TimingDateTime = nil
+	r.TimingDateTime = &v
 }
 
 // DeviceUsageAdherence is a generated nested backbone element.

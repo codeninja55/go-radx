@@ -13,23 +13,24 @@ const AuditEventResourceType = "AuditEvent"
 // AuditEvent is the generated FHIR AuditEvent resource.
 type AuditEvent struct {
 	DomainResource
-	Category        []CodeableConcept      `json:"category,omitempty"`
-	Code            *CodeableConcept       `json:"code,omitempty"`
-	Action          *string                `json:"action,omitempty"`
-	ActionElement   *fhir.PrimitiveElement `json:"-"`
-	Severity        *string                `json:"severity,omitempty"`
-	SeverityElement *fhir.PrimitiveElement `json:"-"`
-	Occurred        *Period                `json:"occurred,omitempty"`
-	Recorded        *string                `json:"recorded,omitempty"`
-	RecordedElement *fhir.PrimitiveElement `json:"-"`
-	Outcome         *AuditEventOutcome     `json:"outcome,omitempty"`
-	Authorization   []CodeableConcept      `json:"authorization,omitempty"`
-	BasedOn         []Reference            `json:"basedOn,omitempty"`
-	Patient         *Reference             `json:"patient,omitempty"`
-	Encounter       *Reference             `json:"encounter,omitempty"`
-	Agent           []AuditEventAgent      `json:"agent,omitempty"`
-	Source          *AuditEventSource      `json:"source,omitempty"`
-	Entity          []AuditEventEntity     `json:"entity,omitempty"`
+	Category         []CodeableConcept      `json:"category,omitempty"`
+	Code             *CodeableConcept       `json:"code,omitempty"`
+	Action           *string                `json:"action,omitempty"`
+	ActionElement    *fhir.PrimitiveElement `json:"-"`
+	Severity         *string                `json:"severity,omitempty"`
+	SeverityElement  *fhir.PrimitiveElement `json:"-"`
+	OccurredPeriod   *Period                `json:"occurredPeriod,omitempty"`
+	OccurredDateTime *FHIRDateTime          `json:"occurredDateTime,omitempty"`
+	Recorded         *string                `json:"recorded,omitempty"`
+	RecordedElement  *fhir.PrimitiveElement `json:"-"`
+	Outcome          *AuditEventOutcome     `json:"outcome,omitempty"`
+	Authorization    []CodeableConcept      `json:"authorization,omitempty"`
+	BasedOn          []Reference            `json:"basedOn,omitempty"`
+	Patient          *Reference             `json:"patient,omitempty"`
+	Encounter        *Reference             `json:"encounter,omitempty"`
+	Agent            []AuditEventAgent      `json:"agent,omitempty"`
+	Source           *AuditEventSource      `json:"source,omitempty"`
+	Entity           []AuditEventEntity     `json:"entity,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "AuditEvent".
@@ -116,6 +117,47 @@ func (v *AuditEvent) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// AuditEventOccurred is the sealed value interface for the occurred[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isAuditEventOccurred marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type AuditEventOccurred interface{ isAuditEventOccurred() }
+
+func (Period) isAuditEventOccurred()       {}
+func (FHIRDateTime) isAuditEventOccurred() {}
+
+// Occurred returns the value set in the occurred[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *AuditEvent) Occurred() (AuditEventOccurred, bool) {
+	switch {
+	case r.OccurredPeriod != nil:
+		return *r.OccurredPeriod, true
+	case r.OccurredDateTime != nil:
+		return *r.OccurredDateTime, true
+	}
+	return nil, false
+}
+
+// SetOccurredPeriod sets occurred[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEvent) SetOccurredPeriod(v Period) {
+	r.OccurredPeriod = nil
+	r.OccurredDateTime = nil
+	r.OccurredPeriod = &v
+}
+
+// SetOccurredDateTime sets occurred[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isAuditEventOccurred marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEvent) SetOccurredDateTime(v FHIRDateTime) {
+	r.OccurredPeriod = nil
+	r.OccurredDateTime = nil
+	r.OccurredDateTime = &v
+}
+
 // AuditEventAgent is a generated nested backbone element.
 type AuditEventAgent struct {
 	BackboneElement
@@ -127,7 +169,9 @@ type AuditEventAgent struct {
 	Location         *Reference               `json:"location,omitempty"`
 	Policy           []string                 `json:"policy,omitempty"`
 	PolicyElement    []*fhir.PrimitiveElement `json:"-"`
-	Network          *Reference               `json:"network,omitempty"`
+	NetworkReference *Reference               `json:"networkReference,omitempty"`
+	NetworkURI       *FHIRURI                 `json:"networkURI,omitempty"`
+	NetworkString    *FHIRString              `json:"networkString,omitempty"`
 	Authorization    []CodeableConcept        `json:"authorization,omitempty"`
 }
 
@@ -189,6 +233,63 @@ func (v *AuditEventAgent) UnmarshalJSON(data []byte) error {
 	}
 	type alias AuditEventAgent
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// AuditEventAgentNetwork is the sealed value interface for the network[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isAuditEventAgentNetwork marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type AuditEventAgentNetwork interface{ isAuditEventAgentNetwork() }
+
+func (Reference) isAuditEventAgentNetwork()  {}
+func (FHIRURI) isAuditEventAgentNetwork()    {}
+func (FHIRString) isAuditEventAgentNetwork() {}
+
+// Network returns the value set in the network[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *AuditEventAgent) Network() (AuditEventAgentNetwork, bool) {
+	switch {
+	case r.NetworkReference != nil:
+		return *r.NetworkReference, true
+	case r.NetworkURI != nil:
+		return *r.NetworkURI, true
+	case r.NetworkString != nil:
+		return *r.NetworkString, true
+	}
+	return nil, false
+}
+
+// SetNetworkReference sets network[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventAgent) SetNetworkReference(v Reference) {
+	r.NetworkReference = nil
+	r.NetworkURI = nil
+	r.NetworkString = nil
+	r.NetworkReference = &v
+}
+
+// SetNetworkURI sets network[x] to a FHIRURI (the
+// release primitive wrapper that carries the isAuditEventAgentNetwork marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventAgent) SetNetworkURI(v FHIRURI) {
+	r.NetworkReference = nil
+	r.NetworkURI = nil
+	r.NetworkString = nil
+	r.NetworkURI = &v
+}
+
+// SetNetworkString sets network[x] to a FHIRString (the
+// release primitive wrapper that carries the isAuditEventAgentNetwork marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventAgent) SetNetworkString(v FHIRString) {
+	r.NetworkReference = nil
+	r.NetworkURI = nil
+	r.NetworkString = nil
+	r.NetworkString = &v
 }
 
 // AuditEventEntity is a generated nested backbone element.
@@ -254,8 +355,267 @@ func (v *AuditEventEntity) UnmarshalJSON(data []byte) error {
 // AuditEventEntityDetail is a generated nested backbone element.
 type AuditEventEntityDetail struct {
 	BackboneElement
-	Type  *CodeableConcept `json:"type,omitempty"`
-	Value *Quantity        `json:"value,omitempty"`
+	Type                 *CodeableConcept  `json:"type,omitempty"`
+	ValueQuantity        *Quantity         `json:"valueQuantity,omitempty"`
+	ValueCodeableConcept *CodeableConcept  `json:"valueCodeableConcept,omitempty"`
+	ValueString          *FHIRString       `json:"valueString,omitempty"`
+	ValueBoolean         *FHIRBoolean      `json:"valueBoolean,omitempty"`
+	ValueInteger         *FHIRInteger      `json:"valueInteger,omitempty"`
+	ValueRange           *Range            `json:"valueRange,omitempty"`
+	ValueRatio           *Ratio            `json:"valueRatio,omitempty"`
+	ValueTime            *FHIRTime         `json:"valueTime,omitempty"`
+	ValueDateTime        *FHIRDateTime     `json:"valueDateTime,omitempty"`
+	ValuePeriod          *Period           `json:"valuePeriod,omitempty"`
+	ValueBase64Binary    *FHIRBase64Binary `json:"valueBase64Binary,omitempty"`
+}
+
+// AuditEventEntityDetailValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isAuditEventEntityDetailValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type AuditEventEntityDetailValue interface{ isAuditEventEntityDetailValue() }
+
+func (Quantity) isAuditEventEntityDetailValue()         {}
+func (CodeableConcept) isAuditEventEntityDetailValue()  {}
+func (FHIRString) isAuditEventEntityDetailValue()       {}
+func (FHIRBoolean) isAuditEventEntityDetailValue()      {}
+func (FHIRInteger) isAuditEventEntityDetailValue()      {}
+func (Range) isAuditEventEntityDetailValue()            {}
+func (Ratio) isAuditEventEntityDetailValue()            {}
+func (FHIRTime) isAuditEventEntityDetailValue()         {}
+func (FHIRDateTime) isAuditEventEntityDetailValue()     {}
+func (Period) isAuditEventEntityDetailValue()           {}
+func (FHIRBase64Binary) isAuditEventEntityDetailValue() {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *AuditEventEntityDetail) Value() (AuditEventEntityDetailValue, bool) {
+	switch {
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueRatio != nil:
+		return *r.ValueRatio, true
+	case r.ValueTime != nil:
+		return *r.ValueTime, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValuePeriod != nil:
+		return *r.ValuePeriod, true
+	case r.ValueBase64Binary != nil:
+		return *r.ValueBase64Binary, true
+	}
+	return nil, false
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueQuantity(v Quantity) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isAuditEventEntityDetailValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueString(v FHIRString) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueString = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isAuditEventEntityDetailValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueBoolean(v FHIRBoolean) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isAuditEventEntityDetailValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueInteger(v FHIRInteger) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueInteger = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueRange(v Range) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueRange = &v
+}
+
+// SetValueRatio sets value[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueRatio(v Ratio) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueRatio = &v
+}
+
+// SetValueTime sets value[x] to a FHIRTime (the
+// release primitive wrapper that carries the isAuditEventEntityDetailValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueTime(v FHIRTime) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueTime = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isAuditEventEntityDetailValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueDateTime(v FHIRDateTime) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueDateTime = &v
+}
+
+// SetValuePeriod sets value[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValuePeriod(v Period) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValuePeriod = &v
+}
+
+// SetValueBase64Binary sets value[x] to a FHIRBase64Binary (the
+// release primitive wrapper that carries the isAuditEventEntityDetailValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AuditEventEntityDetail) SetValueBase64Binary(v FHIRBase64Binary) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueBase64Binary = nil
+	r.ValueBase64Binary = &v
 }
 
 // AuditEventOutcome is a generated nested backbone element.

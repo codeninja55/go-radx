@@ -21,7 +21,8 @@ type ClinicalImpression struct {
 	DescriptionElement       *fhir.PrimitiveElement      `json:"-"`
 	Subject                  *Reference                  `json:"subject,omitempty"`
 	Encounter                *Reference                  `json:"encounter,omitempty"`
-	Effective                *string                     `json:"effective,omitempty"`
+	EffectiveDateTime        *FHIRDateTime               `json:"effectiveDateTime,omitempty"`
+	EffectivePeriod          *Period                     `json:"effectivePeriod,omitempty"`
 	Date                     *string                     `json:"date,omitempty"`
 	DateElement              *fhir.PrimitiveElement      `json:"-"`
 	Performer                *Reference                  `json:"performer,omitempty"`
@@ -145,6 +146,47 @@ func (v *ClinicalImpression) UnmarshalJSON(data []byte) error {
 	}
 	type alias ClinicalImpression
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ClinicalImpressionEffective is the sealed value interface for the effective[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClinicalImpressionEffective marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClinicalImpressionEffective interface{ isClinicalImpressionEffective() }
+
+func (FHIRDateTime) isClinicalImpressionEffective() {}
+func (Period) isClinicalImpressionEffective()       {}
+
+// Effective returns the value set in the effective[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClinicalImpression) Effective() (ClinicalImpressionEffective, bool) {
+	switch {
+	case r.EffectiveDateTime != nil:
+		return *r.EffectiveDateTime, true
+	case r.EffectivePeriod != nil:
+		return *r.EffectivePeriod, true
+	}
+	return nil, false
+}
+
+// SetEffectiveDateTime sets effective[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isClinicalImpressionEffective marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClinicalImpression) SetEffectiveDateTime(v FHIRDateTime) {
+	r.EffectiveDateTime = nil
+	r.EffectivePeriod = nil
+	r.EffectiveDateTime = &v
+}
+
+// SetEffectivePeriod sets effective[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClinicalImpression) SetEffectivePeriod(v Period) {
+	r.EffectiveDateTime = nil
+	r.EffectivePeriod = nil
+	r.EffectivePeriod = &v
 }
 
 // ClinicalImpressionFinding is a generated nested backbone element.

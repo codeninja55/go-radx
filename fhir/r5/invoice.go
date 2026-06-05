@@ -25,7 +25,8 @@ type Invoice struct {
 	DateElement            *fhir.PrimitiveElement `json:"-"`
 	Creation               *string                `json:"creation,omitempty"`
 	CreationElement        *fhir.PrimitiveElement `json:"-"`
-	Period                 *string                `json:"period,omitempty"`
+	PeriodDate             *FHIRDate              `json:"periodDate,omitempty"`
+	PeriodPeriod           *Period                `json:"periodPeriod,omitempty"`
 	Participant            []InvoiceParticipant   `json:"participant,omitempty"`
 	Issuer                 *Reference             `json:"issuer,omitempty"`
 	Account                *Reference             `json:"account,omitempty"`
@@ -146,14 +147,57 @@ func (v *Invoice) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// InvoicePeriod is the sealed value interface for the period[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isInvoicePeriod marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type InvoicePeriod interface{ isInvoicePeriod() }
+
+func (FHIRDate) isInvoicePeriod() {}
+func (Period) isInvoicePeriod()   {}
+
+// Period returns the value set in the period[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Invoice) Period() (InvoicePeriod, bool) {
+	switch {
+	case r.PeriodDate != nil:
+		return *r.PeriodDate, true
+	case r.PeriodPeriod != nil:
+		return *r.PeriodPeriod, true
+	}
+	return nil, false
+}
+
+// SetPeriodDate sets period[x] to a FHIRDate (the
+// release primitive wrapper that carries the isInvoicePeriod marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Invoice) SetPeriodDate(v FHIRDate) {
+	r.PeriodDate = nil
+	r.PeriodPeriod = nil
+	r.PeriodDate = &v
+}
+
+// SetPeriodPeriod sets period[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Invoice) SetPeriodPeriod(v Period) {
+	r.PeriodDate = nil
+	r.PeriodPeriod = nil
+	r.PeriodPeriod = &v
+}
+
 // InvoiceLineItem is a generated nested backbone element.
 type InvoiceLineItem struct {
 	BackboneElement
-	Sequence        *int32                 `json:"sequence,omitempty"`
-	SequenceElement *fhir.PrimitiveElement `json:"-"`
-	Serviced        *string                `json:"serviced,omitempty"`
-	ChargeItem      *Reference             `json:"chargeItem,omitempty"`
-	PriceComponent  []MonetaryComponent    `json:"priceComponent,omitempty"`
+	Sequence                  *int32                 `json:"sequence,omitempty"`
+	SequenceElement           *fhir.PrimitiveElement `json:"-"`
+	ServicedDate              *FHIRDate              `json:"servicedDate,omitempty"`
+	ServicedPeriod            *Period                `json:"servicedPeriod,omitempty"`
+	ChargeItemReference       *Reference             `json:"chargeItemReference,omitempty"`
+	ChargeItemCodeableConcept *CodeableConcept       `json:"chargeItemCodeableConcept,omitempty"`
+	PriceComponent            []MonetaryComponent    `json:"priceComponent,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -202,6 +246,86 @@ func (v *InvoiceLineItem) UnmarshalJSON(data []byte) error {
 	}
 	type alias InvoiceLineItem
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// InvoiceLineItemServiced is the sealed value interface for the serviced[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isInvoiceLineItemServiced marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type InvoiceLineItemServiced interface{ isInvoiceLineItemServiced() }
+
+func (FHIRDate) isInvoiceLineItemServiced() {}
+func (Period) isInvoiceLineItemServiced()   {}
+
+// Serviced returns the value set in the serviced[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *InvoiceLineItem) Serviced() (InvoiceLineItemServiced, bool) {
+	switch {
+	case r.ServicedDate != nil:
+		return *r.ServicedDate, true
+	case r.ServicedPeriod != nil:
+		return *r.ServicedPeriod, true
+	}
+	return nil, false
+}
+
+// SetServicedDate sets serviced[x] to a FHIRDate (the
+// release primitive wrapper that carries the isInvoiceLineItemServiced marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InvoiceLineItem) SetServicedDate(v FHIRDate) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedDate = &v
+}
+
+// SetServicedPeriod sets serviced[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InvoiceLineItem) SetServicedPeriod(v Period) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedPeriod = &v
+}
+
+// InvoiceLineItemChargeItem is the sealed value interface for the chargeItem[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isInvoiceLineItemChargeItem marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type InvoiceLineItemChargeItem interface{ isInvoiceLineItemChargeItem() }
+
+func (Reference) isInvoiceLineItemChargeItem()       {}
+func (CodeableConcept) isInvoiceLineItemChargeItem() {}
+
+// ChargeItem returns the value set in the chargeItem[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *InvoiceLineItem) ChargeItem() (InvoiceLineItemChargeItem, bool) {
+	switch {
+	case r.ChargeItemReference != nil:
+		return *r.ChargeItemReference, true
+	case r.ChargeItemCodeableConcept != nil:
+		return *r.ChargeItemCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetChargeItemReference sets chargeItem[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InvoiceLineItem) SetChargeItemReference(v Reference) {
+	r.ChargeItemReference = nil
+	r.ChargeItemCodeableConcept = nil
+	r.ChargeItemReference = &v
+}
+
+// SetChargeItemCodeableConcept sets chargeItem[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InvoiceLineItem) SetChargeItemCodeableConcept(v CodeableConcept) {
+	r.ChargeItemReference = nil
+	r.ChargeItemCodeableConcept = nil
+	r.ChargeItemCodeableConcept = &v
 }
 
 // InvoiceParticipant is a generated nested backbone element.
