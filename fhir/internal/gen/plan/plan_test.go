@@ -243,6 +243,49 @@ func TestPlanCollisionDeterministic(t *testing.T) {
 	}
 }
 
+// TestPlanChoiceWireKeyUsesFHIRCasing asserts a choice branch's JSON wire key uses FHIR
+// suffix casing (the type code with only its first letter upper-cased), not the
+// Go-identifier casing that upper-cases whole initialisms. The id/uri/url type codes are
+// the load-bearing cases: their Go storage field is "ValueID"/"ValueURI"/"ValueURL" (Go
+// style) but their wire key must be "valueId"/"valueUri"/"valueUrl" (FHIR style) or the
+// generated JSON is non-conformant.
+func TestPlanChoiceWireKeyUsesFHIRCasing(t *testing.T) {
+	t.Parallel()
+	choice := &model.Element{
+		Name:        "value[x]",
+		Path:        "Thing.value[x]",
+		IsChoice:    true,
+		ChoiceBase:  "value",
+		Cardinality: model.Cardinality{Min: 0, Max: "1"},
+		Types:       []model.TypeRef{{Code: "id"}, {Code: "uri"}, {Code: "url"}, {Code: "dateTime"}},
+	}
+	root := &model.Element{Name: "Thing", Path: "Thing", Children: []*model.Element{choice}}
+	pt := PlanType(&model.Type{Name: "Thing", Kind: model.KindComplexType, Root: root}, Options{})
+	if len(pt.Choices) != 1 {
+		t.Fatalf("planned %d choices, want 1", len(pt.Choices))
+	}
+	want := map[string]struct{ field, json string }{
+		"id":       {"ValueID", "valueId"},
+		"uri":      {"ValueURI", "valueUri"},
+		"url":      {"ValueURL", "valueUrl"},
+		"dateTime": {"ValueDateTime", "valueDateTime"},
+	}
+	branches := pt.Choices[0].Branches
+	if len(branches) != len(want) {
+		t.Fatalf("planned %d branches, want %d", len(branches), len(want))
+	}
+	for i, code := range []string{"id", "uri", "url", "dateTime"} {
+		b := branches[i]
+		w := want[code]
+		if b.Field != w.field {
+			t.Errorf("%s branch field = %q, want %q (Go-identifier casing)", code, b.Field, w.field)
+		}
+		if b.JSONName != w.json {
+			t.Errorf("%s branch wire key = %q, want %q (FHIR casing)", code, b.JSONName, w.json)
+		}
+	}
+}
+
 // TestPlanBackboneShapeDedup asserts two occurrence paths carrying the same backbone
 // shape collapse to a single PlannedBackbone — deduplication by shape, not by path.
 func TestPlanBackboneShapeDedup(t *testing.T) {

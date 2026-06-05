@@ -2,6 +2,7 @@ package plan
 
 import (
 	"sort"
+	"unicode"
 
 	"github.com/codeninja55/go-radx/fhir/internal/gen/model"
 )
@@ -120,23 +121,45 @@ func planChoice(ownerGoName, choiceStem string, e *model.Element, used map[strin
 	}
 
 	for _, t := range e.Types {
-		suffix := GoTypeName(t.Code)
+		// The Go identifier suffix lifts the type code to an exported Go identifier
+		// (applying initialisms, so "id" -> "ID"), which names the storage field and
+		// setter. The wire suffix uses FHIR's own casing — the type code with only its
+		// first letter upper-cased ("id" -> "Id", "uri" -> "Uri") — because the FHIR
+		// choice property key is "<base><Type>" with FHIR casing, never the Go
+		// initialism casing. Conflating the two would author a non-conformant key such
+		// as "valueID" instead of "valueId".
+		goSuffix := GoTypeName(t.Code)
 		goType := GoTypeName(t.Code)
 		isPrim := false
 		if wrapper, ok := primitiveWrapperTypes[t.Code]; ok {
 			goType = wrapper
 			isPrim = true
 		}
-		field := resolveCollision(choiceStem+suffix, used)
+		field := resolveCollision(choiceStem+goSuffix, used)
 		pc.Branches = append(pc.Branches, ChoiceBranch{
 			Field:       field,
-			JSONName:    e.ChoiceBase + suffix,
-			Setter:      "Set" + choiceStem + suffix,
+			JSONName:    e.ChoiceBase + fhirTypeSuffix(t.Code),
+			Setter:      "Set" + choiceStem + goSuffix,
 			GoType:      goType,
 			IsPrimitive: isPrim,
 		})
 	}
 	return pc
+}
+
+// fhirTypeSuffix renders a FHIR type code as the choice-property suffix FHIR uses: the
+// code with only its first letter upper-cased, leaving the rest verbatim ("dateTime" ->
+// "DateTime", "uri" -> "Uri", "CodeableConcept" -> "CodeableConcept"). This is FHIR's
+// own casing for a "[x]" property name and is deliberately not the Go-identifier casing
+// (which upper-cases whole initialisms, turning "uri" into "URI"), so the generated
+// wire key stays standard-conformant.
+func fhirTypeSuffix(code string) string {
+	if code == "" {
+		return ""
+	}
+	r := []rune(code)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }
 
 // PrimitiveWrapper describes one generated release primitive wrapper type: its Go
