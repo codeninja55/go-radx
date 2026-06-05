@@ -218,7 +218,7 @@ because faithful FHIR JSON requires the standard-library codec to see each suffi
 field; the mutual-exclusion invariant is therefore enforced at the setter boundary rather than by
 the type system. Bypassing the setters by writing two suffixed fields directly is a deliberate
 misuse the codec cannot reject, and the at-most-one cardinality of a choice group is checked by
-`Validate` once per group (the choice-group validation increment). When the setters are used, at
+`Validate` once per group (it counts the non-nil suffixed storage fields). When the setters are used, at
 most one storage field is non-nil and every field is `omitempty`, so marshalling authors exactly
 one suffixed key. The `Value()` getter switches over the non-nil storage field and returns the
 dereferenced branch value through the interface; an empty group returns `(nil, false)`. When two
@@ -594,6 +594,49 @@ Validation results are returned as an `*OperationOutcome` (or a Go error for par
 issues to severities. Validation never panics on malformed input (PRD §9.3); a nil or structurally broken input yields
 an error or an issue, not a crash.
 
+### The validation engine and its descriptor
+
+`fhir.Validate(r Resource) *fhir.OperationOutcome` is release-agnostic: it validates any release's resource through the
+root `Resource` interface and returns a root-package `OperationOutcome` (a lightweight in-process result, distinct from
+the on-the-wire `r5.OperationOutcome` resource). It reports **every** issue it finds in one pass rather than stopping at
+the first, so a caller sees the full set, and it folds issues from all phases into one outcome.
+
+The engine is **data-driven by a generated per-resource validation descriptor**, not by call-time reflection over the
+resource. The generator emits one descriptor per resource into `fhir/r5/validation_descriptors.go`; each release package
+registers its descriptors with the root engine at package-init time, keyed by `resourceType`, exactly as the
+`resourceType`→factory registry is populated. A descriptor carries the resource's required elements, its choice (`[x]`)
+groups, and its required-binding code fields as **typed closures over the concrete resource** — for example a Patient
+descriptor's required check is `func(r) []string` that asserts `*r5.Patient` once and tests `v.Active != nil`. There is
+no metadata reflection on the validation path: which elements are required, which form a choice group, and which carry a
+required binding are all resolved at generate time. The descriptor file regenerates byte-for-byte like the rest of the
+tree (`TestRegenerationByteForByte`, `gen:verify`). A resource whose type has no registered descriptor is reported as a
+single `warning`-severity issue rather than silently passing, so a coverage gap is visible, not a false "valid".
+
+Presence is tracked by the concrete field being non-nil (a single-valued pointer) or a non-empty slice (a repeating
+element), never by the value being non-zero. This is the behavioural half of the required-presence fix (Codex FHIR-007):
+a required boolean that is validly `false`, or a required number that is validly `0`, is a non-nil pointer and is
+**present**, so it is never reported missing. Choice mutual exclusion counts the non-nil suffixed storage fields of each
+`[x]` group and flags a group with more than one set, which catches a direct two-field write that bypassed the
+mutually-exclusive setters (Codex FHIR-001) — the hard guarantee the setters enforce constructively but a raw struct
+literal can violate.
+
+The Bundle `bdl-*` invariants and intra-Bundle/contained reference integrity are not expressible from the
+`StructureDefinition`, so — like the Bundle builders and the reference helpers — they are hand-written per release
+(`fhir/r5/validate.go`) and composed into the Bundle descriptor's extra-check hook. The builders enforce the
+constructive subset up front when a Bundle is built in-process; `Validate` is the gate for a Bundle that arrived over
+the wire, checking `total` only on searchset/history (bdl-1), `entry.search` only on a searchset (bdl-2), the
+document/message first-entry type (bdl-3), transaction/batch request and response-bundle response presence (bdl-3a/3b),
+and `fullUrl`
+uniqueness (bdl-7), then walking references through `CheckReferenceIntegrity`.
+
+**Scope boundary (v1).** The structural descriptor covers a resource's **top-level** elements: top-level required
+presence, top-level choice groups, and top-level required-binding codes. Nested-backbone cardinality, choice, and
+binding checks are deferred (a backbone's own required elements are not yet walked); full primitive lexical validation
+(`date`/`dateTime`/`time` calendar and offset rules, Codex FHIR-008) is also deferred — `decimal` already preserves
+lexical precision through `fhir.Decimal` (FHIR-009), and required-binding codes are validated against their closed enum.
+The HL7 FHIR validator (the conformance gate) covers the deferred depth; `Validate` is the fast in-process structural
+gate for the common, top-level errors.
+
 The authoritative external check is the **HL7 FHIR validator**, merge-blocking in CI (PRD §11.1). go-radx's own
 validation is the fast in-process gate; the official validator is the conformance gate.
 
@@ -797,8 +840,9 @@ boundaries, each stage gated by its own tests:
 > pipeline, the identity API, and the byte-for-byte regeneration gate. The full R5 datatype, resource, and backbone
 > generation, the choice-type accessors, and the required-binding enums (closed enums with a strict-by-default
 > validating decode and documented not-inlined boundaries for non-enumerable terminology, FHIR-013) are generated into
-> `fhir/r5`. The hand-written Bundle builders and reference helpers, the `Validate` engine and summary mode, and the
-> generated `fhir/r4` output are not yet shipped.
+> `fhir/r5`. The hand-written Bundle builders and reference helpers are shipped, and the release-agnostic structural
+> `Validate` engine (driven by a generated per-resource descriptor in `fhir/r5/validation_descriptors.go`) is shipped.
+> The `_summary` serialiser and the generated `fhir/r4` output are not yet shipped.
 
 ## What this statement fixes (re-foundation note)
 
