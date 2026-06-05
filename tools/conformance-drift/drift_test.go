@@ -119,6 +119,17 @@ func TestCheckDetectsDrift(t *testing.T) {
 			wantSubj:  "dimse.md",
 		},
 		{
+			// cross-cutting.md mentions NOT YET SHIPPED in its methodology prose, so a whole-file
+			// phrase search would miss the removed header banner; the header-specific check catches it.
+			name: "missing header banner despite the phrase appearing elsewhere",
+			mutate: func(t *testing.T, root string) {
+				stripBanner(t, root, "cross-cutting.md")
+			},
+			counts:    codePresetCounts,
+			wantClass: "banner",
+			wantSubj:  "cross-cutting.md",
+		},
+		{
 			name: "missing stability marker",
 			mutate: func(t *testing.T, root string) {
 				stripStabilityMarker(t, root, "dimse")
@@ -255,11 +266,21 @@ func markPresetNotYetShipped(t *testing.T, root, preset string) {
 	t.Fatalf("preset row for %q not found in dicom.md", preset)
 }
 
+// stripBanner removes only the leading blockquote scaffold banner line, leaving any other
+// occurrence of the phrase in place, so the test proves the banner check matches the header
+// banner specifically rather than the bare phrase anywhere in the file.
 func stripBanner(t *testing.T, root, doc string) {
 	t.Helper()
 	path := filepath.Join(root, "docs", "conformance", doc)
-	data := readFile(t, path)
-	writeFile(t, path, strings.ReplaceAll(data, notYetShippedBanner, "implemented"))
+	lines := strings.Split(readFile(t, path), "\n")
+	for i, line := range lines {
+		if scaffoldBannerRE.MatchString(line) {
+			lines[i] = "> This statement is authored and conformance-backed."
+			writeFile(t, path, strings.Join(lines, "\n"))
+			return
+		}
+	}
+	t.Fatalf("no scaffold banner line found in %s", doc)
 }
 
 func stripStabilityMarker(t *testing.T, root, pkg string) {

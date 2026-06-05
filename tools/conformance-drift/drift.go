@@ -22,9 +22,16 @@ import (
 	"strings"
 )
 
-// notYetShippedBanner is the marker text every scaffold conformance statement must carry so a
-// consumer is never misled into treating an unimplemented surface as conformance-guaranteed.
+// notYetShippedBanner is the marker text a scaffold conformance statement carries so a consumer
+// is never misled into treating an unimplemented surface as conformance-guaranteed. It is also
+// the token that flags a NOT YET SHIPPED preset in the dicom.md count table.
 const notYetShippedBanner = "NOT YET SHIPPED"
+
+// scaffoldBannerRE matches the leading blockquote scaffold banner a scaffold statement opens
+// with — `> **Implementation status: NOT YET SHIPPED.**`. The banner check matches this specific
+// header line rather than the bare phrase, so removing the top banner is detected even when the
+// phrase appears elsewhere in the document (for example in prose about the drift methodology).
+var scaffoldBannerRE = regexp.MustCompile(`(?m)^>\s+\*\*Implementation status:\s+` + notYetShippedBanner + `\.`)
 
 // stabilityMarker is the one-line godoc marker every public standard/server package carries to
 // declare its API-stability posture (cross-cutting.md "Governance and stability posture").
@@ -293,8 +300,9 @@ func ParsePresetClaims(path string) ([]PresetClaim, error) {
 	return claims, nil
 }
 
-// checkBanners verifies every scaffold conformance statement carries the NOT YET SHIPPED
-// banner, so an unimplemented surface can never be silently presented as conformance-guaranteed.
+// checkBanners verifies every scaffold conformance statement opens with the NOT YET SHIPPED
+// scaffold banner, so an unimplemented surface can never be silently presented as
+// conformance-guaranteed by deleting the banner.
 func checkBanners(root string) ([]Finding, error) {
 	var findings []Finding
 	for _, name := range scaffoldStatements {
@@ -303,11 +311,11 @@ func checkBanners(root string) ([]Finding, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !strings.Contains(string(data), notYetShippedBanner) {
+		if !scaffoldBannerRE.Match(data) {
 			findings = append(findings, Finding{
 				Class:   "banner",
 				Subject: name,
-				Detail:  fmt.Sprintf("scaffold statement is missing the %q banner", notYetShippedBanner),
+				Detail:  fmt.Sprintf("scaffold statement is missing the %q scaffold banner", notYetShippedBanner),
 			})
 		}
 	}
