@@ -64,12 +64,13 @@ directly (it remains the most deployed release and US Core runs on it) rather th
 
 ### In scope (v1)
 
-> **Implementation status: PARTIAL.** The full generated resource set is NOT YET SHIPPED. Today `fhir/r4` is an empty
-> shell (its package doc states generation lands in milestone M6b) and `fhir/r5` carries only the hand-written
-> walking-skeleton resources (`ImagingStudy`, `DiagnosticReport`, `ServiceRequest`, and their datatypes), not the full
-> generated R5 set. The "every resource and backbone element … all of which compile-test" guarantee below describes
-> the target once the generator runs, not the current code. See the next section's banner for which workflow resources
-> actually ship today.
+> **Implementation status: R5 generated, R4 pending.** The full R5 generated resource set ships today: `fhir/r5` is
+> generated end to end from the official R5 `StructureDefinition` bundle, including the radiology + clinical workflow
+> resources (`ImagingStudy`, `DiagnosticReport`, `ServiceRequest`) and the complex datatypes (`Identifier`,
+> `Reference`, `Coding`, `CodeableConcept`, `CodeableReference`) — these were briefly hand-written for the M2 walking
+> skeleton and were retired in favour of the faithful generated supersets when the generator took over the full set.
+> `fhir/r4` is still an empty shell; R4 generation lands in milestone M6b. The "every resource and backbone element …
+> all of which compile-test" guarantee below describes R5 today and R4 once its bundle is generated.
 
 - Typed Go models for **every resource and backbone element** of R4 4.0.1 and R5 5.0.0, all of which compile-test.
 - The **radiology + clinical workflow resource set** (enumerated below), which is conformance-tested against the HL7
@@ -115,11 +116,11 @@ Two tiers of guarantee apply, and the distinction is load-bearing for what a con
 
 The conformance-tested set is the radiology and clinical workflow resources required to close the PRD §5.1 loop:
 
-> **Implementation status: PARTIAL.** The table below is the target workflow set. Today only `ImagingStudy`,
-> `DiagnosticReport`, and `ServiceRequest` ship, and only in R5; `Observation`, `Patient`, `Encounter`, `Bundle`, and
-> `OperationOutcome` are NOT YET SHIPPED in either release, and there are no R4 resources yet. The converters that
-> exist are correspondingly R5-only: `convert.DICOMToImagingStudyR5`, `convert.SRToDiagnosticReportR5`, and
-> `convert.ORMToServiceRequestR5`. The remaining converters named below (the `…R4` twins, `DiagnosticReportToSR`,
+> **Implementation status: R5 shipped, R4 pending.** The whole workflow set below ships in R5, generated from the R5
+> `StructureDefinition` bundle: `ServiceRequest`, `ImagingStudy`, `DiagnosticReport`, `Observation`, `Patient`,
+> `Encounter`, `Bundle`, and `OperationOutcome`. There are no R4 resources yet (R4 generation lands in milestone M6b).
+> The converters that exist are correspondingly R5-only: `convert.DICOMToImagingStudyR5`, `convert.SRToDiagnosticReportR5`,
+> and `convert.ORMToServiceRequestR5`. The remaining converters named below (the `…R4` twins, `DiagnosticReportToSR`,
 > `ORUToDiagnosticReport`, `ADTToPatient`, `ADTToEncounter`) are not yet implemented.
 
 | Resource | Role in the workflow | Releases |
@@ -321,12 +322,18 @@ would ship enumerable-but-empty. For the vendored R5 5.0.0 bundle this yields cl
 required bindings and a small set of documented not-inlined boundaries for the external-terminology and
 value-set-composition cases above.
 
-One scope limit remains while the generator does not yet own the full resource set: the four M2 walking-skeleton types
-still hand-written under `fhir/r5` (`ServiceRequest`, `DiagnosticReport`, `ImagingStudy`, and the `Identifier`
-datatype) carry their required-binding code fields (`status`, `intent`, `use`) as plain strings, so an out-of-set code
-on those specific fields is not yet rejected at the JSON boundary. The closed enums those fields will adopt are already
-generated; the migration increment that retires the hand-written files (and re-points the converter and skeleton at the
-generated shapes) wires them, completing FHIR-013 enforcement on those types.
+The M2 walking-skeleton types (`ServiceRequest`, `DiagnosticReport`, `ImagingStudy`, and the `Identifier`, `Reference`,
+`Coding`, `CodeableConcept`, `CodeableReference` datatypes) were briefly hand-written under `fhir/r5` as minimal slices
+while the bulk generator excluded their names to avoid same-package duplicate-type collisions. The generator now owns
+them: it emits the faithful generated supersets (every field of the R5 `StructureDefinition`, choice fields through the
+sealed setters, required-binding `code` fields as closed enums, and the base members embedded), the hand-written files
+and the generator exclusion are gone, and the converter and the walking-skeleton end-to-end test read the generated
+shapes. The required-binding code fields (`status`, `intent`) are now typed `*RequestStatus` / `*RequestIntent` /
+`*DiagnosticReportStatus` / `*ImagingStudyStatus`, so an out-of-set code is rejected at the JSON boundary, completing
+FHIR-013 enforcement on these types. The hand-written `Bundle` builders and the reference-resolution / integrity helpers
+remain the single documented hand-written exception (the `bdl-*` prose invariants the `StructureDefinition` does not
+express); they extend the generated types and live in clearly-named files (`bundle_builders.go`,
+`reference_integrity.go`) outside the generated, byte-for-byte-reproducible file set.
 
 ### Lexical-preserving decimal
 
@@ -683,9 +690,9 @@ binding checks are deferred (a backbone's own required elements are not yet walk
 (`date`/`dateTime`/`time` calendar and offset rules, Codex FHIR-008) is also deferred — `decimal` already preserves
 lexical precision through `fhir.Decimal` (FHIR-009), and required-binding codes are validated against their closed enum.
 The HL7 FHIR validator (the conformance gate) covers the deferred depth; `Validate` is the fast in-process structural
-gate for the common, top-level errors. The hand-written M2 workflow resources (`ServiceRequest`, `DiagnosticReport`,
-`ImagingStudy`), which the bulk generator excludes until the migration increment regenerates them, carry hand-written
-descriptors so their required `status`/`intent` are still validated rather than silently skipped.
+gate for the common, top-level errors. The workflow resources (`ServiceRequest`, `DiagnosticReport`, `ImagingStudy`)
+carry generated descriptors like every other generated resource, so their required elements and required-binding codes
+(`status`, `intent`) are validated rather than silently skipped.
 
 The authoritative external check is the **HL7 FHIR validator**, merge-blocking in CI (PRD §11.1). go-radx's own
 validation is the fast in-process gate; the official validator is the conformance gate.
