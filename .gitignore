@@ -6,9 +6,10 @@
 *.test
 *.out
 
-# Coverage
+# Coverage — anchored to the repo root so the generated fhir/r5/coverage.go (a FHIR
+# Coverage resource) is not swept up by the coverage-profile ignore.
 *.coverprofile
-coverage.*
+/coverage.*
 cover.html
 
 # Go workspace lock file (generated; the committed go.work ties the root and cmd/radx modules)
