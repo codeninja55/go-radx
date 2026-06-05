@@ -26,13 +26,13 @@ type Measure struct {
 	TitleElement                           *fhir.PrimitiveElement    `json:"-"`
 	Subtitle                               *string                   `json:"subtitle,omitempty"`
 	SubtitleElement                        *fhir.PrimitiveElement    `json:"-"`
-	Status                                 *string                   `json:"status,omitempty"`
+	Status                                 *PublicationStatus        `json:"status,omitempty"`
 	StatusElement                          *fhir.PrimitiveElement    `json:"-"`
 	Experimental                           *bool                     `json:"experimental,omitempty"`
 	ExperimentalElement                    *fhir.PrimitiveElement    `json:"-"`
 	SubjectCodeableConcept                 *CodeableConcept          `json:"subjectCodeableConcept,omitempty"`
 	SubjectReference                       *Reference                `json:"subjectReference,omitempty"`
-	Basis                                  *string                   `json:"basis,omitempty"`
+	Basis                                  *FHIRTypes                `json:"basis,omitempty"`
 	BasisElement                           *fhir.PrimitiveElement    `json:"-"`
 	Date                                   *string                   `json:"date,omitempty"`
 	DateElement                            *fhir.PrimitiveElement    `json:"-"`
@@ -513,7 +513,7 @@ type MeasureGroup struct {
 	Type                   []CodeableConcept        `json:"type,omitempty"`
 	SubjectCodeableConcept *CodeableConcept         `json:"subjectCodeableConcept,omitempty"`
 	SubjectReference       *Reference               `json:"subjectReference,omitempty"`
-	Basis                  *string                  `json:"basis,omitempty"`
+	Basis                  *FHIRTypes               `json:"basis,omitempty"`
 	BasisElement           *fhir.PrimitiveElement   `json:"-"`
 	Scoring                *CodeableConcept         `json:"scoring,omitempty"`
 	ScoringUnit            *CodeableConcept         `json:"scoringUnit,omitempty"`

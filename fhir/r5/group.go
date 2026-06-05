@@ -16,9 +16,9 @@ type Group struct {
 	Identifier         []Identifier           `json:"identifier,omitempty"`
 	Active             *bool                  `json:"active,omitempty"`
 	ActiveElement      *fhir.PrimitiveElement `json:"-"`
-	Type               *string                `json:"type,omitempty"`
+	Type               *GroupType             `json:"type,omitempty"`
 	TypeElement        *fhir.PrimitiveElement `json:"-"`
-	Membership         *string                `json:"membership,omitempty"`
+	Membership         *GroupMembershipBasis  `json:"membership,omitempty"`
 	MembershipElement  *fhir.PrimitiveElement `json:"-"`
 	Code               *CodeableConcept       `json:"code,omitempty"`
 	Name               *string                `json:"name,omitempty"`

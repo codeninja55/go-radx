@@ -10,7 +10,7 @@ import (
 // RelatedArtifact is the generated FHIR RelatedArtifact datatype.
 type RelatedArtifact struct {
 	Element
-	Type                     *string                `json:"type,omitempty"`
+	Type                     *RelatedArtifactType   `json:"type,omitempty"`
 	TypeElement              *fhir.PrimitiveElement `json:"-"`
 	Classifier               []CodeableConcept      `json:"classifier,omitempty"`
 	Label                    *string                `json:"label,omitempty"`
@@ -23,7 +23,7 @@ type RelatedArtifact struct {
 	Resource                 *string                `json:"resource,omitempty"`
 	ResourceElement          *fhir.PrimitiveElement `json:"-"`
 	ResourceReference        *Reference             `json:"resourceReference,omitempty"`
-	PublicationStatus        *string                `json:"publicationStatus,omitempty"`
+	PublicationStatus        *PublicationStatus     `json:"publicationStatus,omitempty"`
 	PublicationStatusElement *fhir.PrimitiveElement `json:"-"`
 	PublicationDate          *string                `json:"publicationDate,omitempty"`
 	PublicationDateElement   *fhir.PrimitiveElement `json:"-"`

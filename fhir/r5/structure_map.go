@@ -24,7 +24,7 @@ type StructureMap struct {
 	NameElement            *fhir.PrimitiveElement   `json:"-"`
 	Title                  *string                  `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement   `json:"-"`
-	Status                 *string                  `json:"status,omitempty"`
+	Status                 *PublicationStatus       `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement   `json:"-"`
 	Experimental           *bool                    `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement   `json:"-"`
@@ -367,16 +367,16 @@ func (v *StructureMapConst) UnmarshalJSON(data []byte) error {
 // StructureMapGroup is a generated nested backbone element.
 type StructureMapGroup struct {
 	BackboneElement
-	Name                 *string                  `json:"name,omitempty"`
-	NameElement          *fhir.PrimitiveElement   `json:"-"`
-	Extends              *string                  `json:"extends,omitempty"`
-	ExtendsElement       *fhir.PrimitiveElement   `json:"-"`
-	TypeMode             *string                  `json:"typeMode,omitempty"`
-	TypeModeElement      *fhir.PrimitiveElement   `json:"-"`
-	Documentation        *string                  `json:"documentation,omitempty"`
-	DocumentationElement *fhir.PrimitiveElement   `json:"-"`
-	Input                []StructureMapGroupInput `json:"input,omitempty"`
-	Rule                 []StructureMapGroupRule  `json:"rule,omitempty"`
+	Name                 *string                    `json:"name,omitempty"`
+	NameElement          *fhir.PrimitiveElement     `json:"-"`
+	Extends              *string                    `json:"extends,omitempty"`
+	ExtendsElement       *fhir.PrimitiveElement     `json:"-"`
+	TypeMode             *StructureMapGroupTypeMode `json:"typeMode,omitempty"`
+	TypeModeElement      *fhir.PrimitiveElement     `json:"-"`
+	Documentation        *string                    `json:"documentation,omitempty"`
+	DocumentationElement *fhir.PrimitiveElement     `json:"-"`
+	Input                []StructureMapGroupInput   `json:"input,omitempty"`
+	Rule                 []StructureMapGroupRule    `json:"rule,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -470,7 +470,7 @@ type StructureMapGroupInput struct {
 	NameElement          *fhir.PrimitiveElement `json:"-"`
 	Type                 *string                `json:"type,omitempty"`
 	TypeElement          *fhir.PrimitiveElement `json:"-"`
-	Mode                 *string                `json:"mode,omitempty"`
+	Mode                 *StructureMapInputMode `json:"mode,omitempty"`
 	ModeElement          *fhir.PrimitiveElement `json:"-"`
 	Documentation        *string                `json:"documentation,omitempty"`
 	DocumentationElement *fhir.PrimitiveElement `json:"-"`
@@ -692,28 +692,28 @@ func (v *StructureMapGroupRuleDependent) UnmarshalJSON(data []byte) error {
 // StructureMapGroupRuleSource is a generated nested backbone element.
 type StructureMapGroupRuleSource struct {
 	BackboneElement
-	Context             *string                `json:"context,omitempty"`
-	ContextElement      *fhir.PrimitiveElement `json:"-"`
-	Min                 *int32                 `json:"min,omitempty"`
-	MinElement          *fhir.PrimitiveElement `json:"-"`
-	Max                 *string                `json:"max,omitempty"`
-	MaxElement          *fhir.PrimitiveElement `json:"-"`
-	Type                *string                `json:"type,omitempty"`
-	TypeElement         *fhir.PrimitiveElement `json:"-"`
-	DefaultValue        *string                `json:"defaultValue,omitempty"`
-	DefaultValueElement *fhir.PrimitiveElement `json:"-"`
-	Element             *string                `json:"element,omitempty"`
-	ElementElement      *fhir.PrimitiveElement `json:"-"`
-	ListMode            *string                `json:"listMode,omitempty"`
-	ListModeElement     *fhir.PrimitiveElement `json:"-"`
-	Variable            *string                `json:"variable,omitempty"`
-	VariableElement     *fhir.PrimitiveElement `json:"-"`
-	Condition           *string                `json:"condition,omitempty"`
-	ConditionElement    *fhir.PrimitiveElement `json:"-"`
-	Check               *string                `json:"check,omitempty"`
-	CheckElement        *fhir.PrimitiveElement `json:"-"`
-	LogMessage          *string                `json:"logMessage,omitempty"`
-	LogMessageElement   *fhir.PrimitiveElement `json:"-"`
+	Context             *string                     `json:"context,omitempty"`
+	ContextElement      *fhir.PrimitiveElement      `json:"-"`
+	Min                 *int32                      `json:"min,omitempty"`
+	MinElement          *fhir.PrimitiveElement      `json:"-"`
+	Max                 *string                     `json:"max,omitempty"`
+	MaxElement          *fhir.PrimitiveElement      `json:"-"`
+	Type                *string                     `json:"type,omitempty"`
+	TypeElement         *fhir.PrimitiveElement      `json:"-"`
+	DefaultValue        *string                     `json:"defaultValue,omitempty"`
+	DefaultValueElement *fhir.PrimitiveElement      `json:"-"`
+	Element             *string                     `json:"element,omitempty"`
+	ElementElement      *fhir.PrimitiveElement      `json:"-"`
+	ListMode            *StructureMapSourceListMode `json:"listMode,omitempty"`
+	ListModeElement     *fhir.PrimitiveElement      `json:"-"`
+	Variable            *string                     `json:"variable,omitempty"`
+	VariableElement     *fhir.PrimitiveElement      `json:"-"`
+	Condition           *string                     `json:"condition,omitempty"`
+	ConditionElement    *fhir.PrimitiveElement      `json:"-"`
+	Check               *string                     `json:"check,omitempty"`
+	CheckElement        *fhir.PrimitiveElement      `json:"-"`
+	LogMessage          *string                     `json:"logMessage,omitempty"`
+	LogMessageElement   *fhir.PrimitiveElement      `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -893,11 +893,11 @@ type StructureMapGroupRuleTarget struct {
 	ElementElement    *fhir.PrimitiveElement                 `json:"-"`
 	Variable          *string                                `json:"variable,omitempty"`
 	VariableElement   *fhir.PrimitiveElement                 `json:"-"`
-	ListMode          []string                               `json:"listMode,omitempty"`
+	ListMode          []StructureMapTargetListMode           `json:"listMode,omitempty"`
 	ListModeElement   []*fhir.PrimitiveElement               `json:"-"`
 	ListRuleId        *string                                `json:"listRuleId,omitempty"`
 	ListRuleIdElement *fhir.PrimitiveElement                 `json:"-"`
-	Transform         *string                                `json:"transform,omitempty"`
+	Transform         *StructureMapTransform                 `json:"transform,omitempty"`
 	TransformElement  *fhir.PrimitiveElement                 `json:"-"`
 	Parameter         []StructureMapGroupRuleTargetParameter `json:"parameter,omitempty"`
 }
@@ -1197,7 +1197,7 @@ type StructureMapStructure struct {
 	BackboneElement
 	URL                  *string                `json:"url,omitempty"`
 	URLElement           *fhir.PrimitiveElement `json:"-"`
-	Mode                 *string                `json:"mode,omitempty"`
+	Mode                 *StructureMapModelMode `json:"mode,omitempty"`
 	ModeElement          *fhir.PrimitiveElement `json:"-"`
 	Alias                *string                `json:"alias,omitempty"`
 	AliasElement         *fhir.PrimitiveElement `json:"-"`

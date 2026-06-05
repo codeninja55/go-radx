@@ -17,9 +17,9 @@ type AllergyIntolerance struct {
 	ClinicalStatus        *CodeableConcept                `json:"clinicalStatus,omitempty"`
 	VerificationStatus    *CodeableConcept                `json:"verificationStatus,omitempty"`
 	Type                  *CodeableConcept                `json:"type,omitempty"`
-	Category              []string                        `json:"category,omitempty"`
+	Category              []AllergyIntoleranceCategory    `json:"category,omitempty"`
 	CategoryElement       []*fhir.PrimitiveElement        `json:"-"`
-	Criticality           *string                         `json:"criticality,omitempty"`
+	Criticality           *AllergyIntoleranceCriticality  `json:"criticality,omitempty"`
 	CriticalityElement    *fhir.PrimitiveElement          `json:"-"`
 	Code                  *CodeableConcept                `json:"code,omitempty"`
 	Patient               *Reference                      `json:"patient,omitempty"`
@@ -235,16 +235,16 @@ type AllergyIntoleranceParticipant struct {
 // AllergyIntoleranceReaction is a generated nested backbone element.
 type AllergyIntoleranceReaction struct {
 	BackboneElement
-	Substance          *CodeableConcept       `json:"substance,omitempty"`
-	Manifestation      []CodeableReference    `json:"manifestation,omitempty"`
-	Description        *string                `json:"description,omitempty"`
-	DescriptionElement *fhir.PrimitiveElement `json:"-"`
-	Onset              *string                `json:"onset,omitempty"`
-	OnsetElement       *fhir.PrimitiveElement `json:"-"`
-	Severity           *string                `json:"severity,omitempty"`
-	SeverityElement    *fhir.PrimitiveElement `json:"-"`
-	ExposureRoute      *CodeableConcept       `json:"exposureRoute,omitempty"`
-	Note               []Annotation           `json:"note,omitempty"`
+	Substance          *CodeableConcept            `json:"substance,omitempty"`
+	Manifestation      []CodeableReference         `json:"manifestation,omitempty"`
+	Description        *string                     `json:"description,omitempty"`
+	DescriptionElement *fhir.PrimitiveElement      `json:"-"`
+	Onset              *string                     `json:"onset,omitempty"`
+	OnsetElement       *fhir.PrimitiveElement      `json:"-"`
+	Severity           *AllergyIntoleranceSeverity `json:"severity,omitempty"`
+	SeverityElement    *fhir.PrimitiveElement      `json:"-"`
+	ExposureRoute      *CodeableConcept            `json:"exposureRoute,omitempty"`
+	Note               []Annotation                `json:"note,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

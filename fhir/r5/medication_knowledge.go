@@ -15,7 +15,7 @@ type MedicationKnowledge struct {
 	DomainResource
 	Identifier                    []Identifier                                    `json:"identifier,omitempty"`
 	Code                          *CodeableConcept                                `json:"code,omitempty"`
-	Status                        *string                                         `json:"status,omitempty"`
+	Status                        *MedicationKnowledgeStatusCodes                 `json:"status,omitempty"`
 	StatusElement                 *fhir.PrimitiveElement                          `json:"-"`
 	Author                        *Reference                                      `json:"author,omitempty"`
 	IntendedJurisdiction          []CodeableConcept                               `json:"intendedJurisdiction,omitempty"`

@@ -30,7 +30,7 @@ type ChargeItemDefinition struct {
 	PartOfElement          []*fhir.PrimitiveElement            `json:"-"`
 	Replaces               []string                            `json:"replaces,omitempty"`
 	ReplacesElement        []*fhir.PrimitiveElement            `json:"-"`
-	Status                 *string                             `json:"status,omitempty"`
+	Status                 *PublicationStatus                  `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement              `json:"-"`
 	Experimental           *bool                               `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement              `json:"-"`

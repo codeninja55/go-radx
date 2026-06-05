@@ -14,7 +14,7 @@ const InventoryItemResourceType = "InventoryItem"
 type InventoryItem struct {
 	DomainResource
 	Identifier              []Identifier                           `json:"identifier,omitempty"`
-	Status                  *string                                `json:"status,omitempty"`
+	Status                  *InventoryItemStatusCodes              `json:"status,omitempty"`
 	StatusElement           *fhir.PrimitiveElement                 `json:"-"`
 	Category                []CodeableConcept                      `json:"category,omitempty"`
 	Code                    []CodeableConcept                      `json:"code,omitempty"`
@@ -435,7 +435,7 @@ func (r *InventoryItemCharacteristic) SetValueCodeableConcept(v CodeableConcept)
 // InventoryItemDescription is a generated nested backbone element.
 type InventoryItemDescription struct {
 	BackboneElement
-	Language           *string                `json:"language,omitempty"`
+	Language           *CommonLanguages       `json:"language,omitempty"`
 	LanguageElement    *fhir.PrimitiveElement `json:"-"`
 	Description        *string                `json:"description,omitempty"`
 	DescriptionElement *fhir.PrimitiveElement `json:"-"`
@@ -577,7 +577,7 @@ func (v *InventoryItemInstance) UnmarshalJSON(data []byte) error {
 type InventoryItemName struct {
 	BackboneElement
 	NameType        *Coding                `json:"nameType,omitempty"`
-	Language        *string                `json:"language,omitempty"`
+	Language        *CommonLanguages       `json:"language,omitempty"`
 	LanguageElement *fhir.PrimitiveElement `json:"-"`
 	Name            *string                `json:"name,omitempty"`
 	NameElement     *fhir.PrimitiveElement `json:"-"`

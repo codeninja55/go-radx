@@ -14,11 +14,11 @@ const DetectedIssueResourceType = "DetectedIssue"
 type DetectedIssue struct {
 	DomainResource
 	Identifier         []Identifier              `json:"identifier,omitempty"`
-	Status             *string                   `json:"status,omitempty"`
+	Status             *DetectedIssueStatus      `json:"status,omitempty"`
 	StatusElement      *fhir.PrimitiveElement    `json:"-"`
 	Category           []CodeableConcept         `json:"category,omitempty"`
 	Code               *CodeableConcept          `json:"code,omitempty"`
-	Severity           *string                   `json:"severity,omitempty"`
+	Severity           *DetectedIssueSeverity    `json:"severity,omitempty"`
 	SeverityElement    *fhir.PrimitiveElement    `json:"-"`
 	Subject            *Reference                `json:"subject,omitempty"`
 	Encounter          *Reference                `json:"encounter,omitempty"`

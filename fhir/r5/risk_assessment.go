@@ -16,7 +16,7 @@ type RiskAssessment struct {
 	Identifier         []Identifier               `json:"identifier,omitempty"`
 	BasedOn            *Reference                 `json:"basedOn,omitempty"`
 	Parent             *Reference                 `json:"parent,omitempty"`
-	Status             *string                    `json:"status,omitempty"`
+	Status             *ObservationStatus         `json:"status,omitempty"`
 	StatusElement      *fhir.PrimitiveElement     `json:"-"`
 	Method             *CodeableConcept           `json:"method,omitempty"`
 	Code               *CodeableConcept           `json:"code,omitempty"`

@@ -21,13 +21,13 @@ type Task struct {
 	BasedOn                      []Reference            `json:"basedOn,omitempty"`
 	GroupIdentifier              *Identifier            `json:"groupIdentifier,omitempty"`
 	PartOf                       []Reference            `json:"partOf,omitempty"`
-	Status                       *string                `json:"status,omitempty"`
+	Status                       *TaskStatus            `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement `json:"-"`
 	StatusReason                 *CodeableReference     `json:"statusReason,omitempty"`
 	BusinessStatus               *CodeableConcept       `json:"businessStatus,omitempty"`
-	Intent                       *string                `json:"intent,omitempty"`
+	Intent                       *TaskIntent            `json:"intent,omitempty"`
 	IntentElement                *fhir.PrimitiveElement `json:"-"`
-	Priority                     *string                `json:"priority,omitempty"`
+	Priority                     *RequestPriority       `json:"priority,omitempty"`
 	PriorityElement              *fhir.PrimitiveElement `json:"-"`
 	DoNotPerform                 *bool                  `json:"doNotPerform,omitempty"`
 	DoNotPerformElement          *fhir.PrimitiveElement `json:"-"`

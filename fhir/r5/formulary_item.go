@@ -13,10 +13,10 @@ const FormularyItemResourceType = "FormularyItem"
 // FormularyItem is the generated FHIR FormularyItem resource.
 type FormularyItem struct {
 	DomainResource
-	Identifier    []Identifier           `json:"identifier,omitempty"`
-	Code          *CodeableConcept       `json:"code,omitempty"`
-	Status        *string                `json:"status,omitempty"`
-	StatusElement *fhir.PrimitiveElement `json:"-"`
+	Identifier    []Identifier              `json:"identifier,omitempty"`
+	Code          *CodeableConcept          `json:"code,omitempty"`
+	Status        *FormularyItemStatusCodes `json:"status,omitempty"`
+	StatusElement *fhir.PrimitiveElement    `json:"-"`
 }
 
 // ResourceType returns the FHIR discriminator "FormularyItem".

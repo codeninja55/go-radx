@@ -12,7 +12,7 @@ type Count struct {
 	Element
 	Value             *fhir.Decimal          `json:"value,omitempty"`
 	ValueElement      *fhir.PrimitiveElement `json:"-"`
-	Comparator        *string                `json:"comparator,omitempty"`
+	Comparator        *QuantityComparator    `json:"comparator,omitempty"`
 	ComparatorElement *fhir.PrimitiveElement `json:"-"`
 	Unit              *string                `json:"unit,omitempty"`
 	UnitElement       *fhir.PrimitiveElement `json:"-"`

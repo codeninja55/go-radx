@@ -28,7 +28,7 @@ type ResearchStudy struct {
 	RelatedArtifact           []RelatedArtifact              `json:"relatedArtifact,omitempty"`
 	Date                      *string                        `json:"date,omitempty"`
 	DateElement               *fhir.PrimitiveElement         `json:"-"`
-	Status                    *string                        `json:"status,omitempty"`
+	Status                    *PublicationStatus             `json:"status,omitempty"`
 	StatusElement             *fhir.PrimitiveElement         `json:"-"`
 	PrimaryPurposeType        *CodeableConcept               `json:"primaryPurposeType,omitempty"`
 	Phase                     *CodeableConcept               `json:"phase,omitempty"`

@@ -23,7 +23,7 @@ type CompartmentDefinition struct {
 	NameElement            *fhir.PrimitiveElement          `json:"-"`
 	Title                  *string                         `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement          `json:"-"`
-	Status                 *string                         `json:"status,omitempty"`
+	Status                 *PublicationStatus              `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement          `json:"-"`
 	Experimental           *bool                           `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement          `json:"-"`
@@ -37,7 +37,7 @@ type CompartmentDefinition struct {
 	UseContext             []UsageContext                  `json:"useContext,omitempty"`
 	Purpose                *string                         `json:"purpose,omitempty"`
 	PurposeElement         *fhir.PrimitiveElement          `json:"-"`
-	Code                   *string                         `json:"code,omitempty"`
+	Code                   *CompartmentType                `json:"code,omitempty"`
 	CodeElement            *fhir.PrimitiveElement          `json:"-"`
 	Search                 *bool                           `json:"search,omitempty"`
 	SearchElement          *fhir.PrimitiveElement          `json:"-"`
@@ -280,7 +280,7 @@ func (r *CompartmentDefinition) SetVersionAlgorithmCoding(v Coding) {
 // CompartmentDefinitionResource is a generated nested backbone element.
 type CompartmentDefinitionResource struct {
 	BackboneElement
-	Code                 *string                  `json:"code,omitempty"`
+	Code                 *ResourceType            `json:"code,omitempty"`
 	CodeElement          *fhir.PrimitiveElement   `json:"-"`
 	Param                []string                 `json:"param,omitempty"`
 	ParamElement         []*fhir.PrimitiveElement `json:"-"`

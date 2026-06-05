@@ -24,7 +24,7 @@ type ConceptMap struct {
 	NameElement            *fhir.PrimitiveElement          `json:"-"`
 	Title                  *string                         `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement          `json:"-"`
-	Status                 *string                         `json:"status,omitempty"`
+	Status                 *PublicationStatus              `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement          `json:"-"`
 	Experimental           *bool                           `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement          `json:"-"`
@@ -409,14 +409,14 @@ func (r *ConceptMap) SetTargetScopeCanonical(v FHIRCanonical) {
 // ConceptMapAdditionalAttribute is a generated nested backbone element.
 type ConceptMapAdditionalAttribute struct {
 	BackboneElement
-	Code               *string                `json:"code,omitempty"`
-	CodeElement        *fhir.PrimitiveElement `json:"-"`
-	URI                *string                `json:"uri,omitempty"`
-	URIElement         *fhir.PrimitiveElement `json:"-"`
-	Description        *string                `json:"description,omitempty"`
-	DescriptionElement *fhir.PrimitiveElement `json:"-"`
-	Type               *string                `json:"type,omitempty"`
-	TypeElement        *fhir.PrimitiveElement `json:"-"`
+	Code               *string                  `json:"code,omitempty"`
+	CodeElement        *fhir.PrimitiveElement   `json:"-"`
+	URI                *string                  `json:"uri,omitempty"`
+	URIElement         *fhir.PrimitiveElement   `json:"-"`
+	Description        *string                  `json:"description,omitempty"`
+	DescriptionElement *fhir.PrimitiveElement   `json:"-"`
+	Type               *ConceptMapAttributeType `json:"type,omitempty"`
+	TypeElement        *fhir.PrimitiveElement   `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -681,7 +681,7 @@ type ConceptMapGroupElementTarget struct {
 	DisplayElement      *fhir.PrimitiveElement                  `json:"-"`
 	ValueSet            *string                                 `json:"valueSet,omitempty"`
 	ValueSetElement     *fhir.PrimitiveElement                  `json:"-"`
-	Relationship        *string                                 `json:"relationship,omitempty"`
+	Relationship        *ConceptMapRelationship                 `json:"relationship,omitempty"`
 	RelationshipElement *fhir.PrimitiveElement                  `json:"-"`
 	Comment             *string                                 `json:"comment,omitempty"`
 	CommentElement      *fhir.PrimitiveElement                  `json:"-"`
@@ -1159,18 +1159,18 @@ func (r *ConceptMapGroupElementTargetProperty) SetValueCode(v FHIRCode) {
 // ConceptMapGroupUnmapped is a generated nested backbone element.
 type ConceptMapGroupUnmapped struct {
 	BackboneElement
-	Mode                *string                `json:"mode,omitempty"`
-	ModeElement         *fhir.PrimitiveElement `json:"-"`
-	Code                *string                `json:"code,omitempty"`
-	CodeElement         *fhir.PrimitiveElement `json:"-"`
-	Display             *string                `json:"display,omitempty"`
-	DisplayElement      *fhir.PrimitiveElement `json:"-"`
-	ValueSet            *string                `json:"valueSet,omitempty"`
-	ValueSetElement     *fhir.PrimitiveElement `json:"-"`
-	Relationship        *string                `json:"relationship,omitempty"`
-	RelationshipElement *fhir.PrimitiveElement `json:"-"`
-	OtherMap            *string                `json:"otherMap,omitempty"`
-	OtherMapElement     *fhir.PrimitiveElement `json:"-"`
+	Mode                *ConceptMapGroupUnmappedMode `json:"mode,omitempty"`
+	ModeElement         *fhir.PrimitiveElement       `json:"-"`
+	Code                *string                      `json:"code,omitempty"`
+	CodeElement         *fhir.PrimitiveElement       `json:"-"`
+	Display             *string                      `json:"display,omitempty"`
+	DisplayElement      *fhir.PrimitiveElement       `json:"-"`
+	ValueSet            *string                      `json:"valueSet,omitempty"`
+	ValueSetElement     *fhir.PrimitiveElement       `json:"-"`
+	Relationship        *ConceptMapRelationship      `json:"relationship,omitempty"`
+	RelationshipElement *fhir.PrimitiveElement       `json:"-"`
+	OtherMap            *string                      `json:"otherMap,omitempty"`
+	OtherMapElement     *fhir.PrimitiveElement       `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -1284,16 +1284,16 @@ func (v *ConceptMapGroupUnmapped) UnmarshalJSON(data []byte) error {
 // ConceptMapProperty is a generated nested backbone element.
 type ConceptMapProperty struct {
 	BackboneElement
-	Code               *string                `json:"code,omitempty"`
-	CodeElement        *fhir.PrimitiveElement `json:"-"`
-	URI                *string                `json:"uri,omitempty"`
-	URIElement         *fhir.PrimitiveElement `json:"-"`
-	Description        *string                `json:"description,omitempty"`
-	DescriptionElement *fhir.PrimitiveElement `json:"-"`
-	Type               *string                `json:"type,omitempty"`
-	TypeElement        *fhir.PrimitiveElement `json:"-"`
-	System             *string                `json:"system,omitempty"`
-	SystemElement      *fhir.PrimitiveElement `json:"-"`
+	Code               *string                 `json:"code,omitempty"`
+	CodeElement        *fhir.PrimitiveElement  `json:"-"`
+	URI                *string                 `json:"uri,omitempty"`
+	URIElement         *fhir.PrimitiveElement  `json:"-"`
+	Description        *string                 `json:"description,omitempty"`
+	DescriptionElement *fhir.PrimitiveElement  `json:"-"`
+	Type               *ConceptMapPropertyType `json:"type,omitempty"`
+	TypeElement        *fhir.PrimitiveElement  `json:"-"`
+	System             *string                 `json:"system,omitempty"`
+	SystemElement      *fhir.PrimitiveElement  `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

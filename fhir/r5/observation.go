@@ -19,7 +19,7 @@ type Observation struct {
 	BasedOn               []Reference                 `json:"basedOn,omitempty"`
 	TriggeredBy           []ObservationTriggeredBy    `json:"triggeredBy,omitempty"`
 	PartOf                []Reference                 `json:"partOf,omitempty"`
-	Status                *string                     `json:"status,omitempty"`
+	Status                *ObservationStatus          `json:"status,omitempty"`
 	StatusElement         *fhir.PrimitiveElement      `json:"-"`
 	Category              []CodeableConcept           `json:"category,omitempty"`
 	Code                  *CodeableConcept            `json:"code,omitempty"`
@@ -959,7 +959,7 @@ func (v *ObservationReferenceRange) UnmarshalJSON(data []byte) error {
 type ObservationTriggeredBy struct {
 	BackboneElement
 	Observation   *Reference             `json:"observation,omitempty"`
-	Type          *string                `json:"type,omitempty"`
+	Type          *TriggeredBytype       `json:"type,omitempty"`
 	TypeElement   *fhir.PrimitiveElement `json:"-"`
 	Reason        *string                `json:"reason,omitempty"`
 	ReasonElement *fhir.PrimitiveElement `json:"-"`

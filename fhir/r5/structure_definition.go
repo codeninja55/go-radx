@@ -24,7 +24,7 @@ type StructureDefinition struct {
 	NameElement             *fhir.PrimitiveElement       `json:"-"`
 	Title                   *string                      `json:"title,omitempty"`
 	TitleElement            *fhir.PrimitiveElement       `json:"-"`
-	Status                  *string                      `json:"status,omitempty"`
+	Status                  *PublicationStatus           `json:"status,omitempty"`
 	StatusElement           *fhir.PrimitiveElement       `json:"-"`
 	Experimental            *bool                        `json:"experimental,omitempty"`
 	ExperimentalElement     *fhir.PrimitiveElement       `json:"-"`
@@ -44,10 +44,10 @@ type StructureDefinition struct {
 	CopyrightLabel          *string                      `json:"copyrightLabel,omitempty"`
 	CopyrightLabelElement   *fhir.PrimitiveElement       `json:"-"`
 	Keyword                 []Coding                     `json:"keyword,omitempty"`
-	FhirVersion             *string                      `json:"fhirVersion,omitempty"`
+	FhirVersion             *FHIRVersion                 `json:"fhirVersion,omitempty"`
 	FhirVersionElement      *fhir.PrimitiveElement       `json:"-"`
 	Mapping                 []StructureDefinitionMapping `json:"mapping,omitempty"`
-	Kind                    *string                      `json:"kind,omitempty"`
+	Kind                    *StructureDefinitionKind     `json:"kind,omitempty"`
 	KindElement             *fhir.PrimitiveElement       `json:"-"`
 	Abstract                *bool                        `json:"abstract,omitempty"`
 	AbstractElement         *fhir.PrimitiveElement       `json:"-"`
@@ -58,7 +58,7 @@ type StructureDefinition struct {
 	TypeElement             *fhir.PrimitiveElement       `json:"-"`
 	BaseDefinition          *string                      `json:"baseDefinition,omitempty"`
 	BaseDefinitionElement   *fhir.PrimitiveElement       `json:"-"`
-	Derivation              *string                      `json:"derivation,omitempty"`
+	Derivation              *TypeDerivationRule          `json:"derivation,omitempty"`
 	DerivationElement       *fhir.PrimitiveElement       `json:"-"`
 	Snapshot                *StructureDefinitionSnapshot `json:"snapshot,omitempty"`
 	Differential            *StructureDefinitionSnapshot `json:"differential,omitempty"`
@@ -384,7 +384,7 @@ func (r *StructureDefinition) SetVersionAlgorithmCoding(v Coding) {
 // StructureDefinitionContext is a generated nested backbone element.
 type StructureDefinitionContext struct {
 	BackboneElement
-	Type              *string                `json:"type,omitempty"`
+	Type              *ExtensionContextType  `json:"type,omitempty"`
 	TypeElement       *fhir.PrimitiveElement `json:"-"`
 	Expression        *string                `json:"expression,omitempty"`
 	ExpressionElement *fhir.PrimitiveElement `json:"-"`

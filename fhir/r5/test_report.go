@@ -16,11 +16,11 @@ type TestReport struct {
 	Identifier        *Identifier             `json:"identifier,omitempty"`
 	Name              *string                 `json:"name,omitempty"`
 	NameElement       *fhir.PrimitiveElement  `json:"-"`
-	Status            *string                 `json:"status,omitempty"`
+	Status            *TestReportStatus       `json:"status,omitempty"`
 	StatusElement     *fhir.PrimitiveElement  `json:"-"`
 	TestScript        *string                 `json:"testScript,omitempty"`
 	TestScriptElement *fhir.PrimitiveElement  `json:"-"`
-	Result            *string                 `json:"result,omitempty"`
+	Result            *TestReportResult       `json:"result,omitempty"`
 	ResultElement     *fhir.PrimitiveElement  `json:"-"`
 	Score             *fhir.Decimal           `json:"score,omitempty"`
 	ScoreElement      *fhir.PrimitiveElement  `json:"-"`
@@ -169,12 +169,12 @@ func (v *TestReport) UnmarshalJSON(data []byte) error {
 // TestReportParticipant is a generated nested backbone element.
 type TestReportParticipant struct {
 	BackboneElement
-	Type           *string                `json:"type,omitempty"`
-	TypeElement    *fhir.PrimitiveElement `json:"-"`
-	URI            *string                `json:"uri,omitempty"`
-	URIElement     *fhir.PrimitiveElement `json:"-"`
-	Display        *string                `json:"display,omitempty"`
-	DisplayElement *fhir.PrimitiveElement `json:"-"`
+	Type           *TestReportParticipantType `json:"type,omitempty"`
+	TypeElement    *fhir.PrimitiveElement     `json:"-"`
+	URI            *string                    `json:"uri,omitempty"`
+	URIElement     *fhir.PrimitiveElement     `json:"-"`
+	Display        *string                    `json:"display,omitempty"`
+	DisplayElement *fhir.PrimitiveElement     `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -265,7 +265,7 @@ type TestReportSetupAction struct {
 // TestReportSetupActionAssert is a generated nested backbone element.
 type TestReportSetupActionAssert struct {
 	BackboneElement
-	Result         *string                                  `json:"result,omitempty"`
+	Result         *TestReportActionResult                  `json:"result,omitempty"`
 	ResultElement  *fhir.PrimitiveElement                   `json:"-"`
 	Message        *string                                  `json:"message,omitempty"`
 	MessageElement *fhir.PrimitiveElement                   `json:"-"`
@@ -399,12 +399,12 @@ func (r *TestReportSetupActionAssertRequirement) SetLinkCanonical(v FHIRCanonica
 // TestReportSetupActionOperation is a generated nested backbone element.
 type TestReportSetupActionOperation struct {
 	BackboneElement
-	Result         *string                `json:"result,omitempty"`
-	ResultElement  *fhir.PrimitiveElement `json:"-"`
-	Message        *string                `json:"message,omitempty"`
-	MessageElement *fhir.PrimitiveElement `json:"-"`
-	Detail         *string                `json:"detail,omitempty"`
-	DetailElement  *fhir.PrimitiveElement `json:"-"`
+	Result         *TestReportActionResult `json:"result,omitempty"`
+	ResultElement  *fhir.PrimitiveElement  `json:"-"`
+	Message        *string                 `json:"message,omitempty"`
+	MessageElement *fhir.PrimitiveElement  `json:"-"`
+	Detail         *string                 `json:"detail,omitempty"`
+	DetailElement  *fhir.PrimitiveElement  `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

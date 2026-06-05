@@ -13,27 +13,27 @@ const ArtifactAssessmentResourceType = "ArtifactAssessment"
 // ArtifactAssessment is the generated FHIR ArtifactAssessment resource.
 type ArtifactAssessment struct {
 	DomainResource
-	Identifier            []Identifier                `json:"identifier,omitempty"`
-	Title                 *string                     `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement      `json:"-"`
-	CiteAsReference       *Reference                  `json:"citeAsReference,omitempty"`
-	CiteAsMarkdown        *FHIRMarkdown               `json:"citeAsMarkdown,omitempty"`
-	Date                  *string                     `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement      `json:"-"`
-	Copyright             *string                     `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement      `json:"-"`
-	ApprovalDate          *string                     `json:"approvalDate,omitempty"`
-	ApprovalDateElement   *fhir.PrimitiveElement      `json:"-"`
-	LastReviewDate        *string                     `json:"lastReviewDate,omitempty"`
-	LastReviewDateElement *fhir.PrimitiveElement      `json:"-"`
-	ArtifactReference     *Reference                  `json:"artifactReference,omitempty"`
-	ArtifactCanonical     *FHIRCanonical              `json:"artifactCanonical,omitempty"`
-	ArtifactURI           *FHIRURI                    `json:"artifactUri,omitempty"`
-	Content               []ArtifactAssessmentContent `json:"content,omitempty"`
-	WorkflowStatus        *string                     `json:"workflowStatus,omitempty"`
-	WorkflowStatusElement *fhir.PrimitiveElement      `json:"-"`
-	Disposition           *string                     `json:"disposition,omitempty"`
-	DispositionElement    *fhir.PrimitiveElement      `json:"-"`
+	Identifier            []Identifier                      `json:"identifier,omitempty"`
+	Title                 *string                           `json:"title,omitempty"`
+	TitleElement          *fhir.PrimitiveElement            `json:"-"`
+	CiteAsReference       *Reference                        `json:"citeAsReference,omitempty"`
+	CiteAsMarkdown        *FHIRMarkdown                     `json:"citeAsMarkdown,omitempty"`
+	Date                  *string                           `json:"date,omitempty"`
+	DateElement           *fhir.PrimitiveElement            `json:"-"`
+	Copyright             *string                           `json:"copyright,omitempty"`
+	CopyrightElement      *fhir.PrimitiveElement            `json:"-"`
+	ApprovalDate          *string                           `json:"approvalDate,omitempty"`
+	ApprovalDateElement   *fhir.PrimitiveElement            `json:"-"`
+	LastReviewDate        *string                           `json:"lastReviewDate,omitempty"`
+	LastReviewDateElement *fhir.PrimitiveElement            `json:"-"`
+	ArtifactReference     *Reference                        `json:"artifactReference,omitempty"`
+	ArtifactCanonical     *FHIRCanonical                    `json:"artifactCanonical,omitempty"`
+	ArtifactURI           *FHIRURI                          `json:"artifactUri,omitempty"`
+	Content               []ArtifactAssessmentContent       `json:"content,omitempty"`
+	WorkflowStatus        *ArtifactAssessmentWorkflowStatus `json:"workflowStatus,omitempty"`
+	WorkflowStatusElement *fhir.PrimitiveElement            `json:"-"`
+	Disposition           *ArtifactAssessmentDisposition    `json:"disposition,omitempty"`
+	DispositionElement    *fhir.PrimitiveElement            `json:"-"`
 }
 
 // ResourceType returns the FHIR discriminator "ArtifactAssessment".
@@ -269,20 +269,20 @@ func (r *ArtifactAssessment) SetArtifactURI(v FHIRURI) {
 // ArtifactAssessmentContent is a generated nested backbone element.
 type ArtifactAssessmentContent struct {
 	BackboneElement
-	InformationType        *string                     `json:"informationType,omitempty"`
-	InformationTypeElement *fhir.PrimitiveElement      `json:"-"`
-	Summary                *string                     `json:"summary,omitempty"`
-	SummaryElement         *fhir.PrimitiveElement      `json:"-"`
-	Type                   *CodeableConcept            `json:"type,omitempty"`
-	Classifier             []CodeableConcept           `json:"classifier,omitempty"`
-	Quantity               *Quantity                   `json:"quantity,omitempty"`
-	Author                 *Reference                  `json:"author,omitempty"`
-	Path                   []string                    `json:"path,omitempty"`
-	PathElement            []*fhir.PrimitiveElement    `json:"-"`
-	RelatedArtifact        []RelatedArtifact           `json:"relatedArtifact,omitempty"`
-	FreeToShare            *bool                       `json:"freeToShare,omitempty"`
-	FreeToShareElement     *fhir.PrimitiveElement      `json:"-"`
-	Component              []ArtifactAssessmentContent `json:"component,omitempty"`
+	InformationType        *ArtifactAssessmentInformationType `json:"informationType,omitempty"`
+	InformationTypeElement *fhir.PrimitiveElement             `json:"-"`
+	Summary                *string                            `json:"summary,omitempty"`
+	SummaryElement         *fhir.PrimitiveElement             `json:"-"`
+	Type                   *CodeableConcept                   `json:"type,omitempty"`
+	Classifier             []CodeableConcept                  `json:"classifier,omitempty"`
+	Quantity               *Quantity                          `json:"quantity,omitempty"`
+	Author                 *Reference                         `json:"author,omitempty"`
+	Path                   []string                           `json:"path,omitempty"`
+	PathElement            []*fhir.PrimitiveElement           `json:"-"`
+	RelatedArtifact        []RelatedArtifact                  `json:"relatedArtifact,omitempty"`
+	FreeToShare            *bool                              `json:"freeToShare,omitempty"`
+	FreeToShareElement     *fhir.PrimitiveElement             `json:"-"`
+	Component              []ArtifactAssessmentContent        `json:"component,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

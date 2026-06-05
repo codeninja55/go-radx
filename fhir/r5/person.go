@@ -18,7 +18,7 @@ type Person struct {
 	ActiveElement        *fhir.PrimitiveElement `json:"-"`
 	Name                 []HumanName            `json:"name,omitempty"`
 	Telecom              []ContactPoint         `json:"telecom,omitempty"`
-	Gender               *string                `json:"gender,omitempty"`
+	Gender               *AdministrativeGender  `json:"gender,omitempty"`
 	GenderElement        *fhir.PrimitiveElement `json:"-"`
 	BirthDate            *string                `json:"birthDate,omitempty"`
 	BirthDateElement     *fhir.PrimitiveElement `json:"-"`
@@ -218,9 +218,9 @@ func (v *PersonCommunication) UnmarshalJSON(data []byte) error {
 // PersonLink is a generated nested backbone element.
 type PersonLink struct {
 	BackboneElement
-	Target           *Reference             `json:"target,omitempty"`
-	Assurance        *string                `json:"assurance,omitempty"`
-	AssuranceElement *fhir.PrimitiveElement `json:"-"`
+	Target           *Reference              `json:"target,omitempty"`
+	Assurance        *IdentityAssuranceLevel `json:"assurance,omitempty"`
+	AssuranceElement *fhir.PrimitiveElement  `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

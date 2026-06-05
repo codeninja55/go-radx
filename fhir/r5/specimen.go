@@ -15,7 +15,7 @@ type Specimen struct {
 	DomainResource
 	Identifier          []Identifier           `json:"identifier,omitempty"`
 	AccessionIdentifier *Identifier            `json:"accessionIdentifier,omitempty"`
-	Status              *string                `json:"status,omitempty"`
+	Status              *SpecimenStatus        `json:"status,omitempty"`
 	StatusElement       *fhir.PrimitiveElement `json:"-"`
 	Type                *CodeableConcept       `json:"type,omitempty"`
 	Subject             *Reference             `json:"subject,omitempty"`
@@ -23,7 +23,7 @@ type Specimen struct {
 	ReceivedTimeElement *fhir.PrimitiveElement `json:"-"`
 	Parent              []Reference            `json:"parent,omitempty"`
 	Request             []Reference            `json:"request,omitempty"`
-	Combined            *string                `json:"combined,omitempty"`
+	Combined            *SpecimenCombined      `json:"combined,omitempty"`
 	CombinedElement     *fhir.PrimitiveElement `json:"-"`
 	Role                []CodeableConcept      `json:"role,omitempty"`
 	Feature             []SpecimenFeature      `json:"feature,omitempty"`

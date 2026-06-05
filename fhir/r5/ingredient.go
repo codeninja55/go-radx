@@ -14,7 +14,7 @@ const IngredientResourceType = "Ingredient"
 type Ingredient struct {
 	DomainResource
 	Identifier                 *Identifier              `json:"identifier,omitempty"`
-	Status                     *string                  `json:"status,omitempty"`
+	Status                     *PublicationStatus       `json:"status,omitempty"`
 	StatusElement              *fhir.PrimitiveElement   `json:"-"`
 	For                        []Reference              `json:"for,omitempty"`
 	Role                       *CodeableConcept         `json:"role,omitempty"`
@@ -115,9 +115,9 @@ func (v *Ingredient) UnmarshalJSON(data []byte) error {
 // IngredientManufacturer is a generated nested backbone element.
 type IngredientManufacturer struct {
 	BackboneElement
-	Role         *string                `json:"role,omitempty"`
-	RoleElement  *fhir.PrimitiveElement `json:"-"`
-	Manufacturer *Reference             `json:"manufacturer,omitempty"`
+	Role         *IngredientManufacturerRole `json:"role,omitempty"`
+	RoleElement  *fhir.PrimitiveElement      `json:"-"`
+	Manufacturer *Reference                  `json:"manufacturer,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

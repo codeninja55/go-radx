@@ -24,7 +24,7 @@ type TerminologyCapabilities struct {
 	NameElement            *fhir.PrimitiveElement                 `json:"-"`
 	Title                  *string                                `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement                 `json:"-"`
-	Status                 *string                                `json:"status,omitempty"`
+	Status                 *PublicationStatus                     `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement                 `json:"-"`
 	Experimental           *bool                                  `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement                 `json:"-"`
@@ -43,7 +43,7 @@ type TerminologyCapabilities struct {
 	CopyrightElement       *fhir.PrimitiveElement                 `json:"-"`
 	CopyrightLabel         *string                                `json:"copyrightLabel,omitempty"`
 	CopyrightLabelElement  *fhir.PrimitiveElement                 `json:"-"`
-	Kind                   *string                                `json:"kind,omitempty"`
+	Kind                   *CapabilityStatementKind               `json:"kind,omitempty"`
 	KindElement            *fhir.PrimitiveElement                 `json:"-"`
 	Software               *TerminologyCapabilitiesSoftware       `json:"software,omitempty"`
 	Implementation         *TerminologyCapabilitiesImplementation `json:"implementation,omitempty"`
@@ -51,7 +51,7 @@ type TerminologyCapabilities struct {
 	LockedDateElement      *fhir.PrimitiveElement                 `json:"-"`
 	CodeSystem             []TerminologyCapabilitiesCodeSystem    `json:"codeSystem,omitempty"`
 	Expansion              *TerminologyCapabilitiesExpansion      `json:"expansion,omitempty"`
-	CodeSearch             *string                                `json:"codeSearch,omitempty"`
+	CodeSearch             *CodeSearchSupport                     `json:"codeSearch,omitempty"`
 	CodeSearchElement      *fhir.PrimitiveElement                 `json:"-"`
 	ValidateCode           *TerminologyCapabilitiesValidateCode   `json:"validateCode,omitempty"`
 	Translation            *TerminologyCapabilitiesTranslation    `json:"translation,omitempty"`
@@ -388,7 +388,7 @@ type TerminologyCapabilitiesCodeSystem struct {
 	URI                *string                                    `json:"uri,omitempty"`
 	URIElement         *fhir.PrimitiveElement                     `json:"-"`
 	Version            []TerminologyCapabilitiesCodeSystemVersion `json:"version,omitempty"`
-	Content            *string                                    `json:"content,omitempty"`
+	Content            *CodeSystemContentMode                     `json:"content,omitempty"`
 	ContentElement     *fhir.PrimitiveElement                     `json:"-"`
 	Subsumption        *bool                                      `json:"subsumption,omitempty"`
 	SubsumptionElement *fhir.PrimitiveElement                     `json:"-"`
@@ -475,7 +475,7 @@ type TerminologyCapabilitiesCodeSystemVersion struct {
 	IsDefaultElement     *fhir.PrimitiveElement                           `json:"-"`
 	Compositional        *bool                                            `json:"compositional,omitempty"`
 	CompositionalElement *fhir.PrimitiveElement                           `json:"-"`
-	Language             []string                                         `json:"language,omitempty"`
+	Language             []CommonLanguages                                `json:"language,omitempty"`
 	LanguageElement      []*fhir.PrimitiveElement                         `json:"-"`
 	Filter               []TerminologyCapabilitiesCodeSystemVersionFilter `json:"filter,omitempty"`
 	Property             []string                                         `json:"property,omitempty"`

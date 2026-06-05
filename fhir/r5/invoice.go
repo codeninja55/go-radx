@@ -14,7 +14,7 @@ const InvoiceResourceType = "Invoice"
 type Invoice struct {
 	DomainResource
 	Identifier             []Identifier           `json:"identifier,omitempty"`
-	Status                 *string                `json:"status,omitempty"`
+	Status                 *InvoiceStatus         `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement `json:"-"`
 	CancelledReason        *string                `json:"cancelledReason,omitempty"`
 	CancelledReasonElement *fhir.PrimitiveElement `json:"-"`

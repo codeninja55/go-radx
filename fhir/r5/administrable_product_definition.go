@@ -14,7 +14,7 @@ const AdministrableProductDefinitionResourceType = "AdministrableProductDefiniti
 type AdministrableProductDefinition struct {
 	DomainResource
 	Identifier            []Identifier                                          `json:"identifier,omitempty"`
-	Status                *string                                               `json:"status,omitempty"`
+	Status                *PublicationStatus                                    `json:"status,omitempty"`
 	StatusElement         *fhir.PrimitiveElement                                `json:"-"`
 	FormOf                []Reference                                           `json:"formOf,omitempty"`
 	AdministrableDoseForm *CodeableConcept                                      `json:"administrableDoseForm,omitempty"`

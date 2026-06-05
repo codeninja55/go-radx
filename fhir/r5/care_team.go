@@ -14,7 +14,7 @@ const CareTeamResourceType = "CareTeam"
 type CareTeam struct {
 	DomainResource
 	Identifier           []Identifier           `json:"identifier,omitempty"`
-	Status               *string                `json:"status,omitempty"`
+	Status               *CareTeamStatus        `json:"status,omitempty"`
 	StatusElement        *fhir.PrimitiveElement `json:"-"`
 	Category             []CodeableConcept      `json:"category,omitempty"`
 	Name                 *string                `json:"name,omitempty"`

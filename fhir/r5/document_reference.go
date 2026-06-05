@@ -17,9 +17,9 @@ type DocumentReference struct {
 	Version            *string                      `json:"version,omitempty"`
 	VersionElement     *fhir.PrimitiveElement       `json:"-"`
 	BasedOn            []Reference                  `json:"basedOn,omitempty"`
-	Status             *string                      `json:"status,omitempty"`
+	Status             *DocumentReferenceStatus     `json:"status,omitempty"`
 	StatusElement      *fhir.PrimitiveElement       `json:"-"`
-	DocStatus          *string                      `json:"docStatus,omitempty"`
+	DocStatus          *CompositionStatus           `json:"docStatus,omitempty"`
 	DocStatusElement   *fhir.PrimitiveElement       `json:"-"`
 	Modality           []CodeableConcept            `json:"modality,omitempty"`
 	Type               *CodeableConcept             `json:"type,omitempty"`

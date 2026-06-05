@@ -13,25 +13,25 @@ const ImmunizationEvaluationResourceType = "ImmunizationEvaluation"
 // ImmunizationEvaluation is the generated FHIR ImmunizationEvaluation resource.
 type ImmunizationEvaluation struct {
 	DomainResource
-	Identifier         []Identifier           `json:"identifier,omitempty"`
-	Status             *string                `json:"status,omitempty"`
-	StatusElement      *fhir.PrimitiveElement `json:"-"`
-	Patient            *Reference             `json:"patient,omitempty"`
-	Date               *string                `json:"date,omitempty"`
-	DateElement        *fhir.PrimitiveElement `json:"-"`
-	Authority          *Reference             `json:"authority,omitempty"`
-	TargetDisease      *CodeableConcept       `json:"targetDisease,omitempty"`
-	ImmunizationEvent  *Reference             `json:"immunizationEvent,omitempty"`
-	DoseStatus         *CodeableConcept       `json:"doseStatus,omitempty"`
-	DoseStatusReason   []CodeableConcept      `json:"doseStatusReason,omitempty"`
-	Description        *string                `json:"description,omitempty"`
-	DescriptionElement *fhir.PrimitiveElement `json:"-"`
-	Series             *string                `json:"series,omitempty"`
-	SeriesElement      *fhir.PrimitiveElement `json:"-"`
-	DoseNumber         *string                `json:"doseNumber,omitempty"`
-	DoseNumberElement  *fhir.PrimitiveElement `json:"-"`
-	SeriesDoses        *string                `json:"seriesDoses,omitempty"`
-	SeriesDosesElement *fhir.PrimitiveElement `json:"-"`
+	Identifier         []Identifier                       `json:"identifier,omitempty"`
+	Status             *ImmunizationEvaluationStatusCodes `json:"status,omitempty"`
+	StatusElement      *fhir.PrimitiveElement             `json:"-"`
+	Patient            *Reference                         `json:"patient,omitempty"`
+	Date               *string                            `json:"date,omitempty"`
+	DateElement        *fhir.PrimitiveElement             `json:"-"`
+	Authority          *Reference                         `json:"authority,omitempty"`
+	TargetDisease      *CodeableConcept                   `json:"targetDisease,omitempty"`
+	ImmunizationEvent  *Reference                         `json:"immunizationEvent,omitempty"`
+	DoseStatus         *CodeableConcept                   `json:"doseStatus,omitempty"`
+	DoseStatusReason   []CodeableConcept                  `json:"doseStatusReason,omitempty"`
+	Description        *string                            `json:"description,omitempty"`
+	DescriptionElement *fhir.PrimitiveElement             `json:"-"`
+	Series             *string                            `json:"series,omitempty"`
+	SeriesElement      *fhir.PrimitiveElement             `json:"-"`
+	DoseNumber         *string                            `json:"doseNumber,omitempty"`
+	DoseNumberElement  *fhir.PrimitiveElement             `json:"-"`
+	SeriesDoses        *string                            `json:"seriesDoses,omitempty"`
+	SeriesDosesElement *fhir.PrimitiveElement             `json:"-"`
 }
 
 // ResourceType returns the FHIR discriminator "ImmunizationEvaluation".

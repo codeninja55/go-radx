@@ -15,7 +15,7 @@ type Immunization struct {
 	DomainResource
 	Identifier            []Identifier                     `json:"identifier,omitempty"`
 	BasedOn               []Reference                      `json:"basedOn,omitempty"`
-	Status                *string                          `json:"status,omitempty"`
+	Status                *ImmunizationStatusCodes         `json:"status,omitempty"`
 	StatusElement         *fhir.PrimitiveElement           `json:"-"`
 	StatusReason          *CodeableConcept                 `json:"statusReason,omitempty"`
 	VaccineCode           *CodeableConcept                 `json:"vaccineCode,omitempty"`

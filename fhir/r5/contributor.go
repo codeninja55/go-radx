@@ -10,7 +10,7 @@ import (
 // Contributor is the generated FHIR Contributor datatype.
 type Contributor struct {
 	Element
-	Type        *string                `json:"type,omitempty"`
+	Type        *ContributorType       `json:"type,omitempty"`
 	TypeElement *fhir.PrimitiveElement `json:"-"`
 	Name        *string                `json:"name,omitempty"`
 	NameElement *fhir.PrimitiveElement `json:"-"`

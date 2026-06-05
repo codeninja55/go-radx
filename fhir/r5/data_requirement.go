@@ -10,7 +10,7 @@ import (
 // DataRequirement is the generated FHIR DataRequirement datatype.
 type DataRequirement struct {
 	Element
-	Type                   *string                      `json:"type,omitempty"`
+	Type                   *FHIRTypes                   `json:"type,omitempty"`
 	TypeElement            *fhir.PrimitiveElement       `json:"-"`
 	Profile                []string                     `json:"profile,omitempty"`
 	ProfileElement         []*fhir.PrimitiveElement     `json:"-"`
@@ -367,7 +367,7 @@ type DataRequirementSort struct {
 	Element
 	Path             *string                `json:"path,omitempty"`
 	PathElement      *fhir.PrimitiveElement `json:"-"`
-	Direction        *string                `json:"direction,omitempty"`
+	Direction        *SortDirection         `json:"direction,omitempty"`
 	DirectionElement *fhir.PrimitiveElement `json:"-"`
 }
 
@@ -438,7 +438,7 @@ type DataRequirementValueFilter struct {
 	PathElement        *fhir.PrimitiveElement `json:"-"`
 	SearchParam        *string                `json:"searchParam,omitempty"`
 	SearchParamElement *fhir.PrimitiveElement `json:"-"`
-	Comparator         *string                `json:"comparator,omitempty"`
+	Comparator         *ValueFilterComparator `json:"comparator,omitempty"`
 	ComparatorElement  *fhir.PrimitiveElement `json:"-"`
 	ValueDateTime      *FHIRDateTime          `json:"valueDateTime,omitempty"`
 	ValuePeriod        *Period                `json:"valuePeriod,omitempty"`

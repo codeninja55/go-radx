@@ -14,7 +14,7 @@ const EndpointResourceType = "Endpoint"
 type Endpoint struct {
 	DomainResource
 	Identifier           []Identifier             `json:"identifier,omitempty"`
-	Status               *string                  `json:"status,omitempty"`
+	Status               *EndpointStatus          `json:"status,omitempty"`
 	StatusElement        *fhir.PrimitiveElement   `json:"-"`
 	ConnectionType       []CodeableConcept        `json:"connectionType,omitempty"`
 	Name                 *string                  `json:"name,omitempty"`

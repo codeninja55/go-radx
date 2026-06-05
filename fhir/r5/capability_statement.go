@@ -24,7 +24,7 @@ type CapabilityStatement struct {
 	NameElement                *fhir.PrimitiveElement             `json:"-"`
 	Title                      *string                            `json:"title,omitempty"`
 	TitleElement               *fhir.PrimitiveElement             `json:"-"`
-	Status                     *string                            `json:"status,omitempty"`
+	Status                     *PublicationStatus                 `json:"status,omitempty"`
 	StatusElement              *fhir.PrimitiveElement             `json:"-"`
 	Experimental               *bool                              `json:"experimental,omitempty"`
 	ExperimentalElement        *fhir.PrimitiveElement             `json:"-"`
@@ -43,7 +43,7 @@ type CapabilityStatement struct {
 	CopyrightElement           *fhir.PrimitiveElement             `json:"-"`
 	CopyrightLabel             *string                            `json:"copyrightLabel,omitempty"`
 	CopyrightLabelElement      *fhir.PrimitiveElement             `json:"-"`
-	Kind                       *string                            `json:"kind,omitempty"`
+	Kind                       *CapabilityStatementKind           `json:"kind,omitempty"`
 	KindElement                *fhir.PrimitiveElement             `json:"-"`
 	Instantiates               []string                           `json:"instantiates,omitempty"`
 	InstantiatesElement        []*fhir.PrimitiveElement           `json:"-"`
@@ -51,7 +51,7 @@ type CapabilityStatement struct {
 	ImportsElement             []*fhir.PrimitiveElement           `json:"-"`
 	Software                   *CapabilityStatementSoftware       `json:"software,omitempty"`
 	Implementation             *CapabilityStatementImplementation `json:"implementation,omitempty"`
-	FhirVersion                *string                            `json:"fhirVersion,omitempty"`
+	FhirVersion                *FHIRVersion                       `json:"fhirVersion,omitempty"`
 	FhirVersionElement         *fhir.PrimitiveElement             `json:"-"`
 	Format                     []string                           `json:"format,omitempty"`
 	FormatElement              []*fhir.PrimitiveElement           `json:"-"`
@@ -398,7 +398,7 @@ func (r *CapabilityStatement) SetVersionAlgorithmCoding(v Coding) {
 // CapabilityStatementDocument is a generated nested backbone element.
 type CapabilityStatementDocument struct {
 	BackboneElement
-	Mode                 *string                `json:"mode,omitempty"`
+	Mode                 *DocumentMode          `json:"mode,omitempty"`
 	ModeElement          *fhir.PrimitiveElement `json:"-"`
 	Documentation        *string                `json:"documentation,omitempty"`
 	DocumentationElement *fhir.PrimitiveElement `json:"-"`
@@ -678,7 +678,7 @@ func (v *CapabilityStatementMessagingEndpoint) UnmarshalJSON(data []byte) error 
 // CapabilityStatementMessagingSupportedMessage is a generated nested backbone element.
 type CapabilityStatementMessagingSupportedMessage struct {
 	BackboneElement
-	Mode              *string                `json:"mode,omitempty"`
+	Mode              *EventCapabilityMode   `json:"mode,omitempty"`
 	ModeElement       *fhir.PrimitiveElement `json:"-"`
 	Definition        *string                `json:"definition,omitempty"`
 	DefinitionElement *fhir.PrimitiveElement `json:"-"`
@@ -747,13 +747,13 @@ func (v *CapabilityStatementMessagingSupportedMessage) UnmarshalJSON(data []byte
 // CapabilityStatementRest is a generated nested backbone element.
 type CapabilityStatementRest struct {
 	BackboneElement
-	Mode                 *string                                      `json:"mode,omitempty"`
+	Mode                 *RestfulCapabilityMode                       `json:"mode,omitempty"`
 	ModeElement          *fhir.PrimitiveElement                       `json:"-"`
 	Documentation        *string                                      `json:"documentation,omitempty"`
 	DocumentationElement *fhir.PrimitiveElement                       `json:"-"`
 	Security             *CapabilityStatementRestSecurity             `json:"security,omitempty"`
 	Resource             []CapabilityStatementRestResource            `json:"resource,omitempty"`
-	Interaction          []CapabilityStatementRestResourceInteraction `json:"interaction,omitempty"`
+	Interaction          []CapabilityStatementRestInteraction         `json:"interaction,omitempty"`
 	SearchParam          []CapabilityStatementRestResourceSearchParam `json:"searchParam,omitempty"`
 	Operation            []CapabilityStatementRestResourceOperation   `json:"operation,omitempty"`
 	Compartment          []string                                     `json:"compartment,omitempty"`
@@ -832,10 +832,79 @@ func (v *CapabilityStatementRest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// CapabilityStatementRestInteraction is a generated nested backbone element.
+type CapabilityStatementRestInteraction struct {
+	BackboneElement
+	Code                 *SystemRestfulInteraction `json:"code,omitempty"`
+	CodeElement          *fhir.PrimitiveElement    `json:"-"`
+	Documentation        *string                   `json:"documentation,omitempty"`
+	DocumentationElement *fhir.PrimitiveElement    `json:"-"`
+}
+
+// MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
+// value: scalar siblings dropped when empty, repeating siblings null-aligned with
+// their value arrays.
+func (v CapabilityStatementRestInteraction) MarshalJSON() ([]byte, error) {
+	type alias CapabilityStatementRestInteraction
+	encoded, err := json.Marshal(alias(v))
+	if err != nil {
+		return nil, err
+	}
+	return marshalCapabilityStatementRestInteractionSiblings(&v, encoded)
+}
+
+// marshalCapabilityStatementRestInteractionSiblings appends the primitive "_field" siblings to the
+// already-encoded object, preserving the value fields' canonical order: an empty
+// scalar sibling and an un-extended repeating sibling are skipped, and a repeating
+// sibling's array is null-aligned with its value array.
+func marshalCapabilityStatementRestInteractionSiblings(v *CapabilityStatementRestInteraction, encoded []byte) ([]byte, error) {
+	var siblings []fhir.RawSibling
+	if raw, err := fhir.MarshalPrimitiveExtension(v.CodeElement); err != nil {
+		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_code", Value: raw})
+	}
+	if raw, err := fhir.MarshalPrimitiveExtension(v.DocumentationElement); err != nil {
+		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_documentation", Value: raw})
+	}
+	return fhir.AppendSiblings(encoded, siblings)
+}
+
+// UnmarshalJSON lifts each primitive "_field" sibling out of the object, decodes it
+// into its companion field, then decodes the remaining keys into the value struct.
+func (v *CapabilityStatementRestInteraction) UnmarshalJSON(data []byte) error {
+	obj, err := fhir.SplitRawObject(data)
+	if err != nil {
+		return err
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_code"); ok {
+		var element fhir.PrimitiveElement
+		if err := json.Unmarshal(raw, &element); err != nil {
+			return err
+		}
+		v.CodeElement = &element
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_documentation"); ok {
+		var element fhir.PrimitiveElement
+		if err := json.Unmarshal(raw, &element); err != nil {
+			return err
+		}
+		v.DocumentationElement = &element
+	}
+	residual, err := fhir.RemarshalObject(obj)
+	if err != nil {
+		return err
+	}
+	type alias CapabilityStatementRestInteraction
+	return json.Unmarshal(residual, (*alias)(v))
+}
+
 // CapabilityStatementRestResource is a generated nested backbone element.
 type CapabilityStatementRestResource struct {
 	BackboneElement
-	Type                     *string                                      `json:"type,omitempty"`
+	Type                     *ResourceType                                `json:"type,omitempty"`
 	TypeElement              *fhir.PrimitiveElement                       `json:"-"`
 	Profile                  *string                                      `json:"profile,omitempty"`
 	ProfileElement           *fhir.PrimitiveElement                       `json:"-"`
@@ -844,7 +913,7 @@ type CapabilityStatementRestResource struct {
 	Documentation            *string                                      `json:"documentation,omitempty"`
 	DocumentationElement     *fhir.PrimitiveElement                       `json:"-"`
 	Interaction              []CapabilityStatementRestResourceInteraction `json:"interaction,omitempty"`
-	Versioning               *string                                      `json:"versioning,omitempty"`
+	Versioning               *ResourceVersionPolicy                       `json:"versioning,omitempty"`
 	VersioningElement        *fhir.PrimitiveElement                       `json:"-"`
 	ReadHistory              *bool                                        `json:"readHistory,omitempty"`
 	ReadHistoryElement       *fhir.PrimitiveElement                       `json:"-"`
@@ -852,15 +921,15 @@ type CapabilityStatementRestResource struct {
 	UpdateCreateElement      *fhir.PrimitiveElement                       `json:"-"`
 	ConditionalCreate        *bool                                        `json:"conditionalCreate,omitempty"`
 	ConditionalCreateElement *fhir.PrimitiveElement                       `json:"-"`
-	ConditionalRead          *string                                      `json:"conditionalRead,omitempty"`
+	ConditionalRead          *ConditionalReadStatus                       `json:"conditionalRead,omitempty"`
 	ConditionalReadElement   *fhir.PrimitiveElement                       `json:"-"`
 	ConditionalUpdate        *bool                                        `json:"conditionalUpdate,omitempty"`
 	ConditionalUpdateElement *fhir.PrimitiveElement                       `json:"-"`
 	ConditionalPatch         *bool                                        `json:"conditionalPatch,omitempty"`
 	ConditionalPatchElement  *fhir.PrimitiveElement                       `json:"-"`
-	ConditionalDelete        *string                                      `json:"conditionalDelete,omitempty"`
+	ConditionalDelete        *ConditionalDeleteStatus                     `json:"conditionalDelete,omitempty"`
 	ConditionalDeleteElement *fhir.PrimitiveElement                       `json:"-"`
-	ReferencePolicy          []string                                     `json:"referencePolicy,omitempty"`
+	ReferencePolicy          []ReferenceHandlingPolicy                    `json:"referencePolicy,omitempty"`
 	ReferencePolicyElement   []*fhir.PrimitiveElement                     `json:"-"`
 	SearchInclude            []string                                     `json:"searchInclude,omitempty"`
 	SearchIncludeElement     []*fhir.PrimitiveElement                     `json:"-"`
@@ -1089,10 +1158,10 @@ func (v *CapabilityStatementRestResource) UnmarshalJSON(data []byte) error {
 // CapabilityStatementRestResourceInteraction is a generated nested backbone element.
 type CapabilityStatementRestResourceInteraction struct {
 	BackboneElement
-	Code                 *string                `json:"code,omitempty"`
-	CodeElement          *fhir.PrimitiveElement `json:"-"`
-	Documentation        *string                `json:"documentation,omitempty"`
-	DocumentationElement *fhir.PrimitiveElement `json:"-"`
+	Code                 *TypeRestfulInteraction `json:"code,omitempty"`
+	CodeElement          *fhir.PrimitiveElement  `json:"-"`
+	Documentation        *string                 `json:"documentation,omitempty"`
+	DocumentationElement *fhir.PrimitiveElement  `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -1245,7 +1314,7 @@ type CapabilityStatementRestResourceSearchParam struct {
 	NameElement          *fhir.PrimitiveElement `json:"-"`
 	Definition           *string                `json:"definition,omitempty"`
 	DefinitionElement    *fhir.PrimitiveElement `json:"-"`
-	Type                 *string                `json:"type,omitempty"`
+	Type                 *SearchParamType       `json:"type,omitempty"`
 	TypeElement          *fhir.PrimitiveElement `json:"-"`
 	Documentation        *string                `json:"documentation,omitempty"`
 	DocumentationElement *fhir.PrimitiveElement `json:"-"`

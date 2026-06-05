@@ -14,7 +14,7 @@ const ManufacturedItemDefinitionResourceType = "ManufacturedItemDefinition"
 type ManufacturedItemDefinition struct {
 	DomainResource
 	Identifier           []Identifier                          `json:"identifier,omitempty"`
-	Status               *string                               `json:"status,omitempty"`
+	Status               *PublicationStatus                    `json:"status,omitempty"`
 	StatusElement        *fhir.PrimitiveElement                `json:"-"`
 	Name                 *string                               `json:"name,omitempty"`
 	NameElement          *fhir.PrimitiveElement                `json:"-"`

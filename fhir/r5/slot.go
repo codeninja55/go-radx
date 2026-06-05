@@ -19,7 +19,7 @@ type Slot struct {
 	Specialty         []CodeableConcept      `json:"specialty,omitempty"`
 	AppointmentType   []CodeableConcept      `json:"appointmentType,omitempty"`
 	Schedule          *Reference             `json:"schedule,omitempty"`
-	Status            *string                `json:"status,omitempty"`
+	Status            *SlotStatus            `json:"status,omitempty"`
 	StatusElement     *fhir.PrimitiveElement `json:"-"`
 	Start             *string                `json:"start,omitempty"`
 	StartElement      *fhir.PrimitiveElement `json:"-"`

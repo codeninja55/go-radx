@@ -20,7 +20,7 @@ type NutritionIntake struct {
 	InstantiatesUriElement       []*fhir.PrimitiveElement         `json:"-"`
 	BasedOn                      []Reference                      `json:"basedOn,omitempty"`
 	PartOf                       []Reference                      `json:"partOf,omitempty"`
-	Status                       *string                          `json:"status,omitempty"`
+	Status                       *EventStatus                     `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement           `json:"-"`
 	StatusReason                 []CodeableConcept                `json:"statusReason,omitempty"`
 	Code                         *CodeableConcept                 `json:"code,omitempty"`

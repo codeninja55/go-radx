@@ -26,7 +26,7 @@ type SubscriptionTopic struct {
 	TitleElement           *fhir.PrimitiveElement               `json:"-"`
 	DerivedFrom            []string                             `json:"derivedFrom,omitempty"`
 	DerivedFromElement     []*fhir.PrimitiveElement             `json:"-"`
-	Status                 *string                              `json:"status,omitempty"`
+	Status                 *PublicationStatus                   `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement               `json:"-"`
 	Experimental           *bool                                `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement               `json:"-"`
@@ -336,9 +336,9 @@ type SubscriptionTopicCanFilterBy struct {
 	FilterParameterElement  *fhir.PrimitiveElement   `json:"-"`
 	FilterDefinition        *string                  `json:"filterDefinition,omitempty"`
 	FilterDefinitionElement *fhir.PrimitiveElement   `json:"-"`
-	Comparator              []string                 `json:"comparator,omitempty"`
+	Comparator              []SearchComparator       `json:"comparator,omitempty"`
 	ComparatorElement       []*fhir.PrimitiveElement `json:"-"`
-	Modifier                []string                 `json:"modifier,omitempty"`
+	Modifier                []SearchModifierCode     `json:"modifier,omitempty"`
 	ModifierElement         []*fhir.PrimitiveElement `json:"-"`
 }
 
@@ -610,7 +610,7 @@ type SubscriptionTopicResourceTrigger struct {
 	DescriptionElement          *fhir.PrimitiveElement                         `json:"-"`
 	Resource                    *string                                        `json:"resource,omitempty"`
 	ResourceElement             *fhir.PrimitiveElement                         `json:"-"`
-	SupportedInteraction        []string                                       `json:"supportedInteraction,omitempty"`
+	SupportedInteraction        []InteractionTrigger                           `json:"supportedInteraction,omitempty"`
 	SupportedInteractionElement []*fhir.PrimitiveElement                       `json:"-"`
 	QueryCriteria               *SubscriptionTopicResourceTriggerQueryCriteria `json:"queryCriteria,omitempty"`
 	FhirPathCriteria            *string                                        `json:"fhirPathCriteria,omitempty"`
@@ -704,16 +704,16 @@ func (v *SubscriptionTopicResourceTrigger) UnmarshalJSON(data []byte) error {
 // SubscriptionTopicResourceTriggerQueryCriteria is a generated nested backbone element.
 type SubscriptionTopicResourceTriggerQueryCriteria struct {
 	BackboneElement
-	Previous               *string                `json:"previous,omitempty"`
-	PreviousElement        *fhir.PrimitiveElement `json:"-"`
-	ResultForCreate        *string                `json:"resultForCreate,omitempty"`
-	ResultForCreateElement *fhir.PrimitiveElement `json:"-"`
-	Current                *string                `json:"current,omitempty"`
-	CurrentElement         *fhir.PrimitiveElement `json:"-"`
-	ResultForDelete        *string                `json:"resultForDelete,omitempty"`
-	ResultForDeleteElement *fhir.PrimitiveElement `json:"-"`
-	RequireBoth            *bool                  `json:"requireBoth,omitempty"`
-	RequireBothElement     *fhir.PrimitiveElement `json:"-"`
+	Previous               *string                    `json:"previous,omitempty"`
+	PreviousElement        *fhir.PrimitiveElement     `json:"-"`
+	ResultForCreate        *CriteriaNotExistsBehavior `json:"resultForCreate,omitempty"`
+	ResultForCreateElement *fhir.PrimitiveElement     `json:"-"`
+	Current                *string                    `json:"current,omitempty"`
+	CurrentElement         *fhir.PrimitiveElement     `json:"-"`
+	ResultForDelete        *CriteriaNotExistsBehavior `json:"resultForDelete,omitempty"`
+	ResultForDeleteElement *fhir.PrimitiveElement     `json:"-"`
+	RequireBoth            *bool                      `json:"requireBoth,omitempty"`
+	RequireBothElement     *fhir.PrimitiveElement     `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

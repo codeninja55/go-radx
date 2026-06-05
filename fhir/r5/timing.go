@@ -80,7 +80,7 @@ type TimingRepeat struct {
 	DurationElement     *fhir.PrimitiveElement   `json:"-"`
 	DurationMax         *fhir.Decimal            `json:"durationMax,omitempty"`
 	DurationMaxElement  *fhir.PrimitiveElement   `json:"-"`
-	DurationUnit        *string                  `json:"durationUnit,omitempty"`
+	DurationUnit        *UnitsOfTime             `json:"durationUnit,omitempty"`
 	DurationUnitElement *fhir.PrimitiveElement   `json:"-"`
 	Frequency           *int32                   `json:"frequency,omitempty"`
 	FrequencyElement    *fhir.PrimitiveElement   `json:"-"`
@@ -90,13 +90,13 @@ type TimingRepeat struct {
 	PeriodElement       *fhir.PrimitiveElement   `json:"-"`
 	PeriodMax           *fhir.Decimal            `json:"periodMax,omitempty"`
 	PeriodMaxElement    *fhir.PrimitiveElement   `json:"-"`
-	PeriodUnit          *string                  `json:"periodUnit,omitempty"`
+	PeriodUnit          *UnitsOfTime             `json:"periodUnit,omitempty"`
 	PeriodUnitElement   *fhir.PrimitiveElement   `json:"-"`
-	DayOfWeek           []string                 `json:"dayOfWeek,omitempty"`
+	DayOfWeek           []DaysOfWeek             `json:"dayOfWeek,omitempty"`
 	DayOfWeekElement    []*fhir.PrimitiveElement `json:"-"`
 	TimeOfDay           []string                 `json:"timeOfDay,omitempty"`
 	TimeOfDayElement    []*fhir.PrimitiveElement `json:"-"`
-	When                []string                 `json:"when,omitempty"`
+	When                []EventTiming            `json:"when,omitempty"`
 	WhenElement         []*fhir.PrimitiveElement `json:"-"`
 	Offset              *int32                   `json:"offset,omitempty"`
 	OffsetElement       *fhir.PrimitiveElement   `json:"-"`

@@ -16,7 +16,7 @@ type Substance struct {
 	Identifier         []Identifier           `json:"identifier,omitempty"`
 	Instance           *bool                  `json:"instance,omitempty"`
 	InstanceElement    *fhir.PrimitiveElement `json:"-"`
-	Status             *string                `json:"status,omitempty"`
+	Status             *FHIRSubstanceStatus   `json:"status,omitempty"`
 	StatusElement      *fhir.PrimitiveElement `json:"-"`
 	Category           []CodeableConcept      `json:"category,omitempty"`
 	Code               *CodeableReference     `json:"code,omitempty"`

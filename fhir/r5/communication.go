@@ -21,11 +21,11 @@ type Communication struct {
 	BasedOn                      []Reference              `json:"basedOn,omitempty"`
 	PartOf                       []Reference              `json:"partOf,omitempty"`
 	InResponseTo                 []Reference              `json:"inResponseTo,omitempty"`
-	Status                       *string                  `json:"status,omitempty"`
+	Status                       *EventStatus             `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement   `json:"-"`
 	StatusReason                 *CodeableConcept         `json:"statusReason,omitempty"`
 	Category                     []CodeableConcept        `json:"category,omitempty"`
-	Priority                     *string                  `json:"priority,omitempty"`
+	Priority                     *RequestPriority         `json:"priority,omitempty"`
 	PriorityElement              *fhir.PrimitiveElement   `json:"-"`
 	Medium                       []CodeableConcept        `json:"medium,omitempty"`
 	Subject                      *Reference               `json:"subject,omitempty"`

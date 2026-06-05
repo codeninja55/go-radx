@@ -14,9 +14,9 @@ const InventoryReportResourceType = "InventoryReport"
 type InventoryReport struct {
 	DomainResource
 	Identifier              []Identifier                      `json:"identifier,omitempty"`
-	Status                  *string                           `json:"status,omitempty"`
+	Status                  *InventoryReportStatus            `json:"status,omitempty"`
 	StatusElement           *fhir.PrimitiveElement            `json:"-"`
-	CountType               *string                           `json:"countType,omitempty"`
+	CountType               *InventoryCountType               `json:"countType,omitempty"`
 	CountTypeElement        *fhir.PrimitiveElement            `json:"-"`
 	OperationType           *CodeableConcept                  `json:"operationType,omitempty"`
 	OperationTypeReason     *CodeableConcept                  `json:"operationTypeReason,omitempty"`

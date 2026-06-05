@@ -13,15 +13,15 @@ const EnrollmentRequestResourceType = "EnrollmentRequest"
 // EnrollmentRequest is the generated FHIR EnrollmentRequest resource.
 type EnrollmentRequest struct {
 	DomainResource
-	Identifier     []Identifier           `json:"identifier,omitempty"`
-	Status         *string                `json:"status,omitempty"`
-	StatusElement  *fhir.PrimitiveElement `json:"-"`
-	Created        *string                `json:"created,omitempty"`
-	CreatedElement *fhir.PrimitiveElement `json:"-"`
-	Insurer        *Reference             `json:"insurer,omitempty"`
-	Provider       *Reference             `json:"provider,omitempty"`
-	Candidate      *Reference             `json:"candidate,omitempty"`
-	Coverage       *Reference             `json:"coverage,omitempty"`
+	Identifier     []Identifier                  `json:"identifier,omitempty"`
+	Status         *FinancialResourceStatusCodes `json:"status,omitempty"`
+	StatusElement  *fhir.PrimitiveElement        `json:"-"`
+	Created        *string                       `json:"created,omitempty"`
+	CreatedElement *fhir.PrimitiveElement        `json:"-"`
+	Insurer        *Reference                    `json:"insurer,omitempty"`
+	Provider       *Reference                    `json:"provider,omitempty"`
+	Candidate      *Reference                    `json:"candidate,omitempty"`
+	Coverage       *Reference                    `json:"coverage,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "EnrollmentRequest".

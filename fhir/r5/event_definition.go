@@ -26,7 +26,7 @@ type EventDefinition struct {
 	TitleElement           *fhir.PrimitiveElement `json:"-"`
 	Subtitle               *string                `json:"subtitle,omitempty"`
 	SubtitleElement        *fhir.PrimitiveElement `json:"-"`
-	Status                 *string                `json:"status,omitempty"`
+	Status                 *PublicationStatus     `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement `json:"-"`
 	Experimental           *bool                  `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement `json:"-"`

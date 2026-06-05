@@ -24,7 +24,7 @@ type ObservationDefinition struct {
 	NameElement                   *fhir.PrimitiveElement                `json:"-"`
 	Title                         *string                               `json:"title,omitempty"`
 	TitleElement                  *fhir.PrimitiveElement                `json:"-"`
-	Status                        *string                               `json:"status,omitempty"`
+	Status                        *PublicationStatus                    `json:"status,omitempty"`
 	StatusElement                 *fhir.PrimitiveElement                `json:"-"`
 	Experimental                  *bool                                 `json:"experimental,omitempty"`
 	ExperimentalElement           *fhir.PrimitiveElement                `json:"-"`
@@ -56,7 +56,7 @@ type ObservationDefinition struct {
 	PerformerType                 *CodeableConcept                      `json:"performerType,omitempty"`
 	Category                      []CodeableConcept                     `json:"category,omitempty"`
 	Code                          *CodeableConcept                      `json:"code,omitempty"`
-	PermittedDataType             []string                              `json:"permittedDataType,omitempty"`
+	PermittedDataType             []ObservationDataType                 `json:"permittedDataType,omitempty"`
 	PermittedDataTypeElement      []*fhir.PrimitiveElement              `json:"-"`
 	MultipleResultsAllowed        *bool                                 `json:"multipleResultsAllowed,omitempty"`
 	MultipleResultsAllowedElement *fhir.PrimitiveElement                `json:"-"`
@@ -393,7 +393,7 @@ func (r *ObservationDefinition) SetVersionAlgorithmCoding(v Coding) {
 type ObservationDefinitionComponent struct {
 	BackboneElement
 	Code                     *CodeableConcept                      `json:"code,omitempty"`
-	PermittedDataType        []string                              `json:"permittedDataType,omitempty"`
+	PermittedDataType        []ObservationDataType                 `json:"permittedDataType,omitempty"`
 	PermittedDataTypeElement []*fhir.PrimitiveElement              `json:"-"`
 	PermittedUnit            []Coding                              `json:"permittedUnit,omitempty"`
 	QualifiedValue           []ObservationDefinitionQualifiedValue `json:"qualifiedValue,omitempty"`
@@ -450,25 +450,25 @@ func (v *ObservationDefinitionComponent) UnmarshalJSON(data []byte) error {
 // ObservationDefinitionQualifiedValue is a generated nested backbone element.
 type ObservationDefinitionQualifiedValue struct {
 	BackboneElement
-	Context                      *CodeableConcept       `json:"context,omitempty"`
-	AppliesTo                    []CodeableConcept      `json:"appliesTo,omitempty"`
-	Gender                       *string                `json:"gender,omitempty"`
-	GenderElement                *fhir.PrimitiveElement `json:"-"`
-	Age                          *Range                 `json:"age,omitempty"`
-	GestationalAge               *Range                 `json:"gestationalAge,omitempty"`
-	Condition                    *string                `json:"condition,omitempty"`
-	ConditionElement             *fhir.PrimitiveElement `json:"-"`
-	RangeCategory                *string                `json:"rangeCategory,omitempty"`
-	RangeCategoryElement         *fhir.PrimitiveElement `json:"-"`
-	Range                        *Range                 `json:"range,omitempty"`
-	ValidCodedValueSet           *string                `json:"validCodedValueSet,omitempty"`
-	ValidCodedValueSetElement    *fhir.PrimitiveElement `json:"-"`
-	NormalCodedValueSet          *string                `json:"normalCodedValueSet,omitempty"`
-	NormalCodedValueSetElement   *fhir.PrimitiveElement `json:"-"`
-	AbnormalCodedValueSet        *string                `json:"abnormalCodedValueSet,omitempty"`
-	AbnormalCodedValueSetElement *fhir.PrimitiveElement `json:"-"`
-	CriticalCodedValueSet        *string                `json:"criticalCodedValueSet,omitempty"`
-	CriticalCodedValueSetElement *fhir.PrimitiveElement `json:"-"`
+	Context                      *CodeableConcept          `json:"context,omitempty"`
+	AppliesTo                    []CodeableConcept         `json:"appliesTo,omitempty"`
+	Gender                       *AdministrativeGender     `json:"gender,omitempty"`
+	GenderElement                *fhir.PrimitiveElement    `json:"-"`
+	Age                          *Range                    `json:"age,omitempty"`
+	GestationalAge               *Range                    `json:"gestationalAge,omitempty"`
+	Condition                    *string                   `json:"condition,omitempty"`
+	ConditionElement             *fhir.PrimitiveElement    `json:"-"`
+	RangeCategory                *ObservationRangeCategory `json:"rangeCategory,omitempty"`
+	RangeCategoryElement         *fhir.PrimitiveElement    `json:"-"`
+	Range                        *Range                    `json:"range,omitempty"`
+	ValidCodedValueSet           *string                   `json:"validCodedValueSet,omitempty"`
+	ValidCodedValueSetElement    *fhir.PrimitiveElement    `json:"-"`
+	NormalCodedValueSet          *string                   `json:"normalCodedValueSet,omitempty"`
+	NormalCodedValueSetElement   *fhir.PrimitiveElement    `json:"-"`
+	AbnormalCodedValueSet        *string                   `json:"abnormalCodedValueSet,omitempty"`
+	AbnormalCodedValueSetElement *fhir.PrimitiveElement    `json:"-"`
+	CriticalCodedValueSet        *string                   `json:"criticalCodedValueSet,omitempty"`
+	CriticalCodedValueSetElement *fhir.PrimitiveElement    `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

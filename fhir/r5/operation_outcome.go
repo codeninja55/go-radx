@@ -36,9 +36,9 @@ func (r *OperationOutcome) MarshalJSON() ([]byte, error) {
 // OperationOutcomeIssue is a generated nested backbone element.
 type OperationOutcomeIssue struct {
 	BackboneElement
-	Severity           *string                  `json:"severity,omitempty"`
+	Severity           *IssueSeverity           `json:"severity,omitempty"`
 	SeverityElement    *fhir.PrimitiveElement   `json:"-"`
-	Code               *string                  `json:"code,omitempty"`
+	Code               *IssueType               `json:"code,omitempty"`
 	CodeElement        *fhir.PrimitiveElement   `json:"-"`
 	Details            *CodeableConcept         `json:"details,omitempty"`
 	Diagnostics        *string                  `json:"diagnostics,omitempty"`

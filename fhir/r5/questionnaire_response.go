@@ -13,20 +13,20 @@ const QuestionnaireResponseResourceType = "QuestionnaireResponse"
 // QuestionnaireResponse is the generated FHIR QuestionnaireResponse resource.
 type QuestionnaireResponse struct {
 	DomainResource
-	Identifier           []Identifier                `json:"identifier,omitempty"`
-	BasedOn              []Reference                 `json:"basedOn,omitempty"`
-	PartOf               []Reference                 `json:"partOf,omitempty"`
-	Questionnaire        *string                     `json:"questionnaire,omitempty"`
-	QuestionnaireElement *fhir.PrimitiveElement      `json:"-"`
-	Status               *string                     `json:"status,omitempty"`
-	StatusElement        *fhir.PrimitiveElement      `json:"-"`
-	Subject              *Reference                  `json:"subject,omitempty"`
-	Encounter            *Reference                  `json:"encounter,omitempty"`
-	Authored             *string                     `json:"authored,omitempty"`
-	AuthoredElement      *fhir.PrimitiveElement      `json:"-"`
-	Author               *Reference                  `json:"author,omitempty"`
-	Source               *Reference                  `json:"source,omitempty"`
-	Item                 []QuestionnaireResponseItem `json:"item,omitempty"`
+	Identifier           []Identifier                 `json:"identifier,omitempty"`
+	BasedOn              []Reference                  `json:"basedOn,omitempty"`
+	PartOf               []Reference                  `json:"partOf,omitempty"`
+	Questionnaire        *string                      `json:"questionnaire,omitempty"`
+	QuestionnaireElement *fhir.PrimitiveElement       `json:"-"`
+	Status               *QuestionnaireResponseStatus `json:"status,omitempty"`
+	StatusElement        *fhir.PrimitiveElement       `json:"-"`
+	Subject              *Reference                   `json:"subject,omitempty"`
+	Encounter            *Reference                   `json:"encounter,omitempty"`
+	Authored             *string                      `json:"authored,omitempty"`
+	AuthoredElement      *fhir.PrimitiveElement       `json:"-"`
+	Author               *Reference                   `json:"author,omitempty"`
+	Source               *Reference                   `json:"source,omitempty"`
+	Item                 []QuestionnaireResponseItem  `json:"item,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "QuestionnaireResponse".

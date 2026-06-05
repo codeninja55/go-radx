@@ -14,7 +14,7 @@ const BundleResourceType = "Bundle"
 type Bundle struct {
 	Resource
 	Identifier       *Identifier            `json:"identifier,omitempty"`
-	Type             *string                `json:"type,omitempty"`
+	Type             *BundleType            `json:"type,omitempty"`
 	TypeElement      *fhir.PrimitiveElement `json:"-"`
 	Timestamp        *string                `json:"timestamp,omitempty"`
 	TimestampElement *fhir.PrimitiveElement `json:"-"`
@@ -173,7 +173,7 @@ func (v *BundleEntry) UnmarshalJSON(data []byte) error {
 // BundleEntryRequest is a generated nested backbone element.
 type BundleEntryRequest struct {
 	BackboneElement
-	Method                 *string                `json:"method,omitempty"`
+	Method                 *HTTPVerb              `json:"method,omitempty"`
 	MethodElement          *fhir.PrimitiveElement `json:"-"`
 	URL                    *string                `json:"url,omitempty"`
 	URLElement             *fhir.PrimitiveElement `json:"-"`
@@ -396,7 +396,7 @@ func (v *BundleEntryResponse) UnmarshalJSON(data []byte) error {
 // BundleEntrySearch is a generated nested backbone element.
 type BundleEntrySearch struct {
 	BackboneElement
-	Mode         *string                `json:"mode,omitempty"`
+	Mode         *SearchEntryMode       `json:"mode,omitempty"`
 	ModeElement  *fhir.PrimitiveElement `json:"-"`
 	Score        *fhir.Decimal          `json:"score,omitempty"`
 	ScoreElement *fhir.PrimitiveElement `json:"-"`
@@ -465,7 +465,7 @@ func (v *BundleEntrySearch) UnmarshalJSON(data []byte) error {
 // BundleLink is a generated nested backbone element.
 type BundleLink struct {
 	BackboneElement
-	Relation        *string                `json:"relation,omitempty"`
+	Relation        *LinkRelationTypes     `json:"relation,omitempty"`
 	RelationElement *fhir.PrimitiveElement `json:"-"`
 	URL             *string                `json:"url,omitempty"`
 	URLElement      *fhir.PrimitiveElement `json:"-"`

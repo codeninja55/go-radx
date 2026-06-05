@@ -18,7 +18,7 @@ type ChargeItem struct {
 	DefinitionUriElement       []*fhir.PrimitiveElement `json:"-"`
 	DefinitionCanonical        []string                 `json:"definitionCanonical,omitempty"`
 	DefinitionCanonicalElement []*fhir.PrimitiveElement `json:"-"`
-	Status                     *string                  `json:"status,omitempty"`
+	Status                     *ChargeItemStatus        `json:"status,omitempty"`
 	StatusElement              *fhir.PrimitiveElement   `json:"-"`
 	PartOf                     []Reference              `json:"partOf,omitempty"`
 	Code                       *CodeableConcept         `json:"code,omitempty"`

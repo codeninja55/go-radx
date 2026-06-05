@@ -14,11 +14,11 @@ const MeasureReportResourceType = "MeasureReport"
 type MeasureReport struct {
 	DomainResource
 	Identifier            []Identifier           `json:"identifier,omitempty"`
-	Status                *string                `json:"status,omitempty"`
+	Status                *MeasureReportStatus   `json:"status,omitempty"`
 	StatusElement         *fhir.PrimitiveElement `json:"-"`
-	Type                  *string                `json:"type,omitempty"`
+	Type                  *MeasureReportType     `json:"type,omitempty"`
 	TypeElement           *fhir.PrimitiveElement `json:"-"`
-	DataUpdateType        *string                `json:"dataUpdateType,omitempty"`
+	DataUpdateType        *SubmitDataUpdateType  `json:"dataUpdateType,omitempty"`
 	DataUpdateTypeElement *fhir.PrimitiveElement `json:"-"`
 	Measure               *string                `json:"measure,omitempty"`
 	MeasureElement        *fhir.PrimitiveElement `json:"-"`

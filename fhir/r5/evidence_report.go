@@ -15,7 +15,7 @@ type EvidenceReport struct {
 	DomainResource
 	URL               *string                   `json:"url,omitempty"`
 	URLElement        *fhir.PrimitiveElement    `json:"-"`
-	Status            *string                   `json:"status,omitempty"`
+	Status            *PublicationStatus        `json:"status,omitempty"`
 	StatusElement     *fhir.PrimitiveElement    `json:"-"`
 	UseContext        []UsageContext            `json:"useContext,omitempty"`
 	Identifier        []Identifier              `json:"identifier,omitempty"`
@@ -165,7 +165,7 @@ func (r *EvidenceReport) SetCiteAsMarkdown(v FHIRMarkdown) {
 // EvidenceReportRelatesTo is a generated nested backbone element.
 type EvidenceReportRelatesTo struct {
 	BackboneElement
-	Code        *string                        `json:"code,omitempty"`
+	Code        *ReportRelationshipType        `json:"code,omitempty"`
 	CodeElement *fhir.PrimitiveElement         `json:"-"`
 	Target      *EvidenceReportRelatesToTarget `json:"target,omitempty"`
 }
@@ -298,7 +298,7 @@ type EvidenceReportSection struct {
 	FocusReference  *Reference              `json:"focusReference,omitempty"`
 	Author          []Reference             `json:"author,omitempty"`
 	Text            *Narrative              `json:"text,omitempty"`
-	Mode            *string                 `json:"mode,omitempty"`
+	Mode            *ListMode               `json:"mode,omitempty"`
 	ModeElement     *fhir.PrimitiveElement  `json:"-"`
 	OrderedBy       *CodeableConcept        `json:"orderedBy,omitempty"`
 	EntryClassifier []CodeableConcept       `json:"entryClassifier,omitempty"`

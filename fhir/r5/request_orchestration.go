@@ -21,11 +21,11 @@ type RequestOrchestration struct {
 	BasedOn                      []Reference                  `json:"basedOn,omitempty"`
 	Replaces                     []Reference                  `json:"replaces,omitempty"`
 	GroupIdentifier              *Identifier                  `json:"groupIdentifier,omitempty"`
-	Status                       *string                      `json:"status,omitempty"`
+	Status                       *RequestStatus               `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement       `json:"-"`
-	Intent                       *string                      `json:"intent,omitempty"`
+	Intent                       *RequestIntent               `json:"intent,omitempty"`
 	IntentElement                *fhir.PrimitiveElement       `json:"-"`
-	Priority                     *string                      `json:"priority,omitempty"`
+	Priority                     *RequestPriority             `json:"priority,omitempty"`
 	PriorityElement              *fhir.PrimitiveElement       `json:"-"`
 	Code                         *CodeableConcept             `json:"code,omitempty"`
 	Subject                      *Reference                   `json:"subject,omitempty"`
@@ -172,7 +172,7 @@ type RequestOrchestrationAction struct {
 	DescriptionElement         *fhir.PrimitiveElement                    `json:"-"`
 	TextEquivalent             *string                                   `json:"textEquivalent,omitempty"`
 	TextEquivalentElement      *fhir.PrimitiveElement                    `json:"-"`
-	Priority                   *string                                   `json:"priority,omitempty"`
+	Priority                   *RequestPriority                          `json:"priority,omitempty"`
 	PriorityElement            *fhir.PrimitiveElement                    `json:"-"`
 	Code                       []CodeableConcept                         `json:"code,omitempty"`
 	Documentation              []RelatedArtifact                         `json:"documentation,omitempty"`
@@ -190,15 +190,15 @@ type RequestOrchestrationAction struct {
 	Location                   *CodeableReference                        `json:"location,omitempty"`
 	Participant                []RequestOrchestrationActionParticipant   `json:"participant,omitempty"`
 	Type                       *CodeableConcept                          `json:"type,omitempty"`
-	GroupingBehavior           *string                                   `json:"groupingBehavior,omitempty"`
+	GroupingBehavior           *ActionGroupingBehavior                   `json:"groupingBehavior,omitempty"`
 	GroupingBehaviorElement    *fhir.PrimitiveElement                    `json:"-"`
-	SelectionBehavior          *string                                   `json:"selectionBehavior,omitempty"`
+	SelectionBehavior          *ActionSelectionBehavior                  `json:"selectionBehavior,omitempty"`
 	SelectionBehaviorElement   *fhir.PrimitiveElement                    `json:"-"`
-	RequiredBehavior           *string                                   `json:"requiredBehavior,omitempty"`
+	RequiredBehavior           *ActionRequiredBehavior                   `json:"requiredBehavior,omitempty"`
 	RequiredBehaviorElement    *fhir.PrimitiveElement                    `json:"-"`
-	PrecheckBehavior           *string                                   `json:"precheckBehavior,omitempty"`
+	PrecheckBehavior           *ActionPrecheckBehavior                   `json:"precheckBehavior,omitempty"`
 	PrecheckBehaviorElement    *fhir.PrimitiveElement                    `json:"-"`
-	CardinalityBehavior        *string                                   `json:"cardinalityBehavior,omitempty"`
+	CardinalityBehavior        *ActionCardinalityBehavior                `json:"cardinalityBehavior,omitempty"`
 	CardinalityBehaviorElement *fhir.PrimitiveElement                    `json:"-"`
 	Resource                   *Reference                                `json:"resource,omitempty"`
 	DefinitionCanonical        *FHIRCanonical                            `json:"definitionCanonical,omitempty"`
@@ -544,7 +544,7 @@ func (r *RequestOrchestrationAction) SetDefinitionURI(v FHIRURI) {
 // RequestOrchestrationActionCondition is a generated nested backbone element.
 type RequestOrchestrationActionCondition struct {
 	BackboneElement
-	Kind        *string                `json:"kind,omitempty"`
+	Kind        *ActionConditionKind   `json:"kind,omitempty"`
 	KindElement *fhir.PrimitiveElement `json:"-"`
 	Expression  *Expression            `json:"expression,omitempty"`
 }
@@ -726,7 +726,7 @@ func (v *RequestOrchestrationActionInput) UnmarshalJSON(data []byte) error {
 // RequestOrchestrationActionParticipant is a generated nested backbone element.
 type RequestOrchestrationActionParticipant struct {
 	BackboneElement
-	Type                 *string                `json:"type,omitempty"`
+	Type                 *ActionParticipantType `json:"type,omitempty"`
 	TypeElement          *fhir.PrimitiveElement `json:"-"`
 	TypeCanonical        *string                `json:"typeCanonical,omitempty"`
 	TypeCanonicalElement *fhir.PrimitiveElement `json:"-"`
@@ -841,14 +841,14 @@ func (r *RequestOrchestrationActionParticipant) SetActorReference(v Reference) {
 // RequestOrchestrationActionRelatedAction is a generated nested backbone element.
 type RequestOrchestrationActionRelatedAction struct {
 	BackboneElement
-	TargetId               *string                `json:"targetId,omitempty"`
-	TargetIdElement        *fhir.PrimitiveElement `json:"-"`
-	Relationship           *string                `json:"relationship,omitempty"`
-	RelationshipElement    *fhir.PrimitiveElement `json:"-"`
-	EndRelationship        *string                `json:"endRelationship,omitempty"`
-	EndRelationshipElement *fhir.PrimitiveElement `json:"-"`
-	OffsetDuration         *Duration              `json:"offsetDuration,omitempty"`
-	OffsetRange            *Range                 `json:"offsetRange,omitempty"`
+	TargetId               *string                 `json:"targetId,omitempty"`
+	TargetIdElement        *fhir.PrimitiveElement  `json:"-"`
+	Relationship           *ActionRelationshipType `json:"relationship,omitempty"`
+	RelationshipElement    *fhir.PrimitiveElement  `json:"-"`
+	EndRelationship        *ActionRelationshipType `json:"endRelationship,omitempty"`
+	EndRelationshipElement *fhir.PrimitiveElement  `json:"-"`
+	OffsetDuration         *Duration               `json:"offsetDuration,omitempty"`
+	OffsetRange            *Range                  `json:"offsetRange,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

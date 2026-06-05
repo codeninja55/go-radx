@@ -15,11 +15,11 @@ type ExplanationOfBenefit struct {
 	DomainResource
 	Identifier            []Identifier                           `json:"identifier,omitempty"`
 	TraceNumber           []Identifier                           `json:"traceNumber,omitempty"`
-	Status                *string                                `json:"status,omitempty"`
+	Status                *ExplanationOfBenefitStatus            `json:"status,omitempty"`
 	StatusElement         *fhir.PrimitiveElement                 `json:"-"`
 	Type                  *CodeableConcept                       `json:"type,omitempty"`
 	SubType               *CodeableConcept                       `json:"subType,omitempty"`
-	Use                   *string                                `json:"use,omitempty"`
+	Use                   *Use                                   `json:"use,omitempty"`
 	UseElement            *fhir.PrimitiveElement                 `json:"-"`
 	Patient               *Reference                             `json:"patient,omitempty"`
 	BillablePeriod        *Period                                `json:"billablePeriod,omitempty"`
@@ -41,7 +41,7 @@ type ExplanationOfBenefit struct {
 	Facility              *Reference                             `json:"facility,omitempty"`
 	Claim                 *Reference                             `json:"claim,omitempty"`
 	ClaimResponse         *Reference                             `json:"claimResponse,omitempty"`
-	Outcome               *string                                `json:"outcome,omitempty"`
+	Outcome               *ClaimProcessingCodes                  `json:"outcome,omitempty"`
 	OutcomeElement        *fhir.PrimitiveElement                 `json:"-"`
 	Decision              *CodeableConcept                       `json:"decision,omitempty"`
 	Disposition           *string                                `json:"disposition,omitempty"`

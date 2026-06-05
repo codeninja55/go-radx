@@ -14,7 +14,7 @@ const GoalResourceType = "Goal"
 type Goal struct {
 	DomainResource
 	Identifier             []Identifier           `json:"identifier,omitempty"`
-	LifecycleStatus        *string                `json:"lifecycleStatus,omitempty"`
+	LifecycleStatus        *GoalLifecycleStatus   `json:"lifecycleStatus,omitempty"`
 	LifecycleStatusElement *fhir.PrimitiveElement `json:"-"`
 	AchievementStatus      *CodeableConcept       `json:"achievementStatus,omitempty"`
 	Category               []CodeableConcept      `json:"category,omitempty"`

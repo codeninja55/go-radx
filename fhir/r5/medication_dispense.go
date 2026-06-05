@@ -16,7 +16,7 @@ type MedicationDispense struct {
 	Identifier                       []Identifier                    `json:"identifier,omitempty"`
 	BasedOn                          []Reference                     `json:"basedOn,omitempty"`
 	PartOf                           []Reference                     `json:"partOf,omitempty"`
-	Status                           *string                         `json:"status,omitempty"`
+	Status                           *MedicationDispenseStatusCodes  `json:"status,omitempty"`
 	StatusElement                    *fhir.PrimitiveElement          `json:"-"`
 	NotPerformedReason               *CodeableReference              `json:"notPerformedReason,omitempty"`
 	StatusChanged                    *string                         `json:"statusChanged,omitempty"`

@@ -14,7 +14,7 @@ const ClinicalImpressionResourceType = "ClinicalImpression"
 type ClinicalImpression struct {
 	DomainResource
 	Identifier               []Identifier                `json:"identifier,omitempty"`
-	Status                   *string                     `json:"status,omitempty"`
+	Status                   *EventStatus                `json:"status,omitempty"`
 	StatusElement            *fhir.PrimitiveElement      `json:"-"`
 	StatusReason             *CodeableConcept            `json:"statusReason,omitempty"`
 	Description              *string                     `json:"description,omitempty"`

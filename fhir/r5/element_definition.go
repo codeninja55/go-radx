@@ -12,7 +12,7 @@ type ElementDefinition struct {
 	BackboneElement
 	Path                              *string                       `json:"path,omitempty"`
 	PathElement                       *fhir.PrimitiveElement        `json:"-"`
-	Representation                    []string                      `json:"representation,omitempty"`
+	Representation                    []PropertyRepresentation      `json:"representation,omitempty"`
 	RepresentationElement             []*fhir.PrimitiveElement      `json:"-"`
 	SliceName                         *string                       `json:"sliceName,omitempty"`
 	SliceNameElement                  *fhir.PrimitiveElement        `json:"-"`
@@ -11475,7 +11475,7 @@ func (v *ElementDefinitionBase) UnmarshalJSON(data []byte) error {
 // ElementDefinitionBinding is a generated nested backbone element.
 type ElementDefinitionBinding struct {
 	Element
-	Strength           *string                              `json:"strength,omitempty"`
+	Strength           *BindingStrength                     `json:"strength,omitempty"`
 	StrengthElement    *fhir.PrimitiveElement               `json:"-"`
 	Description        *string                              `json:"description,omitempty"`
 	DescriptionElement *fhir.PrimitiveElement               `json:"-"`
@@ -11559,17 +11559,17 @@ func (v *ElementDefinitionBinding) UnmarshalJSON(data []byte) error {
 // ElementDefinitionBindingAdditional is a generated nested backbone element.
 type ElementDefinitionBindingAdditional struct {
 	Element
-	Purpose              *string                `json:"purpose,omitempty"`
-	PurposeElement       *fhir.PrimitiveElement `json:"-"`
-	ValueSet             *string                `json:"valueSet,omitempty"`
-	ValueSetElement      *fhir.PrimitiveElement `json:"-"`
-	Documentation        *string                `json:"documentation,omitempty"`
-	DocumentationElement *fhir.PrimitiveElement `json:"-"`
-	ShortDoco            *string                `json:"shortDoco,omitempty"`
-	ShortDocoElement     *fhir.PrimitiveElement `json:"-"`
-	Usage                []UsageContext         `json:"usage,omitempty"`
-	Any                  *bool                  `json:"any,omitempty"`
-	AnyElement           *fhir.PrimitiveElement `json:"-"`
+	Purpose              *AdditionalBindingPurposeVS `json:"purpose,omitempty"`
+	PurposeElement       *fhir.PrimitiveElement      `json:"-"`
+	ValueSet             *string                     `json:"valueSet,omitempty"`
+	ValueSetElement      *fhir.PrimitiveElement      `json:"-"`
+	Documentation        *string                     `json:"documentation,omitempty"`
+	DocumentationElement *fhir.PrimitiveElement      `json:"-"`
+	ShortDoco            *string                     `json:"shortDoco,omitempty"`
+	ShortDocoElement     *fhir.PrimitiveElement      `json:"-"`
+	Usage                []UsageContext              `json:"usage,omitempty"`
+	Any                  *bool                       `json:"any,omitempty"`
+	AnyElement           *fhir.PrimitiveElement      `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -11675,7 +11675,7 @@ type ElementDefinitionConstraint struct {
 	KeyElement          *fhir.PrimitiveElement `json:"-"`
 	Requirements        *string                `json:"requirements,omitempty"`
 	RequirementsElement *fhir.PrimitiveElement `json:"-"`
-	Severity            *string                `json:"severity,omitempty"`
+	Severity            *ConstraintSeverity    `json:"severity,omitempty"`
 	SeverityElement     *fhir.PrimitiveElement `json:"-"`
 	Suppress            *bool                  `json:"suppress,omitempty"`
 	SuppressElement     *fhir.PrimitiveElement `json:"-"`
@@ -15480,7 +15480,7 @@ type ElementDefinitionSlicing struct {
 	DescriptionElement *fhir.PrimitiveElement                  `json:"-"`
 	Ordered            *bool                                   `json:"ordered,omitempty"`
 	OrderedElement     *fhir.PrimitiveElement                  `json:"-"`
-	Rules              *string                                 `json:"rules,omitempty"`
+	Rules              *SlicingRules                           `json:"rules,omitempty"`
 	RulesElement       *fhir.PrimitiveElement                  `json:"-"`
 }
 
@@ -15559,7 +15559,7 @@ func (v *ElementDefinitionSlicing) UnmarshalJSON(data []byte) error {
 // ElementDefinitionSlicingDiscriminator is a generated nested backbone element.
 type ElementDefinitionSlicingDiscriminator struct {
 	Element
-	Type        *string                `json:"type,omitempty"`
+	Type        *DiscriminatorType     `json:"type,omitempty"`
 	TypeElement *fhir.PrimitiveElement `json:"-"`
 	Path        *string                `json:"path,omitempty"`
 	PathElement *fhir.PrimitiveElement `json:"-"`
@@ -15634,9 +15634,9 @@ type ElementDefinitionType struct {
 	ProfileElement       []*fhir.PrimitiveElement `json:"-"`
 	TargetProfile        []string                 `json:"targetProfile,omitempty"`
 	TargetProfileElement []*fhir.PrimitiveElement `json:"-"`
-	Aggregation          []string                 `json:"aggregation,omitempty"`
+	Aggregation          []AggregationMode        `json:"aggregation,omitempty"`
 	AggregationElement   []*fhir.PrimitiveElement `json:"-"`
-	Versioning           *string                  `json:"versioning,omitempty"`
+	Versioning           *ReferenceVersionRules   `json:"versioning,omitempty"`
 	VersioningElement    *fhir.PrimitiveElement   `json:"-"`
 }
 

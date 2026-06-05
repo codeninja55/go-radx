@@ -18,7 +18,7 @@ type FamilyMemberHistory struct {
 	InstantiatesCanonicalElement []*fhir.PrimitiveElement         `json:"-"`
 	InstantiatesUri              []string                         `json:"instantiatesUri,omitempty"`
 	InstantiatesUriElement       []*fhir.PrimitiveElement         `json:"-"`
-	Status                       *string                          `json:"status,omitempty"`
+	Status                       *FamilyHistoryStatus             `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement           `json:"-"`
 	DataAbsentReason             *CodeableConcept                 `json:"dataAbsentReason,omitempty"`
 	Patient                      *Reference                       `json:"patient,omitempty"`

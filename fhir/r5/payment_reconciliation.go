@@ -15,7 +15,7 @@ type PaymentReconciliation struct {
 	DomainResource
 	Identifier             []Identifier                       `json:"identifier,omitempty"`
 	Type                   *CodeableConcept                   `json:"type,omitempty"`
-	Status                 *string                            `json:"status,omitempty"`
+	Status                 *FinancialResourceStatusCodes      `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement             `json:"-"`
 	Kind                   *CodeableConcept                   `json:"kind,omitempty"`
 	Period                 *Period                            `json:"period,omitempty"`
@@ -26,7 +26,7 @@ type PaymentReconciliation struct {
 	PaymentIssuer          *Reference                         `json:"paymentIssuer,omitempty"`
 	Request                *Reference                         `json:"request,omitempty"`
 	Requestor              *Reference                         `json:"requestor,omitempty"`
-	Outcome                *string                            `json:"outcome,omitempty"`
+	Outcome                *PaymentOutcome                    `json:"outcome,omitempty"`
 	OutcomeElement         *fhir.PrimitiveElement             `json:"-"`
 	Disposition            *string                            `json:"disposition,omitempty"`
 	DispositionElement     *fhir.PrimitiveElement             `json:"-"`
@@ -364,7 +364,7 @@ func (r *PaymentReconciliationAllocation) SetTargetItemPositiveInt(v FHIRPositiv
 // PaymentReconciliationProcessNote is a generated nested backbone element.
 type PaymentReconciliationProcessNote struct {
 	BackboneElement
-	Type        *string                `json:"type,omitempty"`
+	Type        *NoteType              `json:"type,omitempty"`
 	TypeElement *fhir.PrimitiveElement `json:"-"`
 	Text        *string                `json:"text,omitempty"`
 	TextElement *fhir.PrimitiveElement `json:"-"`

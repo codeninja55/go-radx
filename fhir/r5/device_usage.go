@@ -15,7 +15,7 @@ type DeviceUsage struct {
 	DomainResource
 	Identifier          []Identifier           `json:"identifier,omitempty"`
 	BasedOn             []Reference            `json:"basedOn,omitempty"`
-	Status              *string                `json:"status,omitempty"`
+	Status              *DeviceUsageStatus     `json:"status,omitempty"`
 	StatusElement       *fhir.PrimitiveElement `json:"-"`
 	Category            []CodeableConcept      `json:"category,omitempty"`
 	Patient             *Reference             `json:"patient,omitempty"`

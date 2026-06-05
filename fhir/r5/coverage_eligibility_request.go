@@ -14,10 +14,10 @@ const CoverageEligibilityRequestResourceType = "CoverageEligibilityRequest"
 type CoverageEligibilityRequest struct {
 	DomainResource
 	Identifier     []Identifier                               `json:"identifier,omitempty"`
-	Status         *string                                    `json:"status,omitempty"`
+	Status         *FinancialResourceStatusCodes              `json:"status,omitempty"`
 	StatusElement  *fhir.PrimitiveElement                     `json:"-"`
 	Priority       *CodeableConcept                           `json:"priority,omitempty"`
-	Purpose        []string                                   `json:"purpose,omitempty"`
+	Purpose        []EligibilityRequestPurpose                `json:"purpose,omitempty"`
 	PurposeElement []*fhir.PrimitiveElement                   `json:"-"`
 	Patient        *Reference                                 `json:"patient,omitempty"`
 	Event          []CoverageEligibilityRequestEvent          `json:"event,omitempty"`

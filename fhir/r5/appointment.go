@@ -14,7 +14,7 @@ const AppointmentResourceType = "Appointment"
 type Appointment struct {
 	DomainResource
 	Identifier               []Identifier                    `json:"identifier,omitempty"`
-	Status                   *string                         `json:"status,omitempty"`
+	Status                   *AppointmentStatus              `json:"status,omitempty"`
 	StatusElement            *fhir.PrimitiveElement          `json:"-"`
 	CancellationReason       *CodeableConcept                `json:"cancellationReason,omitempty"`
 	Class                    []CodeableConcept               `json:"class,omitempty"`
@@ -220,7 +220,7 @@ type AppointmentParticipant struct {
 	Actor           *Reference             `json:"actor,omitempty"`
 	Required        *bool                  `json:"required,omitempty"`
 	RequiredElement *fhir.PrimitiveElement `json:"-"`
-	Status          *string                `json:"status,omitempty"`
+	Status          *ParticipationStatus   `json:"status,omitempty"`
 	StatusElement   *fhir.PrimitiveElement `json:"-"`
 }
 

@@ -21,12 +21,12 @@ type Transport struct {
 	BasedOn                      []Reference            `json:"basedOn,omitempty"`
 	GroupIdentifier              *Identifier            `json:"groupIdentifier,omitempty"`
 	PartOf                       []Reference            `json:"partOf,omitempty"`
-	Status                       *string                `json:"status,omitempty"`
+	Status                       *TransportStatus       `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement `json:"-"`
 	StatusReason                 *CodeableConcept       `json:"statusReason,omitempty"`
-	Intent                       *string                `json:"intent,omitempty"`
+	Intent                       *TransportIntent       `json:"intent,omitempty"`
 	IntentElement                *fhir.PrimitiveElement `json:"-"`
-	Priority                     *string                `json:"priority,omitempty"`
+	Priority                     *RequestPriority       `json:"priority,omitempty"`
 	PriorityElement              *fhir.PrimitiveElement `json:"-"`
 	Code                         *CodeableConcept       `json:"code,omitempty"`
 	Description                  *string                `json:"description,omitempty"`

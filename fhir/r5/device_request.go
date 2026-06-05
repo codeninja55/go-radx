@@ -21,11 +21,11 @@ type DeviceRequest struct {
 	BasedOn                      []Reference              `json:"basedOn,omitempty"`
 	Replaces                     []Reference              `json:"replaces,omitempty"`
 	GroupIdentifier              *Identifier              `json:"groupIdentifier,omitempty"`
-	Status                       *string                  `json:"status,omitempty"`
+	Status                       *RequestStatus           `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement   `json:"-"`
-	Intent                       *string                  `json:"intent,omitempty"`
+	Intent                       *RequestIntent           `json:"intent,omitempty"`
 	IntentElement                *fhir.PrimitiveElement   `json:"-"`
-	Priority                     *string                  `json:"priority,omitempty"`
+	Priority                     *RequestPriority         `json:"priority,omitempty"`
 	PriorityElement              *fhir.PrimitiveElement   `json:"-"`
 	DoNotPerform                 *bool                    `json:"doNotPerform,omitempty"`
 	DoNotPerformElement          *fhir.PrimitiveElement   `json:"-"`

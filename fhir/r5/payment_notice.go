@@ -13,21 +13,21 @@ const PaymentNoticeResourceType = "PaymentNotice"
 // PaymentNotice is the generated FHIR PaymentNotice resource.
 type PaymentNotice struct {
 	DomainResource
-	Identifier         []Identifier           `json:"identifier,omitempty"`
-	Status             *string                `json:"status,omitempty"`
-	StatusElement      *fhir.PrimitiveElement `json:"-"`
-	Request            *Reference             `json:"request,omitempty"`
-	Response           *Reference             `json:"response,omitempty"`
-	Created            *string                `json:"created,omitempty"`
-	CreatedElement     *fhir.PrimitiveElement `json:"-"`
-	Reporter           *Reference             `json:"reporter,omitempty"`
-	Payment            *Reference             `json:"payment,omitempty"`
-	PaymentDate        *string                `json:"paymentDate,omitempty"`
-	PaymentDateElement *fhir.PrimitiveElement `json:"-"`
-	Payee              *Reference             `json:"payee,omitempty"`
-	Recipient          *Reference             `json:"recipient,omitempty"`
-	Amount             *Money                 `json:"amount,omitempty"`
-	PaymentStatus      *CodeableConcept       `json:"paymentStatus,omitempty"`
+	Identifier         []Identifier                  `json:"identifier,omitempty"`
+	Status             *FinancialResourceStatusCodes `json:"status,omitempty"`
+	StatusElement      *fhir.PrimitiveElement        `json:"-"`
+	Request            *Reference                    `json:"request,omitempty"`
+	Response           *Reference                    `json:"response,omitempty"`
+	Created            *string                       `json:"created,omitempty"`
+	CreatedElement     *fhir.PrimitiveElement        `json:"-"`
+	Reporter           *Reference                    `json:"reporter,omitempty"`
+	Payment            *Reference                    `json:"payment,omitempty"`
+	PaymentDate        *string                       `json:"paymentDate,omitempty"`
+	PaymentDateElement *fhir.PrimitiveElement        `json:"-"`
+	Payee              *Reference                    `json:"payee,omitempty"`
+	Recipient          *Reference                    `json:"recipient,omitempty"`
+	Amount             *Money                        `json:"amount,omitempty"`
+	PaymentStatus      *CodeableConcept              `json:"paymentStatus,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "PaymentNotice".

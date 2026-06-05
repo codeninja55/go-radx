@@ -14,9 +14,9 @@ const AdverseEventResourceType = "AdverseEvent"
 type AdverseEvent struct {
 	DomainResource
 	Identifier                     []Identifier                     `json:"identifier,omitempty"`
-	Status                         *string                          `json:"status,omitempty"`
+	Status                         *AdverseEventStatus              `json:"status,omitempty"`
 	StatusElement                  *fhir.PrimitiveElement           `json:"-"`
-	Actuality                      *string                          `json:"actuality,omitempty"`
+	Actuality                      *AdverseEventActuality           `json:"actuality,omitempty"`
 	ActualityElement               *fhir.PrimitiveElement           `json:"-"`
 	Category                       []CodeableConcept                `json:"category,omitempty"`
 	Code                           *CodeableConcept                 `json:"code,omitempty"`
