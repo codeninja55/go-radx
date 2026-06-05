@@ -54,14 +54,19 @@ func (c Cardinality) Repeats() bool {
 }
 
 // TypeRef is one allowed type of an element, referencing a FHIR type by its code
-// (for example "string", "CodeableConcept", "Reference"). Target profiles are
-// kept for reference-bearing types so a later stage can constrain Reference
-// targets; the model does not resolve them.
+// (for example "string", "CodeableConcept", "Reference"). Profiles and target
+// profiles are kept verbatim so a later stage can apply datatype profiling and
+// constrain Reference targets; the model does not resolve them.
 type TypeRef struct {
 	// Code is the FHIR type code. For a primitive-valued system type FHIR encodes
-	// the code as a URL ("http://hl7.org/fhirpath/System.String"); the model keeps
-	// the raw code and exposes the resolved primitive via SystemPrimitive.
+	// the code as a URL ("http://hl7.org/fhirpath/System.String"); the model
+	// normalises it to the FHIR primitive name (see SystemPrimitive).
 	Code string
+
+	// Profiles are the canonical URLs of profiles applied to this type itself (for
+	// example Range.low is a Quantity profiled as SimpleQuantity). Empty for an
+	// unprofiled type.
+	Profiles []string
 
 	// TargetProfiles are the allowed referents of a Reference or CodeableReference,
 	// as canonical URLs. Empty for non-reference types.

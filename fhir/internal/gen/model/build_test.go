@@ -312,6 +312,37 @@ func TestBindingNormalised(t *testing.T) {
 	}
 }
 
+// TestTypeProfilesCaptured asserts a profiled datatype (Range.low is a Quantity
+// profiled as SimpleQuantity) carries its profile in the IR, so the planner can
+// apply datatype profiling.
+func TestTypeProfilesCaptured(t *testing.T) {
+	t.Parallel()
+
+	lowEl := elem("Range.low", 0, "1")
+	lowEl.Type = []loader.ElementType{{
+		Code:    "Quantity",
+		Profile: []string{"http://hl7.org/fhir/StructureDefinition/SimpleQuantity"},
+	}}
+	def := &loader.StructureDefinition{
+		Name:     "Range",
+		URL:      "http://hl7.org/fhir/StructureDefinition/Range",
+		Kind:     "complex-type",
+		Snapshot: &loader.Snapshot{Element: []loader.ElementDefinition{elem("Range", 0, "1"), lowEl}},
+	}
+
+	typ, err := BuildType(def)
+	if err != nil {
+		t.Fatalf("BuildType: %v", err)
+	}
+	low := childPath(t, typ.Root, "low")
+	if len(low.Types) != 1 {
+		t.Fatalf("low has %d types, want 1", len(low.Types))
+	}
+	if got := low.Types[0].Profiles; len(got) != 1 || got[0] != "http://hl7.org/fhir/StructureDefinition/SimpleQuantity" {
+		t.Errorf("low type profiles = %v, want [SimpleQuantity URL]", got)
+	}
+}
+
 // TestSystemPrimitiveNormalisedInTree asserts an Element.id-style FHIRPath System
 // type code is normalised to the FHIR primitive name in the built tree.
 func TestSystemPrimitiveNormalisedInTree(t *testing.T) {

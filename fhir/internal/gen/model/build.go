@@ -119,6 +119,7 @@ func newElement(ed *loader.ElementDefinition) *Element {
 		}
 		e.Types = append(e.Types, TypeRef{
 			Code:           code,
+			Profiles:       rt.Profile,
 			TargetProfiles: rt.TargetProfile,
 		})
 	}
@@ -209,6 +210,9 @@ func (idx *byPath) cloneRebased(donorPath, donorPrefix, occurrencePrefix string)
 		c.Types = make([]TypeRef, len(src.Types))
 		for i, t := range src.Types {
 			c.Types[i] = t
+			if t.Profiles != nil {
+				c.Types[i].Profiles = append([]string(nil), t.Profiles...)
+			}
 			if t.TargetProfiles != nil {
 				c.Types[i].TargetProfiles = append([]string(nil), t.TargetProfiles...)
 			}

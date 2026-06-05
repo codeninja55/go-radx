@@ -66,12 +66,16 @@ func maxOrStar(max string) string {
 	return max
 }
 
-// typeCodes joins an element's type codes, appending the target profiles of a
-// reference-bearing type as a parenthesised list so the snapshot pins them.
+// typeCodes joins an element's type codes, appending any profile applied to the
+// type ("{SimpleQuantity}") and the target profiles of a reference-bearing type
+// ("->[Patient]") so the snapshot pins them.
 func typeCodes(types []TypeRef) string {
 	parts := make([]string, 0, len(types))
 	for _, t := range types {
 		part := t.Code
+		if len(t.Profiles) > 0 {
+			part += "{" + strings.Join(shortProfiles(t.Profiles), ",") + "}"
+		}
 		if len(t.TargetProfiles) > 0 {
 			part += "->[" + strings.Join(shortProfiles(t.TargetProfiles), ",") + "]"
 		}
