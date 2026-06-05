@@ -201,6 +201,45 @@ func TestCanonicalRoundTripByteStable(t *testing.T) {
 	}
 }
 
+// TestMarshalSummaryPreservesMetaOrder is the regression for the SUBSETTED tag splice: a
+// resource that already carries an ordered meta (versionId, then an existing tag) keeps
+// meta's canonical key order when the summary appends the SUBSETTED coding, so the
+// summarised resource still round-trips byte-stably. A map round-trip on meta would
+// re-sort its keys and break this.
+func TestMarshalSummaryPreservesMetaOrder(t *testing.T) {
+	patient := summaryPatient()
+	existingTag := r5.Coding{Code: strPtr("existing")}
+	patient.Meta = &r5.Meta{
+		VersionId: strPtr("3"),
+		Tag:       []r5.Coding{existingTag},
+	}
+
+	summary, err := fhir.MarshalSummary(patient, fhir.SummaryTrue)
+	if err != nil {
+		t.Fatalf("MarshalSummary: %v", err)
+	}
+
+	// The summary must decode and re-encode byte-for-byte: meta keeps its order and the
+	// existing tag is preserved ahead of the appended SUBSETTED coding.
+	round, err := fhir.Unmarshal[*r5.Patient](summary)
+	if err != nil {
+		t.Fatalf("Unmarshal summary: %v", err)
+	}
+	reencoded, err := json.Marshal(round)
+	if err != nil {
+		t.Fatalf("Marshal round-trip: %v", err)
+	}
+	if string(reencoded) != string(summary) {
+		t.Fatalf("summary not byte-stable on round-trip:\n got  %s\n want %s", reencoded, summary)
+	}
+	if !strings.Contains(string(summary), `"versionId":"3"`) {
+		t.Errorf("summary dropped meta.versionId: %s", summary)
+	}
+	if !strings.Contains(string(summary), `"code":"existing"`) || !strings.Contains(string(summary), "SUBSETTED") {
+		t.Errorf("summary did not keep the existing tag alongside SUBSETTED: %s", summary)
+	}
+}
+
 func indexOf(keys []string, want string) int {
 	for i, k := range keys {
 		if k == want {

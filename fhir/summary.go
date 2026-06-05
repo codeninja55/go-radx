@@ -325,32 +325,61 @@ func tagSubsetted(filtered []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// appendMetaTag returns the meta object with the SUBSETTED coding appended to its tag
-// array, preserving meta's own key order; an absent tag array is created.
+// appendMetaTag returns the meta object with the SUBSETTED coding added to its tag array,
+// preserving meta's own canonical key order. It walks meta key-by-key (as the top-level
+// rewriters do, so a decode-into-map round trip never re-sorts meta's keys): an existing
+// tag array gains the SUBSETTED coding in place, and an absent tag is appended as the last
+// key, which is the tag field's canonical position in the Meta element order.
 func appendMetaTag(rawMeta json.RawMessage) (json.RawMessage, error) {
-	var meta map[string]json.RawMessage
-	if err := json.Unmarshal(rawMeta, &meta); err != nil {
-		return nil, fmt.Errorf("fhir: summary tag: decode meta: %w", err)
+	dec := json.NewDecoder(bytes.NewReader(rawMeta))
+	open, err := dec.Token()
+	if err != nil {
+		return nil, fmt.Errorf("fhir: summary tag: read meta start: %w", err)
 	}
-	tags := []json.RawMessage{json.RawMessage(subsettedCoding)}
-	if rawTag, ok := meta["tag"]; ok {
-		var existing []json.RawMessage
-		if err := json.Unmarshal(rawTag, &existing); err != nil {
-			return nil, fmt.Errorf("fhir: summary tag: decode existing tags: %w", err)
+	if delim, ok := open.(json.Delim); !ok || delim != '{' {
+		return nil, fmt.Errorf("fhir: summary tag: meta is not a JSON object, got %v", open)
+	}
+
+	var buf bytes.Buffer
+	buf.WriteByte('{')
+	first := true
+	hasTag := false
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return nil, fmt.Errorf("fhir: summary tag: read meta key: %w", err)
 		}
-		tags = append(existing, tags...)
+		key := keyTok.(string)
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err != nil {
+			return nil, fmt.Errorf("fhir: summary tag: read meta value for %q: %w", key, err)
+		}
+		if key == "tag" {
+			hasTag = true
+			if raw, err = appendCodingToArray(raw); err != nil {
+				return nil, err
+			}
+		}
+		writeMember(&buf, &first, key, raw)
 	}
-	encodedTags, err := json.Marshal(tags)
+	if !hasTag {
+		writeMember(&buf, &first, "tag", json.RawMessage(`[`+subsettedCoding+`]`))
+	}
+	buf.WriteByte('}')
+	return buf.Bytes(), nil
+}
+
+// appendCodingToArray appends the SUBSETTED coding to an existing meta.tag array,
+// preserving the existing codings and their order.
+func appendCodingToArray(rawTag json.RawMessage) (json.RawMessage, error) {
+	var existing []json.RawMessage
+	if err := json.Unmarshal(rawTag, &existing); err != nil {
+		return nil, fmt.Errorf("fhir: summary tag: decode existing tags: %w", err)
+	}
+	tags := append(existing, json.RawMessage(subsettedCoding))
+	encoded, err := json.Marshal(tags)
 	if err != nil {
 		return nil, fmt.Errorf("fhir: summary tag: encode tags: %w", err)
-	}
-	meta["tag"] = encodedTags
-	// meta has no canonical-order guarantee within MarshalSummary (it is a nested object,
-	// not a top-level element), so a sorted re-encode here is acceptable and keeps the
-	// helper simple.
-	encoded, err := json.Marshal(meta)
-	if err != nil {
-		return nil, fmt.Errorf("fhir: summary tag: encode meta: %w", err)
 	}
 	return encoded, nil
 }
