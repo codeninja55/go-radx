@@ -13,24 +13,24 @@ const GuidanceResponseResourceType = "GuidanceResponse"
 // GuidanceResponse is the generated FHIR GuidanceResponse resource.
 type GuidanceResponse struct {
 	DomainResource
-	RequestIdentifier         *Identifier            `json:"requestIdentifier,omitempty"`
-	Identifier                []Identifier           `json:"identifier,omitempty"`
-	ModuleURI                 *FHIRURI               `json:"moduleUri,omitempty"`
-	ModuleCanonical           *FHIRCanonical         `json:"moduleCanonical,omitempty"`
-	ModuleCodeableConcept     *CodeableConcept       `json:"moduleCodeableConcept,omitempty"`
-	Status                    *string                `json:"status,omitempty"`
-	StatusElement             *fhir.PrimitiveElement `json:"-"`
-	Subject                   *Reference             `json:"subject,omitempty"`
-	Encounter                 *Reference             `json:"encounter,omitempty"`
-	OccurrenceDateTime        *string                `json:"occurrenceDateTime,omitempty"`
-	OccurrenceDateTimeElement *fhir.PrimitiveElement `json:"-"`
-	Performer                 *Reference             `json:"performer,omitempty"`
-	Reason                    []CodeableReference    `json:"reason,omitempty"`
-	Note                      []Annotation           `json:"note,omitempty"`
-	EvaluationMessage         *Reference             `json:"evaluationMessage,omitempty"`
-	OutputParameters          *Reference             `json:"outputParameters,omitempty"`
-	Result                    []Reference            `json:"result,omitempty"`
-	DataRequirement           []DataRequirement      `json:"dataRequirement,omitempty"`
+	RequestIdentifier         *Identifier             `json:"requestIdentifier,omitempty"`
+	Identifier                []Identifier            `json:"identifier,omitempty"`
+	ModuleURI                 *FHIRURI                `json:"moduleUri,omitempty"`
+	ModuleCanonical           *FHIRCanonical          `json:"moduleCanonical,omitempty"`
+	ModuleCodeableConcept     *CodeableConcept        `json:"moduleCodeableConcept,omitempty"`
+	Status                    *GuidanceResponseStatus `json:"status,omitempty"`
+	StatusElement             *fhir.PrimitiveElement  `json:"-"`
+	Subject                   *Reference              `json:"subject,omitempty"`
+	Encounter                 *Reference              `json:"encounter,omitempty"`
+	OccurrenceDateTime        *string                 `json:"occurrenceDateTime,omitempty"`
+	OccurrenceDateTimeElement *fhir.PrimitiveElement  `json:"-"`
+	Performer                 *Reference              `json:"performer,omitempty"`
+	Reason                    []CodeableReference     `json:"reason,omitempty"`
+	Note                      []Annotation            `json:"note,omitempty"`
+	EvaluationMessage         *Reference              `json:"evaluationMessage,omitempty"`
+	OutputParameters          *Reference              `json:"outputParameters,omitempty"`
+	Result                    []Reference             `json:"result,omitempty"`
+	DataRequirement           []DataRequirement       `json:"dataRequirement,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "GuidanceResponse".

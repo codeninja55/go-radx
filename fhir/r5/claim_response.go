@@ -15,11 +15,11 @@ type ClaimResponse struct {
 	DomainResource
 	Identifier            []Identifier                    `json:"identifier,omitempty"`
 	TraceNumber           []Identifier                    `json:"traceNumber,omitempty"`
-	Status                *string                         `json:"status,omitempty"`
+	Status                *FinancialResourceStatusCodes   `json:"status,omitempty"`
 	StatusElement         *fhir.PrimitiveElement          `json:"-"`
 	Type                  *CodeableConcept                `json:"type,omitempty"`
 	SubType               *CodeableConcept                `json:"subType,omitempty"`
-	Use                   *string                         `json:"use,omitempty"`
+	Use                   *Use                            `json:"use,omitempty"`
 	UseElement            *fhir.PrimitiveElement          `json:"-"`
 	Patient               *Reference                      `json:"patient,omitempty"`
 	Created               *string                         `json:"created,omitempty"`
@@ -27,7 +27,7 @@ type ClaimResponse struct {
 	Insurer               *Reference                      `json:"insurer,omitempty"`
 	Requestor             *Reference                      `json:"requestor,omitempty"`
 	Request               *Reference                      `json:"request,omitempty"`
-	Outcome               *string                         `json:"outcome,omitempty"`
+	Outcome               *ClaimProcessingCodes           `json:"outcome,omitempty"`
 	OutcomeElement        *fhir.PrimitiveElement          `json:"-"`
 	Decision              *CodeableConcept                `json:"decision,omitempty"`
 	Disposition           *string                         `json:"disposition,omitempty"`

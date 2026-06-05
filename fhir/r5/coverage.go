@@ -13,32 +13,32 @@ const CoverageResourceType = "Coverage"
 // Coverage is the generated FHIR Coverage resource.
 type Coverage struct {
 	DomainResource
-	Identifier         []Identifier                `json:"identifier,omitempty"`
-	Status             *string                     `json:"status,omitempty"`
-	StatusElement      *fhir.PrimitiveElement      `json:"-"`
-	Kind               *string                     `json:"kind,omitempty"`
-	KindElement        *fhir.PrimitiveElement      `json:"-"`
-	PaymentBy          []CoveragePaymentBy         `json:"paymentBy,omitempty"`
-	Type               *CodeableConcept            `json:"type,omitempty"`
-	PolicyHolder       *Reference                  `json:"policyHolder,omitempty"`
-	Subscriber         *Reference                  `json:"subscriber,omitempty"`
-	SubscriberId       []Identifier                `json:"subscriberId,omitempty"`
-	Beneficiary        *Reference                  `json:"beneficiary,omitempty"`
-	Dependent          *string                     `json:"dependent,omitempty"`
-	DependentElement   *fhir.PrimitiveElement      `json:"-"`
-	Relationship       *CodeableConcept            `json:"relationship,omitempty"`
-	Period             *Period                     `json:"period,omitempty"`
-	Insurer            *Reference                  `json:"insurer,omitempty"`
-	Class              []CoverageClass             `json:"class,omitempty"`
-	Order              *int32                      `json:"order,omitempty"`
-	OrderElement       *fhir.PrimitiveElement      `json:"-"`
-	Network            *string                     `json:"network,omitempty"`
-	NetworkElement     *fhir.PrimitiveElement      `json:"-"`
-	CostToBeneficiary  []CoverageCostToBeneficiary `json:"costToBeneficiary,omitempty"`
-	Subrogation        *bool                       `json:"subrogation,omitempty"`
-	SubrogationElement *fhir.PrimitiveElement      `json:"-"`
-	Contract           []Reference                 `json:"contract,omitempty"`
-	InsurancePlan      *Reference                  `json:"insurancePlan,omitempty"`
+	Identifier         []Identifier                  `json:"identifier,omitempty"`
+	Status             *FinancialResourceStatusCodes `json:"status,omitempty"`
+	StatusElement      *fhir.PrimitiveElement        `json:"-"`
+	Kind               *Kind                         `json:"kind,omitempty"`
+	KindElement        *fhir.PrimitiveElement        `json:"-"`
+	PaymentBy          []CoveragePaymentBy           `json:"paymentBy,omitempty"`
+	Type               *CodeableConcept              `json:"type,omitempty"`
+	PolicyHolder       *Reference                    `json:"policyHolder,omitempty"`
+	Subscriber         *Reference                    `json:"subscriber,omitempty"`
+	SubscriberId       []Identifier                  `json:"subscriberId,omitempty"`
+	Beneficiary        *Reference                    `json:"beneficiary,omitempty"`
+	Dependent          *string                       `json:"dependent,omitempty"`
+	DependentElement   *fhir.PrimitiveElement        `json:"-"`
+	Relationship       *CodeableConcept              `json:"relationship,omitempty"`
+	Period             *Period                       `json:"period,omitempty"`
+	Insurer            *Reference                    `json:"insurer,omitempty"`
+	Class              []CoverageClass               `json:"class,omitempty"`
+	Order              *int32                        `json:"order,omitempty"`
+	OrderElement       *fhir.PrimitiveElement        `json:"-"`
+	Network            *string                       `json:"network,omitempty"`
+	NetworkElement     *fhir.PrimitiveElement        `json:"-"`
+	CostToBeneficiary  []CoverageCostToBeneficiary   `json:"costToBeneficiary,omitempty"`
+	Subrogation        *bool                         `json:"subrogation,omitempty"`
+	SubrogationElement *fhir.PrimitiveElement        `json:"-"`
+	Contract           []Reference                   `json:"contract,omitempty"`
+	InsurancePlan      *Reference                    `json:"insurancePlan,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "Coverage".

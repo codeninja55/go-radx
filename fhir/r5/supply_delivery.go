@@ -16,7 +16,7 @@ type SupplyDelivery struct {
 	Identifier         []Identifier                 `json:"identifier,omitempty"`
 	BasedOn            []Reference                  `json:"basedOn,omitempty"`
 	PartOf             []Reference                  `json:"partOf,omitempty"`
-	Status             *string                      `json:"status,omitempty"`
+	Status             *SupplyDeliveryStatus        `json:"status,omitempty"`
 	StatusElement      *fhir.PrimitiveElement       `json:"-"`
 	Patient            *Reference                   `json:"patient,omitempty"`
 	Type               *CodeableConcept             `json:"type,omitempty"`

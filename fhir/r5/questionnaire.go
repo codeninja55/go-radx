@@ -26,11 +26,11 @@ type Questionnaire struct {
 	TitleElement           *fhir.PrimitiveElement   `json:"-"`
 	DerivedFrom            []string                 `json:"derivedFrom,omitempty"`
 	DerivedFromElement     []*fhir.PrimitiveElement `json:"-"`
-	Status                 *string                  `json:"status,omitempty"`
+	Status                 *PublicationStatus       `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement   `json:"-"`
 	Experimental           *bool                    `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement   `json:"-"`
-	SubjectType            []string                 `json:"subjectType,omitempty"`
+	SubjectType            []ResourceType           `json:"subjectType,omitempty"`
 	SubjectTypeElement     []*fhir.PrimitiveElement `json:"-"`
 	Date                   *string                  `json:"date,omitempty"`
 	DateElement            *fhir.PrimitiveElement   `json:"-"`
@@ -340,37 +340,37 @@ func (r *Questionnaire) SetVersionAlgorithmCoding(v Coding) {
 // QuestionnaireItem is a generated nested backbone element.
 type QuestionnaireItem struct {
 	BackboneElement
-	LinkId                  *string                         `json:"linkId,omitempty"`
-	LinkIdElement           *fhir.PrimitiveElement          `json:"-"`
-	Definition              *string                         `json:"definition,omitempty"`
-	DefinitionElement       *fhir.PrimitiveElement          `json:"-"`
-	Code                    []Coding                        `json:"code,omitempty"`
-	Prefix                  *string                         `json:"prefix,omitempty"`
-	PrefixElement           *fhir.PrimitiveElement          `json:"-"`
-	Text                    *string                         `json:"text,omitempty"`
-	TextElement             *fhir.PrimitiveElement          `json:"-"`
-	Type                    *string                         `json:"type,omitempty"`
-	TypeElement             *fhir.PrimitiveElement          `json:"-"`
-	EnableWhen              []QuestionnaireItemEnableWhen   `json:"enableWhen,omitempty"`
-	EnableBehavior          *string                         `json:"enableBehavior,omitempty"`
-	EnableBehaviorElement   *fhir.PrimitiveElement          `json:"-"`
-	DisabledDisplay         *string                         `json:"disabledDisplay,omitempty"`
-	DisabledDisplayElement  *fhir.PrimitiveElement          `json:"-"`
-	Required                *bool                           `json:"required,omitempty"`
-	RequiredElement         *fhir.PrimitiveElement          `json:"-"`
-	Repeats                 *bool                           `json:"repeats,omitempty"`
-	RepeatsElement          *fhir.PrimitiveElement          `json:"-"`
-	ReadOnly                *bool                           `json:"readOnly,omitempty"`
-	ReadOnlyElement         *fhir.PrimitiveElement          `json:"-"`
-	MaxLength               *int32                          `json:"maxLength,omitempty"`
-	MaxLengthElement        *fhir.PrimitiveElement          `json:"-"`
-	AnswerConstraint        *string                         `json:"answerConstraint,omitempty"`
-	AnswerConstraintElement *fhir.PrimitiveElement          `json:"-"`
-	AnswerValueSet          *string                         `json:"answerValueSet,omitempty"`
-	AnswerValueSetElement   *fhir.PrimitiveElement          `json:"-"`
-	AnswerOption            []QuestionnaireItemAnswerOption `json:"answerOption,omitempty"`
-	Initial                 []QuestionnaireItemInitial      `json:"initial,omitempty"`
-	Item                    []QuestionnaireItem             `json:"item,omitempty"`
+	LinkId                  *string                           `json:"linkId,omitempty"`
+	LinkIdElement           *fhir.PrimitiveElement            `json:"-"`
+	Definition              *string                           `json:"definition,omitempty"`
+	DefinitionElement       *fhir.PrimitiveElement            `json:"-"`
+	Code                    []Coding                          `json:"code,omitempty"`
+	Prefix                  *string                           `json:"prefix,omitempty"`
+	PrefixElement           *fhir.PrimitiveElement            `json:"-"`
+	Text                    *string                           `json:"text,omitempty"`
+	TextElement             *fhir.PrimitiveElement            `json:"-"`
+	Type                    *QuestionnaireItemType            `json:"type,omitempty"`
+	TypeElement             *fhir.PrimitiveElement            `json:"-"`
+	EnableWhen              []QuestionnaireItemEnableWhen     `json:"enableWhen,omitempty"`
+	EnableBehavior          *EnableWhenBehavior               `json:"enableBehavior,omitempty"`
+	EnableBehaviorElement   *fhir.PrimitiveElement            `json:"-"`
+	DisabledDisplay         *QuestionnaireItemDisabledDisplay `json:"disabledDisplay,omitempty"`
+	DisabledDisplayElement  *fhir.PrimitiveElement            `json:"-"`
+	Required                *bool                             `json:"required,omitempty"`
+	RequiredElement         *fhir.PrimitiveElement            `json:"-"`
+	Repeats                 *bool                             `json:"repeats,omitempty"`
+	RepeatsElement          *fhir.PrimitiveElement            `json:"-"`
+	ReadOnly                *bool                             `json:"readOnly,omitempty"`
+	ReadOnlyElement         *fhir.PrimitiveElement            `json:"-"`
+	MaxLength               *int32                            `json:"maxLength,omitempty"`
+	MaxLengthElement        *fhir.PrimitiveElement            `json:"-"`
+	AnswerConstraint        *QuestionnaireAnswerConstraint    `json:"answerConstraint,omitempty"`
+	AnswerConstraintElement *fhir.PrimitiveElement            `json:"-"`
+	AnswerValueSet          *string                           `json:"answerValueSet,omitempty"`
+	AnswerValueSetElement   *fhir.PrimitiveElement            `json:"-"`
+	AnswerOption            []QuestionnaireItemAnswerOption   `json:"answerOption,omitempty"`
+	Initial                 []QuestionnaireItemInitial        `json:"initial,omitempty"`
+	Item                    []QuestionnaireItem               `json:"item,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -744,20 +744,20 @@ func (r *QuestionnaireItemAnswerOption) SetValueReference(v Reference) {
 // QuestionnaireItemEnableWhen is a generated nested backbone element.
 type QuestionnaireItemEnableWhen struct {
 	BackboneElement
-	Question        *string                `json:"question,omitempty"`
-	QuestionElement *fhir.PrimitiveElement `json:"-"`
-	Operator        *string                `json:"operator,omitempty"`
-	OperatorElement *fhir.PrimitiveElement `json:"-"`
-	AnswerBoolean   *FHIRBoolean           `json:"answerBoolean,omitempty"`
-	AnswerDecimal   *FHIRDecimal           `json:"answerDecimal,omitempty"`
-	AnswerInteger   *FHIRInteger           `json:"answerInteger,omitempty"`
-	AnswerDate      *FHIRDate              `json:"answerDate,omitempty"`
-	AnswerDateTime  *FHIRDateTime          `json:"answerDateTime,omitempty"`
-	AnswerTime      *FHIRTime              `json:"answerTime,omitempty"`
-	AnswerString    *FHIRString            `json:"answerString,omitempty"`
-	AnswerCoding    *Coding                `json:"answerCoding,omitempty"`
-	AnswerQuantity  *Quantity              `json:"answerQuantity,omitempty"`
-	AnswerReference *Reference             `json:"answerReference,omitempty"`
+	Question        *string                    `json:"question,omitempty"`
+	QuestionElement *fhir.PrimitiveElement     `json:"-"`
+	Operator        *QuestionnaireItemOperator `json:"operator,omitempty"`
+	OperatorElement *fhir.PrimitiveElement     `json:"-"`
+	AnswerBoolean   *FHIRBoolean               `json:"answerBoolean,omitempty"`
+	AnswerDecimal   *FHIRDecimal               `json:"answerDecimal,omitempty"`
+	AnswerInteger   *FHIRInteger               `json:"answerInteger,omitempty"`
+	AnswerDate      *FHIRDate                  `json:"answerDate,omitempty"`
+	AnswerDateTime  *FHIRDateTime              `json:"answerDateTime,omitempty"`
+	AnswerTime      *FHIRTime                  `json:"answerTime,omitempty"`
+	AnswerString    *FHIRString                `json:"answerString,omitempty"`
+	AnswerCoding    *Coding                    `json:"answerCoding,omitempty"`
+	AnswerQuantity  *Quantity                  `json:"answerQuantity,omitempty"`
+	AnswerReference *Reference                 `json:"answerReference,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

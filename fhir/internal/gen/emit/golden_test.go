@@ -120,6 +120,58 @@ func TestEmitAnnotationGolden(t *testing.T) {
 	}
 }
 
+// TestEmitEnumsGolden emits a representative pair of required-binding enums — one
+// enumerable closed enum (AdministrativeGender) and one documented not-inlined open
+// string (UCUMCodes) — and pins the formatted Go against a committed golden. The golden
+// carries the full closed-enum shape (defined string type, const set, set-membership
+// validator, strict-by-default ParseXxx, and the strict UnmarshalJSON that rejects an
+// out-of-set code with fhir.ErrUnknownCode, FHIR-013) alongside the not-inlined
+// boundary (a plain string with a documented reason, never an empty const set). A
+// regression in the enum template is caught here before it reaches the generated tree.
+func TestEmitEnumsGolden(t *testing.T) {
+	enums := []plan.PlannedEnum{
+		{
+			GoName:      "AdministrativeGender",
+			FHIRName:    "AdministrativeGender",
+			ValueSetURL: "http://hl7.org/fhir/ValueSet/administrative-gender",
+			Consts: []plan.EnumConst{
+				{GoName: "AdministrativeGenderMale", Value: "male"},
+				{GoName: "AdministrativeGenderFemale", Value: "female"},
+				{GoName: "AdministrativeGenderOther", Value: "other"},
+				{GoName: "AdministrativeGenderUnknown", Value: "unknown"},
+			},
+		},
+		{
+			GoName:           "UCUMCodes",
+			FHIRName:         "UCUMCodes",
+			ValueSetURL:      "http://hl7.org/fhir/ValueSet/ucum-units",
+			NotInlined:       true,
+			NotInlinedReason: "draws from code system http://unitsofmeasure.org, not vendored in the bundle",
+		},
+	}
+	plan.SortPlannedEnums(enums)
+	got, err := EmitEnums(Enums{Package: "r5", Enums: enums})
+	if err != nil {
+		t.Fatalf("EmitEnums: %v", err)
+	}
+
+	goldenPath := filepath.Join("testdata", "golden", "bindings.go.golden")
+	if *updateGolden {
+		if err := os.WriteFile(goldenPath, got, 0o644); err != nil {
+			t.Fatalf("write golden %s: %v", goldenPath, err)
+		}
+		return
+	}
+
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("read golden %s (run `go test ./fhir/internal/gen/emit -update` to create it): %v", goldenPath, err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("emitted enums drifted from golden %s.\nwant:\n%s\ngot:\n%s", goldenPath, string(want), string(got))
+	}
+}
+
 // TestEmitRegistryGolden emits the per-release registry file and pins it against a
 // committed golden, so a drift in the registry init() — the resourceType→factory
 // wiring fhir.UnmarshalResource dispatches through — is caught here.

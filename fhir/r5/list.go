@@ -14,9 +14,9 @@ const ListResourceType = "List"
 type List struct {
 	DomainResource
 	Identifier    []Identifier           `json:"identifier,omitempty"`
-	Status        *string                `json:"status,omitempty"`
+	Status        *ListStatus            `json:"status,omitempty"`
 	StatusElement *fhir.PrimitiveElement `json:"-"`
-	Mode          *string                `json:"mode,omitempty"`
+	Mode          *ListMode              `json:"mode,omitempty"`
 	ModeElement   *fhir.PrimitiveElement `json:"-"`
 	Title         *string                `json:"title,omitempty"`
 	TitleElement  *fhir.PrimitiveElement `json:"-"`

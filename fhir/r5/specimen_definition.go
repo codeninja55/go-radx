@@ -28,7 +28,7 @@ type SpecimenDefinition struct {
 	DerivedFromCanonicalElement []*fhir.PrimitiveElement       `json:"-"`
 	DerivedFromUri              []string                       `json:"derivedFromUri,omitempty"`
 	DerivedFromUriElement       []*fhir.PrimitiveElement       `json:"-"`
-	Status                      *string                        `json:"status,omitempty"`
+	Status                      *PublicationStatus             `json:"status,omitempty"`
 	StatusElement               *fhir.PrimitiveElement         `json:"-"`
 	Experimental                *bool                          `json:"experimental,omitempty"`
 	ExperimentalElement         *fhir.PrimitiveElement         `json:"-"`
@@ -400,7 +400,7 @@ type SpecimenDefinitionTypeTested struct {
 	IsDerived          *bool                                  `json:"isDerived,omitempty"`
 	IsDerivedElement   *fhir.PrimitiveElement                 `json:"-"`
 	Type               *CodeableConcept                       `json:"type,omitempty"`
-	Preference         *string                                `json:"preference,omitempty"`
+	Preference         *SpecimenContainedPreference           `json:"preference,omitempty"`
 	PreferenceElement  *fhir.PrimitiveElement                 `json:"-"`
 	Container          *SpecimenDefinitionTypeTestedContainer `json:"container,omitempty"`
 	Requirement        *string                                `json:"requirement,omitempty"`

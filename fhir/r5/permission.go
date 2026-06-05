@@ -13,14 +13,14 @@ const PermissionResourceType = "Permission"
 // Permission is the generated FHIR Permission resource.
 type Permission struct {
 	DomainResource
-	Status           *string                  `json:"status,omitempty"`
+	Status           *PermissionStatus        `json:"status,omitempty"`
 	StatusElement    *fhir.PrimitiveElement   `json:"-"`
 	Asserter         *Reference               `json:"asserter,omitempty"`
 	Date             []string                 `json:"date,omitempty"`
 	DateElement      []*fhir.PrimitiveElement `json:"-"`
 	Validity         *Period                  `json:"validity,omitempty"`
 	Justification    *PermissionJustification `json:"justification,omitempty"`
-	Combining        *string                  `json:"combining,omitempty"`
+	Combining        *PermissionRuleCombining `json:"combining,omitempty"`
 	CombiningElement *fhir.PrimitiveElement   `json:"-"`
 	Rule             []PermissionRule         `json:"rule,omitempty"`
 }
@@ -119,7 +119,7 @@ type PermissionJustification struct {
 // PermissionRule is a generated nested backbone element.
 type PermissionRule struct {
 	BackboneElement
-	Type        *string                  `json:"type,omitempty"`
+	Type        *ConsentProvisionType    `json:"type,omitempty"`
 	TypeElement *fhir.PrimitiveElement   `json:"-"`
 	Data        []PermissionRuleData     `json:"data,omitempty"`
 	Activity    []PermissionRuleActivity `json:"activity,omitempty"`
@@ -194,7 +194,7 @@ type PermissionRuleData struct {
 // PermissionRuleDataResource is a generated nested backbone element.
 type PermissionRuleDataResource struct {
 	BackboneElement
-	Meaning        *string                `json:"meaning,omitempty"`
+	Meaning        *ConsentDataMeaning    `json:"meaning,omitempty"`
 	MeaningElement *fhir.PrimitiveElement `json:"-"`
 	Reference      *Reference             `json:"reference,omitempty"`
 }

@@ -14,7 +14,7 @@ const EpisodeOfCareResourceType = "EpisodeOfCare"
 type EpisodeOfCare struct {
 	DomainResource
 	Identifier           []Identifier                 `json:"identifier,omitempty"`
-	Status               *string                      `json:"status,omitempty"`
+	Status               *EpisodeOfCareStatus         `json:"status,omitempty"`
 	StatusElement        *fhir.PrimitiveElement       `json:"-"`
 	StatusHistory        []EpisodeOfCareStatusHistory `json:"statusHistory,omitempty"`
 	Type                 []CodeableConcept            `json:"type,omitempty"`
@@ -106,7 +106,7 @@ type EpisodeOfCareReason struct {
 // EpisodeOfCareStatusHistory is a generated nested backbone element.
 type EpisodeOfCareStatusHistory struct {
 	BackboneElement
-	Status        *string                `json:"status,omitempty"`
+	Status        *EpisodeOfCareStatus   `json:"status,omitempty"`
 	StatusElement *fhir.PrimitiveElement `json:"-"`
 	Period        *Period                `json:"period,omitempty"`
 }

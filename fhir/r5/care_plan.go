@@ -21,9 +21,9 @@ type CarePlan struct {
 	BasedOn                      []Reference              `json:"basedOn,omitempty"`
 	Replaces                     []Reference              `json:"replaces,omitempty"`
 	PartOf                       []Reference              `json:"partOf,omitempty"`
-	Status                       *string                  `json:"status,omitempty"`
+	Status                       *RequestStatus           `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement   `json:"-"`
-	Intent                       *string                  `json:"intent,omitempty"`
+	Intent                       *CarePlanIntent          `json:"intent,omitempty"`
 	IntentElement                *fhir.PrimitiveElement   `json:"-"`
 	Category                     []CodeableConcept        `json:"category,omitempty"`
 	Title                        *string                  `json:"title,omitempty"`

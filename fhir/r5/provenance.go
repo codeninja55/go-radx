@@ -156,7 +156,7 @@ type ProvenanceAgent struct {
 // ProvenanceEntity is a generated nested backbone element.
 type ProvenanceEntity struct {
 	BackboneElement
-	Role        *string                `json:"role,omitempty"`
+	Role        *ProvenanceEntityRole  `json:"role,omitempty"`
 	RoleElement *fhir.PrimitiveElement `json:"-"`
 	What        *Reference             `json:"what,omitempty"`
 	Agent       []ProvenanceAgent      `json:"agent,omitempty"`

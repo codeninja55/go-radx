@@ -10,7 +10,7 @@ import (
 // MonetaryComponent is the generated FHIR MonetaryComponent datatype.
 type MonetaryComponent struct {
 	Element
-	Type          *string                `json:"type,omitempty"`
+	Type          *PriceComponentType    `json:"type,omitempty"`
 	TypeElement   *fhir.PrimitiveElement `json:"-"`
 	Code          *CodeableConcept       `json:"code,omitempty"`
 	Factor        *fhir.Decimal          `json:"factor,omitempty"`

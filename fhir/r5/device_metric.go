@@ -13,18 +13,18 @@ const DeviceMetricResourceType = "DeviceMetric"
 // DeviceMetric is the generated FHIR DeviceMetric resource.
 type DeviceMetric struct {
 	DomainResource
-	Identifier               []Identifier              `json:"identifier,omitempty"`
-	Type                     *CodeableConcept          `json:"type,omitempty"`
-	Unit                     *CodeableConcept          `json:"unit,omitempty"`
-	Device                   *Reference                `json:"device,omitempty"`
-	OperationalStatus        *string                   `json:"operationalStatus,omitempty"`
-	OperationalStatusElement *fhir.PrimitiveElement    `json:"-"`
-	Color                    *string                   `json:"color,omitempty"`
-	ColorElement             *fhir.PrimitiveElement    `json:"-"`
-	Category                 *string                   `json:"category,omitempty"`
-	CategoryElement          *fhir.PrimitiveElement    `json:"-"`
-	MeasurementFrequency     *Quantity                 `json:"measurementFrequency,omitempty"`
-	Calibration              []DeviceMetricCalibration `json:"calibration,omitempty"`
+	Identifier               []Identifier                   `json:"identifier,omitempty"`
+	Type                     *CodeableConcept               `json:"type,omitempty"`
+	Unit                     *CodeableConcept               `json:"unit,omitempty"`
+	Device                   *Reference                     `json:"device,omitempty"`
+	OperationalStatus        *DeviceMetricOperationalStatus `json:"operationalStatus,omitempty"`
+	OperationalStatusElement *fhir.PrimitiveElement         `json:"-"`
+	Color                    *string                        `json:"color,omitempty"`
+	ColorElement             *fhir.PrimitiveElement         `json:"-"`
+	Category                 *DeviceMetricCategory          `json:"category,omitempty"`
+	CategoryElement          *fhir.PrimitiveElement         `json:"-"`
+	MeasurementFrequency     *Quantity                      `json:"measurementFrequency,omitempty"`
+	Calibration              []DeviceMetricCalibration      `json:"calibration,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "DeviceMetric".
@@ -114,12 +114,12 @@ func (v *DeviceMetric) UnmarshalJSON(data []byte) error {
 // DeviceMetricCalibration is a generated nested backbone element.
 type DeviceMetricCalibration struct {
 	BackboneElement
-	Type         *string                `json:"type,omitempty"`
-	TypeElement  *fhir.PrimitiveElement `json:"-"`
-	State        *string                `json:"state,omitempty"`
-	StateElement *fhir.PrimitiveElement `json:"-"`
-	Time         *string                `json:"time,omitempty"`
-	TimeElement  *fhir.PrimitiveElement `json:"-"`
+	Type         *DeviceMetricCalibrationType  `json:"type,omitempty"`
+	TypeElement  *fhir.PrimitiveElement        `json:"-"`
+	State        *DeviceMetricCalibrationState `json:"state,omitempty"`
+	StateElement *fhir.PrimitiveElement        `json:"-"`
+	Time         *string                       `json:"time,omitempty"`
+	TimeElement  *fhir.PrimitiveElement        `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

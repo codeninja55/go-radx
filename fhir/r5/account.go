@@ -14,7 +14,7 @@ const AccountResourceType = "Account"
 type Account struct {
 	DomainResource
 	Identifier          []Identifier            `json:"identifier,omitempty"`
-	Status              *string                 `json:"status,omitempty"`
+	Status              *AccountStatus          `json:"status,omitempty"`
 	StatusElement       *fhir.PrimitiveElement  `json:"-"`
 	BillingStatus       *CodeableConcept        `json:"billingStatus,omitempty"`
 	Type                *CodeableConcept        `json:"type,omitempty"`

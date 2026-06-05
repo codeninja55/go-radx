@@ -26,7 +26,7 @@ type ConditionDefinition struct {
 	TitleElement           *fhir.PrimitiveElement             `json:"-"`
 	Subtitle               *string                            `json:"subtitle,omitempty"`
 	SubtitleElement        *fhir.PrimitiveElement             `json:"-"`
-	Status                 *string                            `json:"status,omitempty"`
+	Status                 *PublicationStatus                 `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement             `json:"-"`
 	Experimental           *bool                              `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement             `json:"-"`
@@ -333,11 +333,11 @@ type ConditionDefinitionPlan struct {
 // ConditionDefinitionPrecondition is a generated nested backbone element.
 type ConditionDefinitionPrecondition struct {
 	BackboneElement
-	Type                 *string                `json:"type,omitempty"`
-	TypeElement          *fhir.PrimitiveElement `json:"-"`
-	Code                 *CodeableConcept       `json:"code,omitempty"`
-	ValueCodeableConcept *CodeableConcept       `json:"valueCodeableConcept,omitempty"`
-	ValueQuantity        *Quantity              `json:"valueQuantity,omitempty"`
+	Type                 *ConditionPreconditionType `json:"type,omitempty"`
+	TypeElement          *fhir.PrimitiveElement     `json:"-"`
+	Code                 *CodeableConcept           `json:"code,omitempty"`
+	ValueCodeableConcept *CodeableConcept           `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity                  `json:"valueQuantity,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -430,9 +430,9 @@ func (r *ConditionDefinitionPrecondition) SetValueQuantity(v Quantity) {
 // ConditionDefinitionQuestionnaire is a generated nested backbone element.
 type ConditionDefinitionQuestionnaire struct {
 	BackboneElement
-	Purpose        *string                `json:"purpose,omitempty"`
-	PurposeElement *fhir.PrimitiveElement `json:"-"`
-	Reference      *Reference             `json:"reference,omitempty"`
+	Purpose        *ConditionQuestionnairePurpose `json:"purpose,omitempty"`
+	PurposeElement *fhir.PrimitiveElement         `json:"-"`
+	Reference      *Reference                     `json:"reference,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

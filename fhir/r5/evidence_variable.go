@@ -26,7 +26,7 @@ type EvidenceVariable struct {
 	TitleElement           *fhir.PrimitiveElement           `json:"-"`
 	ShortTitle             *string                          `json:"shortTitle,omitempty"`
 	ShortTitleElement      *fhir.PrimitiveElement           `json:"-"`
-	Status                 *string                          `json:"status,omitempty"`
+	Status                 *PublicationStatus               `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement           `json:"-"`
 	Experimental           *bool                            `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement           `json:"-"`
@@ -58,7 +58,7 @@ type EvidenceVariable struct {
 	Actual                 *bool                            `json:"actual,omitempty"`
 	ActualElement          *fhir.PrimitiveElement           `json:"-"`
 	Characteristic         []EvidenceVariableCharacteristic `json:"characteristic,omitempty"`
-	Handling               *string                          `json:"handling,omitempty"`
+	Handling               *EvidenceVariableHandling        `json:"handling,omitempty"`
 	HandlingElement        *fhir.PrimitiveElement           `json:"-"`
 	Category               []EvidenceVariableCategory       `json:"category,omitempty"`
 }
@@ -670,7 +670,7 @@ func (r *EvidenceVariableCharacteristic) SetDurationRange(v Range) {
 // EvidenceVariableCharacteristicDefinitionByCombination is a generated nested backbone element.
 type EvidenceVariableCharacteristicDefinitionByCombination struct {
 	BackboneElement
-	Code             *string                          `json:"code,omitempty"`
+	Code             *CharacteristicCombination       `json:"code,omitempty"`
 	CodeElement      *fhir.PrimitiveElement           `json:"-"`
 	Threshold        *int32                           `json:"threshold,omitempty"`
 	ThresholdElement *fhir.PrimitiveElement           `json:"-"`

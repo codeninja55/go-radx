@@ -24,7 +24,7 @@ type ExampleScenario struct {
 	NameElement            *fhir.PrimitiveElement    `json:"-"`
 	Title                  *string                   `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement    `json:"-"`
-	Status                 *string                   `json:"status,omitempty"`
+	Status                 *PublicationStatus        `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement    `json:"-"`
 	Experimental           *bool                     `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement    `json:"-"`
@@ -284,14 +284,14 @@ func (r *ExampleScenario) SetVersionAlgorithmCoding(v Coding) {
 // ExampleScenarioActor is a generated nested backbone element.
 type ExampleScenarioActor struct {
 	BackboneElement
-	Key                *string                `json:"key,omitempty"`
-	KeyElement         *fhir.PrimitiveElement `json:"-"`
-	Type               *string                `json:"type,omitempty"`
-	TypeElement        *fhir.PrimitiveElement `json:"-"`
-	Title              *string                `json:"title,omitempty"`
-	TitleElement       *fhir.PrimitiveElement `json:"-"`
-	Description        *string                `json:"description,omitempty"`
-	DescriptionElement *fhir.PrimitiveElement `json:"-"`
+	Key                *string                   `json:"key,omitempty"`
+	KeyElement         *fhir.PrimitiveElement    `json:"-"`
+	Type               *ExampleScenarioActorType `json:"type,omitempty"`
+	TypeElement        *fhir.PrimitiveElement    `json:"-"`
+	Title              *string                   `json:"title,omitempty"`
+	TitleElement       *fhir.PrimitiveElement    `json:"-"`
+	Description        *string                   `json:"description,omitempty"`
+	DescriptionElement *fhir.PrimitiveElement    `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

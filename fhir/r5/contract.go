@@ -13,50 +13,50 @@ const ContractResourceType = "Contract"
 // Contract is the generated FHIR Contract resource.
 type Contract struct {
 	DomainResource
-	Identifier               []Identifier               `json:"identifier,omitempty"`
-	URL                      *string                    `json:"url,omitempty"`
-	URLElement               *fhir.PrimitiveElement     `json:"-"`
-	Version                  *string                    `json:"version,omitempty"`
-	VersionElement           *fhir.PrimitiveElement     `json:"-"`
-	Status                   *string                    `json:"status,omitempty"`
-	StatusElement            *fhir.PrimitiveElement     `json:"-"`
-	LegalState               *CodeableConcept           `json:"legalState,omitempty"`
-	InstantiatesCanonical    *Reference                 `json:"instantiatesCanonical,omitempty"`
-	InstantiatesUri          *string                    `json:"instantiatesUri,omitempty"`
-	InstantiatesUriElement   *fhir.PrimitiveElement     `json:"-"`
-	ContentDerivative        *CodeableConcept           `json:"contentDerivative,omitempty"`
-	Issued                   *string                    `json:"issued,omitempty"`
-	IssuedElement            *fhir.PrimitiveElement     `json:"-"`
-	Applies                  *Period                    `json:"applies,omitempty"`
-	ExpirationType           *CodeableConcept           `json:"expirationType,omitempty"`
-	Subject                  []Reference                `json:"subject,omitempty"`
-	Authority                []Reference                `json:"authority,omitempty"`
-	Domain                   []Reference                `json:"domain,omitempty"`
-	Site                     []Reference                `json:"site,omitempty"`
-	Name                     *string                    `json:"name,omitempty"`
-	NameElement              *fhir.PrimitiveElement     `json:"-"`
-	Title                    *string                    `json:"title,omitempty"`
-	TitleElement             *fhir.PrimitiveElement     `json:"-"`
-	Subtitle                 *string                    `json:"subtitle,omitempty"`
-	SubtitleElement          *fhir.PrimitiveElement     `json:"-"`
-	Alias                    []string                   `json:"alias,omitempty"`
-	AliasElement             []*fhir.PrimitiveElement   `json:"-"`
-	Author                   *Reference                 `json:"author,omitempty"`
-	Scope                    *CodeableConcept           `json:"scope,omitempty"`
-	TopicCodeableConcept     *CodeableConcept           `json:"topicCodeableConcept,omitempty"`
-	TopicReference           *Reference                 `json:"topicReference,omitempty"`
-	Type                     *CodeableConcept           `json:"type,omitempty"`
-	SubType                  []CodeableConcept          `json:"subType,omitempty"`
-	ContentDefinition        *ContractContentDefinition `json:"contentDefinition,omitempty"`
-	Term                     []ContractTerm             `json:"term,omitempty"`
-	SupportingInfo           []Reference                `json:"supportingInfo,omitempty"`
-	RelevantHistory          []Reference                `json:"relevantHistory,omitempty"`
-	Signer                   []ContractSigner           `json:"signer,omitempty"`
-	Friendly                 []ContractFriendly         `json:"friendly,omitempty"`
-	Legal                    []ContractFriendly         `json:"legal,omitempty"`
-	Rule                     []ContractFriendly         `json:"rule,omitempty"`
-	LegallyBindingAttachment *Attachment                `json:"legallyBindingAttachment,omitempty"`
-	LegallyBindingReference  *Reference                 `json:"legallyBindingReference,omitempty"`
+	Identifier               []Identifier                 `json:"identifier,omitempty"`
+	URL                      *string                      `json:"url,omitempty"`
+	URLElement               *fhir.PrimitiveElement       `json:"-"`
+	Version                  *string                      `json:"version,omitempty"`
+	VersionElement           *fhir.PrimitiveElement       `json:"-"`
+	Status                   *ContractResourceStatusCodes `json:"status,omitempty"`
+	StatusElement            *fhir.PrimitiveElement       `json:"-"`
+	LegalState               *CodeableConcept             `json:"legalState,omitempty"`
+	InstantiatesCanonical    *Reference                   `json:"instantiatesCanonical,omitempty"`
+	InstantiatesUri          *string                      `json:"instantiatesUri,omitempty"`
+	InstantiatesUriElement   *fhir.PrimitiveElement       `json:"-"`
+	ContentDerivative        *CodeableConcept             `json:"contentDerivative,omitempty"`
+	Issued                   *string                      `json:"issued,omitempty"`
+	IssuedElement            *fhir.PrimitiveElement       `json:"-"`
+	Applies                  *Period                      `json:"applies,omitempty"`
+	ExpirationType           *CodeableConcept             `json:"expirationType,omitempty"`
+	Subject                  []Reference                  `json:"subject,omitempty"`
+	Authority                []Reference                  `json:"authority,omitempty"`
+	Domain                   []Reference                  `json:"domain,omitempty"`
+	Site                     []Reference                  `json:"site,omitempty"`
+	Name                     *string                      `json:"name,omitempty"`
+	NameElement              *fhir.PrimitiveElement       `json:"-"`
+	Title                    *string                      `json:"title,omitempty"`
+	TitleElement             *fhir.PrimitiveElement       `json:"-"`
+	Subtitle                 *string                      `json:"subtitle,omitempty"`
+	SubtitleElement          *fhir.PrimitiveElement       `json:"-"`
+	Alias                    []string                     `json:"alias,omitempty"`
+	AliasElement             []*fhir.PrimitiveElement     `json:"-"`
+	Author                   *Reference                   `json:"author,omitempty"`
+	Scope                    *CodeableConcept             `json:"scope,omitempty"`
+	TopicCodeableConcept     *CodeableConcept             `json:"topicCodeableConcept,omitempty"`
+	TopicReference           *Reference                   `json:"topicReference,omitempty"`
+	Type                     *CodeableConcept             `json:"type,omitempty"`
+	SubType                  []CodeableConcept            `json:"subType,omitempty"`
+	ContentDefinition        *ContractContentDefinition   `json:"contentDefinition,omitempty"`
+	Term                     []ContractTerm               `json:"term,omitempty"`
+	SupportingInfo           []Reference                  `json:"supportingInfo,omitempty"`
+	RelevantHistory          []Reference                  `json:"relevantHistory,omitempty"`
+	Signer                   []ContractSigner             `json:"signer,omitempty"`
+	Friendly                 []ContractFriendly           `json:"friendly,omitempty"`
+	Legal                    []ContractFriendly           `json:"legal,omitempty"`
+	Rule                     []ContractFriendly           `json:"rule,omitempty"`
+	LegallyBindingAttachment *Attachment                  `json:"legallyBindingAttachment,omitempty"`
+	LegallyBindingReference  *Reference                   `json:"legallyBindingReference,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "Contract".
@@ -296,15 +296,15 @@ func (r *Contract) SetLegallyBindingReference(v Reference) {
 // ContractContentDefinition is a generated nested backbone element.
 type ContractContentDefinition struct {
 	BackboneElement
-	Type                     *CodeableConcept       `json:"type,omitempty"`
-	SubType                  *CodeableConcept       `json:"subType,omitempty"`
-	Publisher                *Reference             `json:"publisher,omitempty"`
-	PublicationDate          *string                `json:"publicationDate,omitempty"`
-	PublicationDateElement   *fhir.PrimitiveElement `json:"-"`
-	PublicationStatus        *string                `json:"publicationStatus,omitempty"`
-	PublicationStatusElement *fhir.PrimitiveElement `json:"-"`
-	Copyright                *string                `json:"copyright,omitempty"`
-	CopyrightElement         *fhir.PrimitiveElement `json:"-"`
+	Type                     *CodeableConcept                        `json:"type,omitempty"`
+	SubType                  *CodeableConcept                        `json:"subType,omitempty"`
+	Publisher                *Reference                              `json:"publisher,omitempty"`
+	PublicationDate          *string                                 `json:"publicationDate,omitempty"`
+	PublicationDateElement   *fhir.PrimitiveElement                  `json:"-"`
+	PublicationStatus        *ContractResourcePublicationStatusCodes `json:"publicationStatus,omitempty"`
+	PublicationStatusElement *fhir.PrimitiveElement                  `json:"-"`
+	Copyright                *string                                 `json:"copyright,omitempty"`
+	CopyrightElement         *fhir.PrimitiveElement                  `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

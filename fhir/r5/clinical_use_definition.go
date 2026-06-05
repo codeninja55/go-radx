@@ -14,7 +14,7 @@ const ClinicalUseDefinitionResourceType = "ClinicalUseDefinition"
 type ClinicalUseDefinition struct {
 	DomainResource
 	Identifier        []Identifier                            `json:"identifier,omitempty"`
-	Type              *string                                 `json:"type,omitempty"`
+	Type              *ClinicalUseDefinitionType              `json:"type,omitempty"`
 	TypeElement       *fhir.PrimitiveElement                  `json:"-"`
 	Category          []CodeableConcept                       `json:"category,omitempty"`
 	Subject           []Reference                             `json:"subject,omitempty"`

@@ -18,7 +18,7 @@ type Patient struct {
 	ActiveElement        *fhir.PrimitiveElement `json:"-"`
 	Name                 []HumanName            `json:"name,omitempty"`
 	Telecom              []ContactPoint         `json:"telecom,omitempty"`
-	Gender               *string                `json:"gender,omitempty"`
+	Gender               *AdministrativeGender  `json:"gender,omitempty"`
 	GenderElement        *fhir.PrimitiveElement `json:"-"`
 	BirthDate            *string                `json:"birthDate,omitempty"`
 	BirthDateElement     *fhir.PrimitiveElement `json:"-"`
@@ -269,7 +269,7 @@ type PatientContact struct {
 	Name          *HumanName             `json:"name,omitempty"`
 	Telecom       []ContactPoint         `json:"telecom,omitempty"`
 	Address       *Address               `json:"address,omitempty"`
-	Gender        *string                `json:"gender,omitempty"`
+	Gender        *AdministrativeGender  `json:"gender,omitempty"`
 	GenderElement *fhir.PrimitiveElement `json:"-"`
 	Organization  *Reference             `json:"organization,omitempty"`
 	Period        *Period                `json:"period,omitempty"`
@@ -327,7 +327,7 @@ func (v *PatientContact) UnmarshalJSON(data []byte) error {
 type PatientLink struct {
 	BackboneElement
 	Other       *Reference             `json:"other,omitempty"`
-	Type        *string                `json:"type,omitempty"`
+	Type        *LinkType              `json:"type,omitempty"`
 	TypeElement *fhir.PrimitiveElement `json:"-"`
 }
 

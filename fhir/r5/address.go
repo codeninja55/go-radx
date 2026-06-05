@@ -10,9 +10,9 @@ import (
 // Address is the generated FHIR Address datatype.
 type Address struct {
 	Element
-	Use               *string                  `json:"use,omitempty"`
+	Use               *AddressUse              `json:"use,omitempty"`
 	UseElement        *fhir.PrimitiveElement   `json:"-"`
-	Type              *string                  `json:"type,omitempty"`
+	Type              *AddressType             `json:"type,omitempty"`
 	TypeElement       *fhir.PrimitiveElement   `json:"-"`
 	Text              *string                  `json:"text,omitempty"`
 	TextElement       *fhir.PrimitiveElement   `json:"-"`

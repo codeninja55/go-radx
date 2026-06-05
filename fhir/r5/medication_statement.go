@@ -13,28 +13,28 @@ const MedicationStatementResourceType = "MedicationStatement"
 // MedicationStatement is the generated FHIR MedicationStatement resource.
 type MedicationStatement struct {
 	DomainResource
-	Identifier                       []Identifier                  `json:"identifier,omitempty"`
-	PartOf                           []Reference                   `json:"partOf,omitempty"`
-	Status                           *string                       `json:"status,omitempty"`
-	StatusElement                    *fhir.PrimitiveElement        `json:"-"`
-	Category                         []CodeableConcept             `json:"category,omitempty"`
-	Medication                       *CodeableReference            `json:"medication,omitempty"`
-	Subject                          *Reference                    `json:"subject,omitempty"`
-	Encounter                        *Reference                    `json:"encounter,omitempty"`
-	EffectiveDateTime                *FHIRDateTime                 `json:"effectiveDateTime,omitempty"`
-	EffectivePeriod                  *Period                       `json:"effectivePeriod,omitempty"`
-	EffectiveTiming                  *Timing                       `json:"effectiveTiming,omitempty"`
-	DateAsserted                     *string                       `json:"dateAsserted,omitempty"`
-	DateAssertedElement              *fhir.PrimitiveElement        `json:"-"`
-	InformationSource                []Reference                   `json:"informationSource,omitempty"`
-	DerivedFrom                      []Reference                   `json:"derivedFrom,omitempty"`
-	Reason                           []CodeableReference           `json:"reason,omitempty"`
-	Note                             []Annotation                  `json:"note,omitempty"`
-	RelatedClinicalInformation       []Reference                   `json:"relatedClinicalInformation,omitempty"`
-	RenderedDosageInstruction        *string                       `json:"renderedDosageInstruction,omitempty"`
-	RenderedDosageInstructionElement *fhir.PrimitiveElement        `json:"-"`
-	Dosage                           []Dosage                      `json:"dosage,omitempty"`
-	Adherence                        *MedicationStatementAdherence `json:"adherence,omitempty"`
+	Identifier                       []Identifier                    `json:"identifier,omitempty"`
+	PartOf                           []Reference                     `json:"partOf,omitempty"`
+	Status                           *MedicationStatementStatusCodes `json:"status,omitempty"`
+	StatusElement                    *fhir.PrimitiveElement          `json:"-"`
+	Category                         []CodeableConcept               `json:"category,omitempty"`
+	Medication                       *CodeableReference              `json:"medication,omitempty"`
+	Subject                          *Reference                      `json:"subject,omitempty"`
+	Encounter                        *Reference                      `json:"encounter,omitempty"`
+	EffectiveDateTime                *FHIRDateTime                   `json:"effectiveDateTime,omitempty"`
+	EffectivePeriod                  *Period                         `json:"effectivePeriod,omitempty"`
+	EffectiveTiming                  *Timing                         `json:"effectiveTiming,omitempty"`
+	DateAsserted                     *string                         `json:"dateAsserted,omitempty"`
+	DateAssertedElement              *fhir.PrimitiveElement          `json:"-"`
+	InformationSource                []Reference                     `json:"informationSource,omitempty"`
+	DerivedFrom                      []Reference                     `json:"derivedFrom,omitempty"`
+	Reason                           []CodeableReference             `json:"reason,omitempty"`
+	Note                             []Annotation                    `json:"note,omitempty"`
+	RelatedClinicalInformation       []Reference                     `json:"relatedClinicalInformation,omitempty"`
+	RenderedDosageInstruction        *string                         `json:"renderedDosageInstruction,omitempty"`
+	RenderedDosageInstructionElement *fhir.PrimitiveElement          `json:"-"`
+	Dosage                           []Dosage                        `json:"dosage,omitempty"`
+	Adherence                        *MedicationStatementAdherence   `json:"adherence,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "MedicationStatement".

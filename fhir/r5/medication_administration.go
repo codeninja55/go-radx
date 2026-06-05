@@ -13,32 +13,32 @@ const MedicationAdministrationResourceType = "MedicationAdministration"
 // MedicationAdministration is the generated FHIR MedicationAdministration resource.
 type MedicationAdministration struct {
 	DomainResource
-	Identifier            []Identifier                        `json:"identifier,omitempty"`
-	BasedOn               []Reference                         `json:"basedOn,omitempty"`
-	PartOf                []Reference                         `json:"partOf,omitempty"`
-	Status                *string                             `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement              `json:"-"`
-	StatusReason          []CodeableConcept                   `json:"statusReason,omitempty"`
-	Category              []CodeableConcept                   `json:"category,omitempty"`
-	Medication            *CodeableReference                  `json:"medication,omitempty"`
-	Subject               *Reference                          `json:"subject,omitempty"`
-	Encounter             *Reference                          `json:"encounter,omitempty"`
-	SupportingInformation []Reference                         `json:"supportingInformation,omitempty"`
-	OccurenceDateTime     *FHIRDateTime                       `json:"occurenceDateTime,omitempty"`
-	OccurencePeriod       *Period                             `json:"occurencePeriod,omitempty"`
-	OccurenceTiming       *Timing                             `json:"occurenceTiming,omitempty"`
-	Recorded              *string                             `json:"recorded,omitempty"`
-	RecordedElement       *fhir.PrimitiveElement              `json:"-"`
-	IsSubPotent           *bool                               `json:"isSubPotent,omitempty"`
-	IsSubPotentElement    *fhir.PrimitiveElement              `json:"-"`
-	SubPotentReason       []CodeableConcept                   `json:"subPotentReason,omitempty"`
-	Performer             []MedicationAdministrationPerformer `json:"performer,omitempty"`
-	Reason                []CodeableReference                 `json:"reason,omitempty"`
-	Request               *Reference                          `json:"request,omitempty"`
-	Device                []CodeableReference                 `json:"device,omitempty"`
-	Note                  []Annotation                        `json:"note,omitempty"`
-	Dosage                *MedicationAdministrationDosage     `json:"dosage,omitempty"`
-	EventHistory          []Reference                         `json:"eventHistory,omitempty"`
+	Identifier            []Identifier                         `json:"identifier,omitempty"`
+	BasedOn               []Reference                          `json:"basedOn,omitempty"`
+	PartOf                []Reference                          `json:"partOf,omitempty"`
+	Status                *MedicationAdministrationStatusCodes `json:"status,omitempty"`
+	StatusElement         *fhir.PrimitiveElement               `json:"-"`
+	StatusReason          []CodeableConcept                    `json:"statusReason,omitempty"`
+	Category              []CodeableConcept                    `json:"category,omitempty"`
+	Medication            *CodeableReference                   `json:"medication,omitempty"`
+	Subject               *Reference                           `json:"subject,omitempty"`
+	Encounter             *Reference                           `json:"encounter,omitempty"`
+	SupportingInformation []Reference                          `json:"supportingInformation,omitempty"`
+	OccurenceDateTime     *FHIRDateTime                        `json:"occurenceDateTime,omitempty"`
+	OccurencePeriod       *Period                              `json:"occurencePeriod,omitempty"`
+	OccurenceTiming       *Timing                              `json:"occurenceTiming,omitempty"`
+	Recorded              *string                              `json:"recorded,omitempty"`
+	RecordedElement       *fhir.PrimitiveElement               `json:"-"`
+	IsSubPotent           *bool                                `json:"isSubPotent,omitempty"`
+	IsSubPotentElement    *fhir.PrimitiveElement               `json:"-"`
+	SubPotentReason       []CodeableConcept                    `json:"subPotentReason,omitempty"`
+	Performer             []MedicationAdministrationPerformer  `json:"performer,omitempty"`
+	Reason                []CodeableReference                  `json:"reason,omitempty"`
+	Request               *Reference                           `json:"request,omitempty"`
+	Device                []CodeableReference                  `json:"device,omitempty"`
+	Note                  []Annotation                         `json:"note,omitempty"`
+	Dosage                *MedicationAdministrationDosage      `json:"dosage,omitempty"`
+	EventHistory          []Reference                          `json:"eventHistory,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "MedicationAdministration".

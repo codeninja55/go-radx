@@ -26,7 +26,7 @@ type MessageDefinition struct {
 	TitleElement            *fhir.PrimitiveElement             `json:"-"`
 	Replaces                []string                           `json:"replaces,omitempty"`
 	ReplacesElement         []*fhir.PrimitiveElement           `json:"-"`
-	Status                  *string                            `json:"status,omitempty"`
+	Status                  *PublicationStatus                 `json:"status,omitempty"`
 	StatusElement           *fhir.PrimitiveElement             `json:"-"`
 	Experimental            *bool                              `json:"experimental,omitempty"`
 	ExperimentalElement     *fhir.PrimitiveElement             `json:"-"`
@@ -51,10 +51,10 @@ type MessageDefinition struct {
 	ParentElement           []*fhir.PrimitiveElement           `json:"-"`
 	EventCoding             *Coding                            `json:"eventCoding,omitempty"`
 	EventURI                *FHIRURI                           `json:"eventUri,omitempty"`
-	Category                *string                            `json:"category,omitempty"`
+	Category                *MessageSignificanceCategory       `json:"category,omitempty"`
 	CategoryElement         *fhir.PrimitiveElement             `json:"-"`
 	Focus                   []MessageDefinitionFocus           `json:"focus,omitempty"`
-	ResponseRequired        *string                            `json:"responseRequired,omitempty"`
+	ResponseRequired        *MessageheaderResponseRequest      `json:"responseRequired,omitempty"`
 	ResponseRequiredElement *fhir.PrimitiveElement             `json:"-"`
 	AllowedResponse         []MessageDefinitionAllowedResponse `json:"allowedResponse,omitempty"`
 	Graph                   *string                            `json:"graph,omitempty"`
@@ -479,7 +479,7 @@ func (v *MessageDefinitionAllowedResponse) UnmarshalJSON(data []byte) error {
 // MessageDefinitionFocus is a generated nested backbone element.
 type MessageDefinitionFocus struct {
 	BackboneElement
-	Code           *string                `json:"code,omitempty"`
+	Code           *ResourceType          `json:"code,omitempty"`
 	CodeElement    *fhir.PrimitiveElement `json:"-"`
 	Profile        *string                `json:"profile,omitempty"`
 	ProfileElement *fhir.PrimitiveElement `json:"-"`

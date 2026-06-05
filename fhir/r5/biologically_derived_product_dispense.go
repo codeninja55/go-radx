@@ -16,7 +16,7 @@ type BiologicallyDerivedProductDispense struct {
 	Identifier              []Identifier                                  `json:"identifier,omitempty"`
 	BasedOn                 []Reference                                   `json:"basedOn,omitempty"`
 	PartOf                  []Reference                                   `json:"partOf,omitempty"`
-	Status                  *string                                       `json:"status,omitempty"`
+	Status                  *BiologicallyDerivedProductDispenseCodes      `json:"status,omitempty"`
 	StatusElement           *fhir.PrimitiveElement                        `json:"-"`
 	OriginRelationshipType  *CodeableConcept                              `json:"originRelationshipType,omitempty"`
 	Product                 *Reference                                    `json:"product,omitempty"`

@@ -18,7 +18,7 @@ type Practitioner struct {
 	ActiveElement    *fhir.PrimitiveElement      `json:"-"`
 	Name             []HumanName                 `json:"name,omitempty"`
 	Telecom          []ContactPoint              `json:"telecom,omitempty"`
-	Gender           *string                     `json:"gender,omitempty"`
+	Gender           *AdministrativeGender       `json:"gender,omitempty"`
 	GenderElement    *fhir.PrimitiveElement      `json:"-"`
 	BirthDate        *string                     `json:"birthDate,omitempty"`
 	BirthDateElement *fhir.PrimitiveElement      `json:"-"`

@@ -15,9 +15,9 @@ type AuditEvent struct {
 	DomainResource
 	Category         []CodeableConcept      `json:"category,omitempty"`
 	Code             *CodeableConcept       `json:"code,omitempty"`
-	Action           *string                `json:"action,omitempty"`
+	Action           *AuditEventAction      `json:"action,omitempty"`
 	ActionElement    *fhir.PrimitiveElement `json:"-"`
-	Severity         *string                `json:"severity,omitempty"`
+	Severity         *AuditEventSeverity    `json:"severity,omitempty"`
 	SeverityElement  *fhir.PrimitiveElement `json:"-"`
 	OccurredPeriod   *Period                `json:"occurredPeriod,omitempty"`
 	OccurredDateTime *FHIRDateTime          `json:"occurredDateTime,omitempty"`

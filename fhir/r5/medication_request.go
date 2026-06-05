@@ -17,15 +17,15 @@ type MedicationRequest struct {
 	BasedOn                          []Reference                       `json:"basedOn,omitempty"`
 	PriorPrescription                *Reference                        `json:"priorPrescription,omitempty"`
 	GroupIdentifier                  *Identifier                       `json:"groupIdentifier,omitempty"`
-	Status                           *string                           `json:"status,omitempty"`
+	Status                           *MedicationrequestStatus          `json:"status,omitempty"`
 	StatusElement                    *fhir.PrimitiveElement            `json:"-"`
 	StatusReason                     *CodeableConcept                  `json:"statusReason,omitempty"`
 	StatusChanged                    *string                           `json:"statusChanged,omitempty"`
 	StatusChangedElement             *fhir.PrimitiveElement            `json:"-"`
-	Intent                           *string                           `json:"intent,omitempty"`
+	Intent                           *MedicationRequestIntent          `json:"intent,omitempty"`
 	IntentElement                    *fhir.PrimitiveElement            `json:"-"`
 	Category                         []CodeableConcept                 `json:"category,omitempty"`
-	Priority                         *string                           `json:"priority,omitempty"`
+	Priority                         *RequestPriority                  `json:"priority,omitempty"`
 	PriorityElement                  *fhir.PrimitiveElement            `json:"-"`
 	DoNotPerform                     *bool                             `json:"doNotPerform,omitempty"`
 	DoNotPerformElement              *fhir.PrimitiveElement            `json:"-"`

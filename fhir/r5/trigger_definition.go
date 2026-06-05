@@ -10,7 +10,7 @@ import (
 // TriggerDefinition is the generated FHIR TriggerDefinition datatype.
 type TriggerDefinition struct {
 	Element
-	Type                     *string                `json:"type,omitempty"`
+	Type                     *TriggerType           `json:"type,omitempty"`
 	TypeElement              *fhir.PrimitiveElement `json:"-"`
 	Name                     *string                `json:"name,omitempty"`
 	NameElement              *fhir.PrimitiveElement `json:"-"`

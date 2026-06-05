@@ -18,7 +18,7 @@ type Device struct {
 	DisplayNameElement     *fhir.PrimitiveElement `json:"-"`
 	Definition             *CodeableReference     `json:"definition,omitempty"`
 	UdiCarrier             []DeviceUdiCarrier     `json:"udiCarrier,omitempty"`
-	Status                 *string                `json:"status,omitempty"`
+	Status                 *FHIRDeviceStatus      `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement `json:"-"`
 	AvailabilityStatus     *CodeableConcept       `json:"availabilityStatus,omitempty"`
 	BiologicalSourceEvent  *Identifier            `json:"biologicalSourceEvent,omitempty"`
@@ -287,7 +287,7 @@ type DeviceName struct {
 	BackboneElement
 	Value          *string                `json:"value,omitempty"`
 	ValueElement   *fhir.PrimitiveElement `json:"-"`
-	Type           *string                `json:"type,omitempty"`
+	Type           *DeviceNameType        `json:"type,omitempty"`
 	TypeElement    *fhir.PrimitiveElement `json:"-"`
 	Display        *bool                  `json:"display,omitempty"`
 	DisplayElement *fhir.PrimitiveElement `json:"-"`
@@ -526,7 +526,7 @@ type DeviceUdiCarrier struct {
 	CarrierAIDCElement      *fhir.PrimitiveElement `json:"-"`
 	CarrierHRF              *string                `json:"carrierHRF,omitempty"`
 	CarrierHRFElement       *fhir.PrimitiveElement `json:"-"`
-	EntryType               *string                `json:"entryType,omitempty"`
+	EntryType               *UDIEntryType          `json:"entryType,omitempty"`
 	EntryTypeElement        *fhir.PrimitiveElement `json:"-"`
 }
 

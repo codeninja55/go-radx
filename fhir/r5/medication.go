@@ -15,7 +15,7 @@ type Medication struct {
 	DomainResource
 	Identifier                   []Identifier           `json:"identifier,omitempty"`
 	Code                         *CodeableConcept       `json:"code,omitempty"`
-	Status                       *string                `json:"status,omitempty"`
+	Status                       *MedicationStatusCodes `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement `json:"-"`
 	MarketingAuthorizationHolder *Reference             `json:"marketingAuthorizationHolder,omitempty"`
 	DoseForm                     *CodeableConcept       `json:"doseForm,omitempty"`

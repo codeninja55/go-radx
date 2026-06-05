@@ -49,6 +49,15 @@ var baseTypes = []string{"Element", "BackboneElement", "Resource", "DomainResour
 // package and break compilation. The migration increment (F1-O) deletes the
 // hand-written files, re-points convert and the skeleton at the generated shapes, and
 // drops this exclusion so the generator owns the full set.
+//
+// Because these types are not generated yet, their required-binding code fields
+// (ServiceRequest.Status/Intent, DiagnosticReport.Status, ImagingStudy.Status,
+// Identifier.Use) are still hand-written plain strings, so an out-of-set code on those
+// fields is not yet rejected at the JSON boundary (the FHIR-013 enforcement lands on
+// them when F1-O regenerates them). The closed enums those fields will use
+// (RequestStatus, RequestIntent, DiagnosticReportStatus, ImagingStudyStatus,
+// IdentifierUse) are already generated into bindings.go, so the migration is a field
+// retype, not new enum work.
 var handWrittenTypes = map[string]bool{
 	// Resources (fhir/r5/{service_request,diagnostic_report,imaging_study}.go and
 	// the ImagingStudy backbones the hand-written file defines).
@@ -101,6 +110,9 @@ func Generate(cfg Config) error {
 		return err
 	}
 	if err := emitPrimitivesFile(cfg); err != nil {
+		return err
+	}
+	if err := emitEnumsFile(bundle, cfg); err != nil {
 		return err
 	}
 	for _, gt := range types {
@@ -161,7 +173,7 @@ func GeneratedFileNames(bundle *loader.Bundle) []string {
 			names = append(names, gt.fileName)
 		}
 	}
-	names = append(names, "primitives.go", "registry.go")
+	names = append(names, "primitives.go", "bindings.go", "registry.go")
 	return names
 }
 
@@ -217,10 +229,33 @@ func emitPrimitivesFile(cfg Config) error {
 	return nil
 }
 
+// emitEnumsFile renders the release's required-binding enums into bindings.go: every
+// enumerable binding as a closed enum (defined string type, const set, validating
+// ParseXxx, strict UnmarshalJSON) and every non-enumerable binding as a documented
+// not-inlined plain string type, never a silently-empty closed enum (FHIR-013). The
+// enum set is derived from the bundle's required, code-typed bindings and sorted by
+// Go name, so the file is byte-stable.
+func emitEnumsFile(bundle *loader.Bundle, cfg Config) error {
+	enums, err := PlannedEnums(bundle)
+	if err != nil {
+		return err
+	}
+	src, err := emit.EmitEnums(emit.Enums{Package: cfg.Release, Enums: enums})
+	if err != nil {
+		return fmt.Errorf("fhir/gen: emit required-binding enums: %w", err)
+	}
+	outPath := filepath.Join(cfg.OutputDir, "bindings.go")
+	if err := os.WriteFile(outPath, src, 0o644); err != nil {
+		return fmt.Errorf("fhir/gen: write %s: %w", outPath, err)
+	}
+	return nil
+}
+
 // emitTypeFile runs the back-half pipeline for one concrete type and writes its
 // generated Go file. Datatypes and resources share the pipeline; the planner's
 // recorded kind drives the resource-specific output (resourceType, ResourceType,
-// MarshalJSON), so the same emit path serves both.
+// MarshalJSON), so the same emit path serves both. The binding resolver types a code
+// field with an enumerable required binding as its generated enum.
 func emitTypeFile(bundle *loader.Bundle, cfg Config, gt generatedType) error {
 	pt, err := planType(bundle, gt.fhirName, gt.isBaseType)
 	if err != nil {
@@ -272,7 +307,10 @@ func emitRegistryFile(bundle *loader.Bundle, cfg Config, types []generatedType) 
 // planType runs the front-half pipeline (model, plan) for one FHIR type and returns
 // its emitter-ready PlannedType. A concrete type embeds the shared base it inherits
 // from and drops the members that base supplies; a base type (isBaseType) keeps every
-// member, embeds nothing, and carries no primitive "_field" siblings.
+// member, embeds nothing, and carries no primitive "_field" siblings. A concrete type
+// is planned with the binding resolver so a code field with an enumerable required
+// binding is typed as its generated enum; a base type is planned with no resolver
+// because its members carry no required-binding code field.
 func planType(bundle *loader.Bundle, fhirName string, isBaseType bool) (plan.PlannedType, error) {
 	sd, ok := bundle.StructureDefinition(fhirName)
 	if !ok {
@@ -282,7 +320,11 @@ func planType(bundle *loader.Bundle, fhirName string, isBaseType bool) (plan.Pla
 	if err != nil {
 		return plan.PlannedType{}, fmt.Errorf("fhir/gen: build model for %s: %w", fhirName, err)
 	}
-	return plan.PlanType(typ, plan.Options{IsBaseType: isBaseType}), nil
+	opts := plan.Options{IsBaseType: isBaseType}
+	if !isBaseType {
+		opts.Bindings = newBindingResolver(bundle)
+	}
+	return plan.PlanType(typ, opts), nil
 }
 
 // goFileName maps a FHIR type name to its generated file's snake_case base name

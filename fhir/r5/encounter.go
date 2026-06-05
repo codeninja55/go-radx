@@ -14,7 +14,7 @@ const EncounterResourceType = "Encounter"
 type Encounter struct {
 	DomainResource
 	Identifier              []Identifier           `json:"identifier,omitempty"`
-	Status                  *string                `json:"status,omitempty"`
+	Status                  *EncounterStatus       `json:"status,omitempty"`
 	StatusElement           *fhir.PrimitiveElement `json:"-"`
 	Class                   []CodeableConcept      `json:"class,omitempty"`
 	Priority                *CodeableConcept       `json:"priority,omitempty"`
@@ -151,11 +151,11 @@ type EncounterDiagnosis struct {
 // EncounterLocation is a generated nested backbone element.
 type EncounterLocation struct {
 	BackboneElement
-	Location      *Reference             `json:"location,omitempty"`
-	Status        *string                `json:"status,omitempty"`
-	StatusElement *fhir.PrimitiveElement `json:"-"`
-	Form          *CodeableConcept       `json:"form,omitempty"`
-	Period        *Period                `json:"period,omitempty"`
+	Location      *Reference               `json:"location,omitempty"`
+	Status        *EncounterLocationStatus `json:"status,omitempty"`
+	StatusElement *fhir.PrimitiveElement   `json:"-"`
+	Form          *CodeableConcept         `json:"form,omitempty"`
+	Period        *Period                  `json:"period,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

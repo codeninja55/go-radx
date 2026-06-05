@@ -18,7 +18,7 @@ type Composition struct {
 	Identifier     []Identifier           `json:"identifier,omitempty"`
 	Version        *string                `json:"version,omitempty"`
 	VersionElement *fhir.PrimitiveElement `json:"-"`
-	Status         *string                `json:"status,omitempty"`
+	Status         *CompositionStatus     `json:"status,omitempty"`
 	StatusElement  *fhir.PrimitiveElement `json:"-"`
 	Type           *CodeableConcept       `json:"type,omitempty"`
 	Category       []CodeableConcept      `json:"category,omitempty"`

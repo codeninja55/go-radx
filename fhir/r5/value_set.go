@@ -24,7 +24,7 @@ type ValueSet struct {
 	NameElement            *fhir.PrimitiveElement `json:"-"`
 	Title                  *string                `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement `json:"-"`
-	Status                 *string                `json:"status,omitempty"`
+	Status                 *PublicationStatus     `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement `json:"-"`
 	Experimental           *bool                  `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement `json:"-"`
@@ -660,7 +660,7 @@ type ValueSetComposeIncludeFilter struct {
 	BackboneElement
 	Property        *string                `json:"property,omitempty"`
 	PropertyElement *fhir.PrimitiveElement `json:"-"`
-	Op              *string                `json:"op,omitempty"`
+	Op              *FilterOperator        `json:"op,omitempty"`
 	OpElement       *fhir.PrimitiveElement `json:"-"`
 	Value           *string                `json:"value,omitempty"`
 	ValueElement    *fhir.PrimitiveElement `json:"-"`

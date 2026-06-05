@@ -232,7 +232,7 @@ func (r *MessageHeaderDestination) SetEndpointReference(v Reference) {
 type MessageHeaderResponse struct {
 	BackboneElement
 	Identifier  *Identifier            `json:"identifier,omitempty"`
-	Code        *string                `json:"code,omitempty"`
+	Code        *ResponseType          `json:"code,omitempty"`
 	CodeElement *fhir.PrimitiveElement `json:"-"`
 	Details     *Reference             `json:"details,omitempty"`
 }

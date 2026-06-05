@@ -26,7 +26,7 @@ type Evidence struct {
 	TitleElement           *fhir.PrimitiveElement       `json:"-"`
 	CiteAsReference        *Reference                   `json:"citeAsReference,omitempty"`
 	CiteAsMarkdown         *FHIRMarkdown                `json:"citeAsMarkdown,omitempty"`
-	Status                 *string                      `json:"status,omitempty"`
+	Status                 *PublicationStatus           `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement       `json:"-"`
 	Experimental           *bool                        `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement       `json:"-"`
@@ -622,12 +622,12 @@ type EvidenceStatisticModelCharacteristic struct {
 // EvidenceStatisticModelCharacteristicVariable is a generated nested backbone element.
 type EvidenceStatisticModelCharacteristicVariable struct {
 	BackboneElement
-	VariableDefinition *Reference             `json:"variableDefinition,omitempty"`
-	Handling           *string                `json:"handling,omitempty"`
-	HandlingElement    *fhir.PrimitiveElement `json:"-"`
-	ValueCategory      []CodeableConcept      `json:"valueCategory,omitempty"`
-	ValueQuantity      []Quantity             `json:"valueQuantity,omitempty"`
-	ValueRange         []Range                `json:"valueRange,omitempty"`
+	VariableDefinition *Reference                `json:"variableDefinition,omitempty"`
+	Handling           *EvidenceVariableHandling `json:"handling,omitempty"`
+	HandlingElement    *fhir.PrimitiveElement    `json:"-"`
+	ValueCategory      []CodeableConcept         `json:"valueCategory,omitempty"`
+	ValueQuantity      []Quantity                `json:"valueQuantity,omitempty"`
+	ValueRange         []Range                   `json:"valueRange,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

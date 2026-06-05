@@ -13,31 +13,31 @@ const DeviceDispenseResourceType = "DeviceDispense"
 // DeviceDispense is the generated FHIR DeviceDispense resource.
 type DeviceDispense struct {
 	DomainResource
-	Identifier              []Identifier              `json:"identifier,omitempty"`
-	BasedOn                 []Reference               `json:"basedOn,omitempty"`
-	PartOf                  []Reference               `json:"partOf,omitempty"`
-	Status                  *string                   `json:"status,omitempty"`
-	StatusElement           *fhir.PrimitiveElement    `json:"-"`
-	StatusReason            *CodeableReference        `json:"statusReason,omitempty"`
-	Category                []CodeableConcept         `json:"category,omitempty"`
-	Device                  *CodeableReference        `json:"device,omitempty"`
-	Subject                 *Reference                `json:"subject,omitempty"`
-	Receiver                *Reference                `json:"receiver,omitempty"`
-	Encounter               *Reference                `json:"encounter,omitempty"`
-	SupportingInformation   []Reference               `json:"supportingInformation,omitempty"`
-	Performer               []DeviceDispensePerformer `json:"performer,omitempty"`
-	Location                *Reference                `json:"location,omitempty"`
-	Type                    *CodeableConcept          `json:"type,omitempty"`
-	Quantity                *Quantity                 `json:"quantity,omitempty"`
-	PreparedDate            *string                   `json:"preparedDate,omitempty"`
-	PreparedDateElement     *fhir.PrimitiveElement    `json:"-"`
-	WhenHandedOver          *string                   `json:"whenHandedOver,omitempty"`
-	WhenHandedOverElement   *fhir.PrimitiveElement    `json:"-"`
-	Destination             *Reference                `json:"destination,omitempty"`
-	Note                    []Annotation              `json:"note,omitempty"`
-	UsageInstruction        *string                   `json:"usageInstruction,omitempty"`
-	UsageInstructionElement *fhir.PrimitiveElement    `json:"-"`
-	EventHistory            []Reference               `json:"eventHistory,omitempty"`
+	Identifier              []Identifier               `json:"identifier,omitempty"`
+	BasedOn                 []Reference                `json:"basedOn,omitempty"`
+	PartOf                  []Reference                `json:"partOf,omitempty"`
+	Status                  *DeviceDispenseStatusCodes `json:"status,omitempty"`
+	StatusElement           *fhir.PrimitiveElement     `json:"-"`
+	StatusReason            *CodeableReference         `json:"statusReason,omitempty"`
+	Category                []CodeableConcept          `json:"category,omitempty"`
+	Device                  *CodeableReference         `json:"device,omitempty"`
+	Subject                 *Reference                 `json:"subject,omitempty"`
+	Receiver                *Reference                 `json:"receiver,omitempty"`
+	Encounter               *Reference                 `json:"encounter,omitempty"`
+	SupportingInformation   []Reference                `json:"supportingInformation,omitempty"`
+	Performer               []DeviceDispensePerformer  `json:"performer,omitempty"`
+	Location                *Reference                 `json:"location,omitempty"`
+	Type                    *CodeableConcept           `json:"type,omitempty"`
+	Quantity                *Quantity                  `json:"quantity,omitempty"`
+	PreparedDate            *string                    `json:"preparedDate,omitempty"`
+	PreparedDateElement     *fhir.PrimitiveElement     `json:"-"`
+	WhenHandedOver          *string                    `json:"whenHandedOver,omitempty"`
+	WhenHandedOverElement   *fhir.PrimitiveElement     `json:"-"`
+	Destination             *Reference                 `json:"destination,omitempty"`
+	Note                    []Annotation               `json:"note,omitempty"`
+	UsageInstruction        *string                    `json:"usageInstruction,omitempty"`
+	UsageInstructionElement *fhir.PrimitiveElement     `json:"-"`
+	EventHistory            []Reference                `json:"eventHistory,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "DeviceDispense".

@@ -14,7 +14,7 @@ const GenomicStudyResourceType = "GenomicStudy"
 type GenomicStudy struct {
 	DomainResource
 	Identifier                   []Identifier           `json:"identifier,omitempty"`
-	Status                       *string                `json:"status,omitempty"`
+	Status                       *GenomicStudyStatus    `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement `json:"-"`
 	Type                         []CodeableConcept      `json:"type,omitempty"`
 	Subject                      *Reference             `json:"subject,omitempty"`

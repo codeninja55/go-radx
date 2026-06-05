@@ -13,26 +13,26 @@ const AppointmentResponseResourceType = "AppointmentResponse"
 // AppointmentResponse is the generated FHIR AppointmentResponse resource.
 type AppointmentResponse struct {
 	DomainResource
-	Identifier               []Identifier           `json:"identifier,omitempty"`
-	Appointment              *Reference             `json:"appointment,omitempty"`
-	ProposedNewTime          *bool                  `json:"proposedNewTime,omitempty"`
-	ProposedNewTimeElement   *fhir.PrimitiveElement `json:"-"`
-	Start                    *string                `json:"start,omitempty"`
-	StartElement             *fhir.PrimitiveElement `json:"-"`
-	End                      *string                `json:"end,omitempty"`
-	EndElement               *fhir.PrimitiveElement `json:"-"`
-	ParticipantType          []CodeableConcept      `json:"participantType,omitempty"`
-	Actor                    *Reference             `json:"actor,omitempty"`
-	ParticipantStatus        *string                `json:"participantStatus,omitempty"`
-	ParticipantStatusElement *fhir.PrimitiveElement `json:"-"`
-	Comment                  *string                `json:"comment,omitempty"`
-	CommentElement           *fhir.PrimitiveElement `json:"-"`
-	Recurring                *bool                  `json:"recurring,omitempty"`
-	RecurringElement         *fhir.PrimitiveElement `json:"-"`
-	OccurrenceDate           *string                `json:"occurrenceDate,omitempty"`
-	OccurrenceDateElement    *fhir.PrimitiveElement `json:"-"`
-	RecurrenceId             *int32                 `json:"recurrenceId,omitempty"`
-	RecurrenceIdElement      *fhir.PrimitiveElement `json:"-"`
+	Identifier               []Identifier               `json:"identifier,omitempty"`
+	Appointment              *Reference                 `json:"appointment,omitempty"`
+	ProposedNewTime          *bool                      `json:"proposedNewTime,omitempty"`
+	ProposedNewTimeElement   *fhir.PrimitiveElement     `json:"-"`
+	Start                    *string                    `json:"start,omitempty"`
+	StartElement             *fhir.PrimitiveElement     `json:"-"`
+	End                      *string                    `json:"end,omitempty"`
+	EndElement               *fhir.PrimitiveElement     `json:"-"`
+	ParticipantType          []CodeableConcept          `json:"participantType,omitempty"`
+	Actor                    *Reference                 `json:"actor,omitempty"`
+	ParticipantStatus        *AppointmentResponseStatus `json:"participantStatus,omitempty"`
+	ParticipantStatusElement *fhir.PrimitiveElement     `json:"-"`
+	Comment                  *string                    `json:"comment,omitempty"`
+	CommentElement           *fhir.PrimitiveElement     `json:"-"`
+	Recurring                *bool                      `json:"recurring,omitempty"`
+	RecurringElement         *fhir.PrimitiveElement     `json:"-"`
+	OccurrenceDate           *string                    `json:"occurrenceDate,omitempty"`
+	OccurrenceDateElement    *fhir.PrimitiveElement     `json:"-"`
+	RecurrenceId             *int32                     `json:"recurrenceId,omitempty"`
+	RecurrenceIdElement      *fhir.PrimitiveElement     `json:"-"`
 }
 
 // ResourceType returns the FHIR discriminator "AppointmentResponse".

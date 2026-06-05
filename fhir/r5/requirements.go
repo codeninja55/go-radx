@@ -24,7 +24,7 @@ type Requirements struct {
 	NameElement            *fhir.PrimitiveElement   `json:"-"`
 	Title                  *string                  `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement   `json:"-"`
-	Status                 *string                  `json:"status,omitempty"`
+	Status                 *PublicationStatus       `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement   `json:"-"`
 	Experimental           *bool                    `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement   `json:"-"`
@@ -328,7 +328,7 @@ type RequirementsStatement struct {
 	KeyElement            *fhir.PrimitiveElement   `json:"-"`
 	Label                 *string                  `json:"label,omitempty"`
 	LabelElement          *fhir.PrimitiveElement   `json:"-"`
-	Conformance           []string                 `json:"conformance,omitempty"`
+	Conformance           []ConformanceExpectation `json:"conformance,omitempty"`
 	ConformanceElement    []*fhir.PrimitiveElement `json:"-"`
 	Conditionality        *bool                    `json:"conditionality,omitempty"`
 	ConditionalityElement *fhir.PrimitiveElement   `json:"-"`

@@ -24,7 +24,7 @@ type ImplementationGuide struct {
 	NameElement            *fhir.PrimitiveElement         `json:"-"`
 	Title                  *string                        `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement         `json:"-"`
-	Status                 *string                        `json:"status,omitempty"`
+	Status                 *PublicationStatus             `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement         `json:"-"`
 	Experimental           *bool                          `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement         `json:"-"`
@@ -45,9 +45,9 @@ type ImplementationGuide struct {
 	CopyrightLabelElement  *fhir.PrimitiveElement         `json:"-"`
 	PackageId              *string                        `json:"packageId,omitempty"`
 	PackageIdElement       *fhir.PrimitiveElement         `json:"-"`
-	License                *string                        `json:"license,omitempty"`
+	License                *SPDXLicense                   `json:"license,omitempty"`
 	LicenseElement         *fhir.PrimitiveElement         `json:"-"`
-	FhirVersion            []string                       `json:"fhirVersion,omitempty"`
+	FhirVersion            []FHIRVersion                  `json:"fhirVersion,omitempty"`
 	FhirVersionElement     []*fhir.PrimitiveElement       `json:"-"`
 	DependsOn              []ImplementationGuideDependsOn `json:"dependsOn,omitempty"`
 	Global                 []ImplementationGuideGlobal    `json:"global,omitempty"`
@@ -413,7 +413,7 @@ type ImplementationGuideDefinitionPage struct {
 	NameElement       *fhir.PrimitiveElement              `json:"-"`
 	Title             *string                             `json:"title,omitempty"`
 	TitleElement      *fhir.PrimitiveElement              `json:"-"`
-	Generation        *string                             `json:"generation,omitempty"`
+	Generation        *GuidePageGeneration                `json:"generation,omitempty"`
 	GenerationElement *fhir.PrimitiveElement              `json:"-"`
 	Page              []ImplementationGuideDefinitionPage `json:"page,omitempty"`
 }
@@ -609,7 +609,7 @@ func (v *ImplementationGuideDefinitionParameter) UnmarshalJSON(data []byte) erro
 type ImplementationGuideDefinitionResource struct {
 	BackboneElement
 	Reference          *Reference               `json:"reference,omitempty"`
-	FhirVersion        []string                 `json:"fhirVersion,omitempty"`
+	FhirVersion        []FHIRVersion            `json:"fhirVersion,omitempty"`
 	FhirVersionElement []*fhir.PrimitiveElement `json:"-"`
 	Name               *string                  `json:"name,omitempty"`
 	NameElement        *fhir.PrimitiveElement   `json:"-"`
@@ -914,7 +914,7 @@ func (v *ImplementationGuideDependsOn) UnmarshalJSON(data []byte) error {
 // ImplementationGuideGlobal is a generated nested backbone element.
 type ImplementationGuideGlobal struct {
 	BackboneElement
-	Type           *string                `json:"type,omitempty"`
+	Type           *ResourceType          `json:"type,omitempty"`
 	TypeElement    *fhir.PrimitiveElement `json:"-"`
 	Profile        *string                `json:"profile,omitempty"`
 	ProfileElement *fhir.PrimitiveElement `json:"-"`

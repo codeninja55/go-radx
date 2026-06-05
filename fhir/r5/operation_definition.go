@@ -24,9 +24,9 @@ type OperationDefinition struct {
 	NameElement            *fhir.PrimitiveElement         `json:"-"`
 	Title                  *string                        `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement         `json:"-"`
-	Status                 *string                        `json:"status,omitempty"`
+	Status                 *PublicationStatus             `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement         `json:"-"`
-	Kind                   *string                        `json:"kind,omitempty"`
+	Kind                   *OperationKind                 `json:"kind,omitempty"`
 	KindElement            *fhir.PrimitiveElement         `json:"-"`
 	Experimental           *bool                          `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement         `json:"-"`
@@ -508,9 +508,9 @@ type OperationDefinitionParameter struct {
 	BackboneElement
 	Name                 *string                                      `json:"name,omitempty"`
 	NameElement          *fhir.PrimitiveElement                       `json:"-"`
-	Use                  *string                                      `json:"use,omitempty"`
+	Use                  *OperationParameterUse                       `json:"use,omitempty"`
 	UseElement           *fhir.PrimitiveElement                       `json:"-"`
-	Scope                []string                                     `json:"scope,omitempty"`
+	Scope                []OperationParameterScope                    `json:"scope,omitempty"`
 	ScopeElement         []*fhir.PrimitiveElement                     `json:"-"`
 	Min                  *int32                                       `json:"min,omitempty"`
 	MinElement           *fhir.PrimitiveElement                       `json:"-"`
@@ -518,13 +518,13 @@ type OperationDefinitionParameter struct {
 	MaxElement           *fhir.PrimitiveElement                       `json:"-"`
 	Documentation        *string                                      `json:"documentation,omitempty"`
 	DocumentationElement *fhir.PrimitiveElement                       `json:"-"`
-	Type                 *string                                      `json:"type,omitempty"`
+	Type                 *FHIRTypes                                   `json:"type,omitempty"`
 	TypeElement          *fhir.PrimitiveElement                       `json:"-"`
-	AllowedType          []string                                     `json:"allowedType,omitempty"`
+	AllowedType          []FHIRTypes                                  `json:"allowedType,omitempty"`
 	AllowedTypeElement   []*fhir.PrimitiveElement                     `json:"-"`
 	TargetProfile        []string                                     `json:"targetProfile,omitempty"`
 	TargetProfileElement []*fhir.PrimitiveElement                     `json:"-"`
-	SearchType           *string                                      `json:"searchType,omitempty"`
+	SearchType           *SearchParamType                             `json:"searchType,omitempty"`
 	SearchTypeElement    *fhir.PrimitiveElement                       `json:"-"`
 	Binding              *OperationDefinitionParameterBinding         `json:"binding,omitempty"`
 	ReferencedFrom       []OperationDefinitionParameterReferencedFrom `json:"referencedFrom,omitempty"`
@@ -690,7 +690,7 @@ func (v *OperationDefinitionParameter) UnmarshalJSON(data []byte) error {
 // OperationDefinitionParameterBinding is a generated nested backbone element.
 type OperationDefinitionParameterBinding struct {
 	BackboneElement
-	Strength        *string                `json:"strength,omitempty"`
+	Strength        *BindingStrength       `json:"strength,omitempty"`
 	StrengthElement *fhir.PrimitiveElement `json:"-"`
 	ValueSet        *string                `json:"valueSet,omitempty"`
 	ValueSetElement *fhir.PrimitiveElement `json:"-"`

@@ -275,11 +275,58 @@ const (
 func ParseAdministrativeGender(s string) (AdministrativeGender, error)
 ```
 
-The unknown-code policy is explicit and uniform: on **unmarshal**, an unknown code for a required binding is reported as
-a validation issue (an `OperationOutcome` issue when validating; a returned error from `ParseXxx`), never silently
-coerced. The raw value is preserved on the field so a strict consumer can inspect it; it is the validator that flags it.
-This is binding safety at the JSON boundary, which is where Go can enforce it — not at every literal assignment, which
-Go's type system cannot enforce (PRD §6.3).
+The unknown-code policy is explicit and uniform. On **unmarshal**, the generated enum's `UnmarshalJSON` applies the
+strict rule by default: an out-of-set code is rejected with `ErrUnknownCode`, wrapped with the binding name and the
+offending code token (never a patient value), so a non-conformant payload fails closed rather than silently populating a
+required field. `ParseXxx` always applies the same strict rule regardless of any decode mode. Lenient retention is the
+opt-in alternative, threaded explicitly as `fhir.DecodeLenient` through the boundary helper `fhir.DecodeCode`: under
+lenient decode an out-of-set code is retained verbatim for `Validate` to surface as an `OperationOutcome` issue, so a
+consumer ingesting partially-conformant data from the wild can inspect rather than reject. The mode is a value, not a
+process-wide toggle, so two concurrent decodes never race on a shared policy. This is binding safety at the JSON
+boundary, which is where Go can enforce it — not at every literal assignment, which Go's type system cannot enforce
+(PRD §6.3).
+
+### Terminology loading and scope boundary
+
+The generator runs **no terminology server**. It enumerates a required binding's closed code set from the vendored,
+checksum-pinned definition bundle alone (`valuesets.json`, which carries both the `ValueSet` and the `CodeSystem`
+resources). A value set is **enumerable** when every `compose.include` either inlines its concepts
+(`compose.include.concept`, an *extensional* definition) or names a `CodeSystem` that is vendored in the bundle with
+complete content, in which case the codes come from that system's concept tree (walked depth-first so a hierarchical
+code system enumerates every code). A `compose.exclude` rule removes its inlined concepts from the result, so a value
+set that includes a whole system and excludes a few codes still enumerates correctly.
+
+A value set is **not enumerable** — and the generator emits a **documented not-inlined boundary** rather than a
+silently-empty const set — in three cases:
+
+- **Intensional (filter-defined).** A `compose.include.filter` (a property/op/value rule such as `concept is-a <root>`)
+  defines membership by a query a terminology server resolves, not by a literal code list. The loader captures the
+  filter so the enum stage can name exactly which intensional rule made the set non-enumerable.
+- **External terminology.** A `compose.include.system` that names a code system not vendored in the bundle — LOINC
+  (`http://loinc.org`), SNOMED CT, UCUM (`http://unitsofmeasure.org`), an IETF BCP registry (`urn:ietf:bcp:13`,
+  `urn:ietf:bcp:47`), or an ISO registry (`urn:iso:std:iso:4217`) — cannot be enumerated offline.
+- **Value-set composition.** A `compose.include.valueSet` that composes another value set is followed by a terminology
+  server, not the generator.
+
+A not-inlined binding is emitted as a plain `code` string type (a `string` alias) carrying a godoc note that names the
+reason (for example *"draws from code system `http://unitsofmeasure.org`, not vendored in the bundle"*), so the
+terminology-scope boundary is explicit in the generated source. A field bound to such a value set keeps its plain
+`code` string type and accepts any code on decode; the authoritative membership check for these codes is the official
+HL7 FHIR validator in CI (PRD §11.1), not the Go type system.
+
+This boundary is enforced as an invariant, not left to chance: an enumerable enum is **never** emitted with an empty
+const set. A binding the resolver reports inlineable but that yields no codes is downgraded to a documented not-inlined
+boundary, and a generator guard test (`TestNoEmptyRequiredBindingEnum`) fails the build if any required-binding enum
+would ship enumerable-but-empty. For the vendored R5 5.0.0 bundle this yields closed enums for the large majority of
+required bindings and a small set of documented not-inlined boundaries for the external-terminology and
+value-set-composition cases above.
+
+One scope limit remains while the generator does not yet own the full resource set: the four M2 walking-skeleton types
+still hand-written under `fhir/r5` (`ServiceRequest`, `DiagnosticReport`, `ImagingStudy`, and the `Identifier`
+datatype) carry their required-binding code fields (`status`, `intent`, `use`) as plain strings, so an out-of-set code
+on those specific fields is not yet rejected at the JSON boundary. The closed enums those fields will adopt are already
+generated; the migration increment that retires the hand-written files (and re-points the converter and skeleton at the
+generated shapes) wires them, completing FHIR-013 enforcement on those types.
 
 ### Lexical-preserving decimal
 
@@ -616,7 +663,12 @@ boundaries, each stage gated by its own tests:
    `SHA256SUMS` manifest before parsing, decodes the `StructureDefinition` / `ValueSet` / `CodeSystem` entries into
    raw records, and indexes them by canonical URL and by name. It fails closed: a checksum mismatch, a missing
    required file, or a malformed entry is a typed error, never a "regenerate anyway." The loader never reaches the
-   network, so generation is reproducible from the pinned input alone.
+   network, so generation is reproducible from the pinned input alone. **Terminology loading:** the loader decodes the
+   `ValueSet` and `CodeSystem` resources the required-binding enums need, capturing each `compose.include`/`exclude`
+   rule's inlined concepts, code-system reference, value-set composition, and `compose.include.filter`
+   (the property/op/value triple of an *intensional* value set). Capturing the filter is what lets the enum stage tell
+   an enumerable extensional value set from a non-enumerable intensional one rather than silently producing an empty
+   code set.
 
 2. **Model / IR** (`fhir/internal/gen/model`) turns the loader's flat list of dotted-path `ElementDefinition`s into
    the explicit element-path tree the later stages recurse over. From a `StructureDefinition` snapshot
@@ -685,8 +737,11 @@ boundaries, each stage gated by its own tests:
 > (`r5.Period`, and `r5.HumanName` which exercises the scalar siblings, the null-aligned repeating siblings, and the
 > FHIR-005 rule) and one representative resource (`r5.Flag`, with its `ResourceType` method, always-emit-`resourceType`
 > `MarshalJSON`, a primitive `_status` sibling, and a generated registry entry) are generated end to end to prove the
-> pipeline, the identity API, and the byte-for-byte regeneration gate. The full datatype, resource, backbone, choice,
-> enum, and Bundle generation, and the generated `fhir/r4` output, are not yet shipped.
+> pipeline, the identity API, and the byte-for-byte regeneration gate. The full R5 datatype, resource, and backbone
+> generation, the choice-type accessors, and the required-binding enums (closed enums with a strict-by-default
+> validating decode and documented not-inlined boundaries for non-enumerable terminology, FHIR-013) are generated into
+> `fhir/r5`. The hand-written Bundle builders and reference helpers, the `Validate` engine and summary mode, and the
+> generated `fhir/r4` output are not yet shipped.
 
 ## What this statement fixes (re-foundation note)
 

@@ -14,7 +14,7 @@ const VisionPrescriptionResourceType = "VisionPrescription"
 type VisionPrescription struct {
 	DomainResource
 	Identifier         []Identifier                          `json:"identifier,omitempty"`
-	Status             *string                               `json:"status,omitempty"`
+	Status             *FinancialResourceStatusCodes         `json:"status,omitempty"`
 	StatusElement      *fhir.PrimitiveElement                `json:"-"`
 	Created            *string                               `json:"created,omitempty"`
 	CreatedElement     *fhir.PrimitiveElement                `json:"-"`
@@ -114,7 +114,7 @@ func (v *VisionPrescription) UnmarshalJSON(data []byte) error {
 type VisionPrescriptionLensSpecification struct {
 	BackboneElement
 	Product          *CodeableConcept                           `json:"product,omitempty"`
-	Eye              *string                                    `json:"eye,omitempty"`
+	Eye              *VisionEyes                                `json:"eye,omitempty"`
 	EyeElement       *fhir.PrimitiveElement                     `json:"-"`
 	Sphere           *fhir.Decimal                              `json:"sphere,omitempty"`
 	SphereElement    *fhir.PrimitiveElement                     `json:"-"`
@@ -300,7 +300,7 @@ type VisionPrescriptionLensSpecificationPrism struct {
 	BackboneElement
 	Amount        *fhir.Decimal          `json:"amount,omitempty"`
 	AmountElement *fhir.PrimitiveElement `json:"-"`
-	Base          *string                `json:"base,omitempty"`
+	Base          *VisionBase            `json:"base,omitempty"`
 	BaseElement   *fhir.PrimitiveElement `json:"-"`
 }
 

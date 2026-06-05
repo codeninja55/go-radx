@@ -17,7 +17,7 @@ type VerificationResult struct {
 	TargetLocation        []string                          `json:"targetLocation,omitempty"`
 	TargetLocationElement []*fhir.PrimitiveElement          `json:"-"`
 	Need                  *CodeableConcept                  `json:"need,omitempty"`
-	Status                *string                           `json:"status,omitempty"`
+	Status                *VerificationResultStatus         `json:"status,omitempty"`
 	StatusElement         *fhir.PrimitiveElement            `json:"-"`
 	StatusDate            *string                           `json:"statusDate,omitempty"`
 	StatusDateElement     *fhir.PrimitiveElement            `json:"-"`

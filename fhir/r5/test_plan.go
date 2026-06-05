@@ -24,7 +24,7 @@ type TestPlan struct {
 	NameElement            *fhir.PrimitiveElement `json:"-"`
 	Title                  *string                `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement `json:"-"`
-	Status                 *string                `json:"status,omitempty"`
+	Status                 *PublicationStatus     `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement `json:"-"`
 	Experimental           *bool                  `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement `json:"-"`

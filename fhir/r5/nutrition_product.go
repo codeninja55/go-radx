@@ -14,7 +14,7 @@ const NutritionProductResourceType = "NutritionProduct"
 type NutritionProduct struct {
 	DomainResource
 	Code           *CodeableConcept                 `json:"code,omitempty"`
-	Status         *string                          `json:"status,omitempty"`
+	Status         *NutritionProductStatus          `json:"status,omitempty"`
 	StatusElement  *fhir.PrimitiveElement           `json:"-"`
 	Category       []CodeableConcept                `json:"category,omitempty"`
 	Manufacturer   []Reference                      `json:"manufacturer,omitempty"`

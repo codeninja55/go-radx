@@ -17,7 +17,7 @@ type Availability struct {
 // AvailabilityAvailableTime is a generated nested backbone element.
 type AvailabilityAvailableTime struct {
 	Element
-	DaysOfWeek                []string                 `json:"daysOfWeek,omitempty"`
+	DaysOfWeek                []DaysOfWeek             `json:"daysOfWeek,omitempty"`
 	DaysOfWeekElement         []*fhir.PrimitiveElement `json:"-"`
 	AllDay                    *bool                    `json:"allDay,omitempty"`
 	AllDayElement             *fhir.PrimitiveElement   `json:"-"`

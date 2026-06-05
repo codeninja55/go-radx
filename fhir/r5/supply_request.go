@@ -14,11 +14,11 @@ const SupplyRequestResourceType = "SupplyRequest"
 type SupplyRequest struct {
 	DomainResource
 	Identifier         []Identifier             `json:"identifier,omitempty"`
-	Status             *string                  `json:"status,omitempty"`
+	Status             *SupplyRequestStatus     `json:"status,omitempty"`
 	StatusElement      *fhir.PrimitiveElement   `json:"-"`
 	BasedOn            []Reference              `json:"basedOn,omitempty"`
 	Category           *CodeableConcept         `json:"category,omitempty"`
-	Priority           *string                  `json:"priority,omitempty"`
+	Priority           *RequestPriority         `json:"priority,omitempty"`
 	PriorityElement    *fhir.PrimitiveElement   `json:"-"`
 	DeliverFor         *Reference               `json:"deliverFor,omitempty"`
 	Item               *CodeableReference       `json:"item,omitempty"`

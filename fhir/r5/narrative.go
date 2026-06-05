@@ -10,7 +10,7 @@ import (
 // Narrative is the generated FHIR Narrative datatype.
 type Narrative struct {
 	Element
-	Status        *string                `json:"status,omitempty"`
+	Status        *NarrativeStatus       `json:"status,omitempty"`
 	StatusElement *fhir.PrimitiveElement `json:"-"`
 	Div           *string                `json:"div,omitempty"`
 	DivElement    *fhir.PrimitiveElement `json:"-"`

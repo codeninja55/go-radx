@@ -10,11 +10,11 @@ import (
 // ContactPoint is the generated FHIR ContactPoint datatype.
 type ContactPoint struct {
 	Element
-	System        *string                `json:"system,omitempty"`
+	System        *ContactPointSystem    `json:"system,omitempty"`
 	SystemElement *fhir.PrimitiveElement `json:"-"`
 	Value         *string                `json:"value,omitempty"`
 	ValueElement  *fhir.PrimitiveElement `json:"-"`
-	Use           *string                `json:"use,omitempty"`
+	Use           *ContactPointUse       `json:"use,omitempty"`
 	UseElement    *fhir.PrimitiveElement `json:"-"`
 	Rank          *int32                 `json:"rank,omitempty"`
 	RankElement   *fhir.PrimitiveElement `json:"-"`

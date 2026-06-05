@@ -27,7 +27,7 @@ type PlanDefinition struct {
 	Subtitle                *string                  `json:"subtitle,omitempty"`
 	SubtitleElement         *fhir.PrimitiveElement   `json:"-"`
 	Type                    *CodeableConcept         `json:"type,omitempty"`
-	Status                  *string                  `json:"status,omitempty"`
+	Status                  *PublicationStatus       `json:"status,omitempty"`
 	StatusElement           *fhir.PrimitiveElement   `json:"-"`
 	Experimental            *bool                    `json:"experimental,omitempty"`
 	ExperimentalElement     *fhir.PrimitiveElement   `json:"-"`
@@ -473,7 +473,7 @@ type PlanDefinitionAction struct {
 	DescriptionElement         *fhir.PrimitiveElement              `json:"-"`
 	TextEquivalent             *string                             `json:"textEquivalent,omitempty"`
 	TextEquivalentElement      *fhir.PrimitiveElement              `json:"-"`
-	Priority                   *string                             `json:"priority,omitempty"`
+	Priority                   *RequestPriority                    `json:"priority,omitempty"`
 	PriorityElement            *fhir.PrimitiveElement              `json:"-"`
 	Code                       *CodeableConcept                    `json:"code,omitempty"`
 	Reason                     []CodeableConcept                   `json:"reason,omitempty"`
@@ -495,15 +495,15 @@ type PlanDefinitionAction struct {
 	Location                   *CodeableReference                  `json:"location,omitempty"`
 	Participant                []PlanDefinitionActionParticipant   `json:"participant,omitempty"`
 	Type                       *CodeableConcept                    `json:"type,omitempty"`
-	GroupingBehavior           *string                             `json:"groupingBehavior,omitempty"`
+	GroupingBehavior           *ActionGroupingBehavior             `json:"groupingBehavior,omitempty"`
 	GroupingBehaviorElement    *fhir.PrimitiveElement              `json:"-"`
-	SelectionBehavior          *string                             `json:"selectionBehavior,omitempty"`
+	SelectionBehavior          *ActionSelectionBehavior            `json:"selectionBehavior,omitempty"`
 	SelectionBehaviorElement   *fhir.PrimitiveElement              `json:"-"`
-	RequiredBehavior           *string                             `json:"requiredBehavior,omitempty"`
+	RequiredBehavior           *ActionRequiredBehavior             `json:"requiredBehavior,omitempty"`
 	RequiredBehaviorElement    *fhir.PrimitiveElement              `json:"-"`
-	PrecheckBehavior           *string                             `json:"precheckBehavior,omitempty"`
+	PrecheckBehavior           *ActionPrecheckBehavior             `json:"precheckBehavior,omitempty"`
 	PrecheckBehaviorElement    *fhir.PrimitiveElement              `json:"-"`
-	CardinalityBehavior        *string                             `json:"cardinalityBehavior,omitempty"`
+	CardinalityBehavior        *ActionCardinalityBehavior          `json:"cardinalityBehavior,omitempty"`
 	CardinalityBehaviorElement *fhir.PrimitiveElement              `json:"-"`
 	DefinitionCanonical        *FHIRCanonical                      `json:"definitionCanonical,omitempty"`
 	DefinitionURI              *FHIRURI                            `json:"definitionUri,omitempty"`
@@ -875,7 +875,7 @@ func (r *PlanDefinitionAction) SetDefinitionURI(v FHIRURI) {
 // PlanDefinitionActionCondition is a generated nested backbone element.
 type PlanDefinitionActionCondition struct {
 	BackboneElement
-	Kind        *string                `json:"kind,omitempty"`
+	Kind        *ActionConditionKind   `json:"kind,omitempty"`
 	KindElement *fhir.PrimitiveElement `json:"-"`
 	Expression  *Expression            `json:"expression,omitempty"`
 }
@@ -1059,7 +1059,7 @@ type PlanDefinitionActionParticipant struct {
 	BackboneElement
 	ActorId              *string                `json:"actorId,omitempty"`
 	ActorIdElement       *fhir.PrimitiveElement `json:"-"`
-	Type                 *string                `json:"type,omitempty"`
+	Type                 *ActionParticipantType `json:"type,omitempty"`
 	TypeElement          *fhir.PrimitiveElement `json:"-"`
 	TypeCanonical        *string                `json:"typeCanonical,omitempty"`
 	TypeCanonicalElement *fhir.PrimitiveElement `json:"-"`
@@ -1143,14 +1143,14 @@ func (v *PlanDefinitionActionParticipant) UnmarshalJSON(data []byte) error {
 // PlanDefinitionActionRelatedAction is a generated nested backbone element.
 type PlanDefinitionActionRelatedAction struct {
 	BackboneElement
-	TargetId               *string                `json:"targetId,omitempty"`
-	TargetIdElement        *fhir.PrimitiveElement `json:"-"`
-	Relationship           *string                `json:"relationship,omitempty"`
-	RelationshipElement    *fhir.PrimitiveElement `json:"-"`
-	EndRelationship        *string                `json:"endRelationship,omitempty"`
-	EndRelationshipElement *fhir.PrimitiveElement `json:"-"`
-	OffsetDuration         *Duration              `json:"offsetDuration,omitempty"`
-	OffsetRange            *Range                 `json:"offsetRange,omitempty"`
+	TargetId               *string                 `json:"targetId,omitempty"`
+	TargetIdElement        *fhir.PrimitiveElement  `json:"-"`
+	Relationship           *ActionRelationshipType `json:"relationship,omitempty"`
+	RelationshipElement    *fhir.PrimitiveElement  `json:"-"`
+	EndRelationship        *ActionRelationshipType `json:"endRelationship,omitempty"`
+	EndRelationshipElement *fhir.PrimitiveElement  `json:"-"`
+	OffsetDuration         *Duration               `json:"offsetDuration,omitempty"`
+	OffsetRange            *Range                  `json:"offsetRange,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -1337,7 +1337,7 @@ func (v *PlanDefinitionActor) UnmarshalJSON(data []byte) error {
 // PlanDefinitionActorOption is a generated nested backbone element.
 type PlanDefinitionActorOption struct {
 	BackboneElement
-	Type                 *string                `json:"type,omitempty"`
+	Type                 *ActionParticipantType `json:"type,omitempty"`
 	TypeElement          *fhir.PrimitiveElement `json:"-"`
 	TypeCanonical        *string                `json:"typeCanonical,omitempty"`
 	TypeCanonicalElement *fhir.PrimitiveElement `json:"-"`

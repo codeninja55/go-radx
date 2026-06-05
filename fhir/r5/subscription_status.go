@@ -13,9 +13,9 @@ const SubscriptionStatusResourceType = "SubscriptionStatus"
 // SubscriptionStatus is the generated FHIR SubscriptionStatus resource.
 type SubscriptionStatus struct {
 	DomainResource
-	Status                              *string                               `json:"status,omitempty"`
+	Status                              *SubscriptionStatusCodes              `json:"status,omitempty"`
 	StatusElement                       *fhir.PrimitiveElement                `json:"-"`
-	Type                                *string                               `json:"type,omitempty"`
+	Type                                *SubscriptionNotificationType         `json:"type,omitempty"`
 	TypeElement                         *fhir.PrimitiveElement                `json:"-"`
 	EventsSinceSubscriptionStart        *int64                                `json:"eventsSinceSubscriptionStart,omitempty"`
 	EventsSinceSubscriptionStartElement *fhir.PrimitiveElement                `json:"-"`

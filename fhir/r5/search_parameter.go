@@ -26,7 +26,7 @@ type SearchParameter struct {
 	TitleElement           *fhir.PrimitiveElement     `json:"-"`
 	DerivedFrom            *string                    `json:"derivedFrom,omitempty"`
 	DerivedFromElement     *fhir.PrimitiveElement     `json:"-"`
-	Status                 *string                    `json:"status,omitempty"`
+	Status                 *PublicationStatus         `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement     `json:"-"`
 	Experimental           *bool                      `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement     `json:"-"`
@@ -49,11 +49,11 @@ type SearchParameter struct {
 	CodeElement            *fhir.PrimitiveElement     `json:"-"`
 	Base                   []string                   `json:"base,omitempty"`
 	BaseElement            []*fhir.PrimitiveElement   `json:"-"`
-	Type                   *string                    `json:"type,omitempty"`
+	Type                   *SearchParamType           `json:"type,omitempty"`
 	TypeElement            *fhir.PrimitiveElement     `json:"-"`
 	Expression             *string                    `json:"expression,omitempty"`
 	ExpressionElement      *fhir.PrimitiveElement     `json:"-"`
-	ProcessingMode         *string                    `json:"processingMode,omitempty"`
+	ProcessingMode         *SearchProcessingModeType  `json:"processingMode,omitempty"`
 	ProcessingModeElement  *fhir.PrimitiveElement     `json:"-"`
 	Constraint             *string                    `json:"constraint,omitempty"`
 	ConstraintElement      *fhir.PrimitiveElement     `json:"-"`
@@ -63,9 +63,9 @@ type SearchParameter struct {
 	MultipleOrElement      *fhir.PrimitiveElement     `json:"-"`
 	MultipleAnd            *bool                      `json:"multipleAnd,omitempty"`
 	MultipleAndElement     *fhir.PrimitiveElement     `json:"-"`
-	Comparator             []string                   `json:"comparator,omitempty"`
+	Comparator             []SearchComparator         `json:"comparator,omitempty"`
 	ComparatorElement      []*fhir.PrimitiveElement   `json:"-"`
-	Modifier               []string                   `json:"modifier,omitempty"`
+	Modifier               []SearchModifierCode       `json:"modifier,omitempty"`
 	ModifierElement        []*fhir.PrimitiveElement   `json:"-"`
 	Chain                  []string                   `json:"chain,omitempty"`
 	ChainElement           []*fhir.PrimitiveElement   `json:"-"`

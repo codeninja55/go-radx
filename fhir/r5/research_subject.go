@@ -14,7 +14,7 @@ const ResearchSubjectResourceType = "ResearchSubject"
 type ResearchSubject struct {
 	DomainResource
 	Identifier                     []Identifier              `json:"identifier,omitempty"`
-	Status                         *string                   `json:"status,omitempty"`
+	Status                         *PublicationStatus        `json:"status,omitempty"`
 	StatusElement                  *fhir.PrimitiveElement    `json:"-"`
 	Progress                       []ResearchSubjectProgress `json:"progress,omitempty"`
 	Period                         *Period                   `json:"period,omitempty"`

@@ -13,66 +13,66 @@ const CodeSystemResourceType = "CodeSystem"
 // CodeSystem is the generated FHIR CodeSystem resource.
 type CodeSystem struct {
 	DomainResource
-	URL                     *string                `json:"url,omitempty"`
-	URLElement              *fhir.PrimitiveElement `json:"-"`
-	Identifier              []Identifier           `json:"identifier,omitempty"`
-	Version                 *string                `json:"version,omitempty"`
-	VersionElement          *fhir.PrimitiveElement `json:"-"`
-	VersionAlgorithmString  *FHIRString            `json:"versionAlgorithmString,omitempty"`
-	VersionAlgorithmCoding  *Coding                `json:"versionAlgorithmCoding,omitempty"`
-	Name                    *string                `json:"name,omitempty"`
-	NameElement             *fhir.PrimitiveElement `json:"-"`
-	Title                   *string                `json:"title,omitempty"`
-	TitleElement            *fhir.PrimitiveElement `json:"-"`
-	Status                  *string                `json:"status,omitempty"`
-	StatusElement           *fhir.PrimitiveElement `json:"-"`
-	Experimental            *bool                  `json:"experimental,omitempty"`
-	ExperimentalElement     *fhir.PrimitiveElement `json:"-"`
-	Date                    *string                `json:"date,omitempty"`
-	DateElement             *fhir.PrimitiveElement `json:"-"`
-	Publisher               *string                `json:"publisher,omitempty"`
-	PublisherElement        *fhir.PrimitiveElement `json:"-"`
-	Contact                 []ContactDetail        `json:"contact,omitempty"`
-	Description             *string                `json:"description,omitempty"`
-	DescriptionElement      *fhir.PrimitiveElement `json:"-"`
-	UseContext              []UsageContext         `json:"useContext,omitempty"`
-	Jurisdiction            []CodeableConcept      `json:"jurisdiction,omitempty"`
-	Purpose                 *string                `json:"purpose,omitempty"`
-	PurposeElement          *fhir.PrimitiveElement `json:"-"`
-	Copyright               *string                `json:"copyright,omitempty"`
-	CopyrightElement        *fhir.PrimitiveElement `json:"-"`
-	CopyrightLabel          *string                `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement   *fhir.PrimitiveElement `json:"-"`
-	ApprovalDate            *string                `json:"approvalDate,omitempty"`
-	ApprovalDateElement     *fhir.PrimitiveElement `json:"-"`
-	LastReviewDate          *string                `json:"lastReviewDate,omitempty"`
-	LastReviewDateElement   *fhir.PrimitiveElement `json:"-"`
-	EffectivePeriod         *Period                `json:"effectivePeriod,omitempty"`
-	Topic                   []CodeableConcept      `json:"topic,omitempty"`
-	Author                  []ContactDetail        `json:"author,omitempty"`
-	Editor                  []ContactDetail        `json:"editor,omitempty"`
-	Reviewer                []ContactDetail        `json:"reviewer,omitempty"`
-	Endorser                []ContactDetail        `json:"endorser,omitempty"`
-	RelatedArtifact         []RelatedArtifact      `json:"relatedArtifact,omitempty"`
-	CaseSensitive           *bool                  `json:"caseSensitive,omitempty"`
-	CaseSensitiveElement    *fhir.PrimitiveElement `json:"-"`
-	ValueSet                *string                `json:"valueSet,omitempty"`
-	ValueSetElement         *fhir.PrimitiveElement `json:"-"`
-	HierarchyMeaning        *string                `json:"hierarchyMeaning,omitempty"`
-	HierarchyMeaningElement *fhir.PrimitiveElement `json:"-"`
-	Compositional           *bool                  `json:"compositional,omitempty"`
-	CompositionalElement    *fhir.PrimitiveElement `json:"-"`
-	VersionNeeded           *bool                  `json:"versionNeeded,omitempty"`
-	VersionNeededElement    *fhir.PrimitiveElement `json:"-"`
-	Content                 *string                `json:"content,omitempty"`
-	ContentElement          *fhir.PrimitiveElement `json:"-"`
-	Supplements             *string                `json:"supplements,omitempty"`
-	SupplementsElement      *fhir.PrimitiveElement `json:"-"`
-	Count                   *int32                 `json:"count,omitempty"`
-	CountElement            *fhir.PrimitiveElement `json:"-"`
-	Filter                  []CodeSystemFilter     `json:"filter,omitempty"`
-	Property                []CodeSystemProperty   `json:"property,omitempty"`
-	Concept                 []CodeSystemConcept    `json:"concept,omitempty"`
+	URL                     *string                     `json:"url,omitempty"`
+	URLElement              *fhir.PrimitiveElement      `json:"-"`
+	Identifier              []Identifier                `json:"identifier,omitempty"`
+	Version                 *string                     `json:"version,omitempty"`
+	VersionElement          *fhir.PrimitiveElement      `json:"-"`
+	VersionAlgorithmString  *FHIRString                 `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding  *Coding                     `json:"versionAlgorithmCoding,omitempty"`
+	Name                    *string                     `json:"name,omitempty"`
+	NameElement             *fhir.PrimitiveElement      `json:"-"`
+	Title                   *string                     `json:"title,omitempty"`
+	TitleElement            *fhir.PrimitiveElement      `json:"-"`
+	Status                  *PublicationStatus          `json:"status,omitempty"`
+	StatusElement           *fhir.PrimitiveElement      `json:"-"`
+	Experimental            *bool                       `json:"experimental,omitempty"`
+	ExperimentalElement     *fhir.PrimitiveElement      `json:"-"`
+	Date                    *string                     `json:"date,omitempty"`
+	DateElement             *fhir.PrimitiveElement      `json:"-"`
+	Publisher               *string                     `json:"publisher,omitempty"`
+	PublisherElement        *fhir.PrimitiveElement      `json:"-"`
+	Contact                 []ContactDetail             `json:"contact,omitempty"`
+	Description             *string                     `json:"description,omitempty"`
+	DescriptionElement      *fhir.PrimitiveElement      `json:"-"`
+	UseContext              []UsageContext              `json:"useContext,omitempty"`
+	Jurisdiction            []CodeableConcept           `json:"jurisdiction,omitempty"`
+	Purpose                 *string                     `json:"purpose,omitempty"`
+	PurposeElement          *fhir.PrimitiveElement      `json:"-"`
+	Copyright               *string                     `json:"copyright,omitempty"`
+	CopyrightElement        *fhir.PrimitiveElement      `json:"-"`
+	CopyrightLabel          *string                     `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement   *fhir.PrimitiveElement      `json:"-"`
+	ApprovalDate            *string                     `json:"approvalDate,omitempty"`
+	ApprovalDateElement     *fhir.PrimitiveElement      `json:"-"`
+	LastReviewDate          *string                     `json:"lastReviewDate,omitempty"`
+	LastReviewDateElement   *fhir.PrimitiveElement      `json:"-"`
+	EffectivePeriod         *Period                     `json:"effectivePeriod,omitempty"`
+	Topic                   []CodeableConcept           `json:"topic,omitempty"`
+	Author                  []ContactDetail             `json:"author,omitempty"`
+	Editor                  []ContactDetail             `json:"editor,omitempty"`
+	Reviewer                []ContactDetail             `json:"reviewer,omitempty"`
+	Endorser                []ContactDetail             `json:"endorser,omitempty"`
+	RelatedArtifact         []RelatedArtifact           `json:"relatedArtifact,omitempty"`
+	CaseSensitive           *bool                       `json:"caseSensitive,omitempty"`
+	CaseSensitiveElement    *fhir.PrimitiveElement      `json:"-"`
+	ValueSet                *string                     `json:"valueSet,omitempty"`
+	ValueSetElement         *fhir.PrimitiveElement      `json:"-"`
+	HierarchyMeaning        *CodeSystemHierarchyMeaning `json:"hierarchyMeaning,omitempty"`
+	HierarchyMeaningElement *fhir.PrimitiveElement      `json:"-"`
+	Compositional           *bool                       `json:"compositional,omitempty"`
+	CompositionalElement    *fhir.PrimitiveElement      `json:"-"`
+	VersionNeeded           *bool                       `json:"versionNeeded,omitempty"`
+	VersionNeededElement    *fhir.PrimitiveElement      `json:"-"`
+	Content                 *CodeSystemContentMode      `json:"content,omitempty"`
+	ContentElement          *fhir.PrimitiveElement      `json:"-"`
+	Supplements             *string                     `json:"supplements,omitempty"`
+	SupplementsElement      *fhir.PrimitiveElement      `json:"-"`
+	Count                   *int32                      `json:"count,omitempty"`
+	CountElement            *fhir.PrimitiveElement      `json:"-"`
+	Filter                  []CodeSystemFilter          `json:"filter,omitempty"`
+	Property                []CodeSystemProperty        `json:"property,omitempty"`
+	Concept                 []CodeSystemConcept         `json:"concept,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "CodeSystem".
@@ -795,7 +795,7 @@ type CodeSystemFilter struct {
 	CodeElement        *fhir.PrimitiveElement   `json:"-"`
 	Description        *string                  `json:"description,omitempty"`
 	DescriptionElement *fhir.PrimitiveElement   `json:"-"`
-	Operator           []string                 `json:"operator,omitempty"`
+	Operator           []FilterOperator         `json:"operator,omitempty"`
 	OperatorElement    []*fhir.PrimitiveElement `json:"-"`
 	Value              *string                  `json:"value,omitempty"`
 	ValueElement       *fhir.PrimitiveElement   `json:"-"`
@@ -894,7 +894,7 @@ type CodeSystemProperty struct {
 	URIElement         *fhir.PrimitiveElement `json:"-"`
 	Description        *string                `json:"description,omitempty"`
 	DescriptionElement *fhir.PrimitiveElement `json:"-"`
-	Type               *string                `json:"type,omitempty"`
+	Type               *PropertyType          `json:"type,omitempty"`
 	TypeElement        *fhir.PrimitiveElement `json:"-"`
 }
 

@@ -82,7 +82,7 @@ func (v *Linkage) UnmarshalJSON(data []byte) error {
 // LinkageItem is a generated nested backbone element.
 type LinkageItem struct {
 	BackboneElement
-	Type        *string                `json:"type,omitempty"`
+	Type        *LinkageType           `json:"type,omitempty"`
 	TypeElement *fhir.PrimitiveElement `json:"-"`
 	Resource    *Reference             `json:"resource,omitempty"`
 }

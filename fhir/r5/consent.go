@@ -14,7 +14,7 @@ const ConsentResourceType = "Consent"
 type Consent struct {
 	DomainResource
 	Identifier       []Identifier           `json:"identifier,omitempty"`
-	Status           *string                `json:"status,omitempty"`
+	Status           *ConsentState          `json:"status,omitempty"`
 	StatusElement    *fhir.PrimitiveElement `json:"-"`
 	Category         []CodeableConcept      `json:"category,omitempty"`
 	Subject          *Reference             `json:"subject,omitempty"`
@@ -31,7 +31,7 @@ type Consent struct {
 	PolicyBasis      *ConsentPolicyBasis    `json:"policyBasis,omitempty"`
 	PolicyText       []Reference            `json:"policyText,omitempty"`
 	Verification     []ConsentVerification  `json:"verification,omitempty"`
-	Decision         *string                `json:"decision,omitempty"`
+	Decision         *ConsentProvisionType  `json:"decision,omitempty"`
 	DecisionElement  *fhir.PrimitiveElement `json:"-"`
 	Provision        []ConsentProvision     `json:"provision,omitempty"`
 }
@@ -203,7 +203,7 @@ type ConsentProvisionActor struct {
 // ConsentProvisionData is a generated nested backbone element.
 type ConsentProvisionData struct {
 	BackboneElement
-	Meaning        *string                `json:"meaning,omitempty"`
+	Meaning        *ConsentDataMeaning    `json:"meaning,omitempty"`
 	MeaningElement *fhir.PrimitiveElement `json:"-"`
 	Reference      *Reference             `json:"reference,omitempty"`
 }

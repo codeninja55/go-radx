@@ -157,6 +157,65 @@ func primitiveImports(wrappers []plan.PrimitiveWrapper) []string {
 	return out
 }
 
+// Enums is the input to the per-release required-binding enum file: the target
+// package and the planned enums to render, both the enumerable closed enums and the
+// documented not-inlined boundaries. The caller fixes a stable (sorted) order before
+// calling EmitEnums so the file is byte-stable.
+type Enums struct {
+	// Package is the Go package clause of the emitted enum file (for example "r5").
+	Package string
+
+	// Enums are the release's required-binding enums, in stable order.
+	Enums []plan.PlannedEnum
+}
+
+// EmitEnums renders a release's required-binding enums to formatted Go source. Each
+// enumerable binding becomes a closed defined string type with a const set, a
+// set-membership validator, a strict-by-default ParseXxx, and a strict UnmarshalJSON
+// that rejects out-of-set codes with fhir.ErrUnknownCode (FHIR-013); each
+// non-enumerable binding becomes a documented not-inlined plain string type, never a
+// silently-empty closed enum. The output is deterministic for a given Enums, keeping
+// regeneration byte-for-byte reproducible.
+func EmitEnums(e Enums) ([]byte, error) {
+	tmpl, err := template.New("enum.go.tmpl").ParseFS(templatesFS, "templates/enum.go.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("emit: parse enum template: %w", err)
+	}
+
+	data := struct {
+		Package string
+		Imports []string
+		Enums   []plan.PlannedEnum
+	}{
+		Package: e.Package,
+		Imports: enumImports(e.Enums),
+		Enums:   e.Enums,
+	}
+
+	var raw bytes.Buffer
+	if err := tmpl.Execute(&raw, data); err != nil {
+		return nil, fmt.Errorf("emit: execute enum template: %w", err)
+	}
+
+	formatted, err := format.Source(raw.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("emit: gofmt the rendered enums: %w\n--- rendered ---\n%s", err, raw.String())
+	}
+	return formatted, nil
+}
+
+// enumImports returns the import paths the enum file needs: the root fhir package
+// (fhir.ParseCode, fhir.DecodeCode, fhir.ErrUnknownCode) whenever any enumerable enum
+// is present, since a not-inlined-only file is plain string aliases needing no import.
+func enumImports(enums []plan.PlannedEnum) []string {
+	for _, e := range enums {
+		if !e.NotInlined {
+			return []string{"github.com/codeninja55/go-radx/fhir"}
+		}
+	}
+	return nil
+}
+
 // EmitRegistry renders a release's resourceType→factory registry file to formatted Go
 // source. The generated init() registers each resource's factory with the root fhir
 // package, so fhir.UnmarshalResource can dispatch by resourceType. Like Emit, the

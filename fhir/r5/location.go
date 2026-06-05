@@ -14,7 +14,7 @@ const LocationResourceType = "Location"
 type Location struct {
 	DomainResource
 	Identifier           []Identifier             `json:"identifier,omitempty"`
-	Status               *string                  `json:"status,omitempty"`
+	Status               *LocationStatus          `json:"status,omitempty"`
 	StatusElement        *fhir.PrimitiveElement   `json:"-"`
 	OperationalStatus    *Coding                  `json:"operationalStatus,omitempty"`
 	Name                 *string                  `json:"name,omitempty"`
@@ -23,7 +23,7 @@ type Location struct {
 	AliasElement         []*fhir.PrimitiveElement `json:"-"`
 	Description          *string                  `json:"description,omitempty"`
 	DescriptionElement   *fhir.PrimitiveElement   `json:"-"`
-	Mode                 *string                  `json:"mode,omitempty"`
+	Mode                 *LocationMode            `json:"mode,omitempty"`
 	ModeElement          *fhir.PrimitiveElement   `json:"-"`
 	Type                 []CodeableConcept        `json:"type,omitempty"`
 	Contact              []ExtendedContactDetail  `json:"contact,omitempty"`

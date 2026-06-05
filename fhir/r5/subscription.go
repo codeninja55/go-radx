@@ -13,34 +13,34 @@ const SubscriptionResourceType = "Subscription"
 // Subscription is the generated FHIR Subscription resource.
 type Subscription struct {
 	DomainResource
-	Identifier             []Identifier            `json:"identifier,omitempty"`
-	Name                   *string                 `json:"name,omitempty"`
-	NameElement            *fhir.PrimitiveElement  `json:"-"`
-	Status                 *string                 `json:"status,omitempty"`
-	StatusElement          *fhir.PrimitiveElement  `json:"-"`
-	Topic                  *string                 `json:"topic,omitempty"`
-	TopicElement           *fhir.PrimitiveElement  `json:"-"`
-	Contact                []ContactPoint          `json:"contact,omitempty"`
-	End                    *string                 `json:"end,omitempty"`
-	EndElement             *fhir.PrimitiveElement  `json:"-"`
-	ManagingEntity         *Reference              `json:"managingEntity,omitempty"`
-	Reason                 *string                 `json:"reason,omitempty"`
-	ReasonElement          *fhir.PrimitiveElement  `json:"-"`
-	FilterBy               []SubscriptionFilterBy  `json:"filterBy,omitempty"`
-	ChannelType            *Coding                 `json:"channelType,omitempty"`
-	Endpoint               *string                 `json:"endpoint,omitempty"`
-	EndpointElement        *fhir.PrimitiveElement  `json:"-"`
-	Parameter              []SubscriptionParameter `json:"parameter,omitempty"`
-	HeartbeatPeriod        *int32                  `json:"heartbeatPeriod,omitempty"`
-	HeartbeatPeriodElement *fhir.PrimitiveElement  `json:"-"`
-	Timeout                *int32                  `json:"timeout,omitempty"`
-	TimeoutElement         *fhir.PrimitiveElement  `json:"-"`
-	ContentType            *string                 `json:"contentType,omitempty"`
-	ContentTypeElement     *fhir.PrimitiveElement  `json:"-"`
-	Content                *string                 `json:"content,omitempty"`
-	ContentElement         *fhir.PrimitiveElement  `json:"-"`
-	MaxCount               *int32                  `json:"maxCount,omitempty"`
-	MaxCountElement        *fhir.PrimitiveElement  `json:"-"`
+	Identifier             []Identifier                `json:"identifier,omitempty"`
+	Name                   *string                     `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement      `json:"-"`
+	Status                 *SubscriptionStatusCodes    `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement      `json:"-"`
+	Topic                  *string                     `json:"topic,omitempty"`
+	TopicElement           *fhir.PrimitiveElement      `json:"-"`
+	Contact                []ContactPoint              `json:"contact,omitempty"`
+	End                    *string                     `json:"end,omitempty"`
+	EndElement             *fhir.PrimitiveElement      `json:"-"`
+	ManagingEntity         *Reference                  `json:"managingEntity,omitempty"`
+	Reason                 *string                     `json:"reason,omitempty"`
+	ReasonElement          *fhir.PrimitiveElement      `json:"-"`
+	FilterBy               []SubscriptionFilterBy      `json:"filterBy,omitempty"`
+	ChannelType            *Coding                     `json:"channelType,omitempty"`
+	Endpoint               *string                     `json:"endpoint,omitempty"`
+	EndpointElement        *fhir.PrimitiveElement      `json:"-"`
+	Parameter              []SubscriptionParameter     `json:"parameter,omitempty"`
+	HeartbeatPeriod        *int32                      `json:"heartbeatPeriod,omitempty"`
+	HeartbeatPeriodElement *fhir.PrimitiveElement      `json:"-"`
+	Timeout                *int32                      `json:"timeout,omitempty"`
+	TimeoutElement         *fhir.PrimitiveElement      `json:"-"`
+	ContentType            *string                     `json:"contentType,omitempty"`
+	ContentTypeElement     *fhir.PrimitiveElement      `json:"-"`
+	Content                *SubscriptionPayloadContent `json:"content,omitempty"`
+	ContentElement         *fhir.PrimitiveElement      `json:"-"`
+	MaxCount               *int32                      `json:"maxCount,omitempty"`
+	MaxCountElement        *fhir.PrimitiveElement      `json:"-"`
 }
 
 // ResourceType returns the FHIR discriminator "Subscription".
@@ -230,9 +230,9 @@ type SubscriptionFilterBy struct {
 	ResourceTypeElement    *fhir.PrimitiveElement `json:"-"`
 	FilterParameter        *string                `json:"filterParameter,omitempty"`
 	FilterParameterElement *fhir.PrimitiveElement `json:"-"`
-	Comparator             *string                `json:"comparator,omitempty"`
+	Comparator             *SearchComparator      `json:"comparator,omitempty"`
 	ComparatorElement      *fhir.PrimitiveElement `json:"-"`
-	Modifier               *string                `json:"modifier,omitempty"`
+	Modifier               *SearchModifierCode    `json:"modifier,omitempty"`
 	ModifierElement        *fhir.PrimitiveElement `json:"-"`
 	Value                  *string                `json:"value,omitempty"`
 	ValueElement           *fhir.PrimitiveElement `json:"-"`

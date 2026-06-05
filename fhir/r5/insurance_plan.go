@@ -14,7 +14,7 @@ const InsurancePlanResourceType = "InsurancePlan"
 type InsurancePlan struct {
 	DomainResource
 	Identifier     []Identifier             `json:"identifier,omitempty"`
-	Status         *string                  `json:"status,omitempty"`
+	Status         *PublicationStatus       `json:"status,omitempty"`
 	StatusElement  *fhir.PrimitiveElement   `json:"-"`
 	Type           []CodeableConcept        `json:"type,omitempty"`
 	Name           *string                  `json:"name,omitempty"`

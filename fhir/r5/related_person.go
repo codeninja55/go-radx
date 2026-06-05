@@ -20,7 +20,7 @@ type RelatedPerson struct {
 	Relationship     []CodeableConcept            `json:"relationship,omitempty"`
 	Name             []HumanName                  `json:"name,omitempty"`
 	Telecom          []ContactPoint               `json:"telecom,omitempty"`
-	Gender           *string                      `json:"gender,omitempty"`
+	Gender           *AdministrativeGender        `json:"gender,omitempty"`
 	GenderElement    *fhir.PrimitiveElement       `json:"-"`
 	BirthDate        *string                      `json:"birthDate,omitempty"`
 	BirthDateElement *fhir.PrimitiveElement       `json:"-"`

@@ -24,7 +24,7 @@ type GraphDefinition struct {
 	NameElement            *fhir.PrimitiveElement `json:"-"`
 	Title                  *string                `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement `json:"-"`
-	Status                 *string                `json:"status,omitempty"`
+	Status                 *PublicationStatus     `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement `json:"-"`
 	Experimental           *bool                  `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement `json:"-"`
@@ -451,11 +451,11 @@ func (v *GraphDefinitionLink) UnmarshalJSON(data []byte) error {
 // GraphDefinitionLinkCompartment is a generated nested backbone element.
 type GraphDefinitionLinkCompartment struct {
 	BackboneElement
-	Use                *string                `json:"use,omitempty"`
+	Use                *GraphCompartmentUse   `json:"use,omitempty"`
 	UseElement         *fhir.PrimitiveElement `json:"-"`
-	Rule               *string                `json:"rule,omitempty"`
+	Rule               *GraphCompartmentRule  `json:"rule,omitempty"`
 	RuleElement        *fhir.PrimitiveElement `json:"-"`
-	Code               *string                `json:"code,omitempty"`
+	Code               *CompartmentType       `json:"code,omitempty"`
 	CodeElement        *fhir.PrimitiveElement `json:"-"`
 	Expression         *string                `json:"expression,omitempty"`
 	ExpressionElement  *fhir.PrimitiveElement `json:"-"`

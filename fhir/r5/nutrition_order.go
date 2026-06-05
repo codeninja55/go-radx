@@ -22,11 +22,11 @@ type NutritionOrder struct {
 	InstantiatesElement          []*fhir.PrimitiveElement      `json:"-"`
 	BasedOn                      []Reference                   `json:"basedOn,omitempty"`
 	GroupIdentifier              *Identifier                   `json:"groupIdentifier,omitempty"`
-	Status                       *string                       `json:"status,omitempty"`
+	Status                       *RequestStatus                `json:"status,omitempty"`
 	StatusElement                *fhir.PrimitiveElement        `json:"-"`
-	Intent                       *string                       `json:"intent,omitempty"`
+	Intent                       *RequestIntent                `json:"intent,omitempty"`
 	IntentElement                *fhir.PrimitiveElement        `json:"-"`
-	Priority                     *string                       `json:"priority,omitempty"`
+	Priority                     *RequestPriority              `json:"priority,omitempty"`
 	PriorityElement              *fhir.PrimitiveElement        `json:"-"`
 	Subject                      *Reference                    `json:"subject,omitempty"`
 	Encounter                    *Reference                    `json:"encounter,omitempty"`

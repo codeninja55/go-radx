@@ -14,7 +14,7 @@ const ImagingSelectionResourceType = "ImagingSelection"
 type ImagingSelection struct {
 	DomainResource
 	Identifier                 []Identifier                `json:"identifier,omitempty"`
-	Status                     *string                     `json:"status,omitempty"`
+	Status                     *ImagingSelectionStatus     `json:"status,omitempty"`
 	StatusElement              *fhir.PrimitiveElement      `json:"-"`
 	Subject                    *Reference                  `json:"subject,omitempty"`
 	Issued                     *string                     `json:"issued,omitempty"`
@@ -169,7 +169,7 @@ type ImagingSelectionInstance struct {
 	Subset        []string                                `json:"subset,omitempty"`
 	SubsetElement []*fhir.PrimitiveElement                `json:"-"`
 	ImageRegion2D []ImagingSelectionInstanceImageRegion2D `json:"imageRegion2D,omitempty"`
-	ImageRegion3D []ImagingSelectionInstanceImageRegion2D `json:"imageRegion3D,omitempty"`
+	ImageRegion3D []ImagingSelectionInstanceImageRegion3D `json:"imageRegion3D,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -247,10 +247,10 @@ func (v *ImagingSelectionInstance) UnmarshalJSON(data []byte) error {
 // ImagingSelectionInstanceImageRegion2D is a generated nested backbone element.
 type ImagingSelectionInstanceImageRegion2D struct {
 	BackboneElement
-	RegionType        *string                  `json:"regionType,omitempty"`
-	RegionTypeElement *fhir.PrimitiveElement   `json:"-"`
-	Coordinate        []fhir.Decimal           `json:"coordinate,omitempty"`
-	CoordinateElement []*fhir.PrimitiveElement `json:"-"`
+	RegionType        *ImagingSelection2DGraphicType `json:"regionType,omitempty"`
+	RegionTypeElement *fhir.PrimitiveElement         `json:"-"`
+	Coordinate        []fhir.Decimal                 `json:"coordinate,omitempty"`
+	CoordinateElement []*fhir.PrimitiveElement       `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -310,6 +310,75 @@ func (v *ImagingSelectionInstanceImageRegion2D) UnmarshalJSON(data []byte) error
 		return err
 	}
 	type alias ImagingSelectionInstanceImageRegion2D
+	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ImagingSelectionInstanceImageRegion3D is a generated nested backbone element.
+type ImagingSelectionInstanceImageRegion3D struct {
+	BackboneElement
+	RegionType        *ImagingSelection3DGraphicType `json:"regionType,omitempty"`
+	RegionTypeElement *fhir.PrimitiveElement         `json:"-"`
+	Coordinate        []fhir.Decimal                 `json:"coordinate,omitempty"`
+	CoordinateElement []*fhir.PrimitiveElement       `json:"-"`
+}
+
+// MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
+// value: scalar siblings dropped when empty, repeating siblings null-aligned with
+// their value arrays.
+func (v ImagingSelectionInstanceImageRegion3D) MarshalJSON() ([]byte, error) {
+	type alias ImagingSelectionInstanceImageRegion3D
+	encoded, err := json.Marshal(alias(v))
+	if err != nil {
+		return nil, err
+	}
+	return marshalImagingSelectionInstanceImageRegion3DSiblings(&v, encoded)
+}
+
+// marshalImagingSelectionInstanceImageRegion3DSiblings appends the primitive "_field" siblings to the
+// already-encoded object, preserving the value fields' canonical order: an empty
+// scalar sibling and an un-extended repeating sibling are skipped, and a repeating
+// sibling's array is null-aligned with its value array.
+func marshalImagingSelectionInstanceImageRegion3DSiblings(v *ImagingSelectionInstanceImageRegion3D, encoded []byte) ([]byte, error) {
+	var siblings []fhir.RawSibling
+	if raw, err := fhir.MarshalPrimitiveExtension(v.RegionTypeElement); err != nil {
+		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_regionType", Value: raw})
+	}
+	if raw, err := fhir.MarshalPrimitiveExtensions(len(v.Coordinate), v.CoordinateElement); err != nil {
+		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_coordinate", Value: raw})
+	}
+	return fhir.AppendSiblings(encoded, siblings)
+}
+
+// UnmarshalJSON lifts each primitive "_field" sibling out of the object, decodes it
+// into its companion field, then decodes the remaining keys into the value struct.
+func (v *ImagingSelectionInstanceImageRegion3D) UnmarshalJSON(data []byte) error {
+	obj, err := fhir.SplitRawObject(data)
+	if err != nil {
+		return err
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_regionType"); ok {
+		var element fhir.PrimitiveElement
+		if err := json.Unmarshal(raw, &element); err != nil {
+			return err
+		}
+		v.RegionTypeElement = &element
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_coordinate"); ok {
+		elements, err := fhir.UnmarshalPrimitiveExtensions(raw)
+		if err != nil {
+			return err
+		}
+		v.CoordinateElement = elements
+	}
+	residual, err := fhir.RemarshalObject(obj)
+	if err != nil {
+		return err
+	}
+	type alias ImagingSelectionInstanceImageRegion3D
 	return json.Unmarshal(residual, (*alias)(v))
 }
 

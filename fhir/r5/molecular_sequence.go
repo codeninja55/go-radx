@@ -14,7 +14,7 @@ const MolecularSequenceResourceType = "MolecularSequence"
 type MolecularSequence struct {
 	DomainResource
 	Identifier     []Identifier                `json:"identifier,omitempty"`
-	Type           *string                     `json:"type,omitempty"`
+	Type           *SequenceType               `json:"type,omitempty"`
 	TypeElement    *fhir.PrimitiveElement      `json:"-"`
 	Subject        *Reference                  `json:"subject,omitempty"`
 	Focus          []Reference                 `json:"focus,omitempty"`
@@ -267,9 +267,9 @@ type MolecularSequenceRelativeStartingSequence struct {
 	WindowStartElement      *fhir.PrimitiveElement `json:"-"`
 	WindowEnd               *int32                 `json:"windowEnd,omitempty"`
 	WindowEndElement        *fhir.PrimitiveElement `json:"-"`
-	Orientation             *string                `json:"orientation,omitempty"`
+	Orientation             *OrientationType       `json:"orientation,omitempty"`
 	OrientationElement      *fhir.PrimitiveElement `json:"-"`
-	Strand                  *string                `json:"strand,omitempty"`
+	Strand                  *StrandType            `json:"strand,omitempty"`
 	StrandElement           *fhir.PrimitiveElement `json:"-"`
 }
 

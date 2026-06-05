@@ -24,9 +24,9 @@ type NamingSystem struct {
 	NameElement            *fhir.PrimitiveElement `json:"-"`
 	Title                  *string                `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement `json:"-"`
-	Status                 *string                `json:"status,omitempty"`
+	Status                 *PublicationStatus     `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement `json:"-"`
-	Kind                   *string                `json:"kind,omitempty"`
+	Kind                   *NamingSystemType      `json:"kind,omitempty"`
 	KindElement            *fhir.PrimitiveElement `json:"-"`
 	Experimental           *bool                  `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement `json:"-"`
@@ -360,17 +360,17 @@ func (r *NamingSystem) SetVersionAlgorithmCoding(v Coding) {
 // NamingSystemUniqueId is a generated nested backbone element.
 type NamingSystemUniqueId struct {
 	BackboneElement
-	Type                 *string                `json:"type,omitempty"`
-	TypeElement          *fhir.PrimitiveElement `json:"-"`
-	Value                *string                `json:"value,omitempty"`
-	ValueElement         *fhir.PrimitiveElement `json:"-"`
-	Preferred            *bool                  `json:"preferred,omitempty"`
-	PreferredElement     *fhir.PrimitiveElement `json:"-"`
-	Comment              *string                `json:"comment,omitempty"`
-	CommentElement       *fhir.PrimitiveElement `json:"-"`
-	Period               *Period                `json:"period,omitempty"`
-	Authoritative        *bool                  `json:"authoritative,omitempty"`
-	AuthoritativeElement *fhir.PrimitiveElement `json:"-"`
+	Type                 *NamingSystemIdentifierType `json:"type,omitempty"`
+	TypeElement          *fhir.PrimitiveElement      `json:"-"`
+	Value                *string                     `json:"value,omitempty"`
+	ValueElement         *fhir.PrimitiveElement      `json:"-"`
+	Preferred            *bool                       `json:"preferred,omitempty"`
+	PreferredElement     *fhir.PrimitiveElement      `json:"-"`
+	Comment              *string                     `json:"comment,omitempty"`
+	CommentElement       *fhir.PrimitiveElement      `json:"-"`
+	Period               *Period                     `json:"period,omitempty"`
+	Authoritative        *bool                       `json:"authoritative,omitempty"`
+	AuthoritativeElement *fhir.PrimitiveElement      `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

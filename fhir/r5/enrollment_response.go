@@ -13,18 +13,18 @@ const EnrollmentResponseResourceType = "EnrollmentResponse"
 // EnrollmentResponse is the generated FHIR EnrollmentResponse resource.
 type EnrollmentResponse struct {
 	DomainResource
-	Identifier         []Identifier           `json:"identifier,omitempty"`
-	Status             *string                `json:"status,omitempty"`
-	StatusElement      *fhir.PrimitiveElement `json:"-"`
-	Request            *Reference             `json:"request,omitempty"`
-	Outcome            *string                `json:"outcome,omitempty"`
-	OutcomeElement     *fhir.PrimitiveElement `json:"-"`
-	Disposition        *string                `json:"disposition,omitempty"`
-	DispositionElement *fhir.PrimitiveElement `json:"-"`
-	Created            *string                `json:"created,omitempty"`
-	CreatedElement     *fhir.PrimitiveElement `json:"-"`
-	Organization       *Reference             `json:"organization,omitempty"`
-	RequestProvider    *Reference             `json:"requestProvider,omitempty"`
+	Identifier         []Identifier                  `json:"identifier,omitempty"`
+	Status             *FinancialResourceStatusCodes `json:"status,omitempty"`
+	StatusElement      *fhir.PrimitiveElement        `json:"-"`
+	Request            *Reference                    `json:"request,omitempty"`
+	Outcome            *EnrollmentOutcome            `json:"outcome,omitempty"`
+	OutcomeElement     *fhir.PrimitiveElement        `json:"-"`
+	Disposition        *string                       `json:"disposition,omitempty"`
+	DispositionElement *fhir.PrimitiveElement        `json:"-"`
+	Created            *string                       `json:"created,omitempty"`
+	CreatedElement     *fhir.PrimitiveElement        `json:"-"`
+	Organization       *Reference                    `json:"organization,omitempty"`
+	RequestProvider    *Reference                    `json:"requestProvider,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "EnrollmentResponse".

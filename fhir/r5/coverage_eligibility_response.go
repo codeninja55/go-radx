@@ -14,9 +14,9 @@ const CoverageEligibilityResponseResourceType = "CoverageEligibilityResponse"
 type CoverageEligibilityResponse struct {
 	DomainResource
 	Identifier         []Identifier                           `json:"identifier,omitempty"`
-	Status             *string                                `json:"status,omitempty"`
+	Status             *FinancialResourceStatusCodes          `json:"status,omitempty"`
 	StatusElement      *fhir.PrimitiveElement                 `json:"-"`
-	Purpose            []string                               `json:"purpose,omitempty"`
+	Purpose            []EligibilityResponsePurpose           `json:"purpose,omitempty"`
 	PurposeElement     []*fhir.PrimitiveElement               `json:"-"`
 	Patient            *Reference                             `json:"patient,omitempty"`
 	Event              []CoverageEligibilityResponseEvent     `json:"event,omitempty"`
@@ -26,7 +26,7 @@ type CoverageEligibilityResponse struct {
 	CreatedElement     *fhir.PrimitiveElement                 `json:"-"`
 	Requestor          *Reference                             `json:"requestor,omitempty"`
 	Request            *Reference                             `json:"request,omitempty"`
-	Outcome            *string                                `json:"outcome,omitempty"`
+	Outcome            *EligibilityOutcome                    `json:"outcome,omitempty"`
 	OutcomeElement     *fhir.PrimitiveElement                 `json:"-"`
 	Disposition        *string                                `json:"disposition,omitempty"`
 	DispositionElement *fhir.PrimitiveElement                 `json:"-"`

@@ -24,7 +24,7 @@ type TestScript struct {
 	NameElement            *fhir.PrimitiveElement   `json:"-"`
 	Title                  *string                  `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement   `json:"-"`
-	Status                 *string                  `json:"status,omitempty"`
+	Status                 *PublicationStatus       `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement   `json:"-"`
 	Experimental           *bool                    `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement   `json:"-"`
@@ -733,7 +733,7 @@ type TestScriptSetupActionAssert struct {
 	LabelElement                     *fhir.PrimitiveElement                   `json:"-"`
 	Description                      *string                                  `json:"description,omitempty"`
 	DescriptionElement               *fhir.PrimitiveElement                   `json:"-"`
-	Direction                        *string                                  `json:"direction,omitempty"`
+	Direction                        *AssertionDirectionType                  `json:"direction,omitempty"`
 	DirectionElement                 *fhir.PrimitiveElement                   `json:"-"`
 	CompareToSourceId                *string                                  `json:"compareToSourceId,omitempty"`
 	CompareToSourceIdElement         *fhir.PrimitiveElement                   `json:"-"`
@@ -743,7 +743,7 @@ type TestScriptSetupActionAssert struct {
 	CompareToSourcePathElement       *fhir.PrimitiveElement                   `json:"-"`
 	ContentType                      *string                                  `json:"contentType,omitempty"`
 	ContentTypeElement               *fhir.PrimitiveElement                   `json:"-"`
-	DefaultManualCompletion          *string                                  `json:"defaultManualCompletion,omitempty"`
+	DefaultManualCompletion          *AssertionManualCompletionType           `json:"defaultManualCompletion,omitempty"`
 	DefaultManualCompletionElement   *fhir.PrimitiveElement                   `json:"-"`
 	Expression                       *string                                  `json:"expression,omitempty"`
 	ExpressionElement                *fhir.PrimitiveElement                   `json:"-"`
@@ -753,17 +753,17 @@ type TestScriptSetupActionAssert struct {
 	MinimumIdElement                 *fhir.PrimitiveElement                   `json:"-"`
 	NavigationLinks                  *bool                                    `json:"navigationLinks,omitempty"`
 	NavigationLinksElement           *fhir.PrimitiveElement                   `json:"-"`
-	Operator                         *string                                  `json:"operator,omitempty"`
+	Operator                         *AssertionOperatorType                   `json:"operator,omitempty"`
 	OperatorElement                  *fhir.PrimitiveElement                   `json:"-"`
 	Path                             *string                                  `json:"path,omitempty"`
 	PathElement                      *fhir.PrimitiveElement                   `json:"-"`
-	RequestMethod                    *string                                  `json:"requestMethod,omitempty"`
+	RequestMethod                    *TestScriptRequestMethodCode             `json:"requestMethod,omitempty"`
 	RequestMethodElement             *fhir.PrimitiveElement                   `json:"-"`
 	RequestURL                       *string                                  `json:"requestURL,omitempty"`
 	RequestURLElement                *fhir.PrimitiveElement                   `json:"-"`
 	Resource                         *string                                  `json:"resource,omitempty"`
 	ResourceElement                  *fhir.PrimitiveElement                   `json:"-"`
-	Response                         *string                                  `json:"response,omitempty"`
+	Response                         *AssertionResponseTypes                  `json:"response,omitempty"`
 	ResponseElement                  *fhir.PrimitiveElement                   `json:"-"`
 	ResponseCode                     *string                                  `json:"responseCode,omitempty"`
 	ResponseCodeElement              *fhir.PrimitiveElement                   `json:"-"`
@@ -1172,7 +1172,7 @@ type TestScriptSetupActionOperation struct {
 	DestinationElement      *fhir.PrimitiveElement                        `json:"-"`
 	EncodeRequestUrl        *bool                                         `json:"encodeRequestUrl,omitempty"`
 	EncodeRequestUrlElement *fhir.PrimitiveElement                        `json:"-"`
-	Method                  *string                                       `json:"method,omitempty"`
+	Method                  *TestScriptRequestMethodCode                  `json:"method,omitempty"`
 	MethodElement           *fhir.PrimitiveElement                        `json:"-"`
 	Origin                  *int32                                        `json:"origin,omitempty"`
 	OriginElement           *fhir.PrimitiveElement                        `json:"-"`

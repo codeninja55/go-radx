@@ -10,7 +10,7 @@ import (
 // HumanName is the generated FHIR HumanName datatype.
 type HumanName struct {
 	Element
-	Use           *string                  `json:"use,omitempty"`
+	Use           *NameUse                 `json:"use,omitempty"`
 	UseElement    *fhir.PrimitiveElement   `json:"-"`
 	Text          *string                  `json:"text,omitempty"`
 	TextElement   *fhir.PrimitiveElement   `json:"-"`

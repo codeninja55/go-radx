@@ -24,7 +24,7 @@ type Citation struct {
 	NameElement            *fhir.PrimitiveElement   `json:"-"`
 	Title                  *string                  `json:"title,omitempty"`
 	TitleElement           *fhir.PrimitiveElement   `json:"-"`
-	Status                 *string                  `json:"status,omitempty"`
+	Status                 *PublicationStatus       `json:"status,omitempty"`
 	StatusElement          *fhir.PrimitiveElement   `json:"-"`
 	Experimental           *bool                    `json:"experimental,omitempty"`
 	ExperimentalElement    *fhir.PrimitiveElement   `json:"-"`
@@ -1069,19 +1069,19 @@ func (v *CitationCitedArtifactPublicationFormPublishedIn) UnmarshalJSON(data []b
 // CitationCitedArtifactRelatesTo is a generated nested backbone element.
 type CitationCitedArtifactRelatesTo struct {
 	BackboneElement
-	Type              *string                `json:"type,omitempty"`
-	TypeElement       *fhir.PrimitiveElement `json:"-"`
-	Classifier        []CodeableConcept      `json:"classifier,omitempty"`
-	Label             *string                `json:"label,omitempty"`
-	LabelElement      *fhir.PrimitiveElement `json:"-"`
-	Display           *string                `json:"display,omitempty"`
-	DisplayElement    *fhir.PrimitiveElement `json:"-"`
-	Citation          *string                `json:"citation,omitempty"`
-	CitationElement   *fhir.PrimitiveElement `json:"-"`
-	Document          *Attachment            `json:"document,omitempty"`
-	Resource          *string                `json:"resource,omitempty"`
-	ResourceElement   *fhir.PrimitiveElement `json:"-"`
-	ResourceReference *Reference             `json:"resourceReference,omitempty"`
+	Type              *RelatedArtifactTypeExpanded `json:"type,omitempty"`
+	TypeElement       *fhir.PrimitiveElement       `json:"-"`
+	Classifier        []CodeableConcept            `json:"classifier,omitempty"`
+	Label             *string                      `json:"label,omitempty"`
+	LabelElement      *fhir.PrimitiveElement       `json:"-"`
+	Display           *string                      `json:"display,omitempty"`
+	DisplayElement    *fhir.PrimitiveElement       `json:"-"`
+	Citation          *string                      `json:"citation,omitempty"`
+	CitationElement   *fhir.PrimitiveElement       `json:"-"`
+	Document          *Attachment                  `json:"document,omitempty"`
+	Resource          *string                      `json:"resource,omitempty"`
+	ResourceElement   *fhir.PrimitiveElement       `json:"-"`
+	ResourceReference *Reference                   `json:"resourceReference,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

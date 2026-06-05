@@ -38,7 +38,7 @@ type DeviceDefinition struct {
 	Link                             []DeviceDefinitionLink                 `json:"link,omitempty"`
 	Note                             []Annotation                           `json:"note,omitempty"`
 	Material                         []DeviceDefinitionMaterial             `json:"material,omitempty"`
-	ProductionIdentifierInUDI        []string                               `json:"productionIdentifierInUDI,omitempty"`
+	ProductionIdentifierInUDI        []DeviceProductionIdentifierInUDI      `json:"productionIdentifierInUDI,omitempty"`
 	ProductionIdentifierInUDIElement []*fhir.PrimitiveElement               `json:"-"`
 	Guideline                        *DeviceDefinitionGuideline             `json:"guideline,omitempty"`
 	CorrectiveAction                 *DeviceDefinitionCorrectiveAction      `json:"correctiveAction,omitempty"`
@@ -218,11 +218,11 @@ func (v *DeviceDefinitionConformsTo) UnmarshalJSON(data []byte) error {
 // DeviceDefinitionCorrectiveAction is a generated nested backbone element.
 type DeviceDefinitionCorrectiveAction struct {
 	BackboneElement
-	Recall        *bool                  `json:"recall,omitempty"`
-	RecallElement *fhir.PrimitiveElement `json:"-"`
-	Scope         *string                `json:"scope,omitempty"`
-	ScopeElement  *fhir.PrimitiveElement `json:"-"`
-	Period        *Period                `json:"period,omitempty"`
+	Recall        *bool                        `json:"recall,omitempty"`
+	RecallElement *fhir.PrimitiveElement       `json:"-"`
+	Scope         *DeviceCorrectiveActionScope `json:"scope,omitempty"`
+	ScopeElement  *fhir.PrimitiveElement       `json:"-"`
+	Period        *Period                      `json:"period,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -290,7 +290,7 @@ type DeviceDefinitionDeviceName struct {
 	BackboneElement
 	Name        *string                `json:"name,omitempty"`
 	NameElement *fhir.PrimitiveElement `json:"-"`
-	Type        *string                `json:"type,omitempty"`
+	Type        *DeviceNameType        `json:"type,omitempty"`
 	TypeElement *fhir.PrimitiveElement `json:"-"`
 }
 
@@ -828,14 +828,14 @@ func (r *DeviceDefinitionProperty) SetValueAttachment(v Attachment) {
 // DeviceDefinitionRegulatoryIdentifier is a generated nested backbone element.
 type DeviceDefinitionRegulatoryIdentifier struct {
 	BackboneElement
-	Type                    *string                `json:"type,omitempty"`
-	TypeElement             *fhir.PrimitiveElement `json:"-"`
-	DeviceIdentifier        *string                `json:"deviceIdentifier,omitempty"`
-	DeviceIdentifierElement *fhir.PrimitiveElement `json:"-"`
-	Issuer                  *string                `json:"issuer,omitempty"`
-	IssuerElement           *fhir.PrimitiveElement `json:"-"`
-	Jurisdiction            *string                `json:"jurisdiction,omitempty"`
-	JurisdictionElement     *fhir.PrimitiveElement `json:"-"`
+	Type                    *DeviceDefinitionRegulatoryIdentifierType `json:"type,omitempty"`
+	TypeElement             *fhir.PrimitiveElement                    `json:"-"`
+	DeviceIdentifier        *string                                   `json:"deviceIdentifier,omitempty"`
+	DeviceIdentifierElement *fhir.PrimitiveElement                    `json:"-"`
+	Issuer                  *string                                   `json:"issuer,omitempty"`
+	IssuerElement           *fhir.PrimitiveElement                    `json:"-"`
+	Jurisdiction            *string                                   `json:"jurisdiction,omitempty"`
+	JurisdictionElement     *fhir.PrimitiveElement                    `json:"-"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded

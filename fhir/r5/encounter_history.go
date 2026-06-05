@@ -15,7 +15,7 @@ type EncounterHistory struct {
 	DomainResource
 	Encounter               *Reference                 `json:"encounter,omitempty"`
 	Identifier              []Identifier               `json:"identifier,omitempty"`
-	Status                  *string                    `json:"status,omitempty"`
+	Status                  *EncounterStatus           `json:"status,omitempty"`
 	StatusElement           *fhir.PrimitiveElement     `json:"-"`
 	Class                   *CodeableConcept           `json:"class,omitempty"`
 	Type                    []CodeableConcept          `json:"type,omitempty"`

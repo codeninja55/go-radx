@@ -12,7 +12,7 @@ type ParameterDefinition struct {
 	Element
 	Name                 *string                `json:"name,omitempty"`
 	NameElement          *fhir.PrimitiveElement `json:"-"`
-	Use                  *string                `json:"use,omitempty"`
+	Use                  *OperationParameterUse `json:"use,omitempty"`
 	UseElement           *fhir.PrimitiveElement `json:"-"`
 	Min                  *int32                 `json:"min,omitempty"`
 	MinElement           *fhir.PrimitiveElement `json:"-"`
@@ -20,7 +20,7 @@ type ParameterDefinition struct {
 	MaxElement           *fhir.PrimitiveElement `json:"-"`
 	Documentation        *string                `json:"documentation,omitempty"`
 	DocumentationElement *fhir.PrimitiveElement `json:"-"`
-	Type                 *string                `json:"type,omitempty"`
+	Type                 *FHIRTypes             `json:"type,omitempty"`
 	TypeElement          *fhir.PrimitiveElement `json:"-"`
 	Profile              *string                `json:"profile,omitempty"`
 	ProfileElement       *fhir.PrimitiveElement `json:"-"`
