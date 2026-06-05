@@ -114,8 +114,8 @@ func EmitRegistry(r Registry) ([]byte, error) {
 // requiredImports computes the deduplicated, sorted import paths the planned types
 // reference. It recognises the dependencies the generated code in this stage can
 // carry: the root fhir import (fhir.Decimal, fhir.PrimitiveElement, and the
-// null-alignment helpers) and encoding/json (a resource's always-resourceType
-// MarshalJSON and the repeating-primitive null-alignment methods both call into
+// "_field" sibling helpers) and encoding/json (a resource's always-resourceType
+// MarshalJSON and the "_field" sibling marshal/unmarshal methods all call into
 // encoding/json). Sorting keeps the import block stable across runs.
 func requiredImports(types []plan.PlannedType) []string {
 	const fhirImport = "github.com/codeninja55/go-radx/fhir"
@@ -125,7 +125,7 @@ func requiredImports(types []plan.PlannedType) []string {
 		if t.IsResource() {
 			set[jsonImport] = true
 		}
-		if hasRepeatingPrimitive(t) {
+		if hasPrimitiveSibling(t) {
 			set[jsonImport] = true
 			set[fhirImport] = true
 		}
@@ -146,15 +146,15 @@ func requiredImports(types []plan.PlannedType) []string {
 	return out
 }
 
-// hasRepeatingPrimitive reports whether a planned type or any of its backbones owns
-// a repeating primitive, so the import set includes the dependencies the generated
-// null-alignment methods need.
-func hasRepeatingPrimitive(t plan.PlannedType) bool {
-	if t.HasRepeatingPrimitive() {
+// hasPrimitiveSibling reports whether a planned type or any of its backbones owns a
+// primitive "_field" sibling, so the import set includes the dependencies the
+// generated sibling marshal/unmarshal methods need.
+func hasPrimitiveSibling(t plan.PlannedType) bool {
+	if t.HasPrimitiveSibling() {
 		return true
 	}
 	for _, bb := range t.Backbones {
-		if bb.HasRepeatingPrimitive() {
+		if bb.HasPrimitiveSibling() {
 			return true
 		}
 	}

@@ -51,17 +51,23 @@ func (t PlannedType) KindNoun() string {
 	return "datatype"
 }
 
-// HasRepeatingPrimitive reports whether the type owns any repeating primitive
-// whose "_field" sibling array must be null-aligned on the wire, the condition
-// under which the emitter generates custom JSON methods for the value struct. A
-// scalar primitive's sibling round-trips through ordinary struct tags and needs no
-// custom code; only the positional alignment of a repeating primitive does.
-func (t PlannedType) HasRepeatingPrimitive() bool { return hasRepeatingPrimitive(t.Fields) }
+// HasPrimitiveSibling reports whether the type owns any primitive "_field"
+// sibling, the condition under which the emitter generates custom JSON methods.
+// Both shapes go through the generated methods so the "_field" key is governed by
+// the sibling's emptiness, not by Go's omitempty (which cannot drop a non-nil but
+// empty *PrimitiveElement): a scalar sibling is omitted when it carries no id or
+// extension, and a repeating sibling is null-aligned with its value array.
+func (t PlannedType) HasPrimitiveSibling() bool { return hasPrimitiveSibling(t.Fields) }
 
-// RepeatingPrimitives returns the type's repeating-primitive sibling fields, the
-// ones the generated MarshalJSON null-aligns and the generated UnmarshalJSON lifts
-// out before decoding the value struct.
-func (t PlannedType) RepeatingPrimitives() []Field { return repeatingPrimitives(t.Fields) }
+// ScalarPrimitives returns the type's scalar primitive sibling fields, which the
+// generated MarshalJSON folds in only when non-empty and the generated
+// UnmarshalJSON lifts out before decoding the value struct.
+func (t PlannedType) ScalarPrimitives() []Field { return primitiveSiblings(t.Fields, false) }
+
+// RepeatingPrimitives returns the type's repeating primitive sibling fields, which
+// the generated MarshalJSON null-aligns and the generated UnmarshalJSON lifts out
+// before decoding the value struct.
+func (t PlannedType) RepeatingPrimitives() []Field { return primitiveSiblings(t.Fields, true) }
 
 // PlannedBackbone is one distinct nested backbone struct: a Go name and its fields.
 // Multiple occurrence paths that share the same shape collapse to one PlannedBackbone
@@ -72,31 +78,33 @@ type PlannedBackbone struct {
 	Fields []Field
 }
 
-// HasRepeatingPrimitive reports whether the backbone owns a repeating primitive
-// needing null-aligned "_field" marshalling.
-func (b PlannedBackbone) HasRepeatingPrimitive() bool { return hasRepeatingPrimitive(b.Fields) }
+// HasPrimitiveSibling reports whether the backbone owns a primitive "_field"
+// sibling needing custom marshalling.
+func (b PlannedBackbone) HasPrimitiveSibling() bool { return hasPrimitiveSibling(b.Fields) }
 
-// RepeatingPrimitives returns the backbone's repeating-primitive sibling fields.
-func (b PlannedBackbone) RepeatingPrimitives() []Field { return repeatingPrimitives(b.Fields) }
+// ScalarPrimitives returns the backbone's scalar primitive sibling fields.
+func (b PlannedBackbone) ScalarPrimitives() []Field { return primitiveSiblings(b.Fields, false) }
 
-// hasRepeatingPrimitive reports whether a field set contains a repeating-primitive
-// "_field" sibling.
-func hasRepeatingPrimitive(fields []Field) bool {
+// RepeatingPrimitives returns the backbone's repeating primitive sibling fields.
+func (b PlannedBackbone) RepeatingPrimitives() []Field { return primitiveSiblings(b.Fields, true) }
+
+// hasPrimitiveSibling reports whether a field set contains any "_field" sibling.
+func hasPrimitiveSibling(fields []Field) bool {
 	for _, f := range fields {
-		if f.IsPrimitiveSibling() && f.Repeats {
+		if f.IsPrimitiveSibling() {
 			return true
 		}
 	}
 	return false
 }
 
-// repeatingPrimitives returns the repeating-primitive sibling fields in a field
-// set, in declaration order, so the emitter renders the null-alignment calls
-// deterministically.
-func repeatingPrimitives(fields []Field) []Field {
+// primitiveSiblings returns the "_field" sibling fields in a field set whose
+// repeating-ness matches repeats, in declaration order, so the emitter renders the
+// sibling-handling calls deterministically.
+func primitiveSiblings(fields []Field, repeats bool) []Field {
 	var out []Field
 	for _, f := range fields {
-		if f.IsPrimitiveSibling() && f.Repeats {
+		if f.IsPrimitiveSibling() && f.Repeats == repeats {
 			out = append(out, f)
 		}
 	}

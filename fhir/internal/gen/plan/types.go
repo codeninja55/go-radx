@@ -86,14 +86,14 @@ func (f Field) IsPrimitiveSibling() bool { return f.SiblingOf != "" }
 // when null-aligning a repeating primitive's sibling array.
 func (f Field) ValueField() string { return f.SiblingOf }
 
-// JSONTag is the struct-tag body the emitter writes for the field. A repeating
-// primitive's "_field" sibling is excluded from the default codec ("-") because
-// its array must be null-aligned by the generated MarshalJSON/UnmarshalJSON rather
-// than emitted independently; every other field (including a scalar primitive's
-// sibling, which round-trips through ordinary tags) uses its JSON key with
-// ",omitempty".
+// JSONTag is the struct-tag body the emitter writes for the field. Every "_field"
+// extension sibling is excluded from the default codec ("-") and handled by the
+// generated MarshalJSON/UnmarshalJSON: a scalar sibling so its key is dropped when
+// it carries no id or extension (Go's omitempty cannot drop a non-nil but empty
+// pointer), and a repeating sibling so its array is null-aligned with the value
+// array. Every value field uses its JSON key with ",omitempty".
 func (f Field) JSONTag() string {
-	if f.IsPrimitiveSibling() && f.Repeats {
+	if f.IsPrimitiveSibling() {
 		return "-"
 	}
 	if f.Optional {
@@ -146,22 +146,22 @@ func PlanField(e *model.Element) Field {
 		GoType:    goType,
 		JSONName:  jsonName,
 		Optional:  true,
-		Primitive: hasPrimitiveSibling(e),
+		Primitive: elementHasPrimitiveSibling(e),
 		Repeats:   chooseShape(e.Cardinality) == shapeSlice,
 		Doc:       "",
 		Element:   e,
 	}
 }
 
-// hasPrimitiveSibling reports whether an element is a true primitive that carries
-// a "_field" extension sibling. The FHIR rule (Codex FHIR-005) is that only a
-// genuine primitive value gets a "_field" companion: a complex field, a backbone,
+// elementHasPrimitiveSibling reports whether an element is a true primitive that
+// carries a "_field" extension sibling. The FHIR rule (Codex FHIR-005) is that only
+// a genuine primitive value gets a "_field" companion: a complex field, a backbone,
 // a choice element (its branches box their own primitives), and a contentReference
 // recursion boundary never do. An element with no declared type (a pure backbone)
 // is structural, not primitive. The single-type primitive code drives the
 // decision; a "[x]" choice is excluded even when one branch is a primitive, since
 // the wire key is the branch-suffixed name, not the choice base.
-func hasPrimitiveSibling(e *model.Element) bool {
+func elementHasPrimitiveSibling(e *model.Element) bool {
 	if e.IsChoice || e.IsBackbone() || e.ContentReference != "" {
 		return false
 	}

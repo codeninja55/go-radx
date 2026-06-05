@@ -3,7 +3,13 @@ package fhir
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 )
+
+// errNotObject is returned by AppendSiblings when the value it must splice "_field"
+// siblings onto is not a JSON object, which a generated value struct never produces
+// but which a corrupt encoder would.
+var errNotObject = errors.New("fhir: cannot append primitive siblings to a non-object JSON value")
 
 // PrimitiveElement carries the id and extensions a FHIR primitive may hold
 // alongside its value. In FHIR JSON every primitive element is split into two
@@ -43,6 +49,19 @@ func (e *PrimitiveElement) IsZero() bool {
 // value array and "_field" sibling array use to keep positions aligned when one
 // side has a gap.
 var nullToken = []byte("null")
+
+// MarshalPrimitiveExtension renders the "_field" sibling for a scalar primitive, or
+// nil when the element carries no id or extension so the "_field" key is dropped
+// entirely. It exists because Go's "omitempty" drops only a nil pointer, not a
+// non-nil but empty *PrimitiveElement, which would otherwise serialise as the noise
+// key "_field":{}; routing the scalar sibling through this helper keeps the
+// "emitted only when it carries an id or extension" rule that IsZero defines.
+func MarshalPrimitiveExtension(element *PrimitiveElement) ([]byte, error) {
+	if element.IsZero() {
+		return nil, nil
+	}
+	return json.Marshal(element)
+}
 
 // MarshalPrimitiveExtensions renders the "_field" sibling array for a repeating
 // primitive, null-aligned with the value array. FHIR requires the value array
@@ -112,25 +131,66 @@ func anyPrimitiveExtension(elements []*PrimitiveElement) bool {
 	return false
 }
 
-// SetRawField writes a raw JSON value into a decoded object under key, or removes
-// the key when value is nil. The generated MarshalJSON for a type with a repeating
-// primitive marshals the struct (whose null-aligned "_field" arrays are excluded),
-// then folds the helper-rendered "_field" arrays back in through this function, so
-// the value array and its companion array share an index space on the wire. The
-// raw value is stored verbatim, so a pre-rendered, null-aligned array survives
-// unchanged.
-func SetRawField(obj map[string]json.RawMessage, key string, value []byte) {
-	if value == nil {
-		delete(obj, key)
-		return
+// RawSibling pairs a "_field" wire key with its already-rendered JSON value, the
+// unit the generated MarshalJSON appends to an encoded value object. A nil Value
+// means the sibling carries nothing (an empty scalar element, or a repeating array
+// with no extensions) and is skipped, so no empty "_field" key is written.
+type RawSibling struct {
+	Key   string
+	Value []byte
+}
+
+// AppendSiblings splices the primitive "_field" siblings onto an already-encoded
+// JSON object, preserving the value object's existing key order and appending the
+// siblings after it. Appending (rather than decoding into a map and re-encoding)
+// keeps the canonical element ordering the struct marshal produced — a map round
+// trip would re-sort every key alphabetically — while still letting each "_field"
+// sibling ride alongside its value. A sibling with a nil Value is skipped. The
+// encoded input must be a JSON object ("{...}"); a non-object is returned unchanged
+// when there is nothing to append, and is an error otherwise.
+func AppendSiblings(encoded []byte, siblings []RawSibling) ([]byte, error) {
+	var pending []RawSibling
+	for _, s := range siblings {
+		if s.Value != nil {
+			pending = append(pending, s)
+		}
 	}
-	obj[key] = value
+	if len(pending) == 0 {
+		return encoded, nil
+	}
+
+	trimmed := bytes.TrimSpace(encoded)
+	if len(trimmed) < 2 || trimmed[0] != '{' || trimmed[len(trimmed)-1] != '}' {
+		return nil, errNotObject
+	}
+
+	var buf bytes.Buffer
+	buf.Grow(len(trimmed) + 32*len(pending))
+	buf.Write(trimmed[:len(trimmed)-1])
+	// An empty object ("{}") has no trailing comma before the first sibling; a
+	// populated one needs the separator between its last value key and the first
+	// appended sibling.
+	hasMembers := len(bytes.TrimSpace(trimmed[1:len(trimmed)-1])) > 0
+	for i, s := range pending {
+		if hasMembers || i > 0 {
+			buf.WriteByte(',')
+		}
+		key, err := json.Marshal(s.Key)
+		if err != nil {
+			return nil, err
+		}
+		buf.Write(key)
+		buf.WriteByte(':')
+		buf.Write(s.Value)
+	}
+	buf.WriteByte('}')
+	return buf.Bytes(), nil
 }
 
 // SplitRawObject decodes a FHIR JSON object into its raw key/value pairs so the
-// generated UnmarshalJSON can lift out each repeating "_field" array, decode it
-// through UnmarshalPrimitiveExtensions, and decode the rest into the struct. The
-// returned map aliases no input memory beyond what encoding/json copies.
+// generated UnmarshalJSON can lift out each "_field" sibling, decode it, and decode
+// the rest into the struct. Decode order is irrelevant, so a map is used; the
+// canonical element ordering is a marshal-side property, not a decode-side one.
 func SplitRawObject(data []byte) (map[string]json.RawMessage, error) {
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(data, &obj); err != nil {
@@ -140,10 +200,10 @@ func SplitRawObject(data []byte) (map[string]json.RawMessage, error) {
 }
 
 // TakeRawField removes key from obj and returns its raw value and whether it was
-// present, so the generated UnmarshalJSON can pull a repeating "_field" array out
-// of the object before decoding the remaining keys into the struct (which has no
-// field bound to that key). Removing rather than copying keeps the residual object
-// free of the consumed sibling key.
+// present, so the generated UnmarshalJSON can pull a "_field" sibling out of the
+// object before decoding the remaining keys into the struct (which has no field
+// bound to that key). Removing rather than copying keeps the residual object free of
+// the consumed sibling key.
 func TakeRawField(obj map[string]json.RawMessage, key string) (json.RawMessage, bool) {
 	v, ok := obj[key]
 	if ok {
@@ -152,8 +212,8 @@ func TakeRawField(obj map[string]json.RawMessage, key string) (json.RawMessage, 
 	return v, ok
 }
 
-// RemarshalObject re-encodes a raw key/value object after the repeating "_field"
-// arrays have been removed, producing the bytes the generated UnmarshalJSON feeds
+// RemarshalObject re-encodes the residual key/value object after the "_field"
+// siblings have been removed, producing the bytes the generated UnmarshalJSON feeds
 // to the struct decode. The keys are emitted in encoding/json's sorted order, which
 // is irrelevant to the struct decode that consumes them.
 func RemarshalObject(obj map[string]json.RawMessage) ([]byte, error) {
