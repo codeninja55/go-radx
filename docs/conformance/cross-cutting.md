@@ -203,13 +203,16 @@ enumeration as it ships, so it stays the authoritative map of what the coverage 
 
 ## Concurrency and race posture
 
-go-radx is a concurrent library: the servers accept connections and dispatch handlers on their own goroutines. Each
-public API documents its own concurrency contract — some types are safe for concurrent use (`dimse.Server` declares
-this), others are deliberately single-flight (`dimse.Association` documents that it is not safe for concurrent queries,
-because `LastError()` is per-association; run one `Find`/`Get`/`Move` iterator per association at a time). The library
-does not claim every public API is concurrent-safe; it claims every public API states its contract, and the race gate
-exists to catch a violation of either kind — a type that should be safe but races, or a single-flight type misused
-under test. That contract is held by a **standing required gate**, not by review alone. The `cover` mise task — the
+go-radx is a concurrent library: the servers accept connections and dispatch handlers on their own goroutines. The
+target contract is that each public type states its concurrency posture in its godoc — some safe for concurrent use
+(`dimse.Server` declares this), others deliberately single-flight (`dimse.Association` documents that it is not safe
+for concurrent queries, because `LastError()` is per-association; run one `Find`/`Get`/`Move` iterator per association
+at a time). The library does **not** claim every public API is concurrent-safe, and the contract is **not yet complete
+on every surface**: `dicomweb.Server` and its `Handler` do not yet state a concurrency posture in their godoc, and
+documenting it (and proving it under the race gate) is an open item on the per-server checklist below, not a satisfied
+one. Where a posture is stated, the race gate exists to catch a violation of either kind — a type that should be safe
+but races, or a single-flight type misused under test. That stated-and-proven contract is held by a
+**standing required gate**, not by review alone. The `cover` mise task — the
 one the `lint-test` job invokes through `cover:check` — is a single
 `go test -race -covermode=atomic -coverpkg=./... ./...`
 over the root module, so `-race` and the [coverage floor](#coverage-targets-and-critical-path-enumeration) are enforced
@@ -264,9 +267,12 @@ The surfaces each current and planned server must clear under `-race`:
 - **`dimse.Server`** (shipped). The accept loop, the semaphore-bounded spawn, `Shutdown` (idempotent,
   deadline-bounded, and retried after a deadline), context-cancel stop, and the idle, negotiation, and completion
   timeouts. This server is the reference implementation of the checklist below.
-- **`dicomweb.Server`** (shipped as a handler). An `http.Handler` mounted under a caller's mux: concurrent requests,
-  the fail-closed store path, and content-negotiation race-freedom. The full server lifecycle (shutdown, drain)
-  applies once it owns an `http.Server` rather than only exposing a handler.
+- **`dicomweb.Server`** (handler shipped; race coverage outstanding). An `http.Handler` mounted under a caller's mux.
+  Its functional behaviour is tested (store, retrieve round-trip, fail-closed store, content negotiation), but those
+  tests are sequential: the concurrent-request surface is **not yet** exercised under `-race`, and the public `Server`
+  and `Handler` godoc does not yet state a concurrency posture. The outstanding work is to document that posture, what
+  a `StoreBackend`/retrieve backend must guarantee under concurrency, and add a concurrent-request race test; the full
+  server lifecycle (shutdown, drain) is added once it owns an `http.Server` rather than only exposing a handler.
 - **MLLP server (HL7 v2)** (planned). The accept loop over MLLP framing, concurrent message handling, ACK/NACK
   ordering, and graceful shutdown — the same checklist as `dimse.Server`, since both are connection-accepting servers.
 - **FHIR server role** (planned). An `http.Handler` over FHIR resource routes: concurrent reads and writes,
