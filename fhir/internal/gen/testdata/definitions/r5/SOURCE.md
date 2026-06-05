@@ -20,6 +20,14 @@ vendored here:
 - `valuesets.json` — the `ValueSet` and `CodeSystem` bundle the required-binding enums enumerate codes from
   (`administrative-gender` and the rest).
 
+## License and attribution
+
+The HL7 FHIR specification, including these `StructureDefinition`, `ValueSet`, and `CodeSystem` artifacts, is published
+by HL7 under the Creative Commons "No Rights Reserved" (CC0 1.0) public domain dedication. The bundle is committed
+verbatim as reference data; no artifact is modified. Some value sets reference external terminologies (SNOMED CT,
+LOINC, DICOM, UCUM) that carry their own third-party use terms; those codes are referenced by URL here, not
+redistributed as code lists. See <https://hl7.org/fhir/R5/license.html>.
+
 ## Integrity
 
 `SHA256SUMS` records a SHA-256 per file. The generator's loader (Increment 1) verifies these checksums before parsing

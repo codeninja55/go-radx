@@ -150,6 +150,72 @@ func TestLoadVendoredR5Bundle(t *testing.T) {
 		b.ResourceCount(), b.DatatypeCount(), b.ValueSetCount(), b.CodeSystemCount())
 }
 
+// vendoredR4Dir is the committed R4 4.0.1 bundle, relative to this package
+// directory (fhir/internal/gen/loader → fhir/internal/gen/testdata/definitions/r4).
+const vendoredR4Dir = "../testdata/definitions/r4"
+
+func TestLoadVendoredR4Bundle(t *testing.T) {
+	t.Parallel()
+
+	b, err := Load(vendoredR4Dir)
+	if err != nil {
+		t.Fatalf("Load(%q): %v", vendoredR4Dir, err)
+	}
+
+	wantResources := []string{
+		"Patient", "Observation", "Bundle", "OperationOutcome",
+		"ServiceRequest", "ImagingStudy", "DiagnosticReport",
+	}
+	for _, name := range wantResources {
+		sd, ok := b.StructureDefinition(name)
+		if !ok {
+			t.Errorf("resource %q not indexed by name", name)
+			continue
+		}
+		if sd.Kind != "resource" {
+			t.Errorf("%q kind = %q, want resource", name, sd.Kind)
+		}
+	}
+
+	wantDatatypes := []string{
+		"Reference", "Identifier", "CodeableConcept", "Quantity", "HumanName", "Period",
+	}
+	for _, name := range wantDatatypes {
+		sd, ok := b.StructureDefinition(name)
+		if !ok {
+			t.Errorf("datatype %q not indexed by name", name)
+			continue
+		}
+		if sd.Kind != "complex-type" {
+			t.Errorf("%q kind = %q, want complex-type", name, sd.Kind)
+		}
+	}
+
+	// Resolve a StructureDefinition by its canonical URL as well as by name.
+	const patientURL = "http://hl7.org/fhir/StructureDefinition/Patient"
+	if _, ok := b.StructureDefinitionByURL(patientURL); !ok {
+		t.Errorf("Patient not indexed by URL %q", patientURL)
+	}
+
+	// The administrative-gender value set must resolve; R4 binds it the same way R5
+	// does, so the eventual R4 required-binding enums enumerate its codes.
+	const genderVS = "http://hl7.org/fhir/ValueSet/administrative-gender"
+	if _, ok := b.ValueSet(genderVS); !ok {
+		t.Errorf("administrative-gender value set not indexed by URL %q", genderVS)
+	}
+
+	// The resource count sits in a band rather than an exact number so a
+	// definition-bundle patch release does not break the test; the exact count is
+	// asserted in the conformance statement, not here. R4 4.0.1 carries fewer
+	// resources than R5, so its band is lower.
+	n := b.ResourceCount()
+	if n < 140 || n > 160 {
+		t.Errorf("resource StructureDefinition count = %d, want within [140,160]", n)
+	}
+	t.Logf("loaded %d resource and %d datatype StructureDefinitions, %d value sets, %d code systems",
+		b.ResourceCount(), b.DatatypeCount(), b.ValueSetCount(), b.CodeSystemCount())
+}
+
 func TestLoadRejectsMissingValuesets(t *testing.T) {
 	t.Parallel()
 

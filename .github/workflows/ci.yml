@@ -36,6 +36,19 @@ jobs:
         # `:latest` image tag, an `@latest` install, or an unpinned pip/apt install). Pins of record
         # live in tools/versions.
         run: mise run pin-drift
+      - name: FHIR definition bundle checksums (vendored R4 + R5)
+        # The vendored HL7 FHIR definition bundles are checksum-pinned reference data: the bytes on
+        # disk must match the committed SHA256SUMS, because the generator's loader verifies the
+        # SHA-256 fail-closed before parsing. The loader tests exercise that path, but this standalone
+        # step makes a drifted or corrupted bundle a hard CI error on its own, independent of the Go
+        # suite, and names the offending file directly.
+        run: |
+          set -e
+          for rel in r4 r5; do
+            dir="fhir/internal/gen/testdata/definitions/${rel}"
+            echo "Verifying ${dir}/SHA256SUMS ..."
+            (cd "$dir" && shasum -a 256 -c SHA256SUMS)
+          done
       - name: gofmt
         run: |
           unformatted="$(gofmt -l .)"

@@ -70,7 +70,9 @@ directly (it remains the most deployed release and US Core runs on it) rather th
 > `Reference`, `Coding`, `CodeableConcept`, `CodeableReference`) — these were briefly hand-written for the M2 walking
 > skeleton and were retired in favour of the faithful generated supersets when the generator took over the full set.
 > `fhir/r4` is still an empty shell; R4 generation lands in milestone M6b. The "every resource and backbone element …
-> all of which compile-test" guarantee below describes R5 today and R4 once its bundle is generated.
+> all of which compile-test" guarantee below describes R5 today and R4 once its bundle is generated. The R4 4.0.1
+> `StructureDefinition` bundle is already vendored and checksum-pinned (see "Vendored definition bundles" below), and
+> the loader load-verifies it today; M6b wires that bundle through the rest of the generator pipeline.
 
 - Typed Go models for **every resource and backbone element** of R4 4.0.1 and R5 5.0.0, all of which compile-test.
 - The **radiology + clinical workflow resource set** (enumerated below), which is conformance-tested against the HL7
@@ -819,6 +821,27 @@ if oo := fhir.Validate(b); oo.HasErrors() {
 }
 data, err := json.Marshal(b) // canonical element ordering; fullUrl uniqueness already checked
 ```
+
+## Vendored definition bundles
+
+The generator reads pinned, checksum-verified copies of the official HL7 FHIR definition bundles, committed under
+`fhir/internal/gen/testdata/definitions/`. Both supported releases are vendored: R5 `5.0.0` (`buildId` 2aecd53, 162
+resources) under `r5/`, and R4 `4.0.1` (`buildId` 9346c8cc45, 148 resources) under `r4/`. Each release directory holds
+the three bundle files the generator reads (`profiles-types.json`, `profiles-resources.json`, `valuesets.json`), a
+`SHA256SUMS` manifest recording a SHA-256 over each file's on-disk bytes, and a `SOURCE.md` recording the download
+URL, version, build, and license. Both releases are published by HL7 under the Creative Commons CC0 1.0 public-domain
+dedication; external terminologies referenced by their value sets (SNOMED CT, LOINC, DICOM, UCUM) carry their own
+third-party terms and are referenced by URL rather than redistributed as code lists.
+
+The bundles are committed verbatim as binary reference data (`.gitattributes` sets `-text` so git performs no EOL
+normalisation that would break the pin); they are not stored in git-lfs. A standalone CI step runs
+`shasum -a 256 -c SHA256SUMS` over each release directory, so a drifted or corrupted bundle is a hard CI error
+independent of the Go suite, and the loader re-verifies the same manifest fail-closed before parsing. Refreshing a
+bundle is a deliberate, reviewed change run through the refresh-only mise tasks (`mise run fhir:refresh-r5` /
+`fhir:refresh-r4`), which re-download from the canonical HL7 archive, verify the release version, and re-record the
+manifest; refreshing never happens at generate time. The R5 bundle drives the generated `fhir/r5` package today; the
+R4 bundle is load-verified today (a loader test loads it, resolves the core resources and datatypes by name and URL,
+and asserts the resource count sits in a sane band) and is wired through the rest of the pipeline in milestone M6b.
 
 ## Generator pipeline
 
