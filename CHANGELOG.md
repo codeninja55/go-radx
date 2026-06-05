@@ -168,6 +168,20 @@ legacy codebase (`legacy-main`) and are not continued here.
   siblings, the null-aligned repeating siblings, and the no-sibling-on-complex rule, pinned by planner and
   emitter golden tests, the byte-for-byte regeneration gate, and root-package round-trip and null-alignment
   unit tests.
+- The FHIR choice-type (`[x]`) machinery, replacing the planner stub that emitted each choice group as a single
+  first-branch-typed field. Each `value[x]`-style group is now stored as one suffixed pointer field per branch
+  (`ValueQuantity *Quantity`, `ValueString *FHIRString`, ...), and the generator emits a sealed value interface
+  closed by an unexported marker method (`isObservationValue`), a `Value()` getter returning the set branch, and
+  one `SetValueX` setter per branch that nils every sibling before storing the new branch. A two-branches-set state
+  is therefore unrepresentable through the API (the FHIR-001 fix), and because every storage field is `omitempty`,
+  marshalling authors exactly one suffixed key — the prototype's unsuffixed `*any` choice field that never
+  round-tripped conformant JSON is gone (the FHIR-002 fix). Primitive branches box through release primitive
+  wrapper types generated into `fhir/r5/primitives.go` (`FHIRString`, `FHIRBoolean`, `FHIRDecimal`, ... one per
+  primitive code), since a built-in scalar cannot carry the unexported marker; `FHIRDecimal` delegates its JSON to
+  `fhir.Decimal` so the lexical form survives (FHIR-009). The full R5 tree is regenerated so every choice field
+  across all resources uses the real machinery, pinned by planner and emitter golden tests (`Annotation`), the
+  byte-for-byte regeneration gate (now covering `primitives.go`), and choice round-trip / mutual-exclusion unit
+  tests (`fhir/r5/choice_test.go`).
 
 ### Documentation
 
