@@ -12,6 +12,14 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Vendored the official HL7 FHIR R4 `4.0.1` `StructureDefinition` / `ValueSet` definition bundle
+  (`fhir/internal/gen/testdata/definitions/r4`, F1-N) mirroring the R5 vendoring discipline: a checksum-pinned
+  `SHA256SUMS`, a `SOURCE.md` recording the download URL, version, build (`buildId` 9346c8cc45, 2019-11-01), and CC0
+  license, and the shared `.gitattributes` binary pin (no git-lfs). A standalone CI step runs `shasum -c` over the R4
+  and R5 manifests so a drifted bundle is a hard error, and the generator's loader load-verifies the R4 bundle
+  (`TestLoadVendoredR4Bundle` loads 148 resources, 63 datatypes, 672 value sets, 495 code systems). The
+  `fhir:refresh-r4` mise task re-downloads and re-checksums it; this is the load-only precursor to R4 code generation
+  (M6b), which is not yet wired.
 - A merge-blocking FHIR R5 conformance gate (M6 Increment 14, the M6a acceptance gate) that runs the official
   HL7 FHIR validator (`validator_cli.jar`, hapifhir/org.hl7.fhir.core, pinned to version `6.9.9` with a recorded
   SHA-256 in `tools/versions`) over the go-radx-generated workflow set — `Patient`, `Encounter`, `ServiceRequest`,

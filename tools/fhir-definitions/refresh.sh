@@ -54,8 +54,14 @@ echo "Extracting ..."
 unzip -o -q "${WORK_DIR}/definitions.json.zip" -d "${WORK_DIR}/unzipped"
 
 # Fail closed unless the archive is the expected pinned release version.
+#
+# Parse the `version=` key, the clean release version, rather than `FhirVersion=`:
+# the R4 archive sets FhirVersion=4.0.1-<buildId> (release plus build suffix) while
+# the R5 archive sets a bare FhirVersion=5.0.0, so FhirVersion does not compare
+# cleanly across releases. The `version=` key is the bare release in both archives
+# (4.0.1, 5.0.0), so it pins the release without coupling the check to the build id.
 if [ -f "${WORK_DIR}/unzipped/version.info" ]; then
-  GOT_VERSION="$(grep -E '^FhirVersion=' "${WORK_DIR}/unzipped/version.info" | head -1 | cut -d= -f2 | tr -d '[:space:]')"
+  GOT_VERSION="$(grep -E '^version=' "${WORK_DIR}/unzipped/version.info" | head -1 | cut -d= -f2 | tr -d '[:space:]')"
   if [ "$GOT_VERSION" != "$EXPECT_VERSION" ]; then
     echo "FAIL: downloaded FHIR version '$GOT_VERSION' != expected '$EXPECT_VERSION'" >&2
     echo "FAIL: bumping the pinned release is a deliberate, reviewed change; edit EXPECT_VERSION here first." >&2

@@ -64,6 +64,10 @@ run = "go test ./fhir/internal/gen/ -run TestRegenerationByteForByte && go gener
 description = "Refresh-only: re-download and re-checksum the vendored HL7 FHIR R5 definition bundle (never run at generate time)"
 run = "tools/fhir-definitions/refresh.sh r5"
 
+[tasks."fhir:refresh-r4"]
+description = "Refresh-only: re-download and re-checksum the vendored HL7 FHIR R4 definition bundle (never run at generate time)"
+run = "tools/fhir-definitions/refresh.sh r4"
+
 [tasks."test:skeleton"]
 description = "Run the M2 walking-skeleton package suites (race + coverage)"
 run = "go test -race -cover ./dimse/... ./dicomweb/... ./hl7v2/... ./fhir/... ./convert/... ./server/..."
