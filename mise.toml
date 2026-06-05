@@ -96,6 +96,38 @@ run = "tools/pin-drift.sh"
 description = "Fail if a conformance statement and the code it describes diverge (counts, banners, stability markers)"
 run = "go test ./tools/conformance-drift/..."
 
+[tasks."phi-sweep"]
+description = "Run the PHI-default log sweep: fail if a patient identifier reaches a sink under default config"
+# Scopes to the root module; the sweep uses synthetic sentinels only, never real PHI.
+run = "GOWORK=off go test ./internal/phisweep/..."
+
+[tasks."fuzz"]
+description = "Bounded fuzz smoke over every target (one target per invocation, anchored regex, hang = failure)"
+# A go-test fuzz run takes ONE target per invocation, so each target is listed with an anchored
+# ^Name$ regex to run exactly that target. Each is wrapped in coreutils `timeout` at a wall-clock
+# budget above -fuzztime, so a target that wedges exits non-zero — a hang is a FAILURE, never a skip.
+# Requires `timeout` on PATH (present on Linux runners; macOS provides it as `gtimeout` via
+# coreutils). FUZZTIME overrides the per-target budget locally (e.g. FUZZTIME=5s mise run fuzz).
+run = """
+set -euo pipefail
+fuzztime="${FUZZTIME:-30s}"
+run_one() {
+  echo "fuzz: $2 ($1) for $fuzztime"
+  timeout 120s go test -run='^$' -fuzz="$2" -fuzztime="$fuzztime" "$1"
+}
+run_one ./dicom '^FuzzRead$'
+run_one ./dicom '^FuzzReadPixelDataFrom$'
+run_one ./dimse/pdu '^FuzzReadPDU$'
+run_one ./dimse/pdu '^FuzzDecodeAssociateAC$'
+run_one ./dimse/pdu '^FuzzDecodePDV$'
+"""
+
+[tasks."bench"]
+description = "Run the dicom benchmarks once (-benchtime=1x) so the benchmark code and baselines cannot rot"
+# -run='^$' selects no unit tests so only benchmarks run; the pure-Go default build excludes the
+# cgo-tagged codec benchmarks (covered by the codecs job). Scoped to the root module.
+run = "GOWORK=off go test -bench=. -benchtime=1x -run='^$' ./dicom/..."
+
 [tasks."docs:build"]
 # Requires mkdocs + mkdocs-material on PATH (pip install mkdocs mkdocs-material). The CI job that
 # provisions this toolchain is wired by the gate-enforcement work; until then this is a local task.

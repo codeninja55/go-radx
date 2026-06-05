@@ -226,3 +226,118 @@ jobs:
         run: go test -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
       - name: Lint with codec tags
         run: mise exec -- golangci-lint run --build-tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./...
+
+  phi-sanity:
+    # The PHI-default sweep (internal/phisweep) asserts the project's "no PHI in logs unless the
+    # operator opts in" invariant: it exercises the logging surface and fails if a patient identifier
+    # reaches an output sink under the default configuration. GOWORK=off scopes the run to the root
+    # module (the package lives there); the test uses synthetic sentinels only — never real PHI.
+    name: PHI-default log sweep
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: PHI sweep
+        run: mise run phi-sweep
+
+  fuzz:
+    # Bounded fuzz smoke run over every committed fuzz target. This is a regression gate, not a fuzz
+    # campaign: each target runs for a fixed -fuzztime against its committed seed corpus so a parser
+    # crash, panic, or hang on malformed input fails the build. A go-test fuzz run takes ONE target
+    # per invocation, so every target is listed explicitly with an anchored -fuzz regex (^Name$) to
+    # run exactly that target and nothing else. Each invocation is wrapped in coreutils `timeout`
+    # (present on the runner) at a wall-clock budget above -fuzztime, so a target that wedges instead
+    # of finishing exits non-zero and the gate bites — a hang is a FAILURE, never a skip.
+    name: Bounded fuzz smoke (all targets)
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Fuzz targets (bounded, hang = failure)
+        run: mise run fuzz
+
+  benchmark-baseline:
+    # Run every dicom benchmark once (-benchtime=1x, -run='^$' so no unit tests run) so the
+    # benchmark code and its committed baselines (docs/conformance/benchmarks/) cannot rot
+    # unnoticed: a benchmark that no longer compiles or panics fails the build. This is the pure-Go
+    # default build, so the cgo-tagged codec benchmarks are excluded; the codecs job covers those.
+    # GOWORK=off scopes the run to the root module.
+    name: Benchmark baseline (dicom, run-once)
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run dicom benchmarks once
+        run: mise run bench
+
+  conformance-drift:
+    # The conformance-drift check (tools/conformance-drift) fails when a conformance statement under
+    # docs/ and the code it describes diverge — preset counts, NOT-YET-SHIPPED banners, and the
+    # per-package Stability: godoc markers. GOWORK=off scopes the run to the root module.
+    name: Conformance-drift check
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Conformance-drift
+        run: mise run conformance-drift
+
+  docs:
+    # Build the mkdocs conformance site with --strict so navigation drift (a statement missing from
+    # the nav, or a nav entry pointing at a missing file) fails the build. mkdocs and the material
+    # theme are installed from PyPI at exact pins (tools/versions, mkdocs.* keys) so the site build is
+    # reproducible rather than dependent on whatever the runner resolves at install time.
+    name: Docs site build (mkdocs --strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install pinned mkdocs toolchain
+        # Exact == pins keep the strict build reproducible; bumping either is a deliberate change
+        # recorded in tools/versions alongside this install site.
+        run: python3 -m pip install 'mkdocs==1.6.1' 'mkdocs-material==9.6.21'
+      - name: Build site (strict)
+        run: mkdocs build --strict
+
+  tracked-binary-hygiene:
+    # cmd/radx is committed as source only; the compiled radx binary is gitignored. Guard that
+    # invariant: fail if any tracked file under cmd/ is a compiled object (a Mach-O, ELF executable,
+    # PIE, shared library, object, or static archive), which would mean a build artefact slipped past
+    # .gitignore into version control. `file` ships on the runner; the per-file loop sets a status
+    # flag and exits non-zero at the end so the failure propagates (a `git ls-files | while … exit`
+    # pipeline would exit only its subshell and pass silently).
+    name: Tracked-binary hygiene (cmd/ is source-only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fail on any tracked compiled binary under cmd/
+        run: |
+          status=0
+          while IFS= read -r f; do
+            mime="$(file --mime --brief "$f")"
+            case "$mime" in
+              application/x-mach-binary* | application/x-executable* | application/x-pie-executable* | application/x-sharedlib* | application/x-object* | application/x-archive*)
+                echo "tracked compiled binary under cmd/: $f ($mime)" >&2
+                status=1
+                ;;
+            esac
+          done < <(git ls-files cmd/)
+          exit "$status"
