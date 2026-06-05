@@ -118,10 +118,12 @@ func TestModelGoldenObservationProperties(t *testing.T) {
 }
 
 // TestModelRecursiveContentReferenceBounded asserts a self-recursive
-// contentReference on real definitions is grafted once and then bounded, not
-// expanded forever. CodeSystem.concept.concept reuses #CodeSystem.concept, so the
-// first concept.concept is populated while the recursion boundary one level deeper
-// keeps its contentReference marker and carries no further expansion.
+// contentReference on real definitions is left as the recursion boundary, not
+// expanded. CodeSystem.concept.concept reuses #CodeSystem.concept, which is its own
+// ancestor, so it keeps its contentReference marker and carries no children; the
+// planner collapses it onto the donor's named backbone type so the recursion becomes
+// one self-referential type (CodeSystemConcept with a []CodeSystemConcept child)
+// rather than two mutually-referential types.
 func TestModelRecursiveContentReferenceBounded(t *testing.T) {
 	t.Parallel()
 
@@ -138,20 +140,12 @@ func TestModelRecursiveContentReferenceBounded(t *testing.T) {
 		t.Fatalf("BuildType(CodeSystem): %v", err)
 	}
 
-	concept, ok := walk(typ.Root, "concept", "concept")
+	boundary, ok := walk(typ.Root, "concept", "concept")
 	if !ok {
-		t.Fatal("CodeSystem.concept.concept not in tree")
-	}
-	if len(concept.Children) == 0 {
-		t.Fatal("CodeSystem.concept.concept is empty; the recursive backbone was not grafted once")
-	}
-
-	boundary, ok := concept.Child("concept")
-	if !ok {
-		t.Fatal("CodeSystem.concept.concept.concept (the recursion boundary) not in tree")
+		t.Fatal("CodeSystem.concept.concept (the recursion boundary) not in tree")
 	}
 	if len(boundary.Children) != 0 {
-		t.Errorf("recursion boundary has %d children; it should be bounded, not expanded further", len(boundary.Children))
+		t.Errorf("recursion boundary has %d children; it should be bounded, not expanded (it is a self-ancestor)", len(boundary.Children))
 	}
 	if boundary.ContentReference != "CodeSystem.concept" {
 		t.Errorf("recursion boundary contentReference = %q, want the marker kept so the planner emits a self-referential type", boundary.ContentReference)

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"go/format"
 	"sort"
+	"strings"
 	"text/template"
 
 	"github.com/codeninja55/go-radx/fhir/internal/gen/plan"
@@ -130,7 +131,7 @@ func requiredImports(types []plan.PlannedType) []string {
 			set[fhirImport] = true
 		}
 		for _, f := range allFields(t) {
-			if usesDecimal(f.GoType) {
+			if usesFHIR(f.GoType) {
 				set[fhirImport] = true
 			}
 			if f.IsPrimitiveSibling() {
@@ -171,8 +172,10 @@ func allFields(t plan.PlannedType) []plan.Field {
 	return fields
 }
 
-// usesDecimal reports whether a Go field type references fhir.Decimal, the one root
-// import a generated datatype can require in this stage.
-func usesDecimal(goType string) bool {
-	return goType == "*fhir.Decimal" || goType == "[]fhir.Decimal" || goType == "fhir.Decimal"
+// usesFHIR reports whether a Go field type references the root fhir package — the
+// shared fhir.Decimal, fhir.PrimitiveElement, or the fhir.Resource interface a
+// generated field can carry — so the import set includes the root package when any
+// such type appears.
+func usesFHIR(goType string) bool {
+	return strings.Contains(goType, "fhir.")
 }

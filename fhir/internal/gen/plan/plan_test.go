@@ -256,7 +256,7 @@ func TestPlanBackboneShapeDedup(t *testing.T) {
 	}
 }
 
-func TestPlanSkipsBaseMembers(t *testing.T) {
+func TestPlanEmbedsElementBaseForComplexType(t *testing.T) {
 	t.Parallel()
 	root := &model.Element{
 		Name: "Period",
@@ -268,14 +268,47 @@ func TestPlanSkipsBaseMembers(t *testing.T) {
 		},
 	}
 	ty := &model.Type{Name: "Period", Kind: model.KindComplexType, Root: root}
-	pt := PlanType(ty, Options{SkipBaseMembers: true})
-	// The base members (id, extension) are skipped; the one own element (start, a
-	// dateTime primitive) survives along with its generated "_field" sibling.
+	pt := PlanType(ty, Options{})
+	// A complex datatype with no top-level modifierExtension embeds Element and drops
+	// the base members it supplies (id, extension); its one own element (start, a
+	// dateTime primitive) survives with its generated "_field" sibling.
+	if pt.EmbeddedBase != "Element" {
+		t.Errorf("EmbeddedBase = %q, want Element", pt.EmbeddedBase)
+	}
 	if len(pt.Fields) != 2 {
-		t.Fatalf("SkipBaseMembers planned %d fields %+v, want Start and StartElement", len(pt.Fields), pt.Fields)
+		t.Fatalf("planned %d fields %+v, want Start and StartElement", len(pt.Fields), pt.Fields)
 	}
 	if pt.Fields[0].GoName != "Start" || pt.Fields[1].GoName != "StartElement" {
-		t.Errorf("SkipBaseMembers fields = (%q, %q), want (Start, StartElement)", pt.Fields[0].GoName, pt.Fields[1].GoName)
+		t.Errorf("fields = (%q, %q), want (Start, StartElement)", pt.Fields[0].GoName, pt.Fields[1].GoName)
+	}
+}
+
+func TestPlanBaseTypeKeepsMembersAndEmbedsNothing(t *testing.T) {
+	t.Parallel()
+	root := &model.Element{
+		Name: "Element",
+		Path: "Element",
+		Children: []*model.Element{
+			{Name: "id", Path: "Element.id", Cardinality: model.Cardinality{Min: 0, Max: "1"}, Types: []model.TypeRef{{Code: "string"}}},
+			{Name: "extension", Path: "Element.extension", Cardinality: model.Cardinality{Min: 0, Max: "*"}, Types: []model.TypeRef{{Code: "Extension"}}},
+		},
+	}
+	ty := &model.Type{Name: "Element", Kind: model.KindComplexType, Abstract: true, Root: root}
+	pt := PlanType(ty, Options{IsBaseType: true})
+	// A base type embeds nothing, keeps its own members, and suppresses primitive
+	// "_field" siblings so it never defines MarshalJSON (which would shadow an
+	// embedding type's own MarshalJSON when embedded by value).
+	if pt.EmbeddedBase != "" {
+		t.Errorf("base type EmbeddedBase = %q, want empty", pt.EmbeddedBase)
+	}
+	if !pt.IsBaseType {
+		t.Error("base type should be flagged IsBaseType")
+	}
+	if pt.HasPrimitiveSibling() {
+		t.Error("base type must not carry primitive _field siblings")
+	}
+	if len(pt.Fields) != 2 || pt.Fields[0].GoName != "ID" || pt.Fields[1].GoName != "Extension" {
+		t.Errorf("base type fields = %+v, want ID and Extension only", pt.Fields)
 	}
 }
 

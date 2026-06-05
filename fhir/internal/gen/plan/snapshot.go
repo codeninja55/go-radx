@@ -14,9 +14,16 @@ import (
 func Snapshot(pt PlannedType) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "PlannedType %s fhir=%s kind=%s\n", pt.GoName, pt.FHIRName, pt.Kind)
+	if pt.EmbeddedBase != "" {
+		fmt.Fprintf(&b, "  embeds %s\n", pt.EmbeddedBase)
+	}
 	writeFields(&b, pt.Fields, 1)
 	for _, bb := range pt.Backbones {
-		fmt.Fprintf(&b, "  backbone %s\n", bb.GoName)
+		fmt.Fprintf(&b, "  backbone %s", bb.GoName)
+		if bb.EmbeddedBase != "" {
+			fmt.Fprintf(&b, " embeds %s", bb.EmbeddedBase)
+		}
+		b.WriteByte('\n')
 		writeFields(&b, bb.Fields, 2)
 	}
 	return b.String()

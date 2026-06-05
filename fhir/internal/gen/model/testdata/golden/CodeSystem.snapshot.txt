@@ -81,24 +81,3 @@ Type CodeSystem kind=resource abstract=false
         CodeSystem.concept.property.code [1..1] types=code
         CodeSystem.concept.property.value[x] [1..1] types=code|Coding|string|integer|boolean|dateTime|decimal choice=value
       CodeSystem.concept.concept [0..*] contentReference=CodeSystem.concept
-        CodeSystem.concept.concept.id [0..1] types=string
-        CodeSystem.concept.concept.extension [0..*] types=Extension
-        CodeSystem.concept.concept.modifierExtension [0..*] types=Extension summary modifier
-        CodeSystem.concept.concept.code [1..1] types=code
-        CodeSystem.concept.concept.display [0..1] types=string
-        CodeSystem.concept.concept.definition [0..1] types=string
-        CodeSystem.concept.concept.designation [0..*] types=BackboneElement
-          CodeSystem.concept.concept.designation.id [0..1] types=string
-          CodeSystem.concept.concept.designation.extension [0..*] types=Extension
-          CodeSystem.concept.concept.designation.modifierExtension [0..*] types=Extension summary modifier
-          CodeSystem.concept.concept.designation.language [0..1] types=code binding=required(http://hl7.org/fhir/ValueSet/all-languages)
-          CodeSystem.concept.concept.designation.use [0..1] types=Coding binding=extensible(http://hl7.org/fhir/ValueSet/designation-use)
-          CodeSystem.concept.concept.designation.additionalUse [0..*] types=Coding binding=extensible(http://hl7.org/fhir/ValueSet/designation-use)
-          CodeSystem.concept.concept.designation.value [1..1] types=string
-        CodeSystem.concept.concept.property [0..*] types=BackboneElement
-          CodeSystem.concept.concept.property.id [0..1] types=string
-          CodeSystem.concept.concept.property.extension [0..*] types=Extension
-          CodeSystem.concept.concept.property.modifierExtension [0..*] types=Extension summary modifier
-          CodeSystem.concept.concept.property.code [1..1] types=code
-          CodeSystem.concept.concept.property.value[x] [1..1] types=code|Coding|string|integer|boolean|dateTime|decimal choice=value
-        CodeSystem.concept.concept.concept [0..*] contentReference=CodeSystem.concept

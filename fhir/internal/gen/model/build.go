@@ -148,11 +148,15 @@ func newElement(ed *loader.ElementDefinition) *Element {
 // The graft is bounded against self- and mutually-recursive anchors, which FHIR
 // uses for genuinely recursive structures (CodeSystem.concept.concept reuses
 // #CodeSystem.concept; Composition.section.section reuses #Composition.section).
-// Expanding such an anchor inline would never terminate, so when a contentReference
-// target is already on the active expansion chain the node is left carrying its
-// contentReference marker unexpanded: it is the recursion boundary the planner
-// turns into a self-referential named type. A non-recursive anchor is expanded
-// fully.
+// A node whose contentReference anchor is the node itself or one of its ancestors
+// is a direct self-recursion; it is left carrying its contentReference marker
+// unexpanded, so the planner collapses it to the anchor's named backbone type and
+// the recursion becomes one self-referential type (CodeSystemConcept with a
+// []CodeSystemConcept child) rather than two mutually-referential types. Grafting
+// such an anchor inline would also never terminate. The chain guard additionally
+// catches a cross-branch cycle that is not a direct ancestor. A non-recursive
+// anchor (Observation.component.referenceRange reusing #Observation.referenceRange,
+// where the anchor is a sibling subtree, not an ancestor) is expanded fully.
 //
 // The donor's children are read from the frozen byPath index (its pristine direct
 // children), not from the result tree, so resolution order never affects the graft.
@@ -165,8 +169,14 @@ func resolveContentReferences(typeName string, node *Element, idx *byPath, chain
 				"model: %s: element %q contentReference %q resolves to no element in the snapshot",
 				typeName, node.Path, node.ContentReference)
 		}
-		// A target already on the active chain is a recursion cycle; leave the node
-		// as the boundary rather than expanding forever.
+		// An anchor that is the node itself or an ancestor of it is a direct
+		// self-recursion: leave the node as the boundary so it collapses onto the
+		// anchor's named type rather than expanding into a distinct sibling type.
+		if isAncestorPath(node.ContentReference, node.Path) {
+			return nil
+		}
+		// A target already on the active chain is a (cross-branch) recursion cycle;
+		// leave the node as the boundary rather than expanding forever.
 		if !chain[node.ContentReference] {
 			chain[node.ContentReference] = true
 			// Graft a deep copy of each donor child, rebased so its path reflects this
@@ -241,6 +251,16 @@ func rebasePath(path, donorPrefix, occurrencePrefix string) string {
 		return occurrencePrefix + path[len(donorPrefix):]
 	}
 	return path
+}
+
+// isAncestorPath reports whether anchor is path itself or a dotted-path ancestor of
+// path, so a contentReference back to the node's own subtree root is recognised as a
+// direct self-recursion. "CodeSystem.concept" is an ancestor of
+// "CodeSystem.concept.concept"; "Observation.referenceRange" is not an ancestor of
+// "Observation.component.referenceRange" (it is a sibling subtree), so the latter is
+// grafted rather than treated as recursive.
+func isAncestorPath(anchor, path string) bool {
+	return anchor == path || strings.HasPrefix(path, anchor+".")
 }
 
 // parentOf returns the dotted path one level up from path ("Observation.component"

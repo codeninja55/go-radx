@@ -18,14 +18,27 @@ type Decimal struct {
 	val     *big.Float // parsed once on construction
 }
 
-// ParseDecimal validates s as a DICOM DS/IS or FHIR decimal lexical form and
-// preserves it verbatim. DS is limited to 16 bytes per value (PS3.5).
+// ParseDecimal validates s as a DICOM DS lexical form and preserves it verbatim.
+// DS is limited to 16 bytes per value (PS3.5), so the DICOM value codec and the
+// DICOMweb JSON reader call this path to keep that VR constraint at the DICOM
+// boundary.
 func ParseDecimal(s string) (Decimal, error) {
-	if s == "" {
-		return Decimal{}, &ValueError{VR: VRDS, Msg: "decimal is empty"}
-	}
 	if len(s) > maxDSLen {
 		return Decimal{}, &ValueError{VR: VRDS, Msg: fmt.Sprintf("DS value exceeds 16 bytes (%d)", len(s))}
+	}
+	return ParseDecimalLexical(s)
+}
+
+// ParseDecimalLexical validates s against the lexical decimal production and
+// preserves it verbatim, without the DS 16-byte cap. The FHIR decimal production
+// places no length limit on a value, so the FHIR side (fhir.ParseDecimal and the
+// shared Decimal.UnmarshalJSON) parses through here; the DICOM DS 16-byte cap is a
+// VR write constraint enforced by ParseDecimal at the DICOM boundary, not a
+// property of the shared lexical type. A long-but-valid FHIR decimal is accepted
+// here and rejected by ParseDecimal only when it must fit a DS value.
+func ParseDecimalLexical(s string) (Decimal, error) {
+	if s == "" {
+		return Decimal{}, &ValueError{VR: VRDS, Msg: "decimal is empty"}
 	}
 	// big.Float parses the standard decimal/exponent forms; reject anything it cannot.
 	bf, _, err := big.ParseFloat(s, 10, 256, big.ToNearestEven)
@@ -93,10 +106,13 @@ func (d Decimal) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON preserves the raw token's lexical form (trimming any quotes a lenient
-// producer added).
+// producer added). It parses through the lexical production without the DS 16-byte
+// cap so a long-but-valid FHIR decimal round-trips; the DS cap is a DICOM VR write
+// constraint applied at the DICOM value boundary (ParseDecimal), not on JSON decode
+// of the shared lexical type.
 func (d *Decimal) UnmarshalJSON(b []byte) error {
 	s := strings.Trim(string(b), `"`)
-	parsed, err := ParseDecimal(s)
+	parsed, err := ParseDecimalLexical(s)
 	if err != nil {
 		return err
 	}

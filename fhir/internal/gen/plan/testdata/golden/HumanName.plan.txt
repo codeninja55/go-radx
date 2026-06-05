@@ -1,6 +1,9 @@
 PlannedType HumanName fhir=HumanName kind=complex-type
+  embeds Element
   field Use *string json=use optional=true primitive
   field UseElement *fhir.PrimitiveElement json=_use optional=true sibling-of=Use
+  field Text *string json=text optional=true primitive
+  field TextElement *fhir.PrimitiveElement json=_text optional=true sibling-of=Text
   field Family *string json=family optional=true primitive
   field FamilyElement *fhir.PrimitiveElement json=_family optional=true sibling-of=Family
   field Given []string json=given optional=true primitive

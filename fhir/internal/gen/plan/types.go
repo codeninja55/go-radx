@@ -186,6 +186,12 @@ func chooseShape(c model.Cardinality) fieldShape {
 // for a primitive-typed element, or the Go type name for a complex/resource-typed
 // element. An element with no type (a pure backbone, handled elsewhere) falls back to
 // its Go field name, which the backbone stage replaces with the backbone type name.
+//
+// An element typed as the abstract "Resource" (Bundle.entry.resource,
+// Parameters.parameter.resource, DomainResource.contained) maps to the root
+// fhir.Resource interface, not to the generated Resource base struct, so the field
+// holds any concrete resource rather than the bare base. The release packages
+// resolve a concrete type from such a field through fhir.As / fhir.UnmarshalResource.
 func goBaseType(e *model.Element) string {
 	if len(e.Types) == 0 {
 		return GoFieldName(e.Name)
@@ -193,6 +199,9 @@ func goBaseType(e *model.Element) string {
 	code := e.Types[0].Code
 	if goPrim, ok := primitiveGoTypes[code]; ok {
 		return goPrim
+	}
+	if code == "Resource" || code == "DomainResource" {
+		return "fhir.Resource"
 	}
 	return GoTypeName(code)
 }

@@ -178,21 +178,19 @@ func TestRecursiveContentReferenceBounded(t *testing.T) {
 		t.Fatalf("BuildType: %v", err)
 	}
 
-	// concept -> concept is grafted once with the donor's children (code, concept).
-	cc := childPath(t, typ.Root, "concept", "concept")
-	if _, ok := cc.Child("code"); !ok {
-		t.Error("first concept.concept should be grafted with the donor's code child")
-	}
-
-	// concept -> concept -> concept is the boundary: no further expansion, marker kept.
-	boundary := childPath(t, cc, "concept")
+	// concept.concept references its own ancestor (#CodeSystem.concept), so it is the
+	// recursion boundary directly: the marker is kept and it is not grafted at all.
+	// The planner collapses it onto the donor's named backbone type, so the recursion
+	// becomes one self-referential type (CodeSystemConcept with a []CodeSystemConcept
+	// child) rather than two mutually-referential types.
+	boundary := childPath(t, typ.Root, "concept", "concept")
 	if len(boundary.Children) != 0 {
-		t.Errorf("recursion boundary has %d children; want it bounded at 0", len(boundary.Children))
+		t.Errorf("recursion boundary has %d children; want it bounded at 0 (no graft for a self-ancestor)", len(boundary.Children))
 	}
 	if boundary.ContentReference != "CodeSystem.concept" {
 		t.Errorf("recursion boundary contentReference = %q, want the marker kept", boundary.ContentReference)
 	}
-	if boundary.Path != "CodeSystem.concept.concept.concept" {
+	if boundary.Path != "CodeSystem.concept.concept" {
 		t.Errorf("recursion boundary path = %q, want the occurrence path", boundary.Path)
 	}
 }
