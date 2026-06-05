@@ -554,10 +554,57 @@ JSON representation: a `resourceType` discriminator on every resource, choice fi
 primitive `_field` siblings, and canonical element ordering on output. Output is validated by the HL7 FHIR validator in
 CI.
 
+### Canonical element ordering
+
+A resource marshals its value fields in **`StructureDefinition` snapshot order** — the order the elements appear
+in the definition the generator read — because the generated struct declares them in that order and `encoding/json`
+emits struct fields in declaration order. The discriminator `resourceType` is written first. The primitive `_field`
+extension
+siblings are then folded in after the value object's own keys rather than interleaved next to each value: the marshaller
+appends each non-empty sibling to the already-encoded object (`AppendSiblings`), which preserves the value-field order a
+map round-trip would destroy. A nested object folds its own siblings at the end of that object. go-radx's canonical form
+is therefore "value fields in snapshot order, then the scalar `_field` siblings"; this is the form `MarshalJSON`
+produces and the form against which byte-stable round-trip is defined.
+
+### Round-trip
+
+Decoding canonical FHIR JSON and re-encoding it reproduces the input byte-for-byte. The generated `UnmarshalJSON` lifts
+each `_field` sibling out of the object into its companion field (`SplitRawObject`/`TakeRawField`), decodes the residual
+keys into the value struct, and restores a repeating primitive's null-aligned sibling array index-for-index; the
+matching `MarshalJSON` re-emits the same canonical order. A repeating primitive whose extensions are sparse keeps its
+positional
+`null` placeholders so the value and `_field` arrays stay index-aligned. "Canonical input" means input already in
+go-radx's canonical form (siblings trailing the value keys); a document that interleaves a `_field` sibling immediately
+after its value is still decoded correctly but re-encodes in the canonical trailing form.
+
+### Summary modes
+
 `_summary` filtering is driven by the `isSummary` flag carried on each element in the `StructureDefinition` (the same
-flag `fhir.resources` surfaces as its `summary_element_property` marker). The generator records that flag per element so
-`SummaryTrue` can include exactly the summary elements without a runtime spec lookup. The five modes match the FHIR
-`_summary` parameter: `full`, `true`, `text`, `data`, and `count`.
+flag `fhir.resources` surfaces as its `summary_element_property` marker). The generator records that flag — with
+each top-level element's mandatory (`min >= 1`) and modifier status, the narrative element, and the Bundle count element
+— into a per-resource **summary descriptor** the release package registers at init time, so `MarshalSummary` filters
+from generated metadata without a runtime `StructureDefinition` lookup or reflection over the resource. A choice (`[x]`)
+group contributes one descriptor entry per suffixed branch key, all sharing the group's flags.
+
+`MarshalSummary(r, mode)` marshals the resource in full and then drops the top-level elements the mode excludes,
+preserving the canonical element order the resource's `MarshalJSON` produced (the filter walks the encoded object
+key-by-key and re-emits the kept keys in place; a `_field` sibling is kept exactly when its value key is kept). The five
+modes match the FHIR `_summary` parameter:
+
+| Mode | Constant | Elements emitted |
+|------|----------|------------------|
+| `false` | `SummaryFull` | the full resource (identity; no filtering, no tag) |
+| `true` | `SummaryTrue` | the `isSummary`, mandatory, and modifier elements, plus `id`/`meta` |
+| `text` | `SummaryText` | the narrative (`text`), mandatory elements, plus `id`/`meta` |
+| `data` | `SummaryData` | everything except the narrative (`text`) |
+| `count` | `SummaryCount` | the Bundle `total` only, plus `id`/`meta`; entries are dropped |
+
+Every mode except `SummaryFull` always retains the infrastructure keys (`resourceType`, `id`, `meta`) so a summarised
+resource stays a valid, identifiable resource. When a mode drops any element it sets the FHIR `SUBSETTED` tag on
+`meta.tag` so a consumer can tell the payload is a partial view; the tag is spliced in without re-sorting the other keys
+(`meta` is inserted in its canonical slot after `id` when the resource carried none). A nil resource (a nil interface or
+a typed-nil pointer) returns `ErrNilResource` rather than panicking (Codex FHIR-012). A resource whose type has no
+registered summary descriptor is returned in full rather than guessing which elements to drop.
 
 XML and YAML are optional and deferred in v1. The API is shaped so they can be added as alternative codecs over the same
 generated model without changing resource types; until then, calling an XML/YAML path returns a typed "format not
