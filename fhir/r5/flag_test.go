@@ -71,7 +71,7 @@ func TestFlagRegistryDispatch(t *testing.T) {
 // TestFlagRoundTrip asserts a Flag survives a marshal/unmarshal cycle through the
 // checked identity API with its fields intact.
 func TestFlagRoundTrip(t *testing.T) {
-	status := "active"
+	status := r5.FlagStatus("active")
 	original := &r5.Flag{Status: &status}
 
 	data, err := json.Marshal(original)

@@ -157,6 +157,12 @@ type Options struct {
 	// primitive extensions (Resource.id, language, implicitRules) are therefore not
 	// modelled in v1; the extension machinery is a later increment.
 	IsBaseType bool
+
+	// Bindings resolves a required binding's value set to its closed code set, so a
+	// code field with an enumerable required binding is typed as the generated enum
+	// rather than a plain code string. A nil resolver disables enum typing entirely
+	// (every code field stays *string), which the datatype-only golden tests rely on.
+	Bindings BindingResolver
 }
 
 // baseStrip describes how a concrete type inherits its base members: the Go base
@@ -252,7 +258,7 @@ func PlanType(t *model.Type, opts Options) PlannedType {
 		// Reserve the embedded base's Go name so an own field never collides with it.
 		used[pt.EmbeddedBase] = true
 	}
-	pt.Fields, pt.Choices = planFields(t.Name, pt.GoName, t.Root.Children, drop, opts.IsBaseType, used, backbones)
+	pt.Fields, pt.Choices = planFields(t.Name, pt.GoName, t.Root.Children, drop, opts.IsBaseType, used, backbones, opts.Bindings)
 	pt.Backbones = backbones.sorted()
 	return pt
 }
@@ -274,7 +280,7 @@ func PlanType(t *model.Type, opts Options) PlannedType {
 // storage fields make a two-branches-set state representable only through the setters,
 // which clear the siblings, and each storage field is omitempty so exactly one
 // suffixed key is ever authored.
-func planFields(ownerType, ownerGoName string, children []*model.Element, drop map[string]bool, suppressSiblings bool, used map[string]bool, backbones *backboneSet) ([]Field, []PlannedChoice) {
+func planFields(ownerType, ownerGoName string, children []*model.Element, drop map[string]bool, suppressSiblings bool, used map[string]bool, backbones *backboneSet, bindings BindingResolver) ([]Field, []PlannedChoice) {
 	fields := make([]Field, 0, len(children))
 	var choices []PlannedChoice
 	for _, child := range children {
@@ -293,6 +299,19 @@ func planFields(ownerType, ownerGoName string, children []*model.Element, drop m
 		f.GoName = resolveCollision(f.GoName, used)
 		f.Doc = child.Path
 
+		// A code field with an enumerable required binding is typed as the generated
+		// closed enum, keeping the field's pointer/slice decoration: a repeating code
+		// becomes []Enum, a single one *Enum, so the scalar presence rule and the
+		// repeating "_field" sibling null-alignment stay intact. A not-inlined or
+		// unbound code keeps its plain *string / []string type.
+		if enumName, ok := bindingEnumName(child, bindings); ok {
+			if f.Repeats {
+				f.GoType = "[]" + enumName
+			} else {
+				f.GoType = "*" + enumName
+			}
+		}
+
 		switch {
 		case isRecursionBoundary(child):
 			// A contentReference boundary (a node that kept its marker because its
@@ -306,7 +325,7 @@ func planFields(ownerType, ownerGoName string, children []*model.Element, drop m
 			anchorName := GoBackboneTypeName(ownerType, pathSegmentsAfterOwner(ownerType, child.ContentReference))
 			f.GoType = decorateBackbone(child.Cardinality, anchorName)
 		case child.IsBackbone():
-			bb := planBackbone(ownerType, child, backbones)
+			bb := planBackbone(ownerType, child, backbones, bindings)
 			f.GoType = decorateBackbone(child.Cardinality, bb.GoName)
 		}
 
@@ -379,11 +398,11 @@ func planPrimitiveSibling(value Field, used map[string]bool) Field {
 // backbone carries a modifierExtension child (a BackboneElement) and embeds
 // BackboneElement, a datatype backbone carries only id/extension (an Element) and
 // embeds Element. The base members are dropped from the backbone's own fields.
-func planBackbone(ownerType string, e *model.Element, backbones *backboneSet) PlannedBackbone {
+func planBackbone(ownerType string, e *model.Element, backbones *backboneSet, bindings BindingResolver) PlannedBackbone {
 	embed, drop := backboneBase(e)
 	used := map[string]bool{embed: true}
 	goName := GoBackboneTypeName(ownerType, pathSegmentsAfterOwner(ownerType, e.Path))
-	fields, choices := planFields(ownerType, goName, e.Children, drop, false, used, backbones)
+	fields, choices := planFields(ownerType, goName, e.Children, drop, false, used, backbones, bindings)
 	return backbones.add(goName, fields, embed, choices)
 }
 
