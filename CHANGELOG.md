@@ -172,10 +172,13 @@ legacy codebase (`legacy-main`) and are not continued here.
   first-branch-typed field. Each `value[x]`-style group is now stored as one suffixed pointer field per branch
   (`ValueQuantity *Quantity`, `ValueString *FHIRString`, ...), and the generator emits a sealed value interface
   closed by an unexported marker method (`isObservationValue`), a `Value()` getter returning the set branch, and
-  one `SetValueX` setter per branch that nils every sibling before storing the new branch. A two-branches-set state
-  is therefore unrepresentable through the API (the FHIR-001 fix), and because every storage field is `omitempty`,
-  marshalling authors exactly one suffixed key — the prototype's unsuffixed `*any` choice field that never
-  round-tripped conformant JSON is gone (the FHIR-002 fix). Primitive branches box through release primitive
+  one `SetValueX` setter per branch that nils every sibling before storing the new branch, so the setter API never
+  populates two branches at once (the FHIR-001 fix). Because each storage field is `omitempty`, a value built
+  through the setters marshals exactly one suffixed key — the prototype's unsuffixed `*any` choice field that never
+  round-tripped conformant JSON is gone (the FHIR-002 fix). The storage fields are exported because faithful JSON
+  requires the codec to see each suffixed key; the mutual-exclusion invariant is enforced at the setter boundary,
+  and the at-most-one cardinality of a choice group is checked by `Validate` in the choice-group validation
+  increment. Primitive branches box through release primitive
   wrapper types generated into `fhir/r5/primitives.go` (`FHIRString`, `FHIRBoolean`, `FHIRDecimal`, ... one per
   primitive code), since a built-in scalar cannot carry the unexported marker; `FHIRDecimal` delegates its JSON to
   `fhir.Decimal` so the lexical form survives (FHIR-009). The full R5 tree is regenerated so every choice field

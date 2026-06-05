@@ -210,15 +210,21 @@ branches. Recovering the plain value from a wrapper is one explicit conversion, 
 
 The generator stores a choice group as one suffixed pointer field per branch — `ValueQuantity
 *Quantity`, `ValueString *FHIRString`, `ValueBoolean *FHIRBoolean`, ... — each tagged
-`,omitempty`. There is no bare untyped choice field, so a two-branches-set state is
-unrepresentable except through the setters, and each `SetXxx` first nils every sibling field
-before storing the new branch. Because at most one storage field is ever non-nil and every field
-is `omitempty`, marshalling authors exactly one suffixed key. The `Value()` getter switches over
-the non-nil storage field and returns the dereferenced branch value through the interface; an
-empty group returns `(nil, false)`. When two FHIR element names collide and the choice stem is
-disambiguated (for example to `Value2`), the getter, setters, and storage fields all follow that
-stem (`Value2()`, `SetValue2String`, `Value2String`) so the group stays internally consistent and
-byte-stable.
+`,omitempty`. There is no single bare untyped choice field, so the API offers no way to put a value
+under one logical choice slot that could then hold two types at once; the construction path is the
+typed setters, and each `SetXxx` first nils every sibling field before storing the new branch, so
+through the setter API at most one branch is ever populated. The storage fields are exported
+because faithful FHIR JSON requires the standard-library codec to see each suffixed key as a struct
+field; the mutual-exclusion invariant is therefore enforced at the setter boundary rather than by
+the type system. Bypassing the setters by writing two suffixed fields directly is a deliberate
+misuse the codec cannot reject, and the at-most-one cardinality of a choice group is checked by
+`Validate` once per group (the choice-group validation increment). When the setters are used, at
+most one storage field is non-nil and every field is `omitempty`, so marshalling authors exactly
+one suffixed key. The `Value()` getter switches over the non-nil storage field and returns the
+dereferenced branch value through the interface; an empty group returns `(nil, false)`. When two
+FHIR element names collide and the choice stem is disambiguated (for example to `Value2`), the
+getter, setters, and storage fields all follow that stem (`Value2()`, `SetValue2String`,
+`Value2String`) so the group stays internally consistent and byte-stable.
 
 The sealed interface is closed by an unexported marker method (`isObservationValue()`), emitted
 on each branch type in the owning resource's file. A method on a same-package type — the generated
