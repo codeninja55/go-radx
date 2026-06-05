@@ -108,6 +108,8 @@ description = "Bounded fuzz smoke over every target (one target per invocation, 
 # budget above -fuzztime, so a target that wedges exits non-zero — a hang is a FAILURE, never a skip.
 # Requires `timeout` on PATH (present on Linux runners; macOS provides it as `gtimeout` via
 # coreutils). FUZZTIME overrides the per-target budget locally (e.g. FUZZTIME=5s mise run fuzz).
+# bash -c, not the default sh: on Ubuntu /bin/sh is dash, which rejects `set -o pipefail`.
+shell = "bash -c"
 run = """
 set -euo pipefail
 fuzztime="${FUZZTIME:-30s}"

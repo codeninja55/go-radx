@@ -334,7 +334,9 @@ jobs:
           while IFS= read -r f; do
             mime="$(file --mime --brief "$f")"
             case "$mime" in
-              application/x-mach-binary* | application/x-executable* | application/x-pie-executable* | application/x-sharedlib* | application/x-object* | application/x-archive*)
+              # Mach-O (darwin), ELF executable/PIE/shared object (linux), object/archive, and PE
+              # (windows .exe via cross-compile) — every compiled artefact a `go build` can emit.
+              application/x-mach-binary* | application/x-executable* | application/x-pie-executable* | application/x-sharedlib* | application/x-object* | application/x-archive* | application/x-dosexec* | application/vnd.microsoft.portable-executable*)
                 echo "tracked compiled binary under cmd/: $f ($mime)" >&2
                 status=1
                 ;;
