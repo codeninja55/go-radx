@@ -134,16 +134,27 @@ func EmitPrimitives(p Primitives) ([]byte, error) {
 	return formatted, nil
 }
 
-// primitiveImports returns the import paths the wrapper file needs: the root fhir
-// package when any wrapper delegates to fhir.Decimal (the decimal wrapper always
-// does), and nothing otherwise.
+// primitiveImports returns the deduplicated, sorted import paths the wrapper file
+// needs: the root fhir package when a wrapper delegates to fhir.Decimal, and
+// encoding/json plus strconv when the integer64 wrapper renders its quoted JSON string
+// form. A file with neither needs no imports.
 func primitiveImports(wrappers []plan.PrimitiveWrapper) []string {
+	set := map[string]bool{}
 	for _, w := range wrappers {
-		if w.Kind == plan.WrapperDecimal {
-			return []string{"github.com/codeninja55/go-radx/fhir"}
+		switch w.Kind {
+		case plan.WrapperDecimal:
+			set["github.com/codeninja55/go-radx/fhir"] = true
+		case plan.WrapperInt64String:
+			set["encoding/json"] = true
+			set["strconv"] = true
 		}
 	}
-	return nil
+	out := make([]string, 0, len(set))
+	for imp := range set {
+		out = append(out, imp)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // EmitRegistry renders a release's resourceType→factory registry file to formatted Go

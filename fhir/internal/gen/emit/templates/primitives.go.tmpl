@@ -31,6 +31,32 @@ func (d {{ .GoName }}) MarshalJSON() ([]byte, error) { return fhir.Decimal(d).Ma
 // UnmarshalJSON parses the lexical decimal through fhir.Decimal so the source form is
 // preserved verbatim.
 func (d *{{ .GoName }}) UnmarshalJSON(b []byte) error { return (*fhir.Decimal)(d).UnmarshalJSON(b) }
+{{- else if eq .Kind 2 }}
+
+// {{ .GoName }} boxes a FHIR integer64 for a choice branch. FHIR R5 represents
+// integer64 as a JSON string so a 64-bit value survives JSON parsers that decode
+// numbers as float64, so the wrapper marshals and parses a quoted decimal integer.
+// Recover the value with an int64({{ .GoName }}) conversion after a Value() type switch.
+type {{ .GoName }} {{ .Underlying }}
+
+// MarshalJSON emits the integer64 as a quoted JSON string, the FHIR R5 wire form.
+func (n {{ .GoName }}) MarshalJSON() ([]byte, error) {
+	return json.Marshal(strconv.FormatInt(int64(n), 10))
+}
+
+// UnmarshalJSON parses the integer64 from its quoted JSON string form.
+func (n *{{ .GoName }}) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	parsed, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return err
+	}
+	*n = {{ .GoName }}(parsed)
+	return nil
+}
 {{- else }}
 
 // {{ .GoName }} boxes a FHIR primitive for a choice branch. It marshals as the bare

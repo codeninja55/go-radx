@@ -175,11 +175,13 @@ type PrimitiveWrapper struct {
 	// Underlying is the Go type the wrapper is defined over ("string", "bool",
 	// "int32", "int64", "fhir.Decimal"). A scalar underlying marshals natively as the
 	// bare FHIR value; the Decimal underlying delegates to fhir.Decimal so the lexical
-	// form survives the round trip.
+	// form survives the round trip; the int64 underlying is rendered as a quoted JSON
+	// string per the FHIR R5 integer64 representation.
 	Underlying string
 
-	// Kind selects the wrapper's marshalling: a plain scalar (native JSON) or the
-	// lexical-preserving decimal that delegates to fhir.Decimal.
+	// Kind selects the wrapper's marshalling: a plain scalar (native JSON), the
+	// lexical-preserving decimal that delegates to fhir.Decimal, or the int64 that FHIR
+	// R5 represents as a JSON string.
 	Kind WrapperKind
 }
 
@@ -187,7 +189,7 @@ type PrimitiveWrapper struct {
 type WrapperKind int
 
 const (
-	// WrapperScalar is a defined type over a Go scalar (string/bool/int32/int64); Go's
+	// WrapperScalar is a defined type over a Go scalar (string/bool/int32); Go's
 	// encoding/json already marshals it as the bare FHIR value, so no custom method is
 	// generated.
 	WrapperScalar WrapperKind = iota
@@ -196,6 +198,12 @@ const (
 	// generated MarshalJSON/UnmarshalJSON delegate to the embedded lexical type so
 	// trailing zeros and precision survive (FHIR-009).
 	WrapperDecimal
+
+	// WrapperInt64String is the integer64 wrapper. FHIR R5 represents integer64 as a
+	// JSON string (not a number) so a 64-bit value survives parsers that decode JSON
+	// numbers as float64. Its generated MarshalJSON/UnmarshalJSON quote and parse the
+	// int64 accordingly. See https://hl7.org/fhir/R5/json.html.
+	WrapperInt64String
 )
 
 // PrimitiveWrappers returns the release primitive wrapper descriptors in stable
@@ -206,9 +214,12 @@ func PrimitiveWrappers() []PrimitiveWrapper {
 	wrappers := make([]PrimitiveWrapper, 0, len(primitiveWrapperTypes))
 	for code, goName := range primitiveWrapperTypes {
 		w := PrimitiveWrapper{GoName: goName, Underlying: primitiveGoTypes[code], Kind: WrapperScalar}
-		if code == "decimal" {
+		switch code {
+		case "decimal":
 			w.Underlying = "fhir.Decimal"
 			w.Kind = WrapperDecimal
+		case "integer64":
+			w.Kind = WrapperInt64String
 		}
 		wrappers = append(wrappers, w)
 	}
