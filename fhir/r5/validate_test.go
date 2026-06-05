@@ -8,9 +8,6 @@ import (
 	"github.com/codeninja55/go-radx/fhir/r5"
 )
 
-func strPtr(s string) *string { return &s }
-func boolPtr(b bool) *bool    { return &b }
-
 // phiSentinel is a synthetic patient-data value seeded into resources under validation.
 // No issue diagnostic or expression may ever contain it: validation messages name
 // elements, paths, types, and codes, never patient values (PRD §9.1). It is not real
@@ -270,13 +267,14 @@ func TestValidateNeverLeaksPHIAcrossResources(t *testing.T) {
 	}
 }
 
-// TestValidateWorkflowResourcesHaveDescriptors confirms the hand-written M2 workflow
-// resources (ServiceRequest, DiagnosticReport, ImagingStudy) carry registered descriptors
-// rather than only a warning: an empty required status/intent is an error, and a valid one
-// is clean. These resources are excluded from the bulk generator, so without a hand-written
-// descriptor they would slip through unvalidated.
+// TestValidateWorkflowResourcesHaveDescriptors confirms the workflow resources
+// (ServiceRequest, DiagnosticReport, ImagingStudy) carry registered descriptors rather
+// than only a warning: an empty resource reports its required code elements, an out-of-set
+// status is a binding value issue, and a fully-populated resource is clean. The generator
+// emits these descriptors from the StructureDefinition, so the required-element set is the
+// faithful FHIR one (for example R5 also requires ServiceRequest.subject).
 func TestValidateWorkflowResourcesHaveDescriptors(t *testing.T) {
-	// An empty ServiceRequest reports both required code elements.
+	// An empty ServiceRequest reports its required code elements.
 	oo := fhir.Validate(&r5.ServiceRequest{})
 	required := map[string]bool{}
 	for _, issue := range oo.Issue {
@@ -297,13 +295,22 @@ func TestValidateWorkflowResourcesHaveDescriptors(t *testing.T) {
 	}
 
 	// An out-of-set ServiceRequest status is a binding value issue.
-	bad := fhir.Validate(&r5.ServiceRequest{Status: "banana", Intent: "order"})
+	badStatus := r5.RequestStatus("banana")
+	badIntent := r5.RequestIntentOrder
+	bad := fhir.Validate(&r5.ServiceRequest{Status: &badStatus, Intent: &badIntent})
 	if !hasIssue(bad, "ServiceRequest.status", fhir.IssueTypeValue) {
 		t.Errorf("expected a binding value issue for an out-of-set ServiceRequest.status, got %+v", bad.Issue)
 	}
 
-	// A well-formed ServiceRequest is clean.
-	good := fhir.Validate(&r5.ServiceRequest{Status: "active", Intent: "order"})
+	// A well-formed ServiceRequest is clean. R5 requires status, intent, and subject,
+	// so a clean instance carries all three.
+	goodStatus := r5.RequestStatusActive
+	goodIntent := r5.RequestIntentOrder
+	good := fhir.Validate(&r5.ServiceRequest{
+		Status:  &goodStatus,
+		Intent:  &goodIntent,
+		Subject: &r5.Reference{Reference: strPtr("Patient/pat-1")},
+	})
 	if good.HasErrors() {
 		t.Errorf("a valid ServiceRequest should have no error issues, got %+v", good.Issue)
 	}

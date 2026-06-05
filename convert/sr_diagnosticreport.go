@@ -51,7 +51,8 @@ func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticRe
 	id := UIDIdentifierR5(sopInstanceUID)
 	dr.Identifier = []r5.Identifier{id}
 
-	dr.Status = srStatus(sr, report)
+	status := srStatus(sr, report)
+	dr.Status = &status
 	dr.Category = []r5.CodeableConcept{imagingCategory()}
 
 	// DiagnosticReport.code is required by the R5 model; the root CONTAINER's
@@ -66,7 +67,9 @@ func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticRe
 	dr.Code = code
 
 	if when := combineDateTime(sr, dicom.TagContentDate, dicom.TagContentTime, report, "DiagnosticReport.effectiveDateTime"); when != "" {
-		dr.EffectiveDateTime = &when
+		// effective[x] is a choice group; the sealed setter picks the dateTime branch
+		// and clears every sibling, so the resource never holds two branches at once.
+		dr.SetEffectiveDateTime(r5.FHIRDateTime(when))
 	}
 
 	if conclusion := narrative(root); conclusion != "" {
@@ -83,18 +86,18 @@ func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticRe
 // FHIR DiagnosticReport.status. COMPLETE+VERIFIED is final; a PARTIAL or
 // UNVERIFIED document is preliminary. An absent CompletionFlag defaults to
 // preliminary and is recorded.
-func srStatus(sr *dicom.DataSet, report *Report) string {
+func srStatus(sr *dicom.DataSet, report *Report) r5.DiagnosticReportStatus {
 	completion, hasCompletion := sr.GetString(dicom.TagCompletionFlag)
 	verification, _ := sr.GetString(dicom.TagVerificationFlag)
 	if !hasCompletion {
 		report.defaulted("DiagnosticReport.status", "preliminary",
 			"SR has no CompletionFlag (0040,A491); defaulted")
-		return "preliminary"
+		return r5.DiagnosticReportStatusPreliminary
 	}
 	if completion == "COMPLETE" && verification == "VERIFIED" {
-		return "final"
+		return r5.DiagnosticReportStatusFinal
 	}
-	return "preliminary"
+	return r5.DiagnosticReportStatusPreliminary
 }
 
 // imagingCategory builds the imaging DiagnosticReport category.

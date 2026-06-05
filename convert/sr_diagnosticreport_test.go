@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/fhir/r5"
 )
 
 // srFixture reads the vendored Basic Text SR document.
@@ -41,8 +42,8 @@ func TestSRToDiagnosticReportR5(t *testing.T) {
 	}
 
 	// CompletionFlag PARTIAL + VerificationFlag UNVERIFIED maps to preliminary.
-	if dr.Status != "preliminary" {
-		t.Errorf("Status = %q, want preliminary", dr.Status)
+	if dr.Status == nil || *dr.Status != r5.DiagnosticReportStatusPreliminary {
+		t.Errorf("Status = %v, want preliminary", dr.Status)
 	}
 
 	// The root CONTAINER concept name becomes the code.
@@ -56,10 +57,11 @@ func TestSRToDiagnosticReportR5(t *testing.T) {
 		t.Errorf("Category = %+v, want an IMG coding", dr.Category)
 	}
 
-	// ContentDate/Time becomes the effective dateTime. The fixture's ContentTime
-	// carries no timezone offset, and FHIR forbids a timezone-less time, so the
-	// effective value is the date and the dropped time is recorded.
-	if dr.EffectiveDateTime == nil || *dr.EffectiveDateTime != "2005-05-30" {
+	// ContentDate/Time becomes the effective dateTime via the effective[x] choice
+	// setter. The fixture's ContentTime carries no timezone offset, and FHIR forbids
+	// a timezone-less time, so the effective value is the date and the dropped time
+	// is recorded.
+	if dr.EffectiveDateTime == nil || string(*dr.EffectiveDateTime) != "2005-05-30" {
 		t.Errorf("EffectiveDateTime = %v, want 2005-05-30 (time dropped for lack of offset)", dr.EffectiveDateTime)
 	}
 

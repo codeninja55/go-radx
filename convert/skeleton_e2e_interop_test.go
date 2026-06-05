@@ -19,6 +19,7 @@ import (
 	dwebOrthanc "github.com/codeninja55/go-radx/dicomweb/integration/orthanc"
 	"github.com/codeninja55/go-radx/dimse"
 	dimseOrthanc "github.com/codeninja55/go-radx/dimse/integration/orthanc"
+	"github.com/codeninja55/go-radx/fhir/r5"
 	"github.com/codeninja55/go-radx/hl7v2"
 )
 
@@ -120,8 +121,8 @@ func TestSkeletonEndToEndInterop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("leg 5a ORMToServiceRequestR5: %v", err)
 	}
-	if sr.Intent != "order" {
-		t.Errorf("leg 5a ServiceRequest intent = %q, want order", sr.Intent)
+	if sr.Intent == nil || *sr.Intent != r5.RequestIntentOrder {
+		t.Errorf("leg 5a ServiceRequest intent = %v, want order", sr.Intent)
 	}
 
 	// Leg 5b: produce a DiagnosticReport from a vendored SR document.
@@ -133,7 +134,7 @@ func TestSkeletonEndToEndInterop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("leg 5b SRToDiagnosticReportR5: %v", err)
 	}
-	if dr.Status == "" {
+	if dr.Status == nil {
 		t.Error("leg 5b DiagnosticReport has no status")
 	}
 

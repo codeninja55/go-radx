@@ -65,8 +65,8 @@ func TestDICOMToImagingStudyR5RecomputesCounts(t *testing.T) {
 	}
 
 	// status is defaulted to available and recorded.
-	if study.Status != "available" {
-		t.Errorf("Status = %q, want available", study.Status)
+	if study.Status == nil || *study.Status != r5.ImagingStudyStatusAvailable {
+		t.Errorf("Status = %v, want available", study.Status)
 	}
 	if !hasDefault(report, "ImagingStudy.status", "available") {
 		t.Errorf("Report.Defaulted does not record the status default: %+v", report.Defaulted)
@@ -126,9 +126,10 @@ func TestDICOMToImagingStudyR5RepairsModalityFromLaterInstance(t *testing.T) {
 	if len(study.Series) != 1 {
 		t.Fatalf("len(Series) = %d, want 1", len(study.Series))
 	}
-	if len(study.Series[0].Modality.Coding) == 0 || study.Series[0].Modality.Coding[0].Code == nil ||
-		*study.Series[0].Modality.Coding[0].Code != "MR" {
-		t.Errorf("series.modality = %+v, want repaired to MR", study.Series[0].Modality)
+	modality := study.Series[0].Modality
+	if modality == nil || len(modality.Coding) == 0 || modality.Coding[0].Code == nil ||
+		*modality.Coding[0].Code != "MR" {
+		t.Errorf("series.modality = %+v, want repaired to MR", modality)
 	}
 }
 

@@ -2,6 +2,7 @@ package convert
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/fhir/r5"
@@ -11,10 +12,12 @@ import (
 // instances (an OID expressed as a URN), per the R5 mapping table.
 const rfc3986System = "urn:ietf:rfc:3986"
 
-// maxUnsignedInt is the largest value FHIR unsignedInt (a 32-bit non-negative
-// integer) can represent. A DICOM IS value above it is not cast (the cast would
-// wrap modulo 2^32 and silently corrupt the number); it is dropped and recorded.
-const maxUnsignedInt = int64(^uint32(0))
+// maxUnsignedInt is the largest value the generated FHIR unsignedInt field (an
+// *int32) can hold. FHIR unsignedInt is a non-negative 32-bit integer; the
+// generated Go type is int32, so the representable maximum is math.MaxInt32. A
+// DICOM IS value above it is not cast (the cast would overflow int32 and silently
+// corrupt the number); it is dropped and recorded.
+const maxUnsignedInt = int64(math.MaxInt32)
 
 // DICOMToImagingStudyR5 builds a FHIR R5 ImagingStudy from one or more DICOM
 // instances of the same study. Pass every available instance dataset; the
@@ -46,7 +49,8 @@ func DICOMToImagingStudyR5(instances []*dicom.DataSet, opts ...Option) (*r5.Imag
 	study.Identifier = []r5.Identifier{UIDIdentifierR5(studyUID)}
 
 	// status has no DICOM source; default it and record the decision.
-	study.Status = "available"
+	status := r5.ImagingStudyStatusAvailable
+	study.Status = &status
 	report.defaulted("ImagingStudy.status", "available", "DICOM has no study status; defaulted per convert.md")
 
 	// Read the study-level attributes from the first instance. These attributes are
@@ -69,11 +73,11 @@ func DICOMToImagingStudyR5(instances []*dicom.DataSet, opts ...Option) (*r5.Imag
 
 	// numberOfSeries/numberOfInstances are recomputed from the distinct UIDs seen,
 	// never copied from a source attribute that may be stale.
-	numSeries := uint32(len(series))
+	numSeries := int32(len(series))
 	study.NumberOfSeries = &numSeries
-	var numInstances uint32
+	var numInstances int32
 	for i := range series {
-		numInstances += uint32(len(series[i].Instance))
+		numInstances += int32(len(series[i].Instance))
 	}
 	study.NumberOfInstances = &numInstances
 
@@ -169,7 +173,8 @@ func groupSeries(instances []*dicom.DataSet, report *Report) ([]r5.ImagingStudyS
 				"no instance of series "+uid+" carries Modality, which series.modality requires; series dropped")
 			continue
 		}
-		acc.series.Modality = modalityConcept(acc.modality)
+		modality := modalityConcept(acc.modality)
+		acc.series.Modality = &modality
 		if _, dup := seenModality[acc.modality]; !dup {
 			seenModality[acc.modality] = struct{}{}
 			modalityOrder = append(modalityOrder, acc.modality)
@@ -184,7 +189,8 @@ func groupSeries(instances []*dicom.DataSet, report *Report) ([]r5.ImagingStudyS
 // groupSeries (which can repair a first-instance gap from a later instance), so
 // it is not set here. Number and optional descriptors are set when present.
 func newSeries(ds *dicom.DataSet, seriesUID string, report *Report) r5.ImagingStudySeries {
-	s := r5.ImagingStudySeries{Uid: seriesUID}
+	uid := seriesUID
+	s := r5.ImagingStudySeries{UID: &uid}
 
 	if n, has := ds.GetInt(dicom.TagSeriesNumber); has {
 		switch {
@@ -195,7 +201,7 @@ func newSeries(ds *dicom.DataSet, seriesUID string, report *Report) r5.ImagingSt
 			report.dropped("DICOM (0020,0011) SeriesNumber",
 				"series number exceeds the FHIR unsignedInt range; not represented")
 		default:
-			num := uint32(n)
+			num := int32(n)
 			s.Number = &num
 		}
 	}
@@ -222,10 +228,11 @@ func newInstance(ds *dicom.DataSet, sopUID string, report *Report) (r5.ImagingSt
 		return r5.ImagingStudySeriesInstance{}, false
 	}
 
-	inst := r5.ImagingStudySeriesInstance{Uid: sopUID}
+	uid := sopUID
+	inst := r5.ImagingStudySeriesInstance{UID: &uid}
 	system := rfc3986System
 	code := "urn:oid:" + class
-	inst.SopClass = r5.Coding{System: &system, Code: &code}
+	inst.SopClass = &r5.Coding{System: &system, Code: &code}
 
 	if n, has := ds.GetInt(dicom.TagInstanceNumber); has {
 		switch {
@@ -236,7 +243,7 @@ func newInstance(ds *dicom.DataSet, sopUID string, report *Report) (r5.ImagingSt
 			report.dropped("DICOM (0020,0013) InstanceNumber",
 				"instance number exceeds the FHIR unsignedInt range; not represented")
 		default:
-			num := uint32(n)
+			num := int32(n)
 			inst.Number = &num
 		}
 	}
