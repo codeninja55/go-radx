@@ -3,7 +3,9 @@
 package r5
 
 import (
+	"encoding/json"
 	"github.com/codeninja55/go-radx/fhir"
+	"strconv"
 )
 
 // The FHIR primitive wrapper types box a primitive value so it can satisfy a choice
@@ -73,10 +75,30 @@ type FHIRInstant string
 // after a Value() type switch.
 type FHIRInteger int32
 
-// FHIRInteger64 boxes a FHIR primitive for a choice branch. It marshals as the bare
-// FHIR value; recover the plain value with a int64(FHIRInteger64) conversion
-// after a Value() type switch.
+// FHIRInteger64 boxes a FHIR integer64 for a choice branch. FHIR R5 represents
+// integer64 as a JSON string so a 64-bit value survives JSON parsers that decode
+// numbers as float64, so the wrapper marshals and parses a quoted decimal integer.
+// Recover the value with an int64(FHIRInteger64) conversion after a Value() type switch.
 type FHIRInteger64 int64
+
+// MarshalJSON emits the integer64 as a quoted JSON string, the FHIR R5 wire form.
+func (n FHIRInteger64) MarshalJSON() ([]byte, error) {
+	return json.Marshal(strconv.FormatInt(int64(n), 10))
+}
+
+// UnmarshalJSON parses the integer64 from its quoted JSON string form.
+func (n *FHIRInteger64) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	parsed, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return err
+	}
+	*n = FHIRInteger64(parsed)
+	return nil
+}
 
 // FHIRMarkdown boxes a FHIR primitive for a choice branch. It marshals as the bare
 // FHIR value; recover the plain value with a string(FHIRMarkdown) conversion

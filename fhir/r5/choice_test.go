@@ -161,6 +161,29 @@ func TestChoiceDecimalBranchLexicalRoundTrip(t *testing.T) {
 	}
 }
 
+// TestChoiceInteger64BranchStringRoundTrip asserts the FHIRInteger64 wrapper marshals
+// as a quoted JSON string (the FHIR R5 integer64 wire form, which preserves 64-bit
+// precision past JSON parsers that decode numbers as float64) and round-trips a value
+// beyond the float64 safe-integer range.
+func TestChoiceInteger64BranchStringRoundTrip(t *testing.T) {
+	t.Parallel()
+	const big = int64(9007199254740993) // 2^53 + 1, not exactly representable as float64
+	data, err := json.Marshal(r5.FHIRInteger64(big))
+	if err != nil {
+		t.Fatalf("marshal FHIRInteger64: %v", err)
+	}
+	if string(data) != `"9007199254740993"` {
+		t.Errorf("marshalled FHIRInteger64 = %s, want a quoted decimal string", string(data))
+	}
+	var rt r5.FHIRInteger64
+	if err := json.Unmarshal(data, &rt); err != nil {
+		t.Fatalf("unmarshal FHIRInteger64: %v", err)
+	}
+	if int64(rt) != big {
+		t.Errorf("round-tripped FHIRInteger64 = %d, want %d", int64(rt), big)
+	}
+}
+
 // TestChoiceInterfaceIsSealed documents the sealed-interface guarantee: the value
 // interface's marker is unexported, so only this package's branch types satisfy it and a
 // built-in scalar cannot. This is a compile-time property; the test pins that the
