@@ -295,6 +295,10 @@ func requiredImports(types []plan.PlannedType) []string {
 			set[jsonImport] = true
 			set[fhirImport] = true
 		}
+		if needsCustomUnmarshal(t) {
+			set[jsonImport] = true
+			set[fhirImport] = true
+		}
 		for _, f := range allFields(t) {
 			if usesFHIR(f.GoType) {
 				set[fhirImport] = true
@@ -321,6 +325,22 @@ func hasPrimitiveSibling(t plan.PlannedType) bool {
 	}
 	for _, bb := range t.Backbones {
 		if bb.HasPrimitiveSibling() {
+			return true
+		}
+	}
+	return false
+}
+
+// needsCustomUnmarshal reports whether a planned type or any of its backbones requires
+// a generated UnmarshalJSON, so the import set includes encoding/json (the residual
+// struct decode) and the root fhir package (the SplitRawObject/TakeRawField helpers and
+// the UnmarshalResource dispatch) the generated method calls.
+func needsCustomUnmarshal(t plan.PlannedType) bool {
+	if t.NeedsCustomUnmarshal() {
+		return true
+	}
+	for _, bb := range t.Backbones {
+		if bb.NeedsCustomUnmarshal() {
 			return true
 		}
 	}

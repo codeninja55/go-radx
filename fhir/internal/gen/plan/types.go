@@ -81,6 +81,27 @@ type Field struct {
 // sibling rather than a value field.
 func (f Field) IsPrimitiveSibling() bool { return f.SiblingOf != "" }
 
+// resourceInterfaceType is the Go type goBaseType assigns to an element typed as the
+// abstract FHIR Resource (Bundle.entry.resource, contained, ...): the root
+// fhir.Resource interface, which the standard JSON codec cannot decode a resource
+// object into. The emitter routes such a field through fhir.UnmarshalResource instead.
+const resourceInterfaceType = "fhir.Resource"
+
+// IsResourceInterface reports whether the field's value is the abstract FHIR Resource
+// (Go type fhir.Resource, single or repeating). The standard codec cannot unmarshal a
+// resource object into the interface, so the emitter lifts the field's raw JSON out and
+// decodes it through fhir.UnmarshalResource (resourceType peek then registry dispatch)
+// rather than letting the default struct decode fail.
+func (f Field) IsResourceInterface() bool {
+	return f.GoType == "*"+resourceInterfaceType || f.GoType == "[]"+resourceInterfaceType
+}
+
+// ResourceIsSlice reports whether a resource-interface field repeats (Go type
+// []fhir.Resource, such as DomainResource.contained) rather than being a single
+// pointer (*fhir.Resource, such as Bundle.entry.resource), so the emitter selects the
+// slice decode helper.
+func (f Field) ResourceIsSlice() bool { return f.GoType == "[]"+resourceInterfaceType }
+
 // ValueField returns the Go field name of the value this sibling describes, set
 // only on a "_field" sibling. The emitter uses it to take len() of the value array
 // when null-aligning a repeating primitive's sibling array.

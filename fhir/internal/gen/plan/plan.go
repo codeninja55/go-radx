@@ -83,6 +83,43 @@ func (t PlannedType) KindNoun() string {
 // extension, and a repeating sibling is null-aligned with its value array.
 func (t PlannedType) HasPrimitiveSibling() bool { return hasPrimitiveSibling(t.Fields) }
 
+// ResourceFields returns the type's own fields typed as the abstract FHIR Resource
+// (fhir.Resource, single or repeating), which the standard JSON codec cannot decode a
+// resource object into. The emitter lifts each out of the raw object and decodes it
+// through fhir.UnmarshalResource. The promoted DomainResource.contained field is not
+// here — it is reached through EmbedsContained, since it lives in the embedded base
+// rather than this type's own field list.
+func (t PlannedType) ResourceFields() []Field { return resourceFields(t.Fields) }
+
+// EmbedsContained reports whether the type embeds DomainResource and so carries the
+// promoted contained []fhir.Resource field. A resource that embeds DomainResource must
+// decode contained through fhir.UnmarshalResourceSlice in its own UnmarshalJSON: the
+// field lives in the value-embedded base, which defines no UnmarshalJSON (a promoted
+// one would shadow the resource's own and drop every non-base field), so the embedding
+// resource is the only place the polymorphic decode can run.
+func (t PlannedType) EmbedsContained() bool { return t.EmbeddedBase == "DomainResource" }
+
+// NeedsCustomUnmarshal reports whether the type requires a generated UnmarshalJSON: it
+// owns a primitive "_field" sibling, owns a resource-interface field, or embeds
+// DomainResource (and so carries the promoted contained resource slice). A base type
+// never qualifies — it must define no UnmarshalJSON, because a value-embedded base's
+// promoted UnmarshalJSON would shadow the embedding resource's own and drop its fields.
+func (t PlannedType) NeedsCustomUnmarshal() bool {
+	if t.IsBaseType {
+		return false
+	}
+	return t.HasPrimitiveSibling() || t.HasResourceDecode()
+}
+
+// HasResourceDecode reports whether the type's UnmarshalJSON must route a field through
+// the fhir.UnmarshalResource dispatch: it owns a resource-interface field, or embeds
+// DomainResource (and so carries the promoted contained resource slice). The emitter
+// uses it to select the fuller godoc summary only where resource decode actually
+// happens, so a primitive-sibling-only type keeps its concise summary.
+func (t PlannedType) HasResourceDecode() bool {
+	return len(t.ResourceFields()) > 0 || t.EmbedsContained()
+}
+
 // ScalarPrimitives returns the type's scalar primitive sibling fields, which the
 // generated MarshalJSON folds in only when non-empty and the generated
 // UnmarshalJSON lifts out before decoding the value struct.
@@ -123,6 +160,29 @@ func (b PlannedBackbone) ScalarPrimitives() []Field { return primitiveSiblings(b
 // RepeatingPrimitives returns the backbone's repeating primitive sibling fields.
 func (b PlannedBackbone) RepeatingPrimitives() []Field { return primitiveSiblings(b.Fields, true) }
 
+// ResourceFields returns the backbone's fields typed as the abstract FHIR Resource
+// (fhir.Resource), which the emitter decodes through fhir.UnmarshalResource. A backbone
+// embeds only Element or BackboneElement, never DomainResource, so it carries no
+// promoted contained field.
+func (b PlannedBackbone) ResourceFields() []Field { return resourceFields(b.Fields) }
+
+// EmbedsContained always reports false for a backbone, which embeds Element or
+// BackboneElement and so never carries the promoted DomainResource.contained field. It
+// exists so the shared UnmarshalJSON template can branch on it uniformly for both a
+// PlannedType and a PlannedBackbone.
+func (b PlannedBackbone) EmbedsContained() bool { return false }
+
+// NeedsCustomUnmarshal reports whether the backbone requires a generated UnmarshalJSON:
+// it owns a primitive "_field" sibling or a resource-interface field.
+func (b PlannedBackbone) NeedsCustomUnmarshal() bool {
+	return b.HasPrimitiveSibling() || b.HasResourceDecode()
+}
+
+// HasResourceDecode reports whether the backbone's UnmarshalJSON must route a field
+// through fhir.UnmarshalResource — that is, it owns a resource-interface field. A
+// backbone never embeds DomainResource, so contained is never promoted here.
+func (b PlannedBackbone) HasResourceDecode() bool { return len(b.ResourceFields()) > 0 }
+
 // hasPrimitiveSibling reports whether a field set contains any "_field" sibling.
 func hasPrimitiveSibling(fields []Field) bool {
 	for _, f := range fields {
@@ -131,6 +191,19 @@ func hasPrimitiveSibling(fields []Field) bool {
 		}
 	}
 	return false
+}
+
+// resourceFields returns the value fields in a field set typed as the abstract FHIR
+// Resource interface, in declaration order, so the emitter renders the lift-and-decode
+// calls deterministically. A primitive sibling is never a resource field.
+func resourceFields(fields []Field) []Field {
+	var out []Field
+	for _, f := range fields {
+		if !f.IsPrimitiveSibling() && f.IsResourceInterface() {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // primitiveSiblings returns the "_field" sibling fields in a field set whose

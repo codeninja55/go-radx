@@ -138,6 +138,48 @@ func TestUnmarshalResourceDispatch(t *testing.T) {
 	}
 }
 
+// TestUnmarshalResourceSliceDispatch covers the repeating-resource decode path that
+// backs DomainResource.contained: each array element dispatches through its factory to
+// the concrete type, a JSON null yields a nil slice, and an element whose resourceType
+// is unregistered fails the whole decode (never a partial slice) with a clear,
+// errors.Is-matchable ErrUnknownResourceType.
+func TestUnmarshalResourceSliceDispatch(t *testing.T) {
+	withTestFactory(t, "Patient", func() Resource { return &fakePatient{} })
+
+	got, err := UnmarshalResourceSlice([]byte(`[{"resourceType":"Patient","id":"a"},{"resourceType":"Patient","id":"b"}]`))
+	if err != nil {
+		t.Fatalf("UnmarshalResourceSlice: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("decoded %d resources, want 2", len(got))
+	}
+	for i, want := range []string{"a", "b"} {
+		p, ok := got[i].(*fakePatient)
+		if !ok {
+			t.Fatalf("element %d is %T, want *fakePatient", i, got[i])
+		}
+		if p.ID != want {
+			t.Errorf("element %d id = %q, want %q", i, p.ID, want)
+		}
+	}
+
+	nilSlice, err := UnmarshalResourceSlice([]byte(`null`))
+	if err != nil {
+		t.Fatalf("UnmarshalResourceSlice(null): %v", err)
+	}
+	if nilSlice != nil {
+		t.Errorf("UnmarshalResourceSlice(null) = %v, want nil", nilSlice)
+	}
+
+	partial, err := UnmarshalResourceSlice([]byte(`[{"resourceType":"Patient"},{"resourceType":"Nonexistent"}]`))
+	if !errors.Is(err, ErrUnknownResourceType) {
+		t.Errorf("UnmarshalResourceSlice with an unknown element: err = %v, want ErrUnknownResourceType", err)
+	}
+	if partial != nil {
+		t.Errorf("a failed slice decode returned %v, want nil (no partial slice)", partial)
+	}
+}
+
 // TestRegisterFactoryRejectsDuplicate asserts the registry fails loudly on a
 // duplicate registration, the build-time defect a release generator would commit if
 // it emitted two factories for one resourceType.
