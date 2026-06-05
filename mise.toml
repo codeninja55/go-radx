@@ -134,13 +134,17 @@ run_one ./dicom '^FuzzReadPixelDataFrom$'
 run_one ./dimse/pdu '^FuzzReadPDU$'
 run_one ./dimse/pdu '^FuzzDecodeAssociateAC$'
 run_one ./dimse/pdu '^FuzzDecodePDV$'
+run_one ./fhir/r5 '^FuzzUnmarshalResource$'
+run_one ./fhir/r5 '^FuzzValidate$'
+run_one ./fhir/r5 '^FuzzValidateTypedResource$'
 """
 
 [tasks."bench"]
-description = "Run the dicom benchmarks once (-benchtime=1x) so the benchmark code and baselines cannot rot"
+description = "Run the dicom + fhir benchmarks once (-benchtime=1x) so the benchmark code and baselines cannot rot"
 # -run='^$' selects no unit tests so only benchmarks run; the pure-Go default build excludes the
-# cgo-tagged codec benchmarks (covered by the codecs job). Scoped to the root module.
-run = "GOWORK=off go test -bench=. -benchtime=1x -run='^$' ./dicom/..."
+# cgo-tagged codec benchmarks (covered by the codecs job). Scoped to the root module. The dicom and
+# fhir benchmarks defend the committed baselines under docs/conformance/benchmarks/.
+run = "GOWORK=off go test -bench=. -benchtime=1x -run='^$' ./dicom/... ./fhir/..."
 
 [tasks."docs:build"]
 # Requires mkdocs + mkdocs-material on PATH (pip install mkdocs mkdocs-material). The CI job that
