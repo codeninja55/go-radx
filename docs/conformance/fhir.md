@@ -208,6 +208,37 @@ primitive-mapping (FHIR `string` → Go `string`) applies only to plain fields, 
 branches. Recovering the plain value from a wrapper is one explicit conversion, for example
 `string(val)` after a type switch lands on `r5.FHIRString`.
 
+The generator stores a choice group as one suffixed pointer field per branch — `ValueQuantity
+*Quantity`, `ValueString *FHIRString`, `ValueBoolean *FHIRBoolean`, ... — each tagged
+`,omitempty`. There is no bare untyped choice field, so a two-branches-set state is
+unrepresentable except through the setters, and each `SetXxx` first nils every sibling field
+before storing the new branch. Because at most one storage field is ever non-nil and every field
+is `omitempty`, marshalling authors exactly one suffixed key. The `Value()` getter switches over
+the non-nil storage field and returns the dereferenced branch value through the interface; an
+empty group returns `(nil, false)`. When two FHIR element names collide and the choice stem is
+disambiguated (for example to `Value2`), the getter, setters, and storage fields all follow that
+stem (`Value2()`, `SetValue2String`, `Value2String`) so the group stays internally consistent and
+byte-stable.
+
+The sealed interface is closed by an unexported marker method (`isObservationValue()`), emitted
+on each branch type in the owning resource's file. A method on a same-package type — the generated
+datatype struct (`Quantity`) or the release primitive wrapper (`FHIRString`) — declared in another
+file is legal Go, so the markers live beside the choice they seal without a central registry. A
+type outside the package, and any built-in scalar, can never gain the unexported method, so the
+branch set is closed at compile time.
+
+The release primitive wrappers are generated once per release into `fhir/r5/primitives.go`, one
+distinct named type per FHIR primitive code: `FHIRBoolean`, `FHIRInteger`, `FHIRPositiveInt`,
+`FHIRUnsignedInt`, `FHIRInteger64`, `FHIRDecimal`, `FHIRString`, `FHIRCode`, `FHIRID`,
+`FHIRMarkdown`, `FHIRURI`, `FHIRURL`, `FHIRCanonical`, `FHIROID`, `FHIRUUID`, `FHIRBase64Binary`,
+`FHIRInstant`, `FHIRDateTime`, `FHIRDate`, `FHIRTime`, and `FHIRXHTML`. Two codes that share a Go
+scalar (`string`, `code`, `uri`) still get distinct wrappers, because the choice suffix and storage
+field differ and a `Value()` type switch must recover which branch was set. Each scalar-backed
+wrapper marshals natively as the bare FHIR value (a JSON string, number, or boolean — never a
+wrapping object). `FHIRDecimal` is a defined type over `fhir.Decimal`; its `MarshalJSON` and
+`UnmarshalJSON` delegate to `fhir.Decimal` so the lexical form (trailing zeros, precision) survives
+the round trip (Codex FHIR-009).
+
 ### Required-binding enums
 
 Only **required**-strength value-set bindings become closed Go enums (PRD §6.3; glossary "Value Set Binding"). Each one
@@ -515,7 +546,7 @@ if err != nil {
 }
 unit := "mmol/L"
 obs := &r5.Observation{ /* status, code, subject ... */ }
-obs.SetValueQuantity(r5.Quantity{Value: value, Unit: &unit})
+obs.SetValueQuantity(r5.Quantity{Value: &value, Unit: &unit})
 
 // Setting another branch replaces the first; only one value[x] is ever authored. A string-valued
 // branch is boxed in the release primitive wrapper, never the built-in string.
