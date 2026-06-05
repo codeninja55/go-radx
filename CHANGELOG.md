@@ -203,6 +203,28 @@ legacy codebase (`legacy-main`) and are not continued here.
   binding becomes a slice of the enum, a single one a pointer, keeping the presence and `_field`-sibling rules intact),
   pinned by an emitter golden (`bindings.go.golden`), planner binding unit tests, the byte-for-byte regeneration gate
   (now covering `bindings.go`), and root-package and `fhir/r5/enum_test.go` decode/parse regressions.
+- Bundle typed builders and reference integrity (FHIR-010, FHIR-011, FHIR-015). Hand-written per-release builders
+  (`r5.NewSearchSet`, `r5.NewTransaction`, `r5.NewBatch`, `r5.NewDocument`, `r5.NewMessage`, `r5.NewCollection`) make the
+  FHIR `bdl-*` invariants unrepresentable-when-wrong: each produces a Bundle of exactly one type and validates its
+  invariants up front, rejecting a violating bundle with `r5.ErrInvalidBundle` (matchable with `errors.Is`) naming the
+  offending entry index. `total` is set only by `NewSearchSet`; search metadata lives on `SearchEntry` so it cannot reach
+  another type; `entry.request` is mandatory in every transaction/batch entry and `entry.response` is unrepresentable in a
+  builder-produced transaction; a document's first entry must be a `Composition` and a message's a `MessageHeader`; and
+  `fullUrl` values are unique across the bundle (the FHIR-010 fix for a prototype that set `total` for every type and
+  enforced nothing). A nil or typed-nil first resource is rejected, never dereferenced. Bundles are
+  build-once-then-immutable with no shared mutable builder state and no mutex, replacing the prototype's mutex-papered
+  mutable helper (FHIR-015). The root `fhir` package gains the release-agnostic `IssueSeverity` type and its
+  `Severity*` constants plus an `IsError` predicate. Reference resolution and integrity are hand-written per-release
+  helpers on the generated types: `Bundle.Resolve` resolves an intra-bundle `fullUrl` or a `#id` contained fragment;
+  `DomainResource.ResolveContained` returns an aggregate error naming the offending index when a contained slot is
+  malformed rather than a silent miss (the FHIR-011 fix); and `Bundle.CheckReferenceIntegrity` walks every `Reference`
+  in the bundle and its contained resources, aggregating each dangling local reference and each malformed contained
+  resource into one `*r5.OperationOutcome` while leaving external absolute URLs alone. `OperationOutcome.HasErrors` and
+  `OperationOutcome.Error` are nil-safe and report nothing for an all-information outcome. These builders and helpers are
+  the one deliberate hand-written-per-release exception to "all generated"; they live outside the generated file set, so
+  the byte-for-byte regeneration gate still reproduces the generated tree. Covered by `fhir/r5/bundle_builders_test.go`
+  and `fhir/r5/reference_test.go` (one test per `bdl-*` rule, the FHIR-010/011 regressions, and the dangling/malformed
+  aggregation), with the conformance statement's Bundle-semantics section filled in `docs/conformance/fhir.md`.
 
 ### Documentation
 

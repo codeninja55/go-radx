@@ -418,30 +418,77 @@ same signatures in its own package.
 ```go
 package r5
 
-// BundleType is the required binding for Bundle.type; the permitted set differs by release.
+// BundleType is the required binding for Bundle.type; the generated constants are the
+// full code set (BundleTypeDocument, BundleTypeMessage, BundleTypeTransaction,
+// BundleTypeBatch, BundleTypeSearchset, BundleTypeCollection, BundleTypeHistory,
+// BundleTypeTransactionResponse, BundleTypeBatchResponse, and the R5-only
+// BundleTypeSubscriptionNotification).
 type BundleType string
 
-const (
-    BundleDocument    BundleType = "document"
-    BundleMessage     BundleType = "message"
-    BundleTransaction BundleType = "transaction"
-    BundleBatch       BundleType = "batch"
-    BundleSearchSet   BundleType = "searchset"
-    BundleCollection  BundleType = "collection"
-    // history, transaction-response, batch-response also defined per release
-)
+// ErrInvalidBundle is the sentinel every builder rejection wraps; a caller matches it
+// with errors.Is. The wrapped message names the offending entry index and the rule,
+// never patient data.
 
-// NewSearchSet builds a searchset Bundle; total is the only bundle type for which total is set.
-func NewSearchSet(total int, entries ...SearchEntry) *Bundle
+// NewSearchSet builds a searchset Bundle. total is set because searchset is one of only
+// two types (with history) for which total is meaningful; a negative total is rejected.
+// Each SearchEntry may carry search metadata, which is valid only in a searchset.
+func NewSearchSet(total int32, entries ...SearchEntry) (*Bundle, error)
 
-// NewTransaction builds a transaction Bundle; each entry carries a request (method + url).
+// NewTransaction builds a transaction Bundle; every entry must carry an HTTP verb and a
+// non-empty URL. NewBatch enforces the same per-entry request invariant.
 func NewTransaction(entries ...TransactionEntry) (*Bundle, error)
+func NewBatch(entries ...TransactionEntry) (*Bundle, error)
 
 // NewDocument builds a document Bundle whose first entry must be a Composition.
 func NewDocument(composition fhir.Resource, entries ...DocumentEntry) (*Bundle, error)
 
 // NewMessage builds a message Bundle whose first entry must be a MessageHeader.
 func NewMessage(header fhir.Resource, entries ...MessageEntry) (*Bundle, error)
+
+// NewCollection builds a collection Bundle: an unconstrained resource set with no total,
+// request, response, or search metadata.
+func NewCollection(entries ...CollectionEntry) (*Bundle, error)
+```
+
+Every builder enforces its per-type `bdl-*` invariants up front and returns an error rather than
+emitting an invalid bundle (Codex FHIR-010): `total` is set only by `NewSearchSet`; `entry.search`
+metadata lives on `SearchEntry` so it cannot reach another type; `entry.request` is mandatory in a
+transaction or batch entry and `entry.response` is unrepresentable in a transaction built through the
+builder; a document's first entry must be a `Composition` and a message's a `MessageHeader`; and
+`fullUrl` values are unique across the bundle. A nil or typed-nil first resource is rejected, never
+dereferenced.
+
+A bundle is **build-once-then-immutable** (Codex FHIR-015): a builder constructs, validates, and
+returns a fresh bundle with no shared mutable builder state and no mutex. The returned bundle is plain
+data safe to read concurrently; a single owner holds it until it is published. Mutating a bundle after
+a builder returns it bypasses the invariant checks, so a caller that must change one builds a new
+bundle rather than editing fields in place. The prototype's mutex-guarded mutable helper papered over a
+concurrency bug instead of fixing it; the single-builder rule replaces it.
+
+Reference resolution and integrity are hand-written per-release helpers on the generated types,
+returning a release `*OperationOutcome` for an integrity walk and a Go error for a malformed contained
+resource:
+
+```go
+package r5
+
+// Resolve looks up the resource a reference points at within the Bundle: an entry whose
+// fullUrl equals ref, or a "#id" fragment against the entries' contained resources. An
+// external absolute URL that matches no entry fullUrl returns ok=false (Resolve never
+// dereferences the network).
+func (b *Bundle) Resolve(ref string) (fhir.Resource, bool)
+
+// ResolveContained returns the contained resource whose id matches id. It returns an
+// aggregate error naming the offending index when a contained slot is malformed (a nil
+// or id-less contained resource), never a silent miss (Codex FHIR-011). It is named
+// ResolveContained because DomainResource already carries the Contained field.
+func (d *DomainResource) ResolveContained(id string) (fhir.Resource, error)
+
+// CheckReferenceIntegrity walks every Reference in the Bundle (and contained resources)
+// and reports each dangling local reference and each malformed contained resource as an
+// issue, aggregating them into one OperationOutcome (Codex FHIR-011). An external
+// absolute URL is not flagged.
+func (b *Bundle) CheckReferenceIntegrity() *OperationOutcome
 ```
 
 `_summary` serialization is release-agnostic machinery that operates over the `Resource` interface,
