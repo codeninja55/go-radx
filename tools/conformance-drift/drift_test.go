@@ -76,11 +76,22 @@ func TestCheckDetectsDrift(t *testing.T) {
 			wantSubj:  "StorageContexts",
 		},
 		{
-			name:      "missing preset in code",
-			mutate:    func(t *testing.T, root string) {},
-			counts:    withoutPreset(codePresetCounts, "StorageContexts"),
+			name: "documented preset not defined in code",
+			mutate: func(t *testing.T, root string) {
+				removeCodePreset(t, root, "StorageContexts")
+			},
+			counts:    codePresetCounts,
 			wantClass: "preset-missing",
 			wantSubj:  "StorageContexts",
+		},
+		{
+			name: "code preset absent from the table is surfaced",
+			mutate: func(t *testing.T, root string) {
+				addCodePreset(t, root, "ColorPaletteContexts")
+			},
+			counts:    codePresetCounts,
+			wantClass: "preset-unexpected",
+			wantSubj:  "ColorPaletteContexts",
 		},
 		{
 			name: "shipped preset claimed as not-yet-shipped surfaces an unexpected preset",
@@ -89,6 +100,13 @@ func TestCheckDetectsDrift(t *testing.T) {
 			},
 			counts:    codePresetCounts,
 			wantClass: "preset-unexpected",
+			wantSubj:  "StorageContexts",
+		},
+		{
+			name:      "documented preset has no live count wired in",
+			mutate:    func(t *testing.T, root string) {},
+			counts:    withoutPreset(codePresetCounts, "StorageContexts"),
+			wantClass: "preset-count",
 			wantSubj:  "StorageContexts",
 		},
 		{
@@ -140,8 +158,8 @@ func TestCheckCleanOnFixture(t *testing.T) {
 }
 
 // copyTreeForCheck builds a temp tree carrying just the inputs Check reads — the conformance
-// statements and one stability-marker source file per package — so a self-test can mutate it
-// without touching the real repository.
+// statements, the dimse preset source the existence check parses, and one stability-marker
+// source file per package — so a self-test can mutate it without touching the real repository.
 func copyTreeForCheck(t *testing.T) string {
 	t.Helper()
 	src := repoRoot(t)
@@ -160,7 +178,39 @@ func copyTreeForCheck(t *testing.T) string {
 		mkdirAll(t, dstPkg)
 		copyFile(t, markerFile, filepath.Join(dstPkg, filepath.Base(markerFile)))
 	}
+
+	// DiscoverCodePresets parses the dimse package source, so the fixture carries the real
+	// presets file (alongside the dimse stability marker copied above) for the existence checks.
+	copyFile(t, filepath.Join(src, "dimse", "presets.go"), filepath.Join(dst, "dimse", "presets.go"))
 	return dst
+}
+
+// removeCodePreset deletes the exported func <preset>() declaration from the fixture's dimse
+// presets source, simulating a preset documented in the table but removed from the code.
+func removeCodePreset(t *testing.T, root, preset string) {
+	t.Helper()
+	path := filepath.Join(root, "dimse", "presets.go")
+	data := readFile(t, path)
+	marker := "func " + preset + "()"
+	start := strings.Index(data, marker)
+	if start < 0 {
+		t.Fatalf("preset function %q not found in fixture presets.go", preset)
+	}
+	end := strings.Index(data[start:], "\n}\n")
+	if end < 0 {
+		t.Fatalf("could not find end of %q in fixture presets.go", preset)
+	}
+	writeFile(t, path, data[:start]+data[start+end+len("\n}\n"):])
+}
+
+// addCodePreset appends an exported, table-absent preset function to the fixture's dimse presets
+// source, simulating a preset that exists in code but is missing from the dicom.md table.
+func addCodePreset(t *testing.T, root, preset string) {
+	t.Helper()
+	path := filepath.Join(root, "dimse", "presets.go")
+	data := readFile(t, path)
+	stub := "\n\nfunc " + preset + "() []PresentationContext {\n\treturn nil\n}\n"
+	writeFile(t, path, data+stub)
 }
 
 // stabilityMarkerFile returns the .go file in dir that carries the package stability marker, so

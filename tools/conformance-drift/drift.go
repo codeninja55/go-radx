@@ -12,6 +12,9 @@ package conformancedrift
 import (
 	"bufio"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -110,10 +113,22 @@ func Check(root string, codeCounts map[string]PresetCounter) ([]Finding, error) 
 	return findings, nil
 }
 
-// checkPresetCounts compares the preset-count table in dicom.md against codeCounts: every
-// shipped preset the table names must exist in code with the documented count, every preset
-// marked NOT YET SHIPPED must be absent from code, and codeCounts may not name a preset the
-// table omits (so a code-only preset is also surfaced).
+// checkPresetCounts reconciles the preset-count table in dicom.md with the presets the code
+// actually exposes. Preset *existence* is decided structurally by discovering the exported
+// preset functions in the dimse source (DiscoverCodePresets), so a preset added to the code is
+// surfaced even if nobody updates the count registry. The *counts* are then compared against
+// codeCounts, the live len() of each shipped preset. The reconciliation:
+//
+//   - a shipped (not-deferred) preset named in the table that the code does not define is a
+//     preset-missing finding;
+//   - a preset the table marks NOT YET SHIPPED that the code does define is a preset-unexpected
+//     finding (a deferred surface was shipped without updating the statement);
+//   - a preset the code defines that the table does not name is a preset-unexpected finding (a
+//     code-only preset that escaped the statement);
+//   - a shipped, defined, documented preset whose live count differs from the documented count
+//     is a preset-count finding. If such a preset has no live counter wired into codeCounts the
+//     count cannot be checked, which is itself reported so the registry cannot quietly fall
+//     behind the code.
 func checkPresetCounts(root string, codeCounts map[string]PresetCounter) ([]Finding, error) {
 	claims, err := ParsePresetClaims(filepath.Join(root, "docs", "conformance", "dicom.md"))
 	if err != nil {
@@ -123,14 +138,19 @@ func checkPresetCounts(root string, codeCounts map[string]PresetCounter) ([]Find
 		return nil, fmt.Errorf("no preset claims parsed from dicom.md: the preset-count table is missing or its format changed")
 	}
 
+	codePresets, err := DiscoverCodePresets(filepath.Join(root, "dimse"))
+	if err != nil {
+		return nil, err
+	}
+
 	var findings []Finding
 	documented := make(map[string]bool, len(claims))
 	for _, claim := range claims {
 		documented[claim.Name] = true
-		counter, inCode := codeCounts[claim.Name]
+		inCode := codePresets[claim.Name]
 
 		if claim.NotYetShipped {
-			if inCode && counter != nil {
+			if inCode {
 				findings = append(findings, Finding{
 					Class:   "preset-unexpected",
 					Subject: claim.Name,
@@ -140,11 +160,21 @@ func checkPresetCounts(root string, codeCounts map[string]PresetCounter) ([]Find
 			continue
 		}
 
-		if !inCode || counter == nil {
+		if !inCode {
 			findings = append(findings, Finding{
 				Class:   "preset-missing",
 				Subject: claim.Name,
-				Detail:  fmt.Sprintf("named in the dicom.md preset table (%d contexts) but not found in code", claim.Count),
+				Detail:  fmt.Sprintf("named in the dicom.md preset table (%d contexts) but not defined in the dimse package", claim.Count),
+			})
+			continue
+		}
+
+		counter := codeCounts[claim.Name]
+		if counter == nil {
+			findings = append(findings, Finding{
+				Class:   "preset-count",
+				Subject: claim.Name,
+				Detail:  fmt.Sprintf("dicom.md claims %d contexts but no live count is wired into the check for this preset", claim.Count),
 			})
 			continue
 		}
@@ -158,20 +188,71 @@ func checkPresetCounts(root string, codeCounts map[string]PresetCounter) ([]Find
 		}
 	}
 
-	for name, counter := range codeCounts {
-		if counter == nil {
-			continue
-		}
+	for name := range codePresets {
 		if !documented[name] {
 			findings = append(findings, Finding{
 				Class:   "preset-unexpected",
 				Subject: name,
-				Detail:  "implemented in code but absent from the dicom.md preset table",
+				Detail:  "defined in the dimse package but absent from the dicom.md preset table",
 			})
 		}
 	}
 
 	return findings, nil
+}
+
+// presetReturnType is the slice element type a presentation-context preset returns; an exported
+// dimse function with this result and no parameters is treated as a preset for discovery.
+const presetReturnType = "PresentationContext"
+
+// DiscoverCodePresets parses the Go source in dimseDir and returns the set of exported,
+// parameterless functions that return []PresentationContext — the code-side preset surface. It
+// reads the source rather than a hand-maintained list so the existence checks reflect the code
+// itself. Test files are skipped.
+func DiscoverCodePresets(dimseDir string) (map[string]bool, error) {
+	entries, err := os.ReadDir(dimseDir)
+	if err != nil {
+		return nil, err
+	}
+
+	fset := token.NewFileSet()
+	presets := make(map[string]bool)
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, filepath.Join(dimseDir, e.Name()), nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Recv != nil || !fn.Name.IsExported() {
+				continue
+			}
+			if isPresetSignature(fn.Type) {
+				presets[fn.Name.Name] = true
+			}
+		}
+	}
+	return presets, nil
+}
+
+// isPresetSignature reports whether fn takes no parameters and returns a single
+// []PresentationContext result, the shape every preset helper shares.
+func isPresetSignature(fn *ast.FuncType) bool {
+	if fn.Params != nil && len(fn.Params.List) != 0 {
+		return false
+	}
+	if fn.Results == nil || len(fn.Results.List) != 1 {
+		return false
+	}
+	slice, ok := fn.Results.List[0].Type.(*ast.ArrayType)
+	if !ok || slice.Len != nil {
+		return false
+	}
+	ident, ok := slice.Elt.(*ast.Ident)
+	return ok && ident.Name == presetReturnType
 }
 
 // ParsePresetClaims reads the preset-count table out of the conformance statement at path. It
