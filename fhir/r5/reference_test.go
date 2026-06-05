@@ -187,6 +187,21 @@ func TestCheckReferenceIntegrityIgnoresExternalURL(t *testing.T) {
 	}
 }
 
+func TestCheckReferenceIntegrityFlagsMalformedAuthorityURL(t *testing.T) {
+	// A scheme with an empty authority is not a resolvable external URL; it must be
+	// reported as dangling rather than skipped.
+	obs := &r5.Observation{Subject: &r5.Reference{Reference: strptr("https:///Patient/x")}}
+	bundle, err := r5.NewCollection(
+		r5.CollectionEntry{FullURL: "urn:uuid:obs-1", Resource: obs},
+	)
+	if err != nil {
+		t.Fatalf("NewCollection: %v", err)
+	}
+	if !bundle.CheckReferenceIntegrity().HasErrors() {
+		t.Errorf("a scheme with an empty authority should be flagged, not skipped as external")
+	}
+}
+
 func TestCheckReferenceIntegrityReportsDanglingRelative(t *testing.T) {
 	obs := &r5.Observation{Subject: &r5.Reference{Reference: strptr("Patient/not-in-bundle")}}
 	bundle, err := r5.NewCollection(

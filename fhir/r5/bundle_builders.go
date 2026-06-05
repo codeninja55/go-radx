@@ -145,6 +145,16 @@ func newRequestBundle(bundleType BundleType, entries ...TransactionEntry) (*Bund
 		if entry.URL == "" {
 			return nil, fmt.Errorf("%w: entry %d is missing the required request.url", ErrInvalidBundle, i)
 		}
+		// bdl-3c/bdl-3d: a verb that writes a resource (POST/PUT/PATCH) must carry one,
+		// and a verb that does not (GET/HEAD/DELETE) must not. The resource presence is
+		// keyed off the verb so a malformed pairing is rejected up front naming the index.
+		_, hasResource := fhir.As[fhir.Resource](entry.Resource)
+		if methodWritesResource(entry.Method) && !hasResource {
+			return nil, fmt.Errorf("%w: entry %d %s request requires a resource", ErrInvalidBundle, i, entry.Method)
+		}
+		if !methodWritesResource(entry.Method) && hasResource {
+			return nil, fmt.Errorf("%w: entry %d %s request must not carry a resource", ErrInvalidBundle, i, entry.Method)
+		}
 		method := entry.Method
 		request := &BundleEntryRequest{Method: &method, URL: &entry.URL}
 		if entry.IfNoneExist != "" {
@@ -238,6 +248,18 @@ func NewCollection(entries ...CollectionEntry) (*Bundle, error) {
 	}
 	bundleType := BundleTypeCollection
 	return &Bundle{Type: &bundleType, Entry: bundleEntries}, nil
+}
+
+// methodWritesResource reports whether a request verb carries a request body resource.
+// POST, PUT, and PATCH submit a resource; GET, HEAD, and DELETE do not. The split is the
+// basis for the bdl-3c/bdl-3d resource-presence check on a transaction/batch entry.
+func methodWritesResource(method HTTPVerb) bool {
+	switch method {
+	case HTTPVerbPOST, HTTPVerbPUT, HTTPVerbPATCH:
+		return true
+	default:
+		return false
+	}
 }
 
 // requireResourceType checks that r is non-nil and reports the expected resourceType,

@@ -524,17 +524,27 @@ Subscriptions are deferred (PRD §3.2).
 |---------------|----------|----------|------------------------|
 | `document` | yes | yes | first-entry `Composition`, fullUrl uniqueness |
 | `message` | yes | yes | first-entry `MessageHeader`, fullUrl uniqueness |
-| `transaction` | yes | yes | per-entry `request` required, method/url checks |
+| `transaction` | yes | yes | per-entry `request` required; verb/resource equivalence; method/url checks |
 | `transaction-response` | yes | yes | per-entry `response` required |
-| `batch` | yes | yes | per-entry `request` required |
+| `batch` | yes | yes | per-entry `request` required; verb/resource equivalence |
 | `batch-response` | yes | yes | per-entry `response` required |
-| `searchset` | yes | yes | `total` and `entry.search` permitted |
-| `collection` | yes | yes | no request/response/search; fullUrl uniqueness |
+| `searchset` | yes | yes | `total` and `entry.search` permitted; content entry requires a resource |
+| `collection` | yes | yes | no request/response/search; fullUrl uniqueness; content entry requires a resource |
 | `history` | yes | yes | `total` permitted |
 | `subscription-notification` | no | yes (generated) | not enforced (Subscriptions deferred) |
 
-R4 4.0.1 does not define `subscription-notification`; R5 5.0.0 adds it. This is the one `Bundle.type` difference between
+The verb/resource equivalence (bdl-3c/bdl-3d) the builders enforce is: a `POST`, `PUT`, or `PATCH`
+transaction/batch entry must carry a resource, and a `GET`, `HEAD`, or `DELETE` entry must not. R4 4.0.1
+does not define `subscription-notification`; R5 5.0.0 adds it, the one `Bundle.type` difference between
 the two release packages.
+
+Three `bdl-*` rules are deferred to the cardinality/required `Validate` increment rather than enforced
+in the builder: a document Bundle's required `identifier` and `timestamp` (bdl-9, bdl-10), the
+`searchset` `self` link (bdl-18), and the `meta.versionId` exception to fullUrl uniqueness (bdl-7's
+clause that two entries may share a fullUrl when they carry different versions, and bdl-8's
+`/_history/` form). The builders enforce the conservative, workflow-relevant subset — flat fullUrl
+uniqueness, first-entry type, request/response presence, and verb/resource equivalence — and `Validate`
+will report the remaining structural rules over a decoded bundle.
 
 ## Serialization
 

@@ -136,10 +136,38 @@ func TestTransactionRejectsResponseEntry(t *testing.T) {
 
 func TestNewBatchRequiresRequest(t *testing.T) {
 	_, err := r5.NewBatch(
-		r5.TransactionEntry{Resource: &r5.Patient{}, Method: r5.HTTPVerbGET, URL: ""},
+		r5.TransactionEntry{Method: r5.HTTPVerbGET, URL: ""},
 	)
 	if !errors.Is(err, r5.ErrInvalidBundle) {
 		t.Fatalf("err = %v, want ErrInvalidBundle", err)
+	}
+}
+
+func TestTransactionRejectsWriteVerbWithoutResource(t *testing.T) {
+	for _, verb := range []r5.HTTPVerb{r5.HTTPVerbPOST, r5.HTTPVerbPUT, r5.HTTPVerbPATCH} {
+		_, err := r5.NewTransaction(r5.TransactionEntry{Method: verb, URL: "Patient"})
+		if !errors.Is(err, r5.ErrInvalidBundle) {
+			t.Errorf("%s without a resource err = %v, want ErrInvalidBundle", verb, err)
+		}
+	}
+}
+
+func TestTransactionRejectsReadVerbWithResource(t *testing.T) {
+	for _, verb := range []r5.HTTPVerb{r5.HTTPVerbGET, r5.HTTPVerbHEAD, r5.HTTPVerbDELETE} {
+		_, err := r5.NewTransaction(r5.TransactionEntry{Resource: &r5.Patient{}, Method: verb, URL: "Patient/p1"})
+		if !errors.Is(err, r5.ErrInvalidBundle) {
+			t.Errorf("%s with a resource err = %v, want ErrInvalidBundle", verb, err)
+		}
+	}
+}
+
+func TestTransactionAcceptsDeleteWithoutResource(t *testing.T) {
+	bundle, err := r5.NewTransaction(r5.TransactionEntry{Method: r5.HTTPVerbDELETE, URL: "Patient/p1"})
+	if err != nil {
+		t.Fatalf("NewTransaction DELETE: %v", err)
+	}
+	if bundle.Entry[0].Resource != nil {
+		t.Errorf("DELETE entry should carry no resource")
 	}
 }
 

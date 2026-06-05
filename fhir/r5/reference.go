@@ -212,10 +212,18 @@ func danglingIssue(found foundReference) OperationOutcomeIssue {
 // dangling intra-bundle reference, not an external one. A "#id" fragment and a relative
 // "Type/id" reference are likewise local and are checked, never skipped here.
 func isExternalAbsolute(ref string) bool {
-	if slash := strings.Index(ref, "://"); slash > 0 {
-		return true
+	sep := strings.Index(ref, "://")
+	if sep <= 0 {
+		return false
 	}
-	return false
+	// Require a non-empty authority after "://" so a malformed reference like
+	// "https://" or "https:///Patient/x" is not mistaken for a resolvable external URL
+	// and silently skipped; such a reference falls through to be reported as dangling.
+	authority := ref[sep+len("://"):]
+	if authority == "" || strings.HasPrefix(authority, "/") {
+		return false
+	}
+	return true
 }
 
 // HasErrors reports whether the outcome carries at least one issue of error or fatal
