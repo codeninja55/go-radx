@@ -301,9 +301,48 @@ current concurrent code passes it, yet one historical intermittent remains open 
 
 ## Conformance-drift methodology
 
-Not yet authored. This section will declare how the conformance statements are kept honest as the implementation moves:
-the merge-blocking drift check that fails when a statement and the code it describes diverge, and the documentation-site
-build that proves the statements render and cross-link cleanly.
+A conformance statement is only worth citing if it cannot quietly fall out of step with the code it describes. Two
+mechanical gates keep these statements honest as the implementation moves: a drift check that fails when a countable or
+structural claim diverges from the code, and a documentation-site build that fails when the statements stop rendering or
+cross-linking as a coherent set.
+
+### The drift check
+
+The drift check lives in `tools/conformance-drift` and runs as `go test ./tools/conformance-drift/...` (also exposed as
+`mise run conformance-drift`). It compares three classes of claim against the code and fails the test on any mismatch:
+
+- **Countable preset claims.** The "Presentation-context preset summary" table in [`./dicom.md`](./dicom.md) names each
+  `dimse` presentation-context preset and the number of contexts it returns. The check parses that table and, for every
+  preset, asserts the function exists and that its live context count (for example `len(dimse.StorageContexts())`)
+  equals the documented number. A preset the table marks **NOT YET SHIPPED** is asserted to be *absent* from the public
+  API, so a deferred surface cannot be quietly shipped without updating the statement, and a preset present in code but
+  missing from the table is also surfaced. This catches both directions of drift: a count that changes in code without a
+  doc update, and a doc that names a preset the code does not (or no longer) provides.
+- **Not-yet-shipped banners.** Every scaffold statement for an unimplemented surface —
+  [`./dicomweb.md`](./dicomweb.md), [`./dimse.md`](./dimse.md), [`./convert.md`](./convert.md), and
+  [`./cli-server.md`](./cli-server.md) — must carry the `NOT YET SHIPPED` banner. The check fails if any of these drops
+  its banner, so an unfinished surface can never be silently presented as conformance-guaranteed by deleting the
+  warning.
+- **Stability markers.** Each top-level public package (`convert`, `dicom`, `dicomweb`, `dimse`, `fhir`, `hl7v2`,
+  `server`) must carry its one-line `Stability:` godoc marker described under
+  [Governance and stability posture](#governance-and-stability-posture). The check fails if any package drops it, so
+  the stability posture stated here stays reflected in every package's godoc.
+
+The check is proven to bite, not merely assumed to: alongside the live gate, the test suite mutates temporary copies of
+the real tree to introduce each drift class in turn — a wrong preset count, a removed banner, a stripped stability
+marker — and asserts the matching failure is reported, with a companion case asserting an unmutated copy stays clean.
+The real statements and sources are never mutated. As new countable claims are added to a statement, they are wired into
+this check so the statement and the code stay locked together.
+
+### The documentation-site build
+
+The statements are published as an [mkdocs](https://www.mkdocs.org/) site configured by `mkdocs.yml` at the repository
+root, built with `mkdocs build --strict` (exposed as `mise run docs:build`; `mise run docs:serve` previews it with live
+reload). Strict mode turns navigation drift into a build failure: a statement added under `docs/` but missing from the
+site navigation, or a navigation entry pointing at a missing or excluded file, aborts the build. This keeps the set of
+published statements in step with the `docs/` tree, so a new statement cannot be authored and then silently left out of
+the site, and a removed one cannot linger as a dead navigation entry. The CI job that runs this build is wired alongside
+the drift check in the gate-enforcement work described under [Gate enforcement status](#gate-enforcement-status).
 
 ## Governance and stability posture
 
