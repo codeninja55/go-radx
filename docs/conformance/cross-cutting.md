@@ -320,19 +320,22 @@ The drift check lives in `tools/conformance-drift` and runs as `go test ./tools/
   doc update, and a doc that names a preset the code does not (or no longer) provides.
 - **Not-yet-shipped banners.** Every scaffold statement for an unimplemented surface —
   [`./dicomweb.md`](./dicomweb.md), [`./dimse.md`](./dimse.md), [`./convert.md`](./convert.md), and
-  [`./cli-server.md`](./cli-server.md) — must carry the `NOT YET SHIPPED` banner. The check fails if any of these drops
-  its banner, so an unfinished surface can never be silently presented as conformance-guaranteed by deleting the
-  warning.
+  [`./cli-server.md`](./cli-server.md) — must carry the `NOT YET SHIPPED` banner. The check fails if any of these
+  drops its banner, so an unfinished surface can never be silently presented as conformance-guaranteed by deleting
+  the warning.
 - **Stability markers.** Each top-level public package (`convert`, `dicom`, `dicomweb`, `dimse`, `fhir`, `hl7v2`,
   `server`) must carry its one-line `Stability:` godoc marker described under
   [Governance and stability posture](#governance-and-stability-posture). The check fails if any package drops it, so
   the stability posture stated here stays reflected in every package's godoc.
 
 The check is proven to bite, not merely assumed to: alongside the live gate, the test suite mutates temporary copies of
-the real tree to introduce each drift class in turn — a wrong preset count, a removed banner, a stripped stability
-marker — and asserts the matching failure is reported, with a companion case asserting an unmutated copy stays clean.
-The real statements and sources are never mutated. As new countable claims are added to a statement, they are wired into
-this check so the statement and the code stay locked together.
+the real tree to introduce each drift class in turn — a wrong preset count, a preset removed from the code, a
+code-only preset absent from the table, a deferred preset that is suddenly defined, a removed banner, and a stripped
+stability marker — and asserts the matching failure is reported, with a companion case asserting an unmutated copy
+stays clean.
+Preset existence is read from the `dimse` package source, so a preset added to the code is surfaced even if nobody
+updates the count registry. The real statements and sources are never mutated. As new countable claims are added to a
+statement, they are wired into this check so the statement and the code stay locked together.
 
 ### The documentation-site build
 
@@ -341,8 +344,12 @@ root, built with `mkdocs build --strict` (exposed as `mise run docs:build`; `mis
 reload). Strict mode turns navigation drift into a build failure: a statement added under `docs/` but missing from the
 site navigation, or a navigation entry pointing at a missing or excluded file, aborts the build. This keeps the set of
 published statements in step with the `docs/` tree, so a new statement cannot be authored and then silently left out of
-the site, and a removed one cannot linger as a dead navigation entry. The CI job that runs this build is wired alongside
-the drift check in the gate-enforcement work described under [Gate enforcement status](#gate-enforcement-status).
+the site, and a removed one cannot linger as a dead navigation entry.
+
+Both gates run locally today (`mise run conformance-drift`, `mise run docs:build`). Running them as CI jobs — and
+provisioning the `mkdocs` toolchain the site build needs — is part of the gate-wiring work tracked under
+[Gate enforcement status](#gate-enforcement-status); until that lands, they are local and review-time gates, not
+merge-blocking CI checks.
 
 ## Governance and stability posture
 
