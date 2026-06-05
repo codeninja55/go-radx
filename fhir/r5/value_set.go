@@ -1396,7 +1396,7 @@ type ValueSetExpansionParameter struct {
 	ValueBoolean  *FHIRBoolean           `json:"valueBoolean,omitempty"`
 	ValueInteger  *FHIRInteger           `json:"valueInteger,omitempty"`
 	ValueDecimal  *FHIRDecimal           `json:"valueDecimal,omitempty"`
-	ValueURI      *FHIRURI               `json:"valueURI,omitempty"`
+	ValueURI      *FHIRURI               `json:"valueUri,omitempty"`
 	ValueCode     *FHIRCode              `json:"valueCode,omitempty"`
 	ValueDateTime *FHIRDateTime          `json:"valueDateTime,omitempty"`
 }

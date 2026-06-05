@@ -406,7 +406,7 @@ func (v *ImplementationGuideDefinitionGrouping) UnmarshalJSON(data []byte) error
 // ImplementationGuideDefinitionPage is a generated nested backbone element.
 type ImplementationGuideDefinitionPage struct {
 	BackboneElement
-	SourceURL         *FHIRURL                            `json:"sourceURL,omitempty"`
+	SourceURL         *FHIRURL                            `json:"sourceUrl,omitempty"`
 	SourceString      *FHIRString                         `json:"sourceString,omitempty"`
 	SourceMarkdown    *FHIRMarkdown                       `json:"sourceMarkdown,omitempty"`
 	Name              *string                             `json:"name,omitempty"`

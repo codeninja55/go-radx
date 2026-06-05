@@ -486,7 +486,7 @@ type MedicationKnowledgeMedicineClassification struct {
 	BackboneElement
 	Type           *CodeableConcept  `json:"type,omitempty"`
 	SourceString   *FHIRString       `json:"sourceString,omitempty"`
-	SourceURI      *FHIRURI          `json:"sourceURI,omitempty"`
+	SourceURI      *FHIRURI          `json:"sourceUri,omitempty"`
 	Classification []CodeableConcept `json:"classification,omitempty"`
 }
 

@@ -748,7 +748,7 @@ type EvidenceVariableCharacteristicDefinitionByTypeAndValue struct {
 	ValueQuantity        *Quantity         `json:"valueQuantity,omitempty"`
 	ValueRange           *Range            `json:"valueRange,omitempty"`
 	ValueReference       *Reference        `json:"valueReference,omitempty"`
-	ValueID              *FHIRID           `json:"valueID,omitempty"`
+	ValueID              *FHIRID           `json:"valueId,omitempty"`
 	Offset               *CodeableConcept  `json:"offset,omitempty"`
 }
 
@@ -872,7 +872,7 @@ type EvidenceVariableCharacteristicTimeFromEvent struct {
 	EventCodeableConcept *CodeableConcept       `json:"eventCodeableConcept,omitempty"`
 	EventReference       *Reference             `json:"eventReference,omitempty"`
 	EventDateTime        *FHIRDateTime          `json:"eventDateTime,omitempty"`
-	EventID              *FHIRID                `json:"eventID,omitempty"`
+	EventID              *FHIRID                `json:"eventId,omitempty"`
 	Quantity             *Quantity              `json:"quantity,omitempty"`
 	Range                *Range                 `json:"range,omitempty"`
 }

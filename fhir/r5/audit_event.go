@@ -170,7 +170,7 @@ type AuditEventAgent struct {
 	Policy           []string                 `json:"policy,omitempty"`
 	PolicyElement    []*fhir.PrimitiveElement `json:"-"`
 	NetworkReference *Reference               `json:"networkReference,omitempty"`
-	NetworkURI       *FHIRURI                 `json:"networkURI,omitempty"`
+	NetworkURI       *FHIRURI                 `json:"networkUri,omitempty"`
 	NetworkString    *FHIRString              `json:"networkString,omitempty"`
 	Authorization    []CodeableConcept        `json:"authorization,omitempty"`
 }

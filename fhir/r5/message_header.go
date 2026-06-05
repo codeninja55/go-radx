@@ -131,7 +131,7 @@ func (r *MessageHeader) SetEventCanonical(v FHIRCanonical) {
 // MessageHeaderDestination is a generated nested backbone element.
 type MessageHeaderDestination struct {
 	BackboneElement
-	EndpointURL       *FHIRURL               `json:"endpointURL,omitempty"`
+	EndpointURL       *FHIRURL               `json:"endpointUrl,omitempty"`
 	EndpointReference *Reference             `json:"endpointReference,omitempty"`
 	Name              *string                `json:"name,omitempty"`
 	NameElement       *fhir.PrimitiveElement `json:"-"`
@@ -288,7 +288,7 @@ func (v *MessageHeaderResponse) UnmarshalJSON(data []byte) error {
 // MessageHeaderSource is a generated nested backbone element.
 type MessageHeaderSource struct {
 	BackboneElement
-	EndpointURL       *FHIRURL               `json:"endpointURL,omitempty"`
+	EndpointURL       *FHIRURL               `json:"endpointUrl,omitempty"`
 	EndpointReference *Reference             `json:"endpointReference,omitempty"`
 	Name              *string                `json:"name,omitempty"`
 	NameElement       *fhir.PrimitiveElement `json:"-"`

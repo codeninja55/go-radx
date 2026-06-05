@@ -219,7 +219,7 @@ type DocumentReferenceContent struct {
 type DocumentReferenceContentProfile struct {
 	BackboneElement
 	ValueCoding    *Coding        `json:"valueCoding,omitempty"`
-	ValueURI       *FHIRURI       `json:"valueURI,omitempty"`
+	ValueURI       *FHIRURI       `json:"valueUri,omitempty"`
 	ValueCanonical *FHIRCanonical `json:"valueCanonical,omitempty"`
 }
 

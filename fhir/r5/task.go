@@ -224,7 +224,7 @@ type TaskInput struct {
 	ValueDate                  *FHIRDate              `json:"valueDate,omitempty"`
 	ValueDateTime              *FHIRDateTime          `json:"valueDateTime,omitempty"`
 	ValueDecimal               *FHIRDecimal           `json:"valueDecimal,omitempty"`
-	ValueID                    *FHIRID                `json:"valueID,omitempty"`
+	ValueID                    *FHIRID                `json:"valueId,omitempty"`
 	ValueInstant               *FHIRInstant           `json:"valueInstant,omitempty"`
 	ValueInteger               *FHIRInteger           `json:"valueInteger,omitempty"`
 	ValueInteger64             *FHIRInteger64         `json:"valueInteger64,omitempty"`
@@ -234,8 +234,8 @@ type TaskInput struct {
 	ValueString                *FHIRString            `json:"valueString,omitempty"`
 	ValueTime                  *FHIRTime              `json:"valueTime,omitempty"`
 	ValueUnsignedInt           *FHIRUnsignedInt       `json:"valueUnsignedInt,omitempty"`
-	ValueURI                   *FHIRURI               `json:"valueURI,omitempty"`
-	ValueURL                   *FHIRURL               `json:"valueURL,omitempty"`
+	ValueURI                   *FHIRURI               `json:"valueUri,omitempty"`
+	ValueURL                   *FHIRURL               `json:"valueUrl,omitempty"`
 	ValueUuid                  *FHIRUUID              `json:"valueUuid,omitempty"`
 	ValueAddress               *Address               `json:"valueAddress,omitempty"`
 	ValueAge                   *Age                   `json:"valueAge,omitempty"`

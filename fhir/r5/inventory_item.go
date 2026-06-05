@@ -106,7 +106,7 @@ type InventoryItemCharacteristic struct {
 	ValueInteger         *FHIRInteger     `json:"valueInteger,omitempty"`
 	ValueDecimal         *FHIRDecimal     `json:"valueDecimal,omitempty"`
 	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
-	ValueURL             *FHIRURL         `json:"valueURL,omitempty"`
+	ValueURL             *FHIRURL         `json:"valueUrl,omitempty"`
 	ValueDateTime        *FHIRDateTime    `json:"valueDateTime,omitempty"`
 	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
 	ValueRange           *Range           `json:"valueRange,omitempty"`

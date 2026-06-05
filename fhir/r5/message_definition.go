@@ -50,7 +50,7 @@ type MessageDefinition struct {
 	Parent                  []string                           `json:"parent,omitempty"`
 	ParentElement           []*fhir.PrimitiveElement           `json:"-"`
 	EventCoding             *Coding                            `json:"eventCoding,omitempty"`
-	EventURI                *FHIRURI                           `json:"eventURI,omitempty"`
+	EventURI                *FHIRURI                           `json:"eventUri,omitempty"`
 	Category                *string                            `json:"category,omitempty"`
 	CategoryElement         *fhir.PrimitiveElement             `json:"-"`
 	Focus                   []MessageDefinitionFocus           `json:"focus,omitempty"`

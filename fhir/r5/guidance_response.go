@@ -15,7 +15,7 @@ type GuidanceResponse struct {
 	DomainResource
 	RequestIdentifier         *Identifier            `json:"requestIdentifier,omitempty"`
 	Identifier                []Identifier           `json:"identifier,omitempty"`
-	ModuleURI                 *FHIRURI               `json:"moduleURI,omitempty"`
+	ModuleURI                 *FHIRURI               `json:"moduleUri,omitempty"`
 	ModuleCanonical           *FHIRCanonical         `json:"moduleCanonical,omitempty"`
 	ModuleCodeableConcept     *CodeableConcept       `json:"moduleCodeableConcept,omitempty"`
 	Status                    *string                `json:"status,omitempty"`

@@ -1107,7 +1107,7 @@ func (v *TestScriptSetupActionAssert) UnmarshalJSON(data []byte) error {
 // TestScriptSetupActionAssertRequirement is a generated nested backbone element.
 type TestScriptSetupActionAssertRequirement struct {
 	BackboneElement
-	LinkURI       *FHIRURI       `json:"linkURI,omitempty"`
+	LinkURI       *FHIRURI       `json:"linkUri,omitempty"`
 	LinkCanonical *FHIRCanonical `json:"linkCanonical,omitempty"`
 }
 

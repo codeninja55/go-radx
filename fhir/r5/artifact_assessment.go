@@ -28,7 +28,7 @@ type ArtifactAssessment struct {
 	LastReviewDateElement *fhir.PrimitiveElement      `json:"-"`
 	ArtifactReference     *Reference                  `json:"artifactReference,omitempty"`
 	ArtifactCanonical     *FHIRCanonical              `json:"artifactCanonical,omitempty"`
-	ArtifactURI           *FHIRURI                    `json:"artifactURI,omitempty"`
+	ArtifactURI           *FHIRURI                    `json:"artifactUri,omitempty"`
 	Content               []ArtifactAssessmentContent `json:"content,omitempty"`
 	WorkflowStatus        *string                     `json:"workflowStatus,omitempty"`
 	WorkflowStatusElement *fhir.PrimitiveElement      `json:"-"`

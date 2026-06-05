@@ -56,9 +56,9 @@ type ConceptMap struct {
 	RelatedArtifact        []RelatedArtifact               `json:"relatedArtifact,omitempty"`
 	Property               []ConceptMapProperty            `json:"property,omitempty"`
 	AdditionalAttribute    []ConceptMapAdditionalAttribute `json:"additionalAttribute,omitempty"`
-	SourceScopeURI         *FHIRURI                        `json:"sourceScopeURI,omitempty"`
+	SourceScopeURI         *FHIRURI                        `json:"sourceScopeUri,omitempty"`
 	SourceScopeCanonical   *FHIRCanonical                  `json:"sourceScopeCanonical,omitempty"`
-	TargetScopeURI         *FHIRURI                        `json:"targetScopeURI,omitempty"`
+	TargetScopeURI         *FHIRURI                        `json:"targetScopeUri,omitempty"`
 	TargetScopeCanonical   *FHIRCanonical                  `json:"targetScopeCanonical,omitempty"`
 	Group                  []ConceptMapGroup               `json:"group,omitempty"`
 }

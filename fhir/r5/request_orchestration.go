@@ -202,7 +202,7 @@ type RequestOrchestrationAction struct {
 	CardinalityBehaviorElement *fhir.PrimitiveElement                    `json:"-"`
 	Resource                   *Reference                                `json:"resource,omitempty"`
 	DefinitionCanonical        *FHIRCanonical                            `json:"definitionCanonical,omitempty"`
-	DefinitionURI              *FHIRURI                                  `json:"definitionURI,omitempty"`
+	DefinitionURI              *FHIRURI                                  `json:"definitionUri,omitempty"`
 	Transform                  *string                                   `json:"transform,omitempty"`
 	TransformElement           *fhir.PrimitiveElement                    `json:"-"`
 	DynamicValue               []RequestOrchestrationActionDynamicValue  `json:"dynamicValue,omitempty"`

@@ -387,7 +387,7 @@ type ExampleScenarioInstance struct {
 	StructureVersion          *string                                    `json:"structureVersion,omitempty"`
 	StructureVersionElement   *fhir.PrimitiveElement                     `json:"-"`
 	StructureProfileCanonical *FHIRCanonical                             `json:"structureProfileCanonical,omitempty"`
-	StructureProfileURI       *FHIRURI                                   `json:"structureProfileURI,omitempty"`
+	StructureProfileURI       *FHIRURI                                   `json:"structureProfileUri,omitempty"`
 	Title                     *string                                    `json:"title,omitempty"`
 	TitleElement              *fhir.PrimitiveElement                     `json:"-"`
 	Description               *string                                    `json:"description,omitempty"`

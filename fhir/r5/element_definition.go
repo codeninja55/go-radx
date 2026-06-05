@@ -47,7 +47,7 @@ type ElementDefinition struct {
 	DefaultValueDate                  *FHIRDate                     `json:"defaultValueDate,omitempty"`
 	DefaultValueDateTime              *FHIRDateTime                 `json:"defaultValueDateTime,omitempty"`
 	DefaultValueDecimal               *FHIRDecimal                  `json:"defaultValueDecimal,omitempty"`
-	DefaultValueID                    *FHIRID                       `json:"defaultValueID,omitempty"`
+	DefaultValueID                    *FHIRID                       `json:"defaultValueId,omitempty"`
 	DefaultValueInstant               *FHIRInstant                  `json:"defaultValueInstant,omitempty"`
 	DefaultValueInteger               *FHIRInteger                  `json:"defaultValueInteger,omitempty"`
 	DefaultValueInteger64             *FHIRInteger64                `json:"defaultValueInteger64,omitempty"`
@@ -57,8 +57,8 @@ type ElementDefinition struct {
 	DefaultValueString                *FHIRString                   `json:"defaultValueString,omitempty"`
 	DefaultValueTime                  *FHIRTime                     `json:"defaultValueTime,omitempty"`
 	DefaultValueUnsignedInt           *FHIRUnsignedInt              `json:"defaultValueUnsignedInt,omitempty"`
-	DefaultValueURI                   *FHIRURI                      `json:"defaultValueURI,omitempty"`
-	DefaultValueURL                   *FHIRURL                      `json:"defaultValueURL,omitempty"`
+	DefaultValueURI                   *FHIRURI                      `json:"defaultValueUri,omitempty"`
+	DefaultValueURL                   *FHIRURL                      `json:"defaultValueUrl,omitempty"`
 	DefaultValueUuid                  *FHIRUUID                     `json:"defaultValueUuid,omitempty"`
 	DefaultValueAddress               *Address                      `json:"defaultValueAddress,omitempty"`
 	DefaultValueAge                   *Age                          `json:"defaultValueAge,omitempty"`
@@ -105,7 +105,7 @@ type ElementDefinition struct {
 	FixedDate                         *FHIRDate                     `json:"fixedDate,omitempty"`
 	FixedDateTime                     *FHIRDateTime                 `json:"fixedDateTime,omitempty"`
 	FixedDecimal                      *FHIRDecimal                  `json:"fixedDecimal,omitempty"`
-	FixedID                           *FHIRID                       `json:"fixedID,omitempty"`
+	FixedID                           *FHIRID                       `json:"fixedId,omitempty"`
 	FixedInstant                      *FHIRInstant                  `json:"fixedInstant,omitempty"`
 	FixedInteger                      *FHIRInteger                  `json:"fixedInteger,omitempty"`
 	FixedInteger64                    *FHIRInteger64                `json:"fixedInteger64,omitempty"`
@@ -115,8 +115,8 @@ type ElementDefinition struct {
 	FixedString                       *FHIRString                   `json:"fixedString,omitempty"`
 	FixedTime                         *FHIRTime                     `json:"fixedTime,omitempty"`
 	FixedUnsignedInt                  *FHIRUnsignedInt              `json:"fixedUnsignedInt,omitempty"`
-	FixedURI                          *FHIRURI                      `json:"fixedURI,omitempty"`
-	FixedURL                          *FHIRURL                      `json:"fixedURL,omitempty"`
+	FixedURI                          *FHIRURI                      `json:"fixedUri,omitempty"`
+	FixedURL                          *FHIRURL                      `json:"fixedUrl,omitempty"`
 	FixedUuid                         *FHIRUUID                     `json:"fixedUuid,omitempty"`
 	FixedAddress                      *Address                      `json:"fixedAddress,omitempty"`
 	FixedAge                          *Age                          `json:"fixedAge,omitempty"`
@@ -159,7 +159,7 @@ type ElementDefinition struct {
 	PatternDate                       *FHIRDate                     `json:"patternDate,omitempty"`
 	PatternDateTime                   *FHIRDateTime                 `json:"patternDateTime,omitempty"`
 	PatternDecimal                    *FHIRDecimal                  `json:"patternDecimal,omitempty"`
-	PatternID                         *FHIRID                       `json:"patternID,omitempty"`
+	PatternID                         *FHIRID                       `json:"patternId,omitempty"`
 	PatternInstant                    *FHIRInstant                  `json:"patternInstant,omitempty"`
 	PatternInteger                    *FHIRInteger                  `json:"patternInteger,omitempty"`
 	PatternInteger64                  *FHIRInteger64                `json:"patternInteger64,omitempty"`
@@ -169,8 +169,8 @@ type ElementDefinition struct {
 	PatternString                     *FHIRString                   `json:"patternString,omitempty"`
 	PatternTime                       *FHIRTime                     `json:"patternTime,omitempty"`
 	PatternUnsignedInt                *FHIRUnsignedInt              `json:"patternUnsignedInt,omitempty"`
-	PatternURI                        *FHIRURI                      `json:"patternURI,omitempty"`
-	PatternURL                        *FHIRURL                      `json:"patternURL,omitempty"`
+	PatternURI                        *FHIRURI                      `json:"patternUri,omitempty"`
+	PatternURL                        *FHIRURL                      `json:"patternUrl,omitempty"`
 	PatternUuid                       *FHIRUUID                     `json:"patternUuid,omitempty"`
 	PatternAddress                    *Address                      `json:"patternAddress,omitempty"`
 	PatternAge                        *Age                          `json:"patternAge,omitempty"`
@@ -11819,7 +11819,7 @@ type ElementDefinitionExample struct {
 	ValueDate                  *FHIRDate              `json:"valueDate,omitempty"`
 	ValueDateTime              *FHIRDateTime          `json:"valueDateTime,omitempty"`
 	ValueDecimal               *FHIRDecimal           `json:"valueDecimal,omitempty"`
-	ValueID                    *FHIRID                `json:"valueID,omitempty"`
+	ValueID                    *FHIRID                `json:"valueId,omitempty"`
 	ValueInstant               *FHIRInstant           `json:"valueInstant,omitempty"`
 	ValueInteger               *FHIRInteger           `json:"valueInteger,omitempty"`
 	ValueInteger64             *FHIRInteger64         `json:"valueInteger64,omitempty"`
@@ -11829,8 +11829,8 @@ type ElementDefinitionExample struct {
 	ValueString                *FHIRString            `json:"valueString,omitempty"`
 	ValueTime                  *FHIRTime              `json:"valueTime,omitempty"`
 	ValueUnsignedInt           *FHIRUnsignedInt       `json:"valueUnsignedInt,omitempty"`
-	ValueURI                   *FHIRURI               `json:"valueURI,omitempty"`
-	ValueURL                   *FHIRURL               `json:"valueURL,omitempty"`
+	ValueURI                   *FHIRURI               `json:"valueUri,omitempty"`
+	ValueURL                   *FHIRURL               `json:"valueUrl,omitempty"`
 	ValueUuid                  *FHIRUUID              `json:"valueUuid,omitempty"`
 	ValueAddress               *Address               `json:"valueAddress,omitempty"`
 	ValueAge                   *Age                   `json:"valueAge,omitempty"`

@@ -11,7 +11,7 @@ import (
 type VirtualServiceDetail struct {
 	Element
 	ChannelType                  *Coding                  `json:"channelType,omitempty"`
-	AddressURL                   *FHIRURL                 `json:"addressURL,omitempty"`
+	AddressURL                   *FHIRURL                 `json:"addressUrl,omitempty"`
 	AddressString                *FHIRString              `json:"addressString,omitempty"`
 	AddressContactPoint          *ContactPoint            `json:"addressContactPoint,omitempty"`
 	AddressExtendedContactDetail *ExtendedContactDetail   `json:"addressExtendedContactDetail,omitempty"`

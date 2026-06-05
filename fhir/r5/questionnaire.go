@@ -1051,7 +1051,7 @@ type QuestionnaireItemInitial struct {
 	ValueDateTime   *FHIRDateTime `json:"valueDateTime,omitempty"`
 	ValueTime       *FHIRTime     `json:"valueTime,omitempty"`
 	ValueString     *FHIRString   `json:"valueString,omitempty"`
-	ValueURI        *FHIRURI      `json:"valueURI,omitempty"`
+	ValueURI        *FHIRURI      `json:"valueUri,omitempty"`
 	ValueAttachment *Attachment   `json:"valueAttachment,omitempty"`
 	ValueCoding     *Coding       `json:"valueCoding,omitempty"`
 	ValueQuantity   *Quantity     `json:"valueQuantity,omitempty"`

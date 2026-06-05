@@ -506,7 +506,7 @@ type PlanDefinitionAction struct {
 	CardinalityBehavior        *string                             `json:"cardinalityBehavior,omitempty"`
 	CardinalityBehaviorElement *fhir.PrimitiveElement              `json:"-"`
 	DefinitionCanonical        *FHIRCanonical                      `json:"definitionCanonical,omitempty"`
-	DefinitionURI              *FHIRURI                            `json:"definitionURI,omitempty"`
+	DefinitionURI              *FHIRURI                            `json:"definitionUri,omitempty"`
 	Transform                  *string                             `json:"transform,omitempty"`
 	TransformElement           *fhir.PrimitiveElement              `json:"-"`
 	DynamicValue               []PlanDefinitionActionDynamicValue  `json:"dynamicValue,omitempty"`

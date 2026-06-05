@@ -1013,7 +1013,7 @@ func (v *StructureMapGroupRuleTarget) UnmarshalJSON(data []byte) error {
 // StructureMapGroupRuleTargetParameter is a generated nested backbone element.
 type StructureMapGroupRuleTargetParameter struct {
 	BackboneElement
-	ValueID       *FHIRID       `json:"valueID,omitempty"`
+	ValueID       *FHIRID       `json:"valueId,omitempty"`
 	ValueString   *FHIRString   `json:"valueString,omitempty"`
 	ValueBoolean  *FHIRBoolean  `json:"valueBoolean,omitempty"`
 	ValueInteger  *FHIRInteger  `json:"valueInteger,omitempty"`
