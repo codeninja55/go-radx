@@ -183,17 +183,23 @@ is enumerated here as the standing contract; it is **not yet a separate enforced
 merge-blocking today, and raising the critical-path packages to a per-path 90% check is tracked Phase-1 work. The
 critical paths, with the primary files each comprises, are:
 
-| Critical path | Package(s) | Primary files |
-|---------------|------------|---------------|
-| Part 10 reader / writer | `dicom` | `file.go`, `file_meta.go`, `file_meta_write.go`, `dataset.go`, `dataset_codec.go`, `dataset_stream.go`, `dataset_writefile.go`, `element_header.go`, `reader_writer.go`, `bounded_reader.go`, `pixel_reader.go` |
-| DIMSE association (DUL/ACSE state machine + negotiation) | `dimse/dul`, `dimse/acse` | `dul/statemachine.go`, `dul/state.go`, `dul/event.go`, `dul/action.go`, `dul/connection.go`, `acse/negotiate.go`, `acse/associate.go` |
-| DIMSE-C services (SCU + SCP) | `dimse`, `dimse/pdu` | `association.go`, `command.go`, `message.go`, `dispatch.go`, `handler.go`, `server.go`, `echo.go`, `find.go`, `find_scp.go`, `move.go`, `move_scp.go`, `store.go`, and the PDU/PDV encode-decode in `dimse/pdu` |
-| DICOMweb round-trips | `dicomweb` | `client.go`, `server.go`, `instance.go`, `resource.go`, `multipart.go`, `json.go`, `negotiation.go`, `store_response.go`, `bulkdata.go` |
-| Cross-standard converters | `convert` | `orm_servicerequest.go`, `sr_diagnosticreport.go`, `dicom_imagingstudy.go`, `report.go`, `identity.go`, `subject.go`, `dicom_helpers.go`, `hl7_helpers.go` |
+- **Part 10 reader / writer** (`dicom`): `file.go`, `file_meta.go`, `file_meta_write.go`, `dataset.go`,
+  `dataset_codec.go`, `dataset_stream.go`, `dataset_writefile.go`, `element_header.go`, `reader_writer.go`,
+  `bounded_reader.go`, `pixel_reader.go`.
+- **DIMSE association** — the DUL/ACSE state machine and presentation-context negotiation (`dimse/dul`, `dimse/acse`):
+  `dul/statemachine.go`, `dul/state.go`, `dul/event.go`, `dul/action.go`, `dul/connection.go`, `acse/negotiate.go`,
+  `acse/associate.go`.
+- **DIMSE-C services** — SCU and SCP sides (`dimse`, `dimse/pdu`): `association.go`, `command.go`, `message.go`,
+  `dispatch.go`, `handler.go`, `server.go`, `echo.go`, `find.go`, `find_scp.go`, `move.go`, `move_scp.go`, `store.go`,
+  and the PDU/PDV encode-decode in `dimse/pdu`.
+- **DICOMweb round-trips** (`dicomweb`): `client.go`, `server.go`, `instance.go`, `resource.go`, `multipart.go`,
+  `json.go`, `negotiation.go`, `store_response.go`, `bulkdata.go`.
+- **Cross-standard converters** (`convert`): `orm_servicerequest.go`, `sr_diagnosticreport.go`,
+  `dicom_imagingstudy.go`, `report.go`, `identity.go`, `subject.go`, `dicom_helpers.go`, `hl7_helpers.go`.
 
 The file lists name the units the 90% target protects; they track the source tree and are re-checked when the tree
 moves. A new critical path (a new standard subsystem, or a new server entry point on an existing one) is added to this
-table as it ships, so the enumeration stays the authoritative map of what the coverage contract is meant to guarantee.
+enumeration as it ships, so it stays the authoritative map of what the coverage contract is meant to guarantee.
 
 ## Concurrency and race posture
 
@@ -223,7 +229,8 @@ release is tagged.
 
 The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines six jobs:
 `lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, the `pin-drift` check, and
-the race-test step that also enforces the coverage floor — see [Coverage targets](#coverage-targets-and-critical-path-enumeration)),
+the race-test step that also enforces the
+[coverage floor](#coverage-targets-and-critical-path-enumeration)),
 `conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`), `interop` (the testcontainers matrix over the DIMSE,
 DICOMweb, and convert legs), `govulncheck` (the vulnerability scan of the root module), `cmd-radx` (build, vet, lint,
 and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed pixel codecs built from source). These
