@@ -131,6 +131,38 @@ jobs:
       - name: Run govulncheck
         run: govulncheck ./...
 
+  cmd-radx:
+    # The radx CLI lives in its own module (cmd/radx) so library consumers do not inherit the CLI's
+    # dependency graph. The root go.work ties the two modules for local development, but the library
+    # jobs above scope to the root module (the `./...` pattern stops at the nested module boundary),
+    # so without this job cmd/radx would never be built, vetted, or scanned in CI. GOWORK=off makes
+    # each step resolve against cmd/radx's own go.mod/go.sum — the module is gated exactly as a
+    # downstream consumer building the CLI would see it, not as a workspace shortcut.
+    name: cmd/radx module (build, vet, lint, vuln scan)
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+    defaults:
+      run:
+        working-directory: cmd/radx
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: build
+        run: go build ./...
+      - name: go vet
+        run: go vet ./...
+      - name: golangci-lint
+        run: mise exec -- golangci-lint run ./...
+      - name: govulncheck
+        # Pinned to the same released version as the root govulncheck job so both modules are scanned
+        # by an analysis tool whose behaviour is fixed run to run; the vulnerability database stays
+        # live. `go run …@v1.3.0` resolves the pinned scanner directly under the mise-provided Go,
+        # avoiding a PATH dependency on where `go install` would drop the binary.
+        run: mise exec -- go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
+
   codecs:
     # The C-backed pixel codecs are pinned to OpenJPEG 2.5.4, libjpeg-turbo 3.1.4, and CharLS 2.4.3
     # (the versions the local build links via Homebrew). Ubuntu apt ships older releases — notably

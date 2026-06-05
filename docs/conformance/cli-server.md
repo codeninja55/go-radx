@@ -83,16 +83,26 @@ exercised entry points; the four swept sinks are the stable contract.
 
 ## Build and module layout
 
-Not yet authored. This section will declare the build and module contract: `cmd/radx` lives in its own Go module so
-that consumers importing the library packages do not inherit the CLI's dependency graph, how the CLI module composes
-the library modules (for example via a Go workspace), the supported Go toolchain version, and the reproducible-build
-posture. Until authored, the layout is whatever `cmd/radx/go.mod` and the repository root declare.
+`cmd/radx` lives in its own Go module (`github.com/codeninja55/go-radx/cmd/radx`) so that consumers importing the
+library packages do not inherit the CLI's dependency graph. Both the CLI module and the library root module declare the
+same pinned Go toolchain, `go 1.26.4`, in agreement with `mise.toml`. A committed `go.work` at the repository root
+(`use (. ./cmd/radx)`) composes the two modules into one Go workspace for local builds and editor tooling; the
+`go.work.sum` lock file stays git-ignored. The workspace is a development convenience and does not change how either
+module is built in isolation.
+
+The `cmd-radx` CI job builds, vets, lints, and vulnerability-scans this module on every push and pull request to
+`main`. It runs with `GOWORK=off` so each step resolves against `cmd/radx`'s own `go.mod`/`go.sum` — the module is
+gated as a downstream consumer building the CLI would see it. The full build-and-module contract, including how the
+workspace leaves the library jobs' root-only scope intact, is fixed in the cross-cutting statement's
+[Build and module layout](./cross-cutting.md#build-and-module-layout-gowork-cmdradx-ci) section.
 
 ## Verification
 
-Not yet authored. This section will state how the CLI and server surface is gated: a build-and-vet gate for the
-`cmd/radx` module, command-level smoke tests, and the server interop suites already declared in the DICOM and DICOMweb
-statements. Until then, no CLI or server conformance claim is made.
+The `cmd/radx` module is gated in CI by the `cmd-radx` job, which runs `go build ./...`, `go vet ./...`,
+`golangci-lint run ./...`, and a pinned `govulncheck ./...` against the module. That closes the window where the
+separate CLI module was uncompiled and unvetted in CI. The server interop suites are declared in the DICOM and DICOMweb
+statements. Command-level smoke tests are not yet authored — the CLI command surface is not implemented — so no CLI
+*behaviour* conformance claim is made yet; the gate today proves the module builds, vets, lints, and scans clean.
 
 ## References
 
