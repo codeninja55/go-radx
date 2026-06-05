@@ -225,6 +225,31 @@ legacy codebase (`legacy-main`) and are not continued here.
   the byte-for-byte regeneration gate still reproduces the generated tree. Covered by `fhir/r5/bundle_builders_test.go`
   and `fhir/r5/reference_test.go` (one test per `bdl-*` rule, the FHIR-010/011 regressions, and the dangling/malformed
   aggregation), with the conformance statement's Bundle-semantics section filled in `docs/conformance/fhir.md`.
+- Structural FHIR `Validate` engine (FHIR-007, FHIR-001, FHIR-013). The release-agnostic `fhir.Validate(r Resource)
+  *fhir.OperationOutcome` checks any release's resource and reports every issue it finds in one pass: `resourceType`
+  integrity, required-element presence by presence rather than truthiness (a present required `false` or `0` is a
+  non-nil pointer and is never reported missing — the FHIR-007 behavioural fix for the prototype's `reflect.IsZero`
+  bug), choice-group mutual exclusion (it counts the non-nil suffixed storage fields and flags a `[x]` group with more
+  than one set, catching a direct two-field write the mutually-exclusive setters prevent — FHIR-001), and required
+  value-set binding codes (an out-of-set code retained under lenient decode is surfaced against its closed enum —
+  FHIR-013). The engine is data-driven by a generated per-resource validation descriptor
+  (`fhir/r5/validation_descriptors.go`) that each release registers with the root engine at init time, keyed by
+  `resourceType`, so the validation path takes no call-time metadata reflection: each descriptor carries the resource's
+  required elements, choice groups, and required-binding codes as typed closures over the concrete resource. The Bundle
+  `bdl-*` invariants and intra-Bundle reference integrity, which the `StructureDefinition` does not express, are
+  hand-written per release (`fhir/r5/validate.go`) and composed into the Bundle descriptor's extra-check hook (`total`
+  only on searchset/history, `entry.search` only on a searchset, the document/message first-entry type,
+  transaction/batch request and response-bundle response presence, `fullUrl` uniqueness, then
+  `CheckReferenceIntegrity`). The root `fhir`
+  package gains the release-agnostic `OperationOutcome`/`OutcomeIssue`/`IssueType`/`BindingIssue` types and
+  `RegisterValidationDescriptor`. `Validate` never panics on malformed or partial input and never leaks PHI: every issue
+  names an element, a path, a resource type, or a code, never a patient value — proven by the `fhir/r5` PHI-sentinel
+  test and by wiring a FHIR exercise into the library-wide PHI sweep (`internal/phisweep`). Two fuzz targets
+  (`FuzzValidateNeverPanics`/`FuzzValidateTypedNeverPanics`) drive `Validate` over arbitrary decoded and typed
+  resources.
+  Covered by `fhir/validate_test.go`, `fhir/r5/validate_test.go`, `fhir/internal/gen/plan/descriptor_test.go`, and
+  `fhir/internal/gen/emit/descriptor_golden_test.go`; the validation-contract section is filled in
+  `docs/conformance/fhir.md`. The descriptor file regenerates byte-for-byte like the rest of the tree.
 
 ### Documentation
 
