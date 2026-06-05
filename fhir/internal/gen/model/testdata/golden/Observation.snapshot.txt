@@ -1,0 +1,72 @@
+Type Observation kind=resource abstract=false
+  base http://hl7.org/fhir/StructureDefinition/DomainResource
+  Observation [0..*]
+    Observation.id [0..1] types=string summary
+    Observation.meta [0..1] types=Meta summary
+    Observation.implicitRules [0..1] types=uri summary modifier
+    Observation.language [0..1] types=code binding=required(http://hl7.org/fhir/ValueSet/all-languages)
+    Observation.text [0..1] types=Narrative
+    Observation.contained [0..*] types=Resource
+    Observation.extension [0..*] types=Extension
+    Observation.modifierExtension [0..*] types=Extension summary modifier
+    Observation.identifier [0..*] types=Identifier summary
+    Observation.instantiates[x] [0..1] types=canonical->[ObservationDefinition]|Reference->[ObservationDefinition] choice=instantiates summary
+    Observation.basedOn [0..*] types=Reference->[CarePlan,DeviceRequest,ImmunizationRecommendation,MedicationRequest,NutritionOrder,ServiceRequest] summary
+    Observation.triggeredBy [0..*] types=BackboneElement
+      Observation.triggeredBy.id [0..1] types=string
+      Observation.triggeredBy.extension [0..*] types=Extension
+      Observation.triggeredBy.modifierExtension [0..*] types=Extension summary modifier
+      Observation.triggeredBy.observation [1..1] types=Reference->[Observation] summary
+      Observation.triggeredBy.type [1..1] types=code binding=required(http://hl7.org/fhir/ValueSet/observation-triggeredbytype) summary
+      Observation.triggeredBy.reason [0..1] types=string
+    Observation.partOf [0..*] types=Reference->[MedicationAdministration,MedicationDispense,MedicationStatement,Procedure,Immunization,ImagingStudy,GenomicStudy] summary
+    Observation.status [1..1] types=code binding=required(http://hl7.org/fhir/ValueSet/observation-status) summary modifier
+    Observation.category [0..*] types=CodeableConcept binding=preferred(http://hl7.org/fhir/ValueSet/observation-category)
+    Observation.code [1..1] types=CodeableConcept binding=example(http://hl7.org/fhir/ValueSet/observation-codes) summary
+    Observation.subject [0..1] types=Reference->[Patient,Group,Device,Location,Organization,Procedure,Practitioner,Medication,Substance,BiologicallyDerivedProduct,NutritionProduct] summary
+    Observation.focus [0..*] types=Reference->[Resource] summary
+    Observation.encounter [0..1] types=Reference->[Encounter] summary
+    Observation.effective[x] [0..1] types=dateTime|Period|Timing|instant choice=effective summary
+    Observation.issued [0..1] types=instant summary
+    Observation.performer [0..*] types=Reference->[Practitioner,PractitionerRole,Organization,CareTeam,Patient,RelatedPerson] summary
+    Observation.value[x] [0..1] types=Quantity|CodeableConcept|string|boolean|integer|Range|Ratio|SampledData|time|dateTime|Period|Attachment|Reference->[MolecularSequence] choice=value summary
+    Observation.dataAbsentReason [0..1] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/data-absent-reason)
+    Observation.interpretation [0..*] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/observation-interpretation)
+    Observation.note [0..*] types=Annotation
+    Observation.bodySite [0..1] types=CodeableConcept binding=example(http://hl7.org/fhir/ValueSet/body-site)
+    Observation.bodyStructure [0..1] types=Reference->[BodyStructure]
+    Observation.method [0..1] types=CodeableConcept binding=example(http://hl7.org/fhir/ValueSet/observation-methods)
+    Observation.specimen [0..1] types=Reference->[Specimen,Group]
+    Observation.device [0..1] types=Reference->[Device,DeviceMetric]
+    Observation.referenceRange [0..*] types=BackboneElement
+      Observation.referenceRange.id [0..1] types=string
+      Observation.referenceRange.extension [0..*] types=Extension
+      Observation.referenceRange.modifierExtension [0..*] types=Extension summary modifier
+      Observation.referenceRange.low [0..1] types=Quantity
+      Observation.referenceRange.high [0..1] types=Quantity
+      Observation.referenceRange.normalValue [0..1] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/observation-referencerange-normalvalue)
+      Observation.referenceRange.type [0..1] types=CodeableConcept binding=preferred(http://hl7.org/fhir/ValueSet/referencerange-meaning)
+      Observation.referenceRange.appliesTo [0..*] types=CodeableConcept binding=example(http://hl7.org/fhir/ValueSet/referencerange-appliesto)
+      Observation.referenceRange.age [0..1] types=Range
+      Observation.referenceRange.text [0..1] types=markdown
+    Observation.hasMember [0..*] types=Reference->[Observation,QuestionnaireResponse,MolecularSequence] summary
+    Observation.derivedFrom [0..*] types=Reference->[DocumentReference,ImagingStudy,ImagingSelection,QuestionnaireResponse,Observation,MolecularSequence,GenomicStudy] summary
+    Observation.component [0..*] types=BackboneElement summary
+      Observation.component.id [0..1] types=string
+      Observation.component.extension [0..*] types=Extension
+      Observation.component.modifierExtension [0..*] types=Extension summary modifier
+      Observation.component.code [1..1] types=CodeableConcept binding=example(http://hl7.org/fhir/ValueSet/observation-codes) summary
+      Observation.component.value[x] [0..1] types=Quantity|CodeableConcept|string|boolean|integer|Range|Ratio|SampledData|time|dateTime|Period|Attachment|Reference->[MolecularSequence] choice=value summary
+      Observation.component.dataAbsentReason [0..1] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/data-absent-reason)
+      Observation.component.interpretation [0..*] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/observation-interpretation)
+      Observation.component.referenceRange [0..*] contentReference=Observation.referenceRange
+        Observation.referenceRange.id [0..1] types=string
+        Observation.referenceRange.extension [0..*] types=Extension
+        Observation.referenceRange.modifierExtension [0..*] types=Extension summary modifier
+        Observation.referenceRange.low [0..1] types=Quantity
+        Observation.referenceRange.high [0..1] types=Quantity
+        Observation.referenceRange.normalValue [0..1] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/observation-referencerange-normalvalue)
+        Observation.referenceRange.type [0..1] types=CodeableConcept binding=preferred(http://hl7.org/fhir/ValueSet/referencerange-meaning)
+        Observation.referenceRange.appliesTo [0..*] types=CodeableConcept binding=example(http://hl7.org/fhir/ValueSet/referencerange-appliesto)
+        Observation.referenceRange.age [0..1] types=Range
+        Observation.referenceRange.text [0..1] types=markdown

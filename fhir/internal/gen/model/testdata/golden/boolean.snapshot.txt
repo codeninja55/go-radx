@@ -1,0 +1,6 @@
+Type boolean kind=primitive-type abstract=false
+  base http://hl7.org/fhir/StructureDefinition/PrimitiveType
+  boolean [0..*]
+    boolean.id [0..1] types=string
+    boolean.extension [0..*] types=Extension
+    boolean.value [0..1] types=boolean
