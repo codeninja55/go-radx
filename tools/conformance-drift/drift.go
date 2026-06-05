@@ -65,13 +65,14 @@ func (f Finding) String() string {
 	return fmt.Sprintf("[%s] %s: %s", f.Class, f.Subject, f.Detail)
 }
 
-// scaffoldStatements are the conformance statements whose surfaces are not yet implemented;
-// each must carry the NOT YET SHIPPED banner until its surface ships.
+// scaffoldStatements are the conformance statements whose surfaces are not yet implemented or
+// not yet authored; each must carry the NOT YET SHIPPED banner until its surface ships.
 var scaffoldStatements = []string{
 	"dicomweb.md",
 	"dimse.md",
 	"convert.md",
 	"cli-server.md",
+	"cross-cutting.md",
 }
 
 // stabilityPackages are the top-level public packages that must each carry a one-line
