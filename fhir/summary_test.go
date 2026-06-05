@@ -27,12 +27,19 @@ func registerSummarySample(t *testing.T) {
 	if _, ok := lookupSummaryDescriptor("SummarySample"); ok {
 		return
 	}
+	// The fixture keeps each summary flag on a distinct element so a mode test pins exactly
+	// one behaviour: status is summary-only, mand is mandatory-only (not summary), mod is
+	// modifier-only (not summary), code is summary-only, note carries no flag. A regression
+	// that stopped keeping mandatory-only or modifier-only elements in SummaryTrue therefore
+	// fails on mand/mod rather than being masked by a conflated element.
 	RegisterSummaryDescriptor("SummarySample", SummaryDescriptor{
 		Elements: []SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
 			{JSONName: "text", IsText: true},
-			{JSONName: "status", IsSummary: true, IsMandatory: true, IsModifier: true},
+			{JSONName: "status", IsSummary: true},
+			{JSONName: "mand", IsMandatory: true},
+			{JSONName: "mod", IsModifier: true},
 			{JSONName: "code", IsSummary: true},
 			{JSONName: "note"},
 			{JSONName: "total", IsSummary: true, IsCount: true},
@@ -44,7 +51,7 @@ func registerSummarySample(t *testing.T) {
 // elements in declaration order. status carries a "_status" primitive sibling that must be
 // filtered together with its value.
 const sampleBody = `{"resourceType":"SummarySample","id":"abc","text":{"status":"generated"},` +
-	`"status":"final","_status":{"id":"s1"},"code":"x","note":"hidden","total":7}`
+	`"status":"final","_status":{"id":"s1"},"mand":"m","mod":"x1","code":"x","note":"hidden","total":7}`
 
 func decodeKeys(t *testing.T, data []byte) []string {
 	t.Helper()
@@ -113,7 +120,9 @@ func TestMarshalSummaryTrueKeepsFlaggedElements(t *testing.T) {
 	}
 	keys := decodeKeys(t, got)
 
-	for _, want := range []string{"resourceType", "id", "status", "_status", "code", "total"} {
+	// status/code are summary-only, mand is mandatory-only, mod is modifier-only: all four
+	// flag classes SummaryTrue keeps must survive, plus the value's "_status" sibling.
+	for _, want := range []string{"resourceType", "id", "status", "_status", "mand", "mod", "code", "total"} {
 		if !hasKey(keys, want) {
 			t.Errorf("SummaryTrue dropped %q it should keep; keys = %v", want, keys)
 		}
@@ -142,12 +151,13 @@ func TestMarshalSummaryTextKeepsNarrativeAndMandatory(t *testing.T) {
 		t.Fatalf("MarshalSummary: %v", err)
 	}
 	keys := decodeKeys(t, got)
-	for _, want := range []string{"id", "text", "status"} {
+	for _, want := range []string{"id", "text", "mand"} { // mand is the mandatory-only element
 		if !hasKey(keys, want) {
 			t.Errorf("SummaryText dropped %q it should keep; keys = %v", want, keys)
 		}
 	}
-	for _, drop := range []string{"code", "note", "total"} {
+	// status (summary-only) and mod (modifier-only) are not kept by text mode.
+	for _, drop := range []string{"status", "mod", "code", "note", "total"} {
 		if hasKey(keys, drop) {
 			t.Errorf("SummaryText kept %q it should drop; keys = %v", drop, keys)
 		}
@@ -166,7 +176,7 @@ func TestMarshalSummaryDataDropsNarrative(t *testing.T) {
 	if hasKey(keys, "text") {
 		t.Errorf("SummaryData kept the narrative; keys = %v", keys)
 	}
-	for _, want := range []string{"status", "code", "note", "total"} {
+	for _, want := range []string{"status", "mand", "mod", "code", "note", "total"} {
 		if !hasKey(keys, want) {
 			t.Errorf("SummaryData dropped %q it should keep; keys = %v", want, keys)
 		}
@@ -183,12 +193,13 @@ func TestMarshalSummaryCountKeepsTotalAndMandatory(t *testing.T) {
 		t.Fatalf("MarshalSummary: %v", err)
 	}
 	keys := decodeKeys(t, got)
-	for _, want := range []string{"total", "status"} { // status is mandatory in the fixture
+	for _, want := range []string{"total", "mand"} { // mand is the mandatory-only element
 		if !hasKey(keys, want) {
 			t.Errorf("SummaryCount dropped %q it should keep; keys = %v", want, keys)
 		}
 	}
-	for _, drop := range []string{"text", "code", "note"} {
+	// status/code (summary-only) and mod (modifier-only) are not kept by count mode.
+	for _, drop := range []string{"text", "status", "mod", "code", "note"} {
 		if hasKey(keys, drop) {
 			t.Errorf("SummaryCount kept %q it should drop; keys = %v", drop, keys)
 		}
