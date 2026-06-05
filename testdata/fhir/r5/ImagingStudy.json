@@ -1,0 +1,59 @@
+{
+  "resourceType": "ImagingStudy",
+  "id": "wf-imagingstudy",
+  "text": {
+    "status": "generated",
+    "div": "\u003cdiv xmlns=\"http://www.w3.org/1999/xhtml\"\u003eSynthetic CT chest imaging study, 1 series\u003c/div\u003e"
+  },
+  "status": "available",
+  "modality": [
+    {
+      "coding": [
+        {
+          "system": "http://dicom.nema.org/resources/ontology/DCM",
+          "code": "CT",
+          "display": "Computed Tomography"
+        }
+      ],
+      "text": "Computed Tomography"
+    }
+  ],
+  "subject": {
+    "reference": "Patient/wf-patient",
+    "display": "TESTPATIENT, Workflow"
+  },
+  "encounter": {
+    "reference": "Encounter/wf-encounter",
+    "display": "Imaging encounter"
+  },
+  "started": "2026-06-01T10:00:00Z",
+  "numberOfSeries": 1,
+  "numberOfInstances": 1,
+  "series": [
+    {
+      "uid": "1.2.840.113619.2.55.3.604688.1",
+      "number": 1,
+      "modality": {
+        "coding": [
+          {
+            "system": "http://dicom.nema.org/resources/ontology/DCM",
+            "code": "CT",
+            "display": "Computed Tomography"
+          }
+        ],
+        "text": "Computed Tomography"
+      },
+      "numberOfInstances": 1,
+      "instance": [
+        {
+          "uid": "1.2.840.113619.2.55.3.604688.1.1",
+          "sopClass": {
+            "system": "urn:ietf:rfc:3986",
+            "code": "urn:oid:1.2.840.10008.5.1.4.1.1.2"
+          },
+          "number": 1
+        }
+      ]
+    }
+  ]
+}

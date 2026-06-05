@@ -1,0 +1,19 @@
+{
+  "resourceType": "Observation",
+  "id": "negative-fixture",
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "29463-7",
+        "display": "Body weight"
+      }
+    ]
+  },
+  "valueQuantity": {
+    "value": 72.5,
+    "unit": "kg",
+    "system": "http://unitsofmeasure.org",
+    "code": "kg"
+  }
+}

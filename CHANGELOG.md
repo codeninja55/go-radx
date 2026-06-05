@@ -12,6 +12,20 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- A merge-blocking FHIR R5 conformance gate (M6 Increment 14, the M6a acceptance gate) that runs the official
+  HL7 FHIR validator (`validator_cli.jar`, hapifhir/org.hl7.fhir.core, pinned to version `6.9.9` with a recorded
+  SHA-256 in `tools/versions`) over the go-radx-generated workflow set — `Patient`, `Encounter`, `ServiceRequest`,
+  `ImagingStudy`, `Observation`, `DiagnosticReport`, `OperationOutcome`, `CapabilityStatement`, and a `collection`
+  `Bundle` that references them. `tools/fhir-conformance/fixtures` marshals a fully-populated instance of each
+  resource through the generated `MarshalJSON`, and `tools/fhir-conformance/validate.sh` validates that JSON against
+  FHIR R5 `5.0.0` (zero errors required), mirroring the DICOM conformance gate's skip-locally / fail-when-`CI=true`
+  structure. The gate also validates a deliberately-invalid negative fixture
+  (`tools/fhir-conformance/negative/invalid-observation.json`, an `Observation` missing the required `status`) and
+  fails unless the validator rejects it, proving the gate bites. A new `fhir-conformance` CI job installs a JDK,
+  downloads and SHA-256-verifies the pinned jar, and runs the gate; the `conformance:fhir` mise task runs it locally.
+  A curated R5 example corpus (synthetic, no PHI) is vendored under `testdata/fhir/` with provenance and CC0
+  attribution (`SOURCE.md`, `LICENSE-hl7-fhir.txt`), and `fhir/r5/corpus_test.go` keeps it load-bearing in the unit
+  suite (decode, structural round-trip, and go-radx's own `Validate` with no errors).
 - Wired every Phase 0 gate into the CI workflow so it runs on every push and pull request: `phi-sanity`
   (the PHI-default log sweep, `internal/phisweep`), `fuzz` (a bounded smoke run over all five fuzz targets —
   `FuzzRead`/`FuzzReadPixelDataFrom` in `dicom` and `FuzzReadPDU`/`FuzzDecodeAssociateAC`/`FuzzDecodePDV` in

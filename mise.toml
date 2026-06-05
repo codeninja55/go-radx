@@ -88,6 +88,10 @@ run = "tools/dicom-conformance/dciodvfy.sh"
 description = "Round-trip vendored fixtures through pydicom (skips if absent)"
 run = "python3 tools/dicom-conformance/pydicom_roundtrip.py testdata/dicom"
 
+[tasks."conformance:fhir"]
+description = "Validate the go-radx FHIR R5 workflow set with the pinned HL7 FHIR validator (skips if Java/jar absent; the negative fixture must be rejected)"
+run = "tools/fhir-conformance/validate.sh"
+
 [tasks."lint"]
 description = "Run golangci-lint (2.x, Go 1.26 compatible)"
 run = "golangci-lint run ./..."

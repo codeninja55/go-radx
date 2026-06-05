@@ -1,0 +1,31 @@
+{
+  "resourceType": "ServiceRequest",
+  "id": "wf-servicerequest",
+  "text": {
+    "status": "generated",
+    "div": "\u003cdiv xmlns=\"http://www.w3.org/1999/xhtml\"\u003eSynthetic imaging order: CT chest\u003c/div\u003e"
+  },
+  "status": "active",
+  "intent": "order",
+  "code": {
+    "concept": {
+      "coding": [
+        {
+          "system": "http://loinc.org",
+          "code": "24627-2",
+          "display": "CT Chest"
+        }
+      ],
+      "text": "CT Chest"
+    }
+  },
+  "subject": {
+    "reference": "Patient/wf-patient",
+    "display": "TESTPATIENT, Workflow"
+  },
+  "encounter": {
+    "reference": "Encounter/wf-encounter",
+    "display": "Imaging encounter"
+  },
+  "authoredOn": "2026-06-01T09:30:00Z"
+}

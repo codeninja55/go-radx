@@ -1,0 +1,30 @@
+{
+  "resourceType": "CapabilityStatement",
+  "id": "wf-capabilitystatement",
+  "text": {
+    "status": "generated",
+    "div": "\u003cdiv xmlns=\"http://www.w3.org/1999/xhtml\"\u003eSynthetic go-radx server capability statement\u003c/div\u003e"
+  },
+  "url": "http://example.org/go-radx/CapabilityStatement/workflow",
+  "name": "GoRadxWorkflowServer",
+  "title": "go-radx workflow server",
+  "status": "active",
+  "date": "2026-06-01",
+  "publisher": "go-radx",
+  "description": "Synthetic capability statement for the go-radx FHIR conformance gate",
+  "kind": "instance",
+  "implementation": {
+    "description": "go-radx workflow server instance",
+    "url": "https://go-radx.test/fhir"
+  },
+  "fhirVersion": "5.0.0",
+  "format": [
+    "json"
+  ],
+  "rest": [
+    {
+      "mode": "server",
+      "documentation": "Synthetic RESTful capability"
+    }
+  ]
+}

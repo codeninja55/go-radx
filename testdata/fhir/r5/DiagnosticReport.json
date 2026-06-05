@@ -1,0 +1,53 @@
+{
+  "resourceType": "DiagnosticReport",
+  "id": "wf-diagnosticreport",
+  "text": {
+    "status": "generated",
+    "div": "\u003cdiv xmlns=\"http://www.w3.org/1999/xhtml\"\u003eSynthetic CT chest radiology report\u003c/div\u003e"
+  },
+  "status": "final",
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+          "code": "RAD",
+          "display": "Radiology"
+        }
+      ],
+      "text": "Radiology"
+    }
+  ],
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "24627-2",
+        "display": "CT Chest"
+      }
+    ],
+    "text": "CT Chest"
+  },
+  "subject": {
+    "reference": "Patient/wf-patient",
+    "display": "TESTPATIENT, Workflow"
+  },
+  "encounter": {
+    "reference": "Encounter/wf-encounter",
+    "display": "Imaging encounter"
+  },
+  "effectiveDateTime": "2026-06-01T10:30:00Z",
+  "issued": "2026-06-01T11:00:00Z",
+  "result": [
+    {
+      "reference": "Observation/wf-observation",
+      "display": "Body weight"
+    }
+  ],
+  "study": [
+    {
+      "reference": "ImagingStudy/wf-imagingstudy",
+      "display": "CT chest study"
+    }
+  ]
+}

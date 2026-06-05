@@ -1,0 +1,28 @@
+{
+  "resourceType": "Patient",
+  "id": "wf-patient",
+  "text": {
+    "status": "generated",
+    "div": "\u003cdiv xmlns=\"http://www.w3.org/1999/xhtml\"\u003eSynthetic test patient TESTPATIENT, Workflow\u003c/div\u003e"
+  },
+  "identifier": [
+    {
+      "use": "usual",
+      "system": "urn:oid:1.2.36.146.595.217.0.1",
+      "value": "MRN0001234"
+    }
+  ],
+  "active": true,
+  "name": [
+    {
+      "use": "official",
+      "family": "TESTPATIENT",
+      "given": [
+        "Workflow",
+        "Synthetic"
+      ]
+    }
+  ],
+  "gender": "female",
+  "birthDate": "1985-07-12"
+}
