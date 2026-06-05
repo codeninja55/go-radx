@@ -1,0 +1,85 @@
+site_name: go-radx
+site_description: >-
+  Go library for medical imaging and healthcare interoperability standards:
+  FHIR R4/R5, DICOM, DICOMweb, HL7 v2.x, and DIMSE networking.
+site_url: https://codeninja55.github.io/go-radx/
+repo_url: https://github.com/codeninja55/go-radx
+repo_name: codeninja55/go-radx
+copyright: Copyright &copy; go-radx contributors
+
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+
+# The plans/ and prd/ trees are internal planning and product artefacts, not part of the
+# published site. exclude_docs drops them from the build entirely, so --strict does not warn
+# about pages that are present in docs/ but intentionally absent from the navigation.
+exclude_docs: |
+  plans/
+  prd/
+
+# Make --strict catch navigation drift: any page added under docs/ but missing from the nav
+# (omitted_files) and any nav entry pointing at a missing or excluded file (not_found) fail the
+# build, so the site cannot silently fall out of step with the docs tree.
+#
+# The conformance and reference statements deliberately cross-link to repository-root governance
+# files (README, CONTRIBUTING, SECURITY, UBIQUITOUS_LANGUAGE, tools/, .github/) with ../../
+# relative paths that resolve when the Markdown is read on GitHub but point outside docs_dir, so
+# mkdocs cannot resolve them. Those out-of-tree link checks are downgraded to info so they do not
+# abort the strict build; the in-tree nav coverage above stays strict.
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: info
+    absolute_links: info
+    unrecognized_links: info
+
+nav:
+  - Home: index.md
+  - Conformance statements:
+      - Cross-cutting posture: conformance/cross-cutting.md
+      - DICOM: conformance/dicom.md
+      - DIMSE: conformance/dimse.md
+      - DICOMweb: conformance/dicomweb.md
+      - HL7 v2: conformance/hl7v2.md
+      - FHIR: conformance/fhir.md
+      - Cross-standard conversion: conformance/convert.md
+      - CLI and server: conformance/cli-server.md
+  - API reference:
+      - DICOM: reference/dicom.md
+      - DIMSE: reference/dimse.md
+      - DICOMweb: reference/dicomweb.md
+      - HL7 v2: reference/hl7v2.md
+      - FHIR: reference/fhir.md
+      - Cross-standard conversion: reference/convert.md
+      - CLI: reference/cli.md
+      - Servers: reference/servers.md

@@ -91,3 +91,18 @@ run = "golangci-lint run ./..."
 [tasks."pin-drift"]
 description = "Fail if any reference tool or interop image has floated back to an unpinned reference"
 run = "tools/pin-drift.sh"
+
+[tasks."conformance-drift"]
+description = "Fail if a conformance statement and the code it describes diverge (counts, banners, stability markers)"
+run = "go test ./tools/conformance-drift/..."
+
+[tasks."docs:build"]
+# Requires mkdocs + mkdocs-material on PATH (pip install mkdocs mkdocs-material). The CI job that
+# provisions this toolchain is wired by the gate-enforcement work; until then this is a local task.
+description = "Build the mkdocs documentation site, failing on any nav drift (--strict)"
+run = "mkdocs build --strict"
+
+[tasks."docs:serve"]
+# Requires mkdocs + mkdocs-material on PATH (see docs:build).
+description = "Preview the mkdocs documentation site locally with live reload"
+run = "mkdocs serve"

@@ -12,6 +12,20 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- A conformance-drift check (`tools/conformance-drift`, run as `go test ./tools/conformance-drift/...`
+  or `mise run conformance-drift`) and an mkdocs documentation site (`mkdocs.yml`, built with
+  `mise run docs:build` / `mkdocs build --strict`) so the conformance statements cannot silently
+  diverge from the code. The check verifies three drift classes against the code: the countable
+  presentation-context preset claims in `docs/conformance/dicom.md` match the live `dimse` preset
+  counts (preset existence is read from the `dimse` source via AST, with NOT-YET-SHIPPED presets
+  asserted absent), every scaffold statement (`dicomweb`, `dimse`, `convert`, `cli-server`,
+  `cross-cutting`) carries its NOT-YET-SHIPPED header banner, and every top-level public package in
+  the documented stability set carries its `Stability:` godoc marker; table-driven self-tests prove
+  each class is detected against temp fixtures without mutating the real docs. The strict mkdocs
+  build fails on navigation drift. The cross-cutting statement's "Conformance-drift methodology" section
+  documents the approach. Reconciled a documentation-only drift the check surfaced: the
+  `AllStorageContexts()` Storage forwarding preset was named as shipped API in `docs/conformance/dicom.md`
+  and `docs/reference/dimse.md` but is not implemented, and is now marked NOT YET SHIPPED.
 - Formalized the pure-Go `go test -race ./...` unit-test run as a standing required gate and authored
   the cross-cutting conformance statement's "Concurrency and race posture" section. The section
   documents why `-race` is the pure-Go unit-test gate and intentionally does not extend to the cgo
