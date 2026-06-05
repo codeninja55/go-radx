@@ -84,6 +84,50 @@ func selectTransferSyntax(acceptorPreferred, proposed []string) (string, bool) {
 	return "", false
 }
 
+// SupportedRole is the SCP/SCU role the acceptor is willing to play for one SOP Class (PS3.7
+// D.3.3.4). It bounds what NegotiateRoles can grant: the acceptor never grants a role it does
+// not itself support. The acse layer works in plain UID strings so it never imports the root
+// dimse package (acyclic layering).
+type SupportedRole struct {
+	SOPClassUID string
+	SCURole     bool
+	SCPRole     bool
+}
+
+// NegotiateRoles matches each requested SCP/SCU role-selection sub-item against the acceptor's
+// supported roles and returns one A-ASSOCIATE-AC role-selection response per request, in the
+// requestor's order (PS3.7 D.3.3.4). A request for a SOP Class the acceptor declared no role
+// for is granted neither role (both flags 0); otherwise each requested role is granted only
+// when the acceptor also supports it, so the acceptor never commits to a role it cannot play.
+// A SOP Class the acceptor supports but the requestor did not propose a role for yields no
+// response, because role selection is requestor-initiated.
+func NegotiateRoles(requested []pdu.RoleSelection, supported []SupportedRole) []pdu.RoleSelection {
+	results := make([]pdu.RoleSelection, 0, len(requested))
+	for _, rq := range requested {
+		sr, ok := findSupportedRole(supported, rq.SOPClassUID)
+		if !ok {
+			results = append(results, pdu.RoleSelection{SOPClassUID: rq.SOPClassUID})
+			continue
+		}
+		results = append(results, pdu.RoleSelection{
+			SOPClassUID: rq.SOPClassUID,
+			SCURole:     rq.SCURole && sr.SCURole,
+			SCPRole:     rq.SCPRole && sr.SCPRole,
+		})
+	}
+	return results
+}
+
+// findSupportedRole returns the acceptor's supported role for sopClass, if declared.
+func findSupportedRole(supported []SupportedRole, sopClass string) (SupportedRole, bool) {
+	for _, sr := range supported {
+		if sr.SOPClassUID == sopClass {
+			return sr, true
+		}
+	}
+	return SupportedRole{}, false
+}
+
 // EffectiveSendCap resolves the number of P-DATA-TF body bytes that may be sent to a peer
 // whose advertised maximum PDU length is peerMax, given the local send cap localCap. A peer
 // max of 0 means "no maximum specified" (unlimited) and resolves to localCap, never 0

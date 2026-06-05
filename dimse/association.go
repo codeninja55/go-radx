@@ -19,9 +19,13 @@ import (
 // typed *AssociationError rather than panicking (Codex DIMSE-017). It is not safe for
 // concurrent use by multiple goroutines issuing operations; a single goroutine drives it.
 type Association struct {
-	requestor    *acse.Requestor
-	accepted     []PresentationContext
-	dimseTimeout time.Duration
+	requestor *acse.Requestor
+	accepted  []PresentationContext
+	// negotiatedRoles holds the SCP/SCU role-selection grants the acceptor returned in its
+	// A-ASSOCIATE-AC (PS3.7 D.3.3.4), one per SOP Class the requestor proposed a role for. A
+	// granted SCP role for a storage SOP Class is what lets a same-association C-GET proceed.
+	negotiatedRoles []RoleSelection
+	dimseTimeout    time.Duration
 	// localMaxPDULength is the maximum PDU length this AE advertised; peerMaxPDULength is the one
 	// the peer advertised in its A-ASSOCIATE-AC. A C-STORE is fragmented so every P-DATA-TF stays
 	// within both limits (MaxPDULength.SendCap), and an unlimited peer max (0) resolves to the
@@ -168,11 +172,35 @@ func (a *Association) setLastError(err error) {
 	a.mu.Unlock()
 }
 
-// AssociateOption configures an outbound association (reserved for role selection,
-// async-ops, user-identity, and extended negotiation in later increments).
+// AssociateOption configures an outbound association (async-ops, user-identity, and extended
+// negotiation are reserved for later increments).
 type AssociateOption func(*associateConfig)
 
-type associateConfig struct{}
+type associateConfig struct {
+	roleSelections []pdu.RoleSelection
+}
+
+// RoleSelection requests the SCP/SCU roles the requestor proposes to play for one SOP Class
+// (PS3.7 D.3.3.4). SCURole and SCPRole are the roles the requestor offers; the acceptor's
+// grant is read back from Association.NegotiatedRoles. Proposing the acceptor as SCP (and the
+// requestor as SCU) for a storage SOP Class is the prerequisite for same-association C-GET.
+type RoleSelection struct {
+	SOPClassUID dicom.SOPClassUID
+	SCURole     bool
+	SCPRole     bool
+}
+
+// WithRoleSelection adds an SCP/SCU role-selection request to the outbound A-ASSOCIATE-RQ for
+// one SOP Class (PS3.7 D.3.3.4). Repeating the option accumulates one request per SOP Class.
+func WithRoleSelection(role RoleSelection) AssociateOption {
+	return func(c *associateConfig) {
+		c.roleSelections = append(c.roleSelections, pdu.RoleSelection{
+			SOPClassUID: string(role.SOPClassUID),
+			SCURole:     role.SCURole,
+			SCPRole:     role.SCPRole,
+		})
+	}
+}
 
 // Associate opens an A-ASSOCIATE-RQ to the peer at addr ("host:port") and blocks until the
 // association is accepted, rejected, aborted, or ctx is cancelled. On success it returns an
@@ -207,6 +235,7 @@ func (ae *AE) Associate(
 		Contexts:               toPDUContextsRQ(contexts),
 		ImplementationClassUID: string(ae.cfg.implementationClassUID),
 		ImplementationVersion:  ae.cfg.implementationVersion,
+		RoleSelections:         cfg.roleSelections,
 	}
 
 	acseCtx, cancel := ae.acseContext(ctx)
@@ -220,6 +249,7 @@ func (ae *AE) Associate(
 	return &Association{
 		requestor:         requestor,
 		accepted:          fromPDUContextsAC(contexts, requestor.AcceptedContexts()),
+		negotiatedRoles:   fromPDURoles(requestor.NegotiatedRoles()),
 		dimseTimeout:      ae.cfg.dimseTimeout,
 		localMaxPDULength: ae.cfg.maxPDULength,
 		peerMaxPDULength:  MaxPDULength(requestor.PeerMaxPDULength()),
@@ -273,6 +303,18 @@ func (a *Association) AcceptedContexts() []PresentationContext {
 		return nil
 	}
 	return a.accepted
+}
+
+// NegotiatedRoles returns the SCP/SCU role-selection grants the peer (acceptor) returned in
+// its A-ASSOCIATE-AC (PS3.7 D.3.3.4), one per SOP Class the requestor proposed a role for via
+// WithRoleSelection. It is nil for an unestablished association or when no role selection was
+// negotiated. A granted SCP role for a storage SOP Class is the prerequisite for a
+// same-association C-GET.
+func (a *Association) NegotiatedRoles() []RoleSelection {
+	if a == nil || a.requestor == nil {
+		return nil
+	}
+	return a.negotiatedRoles
 }
 
 // PeerImplementationClassUID returns the Implementation Class UID the peer (acceptor) advertised
@@ -369,6 +411,24 @@ func fromPDUContextsAC(proposed []PresentationContext, results []pdu.Presentatio
 			AbstractSyntax:   byID[r.ID],
 			TransferSyntaxes: []dicom.TransferSyntax{dicom.TransferSyntax(r.TransferSyntax)},
 			Result:           ContextResult(r.Result),
+		})
+	}
+	return out
+}
+
+// fromPDURoles translates the acceptor's pdu-level role-selection grants back to public
+// RoleSelection values, preserving order. It returns nil for an empty input so an association
+// that negotiated no roles reports nil rather than a non-nil empty slice.
+func fromPDURoles(roles []pdu.RoleSelection) []RoleSelection {
+	if len(roles) == 0 {
+		return nil
+	}
+	out := make([]RoleSelection, 0, len(roles))
+	for _, r := range roles {
+		out = append(out, RoleSelection{
+			SOPClassUID: dicom.SOPClassUID(r.SOPClassUID),
+			SCURole:     r.SCURole,
+			SCPRole:     r.SCPRole,
 		})
 	}
 	return out
