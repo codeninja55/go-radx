@@ -303,8 +303,8 @@ current concurrent code passes it, yet one historical intermittent remains open 
 
 A conformance statement is only worth citing if it cannot quietly fall out of step with the code it describes. Two
 mechanical gates keep these statements honest as the implementation moves: a drift check that fails when a countable or
-structural claim diverges from the code, and a documentation-site build that fails when the statements stop rendering or
-cross-linking as a coherent set.
+structural claim diverges from the code, and a documentation-site build that fails when a statement falls out of the
+site navigation.
 
 ### The drift check
 
@@ -318,11 +318,11 @@ The drift check lives in `tools/conformance-drift` and runs as `go test ./tools/
   API, so a deferred surface cannot be quietly shipped without updating the statement, and a preset present in code but
   missing from the table is also surfaced. This catches both directions of drift: a count that changes in code without a
   doc update, and a doc that names a preset the code does not (or no longer) provides.
-- **Not-yet-shipped banners.** Every scaffold statement for an unimplemented surface —
-  [`./dicomweb.md`](./dicomweb.md), [`./dimse.md`](./dimse.md), [`./convert.md`](./convert.md), and
-  [`./cli-server.md`](./cli-server.md) — must carry the `NOT YET SHIPPED` banner. The check fails if any of these
-  drops its banner, so an unfinished surface can never be silently presented as conformance-guaranteed by deleting
-  the warning.
+- **Not-yet-shipped banners.** Every scaffold statement for an unimplemented or not-yet-authored surface —
+  [`./dicomweb.md`](./dicomweb.md), [`./dimse.md`](./dimse.md), [`./convert.md`](./convert.md),
+  [`./cli-server.md`](./cli-server.md), and this cross-cutting statement — must carry the `NOT YET SHIPPED` banner.
+  The check fails if any of these drops its banner, so an unfinished surface can never be silently presented as
+  conformance-guaranteed by deleting the warning.
 - **Stability markers.** Each top-level public package (`convert`, `dicom`, `dicomweb`, `dimse`, `fhir`, `hl7v2`,
   `server`) must carry its one-line `Stability:` godoc marker described under
   [Governance and stability posture](#governance-and-stability-posture). The check fails if any package drops it, so
