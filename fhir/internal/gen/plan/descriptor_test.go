@@ -129,3 +129,61 @@ func TestPlanValidationDescriptorBundleHasExtra(t *testing.T) {
 		t.Error("the Bundle descriptor should be flagged HasExtra for the bdl-* and reference checks")
 	}
 }
+
+// TestPlanValidationDescriptorSummaryFlags confirms the planner records per-element summary
+// metadata MarshalSummary filters on: the isSummary, mandatory, modifier, narrative, and
+// count flags, with a choice ([x]) group contributing one entry per suffixed branch key.
+func TestPlanValidationDescriptorSummaryFlags(t *testing.T) {
+	required := model.Cardinality{Min: 1, Max: "1"}
+	optional := model.Cardinality{Min: 0, Max: "1"}
+	root := &model.Element{
+		Name: "Sample", Path: "Sample",
+		Children: []*model.Element{
+			{Name: "text", Path: "Sample.text", Cardinality: optional, Types: []model.TypeRef{{Code: "Narrative"}}},
+			{Name: "status", Path: "Sample.status", Cardinality: required, IsSummary: true, IsModifier: true, Types: []model.TypeRef{{Code: "code"}}},
+			{
+				Name: "value[x]", Path: "Sample.value[x]", Cardinality: optional, IsChoice: true, ChoiceBase: "value",
+				IsSummary: true, Types: []model.TypeRef{{Code: "Quantity"}, {Code: "string"}},
+			},
+			{Name: "total", Path: "Sample.total", Cardinality: optional, IsSummary: true, Types: []model.TypeRef{{Code: "integer"}}},
+			{Name: "note", Path: "Sample.note", Cardinality: optional, Types: []model.TypeRef{{Code: "string"}}},
+		},
+	}
+	typ := &model.Type{Name: "Sample", Kind: model.KindResource, Root: root}
+	resolver := descriptorResolver()
+	pt := PlanType(typ, Options{Bindings: resolver})
+
+	vd, ok := PlanValidationDescriptor(typ, pt, resolver)
+	if !ok {
+		t.Fatal("PlanValidationDescriptor returned ok=false for a resource")
+	}
+
+	byKey := make(map[string]SummaryFlag, len(vd.Summary))
+	for _, sf := range vd.Summary {
+		byKey[sf.JSONName] = sf
+	}
+
+	if sf := byKey["text"]; !sf.IsText {
+		t.Errorf("text element not marked IsText: %+v", sf)
+	}
+	if sf := byKey["status"]; !sf.IsSummary || !sf.IsMandatory || !sf.IsModifier {
+		t.Errorf("status flags = %+v, want summary+mandatory+modifier", sf)
+	}
+	if sf := byKey["total"]; !sf.IsSummary || !sf.IsCount {
+		t.Errorf("total flags = %+v, want summary+count", sf)
+	}
+	if sf := byKey["note"]; sf.IsSummary || sf.IsMandatory || sf.IsModifier || sf.IsText || sf.IsCount {
+		t.Errorf("note should carry no summary flags: %+v", sf)
+	}
+	// The choice group contributes one entry per suffixed branch, both summary-flagged.
+	for _, branch := range []string{"valueQuantity", "valueString"} {
+		sf, ok := byKey[branch]
+		if !ok {
+			t.Errorf("choice branch %q has no summary flag; got %v", branch, vd.Summary)
+			continue
+		}
+		if !sf.IsSummary {
+			t.Errorf("choice branch %q not marked IsSummary: %+v", branch, sf)
+		}
+	}
+}

@@ -40,6 +40,45 @@ type ValidationDescriptor struct {
 	// descriptor composes (the Bundle bdl-* invariants and reference integrity). The
 	// emitter wires the resource's <GoName>ValidateExtra hook only when set.
 	HasExtra bool
+
+	// Summary are the resource's top-level elements with the per-element flags
+	// MarshalSummary filters on (isSummary, mandatory, modifier, the narrative, and the
+	// Bundle count element), one entry per wire key. A choice ([x]) group contributes one
+	// entry per suffixed branch key, all sharing the group's flags. The emitter renders
+	// these as a generated fhir.SummaryDescriptor registered alongside the validation
+	// descriptor, so the summary serialiser filters from generated metadata rather than
+	// reflecting over the resource (Codex FHIR-012's data-driven companion).
+	Summary []SummaryFlag
+}
+
+// SummaryFlag is one top-level element's summary metadata: its wire key and the flags the
+// five _summary modes test. Presence-on-the-wire is irrelevant here; the flag set is the
+// element's static definition, so MarshalSummary keeps or drops a key by definition, not
+// by the value a particular resource carries.
+type SummaryFlag struct {
+	// JSONName is the element's wire key ("gender", "deceasedBoolean"). For a choice
+	// branch it is the suffixed key.
+	JSONName string
+
+	// IsSummary records the StructureDefinition isSummary flag; SummaryTrue keeps the
+	// element when set.
+	IsSummary bool
+
+	// IsMandatory records whether the element's minimum cardinality is at least one;
+	// SummaryTrue and SummaryText always keep a mandatory element.
+	IsMandatory bool
+
+	// IsModifier records the StructureDefinition isModifier flag; SummaryTrue always keeps
+	// a modifier element.
+	IsModifier bool
+
+	// IsText reports whether the element is the DomainResource narrative ("text"), kept by
+	// SummaryText and dropped by SummaryData.
+	IsText bool
+
+	// IsCount reports whether the element is the one a count view keeps (a Bundle's
+	// "total"); SummaryCount keeps it and drops every other non-infrastructure element.
+	IsCount bool
 }
 
 // RequiredField is one required top-level element: the Go field that must be present
@@ -120,6 +159,7 @@ func PlanValidationDescriptor(t *model.Type, pt PlannedType, bindings BindingRes
 	choiceByBase := indexChoicesByBase(pt.Choices)
 
 	for _, child := range t.Root.Children {
+		vd.Summary = append(vd.Summary, summaryFlags(child, choiceByBase)...)
 		if child.IsChoice {
 			if check, ok := choiceCheck(t.Name, child, choiceByBase); ok {
 				vd.Choices = append(vd.Choices, check)
@@ -138,6 +178,37 @@ func PlanValidationDescriptor(t *model.Type, pt PlannedType, bindings BindingRes
 		}
 	}
 	return vd, true
+}
+
+// summaryFlags builds the summary metadata for one top-level element. A non-choice
+// element yields one SummaryFlag keyed by its wire name; a choice ([x]) element yields
+// one flag per suffixed branch wire key, all sharing the group's flags, so MarshalSummary
+// filters whichever branch a resource set by the same rule. The narrative element ("text")
+// is marked IsText and the Bundle entry-count element ("total") is marked IsCount, the two
+// elements the text/data and count modes pivot on.
+func summaryFlags(child *model.Element, byBase map[string]PlannedChoice) []SummaryFlag {
+	base := SummaryFlag{
+		IsSummary:   child.IsSummary,
+		IsMandatory: child.Cardinality.Required(),
+		IsModifier:  child.IsModifier,
+		IsText:      child.Name == "text",
+		IsCount:     child.Name == "total",
+	}
+	if !child.IsChoice {
+		base.JSONName = child.Name
+		return []SummaryFlag{base}
+	}
+	pc, ok := byBase[child.ChoiceBase]
+	if !ok {
+		return nil
+	}
+	flags := make([]SummaryFlag, 0, len(pc.Branches))
+	for _, b := range pc.Branches {
+		flag := base
+		flag.JSONName = b.JSONName
+		flags = append(flags, flag)
+	}
+	return flags
 }
 
 // indexChoicesByBase maps a planned type's choice groups by their FHIR base name so the

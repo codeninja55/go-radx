@@ -75,3 +75,28 @@ func init() {
 		Extra: BundleValidateExtra,
 	})
 }
+
+// init registers a summary descriptor for every r5 resource with the
+// release-agnostic serialiser in the root fhir package, so fhir.MarshalSummary can filter
+// a resource's top-level elements per _summary mode from generated metadata without
+// reflecting over the resource at call time. Each descriptor lists every top-level wire
+// key with the isSummary, mandatory, modifier, narrative, and count flags the five modes
+// test; a choice ([x]) group contributes one entry per suffixed branch key.
+func init() {
+	fhir.RegisterSummaryDescriptor(SampleResourceType, fhir.SummaryDescriptor{
+		Elements: []fhir.SummaryElement{
+			{JSONName: "text", IsText: true},
+			{JSONName: "status", IsSummary: true, IsMandatory: true, IsModifier: true},
+			{JSONName: "valueQuantity", IsSummary: true},
+			{JSONName: "valueString", IsSummary: true},
+			{JSONName: "note"},
+		},
+	})
+	fhir.RegisterSummaryDescriptor(BundleResourceType, fhir.SummaryDescriptor{
+		Elements: []fhir.SummaryElement{
+			{JSONName: "type", IsSummary: true, IsMandatory: true},
+			{JSONName: "total", IsSummary: true, IsCount: true},
+			{JSONName: "entry", IsSummary: true},
+		},
+	})
+}
