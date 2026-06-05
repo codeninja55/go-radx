@@ -12,6 +12,22 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Fuzz targets and benchmark baselines for the FHIR R5 decode / validate / summary hot paths (F1-P).
+  `fhir/r5/fuzz_test.go` adds three Go native fuzz targets — `FuzzUnmarshalResource` (registry-dispatched decode),
+  `FuzzValidate` (decode-then-validate, asserting no validation issue echoes a synthetic patient-data sentinel), and
+  `FuzzValidateTypedResource` (a fuzzer-shaped typed `Patient`) — each guarding the never-panic and no-PHI-leak
+  contracts (PRD §9.1, §9.3) over arbitrary, truncated, wrong-typed, and deeply nested input. Each target ships a
+  version-controlled seed corpus under `fhir/r5/testdata/fuzz/<FuzzName>/` and is wired into the CI fuzz job
+  (`mise run fuzz`), `timeout`-wrapped so a hang fails the build. A vendored, attributed, synthetic
+  (no real PHI) malformed-FHIR corpus seeds the hostile-input space (`testdata/fhir/malformed/`, with a `SOURCE.md`
+  documenting each fault class) — the first contribution to the Phase 4 hostile-input gate. Decode now maps a
+  truncated payload to `io.ErrUnexpectedEOF` at every decode boundary (folding the standard library's "unexpected end
+  of JSON input" syntax error and the decoder path's `io.EOF`/`io.ErrUnexpectedEOF`), distinct from a mid-buffer
+  syntax fault; `TestUnmarshalTruncatedYieldsUnexpectedEOF` and `TestCorpusTruncationMapsToUnexpectedEOF` assert the
+  contract explicitly. Benchmarks (`fhir/r5/bench_test.go`) cover marshal/unmarshal of a 200-entry searchset Bundle,
+  `Validate` over the workflow set, and the five `_summary` modes, with a benchstat-comparable baseline recorded in
+  `docs/conformance/benchmarks/fhir-baseline.txt` and run once per CI build (`mise run bench`). The fuzzing-posture
+  and performance-baseline sections of `docs/conformance/fhir.md` document both.
 - Vendored the official HL7 FHIR R4 `4.0.1` `StructureDefinition` / `ValueSet` definition bundle
   (`fhir/internal/gen/testdata/definitions/r4`, F1-N) mirroring the R5 vendoring discipline: a checksum-pinned
   `SHA256SUMS`, a `SOURCE.md` recording the download URL, version, build (`buildId` 9346c8cc45, 2019-11-01), and CC0
