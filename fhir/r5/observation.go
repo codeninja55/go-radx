@@ -13,35 +13,51 @@ const ObservationResourceType = "Observation"
 // Observation is the generated FHIR Observation resource.
 type Observation struct {
 	DomainResource
-	Identifier       []Identifier                `json:"identifier,omitempty"`
-	Instantiates     *string                     `json:"instantiates,omitempty"`
-	BasedOn          []Reference                 `json:"basedOn,omitempty"`
-	TriggeredBy      []ObservationTriggeredBy    `json:"triggeredBy,omitempty"`
-	PartOf           []Reference                 `json:"partOf,omitempty"`
-	Status           *string                     `json:"status,omitempty"`
-	StatusElement    *fhir.PrimitiveElement      `json:"-"`
-	Category         []CodeableConcept           `json:"category,omitempty"`
-	Code             *CodeableConcept            `json:"code,omitempty"`
-	Subject          *Reference                  `json:"subject,omitempty"`
-	Focus            []Reference                 `json:"focus,omitempty"`
-	Encounter        *Reference                  `json:"encounter,omitempty"`
-	Effective        *string                     `json:"effective,omitempty"`
-	Issued           *string                     `json:"issued,omitempty"`
-	IssuedElement    *fhir.PrimitiveElement      `json:"-"`
-	Performer        []Reference                 `json:"performer,omitempty"`
-	Value            *Quantity                   `json:"value,omitempty"`
-	DataAbsentReason *CodeableConcept            `json:"dataAbsentReason,omitempty"`
-	Interpretation   []CodeableConcept           `json:"interpretation,omitempty"`
-	Note             []Annotation                `json:"note,omitempty"`
-	BodySite         *CodeableConcept            `json:"bodySite,omitempty"`
-	BodyStructure    *Reference                  `json:"bodyStructure,omitempty"`
-	Method           *CodeableConcept            `json:"method,omitempty"`
-	Specimen         *Reference                  `json:"specimen,omitempty"`
-	Device           *Reference                  `json:"device,omitempty"`
-	ReferenceRange   []ObservationReferenceRange `json:"referenceRange,omitempty"`
-	HasMember        []Reference                 `json:"hasMember,omitempty"`
-	DerivedFrom      []Reference                 `json:"derivedFrom,omitempty"`
-	Component        []ObservationComponent      `json:"component,omitempty"`
+	Identifier            []Identifier                `json:"identifier,omitempty"`
+	InstantiatesCanonical *FHIRCanonical              `json:"instantiatesCanonical,omitempty"`
+	InstantiatesReference *Reference                  `json:"instantiatesReference,omitempty"`
+	BasedOn               []Reference                 `json:"basedOn,omitempty"`
+	TriggeredBy           []ObservationTriggeredBy    `json:"triggeredBy,omitempty"`
+	PartOf                []Reference                 `json:"partOf,omitempty"`
+	Status                *string                     `json:"status,omitempty"`
+	StatusElement         *fhir.PrimitiveElement      `json:"-"`
+	Category              []CodeableConcept           `json:"category,omitempty"`
+	Code                  *CodeableConcept            `json:"code,omitempty"`
+	Subject               *Reference                  `json:"subject,omitempty"`
+	Focus                 []Reference                 `json:"focus,omitempty"`
+	Encounter             *Reference                  `json:"encounter,omitempty"`
+	EffectiveDateTime     *FHIRDateTime               `json:"effectiveDateTime,omitempty"`
+	EffectivePeriod       *Period                     `json:"effectivePeriod,omitempty"`
+	EffectiveTiming       *Timing                     `json:"effectiveTiming,omitempty"`
+	EffectiveInstant      *FHIRInstant                `json:"effectiveInstant,omitempty"`
+	Issued                *string                     `json:"issued,omitempty"`
+	IssuedElement         *fhir.PrimitiveElement      `json:"-"`
+	Performer             []Reference                 `json:"performer,omitempty"`
+	ValueQuantity         *Quantity                   `json:"valueQuantity,omitempty"`
+	ValueCodeableConcept  *CodeableConcept            `json:"valueCodeableConcept,omitempty"`
+	ValueString           *FHIRString                 `json:"valueString,omitempty"`
+	ValueBoolean          *FHIRBoolean                `json:"valueBoolean,omitempty"`
+	ValueInteger          *FHIRInteger                `json:"valueInteger,omitempty"`
+	ValueRange            *Range                      `json:"valueRange,omitempty"`
+	ValueRatio            *Ratio                      `json:"valueRatio,omitempty"`
+	ValueSampledData      *SampledData                `json:"valueSampledData,omitempty"`
+	ValueTime             *FHIRTime                   `json:"valueTime,omitempty"`
+	ValueDateTime         *FHIRDateTime               `json:"valueDateTime,omitempty"`
+	ValuePeriod           *Period                     `json:"valuePeriod,omitempty"`
+	ValueAttachment       *Attachment                 `json:"valueAttachment,omitempty"`
+	ValueReference        *Reference                  `json:"valueReference,omitempty"`
+	DataAbsentReason      *CodeableConcept            `json:"dataAbsentReason,omitempty"`
+	Interpretation        []CodeableConcept           `json:"interpretation,omitempty"`
+	Note                  []Annotation                `json:"note,omitempty"`
+	BodySite              *CodeableConcept            `json:"bodySite,omitempty"`
+	BodyStructure         *Reference                  `json:"bodyStructure,omitempty"`
+	Method                *CodeableConcept            `json:"method,omitempty"`
+	Specimen              *Reference                  `json:"specimen,omitempty"`
+	Device                *Reference                  `json:"device,omitempty"`
+	ReferenceRange        []ObservationReferenceRange `json:"referenceRange,omitempty"`
+	HasMember             []Reference                 `json:"hasMember,omitempty"`
+	DerivedFrom           []Reference                 `json:"derivedFrom,omitempty"`
+	Component             []ObservationComponent      `json:"component,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "Observation".
@@ -116,14 +132,766 @@ func (v *Observation) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ObservationInstantiates is the sealed value interface for the instantiates[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isObservationInstantiates marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ObservationInstantiates interface{ isObservationInstantiates() }
+
+func (FHIRCanonical) isObservationInstantiates() {}
+func (Reference) isObservationInstantiates()     {}
+
+// Instantiates returns the value set in the instantiates[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Observation) Instantiates() (ObservationInstantiates, bool) {
+	switch {
+	case r.InstantiatesCanonical != nil:
+		return *r.InstantiatesCanonical, true
+	case r.InstantiatesReference != nil:
+		return *r.InstantiatesReference, true
+	}
+	return nil, false
+}
+
+// SetInstantiatesCanonical sets instantiates[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isObservationInstantiates marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetInstantiatesCanonical(v FHIRCanonical) {
+	r.InstantiatesCanonical = nil
+	r.InstantiatesReference = nil
+	r.InstantiatesCanonical = &v
+}
+
+// SetInstantiatesReference sets instantiates[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetInstantiatesReference(v Reference) {
+	r.InstantiatesCanonical = nil
+	r.InstantiatesReference = nil
+	r.InstantiatesReference = &v
+}
+
+// ObservationEffective is the sealed value interface for the effective[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isObservationEffective marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ObservationEffective interface{ isObservationEffective() }
+
+func (FHIRDateTime) isObservationEffective() {}
+func (Period) isObservationEffective()       {}
+func (Timing) isObservationEffective()       {}
+func (FHIRInstant) isObservationEffective()  {}
+
+// Effective returns the value set in the effective[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Observation) Effective() (ObservationEffective, bool) {
+	switch {
+	case r.EffectiveDateTime != nil:
+		return *r.EffectiveDateTime, true
+	case r.EffectivePeriod != nil:
+		return *r.EffectivePeriod, true
+	case r.EffectiveTiming != nil:
+		return *r.EffectiveTiming, true
+	case r.EffectiveInstant != nil:
+		return *r.EffectiveInstant, true
+	}
+	return nil, false
+}
+
+// SetEffectiveDateTime sets effective[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isObservationEffective marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetEffectiveDateTime(v FHIRDateTime) {
+	r.EffectiveDateTime = nil
+	r.EffectivePeriod = nil
+	r.EffectiveTiming = nil
+	r.EffectiveInstant = nil
+	r.EffectiveDateTime = &v
+}
+
+// SetEffectivePeriod sets effective[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetEffectivePeriod(v Period) {
+	r.EffectiveDateTime = nil
+	r.EffectivePeriod = nil
+	r.EffectiveTiming = nil
+	r.EffectiveInstant = nil
+	r.EffectivePeriod = &v
+}
+
+// SetEffectiveTiming sets effective[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetEffectiveTiming(v Timing) {
+	r.EffectiveDateTime = nil
+	r.EffectivePeriod = nil
+	r.EffectiveTiming = nil
+	r.EffectiveInstant = nil
+	r.EffectiveTiming = &v
+}
+
+// SetEffectiveInstant sets effective[x] to a FHIRInstant (the
+// release primitive wrapper that carries the isObservationEffective marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetEffectiveInstant(v FHIRInstant) {
+	r.EffectiveDateTime = nil
+	r.EffectivePeriod = nil
+	r.EffectiveTiming = nil
+	r.EffectiveInstant = nil
+	r.EffectiveInstant = &v
+}
+
+// ObservationValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isObservationValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ObservationValue interface{ isObservationValue() }
+
+func (Quantity) isObservationValue()        {}
+func (CodeableConcept) isObservationValue() {}
+func (FHIRString) isObservationValue()      {}
+func (FHIRBoolean) isObservationValue()     {}
+func (FHIRInteger) isObservationValue()     {}
+func (Range) isObservationValue()           {}
+func (Ratio) isObservationValue()           {}
+func (SampledData) isObservationValue()     {}
+func (FHIRTime) isObservationValue()        {}
+func (FHIRDateTime) isObservationValue()    {}
+func (Period) isObservationValue()          {}
+func (Attachment) isObservationValue()      {}
+func (Reference) isObservationValue()       {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Observation) Value() (ObservationValue, bool) {
+	switch {
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueRatio != nil:
+		return *r.ValueRatio, true
+	case r.ValueSampledData != nil:
+		return *r.ValueSampledData, true
+	case r.ValueTime != nil:
+		return *r.ValueTime, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValuePeriod != nil:
+		return *r.ValuePeriod, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueQuantity(v Quantity) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isObservationValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueString(v FHIRString) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueString = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isObservationValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueBoolean(v FHIRBoolean) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isObservationValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueInteger(v FHIRInteger) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueInteger = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueRange(v Range) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueRange = &v
+}
+
+// SetValueRatio sets value[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueRatio(v Ratio) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueRatio = &v
+}
+
+// SetValueSampledData sets value[x] to a SampledData and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueSampledData(v SampledData) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueSampledData = &v
+}
+
+// SetValueTime sets value[x] to a FHIRTime (the
+// release primitive wrapper that carries the isObservationValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueTime(v FHIRTime) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueTime = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isObservationValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueDateTime(v FHIRDateTime) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueDateTime = &v
+}
+
+// SetValuePeriod sets value[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValuePeriod(v Period) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValuePeriod = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueAttachment(v Attachment) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Observation) SetValueReference(v Reference) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
+}
+
 // ObservationComponent is a generated nested backbone element.
 type ObservationComponent struct {
 	BackboneElement
-	Code             *CodeableConcept            `json:"code,omitempty"`
-	Value            *Quantity                   `json:"value,omitempty"`
-	DataAbsentReason *CodeableConcept            `json:"dataAbsentReason,omitempty"`
-	Interpretation   []CodeableConcept           `json:"interpretation,omitempty"`
-	ReferenceRange   []ObservationReferenceRange `json:"referenceRange,omitempty"`
+	Code                 *CodeableConcept            `json:"code,omitempty"`
+	ValueQuantity        *Quantity                   `json:"valueQuantity,omitempty"`
+	ValueCodeableConcept *CodeableConcept            `json:"valueCodeableConcept,omitempty"`
+	ValueString          *FHIRString                 `json:"valueString,omitempty"`
+	ValueBoolean         *FHIRBoolean                `json:"valueBoolean,omitempty"`
+	ValueInteger         *FHIRInteger                `json:"valueInteger,omitempty"`
+	ValueRange           *Range                      `json:"valueRange,omitempty"`
+	ValueRatio           *Ratio                      `json:"valueRatio,omitempty"`
+	ValueSampledData     *SampledData                `json:"valueSampledData,omitempty"`
+	ValueTime            *FHIRTime                   `json:"valueTime,omitempty"`
+	ValueDateTime        *FHIRDateTime               `json:"valueDateTime,omitempty"`
+	ValuePeriod          *Period                     `json:"valuePeriod,omitempty"`
+	ValueAttachment      *Attachment                 `json:"valueAttachment,omitempty"`
+	ValueReference       *Reference                  `json:"valueReference,omitempty"`
+	DataAbsentReason     *CodeableConcept            `json:"dataAbsentReason,omitempty"`
+	Interpretation       []CodeableConcept           `json:"interpretation,omitempty"`
+	ReferenceRange       []ObservationReferenceRange `json:"referenceRange,omitempty"`
+}
+
+// ObservationComponentValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isObservationComponentValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ObservationComponentValue interface{ isObservationComponentValue() }
+
+func (Quantity) isObservationComponentValue()        {}
+func (CodeableConcept) isObservationComponentValue() {}
+func (FHIRString) isObservationComponentValue()      {}
+func (FHIRBoolean) isObservationComponentValue()     {}
+func (FHIRInteger) isObservationComponentValue()     {}
+func (Range) isObservationComponentValue()           {}
+func (Ratio) isObservationComponentValue()           {}
+func (SampledData) isObservationComponentValue()     {}
+func (FHIRTime) isObservationComponentValue()        {}
+func (FHIRDateTime) isObservationComponentValue()    {}
+func (Period) isObservationComponentValue()          {}
+func (Attachment) isObservationComponentValue()      {}
+func (Reference) isObservationComponentValue()       {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ObservationComponent) Value() (ObservationComponentValue, bool) {
+	switch {
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueRatio != nil:
+		return *r.ValueRatio, true
+	case r.ValueSampledData != nil:
+		return *r.ValueSampledData, true
+	case r.ValueTime != nil:
+		return *r.ValueTime, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValuePeriod != nil:
+		return *r.ValuePeriod, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueQuantity(v Quantity) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isObservationComponentValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueString(v FHIRString) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueString = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isObservationComponentValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueBoolean(v FHIRBoolean) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isObservationComponentValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueInteger(v FHIRInteger) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueInteger = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueRange(v Range) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueRange = &v
+}
+
+// SetValueRatio sets value[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueRatio(v Ratio) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueRatio = &v
+}
+
+// SetValueSampledData sets value[x] to a SampledData and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueSampledData(v SampledData) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueSampledData = &v
+}
+
+// SetValueTime sets value[x] to a FHIRTime (the
+// release primitive wrapper that carries the isObservationComponentValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueTime(v FHIRTime) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueTime = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isObservationComponentValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueDateTime(v FHIRDateTime) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueDateTime = &v
+}
+
+// SetValuePeriod sets value[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValuePeriod(v Period) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValuePeriod = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueAttachment(v Attachment) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ObservationComponent) SetValueReference(v Reference) {
+	r.ValueQuantity = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueBoolean = nil
+	r.ValueInteger = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueSampledData = nil
+	r.ValueTime = nil
+	r.ValueDateTime = nil
+	r.ValuePeriod = nil
+	r.ValueAttachment = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
 }
 
 // ObservationReferenceRange is a generated nested backbone element.

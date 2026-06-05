@@ -125,11 +125,12 @@ func (v *MedicationKnowledge) UnmarshalJSON(data []byte) error {
 // MedicationKnowledgeCost is a generated nested backbone element.
 type MedicationKnowledgeCost struct {
 	BackboneElement
-	EffectiveDate []Period               `json:"effectiveDate,omitempty"`
-	Type          *CodeableConcept       `json:"type,omitempty"`
-	Source        *string                `json:"source,omitempty"`
-	SourceElement *fhir.PrimitiveElement `json:"-"`
-	Cost          *Money                 `json:"cost,omitempty"`
+	EffectiveDate       []Period               `json:"effectiveDate,omitempty"`
+	Type                *CodeableConcept       `json:"type,omitempty"`
+	Source              *string                `json:"source,omitempty"`
+	SourceElement       *fhir.PrimitiveElement `json:"-"`
+	CostMoney           *Money                 `json:"costMoney,omitempty"`
+	CostCodeableConcept *CodeableConcept       `json:"costCodeableConcept,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -180,22 +181,218 @@ func (v *MedicationKnowledgeCost) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// MedicationKnowledgeCostCost is the sealed value interface for the cost[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationKnowledgeCostCost marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationKnowledgeCostCost interface{ isMedicationKnowledgeCostCost() }
+
+func (Money) isMedicationKnowledgeCostCost()           {}
+func (CodeableConcept) isMedicationKnowledgeCostCost() {}
+
+// Cost returns the value set in the cost[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationKnowledgeCost) Cost() (MedicationKnowledgeCostCost, bool) {
+	switch {
+	case r.CostMoney != nil:
+		return *r.CostMoney, true
+	case r.CostCodeableConcept != nil:
+		return *r.CostCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetCostMoney sets cost[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeCost) SetCostMoney(v Money) {
+	r.CostMoney = nil
+	r.CostCodeableConcept = nil
+	r.CostMoney = &v
+}
+
+// SetCostCodeableConcept sets cost[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeCost) SetCostCodeableConcept(v CodeableConcept) {
+	r.CostMoney = nil
+	r.CostCodeableConcept = nil
+	r.CostCodeableConcept = &v
+}
+
 // MedicationKnowledgeDefinitional is a generated nested backbone element.
 type MedicationKnowledgeDefinitional struct {
 	BackboneElement
-	Definition         []Reference                                                                  `json:"definition,omitempty"`
-	DoseForm           *CodeableConcept                                                             `json:"doseForm,omitempty"`
-	IntendedRoute      []CodeableConcept                                                            `json:"intendedRoute,omitempty"`
-	Ingredient         []MedicationKnowledgeDefinitionalIngredient                                  `json:"ingredient,omitempty"`
-	DrugCharacteristic []MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic `json:"drugCharacteristic,omitempty"`
+	Definition         []Reference                                         `json:"definition,omitempty"`
+	DoseForm           *CodeableConcept                                    `json:"doseForm,omitempty"`
+	IntendedRoute      []CodeableConcept                                   `json:"intendedRoute,omitempty"`
+	Ingredient         []MedicationKnowledgeDefinitionalIngredient         `json:"ingredient,omitempty"`
+	DrugCharacteristic []MedicationKnowledgeDefinitionalDrugCharacteristic `json:"drugCharacteristic,omitempty"`
+}
+
+// MedicationKnowledgeDefinitionalDrugCharacteristic is a generated nested backbone element.
+type MedicationKnowledgeDefinitionalDrugCharacteristic struct {
+	BackboneElement
+	Type                 *CodeableConcept  `json:"type,omitempty"`
+	ValueCodeableConcept *CodeableConcept  `json:"valueCodeableConcept,omitempty"`
+	ValueString          *FHIRString       `json:"valueString,omitempty"`
+	ValueQuantity        *Quantity         `json:"valueQuantity,omitempty"`
+	ValueBase64Binary    *FHIRBase64Binary `json:"valueBase64Binary,omitempty"`
+	ValueAttachment      *Attachment       `json:"valueAttachment,omitempty"`
+}
+
+// MedicationKnowledgeDefinitionalDrugCharacteristicValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationKnowledgeDefinitionalDrugCharacteristicValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationKnowledgeDefinitionalDrugCharacteristicValue interface{ isMedicationKnowledgeDefinitionalDrugCharacteristicValue() }
+
+func (CodeableConcept) isMedicationKnowledgeDefinitionalDrugCharacteristicValue()  {}
+func (FHIRString) isMedicationKnowledgeDefinitionalDrugCharacteristicValue()       {}
+func (Quantity) isMedicationKnowledgeDefinitionalDrugCharacteristicValue()         {}
+func (FHIRBase64Binary) isMedicationKnowledgeDefinitionalDrugCharacteristicValue() {}
+func (Attachment) isMedicationKnowledgeDefinitionalDrugCharacteristicValue()       {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationKnowledgeDefinitionalDrugCharacteristic) Value() (MedicationKnowledgeDefinitionalDrugCharacteristicValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueBase64Binary != nil:
+		return *r.ValueBase64Binary, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeDefinitionalDrugCharacteristic) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isMedicationKnowledgeDefinitionalDrugCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeDefinitionalDrugCharacteristic) SetValueString(v FHIRString) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueString = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeDefinitionalDrugCharacteristic) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueBase64Binary sets value[x] to a FHIRBase64Binary (the
+// release primitive wrapper that carries the isMedicationKnowledgeDefinitionalDrugCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeDefinitionalDrugCharacteristic) SetValueBase64Binary(v FHIRBase64Binary) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueBase64Binary = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeDefinitionalDrugCharacteristic) SetValueAttachment(v Attachment) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueAttachment = &v
 }
 
 // MedicationKnowledgeDefinitionalIngredient is a generated nested backbone element.
 type MedicationKnowledgeDefinitionalIngredient struct {
 	BackboneElement
-	Item     *CodeableReference `json:"item,omitempty"`
-	Type     *CodeableConcept   `json:"type,omitempty"`
-	Strength *Ratio             `json:"strength,omitempty"`
+	Item                    *CodeableReference `json:"item,omitempty"`
+	Type                    *CodeableConcept   `json:"type,omitempty"`
+	StrengthRatio           *Ratio             `json:"strengthRatio,omitempty"`
+	StrengthCodeableConcept *CodeableConcept   `json:"strengthCodeableConcept,omitempty"`
+	StrengthQuantity        *Quantity          `json:"strengthQuantity,omitempty"`
+}
+
+// MedicationKnowledgeDefinitionalIngredientStrength is the sealed value interface for the strength[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationKnowledgeDefinitionalIngredientStrength marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationKnowledgeDefinitionalIngredientStrength interface{ isMedicationKnowledgeDefinitionalIngredientStrength() }
+
+func (Ratio) isMedicationKnowledgeDefinitionalIngredientStrength()           {}
+func (CodeableConcept) isMedicationKnowledgeDefinitionalIngredientStrength() {}
+func (Quantity) isMedicationKnowledgeDefinitionalIngredientStrength()        {}
+
+// Strength returns the value set in the strength[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationKnowledgeDefinitionalIngredient) Strength() (MedicationKnowledgeDefinitionalIngredientStrength, bool) {
+	switch {
+	case r.StrengthRatio != nil:
+		return *r.StrengthRatio, true
+	case r.StrengthCodeableConcept != nil:
+		return *r.StrengthCodeableConcept, true
+	case r.StrengthQuantity != nil:
+		return *r.StrengthQuantity, true
+	}
+	return nil, false
+}
+
+// SetStrengthRatio sets strength[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeDefinitionalIngredient) SetStrengthRatio(v Ratio) {
+	r.StrengthRatio = nil
+	r.StrengthCodeableConcept = nil
+	r.StrengthQuantity = nil
+	r.StrengthRatio = &v
+}
+
+// SetStrengthCodeableConcept sets strength[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeDefinitionalIngredient) SetStrengthCodeableConcept(v CodeableConcept) {
+	r.StrengthRatio = nil
+	r.StrengthCodeableConcept = nil
+	r.StrengthQuantity = nil
+	r.StrengthCodeableConcept = &v
+}
+
+// SetStrengthQuantity sets strength[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeDefinitionalIngredient) SetStrengthQuantity(v Quantity) {
+	r.StrengthRatio = nil
+	r.StrengthCodeableConcept = nil
+	r.StrengthQuantity = nil
+	r.StrengthQuantity = &v
 }
 
 // MedicationKnowledgeIndicationGuideline is a generated nested backbone element.
@@ -224,16 +421,116 @@ type MedicationKnowledgeIndicationGuidelineDosingGuidelineDosage struct {
 // MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic is a generated nested backbone element.
 type MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic struct {
 	BackboneElement
-	Type  *CodeableConcept `json:"type,omitempty"`
-	Value *CodeableConcept `json:"value,omitempty"`
+	Type                 *CodeableConcept `json:"type,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueRange           *Range           `json:"valueRange,omitempty"`
+}
+
+// MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristicValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristicValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristicValue interface{ isMedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristicValue() }
+
+func (CodeableConcept) isMedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristicValue() {
+}
+func (Quantity) isMedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristicValue() {}
+func (Range) isMedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristicValue()    {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic) Value() (MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristicValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic) SetValueRange(v Range) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRange = &v
 }
 
 // MedicationKnowledgeMedicineClassification is a generated nested backbone element.
 type MedicationKnowledgeMedicineClassification struct {
 	BackboneElement
 	Type           *CodeableConcept  `json:"type,omitempty"`
-	Source         *string           `json:"source,omitempty"`
+	SourceString   *FHIRString       `json:"sourceString,omitempty"`
+	SourceURI      *FHIRURI          `json:"sourceUri,omitempty"`
 	Classification []CodeableConcept `json:"classification,omitempty"`
+}
+
+// MedicationKnowledgeMedicineClassificationSource is the sealed value interface for the source[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationKnowledgeMedicineClassificationSource marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationKnowledgeMedicineClassificationSource interface{ isMedicationKnowledgeMedicineClassificationSource() }
+
+func (FHIRString) isMedicationKnowledgeMedicineClassificationSource() {}
+func (FHIRURI) isMedicationKnowledgeMedicineClassificationSource()    {}
+
+// Source returns the value set in the source[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationKnowledgeMedicineClassification) Source() (MedicationKnowledgeMedicineClassificationSource, bool) {
+	switch {
+	case r.SourceString != nil:
+		return *r.SourceString, true
+	case r.SourceURI != nil:
+		return *r.SourceURI, true
+	}
+	return nil, false
+}
+
+// SetSourceString sets source[x] to a FHIRString (the
+// release primitive wrapper that carries the isMedicationKnowledgeMedicineClassificationSource marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeMedicineClassification) SetSourceString(v FHIRString) {
+	r.SourceString = nil
+	r.SourceURI = nil
+	r.SourceString = &v
+}
+
+// SetSourceURI sets source[x] to a FHIRURI (the
+// release primitive wrapper that carries the isMedicationKnowledgeMedicineClassificationSource marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeMedicineClassification) SetSourceURI(v FHIRURI) {
+	r.SourceString = nil
+	r.SourceURI = nil
+	r.SourceURI = &v
 }
 
 // MedicationKnowledgeMonitoringProgram is a generated nested backbone element.
@@ -446,6 +743,61 @@ func (v *MedicationKnowledgeStorageGuideline) UnmarshalJSON(data []byte) error {
 // MedicationKnowledgeStorageGuidelineEnvironmentalSetting is a generated nested backbone element.
 type MedicationKnowledgeStorageGuidelineEnvironmentalSetting struct {
 	BackboneElement
-	Type  *CodeableConcept `json:"type,omitempty"`
-	Value *Quantity        `json:"value,omitempty"`
+	Type                 *CodeableConcept `json:"type,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueRange           *Range           `json:"valueRange,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+}
+
+// MedicationKnowledgeStorageGuidelineEnvironmentalSettingValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isMedicationKnowledgeStorageGuidelineEnvironmentalSettingValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type MedicationKnowledgeStorageGuidelineEnvironmentalSettingValue interface{ isMedicationKnowledgeStorageGuidelineEnvironmentalSettingValue() }
+
+func (Quantity) isMedicationKnowledgeStorageGuidelineEnvironmentalSettingValue()        {}
+func (Range) isMedicationKnowledgeStorageGuidelineEnvironmentalSettingValue()           {}
+func (CodeableConcept) isMedicationKnowledgeStorageGuidelineEnvironmentalSettingValue() {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *MedicationKnowledgeStorageGuidelineEnvironmentalSetting) Value() (MedicationKnowledgeStorageGuidelineEnvironmentalSettingValue, bool) {
+	switch {
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeStorageGuidelineEnvironmentalSetting) SetValueQuantity(v Quantity) {
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeStorageGuidelineEnvironmentalSetting) SetValueRange(v Range) {
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueCodeableConcept = nil
+	r.ValueRange = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *MedicationKnowledgeStorageGuidelineEnvironmentalSetting) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableConcept = &v
 }

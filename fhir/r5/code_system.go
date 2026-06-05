@@ -18,7 +18,8 @@ type CodeSystem struct {
 	Identifier              []Identifier           `json:"identifier,omitempty"`
 	Version                 *string                `json:"version,omitempty"`
 	VersionElement          *fhir.PrimitiveElement `json:"-"`
-	VersionAlgorithm        *string                `json:"versionAlgorithm,omitempty"`
+	VersionAlgorithmString  *FHIRString            `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding  *Coding                `json:"versionAlgorithmCoding,omitempty"`
 	Name                    *string                `json:"name,omitempty"`
 	NameElement             *fhir.PrimitiveElement `json:"-"`
 	Title                   *string                `json:"title,omitempty"`
@@ -386,6 +387,47 @@ func (v *CodeSystem) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// CodeSystemVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCodeSystemVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CodeSystemVersionAlgorithm interface{ isCodeSystemVersionAlgorithm() }
+
+func (FHIRString) isCodeSystemVersionAlgorithm() {}
+func (Coding) isCodeSystemVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CodeSystem) VersionAlgorithm() (CodeSystemVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isCodeSystemVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CodeSystem) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CodeSystem) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
 // CodeSystemConcept is a generated nested backbone element.
 type CodeSystemConcept struct {
 	BackboneElement
@@ -546,9 +588,15 @@ func (v *CodeSystemConceptDesignation) UnmarshalJSON(data []byte) error {
 // CodeSystemConceptProperty is a generated nested backbone element.
 type CodeSystemConceptProperty struct {
 	BackboneElement
-	Code        *string                `json:"code,omitempty"`
-	CodeElement *fhir.PrimitiveElement `json:"-"`
-	Value       *string                `json:"value,omitempty"`
+	Code          *string                `json:"code,omitempty"`
+	CodeElement   *fhir.PrimitiveElement `json:"-"`
+	ValueCode     *FHIRCode              `json:"valueCode,omitempty"`
+	ValueCoding   *Coding                `json:"valueCoding,omitempty"`
+	ValueString   *FHIRString            `json:"valueString,omitempty"`
+	ValueInteger  *FHIRInteger           `json:"valueInteger,omitempty"`
+	ValueBoolean  *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueDateTime *FHIRDateTime          `json:"valueDateTime,omitempty"`
+	ValueDecimal  *FHIRDecimal           `json:"valueDecimal,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -597,6 +645,147 @@ func (v *CodeSystemConceptProperty) UnmarshalJSON(data []byte) error {
 	}
 	type alias CodeSystemConceptProperty
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// CodeSystemConceptPropertyValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCodeSystemConceptPropertyValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CodeSystemConceptPropertyValue interface{ isCodeSystemConceptPropertyValue() }
+
+func (FHIRCode) isCodeSystemConceptPropertyValue()     {}
+func (Coding) isCodeSystemConceptPropertyValue()       {}
+func (FHIRString) isCodeSystemConceptPropertyValue()   {}
+func (FHIRInteger) isCodeSystemConceptPropertyValue()  {}
+func (FHIRBoolean) isCodeSystemConceptPropertyValue()  {}
+func (FHIRDateTime) isCodeSystemConceptPropertyValue() {}
+func (FHIRDecimal) isCodeSystemConceptPropertyValue()  {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CodeSystemConceptProperty) Value() (CodeSystemConceptPropertyValue, bool) {
+	switch {
+	case r.ValueCode != nil:
+		return *r.ValueCode, true
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	}
+	return nil, false
+}
+
+// SetValueCode sets value[x] to a FHIRCode (the
+// release primitive wrapper that carries the isCodeSystemConceptPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CodeSystemConceptProperty) SetValueCode(v FHIRCode) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCode = &v
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CodeSystemConceptProperty) SetValueCoding(v Coding) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueCoding = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isCodeSystemConceptPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CodeSystemConceptProperty) SetValueString(v FHIRString) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueString = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isCodeSystemConceptPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CodeSystemConceptProperty) SetValueInteger(v FHIRInteger) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isCodeSystemConceptPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CodeSystemConceptProperty) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isCodeSystemConceptPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CodeSystemConceptProperty) SetValueDateTime(v FHIRDateTime) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueDateTime = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isCodeSystemConceptPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CodeSystemConceptProperty) SetValueDecimal(v FHIRDecimal) {
+	r.ValueCode = nil
+	r.ValueCoding = nil
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueBoolean = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueDecimal = &v
 }
 
 // CodeSystemFilter is a generated nested backbone element.

@@ -18,6 +18,7 @@ func Snapshot(pt PlannedType) string {
 		fmt.Fprintf(&b, "  embeds %s\n", pt.EmbeddedBase)
 	}
 	writeFields(&b, pt.Fields, 1)
+	writeChoices(&b, pt.Choices, 1)
 	for _, bb := range pt.Backbones {
 		fmt.Fprintf(&b, "  backbone %s", bb.GoName)
 		if bb.EmbeddedBase != "" {
@@ -25,8 +26,24 @@ func Snapshot(pt PlannedType) string {
 		}
 		b.WriteByte('\n')
 		writeFields(&b, bb.Fields, 2)
+		writeChoices(&b, bb.Choices, 2)
 	}
 	return b.String()
+}
+
+// writeChoices renders a choice-group list indented by depth, pinning each group's
+// sealed interface, getter, and every branch (its suffixed storage field, wire key,
+// setter, and boxed Go type), so a golden mismatch points at the exact choice decision
+// that drifted.
+func writeChoices(b *strings.Builder, choices []PlannedChoice, depth int) {
+	indent := strings.Repeat("  ", depth)
+	for _, c := range choices {
+		fmt.Fprintf(b, "%schoice %s iface=%s getter=%s\n", indent, c.Base, c.Interface, c.Getter)
+		for _, br := range c.Branches {
+			fmt.Fprintf(b, "%s  branch %s json=%s setter=%s type=%s primitive=%t\n",
+				indent, br.Field, br.JSONName, br.Setter, br.GoType, br.IsPrimitive)
+		}
+	}
 }
 
 // writeFields renders a field list indented by depth, one field per line. A

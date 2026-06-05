@@ -13,25 +13,27 @@ const SupplyRequestResourceType = "SupplyRequest"
 // SupplyRequest is the generated FHIR SupplyRequest resource.
 type SupplyRequest struct {
 	DomainResource
-	Identifier        []Identifier             `json:"identifier,omitempty"`
-	Status            *string                  `json:"status,omitempty"`
-	StatusElement     *fhir.PrimitiveElement   `json:"-"`
-	BasedOn           []Reference              `json:"basedOn,omitempty"`
-	Category          *CodeableConcept         `json:"category,omitempty"`
-	Priority          *string                  `json:"priority,omitempty"`
-	PriorityElement   *fhir.PrimitiveElement   `json:"-"`
-	DeliverFor        *Reference               `json:"deliverFor,omitempty"`
-	Item              *CodeableReference       `json:"item,omitempty"`
-	Quantity          *Quantity                `json:"quantity,omitempty"`
-	Parameter         []SupplyRequestParameter `json:"parameter,omitempty"`
-	Occurrence        *string                  `json:"occurrence,omitempty"`
-	AuthoredOn        *string                  `json:"authoredOn,omitempty"`
-	AuthoredOnElement *fhir.PrimitiveElement   `json:"-"`
-	Requester         *Reference               `json:"requester,omitempty"`
-	Supplier          []Reference              `json:"supplier,omitempty"`
-	Reason            []CodeableReference      `json:"reason,omitempty"`
-	DeliverFrom       *Reference               `json:"deliverFrom,omitempty"`
-	DeliverTo         *Reference               `json:"deliverTo,omitempty"`
+	Identifier         []Identifier             `json:"identifier,omitempty"`
+	Status             *string                  `json:"status,omitempty"`
+	StatusElement      *fhir.PrimitiveElement   `json:"-"`
+	BasedOn            []Reference              `json:"basedOn,omitempty"`
+	Category           *CodeableConcept         `json:"category,omitempty"`
+	Priority           *string                  `json:"priority,omitempty"`
+	PriorityElement    *fhir.PrimitiveElement   `json:"-"`
+	DeliverFor         *Reference               `json:"deliverFor,omitempty"`
+	Item               *CodeableReference       `json:"item,omitempty"`
+	Quantity           *Quantity                `json:"quantity,omitempty"`
+	Parameter          []SupplyRequestParameter `json:"parameter,omitempty"`
+	OccurrenceDateTime *FHIRDateTime            `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod   *Period                  `json:"occurrencePeriod,omitempty"`
+	OccurrenceTiming   *Timing                  `json:"occurrenceTiming,omitempty"`
+	AuthoredOn         *string                  `json:"authoredOn,omitempty"`
+	AuthoredOnElement  *fhir.PrimitiveElement   `json:"-"`
+	Requester          *Reference               `json:"requester,omitempty"`
+	Supplier           []Reference              `json:"supplier,omitempty"`
+	Reason             []CodeableReference      `json:"reason,omitempty"`
+	DeliverFrom        *Reference               `json:"deliverFrom,omitempty"`
+	DeliverTo          *Reference               `json:"deliverTo,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "SupplyRequest".
@@ -118,9 +120,138 @@ func (v *SupplyRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// SupplyRequestOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSupplyRequestOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SupplyRequestOccurrence interface{ isSupplyRequestOccurrence() }
+
+func (FHIRDateTime) isSupplyRequestOccurrence() {}
+func (Period) isSupplyRequestOccurrence()       {}
+func (Timing) isSupplyRequestOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SupplyRequest) Occurrence() (SupplyRequestOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	case r.OccurrenceTiming != nil:
+		return *r.OccurrenceTiming, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isSupplyRequestOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyRequest) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyRequest) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrencePeriod = &v
+}
+
+// SetOccurrenceTiming sets occurrence[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyRequest) SetOccurrenceTiming(v Timing) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceTiming = &v
+}
+
 // SupplyRequestParameter is a generated nested backbone element.
 type SupplyRequestParameter struct {
 	BackboneElement
-	Code  *CodeableConcept `json:"code,omitempty"`
-	Value *CodeableConcept `json:"value,omitempty"`
+	Code                 *CodeableConcept `json:"code,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueRange           *Range           `json:"valueRange,omitempty"`
+	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
+}
+
+// SupplyRequestParameterValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSupplyRequestParameterValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SupplyRequestParameterValue interface{ isSupplyRequestParameterValue() }
+
+func (CodeableConcept) isSupplyRequestParameterValue() {}
+func (Quantity) isSupplyRequestParameterValue()        {}
+func (Range) isSupplyRequestParameterValue()           {}
+func (FHIRBoolean) isSupplyRequestParameterValue()     {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SupplyRequestParameter) Value() (SupplyRequestParameterValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyRequestParameter) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueBoolean = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyRequestParameter) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyRequestParameter) SetValueRange(v Range) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueBoolean = nil
+	r.ValueRange = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isSupplyRequestParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SupplyRequestParameter) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueBoolean = nil
+	r.ValueBoolean = &v
 }

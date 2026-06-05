@@ -10,14 +10,17 @@ import (
 // VirtualServiceDetail is the generated FHIR VirtualServiceDetail datatype.
 type VirtualServiceDetail struct {
 	Element
-	ChannelType            *Coding                  `json:"channelType,omitempty"`
-	Address                *string                  `json:"address,omitempty"`
-	AdditionalInfo         []string                 `json:"additionalInfo,omitempty"`
-	AdditionalInfoElement  []*fhir.PrimitiveElement `json:"-"`
-	MaxParticipants        *int32                   `json:"maxParticipants,omitempty"`
-	MaxParticipantsElement *fhir.PrimitiveElement   `json:"-"`
-	SessionKey             *string                  `json:"sessionKey,omitempty"`
-	SessionKeyElement      *fhir.PrimitiveElement   `json:"-"`
+	ChannelType                  *Coding                  `json:"channelType,omitempty"`
+	AddressURL                   *FHIRURL                 `json:"addressUrl,omitempty"`
+	AddressString                *FHIRString              `json:"addressString,omitempty"`
+	AddressContactPoint          *ContactPoint            `json:"addressContactPoint,omitempty"`
+	AddressExtendedContactDetail *ExtendedContactDetail   `json:"addressExtendedContactDetail,omitempty"`
+	AdditionalInfo               []string                 `json:"additionalInfo,omitempty"`
+	AdditionalInfoElement        []*fhir.PrimitiveElement `json:"-"`
+	MaxParticipants              *int32                   `json:"maxParticipants,omitempty"`
+	MaxParticipantsElement       *fhir.PrimitiveElement   `json:"-"`
+	SessionKey                   *string                  `json:"sessionKey,omitempty"`
+	SessionKeyElement            *fhir.PrimitiveElement   `json:"-"`
 }
 
 // MarshalJSON folds the primitive "_field" siblings into the encoded value: a scalar
@@ -92,4 +95,77 @@ func (v *VirtualServiceDetail) UnmarshalJSON(data []byte) error {
 	}
 	type alias VirtualServiceDetail
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// VirtualServiceDetailAddress is the sealed value interface for the address[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isVirtualServiceDetailAddress marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type VirtualServiceDetailAddress interface{ isVirtualServiceDetailAddress() }
+
+func (FHIRURL) isVirtualServiceDetailAddress()               {}
+func (FHIRString) isVirtualServiceDetailAddress()            {}
+func (ContactPoint) isVirtualServiceDetailAddress()          {}
+func (ExtendedContactDetail) isVirtualServiceDetailAddress() {}
+
+// Address returns the value set in the address[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *VirtualServiceDetail) Address() (VirtualServiceDetailAddress, bool) {
+	switch {
+	case r.AddressURL != nil:
+		return *r.AddressURL, true
+	case r.AddressString != nil:
+		return *r.AddressString, true
+	case r.AddressContactPoint != nil:
+		return *r.AddressContactPoint, true
+	case r.AddressExtendedContactDetail != nil:
+		return *r.AddressExtendedContactDetail, true
+	}
+	return nil, false
+}
+
+// SetAddressURL sets address[x] to a FHIRURL (the
+// release primitive wrapper that carries the isVirtualServiceDetailAddress marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *VirtualServiceDetail) SetAddressURL(v FHIRURL) {
+	r.AddressURL = nil
+	r.AddressString = nil
+	r.AddressContactPoint = nil
+	r.AddressExtendedContactDetail = nil
+	r.AddressURL = &v
+}
+
+// SetAddressString sets address[x] to a FHIRString (the
+// release primitive wrapper that carries the isVirtualServiceDetailAddress marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *VirtualServiceDetail) SetAddressString(v FHIRString) {
+	r.AddressURL = nil
+	r.AddressString = nil
+	r.AddressContactPoint = nil
+	r.AddressExtendedContactDetail = nil
+	r.AddressString = &v
+}
+
+// SetAddressContactPoint sets address[x] to a ContactPoint and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *VirtualServiceDetail) SetAddressContactPoint(v ContactPoint) {
+	r.AddressURL = nil
+	r.AddressString = nil
+	r.AddressContactPoint = nil
+	r.AddressExtendedContactDetail = nil
+	r.AddressContactPoint = &v
+}
+
+// SetAddressExtendedContactDetail sets address[x] to a ExtendedContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *VirtualServiceDetail) SetAddressExtendedContactDetail(v ExtendedContactDetail) {
+	r.AddressURL = nil
+	r.AddressString = nil
+	r.AddressContactPoint = nil
+	r.AddressExtendedContactDetail = nil
+	r.AddressExtendedContactDetail = &v
 }

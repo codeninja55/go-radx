@@ -89,8 +89,126 @@ func (v *NutritionProduct) UnmarshalJSON(data []byte) error {
 // NutritionProductCharacteristic is a generated nested backbone element.
 type NutritionProductCharacteristic struct {
 	BackboneElement
-	Type  *CodeableConcept `json:"type,omitempty"`
-	Value *CodeableConcept `json:"value,omitempty"`
+	Type                 *CodeableConcept  `json:"type,omitempty"`
+	ValueCodeableConcept *CodeableConcept  `json:"valueCodeableConcept,omitempty"`
+	ValueString          *FHIRString       `json:"valueString,omitempty"`
+	ValueQuantity        *Quantity         `json:"valueQuantity,omitempty"`
+	ValueBase64Binary    *FHIRBase64Binary `json:"valueBase64Binary,omitempty"`
+	ValueAttachment      *Attachment       `json:"valueAttachment,omitempty"`
+	ValueBoolean         *FHIRBoolean      `json:"valueBoolean,omitempty"`
+}
+
+// NutritionProductCharacteristicValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isNutritionProductCharacteristicValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type NutritionProductCharacteristicValue interface{ isNutritionProductCharacteristicValue() }
+
+func (CodeableConcept) isNutritionProductCharacteristicValue()  {}
+func (FHIRString) isNutritionProductCharacteristicValue()       {}
+func (Quantity) isNutritionProductCharacteristicValue()         {}
+func (FHIRBase64Binary) isNutritionProductCharacteristicValue() {}
+func (Attachment) isNutritionProductCharacteristicValue()       {}
+func (FHIRBoolean) isNutritionProductCharacteristicValue()      {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *NutritionProductCharacteristic) Value() (NutritionProductCharacteristicValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueBase64Binary != nil:
+		return *r.ValueBase64Binary, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionProductCharacteristic) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isNutritionProductCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionProductCharacteristic) SetValueString(v FHIRString) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = nil
+	r.ValueString = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionProductCharacteristic) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueBase64Binary sets value[x] to a FHIRBase64Binary (the
+// release primitive wrapper that carries the isNutritionProductCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionProductCharacteristic) SetValueBase64Binary(v FHIRBase64Binary) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = nil
+	r.ValueBase64Binary = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionProductCharacteristic) SetValueAttachment(v Attachment) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isNutritionProductCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionProductCharacteristic) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueString = nil
+	r.ValueQuantity = nil
+	r.ValueBase64Binary = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = nil
+	r.ValueBoolean = &v
 }
 
 // NutritionProductInstance is a generated nested backbone element.

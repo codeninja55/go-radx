@@ -166,5 +166,60 @@ func (v *Communication) UnmarshalJSON(data []byte) error {
 // CommunicationPayload is a generated nested backbone element.
 type CommunicationPayload struct {
 	BackboneElement
-	Content *Attachment `json:"content,omitempty"`
+	ContentAttachment      *Attachment      `json:"contentAttachment,omitempty"`
+	ContentReference       *Reference       `json:"contentReference,omitempty"`
+	ContentCodeableConcept *CodeableConcept `json:"contentCodeableConcept,omitempty"`
+}
+
+// CommunicationPayloadContent is the sealed value interface for the content[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCommunicationPayloadContent marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CommunicationPayloadContent interface{ isCommunicationPayloadContent() }
+
+func (Attachment) isCommunicationPayloadContent()      {}
+func (Reference) isCommunicationPayloadContent()       {}
+func (CodeableConcept) isCommunicationPayloadContent() {}
+
+// Content returns the value set in the content[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CommunicationPayload) Content() (CommunicationPayloadContent, bool) {
+	switch {
+	case r.ContentAttachment != nil:
+		return *r.ContentAttachment, true
+	case r.ContentReference != nil:
+		return *r.ContentReference, true
+	case r.ContentCodeableConcept != nil:
+		return *r.ContentCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetContentAttachment sets content[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CommunicationPayload) SetContentAttachment(v Attachment) {
+	r.ContentAttachment = nil
+	r.ContentReference = nil
+	r.ContentCodeableConcept = nil
+	r.ContentAttachment = &v
+}
+
+// SetContentReference sets content[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CommunicationPayload) SetContentReference(v Reference) {
+	r.ContentAttachment = nil
+	r.ContentReference = nil
+	r.ContentCodeableConcept = nil
+	r.ContentReference = &v
+}
+
+// SetContentCodeableConcept sets content[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CommunicationPayload) SetContentCodeableConcept(v CodeableConcept) {
+	r.ContentAttachment = nil
+	r.ContentReference = nil
+	r.ContentCodeableConcept = nil
+	r.ContentCodeableConcept = &v
 }

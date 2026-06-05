@@ -5,6 +5,78 @@ package r5
 // UsageContext is the generated FHIR UsageContext datatype.
 type UsageContext struct {
 	Element
-	Code  *Coding          `json:"code,omitempty"`
-	Value *CodeableConcept `json:"value,omitempty"`
+	Code                 *Coding          `json:"code,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueRange           *Range           `json:"valueRange,omitempty"`
+	ValueReference       *Reference       `json:"valueReference,omitempty"`
+}
+
+// UsageContextValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isUsageContextValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type UsageContextValue interface{ isUsageContextValue() }
+
+func (CodeableConcept) isUsageContextValue() {}
+func (Quantity) isUsageContextValue()        {}
+func (Range) isUsageContextValue()           {}
+func (Reference) isUsageContextValue()       {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *UsageContext) Value() (UsageContextValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *UsageContext) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *UsageContext) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *UsageContext) SetValueRange(v Range) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueRange = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *UsageContext) SetValueReference(v Reference) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
 }

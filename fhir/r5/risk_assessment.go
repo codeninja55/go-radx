@@ -13,24 +13,25 @@ const RiskAssessmentResourceType = "RiskAssessment"
 // RiskAssessment is the generated FHIR RiskAssessment resource.
 type RiskAssessment struct {
 	DomainResource
-	Identifier        []Identifier               `json:"identifier,omitempty"`
-	BasedOn           *Reference                 `json:"basedOn,omitempty"`
-	Parent            *Reference                 `json:"parent,omitempty"`
-	Status            *string                    `json:"status,omitempty"`
-	StatusElement     *fhir.PrimitiveElement     `json:"-"`
-	Method            *CodeableConcept           `json:"method,omitempty"`
-	Code              *CodeableConcept           `json:"code,omitempty"`
-	Subject           *Reference                 `json:"subject,omitempty"`
-	Encounter         *Reference                 `json:"encounter,omitempty"`
-	Occurrence        *string                    `json:"occurrence,omitempty"`
-	Condition         *Reference                 `json:"condition,omitempty"`
-	Performer         *Reference                 `json:"performer,omitempty"`
-	Reason            []CodeableReference        `json:"reason,omitempty"`
-	Basis             []Reference                `json:"basis,omitempty"`
-	Prediction        []RiskAssessmentPrediction `json:"prediction,omitempty"`
-	Mitigation        *string                    `json:"mitigation,omitempty"`
-	MitigationElement *fhir.PrimitiveElement     `json:"-"`
-	Note              []Annotation               `json:"note,omitempty"`
+	Identifier         []Identifier               `json:"identifier,omitempty"`
+	BasedOn            *Reference                 `json:"basedOn,omitempty"`
+	Parent             *Reference                 `json:"parent,omitempty"`
+	Status             *string                    `json:"status,omitempty"`
+	StatusElement      *fhir.PrimitiveElement     `json:"-"`
+	Method             *CodeableConcept           `json:"method,omitempty"`
+	Code               *CodeableConcept           `json:"code,omitempty"`
+	Subject            *Reference                 `json:"subject,omitempty"`
+	Encounter          *Reference                 `json:"encounter,omitempty"`
+	OccurrenceDateTime *FHIRDateTime              `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod   *Period                    `json:"occurrencePeriod,omitempty"`
+	Condition          *Reference                 `json:"condition,omitempty"`
+	Performer          *Reference                 `json:"performer,omitempty"`
+	Reason             []CodeableReference        `json:"reason,omitempty"`
+	Basis              []Reference                `json:"basis,omitempty"`
+	Prediction         []RiskAssessmentPrediction `json:"prediction,omitempty"`
+	Mitigation         *string                    `json:"mitigation,omitempty"`
+	MitigationElement  *fhir.PrimitiveElement     `json:"-"`
+	Note               []Annotation               `json:"note,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "RiskAssessment".
@@ -105,15 +106,58 @@ func (v *RiskAssessment) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// RiskAssessmentOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isRiskAssessmentOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type RiskAssessmentOccurrence interface{ isRiskAssessmentOccurrence() }
+
+func (FHIRDateTime) isRiskAssessmentOccurrence() {}
+func (Period) isRiskAssessmentOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *RiskAssessment) Occurrence() (RiskAssessmentOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isRiskAssessmentOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RiskAssessment) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RiskAssessment) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrencePeriod = &v
+}
+
 // RiskAssessmentPrediction is a generated nested backbone element.
 type RiskAssessmentPrediction struct {
 	BackboneElement
 	Outcome             *CodeableConcept       `json:"outcome,omitempty"`
-	Probability         *fhir.Decimal          `json:"probability,omitempty"`
+	ProbabilityDecimal  *FHIRDecimal           `json:"probabilityDecimal,omitempty"`
+	ProbabilityRange    *Range                 `json:"probabilityRange,omitempty"`
 	QualitativeRisk     *CodeableConcept       `json:"qualitativeRisk,omitempty"`
 	RelativeRisk        *fhir.Decimal          `json:"relativeRisk,omitempty"`
 	RelativeRiskElement *fhir.PrimitiveElement `json:"-"`
-	When                *Period                `json:"when,omitempty"`
+	WhenPeriod          *Period                `json:"whenPeriod,omitempty"`
+	WhenRange           *Range                 `json:"whenRange,omitempty"`
 	Rationale           *string                `json:"rationale,omitempty"`
 	RationaleElement    *fhir.PrimitiveElement `json:"-"`
 }
@@ -176,4 +220,84 @@ func (v *RiskAssessmentPrediction) UnmarshalJSON(data []byte) error {
 	}
 	type alias RiskAssessmentPrediction
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// RiskAssessmentPredictionProbability is the sealed value interface for the probability[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isRiskAssessmentPredictionProbability marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type RiskAssessmentPredictionProbability interface{ isRiskAssessmentPredictionProbability() }
+
+func (FHIRDecimal) isRiskAssessmentPredictionProbability() {}
+func (Range) isRiskAssessmentPredictionProbability()       {}
+
+// Probability returns the value set in the probability[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *RiskAssessmentPrediction) Probability() (RiskAssessmentPredictionProbability, bool) {
+	switch {
+	case r.ProbabilityDecimal != nil:
+		return *r.ProbabilityDecimal, true
+	case r.ProbabilityRange != nil:
+		return *r.ProbabilityRange, true
+	}
+	return nil, false
+}
+
+// SetProbabilityDecimal sets probability[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isRiskAssessmentPredictionProbability marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RiskAssessmentPrediction) SetProbabilityDecimal(v FHIRDecimal) {
+	r.ProbabilityDecimal = nil
+	r.ProbabilityRange = nil
+	r.ProbabilityDecimal = &v
+}
+
+// SetProbabilityRange sets probability[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RiskAssessmentPrediction) SetProbabilityRange(v Range) {
+	r.ProbabilityDecimal = nil
+	r.ProbabilityRange = nil
+	r.ProbabilityRange = &v
+}
+
+// RiskAssessmentPredictionWhen is the sealed value interface for the when[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isRiskAssessmentPredictionWhen marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type RiskAssessmentPredictionWhen interface{ isRiskAssessmentPredictionWhen() }
+
+func (Period) isRiskAssessmentPredictionWhen() {}
+func (Range) isRiskAssessmentPredictionWhen()  {}
+
+// When returns the value set in the when[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *RiskAssessmentPrediction) When() (RiskAssessmentPredictionWhen, bool) {
+	switch {
+	case r.WhenPeriod != nil:
+		return *r.WhenPeriod, true
+	case r.WhenRange != nil:
+		return *r.WhenRange, true
+	}
+	return nil, false
+}
+
+// SetWhenPeriod sets when[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RiskAssessmentPrediction) SetWhenPeriod(v Period) {
+	r.WhenPeriod = nil
+	r.WhenRange = nil
+	r.WhenPeriod = &v
+}
+
+// SetWhenRange sets when[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RiskAssessmentPrediction) SetWhenRange(v Range) {
+	r.WhenPeriod = nil
+	r.WhenRange = nil
+	r.WhenRange = &v
 }

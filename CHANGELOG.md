@@ -168,6 +168,23 @@ legacy codebase (`legacy-main`) and are not continued here.
   siblings, the null-aligned repeating siblings, and the no-sibling-on-complex rule, pinned by planner and
   emitter golden tests, the byte-for-byte regeneration gate, and root-package round-trip and null-alignment
   unit tests.
+- The FHIR choice-type (`[x]`) machinery, replacing the planner stub that emitted each choice group as a single
+  first-branch-typed field. Each `value[x]`-style group is now stored as one suffixed pointer field per branch
+  (`ValueQuantity *Quantity`, `ValueString *FHIRString`, ...), and the generator emits a sealed value interface
+  closed by an unexported marker method (`isObservationValue`), a `Value()` getter returning the set branch, and
+  one `SetValueX` setter per branch that nils every sibling before storing the new branch, so the setter API never
+  populates two branches at once (the FHIR-001 fix). Because each storage field is `omitempty`, a value built
+  through the setters marshals exactly one suffixed key — the prototype's unsuffixed `*any` choice field that never
+  round-tripped conformant JSON is gone (the FHIR-002 fix). The storage fields are exported because faithful JSON
+  requires the codec to see each suffixed key; the mutual-exclusion invariant is enforced at the setter boundary,
+  and the at-most-one cardinality of a choice group is checked by `Validate` in the choice-group validation
+  increment. Primitive branches box through release primitive
+  wrapper types generated into `fhir/r5/primitives.go` (`FHIRString`, `FHIRBoolean`, `FHIRDecimal`, ... one per
+  primitive code), since a built-in scalar cannot carry the unexported marker; `FHIRDecimal` delegates its JSON to
+  `fhir.Decimal` so the lexical form survives (FHIR-009). The full R5 tree is regenerated so every choice field
+  across all resources uses the real machinery, pinned by planner and emitter golden tests (`Annotation`), the
+  byte-for-byte regeneration gate (now covering `primitives.go`), and choice round-trip / mutual-exclusion unit
+  tests (`fhir/r5/choice_test.go`).
 
 ### Documentation
 

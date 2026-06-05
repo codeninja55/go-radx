@@ -18,7 +18,8 @@ type ActivityDefinition struct {
 	Identifier                          []Identifier                     `json:"identifier,omitempty"`
 	Version                             *string                          `json:"version,omitempty"`
 	VersionElement                      *fhir.PrimitiveElement           `json:"-"`
-	VersionAlgorithm                    *string                          `json:"versionAlgorithm,omitempty"`
+	VersionAlgorithmString              *FHIRString                      `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding              *Coding                          `json:"versionAlgorithmCoding,omitempty"`
 	Name                                *string                          `json:"name,omitempty"`
 	NameElement                         *fhir.PrimitiveElement           `json:"-"`
 	Title                               *string                          `json:"title,omitempty"`
@@ -29,7 +30,9 @@ type ActivityDefinition struct {
 	StatusElement                       *fhir.PrimitiveElement           `json:"-"`
 	Experimental                        *bool                            `json:"experimental,omitempty"`
 	ExperimentalElement                 *fhir.PrimitiveElement           `json:"-"`
-	Subject                             *CodeableConcept                 `json:"subject,omitempty"`
+	SubjectCodeableConcept              *CodeableConcept                 `json:"subjectCodeableConcept,omitempty"`
+	SubjectReference                    *Reference                       `json:"subjectReference,omitempty"`
+	SubjectCanonical                    *FHIRCanonical                   `json:"subjectCanonical,omitempty"`
 	Date                                *string                          `json:"date,omitempty"`
 	DateElement                         *fhir.PrimitiveElement           `json:"-"`
 	Publisher                           *string                          `json:"publisher,omitempty"`
@@ -71,11 +74,16 @@ type ActivityDefinition struct {
 	PriorityElement                     *fhir.PrimitiveElement           `json:"-"`
 	DoNotPerform                        *bool                            `json:"doNotPerform,omitempty"`
 	DoNotPerformElement                 *fhir.PrimitiveElement           `json:"-"`
-	Timing                              *Timing                          `json:"timing,omitempty"`
-	AsNeeded                            *bool                            `json:"asNeeded,omitempty"`
+	TimingTiming                        *Timing                          `json:"timingTiming,omitempty"`
+	TimingAge                           *Age                             `json:"timingAge,omitempty"`
+	TimingRange                         *Range                           `json:"timingRange,omitempty"`
+	TimingDuration                      *Duration                        `json:"timingDuration,omitempty"`
+	AsNeededBoolean                     *FHIRBoolean                     `json:"asNeededBoolean,omitempty"`
+	AsNeededCodeableConcept             *CodeableConcept                 `json:"asNeededCodeableConcept,omitempty"`
 	Location                            *CodeableReference               `json:"location,omitempty"`
 	Participant                         []ActivityDefinitionParticipant  `json:"participant,omitempty"`
-	Product                             *Reference                       `json:"product,omitempty"`
+	ProductReference                    *Reference                       `json:"productReference,omitempty"`
+	ProductCodeableConcept              *CodeableConcept                 `json:"productCodeableConcept,omitempty"`
 	Quantity                            *Quantity                        `json:"quantity,omitempty"`
 	Dosage                              []Dosage                         `json:"dosage,omitempty"`
 	BodySite                            []CodeableConcept                `json:"bodySite,omitempty"`
@@ -448,6 +456,251 @@ func (v *ActivityDefinition) UnmarshalJSON(data []byte) error {
 	}
 	type alias ActivityDefinition
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ActivityDefinitionVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isActivityDefinitionVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ActivityDefinitionVersionAlgorithm interface{ isActivityDefinitionVersionAlgorithm() }
+
+func (FHIRString) isActivityDefinitionVersionAlgorithm() {}
+func (Coding) isActivityDefinitionVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ActivityDefinition) VersionAlgorithm() (ActivityDefinitionVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isActivityDefinitionVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
+// ActivityDefinitionSubject is the sealed value interface for the subject[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isActivityDefinitionSubject marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ActivityDefinitionSubject interface{ isActivityDefinitionSubject() }
+
+func (CodeableConcept) isActivityDefinitionSubject() {}
+func (Reference) isActivityDefinitionSubject()       {}
+func (FHIRCanonical) isActivityDefinitionSubject()   {}
+
+// Subject returns the value set in the subject[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ActivityDefinition) Subject() (ActivityDefinitionSubject, bool) {
+	switch {
+	case r.SubjectCodeableConcept != nil:
+		return *r.SubjectCodeableConcept, true
+	case r.SubjectReference != nil:
+		return *r.SubjectReference, true
+	case r.SubjectCanonical != nil:
+		return *r.SubjectCanonical, true
+	}
+	return nil, false
+}
+
+// SetSubjectCodeableConcept sets subject[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetSubjectCodeableConcept(v CodeableConcept) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCanonical = nil
+	r.SubjectCodeableConcept = &v
+}
+
+// SetSubjectReference sets subject[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetSubjectReference(v Reference) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCanonical = nil
+	r.SubjectReference = &v
+}
+
+// SetSubjectCanonical sets subject[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isActivityDefinitionSubject marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetSubjectCanonical(v FHIRCanonical) {
+	r.SubjectCodeableConcept = nil
+	r.SubjectReference = nil
+	r.SubjectCanonical = nil
+	r.SubjectCanonical = &v
+}
+
+// ActivityDefinitionTiming is the sealed value interface for the timing[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isActivityDefinitionTiming marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ActivityDefinitionTiming interface{ isActivityDefinitionTiming() }
+
+func (Timing) isActivityDefinitionTiming()   {}
+func (Age) isActivityDefinitionTiming()      {}
+func (Range) isActivityDefinitionTiming()    {}
+func (Duration) isActivityDefinitionTiming() {}
+
+// Timing returns the value set in the timing[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ActivityDefinition) Timing() (ActivityDefinitionTiming, bool) {
+	switch {
+	case r.TimingTiming != nil:
+		return *r.TimingTiming, true
+	case r.TimingAge != nil:
+		return *r.TimingAge, true
+	case r.TimingRange != nil:
+		return *r.TimingRange, true
+	case r.TimingDuration != nil:
+		return *r.TimingDuration, true
+	}
+	return nil, false
+}
+
+// SetTimingTiming sets timing[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetTimingTiming(v Timing) {
+	r.TimingTiming = nil
+	r.TimingAge = nil
+	r.TimingRange = nil
+	r.TimingDuration = nil
+	r.TimingTiming = &v
+}
+
+// SetTimingAge sets timing[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetTimingAge(v Age) {
+	r.TimingTiming = nil
+	r.TimingAge = nil
+	r.TimingRange = nil
+	r.TimingDuration = nil
+	r.TimingAge = &v
+}
+
+// SetTimingRange sets timing[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetTimingRange(v Range) {
+	r.TimingTiming = nil
+	r.TimingAge = nil
+	r.TimingRange = nil
+	r.TimingDuration = nil
+	r.TimingRange = &v
+}
+
+// SetTimingDuration sets timing[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetTimingDuration(v Duration) {
+	r.TimingTiming = nil
+	r.TimingAge = nil
+	r.TimingRange = nil
+	r.TimingDuration = nil
+	r.TimingDuration = &v
+}
+
+// ActivityDefinitionAsNeeded is the sealed value interface for the asNeeded[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isActivityDefinitionAsNeeded marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ActivityDefinitionAsNeeded interface{ isActivityDefinitionAsNeeded() }
+
+func (FHIRBoolean) isActivityDefinitionAsNeeded()     {}
+func (CodeableConcept) isActivityDefinitionAsNeeded() {}
+
+// AsNeeded returns the value set in the asNeeded[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ActivityDefinition) AsNeeded() (ActivityDefinitionAsNeeded, bool) {
+	switch {
+	case r.AsNeededBoolean != nil:
+		return *r.AsNeededBoolean, true
+	case r.AsNeededCodeableConcept != nil:
+		return *r.AsNeededCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetAsNeededBoolean sets asNeeded[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isActivityDefinitionAsNeeded marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetAsNeededBoolean(v FHIRBoolean) {
+	r.AsNeededBoolean = nil
+	r.AsNeededCodeableConcept = nil
+	r.AsNeededBoolean = &v
+}
+
+// SetAsNeededCodeableConcept sets asNeeded[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetAsNeededCodeableConcept(v CodeableConcept) {
+	r.AsNeededBoolean = nil
+	r.AsNeededCodeableConcept = nil
+	r.AsNeededCodeableConcept = &v
+}
+
+// ActivityDefinitionProduct is the sealed value interface for the product[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isActivityDefinitionProduct marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ActivityDefinitionProduct interface{ isActivityDefinitionProduct() }
+
+func (Reference) isActivityDefinitionProduct()       {}
+func (CodeableConcept) isActivityDefinitionProduct() {}
+
+// Product returns the value set in the product[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ActivityDefinition) Product() (ActivityDefinitionProduct, bool) {
+	switch {
+	case r.ProductReference != nil:
+		return *r.ProductReference, true
+	case r.ProductCodeableConcept != nil:
+		return *r.ProductCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetProductReference sets product[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetProductReference(v Reference) {
+	r.ProductReference = nil
+	r.ProductCodeableConcept = nil
+	r.ProductReference = &v
+}
+
+// SetProductCodeableConcept sets product[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ActivityDefinition) SetProductCodeableConcept(v CodeableConcept) {
+	r.ProductReference = nil
+	r.ProductCodeableConcept = nil
+	r.ProductCodeableConcept = &v
 }
 
 // ActivityDefinitionDynamicValue is a generated nested backbone element.

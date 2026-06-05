@@ -23,7 +23,8 @@ type Goal struct {
 	Priority               *CodeableConcept       `json:"priority,omitempty"`
 	Description            *CodeableConcept       `json:"description,omitempty"`
 	Subject                *Reference             `json:"subject,omitempty"`
-	Start                  *string                `json:"start,omitempty"`
+	StartDate              *FHIRDate              `json:"startDate,omitempty"`
+	StartCodeableConcept   *CodeableConcept       `json:"startCodeableConcept,omitempty"`
 	Target                 []GoalTarget           `json:"target,omitempty"`
 	StatusDate             *string                `json:"statusDate,omitempty"`
 	StatusDateElement      *fhir.PrimitiveElement `json:"-"`
@@ -131,10 +132,234 @@ func (v *Goal) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// GoalStart is the sealed value interface for the start[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isGoalStart marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type GoalStart interface{ isGoalStart() }
+
+func (FHIRDate) isGoalStart()        {}
+func (CodeableConcept) isGoalStart() {}
+
+// Start returns the value set in the start[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Goal) Start() (GoalStart, bool) {
+	switch {
+	case r.StartDate != nil:
+		return *r.StartDate, true
+	case r.StartCodeableConcept != nil:
+		return *r.StartCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetStartDate sets start[x] to a FHIRDate (the
+// release primitive wrapper that carries the isGoalStart marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Goal) SetStartDate(v FHIRDate) {
+	r.StartDate = nil
+	r.StartCodeableConcept = nil
+	r.StartDate = &v
+}
+
+// SetStartCodeableConcept sets start[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Goal) SetStartCodeableConcept(v CodeableConcept) {
+	r.StartDate = nil
+	r.StartCodeableConcept = nil
+	r.StartCodeableConcept = &v
+}
+
 // GoalTarget is a generated nested backbone element.
 type GoalTarget struct {
 	BackboneElement
-	Measure *CodeableConcept `json:"measure,omitempty"`
-	Detail  *Quantity        `json:"detail,omitempty"`
-	Due     *string          `json:"due,omitempty"`
+	Measure               *CodeableConcept `json:"measure,omitempty"`
+	DetailQuantity        *Quantity        `json:"detailQuantity,omitempty"`
+	DetailRange           *Range           `json:"detailRange,omitempty"`
+	DetailCodeableConcept *CodeableConcept `json:"detailCodeableConcept,omitempty"`
+	DetailString          *FHIRString      `json:"detailString,omitempty"`
+	DetailBoolean         *FHIRBoolean     `json:"detailBoolean,omitempty"`
+	DetailInteger         *FHIRInteger     `json:"detailInteger,omitempty"`
+	DetailRatio           *Ratio           `json:"detailRatio,omitempty"`
+	DueDate               *FHIRDate        `json:"dueDate,omitempty"`
+	DueDuration           *Duration        `json:"dueDuration,omitempty"`
+}
+
+// GoalTargetDetail is the sealed value interface for the detail[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isGoalTargetDetail marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type GoalTargetDetail interface{ isGoalTargetDetail() }
+
+func (Quantity) isGoalTargetDetail()        {}
+func (Range) isGoalTargetDetail()           {}
+func (CodeableConcept) isGoalTargetDetail() {}
+func (FHIRString) isGoalTargetDetail()      {}
+func (FHIRBoolean) isGoalTargetDetail()     {}
+func (FHIRInteger) isGoalTargetDetail()     {}
+func (Ratio) isGoalTargetDetail()           {}
+
+// Detail returns the value set in the detail[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *GoalTarget) Detail() (GoalTargetDetail, bool) {
+	switch {
+	case r.DetailQuantity != nil:
+		return *r.DetailQuantity, true
+	case r.DetailRange != nil:
+		return *r.DetailRange, true
+	case r.DetailCodeableConcept != nil:
+		return *r.DetailCodeableConcept, true
+	case r.DetailString != nil:
+		return *r.DetailString, true
+	case r.DetailBoolean != nil:
+		return *r.DetailBoolean, true
+	case r.DetailInteger != nil:
+		return *r.DetailInteger, true
+	case r.DetailRatio != nil:
+		return *r.DetailRatio, true
+	}
+	return nil, false
+}
+
+// SetDetailQuantity sets detail[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GoalTarget) SetDetailQuantity(v Quantity) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailQuantity = &v
+}
+
+// SetDetailRange sets detail[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GoalTarget) SetDetailRange(v Range) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailRange = &v
+}
+
+// SetDetailCodeableConcept sets detail[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GoalTarget) SetDetailCodeableConcept(v CodeableConcept) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailCodeableConcept = &v
+}
+
+// SetDetailString sets detail[x] to a FHIRString (the
+// release primitive wrapper that carries the isGoalTargetDetail marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GoalTarget) SetDetailString(v FHIRString) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailString = &v
+}
+
+// SetDetailBoolean sets detail[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isGoalTargetDetail marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GoalTarget) SetDetailBoolean(v FHIRBoolean) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailBoolean = &v
+}
+
+// SetDetailInteger sets detail[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isGoalTargetDetail marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GoalTarget) SetDetailInteger(v FHIRInteger) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailInteger = &v
+}
+
+// SetDetailRatio sets detail[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GoalTarget) SetDetailRatio(v Ratio) {
+	r.DetailQuantity = nil
+	r.DetailRange = nil
+	r.DetailCodeableConcept = nil
+	r.DetailString = nil
+	r.DetailBoolean = nil
+	r.DetailInteger = nil
+	r.DetailRatio = nil
+	r.DetailRatio = &v
+}
+
+// GoalTargetDue is the sealed value interface for the due[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isGoalTargetDue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type GoalTargetDue interface{ isGoalTargetDue() }
+
+func (FHIRDate) isGoalTargetDue() {}
+func (Duration) isGoalTargetDue() {}
+
+// Due returns the value set in the due[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *GoalTarget) Due() (GoalTargetDue, bool) {
+	switch {
+	case r.DueDate != nil:
+		return *r.DueDate, true
+	case r.DueDuration != nil:
+		return *r.DueDuration, true
+	}
+	return nil, false
+}
+
+// SetDueDate sets due[x] to a FHIRDate (the
+// release primitive wrapper that carries the isGoalTargetDue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GoalTarget) SetDueDate(v FHIRDate) {
+	r.DueDate = nil
+	r.DueDuration = nil
+	r.DueDate = &v
+}
+
+// SetDueDuration sets due[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GoalTarget) SetDueDuration(v Duration) {
+	r.DueDate = nil
+	r.DueDuration = nil
+	r.DueDuration = &v
 }

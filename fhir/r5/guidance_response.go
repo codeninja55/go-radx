@@ -15,7 +15,9 @@ type GuidanceResponse struct {
 	DomainResource
 	RequestIdentifier         *Identifier            `json:"requestIdentifier,omitempty"`
 	Identifier                []Identifier           `json:"identifier,omitempty"`
-	Module                    *string                `json:"module,omitempty"`
+	ModuleURI                 *FHIRURI               `json:"moduleUri,omitempty"`
+	ModuleCanonical           *FHIRCanonical         `json:"moduleCanonical,omitempty"`
+	ModuleCodeableConcept     *CodeableConcept       `json:"moduleCodeableConcept,omitempty"`
 	Status                    *string                `json:"status,omitempty"`
 	StatusElement             *fhir.PrimitiveElement `json:"-"`
 	Subject                   *Reference             `json:"subject,omitempty"`
@@ -101,4 +103,61 @@ func (v *GuidanceResponse) UnmarshalJSON(data []byte) error {
 	}
 	type alias GuidanceResponse
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// GuidanceResponseModule is the sealed value interface for the module[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isGuidanceResponseModule marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type GuidanceResponseModule interface{ isGuidanceResponseModule() }
+
+func (FHIRURI) isGuidanceResponseModule()         {}
+func (FHIRCanonical) isGuidanceResponseModule()   {}
+func (CodeableConcept) isGuidanceResponseModule() {}
+
+// Module returns the value set in the module[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *GuidanceResponse) Module() (GuidanceResponseModule, bool) {
+	switch {
+	case r.ModuleURI != nil:
+		return *r.ModuleURI, true
+	case r.ModuleCanonical != nil:
+		return *r.ModuleCanonical, true
+	case r.ModuleCodeableConcept != nil:
+		return *r.ModuleCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetModuleURI sets module[x] to a FHIRURI (the
+// release primitive wrapper that carries the isGuidanceResponseModule marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GuidanceResponse) SetModuleURI(v FHIRURI) {
+	r.ModuleURI = nil
+	r.ModuleCanonical = nil
+	r.ModuleCodeableConcept = nil
+	r.ModuleURI = &v
+}
+
+// SetModuleCanonical sets module[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isGuidanceResponseModule marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GuidanceResponse) SetModuleCanonical(v FHIRCanonical) {
+	r.ModuleURI = nil
+	r.ModuleCanonical = nil
+	r.ModuleCodeableConcept = nil
+	r.ModuleCanonical = &v
+}
+
+// SetModuleCodeableConcept sets module[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GuidanceResponse) SetModuleCodeableConcept(v CodeableConcept) {
+	r.ModuleURI = nil
+	r.ModuleCanonical = nil
+	r.ModuleCodeableConcept = nil
+	r.ModuleCodeableConcept = &v
 }

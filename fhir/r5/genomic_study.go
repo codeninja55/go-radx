@@ -264,9 +264,49 @@ type GenomicStudyAnalysisDevice struct {
 // GenomicStudyAnalysisInput is a generated nested backbone element.
 type GenomicStudyAnalysisInput struct {
 	BackboneElement
-	File        *Reference       `json:"file,omitempty"`
-	Type        *CodeableConcept `json:"type,omitempty"`
-	GeneratedBy *Identifier      `json:"generatedBy,omitempty"`
+	File                  *Reference       `json:"file,omitempty"`
+	Type                  *CodeableConcept `json:"type,omitempty"`
+	GeneratedByIdentifier *Identifier      `json:"generatedByIdentifier,omitempty"`
+	GeneratedByReference  *Reference       `json:"generatedByReference,omitempty"`
+}
+
+// GenomicStudyAnalysisInputGeneratedBy is the sealed value interface for the generatedBy[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isGenomicStudyAnalysisInputGeneratedBy marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type GenomicStudyAnalysisInputGeneratedBy interface{ isGenomicStudyAnalysisInputGeneratedBy() }
+
+func (Identifier) isGenomicStudyAnalysisInputGeneratedBy() {}
+func (Reference) isGenomicStudyAnalysisInputGeneratedBy()  {}
+
+// GeneratedBy returns the value set in the generatedBy[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *GenomicStudyAnalysisInput) GeneratedBy() (GenomicStudyAnalysisInputGeneratedBy, bool) {
+	switch {
+	case r.GeneratedByIdentifier != nil:
+		return *r.GeneratedByIdentifier, true
+	case r.GeneratedByReference != nil:
+		return *r.GeneratedByReference, true
+	}
+	return nil, false
+}
+
+// SetGeneratedByIdentifier sets generatedBy[x] to a Identifier and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GenomicStudyAnalysisInput) SetGeneratedByIdentifier(v Identifier) {
+	r.GeneratedByIdentifier = nil
+	r.GeneratedByReference = nil
+	r.GeneratedByIdentifier = &v
+}
+
+// SetGeneratedByReference sets generatedBy[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *GenomicStudyAnalysisInput) SetGeneratedByReference(v Reference) {
+	r.GeneratedByIdentifier = nil
+	r.GeneratedByReference = nil
+	r.GeneratedByReference = &v
 }
 
 // GenomicStudyAnalysisOutput is a generated nested backbone element.

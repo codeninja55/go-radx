@@ -13,48 +13,50 @@ const ContractResourceType = "Contract"
 // Contract is the generated FHIR Contract resource.
 type Contract struct {
 	DomainResource
-	Identifier             []Identifier               `json:"identifier,omitempty"`
-	URL                    *string                    `json:"url,omitempty"`
-	URLElement             *fhir.PrimitiveElement     `json:"-"`
-	Version                *string                    `json:"version,omitempty"`
-	VersionElement         *fhir.PrimitiveElement     `json:"-"`
-	Status                 *string                    `json:"status,omitempty"`
-	StatusElement          *fhir.PrimitiveElement     `json:"-"`
-	LegalState             *CodeableConcept           `json:"legalState,omitempty"`
-	InstantiatesCanonical  *Reference                 `json:"instantiatesCanonical,omitempty"`
-	InstantiatesUri        *string                    `json:"instantiatesUri,omitempty"`
-	InstantiatesUriElement *fhir.PrimitiveElement     `json:"-"`
-	ContentDerivative      *CodeableConcept           `json:"contentDerivative,omitempty"`
-	Issued                 *string                    `json:"issued,omitempty"`
-	IssuedElement          *fhir.PrimitiveElement     `json:"-"`
-	Applies                *Period                    `json:"applies,omitempty"`
-	ExpirationType         *CodeableConcept           `json:"expirationType,omitempty"`
-	Subject                []Reference                `json:"subject,omitempty"`
-	Authority              []Reference                `json:"authority,omitempty"`
-	Domain                 []Reference                `json:"domain,omitempty"`
-	Site                   []Reference                `json:"site,omitempty"`
-	Name                   *string                    `json:"name,omitempty"`
-	NameElement            *fhir.PrimitiveElement     `json:"-"`
-	Title                  *string                    `json:"title,omitempty"`
-	TitleElement           *fhir.PrimitiveElement     `json:"-"`
-	Subtitle               *string                    `json:"subtitle,omitempty"`
-	SubtitleElement        *fhir.PrimitiveElement     `json:"-"`
-	Alias                  []string                   `json:"alias,omitempty"`
-	AliasElement           []*fhir.PrimitiveElement   `json:"-"`
-	Author                 *Reference                 `json:"author,omitempty"`
-	Scope                  *CodeableConcept           `json:"scope,omitempty"`
-	Topic                  *CodeableConcept           `json:"topic,omitempty"`
-	Type                   *CodeableConcept           `json:"type,omitempty"`
-	SubType                []CodeableConcept          `json:"subType,omitempty"`
-	ContentDefinition      *ContractContentDefinition `json:"contentDefinition,omitempty"`
-	Term                   []ContractTerm             `json:"term,omitempty"`
-	SupportingInfo         []Reference                `json:"supportingInfo,omitempty"`
-	RelevantHistory        []Reference                `json:"relevantHistory,omitempty"`
-	Signer                 []ContractSigner           `json:"signer,omitempty"`
-	Friendly               []ContractFriendly         `json:"friendly,omitempty"`
-	Legal                  []ContractFriendly         `json:"legal,omitempty"`
-	Rule                   []ContractFriendly         `json:"rule,omitempty"`
-	LegallyBinding         *Attachment                `json:"legallyBinding,omitempty"`
+	Identifier               []Identifier               `json:"identifier,omitempty"`
+	URL                      *string                    `json:"url,omitempty"`
+	URLElement               *fhir.PrimitiveElement     `json:"-"`
+	Version                  *string                    `json:"version,omitempty"`
+	VersionElement           *fhir.PrimitiveElement     `json:"-"`
+	Status                   *string                    `json:"status,omitempty"`
+	StatusElement            *fhir.PrimitiveElement     `json:"-"`
+	LegalState               *CodeableConcept           `json:"legalState,omitempty"`
+	InstantiatesCanonical    *Reference                 `json:"instantiatesCanonical,omitempty"`
+	InstantiatesUri          *string                    `json:"instantiatesUri,omitempty"`
+	InstantiatesUriElement   *fhir.PrimitiveElement     `json:"-"`
+	ContentDerivative        *CodeableConcept           `json:"contentDerivative,omitempty"`
+	Issued                   *string                    `json:"issued,omitempty"`
+	IssuedElement            *fhir.PrimitiveElement     `json:"-"`
+	Applies                  *Period                    `json:"applies,omitempty"`
+	ExpirationType           *CodeableConcept           `json:"expirationType,omitempty"`
+	Subject                  []Reference                `json:"subject,omitempty"`
+	Authority                []Reference                `json:"authority,omitempty"`
+	Domain                   []Reference                `json:"domain,omitempty"`
+	Site                     []Reference                `json:"site,omitempty"`
+	Name                     *string                    `json:"name,omitempty"`
+	NameElement              *fhir.PrimitiveElement     `json:"-"`
+	Title                    *string                    `json:"title,omitempty"`
+	TitleElement             *fhir.PrimitiveElement     `json:"-"`
+	Subtitle                 *string                    `json:"subtitle,omitempty"`
+	SubtitleElement          *fhir.PrimitiveElement     `json:"-"`
+	Alias                    []string                   `json:"alias,omitempty"`
+	AliasElement             []*fhir.PrimitiveElement   `json:"-"`
+	Author                   *Reference                 `json:"author,omitempty"`
+	Scope                    *CodeableConcept           `json:"scope,omitempty"`
+	TopicCodeableConcept     *CodeableConcept           `json:"topicCodeableConcept,omitempty"`
+	TopicReference           *Reference                 `json:"topicReference,omitempty"`
+	Type                     *CodeableConcept           `json:"type,omitempty"`
+	SubType                  []CodeableConcept          `json:"subType,omitempty"`
+	ContentDefinition        *ContractContentDefinition `json:"contentDefinition,omitempty"`
+	Term                     []ContractTerm             `json:"term,omitempty"`
+	SupportingInfo           []Reference                `json:"supportingInfo,omitempty"`
+	RelevantHistory          []Reference                `json:"relevantHistory,omitempty"`
+	Signer                   []ContractSigner           `json:"signer,omitempty"`
+	Friendly                 []ContractFriendly         `json:"friendly,omitempty"`
+	Legal                    []ContractFriendly         `json:"legal,omitempty"`
+	Rule                     []ContractFriendly         `json:"rule,omitempty"`
+	LegallyBindingAttachment *Attachment                `json:"legallyBindingAttachment,omitempty"`
+	LegallyBindingReference  *Reference                 `json:"legallyBindingReference,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "Contract".
@@ -213,6 +215,84 @@ func (v *Contract) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ContractTopic is the sealed value interface for the topic[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isContractTopic marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ContractTopic interface{ isContractTopic() }
+
+func (CodeableConcept) isContractTopic() {}
+func (Reference) isContractTopic()       {}
+
+// Topic returns the value set in the topic[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Contract) Topic() (ContractTopic, bool) {
+	switch {
+	case r.TopicCodeableConcept != nil:
+		return *r.TopicCodeableConcept, true
+	case r.TopicReference != nil:
+		return *r.TopicReference, true
+	}
+	return nil, false
+}
+
+// SetTopicCodeableConcept sets topic[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Contract) SetTopicCodeableConcept(v CodeableConcept) {
+	r.TopicCodeableConcept = nil
+	r.TopicReference = nil
+	r.TopicCodeableConcept = &v
+}
+
+// SetTopicReference sets topic[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Contract) SetTopicReference(v Reference) {
+	r.TopicCodeableConcept = nil
+	r.TopicReference = nil
+	r.TopicReference = &v
+}
+
+// ContractLegallyBinding is the sealed value interface for the legallyBinding[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isContractLegallyBinding marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ContractLegallyBinding interface{ isContractLegallyBinding() }
+
+func (Attachment) isContractLegallyBinding() {}
+func (Reference) isContractLegallyBinding()  {}
+
+// LegallyBinding returns the value set in the legallyBinding[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Contract) LegallyBinding() (ContractLegallyBinding, bool) {
+	switch {
+	case r.LegallyBindingAttachment != nil:
+		return *r.LegallyBindingAttachment, true
+	case r.LegallyBindingReference != nil:
+		return *r.LegallyBindingReference, true
+	}
+	return nil, false
+}
+
+// SetLegallyBindingAttachment sets legallyBinding[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Contract) SetLegallyBindingAttachment(v Attachment) {
+	r.LegallyBindingAttachment = nil
+	r.LegallyBindingReference = nil
+	r.LegallyBindingAttachment = &v
+}
+
+// SetLegallyBindingReference sets legallyBinding[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Contract) SetLegallyBindingReference(v Reference) {
+	r.LegallyBindingAttachment = nil
+	r.LegallyBindingReference = nil
+	r.LegallyBindingReference = &v
+}
+
 // ContractContentDefinition is a generated nested backbone element.
 type ContractContentDefinition struct {
 	BackboneElement
@@ -302,7 +382,47 @@ func (v *ContractContentDefinition) UnmarshalJSON(data []byte) error {
 // ContractFriendly is a generated nested backbone element.
 type ContractFriendly struct {
 	BackboneElement
-	Content *Attachment `json:"content,omitempty"`
+	ContentAttachment *Attachment `json:"contentAttachment,omitempty"`
+	ContentReference  *Reference  `json:"contentReference,omitempty"`
+}
+
+// ContractFriendlyContent is the sealed value interface for the content[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isContractFriendlyContent marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ContractFriendlyContent interface{ isContractFriendlyContent() }
+
+func (Attachment) isContractFriendlyContent() {}
+func (Reference) isContractFriendlyContent()  {}
+
+// Content returns the value set in the content[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ContractFriendly) Content() (ContractFriendlyContent, bool) {
+	switch {
+	case r.ContentAttachment != nil:
+		return *r.ContentAttachment, true
+	case r.ContentReference != nil:
+		return *r.ContentReference, true
+	}
+	return nil, false
+}
+
+// SetContentAttachment sets content[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractFriendly) SetContentAttachment(v Attachment) {
+	r.ContentAttachment = nil
+	r.ContentReference = nil
+	r.ContentAttachment = &v
+}
+
+// SetContentReference sets content[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractFriendly) SetContentReference(v Reference) {
+	r.ContentAttachment = nil
+	r.ContentReference = nil
+	r.ContentReference = &v
 }
 
 // ContractSigner is a generated nested backbone element.
@@ -316,20 +436,21 @@ type ContractSigner struct {
 // ContractTerm is a generated nested backbone element.
 type ContractTerm struct {
 	BackboneElement
-	Identifier    *Identifier                 `json:"identifier,omitempty"`
-	Issued        *string                     `json:"issued,omitempty"`
-	IssuedElement *fhir.PrimitiveElement      `json:"-"`
-	Applies       *Period                     `json:"applies,omitempty"`
-	Topic         *CodeableConcept            `json:"topic,omitempty"`
-	Type          *CodeableConcept            `json:"type,omitempty"`
-	SubType       *CodeableConcept            `json:"subType,omitempty"`
-	Text          *string                     `json:"text,omitempty"`
-	TextElement   *fhir.PrimitiveElement      `json:"-"`
-	SecurityLabel []ContractTermSecurityLabel `json:"securityLabel,omitempty"`
-	Offer         *ContractTermOffer          `json:"offer,omitempty"`
-	Asset         []ContractTermAsset         `json:"asset,omitempty"`
-	Action        []ContractTermAction        `json:"action,omitempty"`
-	Group         []ContractTerm              `json:"group,omitempty"`
+	Identifier           *Identifier                 `json:"identifier,omitempty"`
+	Issued               *string                     `json:"issued,omitempty"`
+	IssuedElement        *fhir.PrimitiveElement      `json:"-"`
+	Applies              *Period                     `json:"applies,omitempty"`
+	TopicCodeableConcept *CodeableConcept            `json:"topicCodeableConcept,omitempty"`
+	TopicReference       *Reference                  `json:"topicReference,omitempty"`
+	Type                 *CodeableConcept            `json:"type,omitempty"`
+	SubType              *CodeableConcept            `json:"subType,omitempty"`
+	Text                 *string                     `json:"text,omitempty"`
+	TextElement          *fhir.PrimitiveElement      `json:"-"`
+	SecurityLabel        []ContractTermSecurityLabel `json:"securityLabel,omitempty"`
+	Offer                *ContractTermOffer          `json:"offer,omitempty"`
+	Asset                []ContractTermAsset         `json:"asset,omitempty"`
+	Action               []ContractTermAction        `json:"action,omitempty"`
+	Group                []ContractTerm              `json:"group,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -392,6 +513,45 @@ func (v *ContractTerm) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ContractTermTopic is the sealed value interface for the topic[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isContractTermTopic marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ContractTermTopic interface{ isContractTermTopic() }
+
+func (CodeableConcept) isContractTermTopic() {}
+func (Reference) isContractTermTopic()       {}
+
+// Topic returns the value set in the topic[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ContractTerm) Topic() (ContractTermTopic, bool) {
+	switch {
+	case r.TopicCodeableConcept != nil:
+		return *r.TopicCodeableConcept, true
+	case r.TopicReference != nil:
+		return *r.TopicReference, true
+	}
+	return nil, false
+}
+
+// SetTopicCodeableConcept sets topic[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTerm) SetTopicCodeableConcept(v CodeableConcept) {
+	r.TopicCodeableConcept = nil
+	r.TopicReference = nil
+	r.TopicCodeableConcept = &v
+}
+
+// SetTopicReference sets topic[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTerm) SetTopicReference(v Reference) {
+	r.TopicCodeableConcept = nil
+	r.TopicReference = nil
+	r.TopicReference = &v
+}
+
 // ContractTermAction is a generated nested backbone element.
 type ContractTermAction struct {
 	BackboneElement
@@ -406,7 +566,9 @@ type ContractTermAction struct {
 	Context                    *Reference               `json:"context,omitempty"`
 	ContextLinkId              []string                 `json:"contextLinkId,omitempty"`
 	ContextLinkIdElement       []*fhir.PrimitiveElement `json:"-"`
-	Occurrence                 *string                  `json:"occurrence,omitempty"`
+	OccurrenceDateTime         *FHIRDateTime            `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod           *Period                  `json:"occurrencePeriod,omitempty"`
+	OccurrenceTiming           *Timing                  `json:"occurrenceTiming,omitempty"`
 	Requester                  []Reference              `json:"requester,omitempty"`
 	RequesterLinkId            []string                 `json:"requesterLinkId,omitempty"`
 	RequesterLinkIdElement     []*fhir.PrimitiveElement `json:"-"`
@@ -541,6 +703,61 @@ func (v *ContractTermAction) UnmarshalJSON(data []byte) error {
 	}
 	type alias ContractTermAction
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ContractTermActionOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isContractTermActionOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ContractTermActionOccurrence interface{ isContractTermActionOccurrence() }
+
+func (FHIRDateTime) isContractTermActionOccurrence() {}
+func (Period) isContractTermActionOccurrence()       {}
+func (Timing) isContractTermActionOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ContractTermAction) Occurrence() (ContractTermActionOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	case r.OccurrenceTiming != nil:
+		return *r.OccurrenceTiming, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isContractTermActionOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermAction) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermAction) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrencePeriod = &v
+}
+
+// SetOccurrenceTiming sets occurrence[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermAction) SetOccurrenceTiming(v Timing) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceTiming = &v
 }
 
 // ContractTermAsset is a generated nested backbone element.
@@ -711,7 +928,8 @@ func (v *ContractTermAssetContext) UnmarshalJSON(data []byte) error {
 // ContractTermAssetValuedItem is a generated nested backbone element.
 type ContractTermAssetValuedItem struct {
 	BackboneElement
-	Entity                     *CodeableConcept         `json:"entity,omitempty"`
+	EntityCodeableConcept      *CodeableConcept         `json:"entityCodeableConcept,omitempty"`
+	EntityReference            *Reference               `json:"entityReference,omitempty"`
 	Identifier                 *Identifier              `json:"identifier,omitempty"`
 	EffectiveTime              *string                  `json:"effectiveTime,omitempty"`
 	EffectiveTimeElement       *fhir.PrimitiveElement   `json:"-"`
@@ -854,6 +1072,45 @@ func (v *ContractTermAssetValuedItem) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ContractTermAssetValuedItemEntity is the sealed value interface for the entity[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isContractTermAssetValuedItemEntity marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ContractTermAssetValuedItemEntity interface{ isContractTermAssetValuedItemEntity() }
+
+func (CodeableConcept) isContractTermAssetValuedItemEntity() {}
+func (Reference) isContractTermAssetValuedItemEntity()       {}
+
+// Entity returns the value set in the entity[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ContractTermAssetValuedItem) Entity() (ContractTermAssetValuedItemEntity, bool) {
+	switch {
+	case r.EntityCodeableConcept != nil:
+		return *r.EntityCodeableConcept, true
+	case r.EntityReference != nil:
+		return *r.EntityReference, true
+	}
+	return nil, false
+}
+
+// SetEntityCodeableConcept sets entity[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermAssetValuedItem) SetEntityCodeableConcept(v CodeableConcept) {
+	r.EntityCodeableConcept = nil
+	r.EntityReference = nil
+	r.EntityCodeableConcept = &v
+}
+
+// SetEntityReference sets entity[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermAssetValuedItem) SetEntityReference(v Reference) {
+	r.EntityCodeableConcept = nil
+	r.EntityReference = nil
+	r.EntityReference = &v
+}
+
 // ContractTermOffer is a generated nested backbone element.
 type ContractTermOffer struct {
 	BackboneElement
@@ -947,7 +1204,303 @@ func (v *ContractTermOffer) UnmarshalJSON(data []byte) error {
 // ContractTermOfferAnswer is a generated nested backbone element.
 type ContractTermOfferAnswer struct {
 	BackboneElement
-	Value *bool `json:"value,omitempty"`
+	ValueBoolean    *FHIRBoolean  `json:"valueBoolean,omitempty"`
+	ValueDecimal    *FHIRDecimal  `json:"valueDecimal,omitempty"`
+	ValueInteger    *FHIRInteger  `json:"valueInteger,omitempty"`
+	ValueDate       *FHIRDate     `json:"valueDate,omitempty"`
+	ValueDateTime   *FHIRDateTime `json:"valueDateTime,omitempty"`
+	ValueTime       *FHIRTime     `json:"valueTime,omitempty"`
+	ValueString     *FHIRString   `json:"valueString,omitempty"`
+	ValueURI        *FHIRURI      `json:"valueUri,omitempty"`
+	ValueAttachment *Attachment   `json:"valueAttachment,omitempty"`
+	ValueCoding     *Coding       `json:"valueCoding,omitempty"`
+	ValueQuantity   *Quantity     `json:"valueQuantity,omitempty"`
+	ValueReference  *Reference    `json:"valueReference,omitempty"`
+}
+
+// ContractTermOfferAnswerValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isContractTermOfferAnswerValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ContractTermOfferAnswerValue interface{ isContractTermOfferAnswerValue() }
+
+func (FHIRBoolean) isContractTermOfferAnswerValue()  {}
+func (FHIRDecimal) isContractTermOfferAnswerValue()  {}
+func (FHIRInteger) isContractTermOfferAnswerValue()  {}
+func (FHIRDate) isContractTermOfferAnswerValue()     {}
+func (FHIRDateTime) isContractTermOfferAnswerValue() {}
+func (FHIRTime) isContractTermOfferAnswerValue()     {}
+func (FHIRString) isContractTermOfferAnswerValue()   {}
+func (FHIRURI) isContractTermOfferAnswerValue()      {}
+func (Attachment) isContractTermOfferAnswerValue()   {}
+func (Coding) isContractTermOfferAnswerValue()       {}
+func (Quantity) isContractTermOfferAnswerValue()     {}
+func (Reference) isContractTermOfferAnswerValue()    {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ContractTermOfferAnswer) Value() (ContractTermOfferAnswerValue, bool) {
+	switch {
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValueTime != nil:
+		return *r.ValueTime, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueURI != nil:
+		return *r.ValueURI, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	}
+	return nil, false
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isContractTermOfferAnswerValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueBoolean(v FHIRBoolean) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isContractTermOfferAnswerValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueDecimal(v FHIRDecimal) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueDecimal = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isContractTermOfferAnswerValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueInteger(v FHIRInteger) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueInteger = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isContractTermOfferAnswerValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueDate(v FHIRDate) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueDate = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isContractTermOfferAnswerValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueDateTime(v FHIRDateTime) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueDateTime = &v
+}
+
+// SetValueTime sets value[x] to a FHIRTime (the
+// release primitive wrapper that carries the isContractTermOfferAnswerValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueTime(v FHIRTime) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueTime = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isContractTermOfferAnswerValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueString(v FHIRString) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueString = &v
+}
+
+// SetValueURI sets value[x] to a FHIRURI (the
+// release primitive wrapper that carries the isContractTermOfferAnswerValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueURI(v FHIRURI) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueURI = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueAttachment(v Attachment) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueCoding(v Coding) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueCoding = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueQuantity(v Quantity) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ContractTermOfferAnswer) SetValueReference(v Reference) {
+	r.ValueBoolean = nil
+	r.ValueDecimal = nil
+	r.ValueInteger = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueTime = nil
+	r.ValueString = nil
+	r.ValueURI = nil
+	r.ValueAttachment = nil
+	r.ValueCoding = nil
+	r.ValueQuantity = nil
+	r.ValueReference = nil
+	r.ValueReference = &v
 }
 
 // ContractTermOfferParty is a generated nested backbone element.

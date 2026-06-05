@@ -36,11 +36,64 @@ func (r *Parameters) MarshalJSON() ([]byte, error) {
 // ParametersParameter is a generated nested backbone element.
 type ParametersParameter struct {
 	BackboneElement
-	Name        *string                `json:"name,omitempty"`
-	NameElement *fhir.PrimitiveElement `json:"-"`
-	Value       *string                `json:"value,omitempty"`
-	Resource    *fhir.Resource         `json:"resource,omitempty"`
-	Part        []ParametersParameter  `json:"part,omitempty"`
+	Name                       *string                `json:"name,omitempty"`
+	NameElement                *fhir.PrimitiveElement `json:"-"`
+	ValueBase64Binary          *FHIRBase64Binary      `json:"valueBase64Binary,omitempty"`
+	ValueBoolean               *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueCanonical             *FHIRCanonical         `json:"valueCanonical,omitempty"`
+	ValueCode                  *FHIRCode              `json:"valueCode,omitempty"`
+	ValueDate                  *FHIRDate              `json:"valueDate,omitempty"`
+	ValueDateTime              *FHIRDateTime          `json:"valueDateTime,omitempty"`
+	ValueDecimal               *FHIRDecimal           `json:"valueDecimal,omitempty"`
+	ValueID                    *FHIRID                `json:"valueId,omitempty"`
+	ValueInstant               *FHIRInstant           `json:"valueInstant,omitempty"`
+	ValueInteger               *FHIRInteger           `json:"valueInteger,omitempty"`
+	ValueInteger64             *FHIRInteger64         `json:"valueInteger64,omitempty"`
+	ValueMarkdown              *FHIRMarkdown          `json:"valueMarkdown,omitempty"`
+	ValueOid                   *FHIROID               `json:"valueOid,omitempty"`
+	ValuePositiveInt           *FHIRPositiveInt       `json:"valuePositiveInt,omitempty"`
+	ValueString                *FHIRString            `json:"valueString,omitempty"`
+	ValueTime                  *FHIRTime              `json:"valueTime,omitempty"`
+	ValueUnsignedInt           *FHIRUnsignedInt       `json:"valueUnsignedInt,omitempty"`
+	ValueURI                   *FHIRURI               `json:"valueUri,omitempty"`
+	ValueURL                   *FHIRURL               `json:"valueUrl,omitempty"`
+	ValueUuid                  *FHIRUUID              `json:"valueUuid,omitempty"`
+	ValueAddress               *Address               `json:"valueAddress,omitempty"`
+	ValueAge                   *Age                   `json:"valueAge,omitempty"`
+	ValueAnnotation            *Annotation            `json:"valueAnnotation,omitempty"`
+	ValueAttachment            *Attachment            `json:"valueAttachment,omitempty"`
+	ValueCodeableConcept       *CodeableConcept       `json:"valueCodeableConcept,omitempty"`
+	ValueCodeableReference     *CodeableReference     `json:"valueCodeableReference,omitempty"`
+	ValueCoding                *Coding                `json:"valueCoding,omitempty"`
+	ValueContactPoint          *ContactPoint          `json:"valueContactPoint,omitempty"`
+	ValueCount                 *Count                 `json:"valueCount,omitempty"`
+	ValueDistance              *Distance              `json:"valueDistance,omitempty"`
+	ValueDuration              *Duration              `json:"valueDuration,omitempty"`
+	ValueHumanName             *HumanName             `json:"valueHumanName,omitempty"`
+	ValueIdentifier            *Identifier            `json:"valueIdentifier,omitempty"`
+	ValueMoney                 *Money                 `json:"valueMoney,omitempty"`
+	ValuePeriod                *Period                `json:"valuePeriod,omitempty"`
+	ValueQuantity              *Quantity              `json:"valueQuantity,omitempty"`
+	ValueRange                 *Range                 `json:"valueRange,omitempty"`
+	ValueRatio                 *Ratio                 `json:"valueRatio,omitempty"`
+	ValueRatioRange            *RatioRange            `json:"valueRatioRange,omitempty"`
+	ValueReference             *Reference             `json:"valueReference,omitempty"`
+	ValueSampledData           *SampledData           `json:"valueSampledData,omitempty"`
+	ValueSignature             *Signature             `json:"valueSignature,omitempty"`
+	ValueTiming                *Timing                `json:"valueTiming,omitempty"`
+	ValueContactDetail         *ContactDetail         `json:"valueContactDetail,omitempty"`
+	ValueDataRequirement       *DataRequirement       `json:"valueDataRequirement,omitempty"`
+	ValueExpression            *Expression            `json:"valueExpression,omitempty"`
+	ValueParameterDefinition   *ParameterDefinition   `json:"valueParameterDefinition,omitempty"`
+	ValueRelatedArtifact       *RelatedArtifact       `json:"valueRelatedArtifact,omitempty"`
+	ValueTriggerDefinition     *TriggerDefinition     `json:"valueTriggerDefinition,omitempty"`
+	ValueUsageContext          *UsageContext          `json:"valueUsageContext,omitempty"`
+	ValueAvailability          *Availability          `json:"valueAvailability,omitempty"`
+	ValueExtendedContactDetail *ExtendedContactDetail `json:"valueExtendedContactDetail,omitempty"`
+	ValueDosage                *Dosage                `json:"valueDosage,omitempty"`
+	ValueMeta                  *Meta                  `json:"valueMeta,omitempty"`
+	Resource                   *fhir.Resource         `json:"resource,omitempty"`
+	Part                       []ParametersParameter  `json:"part,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -89,4 +142,3463 @@ func (v *ParametersParameter) UnmarshalJSON(data []byte) error {
 	}
 	type alias ParametersParameter
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ParametersParameterValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isParametersParameterValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ParametersParameterValue interface{ isParametersParameterValue() }
+
+func (FHIRBase64Binary) isParametersParameterValue()      {}
+func (FHIRBoolean) isParametersParameterValue()           {}
+func (FHIRCanonical) isParametersParameterValue()         {}
+func (FHIRCode) isParametersParameterValue()              {}
+func (FHIRDate) isParametersParameterValue()              {}
+func (FHIRDateTime) isParametersParameterValue()          {}
+func (FHIRDecimal) isParametersParameterValue()           {}
+func (FHIRID) isParametersParameterValue()                {}
+func (FHIRInstant) isParametersParameterValue()           {}
+func (FHIRInteger) isParametersParameterValue()           {}
+func (FHIRInteger64) isParametersParameterValue()         {}
+func (FHIRMarkdown) isParametersParameterValue()          {}
+func (FHIROID) isParametersParameterValue()               {}
+func (FHIRPositiveInt) isParametersParameterValue()       {}
+func (FHIRString) isParametersParameterValue()            {}
+func (FHIRTime) isParametersParameterValue()              {}
+func (FHIRUnsignedInt) isParametersParameterValue()       {}
+func (FHIRURI) isParametersParameterValue()               {}
+func (FHIRURL) isParametersParameterValue()               {}
+func (FHIRUUID) isParametersParameterValue()              {}
+func (Address) isParametersParameterValue()               {}
+func (Age) isParametersParameterValue()                   {}
+func (Annotation) isParametersParameterValue()            {}
+func (Attachment) isParametersParameterValue()            {}
+func (CodeableConcept) isParametersParameterValue()       {}
+func (CodeableReference) isParametersParameterValue()     {}
+func (Coding) isParametersParameterValue()                {}
+func (ContactPoint) isParametersParameterValue()          {}
+func (Count) isParametersParameterValue()                 {}
+func (Distance) isParametersParameterValue()              {}
+func (Duration) isParametersParameterValue()              {}
+func (HumanName) isParametersParameterValue()             {}
+func (Identifier) isParametersParameterValue()            {}
+func (Money) isParametersParameterValue()                 {}
+func (Period) isParametersParameterValue()                {}
+func (Quantity) isParametersParameterValue()              {}
+func (Range) isParametersParameterValue()                 {}
+func (Ratio) isParametersParameterValue()                 {}
+func (RatioRange) isParametersParameterValue()            {}
+func (Reference) isParametersParameterValue()             {}
+func (SampledData) isParametersParameterValue()           {}
+func (Signature) isParametersParameterValue()             {}
+func (Timing) isParametersParameterValue()                {}
+func (ContactDetail) isParametersParameterValue()         {}
+func (DataRequirement) isParametersParameterValue()       {}
+func (Expression) isParametersParameterValue()            {}
+func (ParameterDefinition) isParametersParameterValue()   {}
+func (RelatedArtifact) isParametersParameterValue()       {}
+func (TriggerDefinition) isParametersParameterValue()     {}
+func (UsageContext) isParametersParameterValue()          {}
+func (Availability) isParametersParameterValue()          {}
+func (ExtendedContactDetail) isParametersParameterValue() {}
+func (Dosage) isParametersParameterValue()                {}
+func (Meta) isParametersParameterValue()                  {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ParametersParameter) Value() (ParametersParameterValue, bool) {
+	switch {
+	case r.ValueBase64Binary != nil:
+		return *r.ValueBase64Binary, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueCanonical != nil:
+		return *r.ValueCanonical, true
+	case r.ValueCode != nil:
+		return *r.ValueCode, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	case r.ValueID != nil:
+		return *r.ValueID, true
+	case r.ValueInstant != nil:
+		return *r.ValueInstant, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueInteger64 != nil:
+		return *r.ValueInteger64, true
+	case r.ValueMarkdown != nil:
+		return *r.ValueMarkdown, true
+	case r.ValueOid != nil:
+		return *r.ValueOid, true
+	case r.ValuePositiveInt != nil:
+		return *r.ValuePositiveInt, true
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueTime != nil:
+		return *r.ValueTime, true
+	case r.ValueUnsignedInt != nil:
+		return *r.ValueUnsignedInt, true
+	case r.ValueURI != nil:
+		return *r.ValueURI, true
+	case r.ValueURL != nil:
+		return *r.ValueURL, true
+	case r.ValueUuid != nil:
+		return *r.ValueUuid, true
+	case r.ValueAddress != nil:
+		return *r.ValueAddress, true
+	case r.ValueAge != nil:
+		return *r.ValueAge, true
+	case r.ValueAnnotation != nil:
+		return *r.ValueAnnotation, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueCodeableReference != nil:
+		return *r.ValueCodeableReference, true
+	case r.ValueCoding != nil:
+		return *r.ValueCoding, true
+	case r.ValueContactPoint != nil:
+		return *r.ValueContactPoint, true
+	case r.ValueCount != nil:
+		return *r.ValueCount, true
+	case r.ValueDistance != nil:
+		return *r.ValueDistance, true
+	case r.ValueDuration != nil:
+		return *r.ValueDuration, true
+	case r.ValueHumanName != nil:
+		return *r.ValueHumanName, true
+	case r.ValueIdentifier != nil:
+		return *r.ValueIdentifier, true
+	case r.ValueMoney != nil:
+		return *r.ValueMoney, true
+	case r.ValuePeriod != nil:
+		return *r.ValuePeriod, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueRatio != nil:
+		return *r.ValueRatio, true
+	case r.ValueRatioRange != nil:
+		return *r.ValueRatioRange, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	case r.ValueSampledData != nil:
+		return *r.ValueSampledData, true
+	case r.ValueSignature != nil:
+		return *r.ValueSignature, true
+	case r.ValueTiming != nil:
+		return *r.ValueTiming, true
+	case r.ValueContactDetail != nil:
+		return *r.ValueContactDetail, true
+	case r.ValueDataRequirement != nil:
+		return *r.ValueDataRequirement, true
+	case r.ValueExpression != nil:
+		return *r.ValueExpression, true
+	case r.ValueParameterDefinition != nil:
+		return *r.ValueParameterDefinition, true
+	case r.ValueRelatedArtifact != nil:
+		return *r.ValueRelatedArtifact, true
+	case r.ValueTriggerDefinition != nil:
+		return *r.ValueTriggerDefinition, true
+	case r.ValueUsageContext != nil:
+		return *r.ValueUsageContext, true
+	case r.ValueAvailability != nil:
+		return *r.ValueAvailability, true
+	case r.ValueExtendedContactDetail != nil:
+		return *r.ValueExtendedContactDetail, true
+	case r.ValueDosage != nil:
+		return *r.ValueDosage, true
+	case r.ValueMeta != nil:
+		return *r.ValueMeta, true
+	}
+	return nil, false
+}
+
+// SetValueBase64Binary sets value[x] to a FHIRBase64Binary (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueBase64Binary(v FHIRBase64Binary) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueBase64Binary = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueBoolean(v FHIRBoolean) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueCanonical sets value[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueCanonical(v FHIRCanonical) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCanonical = &v
+}
+
+// SetValueCode sets value[x] to a FHIRCode (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueCode(v FHIRCode) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCode = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueDate(v FHIRDate) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDate = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueDateTime(v FHIRDateTime) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDateTime = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueDecimal(v FHIRDecimal) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDecimal = &v
+}
+
+// SetValueID sets value[x] to a FHIRID (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueID(v FHIRID) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueID = &v
+}
+
+// SetValueInstant sets value[x] to a FHIRInstant (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueInstant(v FHIRInstant) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueInstant = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueInteger(v FHIRInteger) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueInteger = &v
+}
+
+// SetValueInteger64 sets value[x] to a FHIRInteger64 (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueInteger64(v FHIRInteger64) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueInteger64 = &v
+}
+
+// SetValueMarkdown sets value[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueMarkdown(v FHIRMarkdown) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueMarkdown = &v
+}
+
+// SetValueOid sets value[x] to a FHIROID (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueOid(v FHIROID) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueOid = &v
+}
+
+// SetValuePositiveInt sets value[x] to a FHIRPositiveInt (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValuePositiveInt(v FHIRPositiveInt) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValuePositiveInt = &v
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueString(v FHIRString) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueString = &v
+}
+
+// SetValueTime sets value[x] to a FHIRTime (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueTime(v FHIRTime) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueTime = &v
+}
+
+// SetValueUnsignedInt sets value[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueUnsignedInt(v FHIRUnsignedInt) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueUnsignedInt = &v
+}
+
+// SetValueURI sets value[x] to a FHIRURI (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueURI(v FHIRURI) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueURI = &v
+}
+
+// SetValueURL sets value[x] to a FHIRURL (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueURL(v FHIRURL) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueURL = &v
+}
+
+// SetValueUuid sets value[x] to a FHIRUUID (the
+// release primitive wrapper that carries the isParametersParameterValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueUuid(v FHIRUUID) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueUuid = &v
+}
+
+// SetValueAddress sets value[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueAddress(v Address) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAddress = &v
+}
+
+// SetValueAge sets value[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueAge(v Age) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAge = &v
+}
+
+// SetValueAnnotation sets value[x] to a Annotation and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueAnnotation(v Annotation) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAnnotation = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueAttachment(v Attachment) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAttachment = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueCodeableReference sets value[x] to a CodeableReference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueCodeableReference(v CodeableReference) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCodeableReference = &v
+}
+
+// SetValueCoding sets value[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueCoding(v Coding) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCoding = &v
+}
+
+// SetValueContactPoint sets value[x] to a ContactPoint and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueContactPoint(v ContactPoint) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueContactPoint = &v
+}
+
+// SetValueCount sets value[x] to a Count and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueCount(v Count) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueCount = &v
+}
+
+// SetValueDistance sets value[x] to a Distance and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueDistance(v Distance) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDistance = &v
+}
+
+// SetValueDuration sets value[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueDuration(v Duration) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDuration = &v
+}
+
+// SetValueHumanName sets value[x] to a HumanName and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueHumanName(v HumanName) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueHumanName = &v
+}
+
+// SetValueIdentifier sets value[x] to a Identifier and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueIdentifier(v Identifier) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueIdentifier = &v
+}
+
+// SetValueMoney sets value[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueMoney(v Money) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueMoney = &v
+}
+
+// SetValuePeriod sets value[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValuePeriod(v Period) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValuePeriod = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueQuantity(v Quantity) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueRange(v Range) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueRange = &v
+}
+
+// SetValueRatio sets value[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueRatio(v Ratio) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueRatio = &v
+}
+
+// SetValueRatioRange sets value[x] to a RatioRange and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueRatioRange(v RatioRange) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueRatioRange = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueReference(v Reference) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueReference = &v
+}
+
+// SetValueSampledData sets value[x] to a SampledData and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueSampledData(v SampledData) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueSampledData = &v
+}
+
+// SetValueSignature sets value[x] to a Signature and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueSignature(v Signature) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueSignature = &v
+}
+
+// SetValueTiming sets value[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueTiming(v Timing) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueTiming = &v
+}
+
+// SetValueContactDetail sets value[x] to a ContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueContactDetail(v ContactDetail) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueContactDetail = &v
+}
+
+// SetValueDataRequirement sets value[x] to a DataRequirement and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueDataRequirement(v DataRequirement) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDataRequirement = &v
+}
+
+// SetValueExpression sets value[x] to a Expression and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueExpression(v Expression) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueExpression = &v
+}
+
+// SetValueParameterDefinition sets value[x] to a ParameterDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueParameterDefinition(v ParameterDefinition) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueParameterDefinition = &v
+}
+
+// SetValueRelatedArtifact sets value[x] to a RelatedArtifact and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueRelatedArtifact(v RelatedArtifact) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueRelatedArtifact = &v
+}
+
+// SetValueTriggerDefinition sets value[x] to a TriggerDefinition and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueTriggerDefinition(v TriggerDefinition) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueTriggerDefinition = &v
+}
+
+// SetValueUsageContext sets value[x] to a UsageContext and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueUsageContext(v UsageContext) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueUsageContext = &v
+}
+
+// SetValueAvailability sets value[x] to a Availability and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueAvailability(v Availability) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueAvailability = &v
+}
+
+// SetValueExtendedContactDetail sets value[x] to a ExtendedContactDetail and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueExtendedContactDetail(v ExtendedContactDetail) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueExtendedContactDetail = &v
+}
+
+// SetValueDosage sets value[x] to a Dosage and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueDosage(v Dosage) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueDosage = &v
+}
+
+// SetValueMeta sets value[x] to a Meta and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ParametersParameter) SetValueMeta(v Meta) {
+	r.ValueBase64Binary = nil
+	r.ValueBoolean = nil
+	r.ValueCanonical = nil
+	r.ValueCode = nil
+	r.ValueDate = nil
+	r.ValueDateTime = nil
+	r.ValueDecimal = nil
+	r.ValueID = nil
+	r.ValueInstant = nil
+	r.ValueInteger = nil
+	r.ValueInteger64 = nil
+	r.ValueMarkdown = nil
+	r.ValueOid = nil
+	r.ValuePositiveInt = nil
+	r.ValueString = nil
+	r.ValueTime = nil
+	r.ValueUnsignedInt = nil
+	r.ValueURI = nil
+	r.ValueURL = nil
+	r.ValueUuid = nil
+	r.ValueAddress = nil
+	r.ValueAge = nil
+	r.ValueAnnotation = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableReference = nil
+	r.ValueCoding = nil
+	r.ValueContactPoint = nil
+	r.ValueCount = nil
+	r.ValueDistance = nil
+	r.ValueDuration = nil
+	r.ValueHumanName = nil
+	r.ValueIdentifier = nil
+	r.ValueMoney = nil
+	r.ValuePeriod = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueRatioRange = nil
+	r.ValueReference = nil
+	r.ValueSampledData = nil
+	r.ValueSignature = nil
+	r.ValueTiming = nil
+	r.ValueContactDetail = nil
+	r.ValueDataRequirement = nil
+	r.ValueExpression = nil
+	r.ValueParameterDefinition = nil
+	r.ValueRelatedArtifact = nil
+	r.ValueTriggerDefinition = nil
+	r.ValueUsageContext = nil
+	r.ValueAvailability = nil
+	r.ValueExtendedContactDetail = nil
+	r.ValueDosage = nil
+	r.ValueMeta = nil
+	r.ValueMeta = &v
 }

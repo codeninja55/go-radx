@@ -22,8 +22,16 @@ type Condition struct {
 	BodySite            []CodeableConcept      `json:"bodySite,omitempty"`
 	Subject             *Reference             `json:"subject,omitempty"`
 	Encounter           *Reference             `json:"encounter,omitempty"`
-	Onset               *string                `json:"onset,omitempty"`
-	Abatement           *string                `json:"abatement,omitempty"`
+	OnsetDateTime       *FHIRDateTime          `json:"onsetDateTime,omitempty"`
+	OnsetAge            *Age                   `json:"onsetAge,omitempty"`
+	OnsetPeriod         *Period                `json:"onsetPeriod,omitempty"`
+	OnsetRange          *Range                 `json:"onsetRange,omitempty"`
+	OnsetString         *FHIRString            `json:"onsetString,omitempty"`
+	AbatementDateTime   *FHIRDateTime          `json:"abatementDateTime,omitempty"`
+	AbatementAge        *Age                   `json:"abatementAge,omitempty"`
+	AbatementPeriod     *Period                `json:"abatementPeriod,omitempty"`
+	AbatementRange      *Range                 `json:"abatementRange,omitempty"`
+	AbatementString     *FHIRString            `json:"abatementString,omitempty"`
 	RecordedDate        *string                `json:"recordedDate,omitempty"`
 	RecordedDateElement *fhir.PrimitiveElement `json:"-"`
 	Participant         []ConditionParticipant `json:"participant,omitempty"`
@@ -90,6 +98,188 @@ func (v *Condition) UnmarshalJSON(data []byte) error {
 	}
 	type alias Condition
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ConditionOnset is the sealed value interface for the onset[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isConditionOnset marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ConditionOnset interface{ isConditionOnset() }
+
+func (FHIRDateTime) isConditionOnset() {}
+func (Age) isConditionOnset()          {}
+func (Period) isConditionOnset()       {}
+func (Range) isConditionOnset()        {}
+func (FHIRString) isConditionOnset()   {}
+
+// Onset returns the value set in the onset[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Condition) Onset() (ConditionOnset, bool) {
+	switch {
+	case r.OnsetDateTime != nil:
+		return *r.OnsetDateTime, true
+	case r.OnsetAge != nil:
+		return *r.OnsetAge, true
+	case r.OnsetPeriod != nil:
+		return *r.OnsetPeriod, true
+	case r.OnsetRange != nil:
+		return *r.OnsetRange, true
+	case r.OnsetString != nil:
+		return *r.OnsetString, true
+	}
+	return nil, false
+}
+
+// SetOnsetDateTime sets onset[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isConditionOnset marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetOnsetDateTime(v FHIRDateTime) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetDateTime = &v
+}
+
+// SetOnsetAge sets onset[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetOnsetAge(v Age) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetAge = &v
+}
+
+// SetOnsetPeriod sets onset[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetOnsetPeriod(v Period) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetPeriod = &v
+}
+
+// SetOnsetRange sets onset[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetOnsetRange(v Range) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetRange = &v
+}
+
+// SetOnsetString sets onset[x] to a FHIRString (the
+// release primitive wrapper that carries the isConditionOnset marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetOnsetString(v FHIRString) {
+	r.OnsetDateTime = nil
+	r.OnsetAge = nil
+	r.OnsetPeriod = nil
+	r.OnsetRange = nil
+	r.OnsetString = nil
+	r.OnsetString = &v
+}
+
+// ConditionAbatement is the sealed value interface for the abatement[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isConditionAbatement marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ConditionAbatement interface{ isConditionAbatement() }
+
+func (FHIRDateTime) isConditionAbatement() {}
+func (Age) isConditionAbatement()          {}
+func (Period) isConditionAbatement()       {}
+func (Range) isConditionAbatement()        {}
+func (FHIRString) isConditionAbatement()   {}
+
+// Abatement returns the value set in the abatement[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Condition) Abatement() (ConditionAbatement, bool) {
+	switch {
+	case r.AbatementDateTime != nil:
+		return *r.AbatementDateTime, true
+	case r.AbatementAge != nil:
+		return *r.AbatementAge, true
+	case r.AbatementPeriod != nil:
+		return *r.AbatementPeriod, true
+	case r.AbatementRange != nil:
+		return *r.AbatementRange, true
+	case r.AbatementString != nil:
+		return *r.AbatementString, true
+	}
+	return nil, false
+}
+
+// SetAbatementDateTime sets abatement[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isConditionAbatement marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetAbatementDateTime(v FHIRDateTime) {
+	r.AbatementDateTime = nil
+	r.AbatementAge = nil
+	r.AbatementPeriod = nil
+	r.AbatementRange = nil
+	r.AbatementString = nil
+	r.AbatementDateTime = &v
+}
+
+// SetAbatementAge sets abatement[x] to a Age and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetAbatementAge(v Age) {
+	r.AbatementDateTime = nil
+	r.AbatementAge = nil
+	r.AbatementPeriod = nil
+	r.AbatementRange = nil
+	r.AbatementString = nil
+	r.AbatementAge = &v
+}
+
+// SetAbatementPeriod sets abatement[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetAbatementPeriod(v Period) {
+	r.AbatementDateTime = nil
+	r.AbatementAge = nil
+	r.AbatementPeriod = nil
+	r.AbatementRange = nil
+	r.AbatementString = nil
+	r.AbatementPeriod = &v
+}
+
+// SetAbatementRange sets abatement[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetAbatementRange(v Range) {
+	r.AbatementDateTime = nil
+	r.AbatementAge = nil
+	r.AbatementPeriod = nil
+	r.AbatementRange = nil
+	r.AbatementString = nil
+	r.AbatementRange = &v
+}
+
+// SetAbatementString sets abatement[x] to a FHIRString (the
+// release primitive wrapper that carries the isConditionAbatement marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Condition) SetAbatementString(v FHIRString) {
+	r.AbatementDateTime = nil
+	r.AbatementAge = nil
+	r.AbatementPeriod = nil
+	r.AbatementRange = nil
+	r.AbatementString = nil
+	r.AbatementString = &v
 }
 
 // ConditionParticipant is a generated nested backbone element.

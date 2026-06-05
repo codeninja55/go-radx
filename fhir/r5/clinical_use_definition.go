@@ -126,10 +126,52 @@ type ClinicalUseDefinitionIndication struct {
 	DiseaseStatus           *CodeableReference                                  `json:"diseaseStatus,omitempty"`
 	Comorbidity             []CodeableReference                                 `json:"comorbidity,omitempty"`
 	IntendedEffect          *CodeableReference                                  `json:"intendedEffect,omitempty"`
-	Duration                *Range                                              `json:"duration,omitempty"`
+	DurationRange           *Range                                              `json:"durationRange,omitempty"`
+	DurationString          *FHIRString                                         `json:"durationString,omitempty"`
 	UndesirableEffect       []Reference                                         `json:"undesirableEffect,omitempty"`
 	Applicability           *Expression                                         `json:"applicability,omitempty"`
 	OtherTherapy            []ClinicalUseDefinitionContraindicationOtherTherapy `json:"otherTherapy,omitempty"`
+}
+
+// ClinicalUseDefinitionIndicationDuration is the sealed value interface for the duration[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClinicalUseDefinitionIndicationDuration marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClinicalUseDefinitionIndicationDuration interface{ isClinicalUseDefinitionIndicationDuration() }
+
+func (Range) isClinicalUseDefinitionIndicationDuration()      {}
+func (FHIRString) isClinicalUseDefinitionIndicationDuration() {}
+
+// Duration returns the value set in the duration[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClinicalUseDefinitionIndication) Duration() (ClinicalUseDefinitionIndicationDuration, bool) {
+	switch {
+	case r.DurationRange != nil:
+		return *r.DurationRange, true
+	case r.DurationString != nil:
+		return *r.DurationString, true
+	}
+	return nil, false
+}
+
+// SetDurationRange sets duration[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClinicalUseDefinitionIndication) SetDurationRange(v Range) {
+	r.DurationRange = nil
+	r.DurationString = nil
+	r.DurationRange = &v
+}
+
+// SetDurationString sets duration[x] to a FHIRString (the
+// release primitive wrapper that carries the isClinicalUseDefinitionIndicationDuration marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClinicalUseDefinitionIndication) SetDurationString(v FHIRString) {
+	r.DurationRange = nil
+	r.DurationString = nil
+	r.DurationString = &v
 }
 
 // ClinicalUseDefinitionInteraction is a generated nested backbone element.
@@ -145,7 +187,47 @@ type ClinicalUseDefinitionInteraction struct {
 // ClinicalUseDefinitionInteractionInteractant is a generated nested backbone element.
 type ClinicalUseDefinitionInteractionInteractant struct {
 	BackboneElement
-	Item *Reference `json:"item,omitempty"`
+	ItemReference       *Reference       `json:"itemReference,omitempty"`
+	ItemCodeableConcept *CodeableConcept `json:"itemCodeableConcept,omitempty"`
+}
+
+// ClinicalUseDefinitionInteractionInteractantItem is the sealed value interface for the item[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isClinicalUseDefinitionInteractionInteractantItem marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ClinicalUseDefinitionInteractionInteractantItem interface{ isClinicalUseDefinitionInteractionInteractantItem() }
+
+func (Reference) isClinicalUseDefinitionInteractionInteractantItem()       {}
+func (CodeableConcept) isClinicalUseDefinitionInteractionInteractantItem() {}
+
+// Item returns the value set in the item[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ClinicalUseDefinitionInteractionInteractant) Item() (ClinicalUseDefinitionInteractionInteractantItem, bool) {
+	switch {
+	case r.ItemReference != nil:
+		return *r.ItemReference, true
+	case r.ItemCodeableConcept != nil:
+		return *r.ItemCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetItemReference sets item[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClinicalUseDefinitionInteractionInteractant) SetItemReference(v Reference) {
+	r.ItemReference = nil
+	r.ItemCodeableConcept = nil
+	r.ItemReference = &v
+}
+
+// SetItemCodeableConcept sets item[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ClinicalUseDefinitionInteractionInteractant) SetItemCodeableConcept(v CodeableConcept) {
+	r.ItemReference = nil
+	r.ItemCodeableConcept = nil
+	r.ItemCodeableConcept = &v
 }
 
 // ClinicalUseDefinitionUndesirableEffect is a generated nested backbone element.

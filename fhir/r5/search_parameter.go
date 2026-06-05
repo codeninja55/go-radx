@@ -13,62 +13,63 @@ const SearchParameterResourceType = "SearchParameter"
 // SearchParameter is the generated FHIR SearchParameter resource.
 type SearchParameter struct {
 	DomainResource
-	URL                   *string                    `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement     `json:"-"`
-	Identifier            []Identifier               `json:"identifier,omitempty"`
-	Version               *string                    `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement     `json:"-"`
-	VersionAlgorithm      *string                    `json:"versionAlgorithm,omitempty"`
-	Name                  *string                    `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement     `json:"-"`
-	Title                 *string                    `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement     `json:"-"`
-	DerivedFrom           *string                    `json:"derivedFrom,omitempty"`
-	DerivedFromElement    *fhir.PrimitiveElement     `json:"-"`
-	Status                *string                    `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement     `json:"-"`
-	Experimental          *bool                      `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement     `json:"-"`
-	Date                  *string                    `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement     `json:"-"`
-	Publisher             *string                    `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement     `json:"-"`
-	Contact               []ContactDetail            `json:"contact,omitempty"`
-	Description           *string                    `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement     `json:"-"`
-	UseContext            []UsageContext             `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept          `json:"jurisdiction,omitempty"`
-	Purpose               *string                    `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement     `json:"-"`
-	Copyright             *string                    `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement     `json:"-"`
-	CopyrightLabel        *string                    `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement     `json:"-"`
-	Code                  *string                    `json:"code,omitempty"`
-	CodeElement           *fhir.PrimitiveElement     `json:"-"`
-	Base                  []string                   `json:"base,omitempty"`
-	BaseElement           []*fhir.PrimitiveElement   `json:"-"`
-	Type                  *string                    `json:"type,omitempty"`
-	TypeElement           *fhir.PrimitiveElement     `json:"-"`
-	Expression            *string                    `json:"expression,omitempty"`
-	ExpressionElement     *fhir.PrimitiveElement     `json:"-"`
-	ProcessingMode        *string                    `json:"processingMode,omitempty"`
-	ProcessingModeElement *fhir.PrimitiveElement     `json:"-"`
-	Constraint            *string                    `json:"constraint,omitempty"`
-	ConstraintElement     *fhir.PrimitiveElement     `json:"-"`
-	Target                []string                   `json:"target,omitempty"`
-	TargetElement         []*fhir.PrimitiveElement   `json:"-"`
-	MultipleOr            *bool                      `json:"multipleOr,omitempty"`
-	MultipleOrElement     *fhir.PrimitiveElement     `json:"-"`
-	MultipleAnd           *bool                      `json:"multipleAnd,omitempty"`
-	MultipleAndElement    *fhir.PrimitiveElement     `json:"-"`
-	Comparator            []string                   `json:"comparator,omitempty"`
-	ComparatorElement     []*fhir.PrimitiveElement   `json:"-"`
-	Modifier              []string                   `json:"modifier,omitempty"`
-	ModifierElement       []*fhir.PrimitiveElement   `json:"-"`
-	Chain                 []string                   `json:"chain,omitempty"`
-	ChainElement          []*fhir.PrimitiveElement   `json:"-"`
-	Component             []SearchParameterComponent `json:"component,omitempty"`
+	URL                    *string                    `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement     `json:"-"`
+	Identifier             []Identifier               `json:"identifier,omitempty"`
+	Version                *string                    `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement     `json:"-"`
+	VersionAlgorithmString *FHIRString                `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                    `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                    `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement     `json:"-"`
+	Title                  *string                    `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement     `json:"-"`
+	DerivedFrom            *string                    `json:"derivedFrom,omitempty"`
+	DerivedFromElement     *fhir.PrimitiveElement     `json:"-"`
+	Status                 *string                    `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement     `json:"-"`
+	Experimental           *bool                      `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement     `json:"-"`
+	Date                   *string                    `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement     `json:"-"`
+	Publisher              *string                    `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement     `json:"-"`
+	Contact                []ContactDetail            `json:"contact,omitempty"`
+	Description            *string                    `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement     `json:"-"`
+	UseContext             []UsageContext             `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept          `json:"jurisdiction,omitempty"`
+	Purpose                *string                    `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement     `json:"-"`
+	Copyright              *string                    `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement     `json:"-"`
+	CopyrightLabel         *string                    `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement     `json:"-"`
+	Code                   *string                    `json:"code,omitempty"`
+	CodeElement            *fhir.PrimitiveElement     `json:"-"`
+	Base                   []string                   `json:"base,omitempty"`
+	BaseElement            []*fhir.PrimitiveElement   `json:"-"`
+	Type                   *string                    `json:"type,omitempty"`
+	TypeElement            *fhir.PrimitiveElement     `json:"-"`
+	Expression             *string                    `json:"expression,omitempty"`
+	ExpressionElement      *fhir.PrimitiveElement     `json:"-"`
+	ProcessingMode         *string                    `json:"processingMode,omitempty"`
+	ProcessingModeElement  *fhir.PrimitiveElement     `json:"-"`
+	Constraint             *string                    `json:"constraint,omitempty"`
+	ConstraintElement      *fhir.PrimitiveElement     `json:"-"`
+	Target                 []string                   `json:"target,omitempty"`
+	TargetElement          []*fhir.PrimitiveElement   `json:"-"`
+	MultipleOr             *bool                      `json:"multipleOr,omitempty"`
+	MultipleOrElement      *fhir.PrimitiveElement     `json:"-"`
+	MultipleAnd            *bool                      `json:"multipleAnd,omitempty"`
+	MultipleAndElement     *fhir.PrimitiveElement     `json:"-"`
+	Comparator             []string                   `json:"comparator,omitempty"`
+	ComparatorElement      []*fhir.PrimitiveElement   `json:"-"`
+	Modifier               []string                   `json:"modifier,omitempty"`
+	ModifierElement        []*fhir.PrimitiveElement   `json:"-"`
+	Chain                  []string                   `json:"chain,omitempty"`
+	ChainElement           []*fhir.PrimitiveElement   `json:"-"`
+	Component              []SearchParameterComponent `json:"component,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "SearchParameter".
@@ -417,6 +418,47 @@ func (v *SearchParameter) UnmarshalJSON(data []byte) error {
 	}
 	type alias SearchParameter
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// SearchParameterVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSearchParameterVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SearchParameterVersionAlgorithm interface{ isSearchParameterVersionAlgorithm() }
+
+func (FHIRString) isSearchParameterVersionAlgorithm() {}
+func (Coding) isSearchParameterVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SearchParameter) VersionAlgorithm() (SearchParameterVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isSearchParameterVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SearchParameter) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SearchParameter) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
 }
 
 // SearchParameterComponent is a generated nested backbone element.

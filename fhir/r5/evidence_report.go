@@ -20,7 +20,8 @@ type EvidenceReport struct {
 	UseContext        []UsageContext            `json:"useContext,omitempty"`
 	Identifier        []Identifier              `json:"identifier,omitempty"`
 	RelatedIdentifier []Identifier              `json:"relatedIdentifier,omitempty"`
-	CiteAs            *Reference                `json:"citeAs,omitempty"`
+	CiteAsReference   *Reference                `json:"citeAsReference,omitempty"`
+	CiteAsMarkdown    *FHIRMarkdown             `json:"citeAsMarkdown,omitempty"`
 	Type              *CodeableConcept          `json:"type,omitempty"`
 	Note              []Annotation              `json:"note,omitempty"`
 	RelatedArtifact   []RelatedArtifact         `json:"relatedArtifact,omitempty"`
@@ -118,6 +119,47 @@ func (v *EvidenceReport) UnmarshalJSON(data []byte) error {
 	}
 	type alias EvidenceReport
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// EvidenceReportCiteAs is the sealed value interface for the citeAs[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceReportCiteAs marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceReportCiteAs interface{ isEvidenceReportCiteAs() }
+
+func (Reference) isEvidenceReportCiteAs()    {}
+func (FHIRMarkdown) isEvidenceReportCiteAs() {}
+
+// CiteAs returns the value set in the citeAs[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *EvidenceReport) CiteAs() (EvidenceReportCiteAs, bool) {
+	switch {
+	case r.CiteAsReference != nil:
+		return *r.CiteAsReference, true
+	case r.CiteAsMarkdown != nil:
+		return *r.CiteAsMarkdown, true
+	}
+	return nil, false
+}
+
+// SetCiteAsReference sets citeAs[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceReport) SetCiteAsReference(v Reference) {
+	r.CiteAsReference = nil
+	r.CiteAsMarkdown = nil
+	r.CiteAsReference = &v
+}
+
+// SetCiteAsMarkdown sets citeAs[x] to a FHIRMarkdown (the
+// release primitive wrapper that carries the isEvidenceReportCiteAs marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceReport) SetCiteAsMarkdown(v FHIRMarkdown) {
+	r.CiteAsReference = nil
+	r.CiteAsMarkdown = nil
+	r.CiteAsMarkdown = &v
 }
 
 // EvidenceReportRelatesTo is a generated nested backbone element.
@@ -336,11 +378,15 @@ type EvidenceReportSubject struct {
 // EvidenceReportSubjectCharacteristic is a generated nested backbone element.
 type EvidenceReportSubjectCharacteristic struct {
 	BackboneElement
-	Code           *CodeableConcept       `json:"code,omitempty"`
-	Value          *Reference             `json:"value,omitempty"`
-	Exclude        *bool                  `json:"exclude,omitempty"`
-	ExcludeElement *fhir.PrimitiveElement `json:"-"`
-	Period         *Period                `json:"period,omitempty"`
+	Code                 *CodeableConcept       `json:"code,omitempty"`
+	ValueReference       *Reference             `json:"valueReference,omitempty"`
+	ValueCodeableConcept *CodeableConcept       `json:"valueCodeableConcept,omitempty"`
+	ValueBoolean         *FHIRBoolean           `json:"valueBoolean,omitempty"`
+	ValueQuantity        *Quantity              `json:"valueQuantity,omitempty"`
+	ValueRange           *Range                 `json:"valueRange,omitempty"`
+	Exclude              *bool                  `json:"exclude,omitempty"`
+	ExcludeElement       *fhir.PrimitiveElement `json:"-"`
+	Period               *Period                `json:"period,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -389,4 +435,93 @@ func (v *EvidenceReportSubjectCharacteristic) UnmarshalJSON(data []byte) error {
 	}
 	type alias EvidenceReportSubjectCharacteristic
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// EvidenceReportSubjectCharacteristicValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceReportSubjectCharacteristicValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceReportSubjectCharacteristicValue interface{ isEvidenceReportSubjectCharacteristicValue() }
+
+func (Reference) isEvidenceReportSubjectCharacteristicValue()       {}
+func (CodeableConcept) isEvidenceReportSubjectCharacteristicValue() {}
+func (FHIRBoolean) isEvidenceReportSubjectCharacteristicValue()     {}
+func (Quantity) isEvidenceReportSubjectCharacteristicValue()        {}
+func (Range) isEvidenceReportSubjectCharacteristicValue()           {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *EvidenceReportSubjectCharacteristic) Value() (EvidenceReportSubjectCharacteristicValue, bool) {
+	switch {
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	}
+	return nil, false
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceReportSubjectCharacteristic) SetValueReference(v Reference) {
+	r.ValueReference = nil
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceReportSubjectCharacteristic) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueReference = nil
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isEvidenceReportSubjectCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceReportSubjectCharacteristic) SetValueBoolean(v FHIRBoolean) {
+	r.ValueReference = nil
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceReportSubjectCharacteristic) SetValueQuantity(v Quantity) {
+	r.ValueReference = nil
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceReportSubjectCharacteristic) SetValueRange(v Range) {
+	r.ValueReference = nil
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRange = &v
 }

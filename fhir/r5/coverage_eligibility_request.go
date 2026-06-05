@@ -21,7 +21,8 @@ type CoverageEligibilityRequest struct {
 	PurposeElement []*fhir.PrimitiveElement                   `json:"-"`
 	Patient        *Reference                                 `json:"patient,omitempty"`
 	Event          []CoverageEligibilityRequestEvent          `json:"event,omitempty"`
-	Serviced       *string                                    `json:"serviced,omitempty"`
+	ServicedDate   *FHIRDate                                  `json:"servicedDate,omitempty"`
+	ServicedPeriod *Period                                    `json:"servicedPeriod,omitempty"`
 	Created        *string                                    `json:"created,omitempty"`
 	CreatedElement *fhir.PrimitiveElement                     `json:"-"`
 	Enterer        *Reference                                 `json:"enterer,omitempty"`
@@ -119,11 +120,94 @@ func (v *CoverageEligibilityRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// CoverageEligibilityRequestServiced is the sealed value interface for the serviced[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCoverageEligibilityRequestServiced marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CoverageEligibilityRequestServiced interface{ isCoverageEligibilityRequestServiced() }
+
+func (FHIRDate) isCoverageEligibilityRequestServiced() {}
+func (Period) isCoverageEligibilityRequestServiced()   {}
+
+// Serviced returns the value set in the serviced[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CoverageEligibilityRequest) Serviced() (CoverageEligibilityRequestServiced, bool) {
+	switch {
+	case r.ServicedDate != nil:
+		return *r.ServicedDate, true
+	case r.ServicedPeriod != nil:
+		return *r.ServicedPeriod, true
+	}
+	return nil, false
+}
+
+// SetServicedDate sets serviced[x] to a FHIRDate (the
+// release primitive wrapper that carries the isCoverageEligibilityRequestServiced marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityRequest) SetServicedDate(v FHIRDate) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedDate = &v
+}
+
+// SetServicedPeriod sets serviced[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityRequest) SetServicedPeriod(v Period) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedPeriod = &v
+}
+
 // CoverageEligibilityRequestEvent is a generated nested backbone element.
 type CoverageEligibilityRequestEvent struct {
 	BackboneElement
-	Type *CodeableConcept `json:"type,omitempty"`
-	When *string          `json:"when,omitempty"`
+	Type         *CodeableConcept `json:"type,omitempty"`
+	WhenDateTime *FHIRDateTime    `json:"whenDateTime,omitempty"`
+	WhenPeriod   *Period          `json:"whenPeriod,omitempty"`
+}
+
+// CoverageEligibilityRequestEventWhen is the sealed value interface for the when[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCoverageEligibilityRequestEventWhen marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CoverageEligibilityRequestEventWhen interface{ isCoverageEligibilityRequestEventWhen() }
+
+func (FHIRDateTime) isCoverageEligibilityRequestEventWhen() {}
+func (Period) isCoverageEligibilityRequestEventWhen()       {}
+
+// When returns the value set in the when[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CoverageEligibilityRequestEvent) When() (CoverageEligibilityRequestEventWhen, bool) {
+	switch {
+	case r.WhenDateTime != nil:
+		return *r.WhenDateTime, true
+	case r.WhenPeriod != nil:
+		return *r.WhenPeriod, true
+	}
+	return nil, false
+}
+
+// SetWhenDateTime sets when[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isCoverageEligibilityRequestEventWhen marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityRequestEvent) SetWhenDateTime(v FHIRDateTime) {
+	r.WhenDateTime = nil
+	r.WhenPeriod = nil
+	r.WhenDateTime = &v
+}
+
+// SetWhenPeriod sets when[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityRequestEvent) SetWhenPeriod(v Period) {
+	r.WhenDateTime = nil
+	r.WhenPeriod = nil
+	r.WhenPeriod = &v
 }
 
 // CoverageEligibilityRequestInsurance is a generated nested backbone element.
@@ -263,7 +347,47 @@ func (v *CoverageEligibilityRequestItem) UnmarshalJSON(data []byte) error {
 // CoverageEligibilityRequestItemDiagnosis is a generated nested backbone element.
 type CoverageEligibilityRequestItemDiagnosis struct {
 	BackboneElement
-	Diagnosis *CodeableConcept `json:"diagnosis,omitempty"`
+	DiagnosisCodeableConcept *CodeableConcept `json:"diagnosisCodeableConcept,omitempty"`
+	DiagnosisReference       *Reference       `json:"diagnosisReference,omitempty"`
+}
+
+// CoverageEligibilityRequestItemDiagnosisDiagnosis is the sealed value interface for the diagnosis[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCoverageEligibilityRequestItemDiagnosisDiagnosis marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CoverageEligibilityRequestItemDiagnosisDiagnosis interface{ isCoverageEligibilityRequestItemDiagnosisDiagnosis() }
+
+func (CodeableConcept) isCoverageEligibilityRequestItemDiagnosisDiagnosis() {}
+func (Reference) isCoverageEligibilityRequestItemDiagnosisDiagnosis()       {}
+
+// Diagnosis returns the value set in the diagnosis[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CoverageEligibilityRequestItemDiagnosis) Diagnosis() (CoverageEligibilityRequestItemDiagnosisDiagnosis, bool) {
+	switch {
+	case r.DiagnosisCodeableConcept != nil:
+		return *r.DiagnosisCodeableConcept, true
+	case r.DiagnosisReference != nil:
+		return *r.DiagnosisReference, true
+	}
+	return nil, false
+}
+
+// SetDiagnosisCodeableConcept sets diagnosis[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityRequestItemDiagnosis) SetDiagnosisCodeableConcept(v CodeableConcept) {
+	r.DiagnosisCodeableConcept = nil
+	r.DiagnosisReference = nil
+	r.DiagnosisCodeableConcept = &v
+}
+
+// SetDiagnosisReference sets diagnosis[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityRequestItemDiagnosis) SetDiagnosisReference(v Reference) {
+	r.DiagnosisCodeableConcept = nil
+	r.DiagnosisReference = nil
+	r.DiagnosisReference = &v
 }
 
 // CoverageEligibilityRequestSupportingInfo is a generated nested backbone element.

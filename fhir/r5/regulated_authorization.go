@@ -107,9 +107,51 @@ func (v *RegulatedAuthorization) UnmarshalJSON(data []byte) error {
 // RegulatedAuthorizationCase is a generated nested backbone element.
 type RegulatedAuthorizationCase struct {
 	BackboneElement
-	Identifier  *Identifier                  `json:"identifier,omitempty"`
-	Type        *CodeableConcept             `json:"type,omitempty"`
-	Status      *CodeableConcept             `json:"status,omitempty"`
-	Date        *Period                      `json:"date,omitempty"`
-	Application []RegulatedAuthorizationCase `json:"application,omitempty"`
+	Identifier   *Identifier                  `json:"identifier,omitempty"`
+	Type         *CodeableConcept             `json:"type,omitempty"`
+	Status       *CodeableConcept             `json:"status,omitempty"`
+	DatePeriod   *Period                      `json:"datePeriod,omitempty"`
+	DateDateTime *FHIRDateTime                `json:"dateDateTime,omitempty"`
+	Application  []RegulatedAuthorizationCase `json:"application,omitempty"`
+}
+
+// RegulatedAuthorizationCaseDate is the sealed value interface for the date[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isRegulatedAuthorizationCaseDate marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type RegulatedAuthorizationCaseDate interface{ isRegulatedAuthorizationCaseDate() }
+
+func (Period) isRegulatedAuthorizationCaseDate()       {}
+func (FHIRDateTime) isRegulatedAuthorizationCaseDate() {}
+
+// Date returns the value set in the date[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *RegulatedAuthorizationCase) Date() (RegulatedAuthorizationCaseDate, bool) {
+	switch {
+	case r.DatePeriod != nil:
+		return *r.DatePeriod, true
+	case r.DateDateTime != nil:
+		return *r.DateDateTime, true
+	}
+	return nil, false
+}
+
+// SetDatePeriod sets date[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RegulatedAuthorizationCase) SetDatePeriod(v Period) {
+	r.DatePeriod = nil
+	r.DateDateTime = nil
+	r.DatePeriod = &v
+}
+
+// SetDateDateTime sets date[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isRegulatedAuthorizationCaseDate marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *RegulatedAuthorizationCase) SetDateDateTime(v FHIRDateTime) {
+	r.DatePeriod = nil
+	r.DateDateTime = nil
+	r.DateDateTime = &v
 }

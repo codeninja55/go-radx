@@ -221,13 +221,53 @@ func (v *CoverageClass) UnmarshalJSON(data []byte) error {
 // CoverageCostToBeneficiary is a generated nested backbone element.
 type CoverageCostToBeneficiary struct {
 	BackboneElement
-	Type      *CodeableConcept                     `json:"type,omitempty"`
-	Category  *CodeableConcept                     `json:"category,omitempty"`
-	Network   *CodeableConcept                     `json:"network,omitempty"`
-	Unit      *CodeableConcept                     `json:"unit,omitempty"`
-	Term      *CodeableConcept                     `json:"term,omitempty"`
-	Value     *Quantity                            `json:"value,omitempty"`
-	Exception []CoverageCostToBeneficiaryException `json:"exception,omitempty"`
+	Type          *CodeableConcept                     `json:"type,omitempty"`
+	Category      *CodeableConcept                     `json:"category,omitempty"`
+	Network       *CodeableConcept                     `json:"network,omitempty"`
+	Unit          *CodeableConcept                     `json:"unit,omitempty"`
+	Term          *CodeableConcept                     `json:"term,omitempty"`
+	ValueQuantity *Quantity                            `json:"valueQuantity,omitempty"`
+	ValueMoney    *Money                               `json:"valueMoney,omitempty"`
+	Exception     []CoverageCostToBeneficiaryException `json:"exception,omitempty"`
+}
+
+// CoverageCostToBeneficiaryValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCoverageCostToBeneficiaryValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CoverageCostToBeneficiaryValue interface{ isCoverageCostToBeneficiaryValue() }
+
+func (Quantity) isCoverageCostToBeneficiaryValue() {}
+func (Money) isCoverageCostToBeneficiaryValue()    {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CoverageCostToBeneficiary) Value() (CoverageCostToBeneficiaryValue, bool) {
+	switch {
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueMoney != nil:
+		return *r.ValueMoney, true
+	}
+	return nil, false
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageCostToBeneficiary) SetValueQuantity(v Quantity) {
+	r.ValueQuantity = nil
+	r.ValueMoney = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueMoney sets value[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageCostToBeneficiary) SetValueMoney(v Money) {
+	r.ValueQuantity = nil
+	r.ValueMoney = nil
+	r.ValueMoney = &v
 }
 
 // CoverageCostToBeneficiaryException is a generated nested backbone element.

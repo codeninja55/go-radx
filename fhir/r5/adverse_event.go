@@ -22,7 +22,9 @@ type AdverseEvent struct {
 	Code                           *CodeableConcept                 `json:"code,omitempty"`
 	Subject                        *Reference                       `json:"subject,omitempty"`
 	Encounter                      *Reference                       `json:"encounter,omitempty"`
-	Occurrence                     *string                          `json:"occurrence,omitempty"`
+	OccurrenceDateTime             *FHIRDateTime                    `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod               *Period                          `json:"occurrencePeriod,omitempty"`
+	OccurrenceTiming               *Timing                          `json:"occurrenceTiming,omitempty"`
 	Detected                       *string                          `json:"detected,omitempty"`
 	DetectedElement                *fhir.PrimitiveElement           `json:"-"`
 	RecordedDate                   *string                          `json:"recordedDate,omitempty"`
@@ -152,10 +154,105 @@ func (v *AdverseEvent) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// AdverseEventOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isAdverseEventOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type AdverseEventOccurrence interface{ isAdverseEventOccurrence() }
+
+func (FHIRDateTime) isAdverseEventOccurrence() {}
+func (Period) isAdverseEventOccurrence()       {}
+func (Timing) isAdverseEventOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *AdverseEvent) Occurrence() (AdverseEventOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	case r.OccurrenceTiming != nil:
+		return *r.OccurrenceTiming, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isAdverseEventOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdverseEvent) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdverseEvent) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrencePeriod = &v
+}
+
+// SetOccurrenceTiming sets occurrence[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdverseEvent) SetOccurrenceTiming(v Timing) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceTiming = nil
+	r.OccurrenceTiming = &v
+}
+
 // AdverseEventContributingFactor is a generated nested backbone element.
 type AdverseEventContributingFactor struct {
 	BackboneElement
-	Item *Reference `json:"item,omitempty"`
+	ItemReference       *Reference       `json:"itemReference,omitempty"`
+	ItemCodeableConcept *CodeableConcept `json:"itemCodeableConcept,omitempty"`
+}
+
+// AdverseEventContributingFactorItem is the sealed value interface for the item[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isAdverseEventContributingFactorItem marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type AdverseEventContributingFactorItem interface{ isAdverseEventContributingFactorItem() }
+
+func (Reference) isAdverseEventContributingFactorItem()       {}
+func (CodeableConcept) isAdverseEventContributingFactorItem() {}
+
+// Item returns the value set in the item[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *AdverseEventContributingFactor) Item() (AdverseEventContributingFactorItem, bool) {
+	switch {
+	case r.ItemReference != nil:
+		return *r.ItemReference, true
+	case r.ItemCodeableConcept != nil:
+		return *r.ItemCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetItemReference sets item[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdverseEventContributingFactor) SetItemReference(v Reference) {
+	r.ItemReference = nil
+	r.ItemCodeableConcept = nil
+	r.ItemReference = &v
+}
+
+// SetItemCodeableConcept sets item[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdverseEventContributingFactor) SetItemCodeableConcept(v CodeableConcept) {
+	r.ItemReference = nil
+	r.ItemCodeableConcept = nil
+	r.ItemCodeableConcept = &v
 }
 
 // AdverseEventParticipant is a generated nested backbone element.
@@ -168,8 +265,48 @@ type AdverseEventParticipant struct {
 // AdverseEventSuspectEntity is a generated nested backbone element.
 type AdverseEventSuspectEntity struct {
 	BackboneElement
-	Instance  *CodeableConcept                    `json:"instance,omitempty"`
-	Causality *AdverseEventSuspectEntityCausality `json:"causality,omitempty"`
+	InstanceCodeableConcept *CodeableConcept                    `json:"instanceCodeableConcept,omitempty"`
+	InstanceReference       *Reference                          `json:"instanceReference,omitempty"`
+	Causality               *AdverseEventSuspectEntityCausality `json:"causality,omitempty"`
+}
+
+// AdverseEventSuspectEntityInstance is the sealed value interface for the instance[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isAdverseEventSuspectEntityInstance marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type AdverseEventSuspectEntityInstance interface{ isAdverseEventSuspectEntityInstance() }
+
+func (CodeableConcept) isAdverseEventSuspectEntityInstance() {}
+func (Reference) isAdverseEventSuspectEntityInstance()       {}
+
+// Instance returns the value set in the instance[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *AdverseEventSuspectEntity) Instance() (AdverseEventSuspectEntityInstance, bool) {
+	switch {
+	case r.InstanceCodeableConcept != nil:
+		return *r.InstanceCodeableConcept, true
+	case r.InstanceReference != nil:
+		return *r.InstanceReference, true
+	}
+	return nil, false
+}
+
+// SetInstanceCodeableConcept sets instance[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdverseEventSuspectEntity) SetInstanceCodeableConcept(v CodeableConcept) {
+	r.InstanceCodeableConcept = nil
+	r.InstanceReference = nil
+	r.InstanceCodeableConcept = &v
+}
+
+// SetInstanceReference sets instance[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *AdverseEventSuspectEntity) SetInstanceReference(v Reference) {
+	r.InstanceCodeableConcept = nil
+	r.InstanceReference = nil
+	r.InstanceReference = &v
 }
 
 // AdverseEventSuspectEntityCausality is a generated nested backbone element.

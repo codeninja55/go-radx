@@ -101,8 +101,335 @@ type InventoryItemAssociation struct {
 // InventoryItemCharacteristic is a generated nested backbone element.
 type InventoryItemCharacteristic struct {
 	BackboneElement
-	CharacteristicType *CodeableConcept `json:"characteristicType,omitempty"`
-	Value              *string          `json:"value,omitempty"`
+	CharacteristicType   *CodeableConcept `json:"characteristicType,omitempty"`
+	ValueString          *FHIRString      `json:"valueString,omitempty"`
+	ValueInteger         *FHIRInteger     `json:"valueInteger,omitempty"`
+	ValueDecimal         *FHIRDecimal     `json:"valueDecimal,omitempty"`
+	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
+	ValueURL             *FHIRURL         `json:"valueUrl,omitempty"`
+	ValueDateTime        *FHIRDateTime    `json:"valueDateTime,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueRange           *Range           `json:"valueRange,omitempty"`
+	ValueRatio           *Ratio           `json:"valueRatio,omitempty"`
+	ValueAnnotation      *Annotation      `json:"valueAnnotation,omitempty"`
+	ValueAddress         *Address         `json:"valueAddress,omitempty"`
+	ValueDuration        *Duration        `json:"valueDuration,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+}
+
+// InventoryItemCharacteristicValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isInventoryItemCharacteristicValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type InventoryItemCharacteristicValue interface{ isInventoryItemCharacteristicValue() }
+
+func (FHIRString) isInventoryItemCharacteristicValue()      {}
+func (FHIRInteger) isInventoryItemCharacteristicValue()     {}
+func (FHIRDecimal) isInventoryItemCharacteristicValue()     {}
+func (FHIRBoolean) isInventoryItemCharacteristicValue()     {}
+func (FHIRURL) isInventoryItemCharacteristicValue()         {}
+func (FHIRDateTime) isInventoryItemCharacteristicValue()    {}
+func (Quantity) isInventoryItemCharacteristicValue()        {}
+func (Range) isInventoryItemCharacteristicValue()           {}
+func (Ratio) isInventoryItemCharacteristicValue()           {}
+func (Annotation) isInventoryItemCharacteristicValue()      {}
+func (Address) isInventoryItemCharacteristicValue()         {}
+func (Duration) isInventoryItemCharacteristicValue()        {}
+func (CodeableConcept) isInventoryItemCharacteristicValue() {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *InventoryItemCharacteristic) Value() (InventoryItemCharacteristicValue, bool) {
+	switch {
+	case r.ValueString != nil:
+		return *r.ValueString, true
+	case r.ValueInteger != nil:
+		return *r.ValueInteger, true
+	case r.ValueDecimal != nil:
+		return *r.ValueDecimal, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueURL != nil:
+		return *r.ValueURL, true
+	case r.ValueDateTime != nil:
+		return *r.ValueDateTime, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueRatio != nil:
+		return *r.ValueRatio, true
+	case r.ValueAnnotation != nil:
+		return *r.ValueAnnotation, true
+	case r.ValueAddress != nil:
+		return *r.ValueAddress, true
+	case r.ValueDuration != nil:
+		return *r.ValueDuration, true
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetValueString sets value[x] to a FHIRString (the
+// release primitive wrapper that carries the isInventoryItemCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueString(v FHIRString) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueString = &v
+}
+
+// SetValueInteger sets value[x] to a FHIRInteger (the
+// release primitive wrapper that carries the isInventoryItemCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueInteger(v FHIRInteger) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueInteger = &v
+}
+
+// SetValueDecimal sets value[x] to a FHIRDecimal (the
+// release primitive wrapper that carries the isInventoryItemCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueDecimal(v FHIRDecimal) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueDecimal = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isInventoryItemCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueBoolean(v FHIRBoolean) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueURL sets value[x] to a FHIRURL (the
+// release primitive wrapper that carries the isInventoryItemCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueURL(v FHIRURL) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueURL = &v
+}
+
+// SetValueDateTime sets value[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isInventoryItemCharacteristicValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueDateTime(v FHIRDateTime) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueDateTime = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueQuantity(v Quantity) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueRange(v Range) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueRange = &v
+}
+
+// SetValueRatio sets value[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueRatio(v Ratio) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueRatio = &v
+}
+
+// SetValueAnnotation sets value[x] to a Annotation and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueAnnotation(v Annotation) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueAnnotation = &v
+}
+
+// SetValueAddress sets value[x] to a Address and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueAddress(v Address) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueAddress = &v
+}
+
+// SetValueDuration sets value[x] to a Duration and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueDuration(v Duration) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueDuration = &v
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *InventoryItemCharacteristic) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueString = nil
+	r.ValueInteger = nil
+	r.ValueDecimal = nil
+	r.ValueBoolean = nil
+	r.ValueURL = nil
+	r.ValueDateTime = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRatio = nil
+	r.ValueAnnotation = nil
+	r.ValueAddress = nil
+	r.ValueDuration = nil
+	r.ValueCodeableConcept = nil
+	r.ValueCodeableConcept = &v
 }
 
 // InventoryItemDescription is a generated nested backbone element.

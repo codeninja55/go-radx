@@ -13,53 +13,54 @@ const EvidenceVariableResourceType = "EvidenceVariable"
 // EvidenceVariable is the generated FHIR EvidenceVariable resource.
 type EvidenceVariable struct {
 	DomainResource
-	URL                   *string                          `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement           `json:"-"`
-	Identifier            []Identifier                     `json:"identifier,omitempty"`
-	Version               *string                          `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement           `json:"-"`
-	VersionAlgorithm      *string                          `json:"versionAlgorithm,omitempty"`
-	Name                  *string                          `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement           `json:"-"`
-	Title                 *string                          `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement           `json:"-"`
-	ShortTitle            *string                          `json:"shortTitle,omitempty"`
-	ShortTitleElement     *fhir.PrimitiveElement           `json:"-"`
-	Status                *string                          `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement           `json:"-"`
-	Experimental          *bool                            `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement           `json:"-"`
-	Date                  *string                          `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement           `json:"-"`
-	Publisher             *string                          `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement           `json:"-"`
-	Contact               []ContactDetail                  `json:"contact,omitempty"`
-	Description           *string                          `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement           `json:"-"`
-	Note                  []Annotation                     `json:"note,omitempty"`
-	UseContext            []UsageContext                   `json:"useContext,omitempty"`
-	Purpose               *string                          `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement           `json:"-"`
-	Copyright             *string                          `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement           `json:"-"`
-	CopyrightLabel        *string                          `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement           `json:"-"`
-	ApprovalDate          *string                          `json:"approvalDate,omitempty"`
-	ApprovalDateElement   *fhir.PrimitiveElement           `json:"-"`
-	LastReviewDate        *string                          `json:"lastReviewDate,omitempty"`
-	LastReviewDateElement *fhir.PrimitiveElement           `json:"-"`
-	EffectivePeriod       *Period                          `json:"effectivePeriod,omitempty"`
-	Author                []ContactDetail                  `json:"author,omitempty"`
-	Editor                []ContactDetail                  `json:"editor,omitempty"`
-	Reviewer              []ContactDetail                  `json:"reviewer,omitempty"`
-	Endorser              []ContactDetail                  `json:"endorser,omitempty"`
-	RelatedArtifact       []RelatedArtifact                `json:"relatedArtifact,omitempty"`
-	Actual                *bool                            `json:"actual,omitempty"`
-	ActualElement         *fhir.PrimitiveElement           `json:"-"`
-	Characteristic        []EvidenceVariableCharacteristic `json:"characteristic,omitempty"`
-	Handling              *string                          `json:"handling,omitempty"`
-	HandlingElement       *fhir.PrimitiveElement           `json:"-"`
-	Category              []EvidenceVariableCategory       `json:"category,omitempty"`
+	URL                    *string                          `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement           `json:"-"`
+	Identifier             []Identifier                     `json:"identifier,omitempty"`
+	Version                *string                          `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement           `json:"-"`
+	VersionAlgorithmString *FHIRString                      `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                          `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                          `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement           `json:"-"`
+	Title                  *string                          `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement           `json:"-"`
+	ShortTitle             *string                          `json:"shortTitle,omitempty"`
+	ShortTitleElement      *fhir.PrimitiveElement           `json:"-"`
+	Status                 *string                          `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement           `json:"-"`
+	Experimental           *bool                            `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement           `json:"-"`
+	Date                   *string                          `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement           `json:"-"`
+	Publisher              *string                          `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement           `json:"-"`
+	Contact                []ContactDetail                  `json:"contact,omitempty"`
+	Description            *string                          `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement           `json:"-"`
+	Note                   []Annotation                     `json:"note,omitempty"`
+	UseContext             []UsageContext                   `json:"useContext,omitempty"`
+	Purpose                *string                          `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement           `json:"-"`
+	Copyright              *string                          `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement           `json:"-"`
+	CopyrightLabel         *string                          `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement           `json:"-"`
+	ApprovalDate           *string                          `json:"approvalDate,omitempty"`
+	ApprovalDateElement    *fhir.PrimitiveElement           `json:"-"`
+	LastReviewDate         *string                          `json:"lastReviewDate,omitempty"`
+	LastReviewDateElement  *fhir.PrimitiveElement           `json:"-"`
+	EffectivePeriod        *Period                          `json:"effectivePeriod,omitempty"`
+	Author                 []ContactDetail                  `json:"author,omitempty"`
+	Editor                 []ContactDetail                  `json:"editor,omitempty"`
+	Reviewer               []ContactDetail                  `json:"reviewer,omitempty"`
+	Endorser               []ContactDetail                  `json:"endorser,omitempty"`
+	RelatedArtifact        []RelatedArtifact                `json:"relatedArtifact,omitempty"`
+	Actual                 *bool                            `json:"actual,omitempty"`
+	ActualElement          *fhir.PrimitiveElement           `json:"-"`
+	Characteristic         []EvidenceVariableCharacteristic `json:"characteristic,omitempty"`
+	Handling               *string                          `json:"handling,omitempty"`
+	HandlingElement        *fhir.PrimitiveElement           `json:"-"`
+	Category               []EvidenceVariableCategory       `json:"category,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "EvidenceVariable".
@@ -314,12 +315,55 @@ func (v *EvidenceVariable) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// EvidenceVariableVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceVariableVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceVariableVersionAlgorithm interface{ isEvidenceVariableVersionAlgorithm() }
+
+func (FHIRString) isEvidenceVariableVersionAlgorithm() {}
+func (Coding) isEvidenceVariableVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *EvidenceVariable) VersionAlgorithm() (EvidenceVariableVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isEvidenceVariableVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariable) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariable) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
 // EvidenceVariableCategory is a generated nested backbone element.
 type EvidenceVariableCategory struct {
 	BackboneElement
-	Name        *string                `json:"name,omitempty"`
-	NameElement *fhir.PrimitiveElement `json:"-"`
-	Value       *CodeableConcept       `json:"value,omitempty"`
+	Name                 *string                `json:"name,omitempty"`
+	NameElement          *fhir.PrimitiveElement `json:"-"`
+	ValueCodeableConcept *CodeableConcept       `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity              `json:"valueQuantity,omitempty"`
+	ValueRange           *Range                 `json:"valueRange,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -370,6 +414,59 @@ func (v *EvidenceVariableCategory) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// EvidenceVariableCategoryValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceVariableCategoryValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceVariableCategoryValue interface{ isEvidenceVariableCategoryValue() }
+
+func (CodeableConcept) isEvidenceVariableCategoryValue() {}
+func (Quantity) isEvidenceVariableCategoryValue()        {}
+func (Range) isEvidenceVariableCategoryValue()           {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *EvidenceVariableCategory) Value() (EvidenceVariableCategoryValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCategory) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCategory) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCategory) SetValueRange(v Range) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueRange = &v
+}
+
 // EvidenceVariableCharacteristic is a generated nested backbone element.
 type EvidenceVariableCharacteristic struct {
 	BackboneElement
@@ -389,8 +486,10 @@ type EvidenceVariableCharacteristic struct {
 	DefinitionIdElement        *fhir.PrimitiveElement                                  `json:"-"`
 	DefinitionByTypeAndValue   *EvidenceVariableCharacteristicDefinitionByTypeAndValue `json:"definitionByTypeAndValue,omitempty"`
 	DefinitionByCombination    *EvidenceVariableCharacteristicDefinitionByCombination  `json:"definitionByCombination,omitempty"`
-	Instances                  *Quantity                                               `json:"instances,omitempty"`
-	Duration                   *Quantity                                               `json:"duration,omitempty"`
+	InstancesQuantity          *Quantity                                               `json:"instancesQuantity,omitempty"`
+	InstancesRange             *Range                                                  `json:"instancesRange,omitempty"`
+	DurationQuantity           *Quantity                                               `json:"durationQuantity,omitempty"`
+	DurationRange              *Range                                                  `json:"durationRange,omitempty"`
 	TimeFromEvent              []EvidenceVariableCharacteristicTimeFromEvent           `json:"timeFromEvent,omitempty"`
 }
 
@@ -490,6 +589,84 @@ func (v *EvidenceVariableCharacteristic) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// EvidenceVariableCharacteristicInstances is the sealed value interface for the instances[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceVariableCharacteristicInstances marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceVariableCharacteristicInstances interface{ isEvidenceVariableCharacteristicInstances() }
+
+func (Quantity) isEvidenceVariableCharacteristicInstances() {}
+func (Range) isEvidenceVariableCharacteristicInstances()    {}
+
+// Instances returns the value set in the instances[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *EvidenceVariableCharacteristic) Instances() (EvidenceVariableCharacteristicInstances, bool) {
+	switch {
+	case r.InstancesQuantity != nil:
+		return *r.InstancesQuantity, true
+	case r.InstancesRange != nil:
+		return *r.InstancesRange, true
+	}
+	return nil, false
+}
+
+// SetInstancesQuantity sets instances[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristic) SetInstancesQuantity(v Quantity) {
+	r.InstancesQuantity = nil
+	r.InstancesRange = nil
+	r.InstancesQuantity = &v
+}
+
+// SetInstancesRange sets instances[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristic) SetInstancesRange(v Range) {
+	r.InstancesQuantity = nil
+	r.InstancesRange = nil
+	r.InstancesRange = &v
+}
+
+// EvidenceVariableCharacteristicDuration is the sealed value interface for the duration[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceVariableCharacteristicDuration marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceVariableCharacteristicDuration interface{ isEvidenceVariableCharacteristicDuration() }
+
+func (Quantity) isEvidenceVariableCharacteristicDuration() {}
+func (Range) isEvidenceVariableCharacteristicDuration()    {}
+
+// Duration returns the value set in the duration[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *EvidenceVariableCharacteristic) Duration() (EvidenceVariableCharacteristicDuration, bool) {
+	switch {
+	case r.DurationQuantity != nil:
+		return *r.DurationQuantity, true
+	case r.DurationRange != nil:
+		return *r.DurationRange, true
+	}
+	return nil, false
+}
+
+// SetDurationQuantity sets duration[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristic) SetDurationQuantity(v Quantity) {
+	r.DurationQuantity = nil
+	r.DurationRange = nil
+	r.DurationQuantity = &v
+}
+
+// SetDurationRange sets duration[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristic) SetDurationRange(v Range) {
+	r.DurationQuantity = nil
+	r.DurationRange = nil
+	r.DurationRange = &v
+}
+
 // EvidenceVariableCharacteristicDefinitionByCombination is a generated nested backbone element.
 type EvidenceVariableCharacteristicDefinitionByCombination struct {
 	BackboneElement
@@ -563,22 +740,141 @@ func (v *EvidenceVariableCharacteristicDefinitionByCombination) UnmarshalJSON(da
 // EvidenceVariableCharacteristicDefinitionByTypeAndValue is a generated nested backbone element.
 type EvidenceVariableCharacteristicDefinitionByTypeAndValue struct {
 	BackboneElement
-	Type   *CodeableConcept  `json:"type,omitempty"`
-	Method []CodeableConcept `json:"method,omitempty"`
-	Device *Reference        `json:"device,omitempty"`
-	Value  *CodeableConcept  `json:"value,omitempty"`
-	Offset *CodeableConcept  `json:"offset,omitempty"`
+	Type                 *CodeableConcept  `json:"type,omitempty"`
+	Method               []CodeableConcept `json:"method,omitempty"`
+	Device               *Reference        `json:"device,omitempty"`
+	ValueCodeableConcept *CodeableConcept  `json:"valueCodeableConcept,omitempty"`
+	ValueBoolean         *FHIRBoolean      `json:"valueBoolean,omitempty"`
+	ValueQuantity        *Quantity         `json:"valueQuantity,omitempty"`
+	ValueRange           *Range            `json:"valueRange,omitempty"`
+	ValueReference       *Reference        `json:"valueReference,omitempty"`
+	ValueID              *FHIRID           `json:"valueId,omitempty"`
+	Offset               *CodeableConcept  `json:"offset,omitempty"`
+}
+
+// EvidenceVariableCharacteristicDefinitionByTypeAndValueValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceVariableCharacteristicDefinitionByTypeAndValueValue interface{ isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue() }
+
+func (CodeableConcept) isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue() {}
+func (FHIRBoolean) isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue()     {}
+func (Quantity) isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue()        {}
+func (Range) isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue()           {}
+func (Reference) isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue()       {}
+func (FHIRID) isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue()          {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *EvidenceVariableCharacteristicDefinitionByTypeAndValue) Value() (EvidenceVariableCharacteristicDefinitionByTypeAndValueValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueRange != nil:
+		return *r.ValueRange, true
+	case r.ValueReference != nil:
+		return *r.ValueReference, true
+	case r.ValueID != nil:
+		return *r.ValueID, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicDefinitionByTypeAndValue) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueID = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicDefinitionByTypeAndValue) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueID = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicDefinitionByTypeAndValue) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueID = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueRange sets value[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicDefinitionByTypeAndValue) SetValueRange(v Range) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueID = nil
+	r.ValueRange = &v
+}
+
+// SetValueReference sets value[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicDefinitionByTypeAndValue) SetValueReference(v Reference) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueID = nil
+	r.ValueReference = &v
+}
+
+// SetValueID sets value[x] to a FHIRID (the
+// release primitive wrapper that carries the isEvidenceVariableCharacteristicDefinitionByTypeAndValueValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicDefinitionByTypeAndValue) SetValueID(v FHIRID) {
+	r.ValueCodeableConcept = nil
+	r.ValueBoolean = nil
+	r.ValueQuantity = nil
+	r.ValueRange = nil
+	r.ValueReference = nil
+	r.ValueID = nil
+	r.ValueID = &v
 }
 
 // EvidenceVariableCharacteristicTimeFromEvent is a generated nested backbone element.
 type EvidenceVariableCharacteristicTimeFromEvent struct {
 	BackboneElement
-	Description        *string                `json:"description,omitempty"`
-	DescriptionElement *fhir.PrimitiveElement `json:"-"`
-	Note               []Annotation           `json:"note,omitempty"`
-	Event              *CodeableConcept       `json:"event,omitempty"`
-	Quantity           *Quantity              `json:"quantity,omitempty"`
-	Range              *Range                 `json:"range,omitempty"`
+	Description          *string                `json:"description,omitempty"`
+	DescriptionElement   *fhir.PrimitiveElement `json:"-"`
+	Note                 []Annotation           `json:"note,omitempty"`
+	EventCodeableConcept *CodeableConcept       `json:"eventCodeableConcept,omitempty"`
+	EventReference       *Reference             `json:"eventReference,omitempty"`
+	EventDateTime        *FHIRDateTime          `json:"eventDateTime,omitempty"`
+	EventID              *FHIRID                `json:"eventId,omitempty"`
+	Quantity             *Quantity              `json:"quantity,omitempty"`
+	Range                *Range                 `json:"range,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -627,4 +923,77 @@ func (v *EvidenceVariableCharacteristicTimeFromEvent) UnmarshalJSON(data []byte)
 	}
 	type alias EvidenceVariableCharacteristicTimeFromEvent
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// EvidenceVariableCharacteristicTimeFromEventEvent is the sealed value interface for the event[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isEvidenceVariableCharacteristicTimeFromEventEvent marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type EvidenceVariableCharacteristicTimeFromEventEvent interface{ isEvidenceVariableCharacteristicTimeFromEventEvent() }
+
+func (CodeableConcept) isEvidenceVariableCharacteristicTimeFromEventEvent() {}
+func (Reference) isEvidenceVariableCharacteristicTimeFromEventEvent()       {}
+func (FHIRDateTime) isEvidenceVariableCharacteristicTimeFromEventEvent()    {}
+func (FHIRID) isEvidenceVariableCharacteristicTimeFromEventEvent()          {}
+
+// Event returns the value set in the event[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *EvidenceVariableCharacteristicTimeFromEvent) Event() (EvidenceVariableCharacteristicTimeFromEventEvent, bool) {
+	switch {
+	case r.EventCodeableConcept != nil:
+		return *r.EventCodeableConcept, true
+	case r.EventReference != nil:
+		return *r.EventReference, true
+	case r.EventDateTime != nil:
+		return *r.EventDateTime, true
+	case r.EventID != nil:
+		return *r.EventID, true
+	}
+	return nil, false
+}
+
+// SetEventCodeableConcept sets event[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicTimeFromEvent) SetEventCodeableConcept(v CodeableConcept) {
+	r.EventCodeableConcept = nil
+	r.EventReference = nil
+	r.EventDateTime = nil
+	r.EventID = nil
+	r.EventCodeableConcept = &v
+}
+
+// SetEventReference sets event[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicTimeFromEvent) SetEventReference(v Reference) {
+	r.EventCodeableConcept = nil
+	r.EventReference = nil
+	r.EventDateTime = nil
+	r.EventID = nil
+	r.EventReference = &v
+}
+
+// SetEventDateTime sets event[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isEvidenceVariableCharacteristicTimeFromEventEvent marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicTimeFromEvent) SetEventDateTime(v FHIRDateTime) {
+	r.EventCodeableConcept = nil
+	r.EventReference = nil
+	r.EventDateTime = nil
+	r.EventID = nil
+	r.EventDateTime = &v
+}
+
+// SetEventID sets event[x] to a FHIRID (the
+// release primitive wrapper that carries the isEvidenceVariableCharacteristicTimeFromEventEvent marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *EvidenceVariableCharacteristicTimeFromEvent) SetEventID(v FHIRID) {
+	r.EventCodeableConcept = nil
+	r.EventReference = nil
+	r.EventDateTime = nil
+	r.EventID = nil
+	r.EventID = &v
 }

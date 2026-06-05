@@ -13,38 +13,39 @@ const ExampleScenarioResourceType = "ExampleScenario"
 // ExampleScenario is the generated FHIR ExampleScenario resource.
 type ExampleScenario struct {
 	DomainResource
-	URL                   *string                   `json:"url,omitempty"`
-	URLElement            *fhir.PrimitiveElement    `json:"-"`
-	Identifier            []Identifier              `json:"identifier,omitempty"`
-	Version               *string                   `json:"version,omitempty"`
-	VersionElement        *fhir.PrimitiveElement    `json:"-"`
-	VersionAlgorithm      *string                   `json:"versionAlgorithm,omitempty"`
-	Name                  *string                   `json:"name,omitempty"`
-	NameElement           *fhir.PrimitiveElement    `json:"-"`
-	Title                 *string                   `json:"title,omitempty"`
-	TitleElement          *fhir.PrimitiveElement    `json:"-"`
-	Status                *string                   `json:"status,omitempty"`
-	StatusElement         *fhir.PrimitiveElement    `json:"-"`
-	Experimental          *bool                     `json:"experimental,omitempty"`
-	ExperimentalElement   *fhir.PrimitiveElement    `json:"-"`
-	Date                  *string                   `json:"date,omitempty"`
-	DateElement           *fhir.PrimitiveElement    `json:"-"`
-	Publisher             *string                   `json:"publisher,omitempty"`
-	PublisherElement      *fhir.PrimitiveElement    `json:"-"`
-	Contact               []ContactDetail           `json:"contact,omitempty"`
-	Description           *string                   `json:"description,omitempty"`
-	DescriptionElement    *fhir.PrimitiveElement    `json:"-"`
-	UseContext            []UsageContext            `json:"useContext,omitempty"`
-	Jurisdiction          []CodeableConcept         `json:"jurisdiction,omitempty"`
-	Purpose               *string                   `json:"purpose,omitempty"`
-	PurposeElement        *fhir.PrimitiveElement    `json:"-"`
-	Copyright             *string                   `json:"copyright,omitempty"`
-	CopyrightElement      *fhir.PrimitiveElement    `json:"-"`
-	CopyrightLabel        *string                   `json:"copyrightLabel,omitempty"`
-	CopyrightLabelElement *fhir.PrimitiveElement    `json:"-"`
-	Actor                 []ExampleScenarioActor    `json:"actor,omitempty"`
-	Instance              []ExampleScenarioInstance `json:"instance,omitempty"`
-	Process               []ExampleScenarioProcess  `json:"process,omitempty"`
+	URL                    *string                   `json:"url,omitempty"`
+	URLElement             *fhir.PrimitiveElement    `json:"-"`
+	Identifier             []Identifier              `json:"identifier,omitempty"`
+	Version                *string                   `json:"version,omitempty"`
+	VersionElement         *fhir.PrimitiveElement    `json:"-"`
+	VersionAlgorithmString *FHIRString               `json:"versionAlgorithmString,omitempty"`
+	VersionAlgorithmCoding *Coding                   `json:"versionAlgorithmCoding,omitempty"`
+	Name                   *string                   `json:"name,omitempty"`
+	NameElement            *fhir.PrimitiveElement    `json:"-"`
+	Title                  *string                   `json:"title,omitempty"`
+	TitleElement           *fhir.PrimitiveElement    `json:"-"`
+	Status                 *string                   `json:"status,omitempty"`
+	StatusElement          *fhir.PrimitiveElement    `json:"-"`
+	Experimental           *bool                     `json:"experimental,omitempty"`
+	ExperimentalElement    *fhir.PrimitiveElement    `json:"-"`
+	Date                   *string                   `json:"date,omitempty"`
+	DateElement            *fhir.PrimitiveElement    `json:"-"`
+	Publisher              *string                   `json:"publisher,omitempty"`
+	PublisherElement       *fhir.PrimitiveElement    `json:"-"`
+	Contact                []ContactDetail           `json:"contact,omitempty"`
+	Description            *string                   `json:"description,omitempty"`
+	DescriptionElement     *fhir.PrimitiveElement    `json:"-"`
+	UseContext             []UsageContext            `json:"useContext,omitempty"`
+	Jurisdiction           []CodeableConcept         `json:"jurisdiction,omitempty"`
+	Purpose                *string                   `json:"purpose,omitempty"`
+	PurposeElement         *fhir.PrimitiveElement    `json:"-"`
+	Copyright              *string                   `json:"copyright,omitempty"`
+	CopyrightElement       *fhir.PrimitiveElement    `json:"-"`
+	CopyrightLabel         *string                   `json:"copyrightLabel,omitempty"`
+	CopyrightLabelElement  *fhir.PrimitiveElement    `json:"-"`
+	Actor                  []ExampleScenarioActor    `json:"actor,omitempty"`
+	Instance               []ExampleScenarioInstance `json:"instance,omitempty"`
+	Process                []ExampleScenarioProcess  `json:"process,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "ExampleScenario".
@@ -239,6 +240,47 @@ func (v *ExampleScenario) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// ExampleScenarioVersionAlgorithm is the sealed value interface for the versionAlgorithm[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExampleScenarioVersionAlgorithm marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExampleScenarioVersionAlgorithm interface{ isExampleScenarioVersionAlgorithm() }
+
+func (FHIRString) isExampleScenarioVersionAlgorithm() {}
+func (Coding) isExampleScenarioVersionAlgorithm()     {}
+
+// VersionAlgorithm returns the value set in the versionAlgorithm[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExampleScenario) VersionAlgorithm() (ExampleScenarioVersionAlgorithm, bool) {
+	switch {
+	case r.VersionAlgorithmString != nil:
+		return *r.VersionAlgorithmString, true
+	case r.VersionAlgorithmCoding != nil:
+		return *r.VersionAlgorithmCoding, true
+	}
+	return nil, false
+}
+
+// SetVersionAlgorithmString sets versionAlgorithm[x] to a FHIRString (the
+// release primitive wrapper that carries the isExampleScenarioVersionAlgorithm marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExampleScenario) SetVersionAlgorithmString(v FHIRString) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmString = &v
+}
+
+// SetVersionAlgorithmCoding sets versionAlgorithm[x] to a Coding and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExampleScenario) SetVersionAlgorithmCoding(v Coding) {
+	r.VersionAlgorithmString = nil
+	r.VersionAlgorithmCoding = nil
+	r.VersionAlgorithmCoding = &v
+}
+
 // ExampleScenarioActor is a generated nested backbone element.
 type ExampleScenarioActor struct {
 	BackboneElement
@@ -339,19 +381,20 @@ func (v *ExampleScenarioActor) UnmarshalJSON(data []byte) error {
 // ExampleScenarioInstance is a generated nested backbone element.
 type ExampleScenarioInstance struct {
 	BackboneElement
-	Key                     *string                                    `json:"key,omitempty"`
-	KeyElement              *fhir.PrimitiveElement                     `json:"-"`
-	StructureType           *Coding                                    `json:"structureType,omitempty"`
-	StructureVersion        *string                                    `json:"structureVersion,omitempty"`
-	StructureVersionElement *fhir.PrimitiveElement                     `json:"-"`
-	StructureProfile        *string                                    `json:"structureProfile,omitempty"`
-	Title                   *string                                    `json:"title,omitempty"`
-	TitleElement            *fhir.PrimitiveElement                     `json:"-"`
-	Description             *string                                    `json:"description,omitempty"`
-	DescriptionElement      *fhir.PrimitiveElement                     `json:"-"`
-	Content                 *Reference                                 `json:"content,omitempty"`
-	Version                 []ExampleScenarioInstanceVersion           `json:"version,omitempty"`
-	ContainedInstance       []ExampleScenarioInstanceContainedInstance `json:"containedInstance,omitempty"`
+	Key                       *string                                    `json:"key,omitempty"`
+	KeyElement                *fhir.PrimitiveElement                     `json:"-"`
+	StructureType             *Coding                                    `json:"structureType,omitempty"`
+	StructureVersion          *string                                    `json:"structureVersion,omitempty"`
+	StructureVersionElement   *fhir.PrimitiveElement                     `json:"-"`
+	StructureProfileCanonical *FHIRCanonical                             `json:"structureProfileCanonical,omitempty"`
+	StructureProfileURI       *FHIRURI                                   `json:"structureProfileUri,omitempty"`
+	Title                     *string                                    `json:"title,omitempty"`
+	TitleElement              *fhir.PrimitiveElement                     `json:"-"`
+	Description               *string                                    `json:"description,omitempty"`
+	DescriptionElement        *fhir.PrimitiveElement                     `json:"-"`
+	Content                   *Reference                                 `json:"content,omitempty"`
+	Version                   []ExampleScenarioInstanceVersion           `json:"version,omitempty"`
+	ContainedInstance         []ExampleScenarioInstanceContainedInstance `json:"containedInstance,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -436,6 +479,49 @@ func (v *ExampleScenarioInstance) UnmarshalJSON(data []byte) error {
 	}
 	type alias ExampleScenarioInstance
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ExampleScenarioInstanceStructureProfile is the sealed value interface for the structureProfile[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isExampleScenarioInstanceStructureProfile marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ExampleScenarioInstanceStructureProfile interface{ isExampleScenarioInstanceStructureProfile() }
+
+func (FHIRCanonical) isExampleScenarioInstanceStructureProfile() {}
+func (FHIRURI) isExampleScenarioInstanceStructureProfile()       {}
+
+// StructureProfile returns the value set in the structureProfile[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *ExampleScenarioInstance) StructureProfile() (ExampleScenarioInstanceStructureProfile, bool) {
+	switch {
+	case r.StructureProfileCanonical != nil:
+		return *r.StructureProfileCanonical, true
+	case r.StructureProfileURI != nil:
+		return *r.StructureProfileURI, true
+	}
+	return nil, false
+}
+
+// SetStructureProfileCanonical sets structureProfile[x] to a FHIRCanonical (the
+// release primitive wrapper that carries the isExampleScenarioInstanceStructureProfile marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExampleScenarioInstance) SetStructureProfileCanonical(v FHIRCanonical) {
+	r.StructureProfileCanonical = nil
+	r.StructureProfileURI = nil
+	r.StructureProfileCanonical = &v
+}
+
+// SetStructureProfileURI sets structureProfile[x] to a FHIRURI (the
+// release primitive wrapper that carries the isExampleScenarioInstanceStructureProfile marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *ExampleScenarioInstance) SetStructureProfileURI(v FHIRURI) {
+	r.StructureProfileCanonical = nil
+	r.StructureProfileURI = nil
+	r.StructureProfileURI = &v
 }
 
 // ExampleScenarioInstanceContainedInstance is a generated nested backbone element.

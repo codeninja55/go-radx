@@ -28,7 +28,8 @@ type Immunization struct {
 	Patient               *Reference                       `json:"patient,omitempty"`
 	Encounter             *Reference                       `json:"encounter,omitempty"`
 	SupportingInformation []Reference                      `json:"supportingInformation,omitempty"`
-	Occurrence            *string                          `json:"occurrence,omitempty"`
+	OccurrenceDateTime    *FHIRDateTime                    `json:"occurrenceDateTime,omitempty"`
+	OccurrenceString      *FHIRString                      `json:"occurrenceString,omitempty"`
 	PrimarySource         *bool                            `json:"primarySource,omitempty"`
 	PrimarySourceElement  *fhir.PrimitiveElement           `json:"-"`
 	InformationSource     *CodeableReference               `json:"informationSource,omitempty"`
@@ -154,6 +155,49 @@ func (v *Immunization) UnmarshalJSON(data []byte) error {
 	}
 	type alias Immunization
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// ImmunizationOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isImmunizationOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type ImmunizationOccurrence interface{ isImmunizationOccurrence() }
+
+func (FHIRDateTime) isImmunizationOccurrence() {}
+func (FHIRString) isImmunizationOccurrence()   {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *Immunization) Occurrence() (ImmunizationOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrenceString != nil:
+		return *r.OccurrenceString, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isImmunizationOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Immunization) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrenceString = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrenceString sets occurrence[x] to a FHIRString (the
+// release primitive wrapper that carries the isImmunizationOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *Immunization) SetOccurrenceString(v FHIRString) {
+	r.OccurrenceDateTime = nil
+	r.OccurrenceString = nil
+	r.OccurrenceString = &v
 }
 
 // ImmunizationPerformer is a generated nested backbone element.

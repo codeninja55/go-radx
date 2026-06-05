@@ -50,6 +50,13 @@ type PlannedType struct {
 	// Backbones are the distinct nested backbone structs this type owns, deduplicated
 	// by shape and sorted by Go name so the emitter output is stable.
 	Backbones []PlannedBackbone
+
+	// Choices are the polymorphic "[x]" groups this type owns at the top level, each
+	// rendered as a sealed value interface, suffixed storage fields, a getter, and
+	// mutually-exclusive setters. The storage fields appear in Fields (in canonical
+	// order) so the struct carries them; Choices carries the accessor machinery the
+	// emitter renders alongside the struct.
+	Choices []PlannedChoice
 }
 
 // IsResource reports whether the planned type is a FHIR resource the emitter renders
@@ -99,6 +106,11 @@ type PlannedBackbone struct {
 	// Element for a datatype backbone (id and extension). The members the base
 	// supplies are dropped from Fields and promoted through the embedded base.
 	EmbeddedBase string
+
+	// Choices are the polymorphic "[x]" groups this backbone owns, rendered the same
+	// way a top-level type's choices are. The suffixed storage fields appear in
+	// Fields; Choices carries the accessor machinery.
+	Choices []PlannedChoice
 }
 
 // HasPrimitiveSibling reports whether the backbone owns a primitive "_field"
@@ -240,7 +252,7 @@ func PlanType(t *model.Type, opts Options) PlannedType {
 		// Reserve the embedded base's Go name so an own field never collides with it.
 		used[pt.EmbeddedBase] = true
 	}
-	pt.Fields = planFields(t.Name, t.Root.Children, drop, opts.IsBaseType, used, backbones)
+	pt.Fields, pt.Choices = planFields(t.Name, pt.GoName, t.Root.Children, drop, opts.IsBaseType, used, backbones)
 	pt.Backbones = backbones.sorted()
 	return pt
 }
@@ -248,15 +260,32 @@ func PlanType(t *model.Type, opts Options) PlannedType {
 // planFields plans the direct children of a node into fields, resolving Go-name
 // collisions deterministically within the node's scope and recording any nested
 // backbone shape it encounters. ownerType is the FHIR type the backbone names are
-// rooted under. drop names the members the embedded base supplies (skipped here);
-// suppressSiblings is set for a base type, which must not emit primitive "_field"
-// siblings (and so must not define MarshalJSON). Each scope (a struct's field set)
-// gets its own used-name map, so a field named "Type" in one struct never
-// disambiguates a "Type" in another.
-func planFields(ownerType string, children []*model.Element, drop map[string]bool, suppressSiblings bool, used map[string]bool, backbones *backboneSet) []Field {
+// rooted under; ownerGoName is the Go name of the enclosing struct, used to name a
+// choice group's sealed value interface. drop names the members the embedded base
+// supplies (skipped here); suppressSiblings is set for a base type, which must not
+// emit primitive "_field" siblings (and so must not define MarshalJSON). Each scope
+// (a struct's field set) gets its own used-name map, so a field named "Type" in one
+// struct never disambiguates a "Type" in another.
+//
+// A choice "[x]" element is expanded in place into one suffixed pointer storage field
+// per branch (ValueQuantity, ValueString, ...) and one PlannedChoice carrying the
+// accessor machinery the emitter renders alongside the struct. The stub that planned a
+// choice as a single first-branch-typed field is gone (FHIR-001/002): the suffixed
+// storage fields make a two-branches-set state representable only through the setters,
+// which clear the siblings, and each storage field is omitempty so exactly one
+// suffixed key is ever authored.
+func planFields(ownerType, ownerGoName string, children []*model.Element, drop map[string]bool, suppressSiblings bool, used map[string]bool, backbones *backboneSet) ([]Field, []PlannedChoice) {
 	fields := make([]Field, 0, len(children))
+	var choices []PlannedChoice
 	for _, child := range children {
 		if drop[child.Name] {
+			continue
+		}
+
+		if child.IsChoice {
+			cf, pc := planChoiceField(ownerType, ownerGoName, child, used)
+			fields = append(fields, cf...)
+			choices = append(choices, pc)
 			continue
 		}
 
@@ -286,7 +315,32 @@ func planFields(ownerType string, children []*model.Element, drop map[string]boo
 			fields = append(fields, planPrimitiveSibling(f, used))
 		}
 	}
-	return fields
+	return fields, choices
+}
+
+// planChoiceField expands a choice "[x]" element into its suffixed pointer storage
+// fields and the PlannedChoice that carries the accessor machinery. The choice's Go
+// field stem is resolved first (so a sibling that already took "Value" pushes the
+// choice to "Value2" and every storage field follows that stem), then one storage
+// field per branch is planned. The stem name itself is not added to the struct as a
+// field — only the suffixed storage fields are — so there is no bare untyped choice
+// field, which is exactly what makes a two-branches-set state unrepresentable outside
+// the mutually-exclusive setters.
+func planChoiceField(ownerType, ownerGoName string, e *model.Element, used map[string]bool) ([]Field, PlannedChoice) {
+	stem := resolveCollision(GoFieldName(e.Name), used)
+	pc := planChoice(ownerGoName, stem, e, used)
+	fields := make([]Field, 0, len(pc.Branches))
+	for _, b := range pc.Branches {
+		fields = append(fields, Field{
+			GoName:   b.Field,
+			GoType:   "*" + b.GoType,
+			JSONName: b.JSONName,
+			Optional: true,
+			Doc:      e.Path,
+			Element:  e,
+		})
+	}
+	return fields, pc
 }
 
 // planPrimitiveSibling builds the "_field" extension sibling for a primitive value
@@ -328,9 +382,9 @@ func planPrimitiveSibling(value Field, used map[string]bool) Field {
 func planBackbone(ownerType string, e *model.Element, backbones *backboneSet) PlannedBackbone {
 	embed, drop := backboneBase(e)
 	used := map[string]bool{embed: true}
-	fields := planFields(ownerType, e.Children, drop, false, used, backbones)
 	goName := GoBackboneTypeName(ownerType, pathSegmentsAfterOwner(ownerType, e.Path))
-	return backbones.add(goName, fields, embed)
+	fields, choices := planFields(ownerType, goName, e.Children, drop, false, used, backbones)
+	return backbones.add(goName, fields, embed, choices)
 }
 
 // backboneBase decides which element base a backbone embeds and which members that
@@ -395,12 +449,12 @@ func newBackboneSet() *backboneSet {
 // Go types — shape-dedup, not path-dedup. The embedded base is part of the
 // fingerprint so two backbones with the same own-fields but a different element base
 // stay distinct.
-func (s *backboneSet) add(goName string, fields []Field, embed string) PlannedBackbone {
+func (s *backboneSet) add(goName string, fields []Field, embed string, choices []PlannedChoice) PlannedBackbone {
 	fp := embed + "|" + fingerprint(fields)
 	if existing, ok := s.byShape[fp]; ok {
 		return existing
 	}
-	bb := PlannedBackbone{GoName: goName, Fields: fields, EmbeddedBase: embed}
+	bb := PlannedBackbone{GoName: goName, Fields: fields, EmbeddedBase: embed, Choices: choices}
 	s.byShape[fp] = bb
 	return bb
 }

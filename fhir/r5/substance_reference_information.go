@@ -101,12 +101,69 @@ type SubstanceReferenceInformationGeneElement struct {
 // SubstanceReferenceInformationTarget is a generated nested backbone element.
 type SubstanceReferenceInformationTarget struct {
 	BackboneElement
-	Target       *Identifier      `json:"target,omitempty"`
-	Type         *CodeableConcept `json:"type,omitempty"`
-	Interaction  *CodeableConcept `json:"interaction,omitempty"`
-	Organism     *CodeableConcept `json:"organism,omitempty"`
-	OrganismType *CodeableConcept `json:"organismType,omitempty"`
-	Amount       *Quantity        `json:"amount,omitempty"`
-	AmountType   *CodeableConcept `json:"amountType,omitempty"`
-	Source       []Reference      `json:"source,omitempty"`
+	Target         *Identifier      `json:"target,omitempty"`
+	Type           *CodeableConcept `json:"type,omitempty"`
+	Interaction    *CodeableConcept `json:"interaction,omitempty"`
+	Organism       *CodeableConcept `json:"organism,omitempty"`
+	OrganismType   *CodeableConcept `json:"organismType,omitempty"`
+	AmountQuantity *Quantity        `json:"amountQuantity,omitempty"`
+	AmountRange    *Range           `json:"amountRange,omitempty"`
+	AmountString   *FHIRString      `json:"amountString,omitempty"`
+	AmountType     *CodeableConcept `json:"amountType,omitempty"`
+	Source         []Reference      `json:"source,omitempty"`
+}
+
+// SubstanceReferenceInformationTargetAmount is the sealed value interface for the amount[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSubstanceReferenceInformationTargetAmount marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SubstanceReferenceInformationTargetAmount interface{ isSubstanceReferenceInformationTargetAmount() }
+
+func (Quantity) isSubstanceReferenceInformationTargetAmount()   {}
+func (Range) isSubstanceReferenceInformationTargetAmount()      {}
+func (FHIRString) isSubstanceReferenceInformationTargetAmount() {}
+
+// Amount returns the value set in the amount[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SubstanceReferenceInformationTarget) Amount() (SubstanceReferenceInformationTargetAmount, bool) {
+	switch {
+	case r.AmountQuantity != nil:
+		return *r.AmountQuantity, true
+	case r.AmountRange != nil:
+		return *r.AmountRange, true
+	case r.AmountString != nil:
+		return *r.AmountString, true
+	}
+	return nil, false
+}
+
+// SetAmountQuantity sets amount[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceReferenceInformationTarget) SetAmountQuantity(v Quantity) {
+	r.AmountQuantity = nil
+	r.AmountRange = nil
+	r.AmountString = nil
+	r.AmountQuantity = &v
+}
+
+// SetAmountRange sets amount[x] to a Range and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceReferenceInformationTarget) SetAmountRange(v Range) {
+	r.AmountQuantity = nil
+	r.AmountRange = nil
+	r.AmountString = nil
+	r.AmountRange = &v
+}
+
+// SetAmountString sets amount[x] to a FHIRString (the
+// release primitive wrapper that carries the isSubstanceReferenceInformationTargetAmount marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceReferenceInformationTarget) SetAmountString(v FHIRString) {
+	r.AmountQuantity = nil
+	r.AmountRange = nil
+	r.AmountString = nil
+	r.AmountString = &v
 }

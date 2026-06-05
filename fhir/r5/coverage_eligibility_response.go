@@ -20,7 +20,8 @@ type CoverageEligibilityResponse struct {
 	PurposeElement     []*fhir.PrimitiveElement               `json:"-"`
 	Patient            *Reference                             `json:"patient,omitempty"`
 	Event              []CoverageEligibilityResponseEvent     `json:"event,omitempty"`
-	Serviced           *string                                `json:"serviced,omitempty"`
+	ServicedDate       *FHIRDate                              `json:"servicedDate,omitempty"`
+	ServicedPeriod     *Period                                `json:"servicedPeriod,omitempty"`
 	Created            *string                                `json:"created,omitempty"`
 	CreatedElement     *fhir.PrimitiveElement                 `json:"-"`
 	Requestor          *Reference                             `json:"requestor,omitempty"`
@@ -159,6 +160,47 @@ func (v *CoverageEligibilityResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// CoverageEligibilityResponseServiced is the sealed value interface for the serviced[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCoverageEligibilityResponseServiced marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CoverageEligibilityResponseServiced interface{ isCoverageEligibilityResponseServiced() }
+
+func (FHIRDate) isCoverageEligibilityResponseServiced() {}
+func (Period) isCoverageEligibilityResponseServiced()   {}
+
+// Serviced returns the value set in the serviced[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CoverageEligibilityResponse) Serviced() (CoverageEligibilityResponseServiced, bool) {
+	switch {
+	case r.ServicedDate != nil:
+		return *r.ServicedDate, true
+	case r.ServicedPeriod != nil:
+		return *r.ServicedPeriod, true
+	}
+	return nil, false
+}
+
+// SetServicedDate sets serviced[x] to a FHIRDate (the
+// release primitive wrapper that carries the isCoverageEligibilityResponseServiced marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponse) SetServicedDate(v FHIRDate) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedDate = &v
+}
+
+// SetServicedPeriod sets serviced[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponse) SetServicedPeriod(v Period) {
+	r.ServicedDate = nil
+	r.ServicedPeriod = nil
+	r.ServicedPeriod = &v
+}
+
 // CoverageEligibilityResponseError is a generated nested backbone element.
 type CoverageEligibilityResponseError struct {
 	BackboneElement
@@ -218,8 +260,50 @@ func (v *CoverageEligibilityResponseError) UnmarshalJSON(data []byte) error {
 // CoverageEligibilityResponseEvent is a generated nested backbone element.
 type CoverageEligibilityResponseEvent struct {
 	BackboneElement
-	Type *CodeableConcept `json:"type,omitempty"`
-	When *string          `json:"when,omitempty"`
+	Type         *CodeableConcept `json:"type,omitempty"`
+	WhenDateTime *FHIRDateTime    `json:"whenDateTime,omitempty"`
+	WhenPeriod   *Period          `json:"whenPeriod,omitempty"`
+}
+
+// CoverageEligibilityResponseEventWhen is the sealed value interface for the when[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCoverageEligibilityResponseEventWhen marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CoverageEligibilityResponseEventWhen interface{ isCoverageEligibilityResponseEventWhen() }
+
+func (FHIRDateTime) isCoverageEligibilityResponseEventWhen() {}
+func (Period) isCoverageEligibilityResponseEventWhen()       {}
+
+// When returns the value set in the when[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CoverageEligibilityResponseEvent) When() (CoverageEligibilityResponseEventWhen, bool) {
+	switch {
+	case r.WhenDateTime != nil:
+		return *r.WhenDateTime, true
+	case r.WhenPeriod != nil:
+		return *r.WhenPeriod, true
+	}
+	return nil, false
+}
+
+// SetWhenDateTime sets when[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isCoverageEligibilityResponseEventWhen marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponseEvent) SetWhenDateTime(v FHIRDateTime) {
+	r.WhenDateTime = nil
+	r.WhenPeriod = nil
+	r.WhenDateTime = &v
+}
+
+// SetWhenPeriod sets when[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponseEvent) SetWhenPeriod(v Period) {
+	r.WhenDateTime = nil
+	r.WhenPeriod = nil
+	r.WhenPeriod = &v
 }
 
 // CoverageEligibilityResponseInsurance is a generated nested backbone element.
@@ -403,7 +487,125 @@ func (v *CoverageEligibilityResponseInsuranceItem) UnmarshalJSON(data []byte) er
 // CoverageEligibilityResponseInsuranceItemBenefit is a generated nested backbone element.
 type CoverageEligibilityResponseInsuranceItemBenefit struct {
 	BackboneElement
-	Type    *CodeableConcept `json:"type,omitempty"`
-	Allowed *int32           `json:"allowed,omitempty"`
-	Used    *int32           `json:"used,omitempty"`
+	Type               *CodeableConcept `json:"type,omitempty"`
+	AllowedUnsignedInt *FHIRUnsignedInt `json:"allowedUnsignedInt,omitempty"`
+	AllowedString      *FHIRString      `json:"allowedString,omitempty"`
+	AllowedMoney       *Money           `json:"allowedMoney,omitempty"`
+	UsedUnsignedInt    *FHIRUnsignedInt `json:"usedUnsignedInt,omitempty"`
+	UsedString         *FHIRString      `json:"usedString,omitempty"`
+	UsedMoney          *Money           `json:"usedMoney,omitempty"`
+}
+
+// CoverageEligibilityResponseInsuranceItemBenefitAllowed is the sealed value interface for the allowed[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCoverageEligibilityResponseInsuranceItemBenefitAllowed marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CoverageEligibilityResponseInsuranceItemBenefitAllowed interface{ isCoverageEligibilityResponseInsuranceItemBenefitAllowed() }
+
+func (FHIRUnsignedInt) isCoverageEligibilityResponseInsuranceItemBenefitAllowed() {}
+func (FHIRString) isCoverageEligibilityResponseInsuranceItemBenefitAllowed()      {}
+func (Money) isCoverageEligibilityResponseInsuranceItemBenefitAllowed()           {}
+
+// Allowed returns the value set in the allowed[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CoverageEligibilityResponseInsuranceItemBenefit) Allowed() (CoverageEligibilityResponseInsuranceItemBenefitAllowed, bool) {
+	switch {
+	case r.AllowedUnsignedInt != nil:
+		return *r.AllowedUnsignedInt, true
+	case r.AllowedString != nil:
+		return *r.AllowedString, true
+	case r.AllowedMoney != nil:
+		return *r.AllowedMoney, true
+	}
+	return nil, false
+}
+
+// SetAllowedUnsignedInt sets allowed[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isCoverageEligibilityResponseInsuranceItemBenefitAllowed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponseInsuranceItemBenefit) SetAllowedUnsignedInt(v FHIRUnsignedInt) {
+	r.AllowedUnsignedInt = nil
+	r.AllowedString = nil
+	r.AllowedMoney = nil
+	r.AllowedUnsignedInt = &v
+}
+
+// SetAllowedString sets allowed[x] to a FHIRString (the
+// release primitive wrapper that carries the isCoverageEligibilityResponseInsuranceItemBenefitAllowed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponseInsuranceItemBenefit) SetAllowedString(v FHIRString) {
+	r.AllowedUnsignedInt = nil
+	r.AllowedString = nil
+	r.AllowedMoney = nil
+	r.AllowedString = &v
+}
+
+// SetAllowedMoney sets allowed[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponseInsuranceItemBenefit) SetAllowedMoney(v Money) {
+	r.AllowedUnsignedInt = nil
+	r.AllowedString = nil
+	r.AllowedMoney = nil
+	r.AllowedMoney = &v
+}
+
+// CoverageEligibilityResponseInsuranceItemBenefitUsed is the sealed value interface for the used[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCoverageEligibilityResponseInsuranceItemBenefitUsed marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CoverageEligibilityResponseInsuranceItemBenefitUsed interface{ isCoverageEligibilityResponseInsuranceItemBenefitUsed() }
+
+func (FHIRUnsignedInt) isCoverageEligibilityResponseInsuranceItemBenefitUsed() {}
+func (FHIRString) isCoverageEligibilityResponseInsuranceItemBenefitUsed()      {}
+func (Money) isCoverageEligibilityResponseInsuranceItemBenefitUsed()           {}
+
+// Used returns the value set in the used[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CoverageEligibilityResponseInsuranceItemBenefit) Used() (CoverageEligibilityResponseInsuranceItemBenefitUsed, bool) {
+	switch {
+	case r.UsedUnsignedInt != nil:
+		return *r.UsedUnsignedInt, true
+	case r.UsedString != nil:
+		return *r.UsedString, true
+	case r.UsedMoney != nil:
+		return *r.UsedMoney, true
+	}
+	return nil, false
+}
+
+// SetUsedUnsignedInt sets used[x] to a FHIRUnsignedInt (the
+// release primitive wrapper that carries the isCoverageEligibilityResponseInsuranceItemBenefitUsed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponseInsuranceItemBenefit) SetUsedUnsignedInt(v FHIRUnsignedInt) {
+	r.UsedUnsignedInt = nil
+	r.UsedString = nil
+	r.UsedMoney = nil
+	r.UsedUnsignedInt = &v
+}
+
+// SetUsedString sets used[x] to a FHIRString (the
+// release primitive wrapper that carries the isCoverageEligibilityResponseInsuranceItemBenefitUsed marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponseInsuranceItemBenefit) SetUsedString(v FHIRString) {
+	r.UsedUnsignedInt = nil
+	r.UsedString = nil
+	r.UsedMoney = nil
+	r.UsedString = &v
+}
+
+// SetUsedMoney sets used[x] to a Money and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CoverageEligibilityResponseInsuranceItemBenefit) SetUsedMoney(v Money) {
+	r.UsedUnsignedInt = nil
+	r.UsedString = nil
+	r.UsedMoney = nil
+	r.UsedMoney = &v
 }

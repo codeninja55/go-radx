@@ -92,6 +92,34 @@ func TestEmitFlagGolden(t *testing.T) {
 	}
 }
 
+// TestEmitAnnotationGolden emits the representative choice-type datatype end to end and
+// pins the formatted Go against a committed golden. Annotation carries the full choice
+// layer alongside the primitive layer: a sealed AnnotationAuthor interface closed by an
+// unexported marker, that marker implemented on each branch (Reference and the
+// FHIRString wrapper), the suffixed storage fields (AuthorReference, AuthorString), an
+// Author() getter, and mutually-exclusive setters that clear the siblings (FHIR-001),
+// while its time/text primitives keep their "_field" siblings. A regression in the
+// choice machinery is caught here before it reaches the generated tree.
+func TestEmitAnnotationGolden(t *testing.T) {
+	got := emitType(t, "Annotation")
+
+	goldenPath := filepath.Join("testdata", "golden", "annotation.go.golden")
+	if *updateGolden {
+		if err := os.WriteFile(goldenPath, got, 0o644); err != nil {
+			t.Fatalf("write golden %s: %v", goldenPath, err)
+		}
+		return
+	}
+
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("read golden %s (run `go test ./fhir/internal/gen/emit -update` to create it): %v", goldenPath, err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("emitted Annotation drifted from golden %s.\nwant:\n%s\ngot:\n%s", goldenPath, string(want), string(got))
+	}
+}
+
 // TestEmitRegistryGolden emits the per-release registry file and pins it against a
 // committed golden, so a drift in the registry init() — the resourceType→factory
 // wiring fhir.UnmarshalResource dispatches through — is caught here.

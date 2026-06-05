@@ -190,12 +190,13 @@ func TestNoPrimitiveSiblingOnComplexField(t *testing.T) {
 }
 
 // TestPlanCollisionDeterministic asserts two FHIR element names that map to the same
-// Go identifier within one struct resolve to a stable, ascending-suffixed pair, so
+// Go identifier within one struct resolve to a stable, ascending-suffixed sequence, so
 // the generated output is byte-stable regardless of map iteration order. The scalar
-// string primitive "value" also contributes its "_field" sibling ("ValueElement"),
-// which the choice element "value[x]" must skip when resolving its own collision, so
-// the choice lands on "Value2" — not "Value" (taken by the primitive value) nor a
-// clash with the sibling.
+// string primitive "value" contributes its value field ("Value") and its "_field"
+// sibling ("ValueElement"); the choice element "value[x]" must skip both when resolving
+// its own stem, so the stem lands on "Value2" and the choice's single string branch
+// expands to the suffixed storage field "Value2String" (FHIR-001/002: a choice is
+// stored as suffixed branch fields, never a single bare field).
 func TestPlanCollisionDeterministic(t *testing.T) {
 	t.Parallel()
 	root := &model.Element{
@@ -209,19 +210,79 @@ func TestPlanCollisionDeterministic(t *testing.T) {
 	ty := &model.Type{Name: "Thing", Kind: model.KindComplexType, Root: root}
 	pt := PlanType(ty, Options{})
 	if len(pt.Fields) != 3 {
-		t.Fatalf("planned %d fields %+v, want 3 (value, ValueElement, value[x])", len(pt.Fields), pt.Fields)
+		t.Fatalf("planned %d fields %+v, want 3 (Value, ValueElement, Value2String)", len(pt.Fields), pt.Fields)
 	}
-	if pt.Fields[0].GoName != "Value" || pt.Fields[1].GoName != "ValueElement" || pt.Fields[2].GoName != "Value2" {
-		t.Errorf("collision resolution = (%q, %q, %q), want (Value, ValueElement, Value2)",
+	if pt.Fields[0].GoName != "Value" || pt.Fields[1].GoName != "ValueElement" || pt.Fields[2].GoName != "Value2String" {
+		t.Errorf("collision resolution = (%q, %q, %q), want (Value, ValueElement, Value2String)",
 			pt.Fields[0].GoName, pt.Fields[1].GoName, pt.Fields[2].GoName)
 	}
 	if pt.Fields[1].SiblingOf != "Value" {
 		t.Errorf("sibling SiblingOf = %q, want Value", pt.Fields[1].SiblingOf)
 	}
-	// The choice element must not be mistaken for a primitive: a "[x]" choice gets no
-	// "_field" companion (its branches box their own primitives).
+	// The choice storage field is a plain branch field, not a "_field" primitive
+	// sibling: a "[x]" choice gets no "_field" companion (its branches box their own
+	// primitives through the wrapper types).
 	if pt.Fields[2].IsPrimitiveSibling() {
-		t.Error("the choice element must not be a primitive sibling (it has no \"_field\" companion)")
+		t.Error("the choice storage field must not be a primitive sibling (it has no \"_field\" companion)")
+	}
+	// The choice group is recorded with its sealed interface and getter aligned to the
+	// disambiguated stem, and its one branch is the boxed string wrapper.
+	if len(pt.Choices) != 1 {
+		t.Fatalf("planned %d choices, want 1", len(pt.Choices))
+	}
+	c := pt.Choices[0]
+	if c.Interface != "ThingValue" || c.Getter != "Value2" {
+		t.Errorf("choice (iface, getter) = (%q, %q), want (ThingValue, Value2)", c.Interface, c.Getter)
+	}
+	if len(c.Branches) != 1 || c.Branches[0].GoType != "FHIRString" || c.Branches[0].Field != "Value2String" {
+		t.Errorf("choice branch = %+v, want one FHIRString branch stored in Value2String", c.Branches)
+	}
+	if c.Branches[0].JSONName != "valueString" || c.Branches[0].Setter != "SetValue2String" {
+		t.Errorf("choice branch (json, setter) = (%q, %q), want (valueString, SetValue2String)",
+			c.Branches[0].JSONName, c.Branches[0].Setter)
+	}
+}
+
+// TestPlanChoiceWireKeyUsesFHIRCasing asserts a choice branch's JSON wire key uses FHIR
+// suffix casing (the type code with only its first letter upper-cased), not the
+// Go-identifier casing that upper-cases whole initialisms. The id/uri/url type codes are
+// the load-bearing cases: their Go storage field is "ValueID"/"ValueURI"/"ValueURL" (Go
+// style) but their wire key must be "valueId"/"valueUri"/"valueUrl" (FHIR style) or the
+// generated JSON is non-conformant.
+func TestPlanChoiceWireKeyUsesFHIRCasing(t *testing.T) {
+	t.Parallel()
+	choice := &model.Element{
+		Name:        "value[x]",
+		Path:        "Thing.value[x]",
+		IsChoice:    true,
+		ChoiceBase:  "value",
+		Cardinality: model.Cardinality{Min: 0, Max: "1"},
+		Types:       []model.TypeRef{{Code: "id"}, {Code: "uri"}, {Code: "url"}, {Code: "dateTime"}},
+	}
+	root := &model.Element{Name: "Thing", Path: "Thing", Children: []*model.Element{choice}}
+	pt := PlanType(&model.Type{Name: "Thing", Kind: model.KindComplexType, Root: root}, Options{})
+	if len(pt.Choices) != 1 {
+		t.Fatalf("planned %d choices, want 1", len(pt.Choices))
+	}
+	want := map[string]struct{ field, json string }{
+		"id":       {"ValueID", "valueId"},
+		"uri":      {"ValueURI", "valueUri"},
+		"url":      {"ValueURL", "valueUrl"},
+		"dateTime": {"ValueDateTime", "valueDateTime"},
+	}
+	branches := pt.Choices[0].Branches
+	if len(branches) != len(want) {
+		t.Fatalf("planned %d branches, want %d", len(branches), len(want))
+	}
+	for i, code := range []string{"id", "uri", "url", "dateTime"} {
+		b := branches[i]
+		w := want[code]
+		if b.Field != w.field {
+			t.Errorf("%s branch field = %q, want %q (Go-identifier casing)", code, b.Field, w.field)
+		}
+		if b.JSONName != w.json {
+			t.Errorf("%s branch wire key = %q, want %q (FHIR casing)", code, b.JSONName, w.json)
+		}
 	}
 }
 

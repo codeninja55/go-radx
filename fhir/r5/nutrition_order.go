@@ -326,9 +326,49 @@ func (v *NutritionOrderEnteralFormulaAdditive) UnmarshalJSON(data []byte) error 
 // NutritionOrderEnteralFormulaAdministration is a generated nested backbone element.
 type NutritionOrderEnteralFormulaAdministration struct {
 	BackboneElement
-	Schedule *NutritionOrderOralDietSchedule `json:"schedule,omitempty"`
-	Quantity *Quantity                       `json:"quantity,omitempty"`
-	Rate     *Quantity                       `json:"rate,omitempty"`
+	Schedule     *NutritionOrderOralDietSchedule `json:"schedule,omitempty"`
+	Quantity     *Quantity                       `json:"quantity,omitempty"`
+	RateQuantity *Quantity                       `json:"rateQuantity,omitempty"`
+	RateRatio    *Ratio                          `json:"rateRatio,omitempty"`
+}
+
+// NutritionOrderEnteralFormulaAdministrationRate is the sealed value interface for the rate[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isNutritionOrderEnteralFormulaAdministrationRate marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type NutritionOrderEnteralFormulaAdministrationRate interface{ isNutritionOrderEnteralFormulaAdministrationRate() }
+
+func (Quantity) isNutritionOrderEnteralFormulaAdministrationRate() {}
+func (Ratio) isNutritionOrderEnteralFormulaAdministrationRate()    {}
+
+// Rate returns the value set in the rate[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *NutritionOrderEnteralFormulaAdministration) Rate() (NutritionOrderEnteralFormulaAdministrationRate, bool) {
+	switch {
+	case r.RateQuantity != nil:
+		return *r.RateQuantity, true
+	case r.RateRatio != nil:
+		return *r.RateRatio, true
+	}
+	return nil, false
+}
+
+// SetRateQuantity sets rate[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionOrderEnteralFormulaAdministration) SetRateQuantity(v Quantity) {
+	r.RateQuantity = nil
+	r.RateRatio = nil
+	r.RateQuantity = &v
+}
+
+// SetRateRatio sets rate[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *NutritionOrderEnteralFormulaAdministration) SetRateRatio(v Ratio) {
+	r.RateQuantity = nil
+	r.RateRatio = nil
+	r.RateRatio = &v
 }
 
 // NutritionOrderOralDiet is a generated nested backbone element.

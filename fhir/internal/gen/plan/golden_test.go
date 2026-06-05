@@ -23,8 +23,11 @@ const vendoredR5Dir = "../testdata/definitions/r5"
 // Period exercises the optional-scalar-to-pointer decision and the scalar "_field"
 // sibling; HumanName exercises the full primitive-extension layer — scalar siblings,
 // repeating siblings, and the FHIR-005 rule that the complex Period field gets no
-// sibling. The set grows as later increments add resources and backbones.
-var goldenTypes = []string{"HumanName", "Period"}
+// sibling; Annotation exercises the choice layer — the author[x] group expanded into
+// suffixed storage fields and a PlannedChoice carrying its interface, getter, and
+// per-branch setters (FHIR-001/002). The set grows as later increments add resources
+// and backbones.
+var goldenTypes = []string{"Annotation", "HumanName", "Period"}
 
 func TestPlanGoldenSnapshot(t *testing.T) {
 	bundle, err := loader.Load(vendoredR5Dir)

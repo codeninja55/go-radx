@@ -32,7 +32,8 @@ type CommunicationRequest struct {
 	About               []Reference                   `json:"about,omitempty"`
 	Encounter           *Reference                    `json:"encounter,omitempty"`
 	Payload             []CommunicationRequestPayload `json:"payload,omitempty"`
-	Occurrence          *string                       `json:"occurrence,omitempty"`
+	OccurrenceDateTime  *FHIRDateTime                 `json:"occurrenceDateTime,omitempty"`
+	OccurrencePeriod    *Period                       `json:"occurrencePeriod,omitempty"`
 	AuthoredOn          *string                       `json:"authoredOn,omitempty"`
 	AuthoredOnElement   *fhir.PrimitiveElement        `json:"-"`
 	Requester           *Reference                    `json:"requester,omitempty"`
@@ -150,8 +151,104 @@ func (v *CommunicationRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(residual, (*alias)(v))
 }
 
+// CommunicationRequestOccurrence is the sealed value interface for the occurrence[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCommunicationRequestOccurrence marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CommunicationRequestOccurrence interface{ isCommunicationRequestOccurrence() }
+
+func (FHIRDateTime) isCommunicationRequestOccurrence() {}
+func (Period) isCommunicationRequestOccurrence()       {}
+
+// Occurrence returns the value set in the occurrence[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CommunicationRequest) Occurrence() (CommunicationRequestOccurrence, bool) {
+	switch {
+	case r.OccurrenceDateTime != nil:
+		return *r.OccurrenceDateTime, true
+	case r.OccurrencePeriod != nil:
+		return *r.OccurrencePeriod, true
+	}
+	return nil, false
+}
+
+// SetOccurrenceDateTime sets occurrence[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isCommunicationRequestOccurrence marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CommunicationRequest) SetOccurrenceDateTime(v FHIRDateTime) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrenceDateTime = &v
+}
+
+// SetOccurrencePeriod sets occurrence[x] to a Period and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CommunicationRequest) SetOccurrencePeriod(v Period) {
+	r.OccurrenceDateTime = nil
+	r.OccurrencePeriod = nil
+	r.OccurrencePeriod = &v
+}
+
 // CommunicationRequestPayload is a generated nested backbone element.
 type CommunicationRequestPayload struct {
 	BackboneElement
-	Content *Attachment `json:"content,omitempty"`
+	ContentAttachment      *Attachment      `json:"contentAttachment,omitempty"`
+	ContentReference       *Reference       `json:"contentReference,omitempty"`
+	ContentCodeableConcept *CodeableConcept `json:"contentCodeableConcept,omitempty"`
+}
+
+// CommunicationRequestPayloadContent is the sealed value interface for the content[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isCommunicationRequestPayloadContent marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type CommunicationRequestPayloadContent interface{ isCommunicationRequestPayloadContent() }
+
+func (Attachment) isCommunicationRequestPayloadContent()      {}
+func (Reference) isCommunicationRequestPayloadContent()       {}
+func (CodeableConcept) isCommunicationRequestPayloadContent() {}
+
+// Content returns the value set in the content[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *CommunicationRequestPayload) Content() (CommunicationRequestPayloadContent, bool) {
+	switch {
+	case r.ContentAttachment != nil:
+		return *r.ContentAttachment, true
+	case r.ContentReference != nil:
+		return *r.ContentReference, true
+	case r.ContentCodeableConcept != nil:
+		return *r.ContentCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetContentAttachment sets content[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CommunicationRequestPayload) SetContentAttachment(v Attachment) {
+	r.ContentAttachment = nil
+	r.ContentReference = nil
+	r.ContentCodeableConcept = nil
+	r.ContentAttachment = &v
+}
+
+// SetContentReference sets content[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CommunicationRequestPayload) SetContentReference(v Reference) {
+	r.ContentAttachment = nil
+	r.ContentReference = nil
+	r.ContentCodeableConcept = nil
+	r.ContentReference = &v
+}
+
+// SetContentCodeableConcept sets content[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *CommunicationRequestPayload) SetContentCodeableConcept(v CodeableConcept) {
+	r.ContentAttachment = nil
+	r.ContentReference = nil
+	r.ContentCodeableConcept = nil
+	r.ContentCodeableConcept = &v
 }

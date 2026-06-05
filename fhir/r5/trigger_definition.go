@@ -17,7 +17,10 @@ type TriggerDefinition struct {
 	Code                     *CodeableConcept       `json:"code,omitempty"`
 	SubscriptionTopic        *string                `json:"subscriptionTopic,omitempty"`
 	SubscriptionTopicElement *fhir.PrimitiveElement `json:"-"`
-	Timing                   *Timing                `json:"timing,omitempty"`
+	TimingTiming             *Timing                `json:"timingTiming,omitempty"`
+	TimingReference          *Reference             `json:"timingReference,omitempty"`
+	TimingDate               *FHIRDate              `json:"timingDate,omitempty"`
+	TimingDateTime           *FHIRDateTime          `json:"timingDateTime,omitempty"`
 	Data                     []DataRequirement      `json:"data,omitempty"`
 	Condition                *Expression            `json:"condition,omitempty"`
 }
@@ -94,4 +97,77 @@ func (v *TriggerDefinition) UnmarshalJSON(data []byte) error {
 	}
 	type alias TriggerDefinition
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// TriggerDefinitionTiming is the sealed value interface for the timing[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isTriggerDefinitionTiming marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type TriggerDefinitionTiming interface{ isTriggerDefinitionTiming() }
+
+func (Timing) isTriggerDefinitionTiming()       {}
+func (Reference) isTriggerDefinitionTiming()    {}
+func (FHIRDate) isTriggerDefinitionTiming()     {}
+func (FHIRDateTime) isTriggerDefinitionTiming() {}
+
+// Timing returns the value set in the timing[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *TriggerDefinition) Timing() (TriggerDefinitionTiming, bool) {
+	switch {
+	case r.TimingTiming != nil:
+		return *r.TimingTiming, true
+	case r.TimingReference != nil:
+		return *r.TimingReference, true
+	case r.TimingDate != nil:
+		return *r.TimingDate, true
+	case r.TimingDateTime != nil:
+		return *r.TimingDateTime, true
+	}
+	return nil, false
+}
+
+// SetTimingTiming sets timing[x] to a Timing and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TriggerDefinition) SetTimingTiming(v Timing) {
+	r.TimingTiming = nil
+	r.TimingReference = nil
+	r.TimingDate = nil
+	r.TimingDateTime = nil
+	r.TimingTiming = &v
+}
+
+// SetTimingReference sets timing[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TriggerDefinition) SetTimingReference(v Reference) {
+	r.TimingTiming = nil
+	r.TimingReference = nil
+	r.TimingDate = nil
+	r.TimingDateTime = nil
+	r.TimingReference = &v
+}
+
+// SetTimingDate sets timing[x] to a FHIRDate (the
+// release primitive wrapper that carries the isTriggerDefinitionTiming marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TriggerDefinition) SetTimingDate(v FHIRDate) {
+	r.TimingTiming = nil
+	r.TimingReference = nil
+	r.TimingDate = nil
+	r.TimingDateTime = nil
+	r.TimingDate = &v
+}
+
+// SetTimingDateTime sets timing[x] to a FHIRDateTime (the
+// release primitive wrapper that carries the isTriggerDefinitionTiming marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *TriggerDefinition) SetTimingDateTime(v FHIRDateTime) {
+	r.TimingTiming = nil
+	r.TimingReference = nil
+	r.TimingDate = nil
+	r.TimingDateTime = nil
+	r.TimingDateTime = &v
 }

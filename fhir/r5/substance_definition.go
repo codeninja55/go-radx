@@ -241,7 +241,8 @@ type SubstanceDefinitionMoiety struct {
 	OpticalActivity         *CodeableConcept       `json:"opticalActivity,omitempty"`
 	MolecularFormula        *string                `json:"molecularFormula,omitempty"`
 	MolecularFormulaElement *fhir.PrimitiveElement `json:"-"`
-	Amount                  *Quantity              `json:"amount,omitempty"`
+	AmountQuantity          *Quantity              `json:"amountQuantity,omitempty"`
+	AmountString            *FHIRString            `json:"amountString,omitempty"`
 	MeasurementType         *CodeableConcept       `json:"measurementType,omitempty"`
 }
 
@@ -303,6 +304,47 @@ func (v *SubstanceDefinitionMoiety) UnmarshalJSON(data []byte) error {
 	}
 	type alias SubstanceDefinitionMoiety
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// SubstanceDefinitionMoietyAmount is the sealed value interface for the amount[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSubstanceDefinitionMoietyAmount marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SubstanceDefinitionMoietyAmount interface{ isSubstanceDefinitionMoietyAmount() }
+
+func (Quantity) isSubstanceDefinitionMoietyAmount()   {}
+func (FHIRString) isSubstanceDefinitionMoietyAmount() {}
+
+// Amount returns the value set in the amount[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SubstanceDefinitionMoiety) Amount() (SubstanceDefinitionMoietyAmount, bool) {
+	switch {
+	case r.AmountQuantity != nil:
+		return *r.AmountQuantity, true
+	case r.AmountString != nil:
+		return *r.AmountString, true
+	}
+	return nil, false
+}
+
+// SetAmountQuantity sets amount[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionMoiety) SetAmountQuantity(v Quantity) {
+	r.AmountQuantity = nil
+	r.AmountString = nil
+	r.AmountQuantity = &v
+}
+
+// SetAmountString sets amount[x] to a FHIRString (the
+// release primitive wrapper that carries the isSubstanceDefinitionMoietyAmount marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionMoiety) SetAmountString(v FHIRString) {
+	r.AmountQuantity = nil
+	r.AmountString = nil
+	r.AmountString = &v
 }
 
 // SubstanceDefinitionMolecularWeight is a generated nested backbone element.
@@ -451,21 +493,119 @@ func (v *SubstanceDefinitionNameOfficial) UnmarshalJSON(data []byte) error {
 // SubstanceDefinitionProperty is a generated nested backbone element.
 type SubstanceDefinitionProperty struct {
 	BackboneElement
-	Type  *CodeableConcept `json:"type,omitempty"`
-	Value *CodeableConcept `json:"value,omitempty"`
+	Type                 *CodeableConcept `json:"type,omitempty"`
+	ValueCodeableConcept *CodeableConcept `json:"valueCodeableConcept,omitempty"`
+	ValueQuantity        *Quantity        `json:"valueQuantity,omitempty"`
+	ValueDate            *FHIRDate        `json:"valueDate,omitempty"`
+	ValueBoolean         *FHIRBoolean     `json:"valueBoolean,omitempty"`
+	ValueAttachment      *Attachment      `json:"valueAttachment,omitempty"`
+}
+
+// SubstanceDefinitionPropertyValue is the sealed value interface for the value[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSubstanceDefinitionPropertyValue marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SubstanceDefinitionPropertyValue interface{ isSubstanceDefinitionPropertyValue() }
+
+func (CodeableConcept) isSubstanceDefinitionPropertyValue() {}
+func (Quantity) isSubstanceDefinitionPropertyValue()        {}
+func (FHIRDate) isSubstanceDefinitionPropertyValue()        {}
+func (FHIRBoolean) isSubstanceDefinitionPropertyValue()     {}
+func (Attachment) isSubstanceDefinitionPropertyValue()      {}
+
+// Value returns the value set in the value[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SubstanceDefinitionProperty) Value() (SubstanceDefinitionPropertyValue, bool) {
+	switch {
+	case r.ValueCodeableConcept != nil:
+		return *r.ValueCodeableConcept, true
+	case r.ValueQuantity != nil:
+		return *r.ValueQuantity, true
+	case r.ValueDate != nil:
+		return *r.ValueDate, true
+	case r.ValueBoolean != nil:
+		return *r.ValueBoolean, true
+	case r.ValueAttachment != nil:
+		return *r.ValueAttachment, true
+	}
+	return nil, false
+}
+
+// SetValueCodeableConcept sets value[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionProperty) SetValueCodeableConcept(v CodeableConcept) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueCodeableConcept = &v
+}
+
+// SetValueQuantity sets value[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionProperty) SetValueQuantity(v Quantity) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueQuantity = &v
+}
+
+// SetValueDate sets value[x] to a FHIRDate (the
+// release primitive wrapper that carries the isSubstanceDefinitionPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionProperty) SetValueDate(v FHIRDate) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueDate = &v
+}
+
+// SetValueBoolean sets value[x] to a FHIRBoolean (the
+// release primitive wrapper that carries the isSubstanceDefinitionPropertyValue marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionProperty) SetValueBoolean(v FHIRBoolean) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueBoolean = &v
+}
+
+// SetValueAttachment sets value[x] to a Attachment and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionProperty) SetValueAttachment(v Attachment) {
+	r.ValueCodeableConcept = nil
+	r.ValueQuantity = nil
+	r.ValueDate = nil
+	r.ValueBoolean = nil
+	r.ValueAttachment = nil
+	r.ValueAttachment = &v
 }
 
 // SubstanceDefinitionRelationship is a generated nested backbone element.
 type SubstanceDefinitionRelationship struct {
 	BackboneElement
-	SubstanceDefinition  *Reference             `json:"substanceDefinition,omitempty"`
-	Type                 *CodeableConcept       `json:"type,omitempty"`
-	IsDefining           *bool                  `json:"isDefining,omitempty"`
-	IsDefiningElement    *fhir.PrimitiveElement `json:"-"`
-	Amount               *Quantity              `json:"amount,omitempty"`
-	RatioHighLimitAmount *Ratio                 `json:"ratioHighLimitAmount,omitempty"`
-	Comparator           *CodeableConcept       `json:"comparator,omitempty"`
-	Source               []Reference            `json:"source,omitempty"`
+	SubstanceDefinitionReference       *Reference             `json:"substanceDefinitionReference,omitempty"`
+	SubstanceDefinitionCodeableConcept *CodeableConcept       `json:"substanceDefinitionCodeableConcept,omitempty"`
+	Type                               *CodeableConcept       `json:"type,omitempty"`
+	IsDefining                         *bool                  `json:"isDefining,omitempty"`
+	IsDefiningElement                  *fhir.PrimitiveElement `json:"-"`
+	AmountQuantity                     *Quantity              `json:"amountQuantity,omitempty"`
+	AmountRatio                        *Ratio                 `json:"amountRatio,omitempty"`
+	AmountString                       *FHIRString            `json:"amountString,omitempty"`
+	RatioHighLimitAmount               *Ratio                 `json:"ratioHighLimitAmount,omitempty"`
+	Comparator                         *CodeableConcept       `json:"comparator,omitempty"`
+	Source                             []Reference            `json:"source,omitempty"`
 }
 
 // MarshalJSON folds the backbone's primitive "_field" siblings into the encoded
@@ -514,6 +654,100 @@ func (v *SubstanceDefinitionRelationship) UnmarshalJSON(data []byte) error {
 	}
 	type alias SubstanceDefinitionRelationship
 	return json.Unmarshal(residual, (*alias)(v))
+}
+
+// SubstanceDefinitionRelationshipSubstanceDefinition is the sealed value interface for the substanceDefinition[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSubstanceDefinitionRelationshipSubstanceDefinition marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SubstanceDefinitionRelationshipSubstanceDefinition interface{ isSubstanceDefinitionRelationshipSubstanceDefinition() }
+
+func (Reference) isSubstanceDefinitionRelationshipSubstanceDefinition()       {}
+func (CodeableConcept) isSubstanceDefinitionRelationshipSubstanceDefinition() {}
+
+// SubstanceDefinition returns the value set in the substanceDefinition[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SubstanceDefinitionRelationship) SubstanceDefinition() (SubstanceDefinitionRelationshipSubstanceDefinition, bool) {
+	switch {
+	case r.SubstanceDefinitionReference != nil:
+		return *r.SubstanceDefinitionReference, true
+	case r.SubstanceDefinitionCodeableConcept != nil:
+		return *r.SubstanceDefinitionCodeableConcept, true
+	}
+	return nil, false
+}
+
+// SetSubstanceDefinitionReference sets substanceDefinition[x] to a Reference and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionRelationship) SetSubstanceDefinitionReference(v Reference) {
+	r.SubstanceDefinitionReference = nil
+	r.SubstanceDefinitionCodeableConcept = nil
+	r.SubstanceDefinitionReference = &v
+}
+
+// SetSubstanceDefinitionCodeableConcept sets substanceDefinition[x] to a CodeableConcept and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionRelationship) SetSubstanceDefinitionCodeableConcept(v CodeableConcept) {
+	r.SubstanceDefinitionReference = nil
+	r.SubstanceDefinitionCodeableConcept = nil
+	r.SubstanceDefinitionCodeableConcept = &v
+}
+
+// SubstanceDefinitionRelationshipAmount is the sealed value interface for the amount[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// isSubstanceDefinitionRelationshipAmount marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type SubstanceDefinitionRelationshipAmount interface{ isSubstanceDefinitionRelationshipAmount() }
+
+func (Quantity) isSubstanceDefinitionRelationshipAmount()   {}
+func (Ratio) isSubstanceDefinitionRelationshipAmount()      {}
+func (FHIRString) isSubstanceDefinitionRelationshipAmount() {}
+
+// Amount returns the value set in the amount[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *SubstanceDefinitionRelationship) Amount() (SubstanceDefinitionRelationshipAmount, bool) {
+	switch {
+	case r.AmountQuantity != nil:
+		return *r.AmountQuantity, true
+	case r.AmountRatio != nil:
+		return *r.AmountRatio, true
+	case r.AmountString != nil:
+		return *r.AmountString, true
+	}
+	return nil, false
+}
+
+// SetAmountQuantity sets amount[x] to a Quantity and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionRelationship) SetAmountQuantity(v Quantity) {
+	r.AmountQuantity = nil
+	r.AmountRatio = nil
+	r.AmountString = nil
+	r.AmountQuantity = &v
+}
+
+// SetAmountRatio sets amount[x] to a Ratio and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionRelationship) SetAmountRatio(v Ratio) {
+	r.AmountQuantity = nil
+	r.AmountRatio = nil
+	r.AmountString = nil
+	r.AmountRatio = &v
+}
+
+// SetAmountString sets amount[x] to a FHIRString (the
+// release primitive wrapper that carries the isSubstanceDefinitionRelationshipAmount marker; the built-in
+// scalar cannot) and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *SubstanceDefinitionRelationship) SetAmountString(v FHIRString) {
+	r.AmountQuantity = nil
+	r.AmountRatio = nil
+	r.AmountString = nil
+	r.AmountString = &v
 }
 
 // SubstanceDefinitionSourceMaterial is a generated nested backbone element.
