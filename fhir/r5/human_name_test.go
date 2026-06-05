@@ -118,6 +118,39 @@ func TestHumanNameNoSiblingOnComplexField(t *testing.T) {
 	}
 }
 
+// TestHumanNameExtensionOnlyPositionKeepsAlignment documents the repeating
+// extension-only-position behaviour: when a value-side JSON null marks a position
+// that carries only an extension ("given":[null,"Q"] / "_given":[{"id":"e"},null]),
+// the extension data still round-trips and stays index-aligned, but the value-side
+// null collapses to the Go zero value (an empty string) rather than re-marshalling
+// as null. This pins the known limitation (nullable value elements are an Increment
+// 6 concern) so a future change is a visible, deliberate diff, not a silent one.
+func TestHumanNameExtensionOnlyPositionKeepsAlignment(t *testing.T) {
+	in := []byte(`{"given":[null,"Q"],"_given":[{"id":"e"},null]}`)
+
+	var hn r5.HumanName
+	if err := json.Unmarshal(in, &hn); err != nil {
+		t.Fatalf("unmarshal extension-only position: %v", err)
+	}
+
+	// The extension at index 0 is preserved and index-aligned with the value array.
+	if len(hn.GivenElement) != 2 {
+		t.Fatalf("GivenElement length = %d, want 2", len(hn.GivenElement))
+	}
+	if hn.GivenElement[0] == nil || hn.GivenElement[0].ID == nil || *hn.GivenElement[0].ID != "e" {
+		t.Errorf("GivenElement[0] = %+v, want id e (extension preserved and aligned)", hn.GivenElement[0])
+	}
+	if hn.GivenElement[1] != nil {
+		t.Errorf("GivenElement[1] = %+v, want nil (the null placeholder)", hn.GivenElement[1])
+	}
+
+	// Known limitation: the value-side null collapses to "" rather than round-tripping
+	// as null. The value array length is still aligned with the extension array.
+	if !reflect.DeepEqual(hn.Given, []string{"", "Q"}) {
+		t.Errorf("Given = %v, want [\"\" \"Q\"] (value-side null collapses to the zero value)", hn.Given)
+	}
+}
+
 // TestHumanNameMultipleRepeatingPrimitivesAlign asserts every repeating primitive
 // (given, prefix, suffix) null-aligns independently, so partial extensions on one
 // do not perturb another.

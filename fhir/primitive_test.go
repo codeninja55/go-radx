@@ -90,6 +90,70 @@ func TestMarshalPrimitiveExtensionsOmitsWhenEmpty(t *testing.T) {
 	}
 }
 
+// TestMarshalPrimitiveExtensionScalar asserts the scalar helper renders a non-empty
+// element and drops an empty one, so a scalar "_field" key is emitted only when it
+// carries an id or extension.
+func TestMarshalPrimitiveExtensionScalar(t *testing.T) {
+	raw, err := fhir.MarshalPrimitiveExtension(&fhir.PrimitiveElement{ID: strptr("x")})
+	if err != nil {
+		t.Fatalf("MarshalPrimitiveExtension: %v", err)
+	}
+	if string(raw) != `{"id":"x"}` {
+		t.Errorf("scalar sibling = %s, want {\"id\":\"x\"}", raw)
+	}
+
+	empty, err := fhir.MarshalPrimitiveExtension(&fhir.PrimitiveElement{})
+	if err != nil {
+		t.Fatalf("MarshalPrimitiveExtension(empty): %v", err)
+	}
+	if empty != nil {
+		t.Errorf("empty scalar sibling = %s, want nil (no \"_field\" key)", empty)
+	}
+}
+
+// TestAppendSiblingsPreservesOrder asserts AppendSiblings keeps the value object's
+// key order and appends the non-nil siblings after it, skipping nil-valued ones, so
+// canonical element ordering survives the fold.
+func TestAppendSiblingsPreservesOrder(t *testing.T) {
+	encoded := []byte(`{"start":"2024","end":"2025"}`)
+	siblings := []fhir.RawSibling{
+		{Key: "_start", Value: []byte(`{"id":"s"}`)},
+		{Key: "_end", Value: nil},
+	}
+	got, err := fhir.AppendSiblings(encoded, siblings)
+	if err != nil {
+		t.Fatalf("AppendSiblings: %v", err)
+	}
+	if string(got) != `{"start":"2024","end":"2025","_start":{"id":"s"}}` {
+		t.Errorf("AppendSiblings = %s, want the value keys first then _start", got)
+	}
+}
+
+// TestAppendSiblingsEmptyObject asserts a sibling appended to an empty object needs
+// no leading comma, so the result is well-formed JSON.
+func TestAppendSiblingsEmptyObject(t *testing.T) {
+	got, err := fhir.AppendSiblings([]byte(`{}`), []fhir.RawSibling{{Key: "_a", Value: []byte(`{"id":"x"}`)}})
+	if err != nil {
+		t.Fatalf("AppendSiblings: %v", err)
+	}
+	if string(got) != `{"_a":{"id":"x"}}` {
+		t.Errorf("AppendSiblings to empty object = %s, want {\"_a\":{\"id\":\"x\"}}", got)
+	}
+}
+
+// TestAppendSiblingsNoneIsNoOp asserts that with no non-nil siblings the encoded
+// object is returned unchanged.
+func TestAppendSiblingsNoneIsNoOp(t *testing.T) {
+	encoded := []byte(`{"start":"2024"}`)
+	got, err := fhir.AppendSiblings(encoded, []fhir.RawSibling{{Key: "_start", Value: nil}})
+	if err != nil {
+		t.Fatalf("AppendSiblings: %v", err)
+	}
+	if string(got) != string(encoded) {
+		t.Errorf("AppendSiblings with only nil siblings = %s, want unchanged %s", got, encoded)
+	}
+}
+
 // TestUnmarshalPrimitiveExtensionsRestoresNulls asserts a JSON null in the "_field"
 // array decodes to a nil entry, preserving the positional alignment with the value
 // array.
