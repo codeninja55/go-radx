@@ -1,0 +1,70 @@
+# go-radx FHIR R5 benchmark baseline — default (pure-Go) build
+#
+# Recorded with: go test -bench=. -benchtime=100x -count=6 -run=^$ ./fhir/r5/
+# CGO_ENABLED=0 default build. Lines beginning with # are benchstat comments. Compare a new
+# run against this file with:
+#   benchstat docs/conformance/benchmarks/fhir-baseline.txt <new-run>.txt
+#
+# BenchmarkMarshalSearchSetBundle / BenchmarkUnmarshalSearchSetBundle defend the FHIR-JSON
+# serialization hot path on a 200-entry searchset Bundle (a realistic worklist page): the
+# per-entry polymorphic resource marshal and the resourceType-peek-then-registry-dispatch
+# decode at scale. BenchmarkValidateWorkflowSet isolates the in-process structural gate over
+# the full radiology + clinical workflow set (the data-driven per-resource descriptors, no
+# per-call StructureDefinition lookup). BenchmarkMarshalSummary records the five _summary
+# views over a Patient so the filtering overhead each mode adds over the plain marshal is
+# tracked. All subjects are go-radx synthetic, PHI-free corpus instances (testdata/fhir).
+#
+goos: darwin
+goarch: arm64
+pkg: github.com/codeninja55/go-radx/fhir/r5
+cpu: Apple M1
+BenchmarkMarshalSearchSetBundle-8     	     100	   2472037 ns/op	  899102 B/op	    4620 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2236778 ns/op	  896163 B/op	    4614 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2153083 ns/op	  893414 B/op	    4613 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2132604 ns/op	  896101 B/op	    4613 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2152704 ns/op	  891177 B/op	    4613 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2125872 ns/op	  886530 B/op	    4613 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   9029861 ns/op	  11.07 MB/s	 2515803 B/op	   42286 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   8897545 ns/op	  11.23 MB/s	 2513600 B/op	   42285 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   9217347 ns/op	  10.84 MB/s	 2511596 B/op	   42286 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   9073152 ns/op	  11.02 MB/s	 2510333 B/op	   42284 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   9112300 ns/op	  10.97 MB/s	 2522205 B/op	   42286 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   8924219 ns/op	  11.20 MB/s	 2521182 B/op	   42287 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     51545 ns/op	   49413 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     50891 ns/op	   49419 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     48618 ns/op	   49412 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     49772 ns/op	   49409 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     49425 ns/op	   49413 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     50945 ns/op	   49412 B/op	     797 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5612 ns/op	    3024 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5614 ns/op	    3008 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5585 ns/op	    2993 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5489 ns/op	    2993 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5415 ns/op	    3008 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5577 ns/op	    3008 B/op	      21 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     26338 ns/op	   17681 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     24899 ns/op	   17641 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     24478 ns/op	   17664 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     23996 ns/op	   17652 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     23908 ns/op	   17649 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     23929 ns/op	   17649 B/op	     363 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     17322 ns/op	   12721 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     17356 ns/op	   12704 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     16966 ns/op	   12704 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     16870 ns/op	   12704 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     16795 ns/op	   12704 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     17010 ns/op	   12704 B/op	     235 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     23960 ns/op	   17649 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     24405 ns/op	   17661 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     24247 ns/op	   17634 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     23411 ns/op	   17649 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     22235 ns/op	   17641 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     22408 ns/op	   17609 B/op	     363 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     13933 ns/op	   12664 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     13848 ns/op	   12664 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     14058 ns/op	   12664 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     14360 ns/op	   12649 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     14417 ns/op	   12649 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     15397 ns/op	   12664 B/op	     201 allocs/op
+PASS
+ok  	github.com/codeninja55/go-radx/fhir/r5	7.144s
