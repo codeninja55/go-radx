@@ -125,6 +125,33 @@ func UnmarshalResource(data []byte) (Resource, error) {
 	return r, nil
 }
 
+// UnmarshalResourceSlice decodes a JSON array of FHIR resource objects, dispatching
+// each element through UnmarshalResource. It backs the decode of a repeating
+// resource-typed field (DomainResource.contained), where the standard codec cannot
+// unmarshal a JSON object into the fhir.Resource interface. A JSON null yields a nil
+// slice; any element whose resourceType is absent, empty, or unregistered fails the
+// whole decode with ErrUnknownResourceType rather than skipping the element, so a
+// partial slice is never returned. The element index is named in the error so a
+// caller can locate the offending entry without exposing any element value.
+func UnmarshalResourceSlice(data []byte) ([]Resource, error) {
+	var raws []json.RawMessage
+	if err := json.Unmarshal(data, &raws); err != nil {
+		return nil, fmt.Errorf("fhir: decode resource array: %w", err)
+	}
+	if raws == nil {
+		return nil, nil
+	}
+	out := make([]Resource, 0, len(raws))
+	for i, raw := range raws {
+		r, err := UnmarshalResource(raw)
+		if err != nil {
+			return nil, fmt.Errorf("fhir: decode resource array element %d: %w", i, err)
+		}
+		out = append(out, r)
+	}
+	return out, nil
+}
+
 // discriminator is the minimal envelope used to peek a payload's "resourceType"
 // before committing to a concrete decode, so the checked path reads only the one
 // key it needs.

@@ -80,6 +80,9 @@ func (v {{ .GoName }}) MarshalJSON() ([]byte, error) {
 {{- if .HasPrimitiveSibling }}
 {{ template "siblings" . }}
 {{- end }}
+{{- if .NeedsCustomUnmarshal }}
+{{ template "unmarshal" . }}
+{{- end }}
 {{- if .Choices }}
 {{ template "choices" . }}
 {{- end }}
@@ -107,6 +110,9 @@ func (v {{ .GoName }}) MarshalJSON() ([]byte, error) {
 }
 {{ template "siblings" . }}
 {{ end }}
+{{- if .NeedsCustomUnmarshal }}
+{{ template "unmarshal" . }}
+{{- end }}
 {{- if .Choices }}
 {{ template "choices" . }}
 {{- end }}
@@ -114,13 +120,12 @@ func (v {{ .GoName }}) MarshalJSON() ([]byte, error) {
 {{- end }}
 
 {{- /*
-siblings renders the shared "_field" sibling marshal helper and the matching
-UnmarshalJSON for a type or backbone that owns primitive siblings. The marshal
-helper folds each scalar sibling in only when non-empty and each repeating sibling
-in null-aligned with its value array; UnmarshalJSON lifts every sibling key out
-before decoding the residual object into the value struct (which has no field bound
-to the "_field" keys). The dot is a PlannedType or PlannedBackbone, both of which
-expose GoName, ScalarPrimitives, and RepeatingPrimitives.
+siblings renders the shared "_field" sibling marshal helper for a type or backbone that
+owns primitive siblings. The helper folds each scalar sibling in only when non-empty and
+each repeating sibling in null-aligned with its value array. The matching UnmarshalJSON
+is rendered by the unmarshal template, which also handles resource-interface fields. The
+dot is a PlannedType or PlannedBackbone, both of which expose GoName, ScalarPrimitives,
+and RepeatingPrimitives.
 */ -}}
 {{- define "siblings" }}
 // marshal{{ .GoName }}Siblings appends the primitive "_field" siblings to the
@@ -145,9 +150,32 @@ func marshal{{ .GoName }}Siblings(v *{{ .GoName }}, encoded []byte) ([]byte, err
 {{- end }}
 	return fhir.AppendSiblings(encoded, siblings)
 }
+{{- end }}
 
+{{- /*
+unmarshal renders UnmarshalJSON for a type or backbone that owns a primitive "_field"
+sibling, a resource-interface field (fhir.Resource, single or repeating), or — for a
+resource embedding DomainResource — the promoted contained resource slice. It lifts each
+such key out of the raw object before decoding the residual into the value struct (whose
+default codec cannot reach those keys: a "_field" sibling has no bound field, and a
+resource object cannot decode into the fhir.Resource interface). A resource field routes
+its raw JSON through fhir.UnmarshalResource (resourceType peek then registry dispatch),
+so the value behind the interface is the correct concrete type; an absent or unregistered
+resourceType surfaces a clear error rather than a panic. The dot is a PlannedType or
+PlannedBackbone, both exposing GoName, ScalarPrimitives, RepeatingPrimitives,
+ResourceFields, and EmbedsContained.
+*/ -}}
+{{- define "unmarshal" }}
+{{- if .HasResourceDecode }}
+// UnmarshalJSON lifts each primitive "_field" sibling and resource-typed field out of
+// the object, decodes each into its companion field, then decodes the remaining keys
+// into the value struct. A resource-typed field (the fhir.Resource interface) is decoded
+// through fhir.UnmarshalResource so the concrete type behind the interface is recovered;
+// the standard codec cannot decode a resource object into an interface.
+{{- else }}
 // UnmarshalJSON lifts each primitive "_field" sibling out of the object, decodes it
 // into its companion field, then decodes the remaining keys into the value struct.
+{{- end }}
 func (v *{{ .GoName }}) UnmarshalJSON(data []byte) error {
 	obj, err := fhir.SplitRawObject(data)
 	if err != nil {
@@ -169,6 +197,32 @@ func (v *{{ .GoName }}) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		v.{{ .GoName }} = elements
+	}
+{{- end }}
+{{- if .EmbedsContained }}
+	if raw, ok := fhir.TakeRawField(obj, "contained"); ok {
+		resources, err := fhir.UnmarshalResourceSlice(raw)
+		if err != nil {
+			return err
+		}
+		v.Contained = resources
+	}
+{{- end }}
+{{- range .ResourceFields }}
+	if raw, ok := fhir.TakeRawField(obj, "{{ .JSONName }}"); ok {
+{{- if .ResourceIsSlice }}
+		resources, err := fhir.UnmarshalResourceSlice(raw)
+		if err != nil {
+			return err
+		}
+		v.{{ .GoName }} = resources
+{{- else }}
+		resource, err := fhir.UnmarshalResource(raw)
+		if err != nil {
+			return err
+		}
+		v.{{ .GoName }} = &resource
+{{- end }}
 	}
 {{- end }}
 	residual, err := fhir.RemarshalObject(obj)

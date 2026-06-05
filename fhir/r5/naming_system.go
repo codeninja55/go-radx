@@ -182,8 +182,11 @@ func marshalNamingSystemSiblings(v *NamingSystem, encoded []byte) ([]byte, error
 	return fhir.AppendSiblings(encoded, siblings)
 }
 
-// UnmarshalJSON lifts each primitive "_field" sibling out of the object, decodes it
-// into its companion field, then decodes the remaining keys into the value struct.
+// UnmarshalJSON lifts each primitive "_field" sibling and resource-typed field out of
+// the object, decodes each into its companion field, then decodes the remaining keys
+// into the value struct. A resource-typed field (the fhir.Resource interface) is decoded
+// through fhir.UnmarshalResource so the concrete type behind the interface is recovered;
+// the standard codec cannot decode a resource object into an interface.
 func (v *NamingSystem) UnmarshalJSON(data []byte) error {
 	obj, err := fhir.SplitRawObject(data)
 	if err != nil {
@@ -307,6 +310,13 @@ func (v *NamingSystem) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		v.UsageElement = &element
+	}
+	if raw, ok := fhir.TakeRawField(obj, "contained"); ok {
+		resources, err := fhir.UnmarshalResourceSlice(raw)
+		if err != nil {
+			return err
+		}
+		v.Contained = resources
 	}
 	residual, err := fhir.RemarshalObject(obj)
 	if err != nil {

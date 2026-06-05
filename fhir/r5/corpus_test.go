@@ -52,14 +52,16 @@ func TestCorpusCoversWorkflowSet(t *testing.T) {
 	}
 }
 
-// decodeRoundTrips lists the corpus instances whose JSON decodes through
-// UnmarshalResource. The Bundle is excluded because decoding a resource that carries a
-// polymorphic interface-typed field (Bundle.entry.resource, and DomainResource.contained)
-// is a known generator gap: the generated UnmarshalJSON falls back to the standard
-// decoder, which cannot instantiate the fhir.Resource interface. The Bundle is still
-// validated on the MARSHAL side (TestCorpusBundleMarshalsCleanly and the validator gate),
-// which is the property the conformance gate proves; the decode gap is tracked separately.
-var decodeRoundTrips = map[string]bool{
+// validatesCleanly lists the corpus instances that pass go-radx's in-process Validate
+// with no errors. Every corpus instance decodes and round-trips structurally (the
+// polymorphic interface-typed fields Bundle.entry.resource and DomainResource.contained
+// now decode through fhir.UnmarshalResource); the workflow Bundle is the one instance
+// whose validation reports issues, because its entries reference each other by
+// relative reference (Patient/wf-patient, ...) rather than by fullUrl, which the
+// intra-Bundle reference-integrity walk reports as unresolved. The Bundle's decode and
+// structural round-trip are still asserted (TestCorpusBundleDecodeRoundTrips); only its
+// no-error Validate expectation is the corpus-data property that does not hold.
+var validatesCleanly = map[string]bool{
 	"Patient":             true,
 	"Encounter":           true,
 	"ServiceRequest":      true,
@@ -72,9 +74,6 @@ var decodeRoundTrips = map[string]bool{
 
 func TestCorpusValidatesAndRoundTrips(t *testing.T) {
 	for _, name := range corpusWorkflowSet {
-		if !decodeRoundTrips[name] {
-			continue
-		}
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(corpusDir, name+".json")
 			raw, err := os.ReadFile(path)
@@ -90,16 +89,24 @@ func TestCorpusValidatesAndRoundTrips(t *testing.T) {
 				t.Fatalf("resourceType = %q, want %q", resource.ResourceType(), name)
 			}
 
-			// go-radx's own structural gate must pass the corpus with no errors; it is the
-			// fast in-process check the validator gate backstops.
-			if outcome := fhir.Validate(resource); outcome.HasErrors() {
-				t.Fatalf("Validate(%s) reported errors: %v", name, outcome.Error())
+			// go-radx's own structural gate must pass the cleanly-validating corpus
+			// instances with no errors; it is the fast in-process check the validator gate
+			// backstops. The workflow Bundle is excluded from this assertion because its
+			// entries cross-reference by relative reference, which the intra-Bundle
+			// integrity walk reports as unresolved (a corpus-data property, not a decode or
+			// marshal defect).
+			if validatesCleanly[name] {
+				if outcome := fhir.Validate(resource); outcome.HasErrors() {
+					t.Fatalf("Validate(%s) reported errors: %v", name, outcome.Error())
+				}
 			}
 
 			// Structural round-trip: FHIR permits key reordering and whitespace, so the
 			// contract is decode -> re-encode -> decode -> DeepEqual on the typed value, not
 			// byte stability (the corpus files are go-radx's canonical output, but the
-			// re-decode-compare is the robust invariant for an example corpus).
+			// re-decode-compare is the robust invariant for an example corpus). The Bundle
+			// exercises this through its polymorphic entry.resource fields, which now decode
+			// to their concrete types rather than failing on the fhir.Resource interface.
 			reencoded, err := json.Marshal(resource)
 			if err != nil {
 				t.Fatalf("re-marshal %s: %v", name, err)
@@ -112,28 +119,5 @@ func TestCorpusValidatesAndRoundTrips(t *testing.T) {
 				t.Errorf("%s did not round-trip structurally", name)
 			}
 		})
-	}
-}
-
-// TestCorpusBundleMarshalsCleanly checks the corpus Bundle decodes its JSON-parseable
-// shape (a valid JSON object) and that its committed bytes are non-empty, structurally
-// valid JSON. The Bundle's full decode round-trip is the known polymorphic-decode gap;
-// what the conformance gate proves for the Bundle is that go-radx MARSHALS it to JSON
-// the HL7 validator accepts, which this corpus file is the committed evidence of.
-func TestCorpusBundleMarshalsCleanly(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(corpusDir, "Bundle.json"))
-	if err != nil {
-		t.Fatalf("read Bundle.json: %v", err)
-	}
-	var obj map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &obj); err != nil {
-		t.Fatalf("corpus Bundle is not valid JSON: %v", err)
-	}
-	var rt string
-	if err := json.Unmarshal(obj["resourceType"], &rt); err != nil || rt != "Bundle" {
-		t.Fatalf("corpus Bundle resourceType = %q (err %v), want \"Bundle\"", rt, err)
-	}
-	if _, ok := obj["entry"]; !ok {
-		t.Errorf("corpus Bundle has no entry array")
 	}
 }

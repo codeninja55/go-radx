@@ -4,6 +4,7 @@ package r5
 
 import (
 	"encoding/json"
+	"github.com/codeninja55/go-radx/fhir"
 )
 
 // DeviceAssociationResourceType is the FHIR resourceType discriminator for DeviceAssociation.
@@ -38,6 +39,31 @@ func (r *DeviceAssociation) MarshalJSON() ([]byte, error) {
 		ResourceType: DeviceAssociationResourceType,
 		alias:        (*alias)(r),
 	})
+}
+
+// UnmarshalJSON lifts each primitive "_field" sibling and resource-typed field out of
+// the object, decodes each into its companion field, then decodes the remaining keys
+// into the value struct. A resource-typed field (the fhir.Resource interface) is decoded
+// through fhir.UnmarshalResource so the concrete type behind the interface is recovered;
+// the standard codec cannot decode a resource object into an interface.
+func (v *DeviceAssociation) UnmarshalJSON(data []byte) error {
+	obj, err := fhir.SplitRawObject(data)
+	if err != nil {
+		return err
+	}
+	if raw, ok := fhir.TakeRawField(obj, "contained"); ok {
+		resources, err := fhir.UnmarshalResourceSlice(raw)
+		if err != nil {
+			return err
+		}
+		v.Contained = resources
+	}
+	residual, err := fhir.RemarshalObject(obj)
+	if err != nil {
+		return err
+	}
+	type alias DeviceAssociation
+	return json.Unmarshal(residual, (*alias)(v))
 }
 
 // DeviceAssociationOperation is a generated nested backbone element.

@@ -33,6 +33,31 @@ func (r *OperationOutcome) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// UnmarshalJSON lifts each primitive "_field" sibling and resource-typed field out of
+// the object, decodes each into its companion field, then decodes the remaining keys
+// into the value struct. A resource-typed field (the fhir.Resource interface) is decoded
+// through fhir.UnmarshalResource so the concrete type behind the interface is recovered;
+// the standard codec cannot decode a resource object into an interface.
+func (v *OperationOutcome) UnmarshalJSON(data []byte) error {
+	obj, err := fhir.SplitRawObject(data)
+	if err != nil {
+		return err
+	}
+	if raw, ok := fhir.TakeRawField(obj, "contained"); ok {
+		resources, err := fhir.UnmarshalResourceSlice(raw)
+		if err != nil {
+			return err
+		}
+		v.Contained = resources
+	}
+	residual, err := fhir.RemarshalObject(obj)
+	if err != nil {
+		return err
+	}
+	type alias OperationOutcome
+	return json.Unmarshal(residual, (*alias)(v))
+}
+
 // OperationOutcomeIssue is a generated nested backbone element.
 type OperationOutcomeIssue struct {
 	BackboneElement
