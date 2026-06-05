@@ -12,7 +12,7 @@ const {{ .GoName }}ResourceType = "{{ .FHIRName }}"
 // {{ .GoName }} is the generated FHIR {{ .FHIRName }} {{ .KindNoun }}.
 type {{ .GoName }} struct {
 {{- range .Fields }}
-	{{ .GoName }} {{ .GoType }} `json:"{{ .JSONName }}{{ if .Optional }},omitempty{{ end }}"`
+	{{ .GoName }} {{ .GoType }} `json:"{{ .JSONTag }}"`
 {{- end }}
 }
 {{ if .IsResource }}
@@ -22,6 +22,23 @@ func (r *{{ .GoName }}) ResourceType() string { return {{ .GoName }}ResourceType
 // MarshalJSON emits the resource with "resourceType" as the first JSON key, always
 // carrying the type constant — even for a zero value, so a {{ .GoName }} never
 // serialises an empty "resourceType".
+{{- if .HasRepeatingPrimitive }} The repeating primitives' "_field" sibling arrays
+// are null-aligned with their value arrays so positions line up on the wire.
+func (r *{{ .GoName }}) MarshalJSON() ([]byte, error) {
+	type alias {{ .GoName }}
+	encoded, err := json.Marshal(struct {
+		ResourceType string `json:"resourceType"`
+		*alias
+	}{
+		ResourceType: {{ .GoName }}ResourceType,
+		alias:        (*alias)(r),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return marshal{{ .GoName }}Siblings(r, encoded)
+}
+{{- else }}
 func (r *{{ .GoName }}) MarshalJSON() ([]byte, error) {
 	type alias {{ .GoName }}
 	return json.Marshal(struct {
@@ -32,13 +49,125 @@ func (r *{{ .GoName }}) MarshalJSON() ([]byte, error) {
 		alias:        (*alias)(r),
 	})
 }
-{{ end }}
-{{- range .Backbones }}
+{{- end }}
+{{- else if .HasRepeatingPrimitive }}
+// MarshalJSON null-aligns the repeating primitives' "_field" sibling arrays with
+// their value arrays, so a partially-extended repeating primitive lines up
+// position-for-position on the wire (a position with no id/extension becomes a JSON
+// null in the "_field" array).
+func (v {{ .GoName }}) MarshalJSON() ([]byte, error) {
+	type alias {{ .GoName }}
+	encoded, err := json.Marshal(alias(v))
+	if err != nil {
+		return nil, err
+	}
+	return marshal{{ .GoName }}Siblings(&v, encoded)
+}
+{{- end }}
+{{- if .HasRepeatingPrimitive }}
+
+// marshal{{ .GoName }}Siblings folds each repeating primitive's null-aligned
+// "_field" array into the already-encoded object, keeping the value array and its
+// companion array in the same index space.
+func marshal{{ .GoName }}Siblings(v *{{ .GoName }}, encoded []byte) ([]byte, error) {
+	obj, err := fhir.SplitRawObject(encoded)
+	if err != nil {
+		return nil, err
+	}
+{{- range .RepeatingPrimitives }}
+	if raw, err := fhir.MarshalPrimitiveExtensions(len(v.{{ .ValueField }}), v.{{ .GoName }}); err != nil {
+		return nil, err
+	} else {
+		fhir.SetRawField(obj, "{{ .JSONName }}", raw)
+	}
+{{- end }}
+	return fhir.RemarshalObject(obj)
+}
+
+// UnmarshalJSON lifts each repeating primitive's "_field" array out of the object,
+// decodes it into the null-aligned sibling slice, then decodes the remaining keys
+// into the value struct (which has no field bound to the "_field" keys).
+func (v *{{ .GoName }}) UnmarshalJSON(data []byte) error {
+	obj, err := fhir.SplitRawObject(data)
+	if err != nil {
+		return err
+	}
+{{- range .RepeatingPrimitives }}
+	if raw, ok := fhir.TakeRawField(obj, "{{ .JSONName }}"); ok {
+		elements, err := fhir.UnmarshalPrimitiveExtensions(raw)
+		if err != nil {
+			return err
+		}
+		v.{{ .GoName }} = elements
+	}
+{{- end }}
+	residual, err := fhir.RemarshalObject(obj)
+	if err != nil {
+		return err
+	}
+	type alias {{ .GoName }}
+	return json.Unmarshal(residual, (*alias)(v))
+}
+{{- end }}
+{{ range .Backbones }}
 // {{ .GoName }} is a generated nested backbone element.
 type {{ .GoName }} struct {
 {{- range .Fields }}
-	{{ .GoName }} {{ .GoType }} `json:"{{ .JSONName }}{{ if .Optional }},omitempty{{ end }}"`
+	{{ .GoName }} {{ .GoType }} `json:"{{ .JSONTag }}"`
 {{- end }}
 }
+{{ if .HasRepeatingPrimitive }}
+// MarshalJSON null-aligns the backbone's repeating primitives' "_field" arrays
+// with their value arrays.
+func (v {{ .GoName }}) MarshalJSON() ([]byte, error) {
+	type alias {{ .GoName }}
+	encoded, err := json.Marshal(alias(v))
+	if err != nil {
+		return nil, err
+	}
+	return marshal{{ .GoName }}Siblings(&v, encoded)
+}
+
+// marshal{{ .GoName }}Siblings folds each repeating primitive's null-aligned
+// "_field" array into the already-encoded backbone object.
+func marshal{{ .GoName }}Siblings(v *{{ .GoName }}, encoded []byte) ([]byte, error) {
+	obj, err := fhir.SplitRawObject(encoded)
+	if err != nil {
+		return nil, err
+	}
+{{- range .RepeatingPrimitives }}
+	if raw, err := fhir.MarshalPrimitiveExtensions(len(v.{{ .ValueField }}), v.{{ .GoName }}); err != nil {
+		return nil, err
+	} else {
+		fhir.SetRawField(obj, "{{ .JSONName }}", raw)
+	}
+{{- end }}
+	return fhir.RemarshalObject(obj)
+}
+
+// UnmarshalJSON lifts the backbone's repeating "_field" arrays out before decoding
+// the remaining keys into the value struct.
+func (v *{{ .GoName }}) UnmarshalJSON(data []byte) error {
+	obj, err := fhir.SplitRawObject(data)
+	if err != nil {
+		return err
+	}
+{{- range .RepeatingPrimitives }}
+	if raw, ok := fhir.TakeRawField(obj, "{{ .JSONName }}"); ok {
+		elements, err := fhir.UnmarshalPrimitiveExtensions(raw)
+		if err != nil {
+			return err
+		}
+		v.{{ .GoName }} = elements
+	}
+{{- end }}
+	residual, err := fhir.RemarshalObject(obj)
+	if err != nil {
+		return err
+	}
+	type alias {{ .GoName }}
+	return json.Unmarshal(residual, (*alias)(v))
+}
 {{ end }}
+{{- end }}
 {{- end }}

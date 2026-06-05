@@ -55,9 +55,51 @@ type Field struct {
 	// Doc is the element's short description, carried for the field's godoc comment.
 	Doc string
 
+	// Primitive reports whether the field's value is a FHIR primitive (its Go type
+	// is a scalar or fhir.Decimal, not a struct). Only a primitive field carries a
+	// "_field" extension sibling (Codex FHIR-005): a complex field such as
+	// Patient.name, a contained resource, or an OperationOutcome.issue never does.
+	Primitive bool
+
+	// Repeats reports whether the field is a repeating element (a Go slice). It is
+	// carried so the emitter can null-align a repeating primitive's "_field" sibling
+	// array against its value array.
+	Repeats bool
+
+	// SiblingOf names the value field this field is the "_field" extension sibling
+	// of, set only on a generated PrimitiveElement sibling field. It is empty on an
+	// ordinary value field. The emitter uses it to pair the sibling with its value
+	// when generating null-aligned marshalling for a repeating primitive.
+	SiblingOf string
+
 	// Element is the source IR node, kept so a later stage can revisit metadata
 	// without re-walking the tree.
 	Element *model.Element
+}
+
+// IsPrimitiveSibling reports whether the field is a generated "_field" extension
+// sibling rather than a value field.
+func (f Field) IsPrimitiveSibling() bool { return f.SiblingOf != "" }
+
+// ValueField returns the Go field name of the value this sibling describes, set
+// only on a "_field" sibling. The emitter uses it to take len() of the value array
+// when null-aligning a repeating primitive's sibling array.
+func (f Field) ValueField() string { return f.SiblingOf }
+
+// JSONTag is the struct-tag body the emitter writes for the field. A repeating
+// primitive's "_field" sibling is excluded from the default codec ("-") because
+// its array must be null-aligned by the generated MarshalJSON/UnmarshalJSON rather
+// than emitted independently; every other field (including a scalar primitive's
+// sibling, which round-trips through ordinary tags) uses its JSON key with
+// ",omitempty".
+func (f Field) JSONTag() string {
+	if f.IsPrimitiveSibling() && f.Repeats {
+		return "-"
+	}
+	if f.Optional {
+		return f.JSONName + ",omitempty"
+	}
+	return f.JSONName
 }
 
 // fieldShape captures the Go field shapes the planner chooses between.
@@ -100,13 +142,33 @@ func PlanField(e *model.Element) Field {
 	}
 
 	return Field{
-		GoName:   GoFieldName(e.Name),
-		GoType:   goType,
-		JSONName: jsonName,
-		Optional: true,
-		Doc:      "",
-		Element:  e,
+		GoName:    GoFieldName(e.Name),
+		GoType:    goType,
+		JSONName:  jsonName,
+		Optional:  true,
+		Primitive: hasPrimitiveSibling(e),
+		Repeats:   chooseShape(e.Cardinality) == shapeSlice,
+		Doc:       "",
+		Element:   e,
 	}
+}
+
+// hasPrimitiveSibling reports whether an element is a true primitive that carries
+// a "_field" extension sibling. The FHIR rule (Codex FHIR-005) is that only a
+// genuine primitive value gets a "_field" companion: a complex field, a backbone,
+// a choice element (its branches box their own primitives), and a contentReference
+// recursion boundary never do. An element with no declared type (a pure backbone)
+// is structural, not primitive. The single-type primitive code drives the
+// decision; a "[x]" choice is excluded even when one branch is a primitive, since
+// the wire key is the branch-suffixed name, not the choice base.
+func hasPrimitiveSibling(e *model.Element) bool {
+	if e.IsChoice || e.IsBackbone() || e.ContentReference != "" {
+		return false
+	}
+	if len(e.Types) != 1 {
+		return false
+	}
+	return IsPrimitiveCode(e.Types[0].Code)
 }
 
 // chooseShape applies the cardinality rules to pick a field shape. A repeating

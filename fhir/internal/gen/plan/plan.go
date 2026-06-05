@@ -51,6 +51,18 @@ func (t PlannedType) KindNoun() string {
 	return "datatype"
 }
 
+// HasRepeatingPrimitive reports whether the type owns any repeating primitive
+// whose "_field" sibling array must be null-aligned on the wire, the condition
+// under which the emitter generates custom JSON methods for the value struct. A
+// scalar primitive's sibling round-trips through ordinary struct tags and needs no
+// custom code; only the positional alignment of a repeating primitive does.
+func (t PlannedType) HasRepeatingPrimitive() bool { return hasRepeatingPrimitive(t.Fields) }
+
+// RepeatingPrimitives returns the type's repeating-primitive sibling fields, the
+// ones the generated MarshalJSON null-aligns and the generated UnmarshalJSON lifts
+// out before decoding the value struct.
+func (t PlannedType) RepeatingPrimitives() []Field { return repeatingPrimitives(t.Fields) }
+
 // PlannedBackbone is one distinct nested backbone struct: a Go name and its fields.
 // Multiple occurrence paths that share the same shape collapse to one PlannedBackbone
 // (deduplicated by shape), so a resource with the same anonymous structure at several
@@ -58,6 +70,37 @@ func (t PlannedType) KindNoun() string {
 type PlannedBackbone struct {
 	GoName string
 	Fields []Field
+}
+
+// HasRepeatingPrimitive reports whether the backbone owns a repeating primitive
+// needing null-aligned "_field" marshalling.
+func (b PlannedBackbone) HasRepeatingPrimitive() bool { return hasRepeatingPrimitive(b.Fields) }
+
+// RepeatingPrimitives returns the backbone's repeating-primitive sibling fields.
+func (b PlannedBackbone) RepeatingPrimitives() []Field { return repeatingPrimitives(b.Fields) }
+
+// hasRepeatingPrimitive reports whether a field set contains a repeating-primitive
+// "_field" sibling.
+func hasRepeatingPrimitive(fields []Field) bool {
+	for _, f := range fields {
+		if f.IsPrimitiveSibling() && f.Repeats {
+			return true
+		}
+	}
+	return false
+}
+
+// repeatingPrimitives returns the repeating-primitive sibling fields in a field
+// set, in declaration order, so the emitter renders the null-alignment calls
+// deterministically.
+func repeatingPrimitives(fields []Field) []Field {
+	var out []Field
+	for _, f := range fields {
+		if f.IsPrimitiveSibling() && f.Repeats {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // Options tunes a planning run. The skeleton increment plans a single representative
@@ -141,8 +184,35 @@ func planFields(ownerType string, children []*model.Element, opts Options, used 
 		}
 
 		fields = append(fields, f)
+		if f.Primitive {
+			fields = append(fields, planPrimitiveSibling(f, used))
+		}
 	}
 	return fields
+}
+
+// planPrimitiveSibling builds the "_field" extension sibling for a primitive value
+// field: the XxxElement companion that carries the value's id and extensions
+// (Codex FHIR-005). A scalar primitive's sibling is a single *fhir.PrimitiveElement
+// keyed "_field"; a repeating primitive's sibling is a []*fhir.PrimitiveElement
+// null-aligned to the value array. The Go name is the value field's name with an
+// "Element" suffix, collision-resolved in the same scope so two siblings never
+// clash (and never clash with a real element literally named "<x>Element"). The
+// JSON wire key is the value's key prefixed with an underscore.
+func planPrimitiveSibling(value Field, used map[string]bool) Field {
+	goName := resolveCollision(value.GoName+"Element", used)
+	goType := "*fhir.PrimitiveElement"
+	if value.Repeats {
+		goType = "[]*fhir.PrimitiveElement"
+	}
+	return Field{
+		GoName:    goName,
+		GoType:    goType,
+		JSONName:  "_" + value.JSONName,
+		Optional:  true,
+		Repeats:   value.Repeats,
+		SiblingOf: value.GoName,
+	}
 }
 
 // planBackbone plans a nested backbone element into a distinct PlannedBackbone,

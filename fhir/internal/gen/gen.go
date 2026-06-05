@@ -39,10 +39,14 @@ type generatedType struct {
 	fileName string
 }
 
-// representativeDatatypes are the complex datatypes the generator currently emits —
-// one simple datatype that proves the pipeline end to end (load, model, plan, emit,
-// write).
+// representativeDatatypes are the complex datatypes the generator currently emits.
+// Period proves the simple pipeline end to end (load, model, plan, emit, write) with
+// two scalar primitive fields; HumanName proves the primitive-extension layer — the
+// scalar "_field" siblings (use, text, family), the null-aligned repeating siblings
+// (given, prefix, suffix), and the FHIR-005 no-sibling-on-complex rule (its period
+// field, a Period, gets no "_field" companion).
 var representativeDatatypes = []generatedType{
+	{fhirName: "HumanName", fileName: "human_name.go"},
 	{fhirName: "Period", fileName: "period.go"},
 }
 
