@@ -1,0 +1,91 @@
+{
+  "diagnosticReport": {
+    "resourceType": "DiagnosticReport",
+    "identifier": [
+      {
+        "system": "urn:dicom:uid",
+        "value": "urn:oid:1.2.840.113619.2.55.3.604688.1"
+      }
+    ],
+    "status": "final",
+    "category": [
+      {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+            "code": "IMG",
+            "display": "Diagnostic Imaging"
+          }
+        ]
+      }
+    ],
+    "code": {
+      "coding": [
+        {
+          "system": "http://loinc.org",
+          "code": "11528-7",
+          "display": "Radiology Report"
+        }
+      ],
+      "text": "Radiology Report"
+    },
+    "effectiveDateTime": "2005-05-30T08:00:00-05:00",
+    "result": [
+      {
+        "reference": "urn:uuid:aaa0cb85-d861-5a10-a563-e1cc36226c7d"
+      },
+      {
+        "reference": "urn:uuid:9e572b43-1435-5807-8c88-699ce84511f4"
+      }
+    ],
+    "conclusion": "Solitary pulmonary nodule."
+  },
+  "observations": [
+    {
+      "resourceType": "Observation",
+      "id": "aaa0cb85-d861-5a10-a563-e1cc36226c7d",
+      "status": "final",
+      "code": {
+        "coding": [
+          {
+            "system": "http://dicom.nema.org/resources/ontology/DCM",
+            "code": "121072",
+            "display": "Diagnosis"
+          }
+        ],
+        "text": "Diagnosis"
+      },
+      "valueCodeableConcept": {
+        "coding": [
+          {
+            "system": "http://snomed.info/sct",
+            "code": "168537006",
+            "display": "Normal"
+          }
+        ],
+        "text": "Normal"
+      }
+    },
+    {
+      "resourceType": "Observation",
+      "id": "9e572b43-1435-5807-8c88-699ce84511f4",
+      "status": "final",
+      "code": {
+        "coding": [
+          {
+            "system": "urn:dicom:scheme:SRT",
+            "code": "G-A437",
+            "display": "Diameter"
+          }
+        ],
+        "text": "Diameter"
+      },
+      "valueQuantity": {
+        "value": 12.5,
+        "unit": "millimeter",
+        "system": "http://unitsofmeasure.org",
+        "code": "mm"
+      }
+    }
+  ]
+}
