@@ -154,6 +154,20 @@ legacy codebase (`legacy-main`) and are not continued here.
   string (the FHIR-004 fix) — plus a per-release `registry.go` whose `init()` registers each resource's
   factory. The representative resource `r5.Flag` is generated end to end to exercise the identity API and
   the registry, pinned by emitter golden tests and the byte-for-byte regeneration gate.
+- Primitive types and the `_field` extension sibling: a shared `fhir.PrimitiveElement` (an `id` plus a
+  raw-JSON `extension`) referenced by every generated release primitive, and a planner/emitter that pairs
+  each true primitive element with its `_field` companion. A scalar primitive gains a
+  `XxxElement *fhir.PrimitiveElement` field that round-trips through ordinary struct tags; a repeating
+  primitive gains a `XxxElement []*fhir.PrimitiveElement` field and a generated `MarshalJSON`/`UnmarshalJSON`
+  pair that null-aligns the value array and the `_field` array, so a partially-extended repeating primitive
+  (`"given":["Jane","Q"]` / `"_given":[null,{"id":"x"}]`) lines up position-for-position on both marshal and
+  unmarshal. The companion is emitted only for a true primitive — never for a complex field, a `[x]` choice,
+  a backbone, or a `contentReference` boundary — so `contained`, `resource`, and `OperationOutcome.issue`
+  carry no spurious sibling (the FHIR-005 fix), and `decimal` maps to `fhir.Decimal`, never `float64`
+  (FHIR-009). The representative datatype `r5.HumanName` is generated end to end to exercise the scalar
+  siblings, the null-aligned repeating siblings, and the no-sibling-on-complex rule, pinned by planner and
+  emitter golden tests, the byte-for-byte regeneration gate, and root-package round-trip and null-alignment
+  unit tests.
 
 ### Documentation
 
