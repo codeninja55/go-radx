@@ -150,6 +150,56 @@ func TestValidateBundleInvariants(t *testing.T) {
 	assertNoPHI(t, oo)
 }
 
+// TestValidateBundleFullURLUniqueness exercises bdl-7/bdl-8: an exact duplicate fullUrl in a
+// collection is flagged, but the same fullUrl on two resources with different meta.versionId
+// is allowed (the versioned clause), and a history bundle is exempt entirely.
+func TestValidateBundleFullURLUniqueness(t *testing.T) {
+	makePatient := func(version string) *r5.Patient {
+		p := &r5.Patient{Active: boolPtr(true)}
+		if version != "" {
+			p.Meta = &r5.Meta{VersionId: strPtr(version)}
+		}
+		return p
+	}
+	entryAt := func(url string, p *r5.Patient) r5.BundleEntry {
+		return r5.BundleEntry{FullUrl: strPtr(url), Resource: func() *fhir.Resource { var r fhir.Resource = p; return &r }()}
+	}
+
+	// An exact duplicate fullUrl with no distinguishing version is a bdl-7 violation.
+	dup := r5.BundleTypeCollection
+	bDup := &r5.Bundle{Type: &dup, Entry: []r5.BundleEntry{
+		entryAt("urn:uuid:1", makePatient("")),
+		entryAt("urn:uuid:1", makePatient("")),
+	}}
+	if !hasIssue(fhir.Validate(bDup), "Bundle.entry[1].fullUrl", fhir.IssueTypeInvalid) {
+		t.Error("expected a bdl-7 duplicate-fullUrl issue for an exact duplicate")
+	}
+
+	// The same fullUrl on two different versions is allowed.
+	versioned := r5.BundleTypeCollection
+	bVersioned := &r5.Bundle{Type: &versioned, Entry: []r5.BundleEntry{
+		entryAt("urn:uuid:1", makePatient("1")),
+		entryAt("urn:uuid:1", makePatient("2")),
+	}}
+	for _, issue := range fhir.Validate(bVersioned).Issue {
+		if issue.Expression == "Bundle.entry[1].fullUrl" {
+			t.Errorf("two distinct versions sharing a fullUrl should be allowed (bdl-7), got %+v", issue)
+		}
+	}
+
+	// A history bundle is exempt from fullUrl uniqueness entirely.
+	hist := r5.BundleTypeHistory
+	bHist := &r5.Bundle{Type: &hist, Entry: []r5.BundleEntry{
+		entryAt("urn:uuid:1", makePatient("")),
+		entryAt("urn:uuid:1", makePatient("")),
+	}}
+	for _, issue := range fhir.Validate(bHist).Issue {
+		if issue.Expression == "Bundle.entry[1].fullUrl" {
+			t.Errorf("a history bundle should be exempt from fullUrl uniqueness (bdl-8), got %+v", issue)
+		}
+	}
+}
+
 // TestValidateBundleReferenceIntegrity confirms Validate composes the reference-integrity
 // walk: a dangling "#id" reference inside a bundle entry is reported as a not-found issue.
 func TestValidateBundleReferenceIntegrity(t *testing.T) {
