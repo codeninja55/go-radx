@@ -1,0 +1,15 @@
+{
+  "resourceType": "OperationOutcome",
+  "id": "wf-operationoutcome",
+  "text": {
+    "status": "generated",
+    "div": "\u003cdiv xmlns=\"http://www.w3.org/1999/xhtml\"\u003eSynthetic informational operation outcome\u003c/div\u003e"
+  },
+  "issue": [
+    {
+      "severity": "information",
+      "code": "informational",
+      "diagnostics": "Synthetic outcome for the conformance gate"
+    }
+  ]
+}

@@ -45,15 +45,17 @@ dcm4chee.postgres.digest=sha256:728c3055b894127c661a1645ffd0ccc2ad6461b86e957e24
 dcm4chee.arc.image=dcm4che/dcm4chee-arc-psql:5.34.2
 dcm4chee.arc.digest=sha256:316eba283d3c8538e4c3b954edcdd59572f76aa7271ca6336ddf771703082f8c
 
-# --- FHIR validator (mechanism pin; not invoked in CI until Phase 1 / M6a) ---
+# --- FHIR validator (live pin in .github/workflows/ci.yml fhir-conformance job + tools/fhir-conformance/validate.sh) ---
 # Mechanism decision: the official HL7 validator_cli.jar (hapifhir/org.hl7.fhir.core releases), NOT a
 # container. Rationale: the jar is the canonical reference, runs on the JDK every runner can install,
 # pins to a single immutable GitHub release asset, and avoids a second container registry dependency.
-# When the M6a gate is wired (a tools/fhir-conformance/ runner), it must download exactly this release
-# asset and verify it before use; record the asset SHA-256 here at that time.
+# The M6a gate (tools/fhir-conformance/validate.sh) downloads exactly this release asset (URL derived
+# from the version) and verifies the SHA-256 below before running it. Bumping the pin is a deliberate,
+# reviewed change: re-download the asset, recompute the SHA-256, and update both keys here together.
 fhir-validator.mechanism=validator_cli.jar
 fhir-validator.source=https://github.com/hapifhir/org.hl7.fhir.core/releases/tag/6.9.9
 fhir-validator.version=6.9.9
+fhir-validator.sha256=3621e140c6c149d99dfac01c8310377c95ce136d8b4c8a61d32f68768e87f267
 
 # --- Python reference libraries (parity/shape references; not installed by any current gate) ---
 # Recorded for the determinism contract: if a future gate installs either, it must pin the version

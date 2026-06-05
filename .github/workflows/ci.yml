@@ -95,6 +95,32 @@ jobs:
       - name: pydicom round-trip
         run: mise run dicom:pydicom
 
+  fhir-conformance:
+    name: FHIR R5 conformance (HL7 validator, merge-blocking)
+    runs-on: ubuntu-latest
+    env:
+      CI: "true" # flips tools/fhir-conformance/validate.sh from skip-locally to fail-if-absent
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3 # installs Go 1.26 per mise.toml [tools]; the gate runs `go run` for the fixtures
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install JDK 17 (the HL7 validator_cli.jar runs on the JDK)
+        # The validator is the official HL7 validator_cli.jar (NOT a container) — the M6a
+        # mechanism decision recorded in tools/versions. It is pinned by version AND SHA-256
+        # there; tools/fhir-conformance/validate.sh downloads exactly that release asset and
+        # verifies the checksum before running it, so the conformance result is reproducible
+        # rather than dependent on whatever the runner resolves at install time.
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: FHIR R5 conformance gate (workflow set + negative fixture)
+        # Marshals the go-radx-generated workflow set, validates it against R5 5.0.0 with the
+        # pinned validator (zero errors required), and asserts the deliberately-invalid
+        # negative fixture is REJECTED so the gate is proven to bite.
+        run: mise run conformance:fhir
+
   interop:
     name: Interop gate (${{ matrix.leg }} — testcontainers)
     runs-on: ubuntu-latest
