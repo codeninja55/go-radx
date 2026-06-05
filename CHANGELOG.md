@@ -273,8 +273,19 @@ legacy codebase (`legacy-main`) and are not continued here.
   `fhir/internal/gen/plan/descriptor_test.go`, and `fhir/internal/gen/emit/descriptor_golden_test.go`; the serialization
   section is filled in `docs/conformance/fhir.md`. The descriptor file regenerates byte-for-byte like the rest of the
   tree.
-
-### Documentation
+- Migrated the `convert` package and the M2 walking-skeleton end-to-end test off the hand-written FHIR R5 resources
+  onto the generated supersets (M6 Increment 12). Dropped the generator exclusion that kept `ServiceRequest`,
+  `DiagnosticReport`, `ImagingStudy`, and the `Identifier`/`Reference`/`Coding`/`CodeableConcept`/`CodeableReference`
+  datatypes hand-written, deleted those hand-written files and their tests, and regenerated the faithful R5 shapes
+  (every `StructureDefinition` field, choice fields via the sealed setters, required-binding `code` fields as closed
+  enums, base members embedded). Re-pointed the converters (`ORMToServiceRequestR5`, `SRToDiagnosticReportR5`,
+  `DICOMToImagingStudyR5`) at the generated types — `status`/`intent` now carry `RequestStatus`/`RequestIntent`/
+  `DiagnosticReportStatus`/`ImagingStudyStatus` enums, `DiagnosticReport.effective[x]` is set through
+  `SetEffectiveDateTime`, and the `unsignedInt` counts follow the generated `*int32` type — while preserving the
+  UID-to-Identifier identity rule (a DICOM UID is never a `Reference.reference` URL). Moved the hand-written
+  reference-resolution / integrity helpers into `fhir/r5/reference_integrity.go` so the generated `Reference` datatype
+  can own `fhir/r5/reference.go`, and removed the now-redundant hand-written validation descriptors for the three
+  workflow resources (the generator emits them). `TestSkeletonEndToEnd` stays green against the generated types.
 
 - Conformance-statement scaffolds for DICOMweb, DIMSE, cross-standard conversion, and the CLI/server surface, each
   flagged as not yet shipped; resolved the dangling DICOMweb cross-reference in the DICOM statement; annotated the
