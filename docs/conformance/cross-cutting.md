@@ -203,28 +203,37 @@ enumeration as it ships, so it stays the authoritative map of what the coverage 
 
 ## Concurrency and race posture
 
-go-radx is a concurrent library: the servers accept connections and dispatch handlers on their own goroutines, and the
-public APIs are documented as safe for concurrent use. That contract is held by a **standing required gate**, not by
-review alone. Every library test run is a race-detector run. The `cover` mise task — the one the `lint-test` job
-invokes through `cover:check` — is a single `go test -race -covermode=atomic -coverpkg=./... ./...` over the root
-module, so `-race` and the [coverage floor](#coverage-targets-and-critical-path-enumeration) are enforced by the same
-pass rather than two. `-covermode=atomic` is the coverage mode the race detector requires, so adding coverage did not
-weaken the race gate; the two are coupled by construction. The same race run is available locally via
+go-radx is a concurrent library: the servers accept connections and dispatch handlers on their own goroutines. Each
+public API documents its own concurrency contract — some types are safe for concurrent use (`dimse.Server` declares
+this), others are deliberately single-flight (`dimse.Association` documents that it is not safe for concurrent queries,
+because `LastError()` is per-association; run one `Find`/`Get`/`Move` iterator per association at a time). The library
+does not claim every public API is concurrent-safe; it claims every public API states its contract, and the race gate
+exists to catch a violation of either kind — a type that should be safe but races, or a single-flight type misused
+under test. That contract is held by a **standing required gate**, not by review alone. The `cover` mise task — the
+one the `lint-test` job invokes through `cover:check` — is a single
+`go test -race -covermode=atomic -coverpkg=./... ./...`
+over the root module, so `-race` and the [coverage floor](#coverage-targets-and-critical-path-enumeration) are enforced
+by the same pass rather than two. `-covermode=atomic` is the coverage mode the race detector requires, so adding
+coverage did not weaken the race gate; the two are coupled by construction. The same race run is available locally via
 `mise run cover:check` (or per-package via `mise run test:<subsystem>`, each of which is a `go test -race` task), and
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists `go test -race ./...` as a local pre-merge gate. The gate is standing:
 it is not opt-in per package and a new package inherits it the moment it has a test binary, because `./...` enumerates
 the whole module.
 
-The standing race gate is the **pure-Go default build** gate. It does not extend to the `codecs` job, and that is a
-deliberate scope decision rather than an omission. The `codecs` job builds the C-backed pixel codecs (`OpenJPEG`,
-`libjpeg-turbo`, `CharLS`) under cgo with the `dicom_openjpeg dicom_libjpeg dicom_charls` build tags; its
-`go test -tags "…" ./dicom/...` step runs **without** `-race`. The race detector instruments Go memory access, not
-the C libraries the codecs link, so a `-race` run there would slow the from-source codec build without exercising a
-new concurrent Go surface — the codec entry points are synchronous, per-call transcoders with no goroutines of their
-own. The concurrency that matters lives in the pure-Go servers, which the `lint-test` race gate already covers in
-full. If a future codec path spawns goroutines or shares mutable state across calls, that decision is revisited and a
-`-race` codec run is added at that point; until then the codec gate stays a correctness-and-link gate, and the race
-gate stays the pure-Go gate.
+The standing race gate is the **pure-Go default unit-test build** gate. Two test surfaces sit outside it by deliberate
+scope decision, not omission. The `codecs` job builds the C-backed pixel codecs (`OpenJPEG`, `libjpeg-turbo`,
+`CharLS`) under cgo with the `dicom_openjpeg dicom_libjpeg dicom_charls` build tags; its `go test -tags "…" ./dicom/...`
+step runs **without** `-race`. The race detector instruments Go memory access, not the C libraries the codecs link, so
+a `-race` run there would slow the from-source codec build without exercising a new concurrent Go surface — the codec
+entry points are synchronous, per-call transcoders with no goroutines of their own. The `interop` matrix legs
+(`mise run interop:<leg>`) also run without `-race`: they are `go test -tags interop -count=1` runs that drive real
+containerised origin servers (Orthanc, dcm4chee-arc), where the failure modes that matter are wire-protocol and
+round-trip correctness against an external server, not in-process Go data races, and a `-race` build would add
+instrumentation overhead to an already container-bound, resource-heavy leg. The concurrency that matters in-process
+lives in the pure-Go servers, which the `lint-test` race gate covers in full. If a future codec path spawns goroutines
+or shares mutable state across calls, or an interop test grows an in-process concurrent client harness worth racing,
+that decision is revisited and a `-race` run is added at that point; until then the codec and interop gates stay
+correctness gates, and the race gate stays the pure-Go unit-test gate.
 
 ### Per-server race checklist
 

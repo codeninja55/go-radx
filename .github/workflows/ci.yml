@@ -52,13 +52,14 @@ jobs:
         run: go build ./...
       - name: race tests + coverage floor (default build; race needs cgo but no codec libs)
         # This is the STANDING -race gate (docs/conformance/cross-cutting.md §"Concurrency and race
-        # posture"): every library test run is a race-detector run. cover:check runs the root-module
-        # suite as a single `go test -race -covermode=atomic -coverpkg=./... ./...` (writing one
-        # merged coverage profile), then fails the step if aggregate statement coverage drops below
-        # the PRD floor (§11.4). cover:check depends on cover, so the profile is produced before the
-        # floor is checked. -race must be preserved here (atomic is the cover mode -race requires);
-        # do not drop it to speed the step up. The codecs job intentionally runs without -race — see
-        # the cross-cutting posture for why the race gate is the pure-Go gate.
+        # posture"): the pure-Go default unit-test build runs under the race detector on every change.
+        # cover:check runs the root-module suite as a single
+        # `go test -race -covermode=atomic -coverpkg=./... ./...` (writing one merged coverage
+        # profile), then fails the step if aggregate statement coverage drops below the PRD floor
+        # (§11.4). cover:check depends on cover, so the profile is produced before the floor is
+        # checked. -race must be preserved here (atomic is the cover mode -race requires); do not drop
+        # it to speed the step up. The codecs and interop jobs intentionally run without -race — see
+        # the cross-cutting posture for why the race gate is the pure-Go unit-test gate.
         run: mise run cover:check
 
   conformance:
