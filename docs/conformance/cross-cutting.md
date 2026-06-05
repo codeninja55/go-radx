@@ -203,9 +203,86 @@ enumeration as it ships, so it stays the authoritative map of what the coverage 
 
 ## Concurrency and race posture
 
-Not yet authored. This section will declare the concurrency contract: no global mutable state, concurrent-safe public
-APIs, the standing `go test -race ./...` gate, and the per-server review checklist that a new server entry point must
-clear before it ships.
+go-radx is a concurrent library: the servers accept connections and dispatch handlers on their own goroutines, and the
+public APIs are documented as safe for concurrent use. That contract is held by a **standing required gate**, not by
+review alone. Every library test run is a race-detector run. The `cover` mise task — the one the `lint-test` job
+invokes through `cover:check` — is a single `go test -race -covermode=atomic -coverpkg=./... ./...` over the root
+module, so `-race` and the [coverage floor](#coverage-targets-and-critical-path-enumeration) are enforced by the same
+pass rather than two. `-covermode=atomic` is the coverage mode the race detector requires, so adding coverage did not
+weaken the race gate; the two are coupled by construction. The same race run is available locally via
+`mise run cover:check` (or per-package via `mise run test:<subsystem>`, each of which is a `go test -race` task), and
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists `go test -race ./...` as a local pre-merge gate. The gate is standing:
+it is not opt-in per package and a new package inherits it the moment it has a test binary, because `./...` enumerates
+the whole module.
+
+The standing race gate is the **pure-Go default build** gate. It does not extend to the `codecs` job, and that is a
+deliberate scope decision rather than an omission. The `codecs` job builds the C-backed pixel codecs (`OpenJPEG`,
+`libjpeg-turbo`, `CharLS`) under cgo with the `dicom_openjpeg dicom_libjpeg dicom_charls` build tags; its
+`go test -tags "…" ./dicom/...` step runs **without** `-race`. The race detector instruments Go memory access, not
+the C libraries the codecs link, so a `-race` run there would slow the from-source codec build without exercising a
+new concurrent Go surface — the codec entry points are synchronous, per-call transcoders with no goroutines of their
+own. The concurrency that matters lives in the pure-Go servers, which the `lint-test` race gate already covers in
+full. If a future codec path spawns goroutines or shares mutable state across calls, that decision is revisited and a
+`-race` codec run is added at that point; until then the codec gate stays a correctness-and-link gate, and the race
+gate stays the pure-Go gate.
+
+### Per-server race checklist
+
+A server entry point is the highest-value race surface in the library: it multiplexes inbound work across goroutines
+under a shared lifecycle (accept, dispatch, shutdown). Each server increment — a new server, or a new concurrent
+capability on an existing one — MUST exercise the following concurrent surfaces under `-race` before it ships, so the
+standing gate has assertions to bite on rather than passing vacuously. The list is the union of what a correct server
+lifecycle must survive; not every item applies to every server, but an increment must justify any it skips.
+
+- **Concurrent clients against one server.** Drive the server from multiple goroutines at once (multiple associations,
+  HTTP requests, or MLLP messages in flight) and assert no data race on shared server state.
+- **Bounded concurrency under load.** If the server caps concurrency (the `dimse.Server` semaphore is the model:
+  capacity is enforced *before* a handler goroutine is spawned, never after N+1 already exist), flood it past the cap
+  and assert excess work is refused without spawning unbounded goroutines or racing the counter.
+- **Graceful shutdown while work is in flight.** Park a handler mid-operation, call `Shutdown`, and assert
+  connections close and goroutines drain without a race between the accept loop, the in-flight handlers, and the
+  shutdown path.
+- **Idempotent and deadline-bounded shutdown.** Call `Shutdown` more than once, and call it with a deadline that
+  expires while a handler is still parked, asserting repeated calls share one waiter rather than leaking a goroutine
+  per call and that a second call with a fresh deadline still completes.
+- **Context cancellation stops the server.** Cancel the context passed to `ListenAndServe` (or the serve equivalent)
+  and assert the accept loop and its goroutines unwind cleanly.
+- **Per-connection timeouts.** Where the server enforces idle, negotiation, or completion timeouts, assert a timeout
+  fires on its own goroutine without racing a concurrent shutdown or a slow but legitimate large transfer.
+
+The surfaces each current and planned server must clear under `-race`:
+
+- **`dimse.Server`** (shipped). The accept loop, the semaphore-bounded spawn, `Shutdown` (idempotent,
+  deadline-bounded, and retried after a deadline), context-cancel stop, and the idle, negotiation, and completion
+  timeouts. This server is the reference implementation of the checklist below.
+- **`dicomweb.Server`** (shipped as a handler). An `http.Handler` mounted under a caller's mux: concurrent requests,
+  the fail-closed store path, and content-negotiation race-freedom. The full server lifecycle (shutdown, drain)
+  applies once it owns an `http.Server` rather than only exposing a handler.
+- **MLLP server (HL7 v2)** (planned). The accept loop over MLLP framing, concurrent message handling, ACK/NACK
+  ordering, and graceful shutdown — the same checklist as `dimse.Server`, since both are connection-accepting servers.
+- **FHIR server role** (planned). An `http.Handler` over FHIR resource routes: concurrent reads and writes,
+  reference integrity held under concurrency, and shutdown.
+- **daemon composition root** (`cmd/radx`, planned). The process that composes the servers above behind one
+  lifecycle: concurrent server startup, a shared signal-driven shutdown that drains every server, and no shared
+  mutable state across them.
+
+The `dimse.Server` suite ([`dimse/server_test.go`](../../dimse/server_test.go)) is the reference implementation of this
+checklist today: `TestServerMaxAssociationsRefusesBeforeSpawn`,
+`TestServerShutdownClosesConnectionsWhileHandlerBlocked`, `TestServerShutdownIsIdempotent`,
+`TestServerShutdownRetryAfterDeadline`, `TestServerListenAndServeStopsOnContextCancel`, and the idle, negotiation, and
+completion-timeout tests each pin one item of the list above and all run under the standing `-race` gate. A new
+server's increment is not done until its tests cover the applicable items the same way.
+
+### Known intermittent race (not yet root-caused)
+
+Honesty about the standing-gate claim requires recording one open risk. A single `go test -race ./...` failure was
+observed **once** on GitHub CI, on commit `e2c12ab`, and did **not** reproduce in three local race runs of the full
+suite afterward. It has **not** been root-caused, so it is not yet possible to say which package or which concurrent
+surface produced it, nor to assert it is a test-harness artefact rather than a real data race. It is recorded here as a
+**known, not-yet-reproduced intermittent** flagged for M8 hardening, where the work is to reproduce it under a stress
+loop (`go test -race -count=N -run …`), localise it, and either fix the underlying race or prove the flake is in test
+setup. Until then the standing-race-gate claim is accurate but not absolute: the gate runs on every change and the
+current concurrent code passes it, yet one historical intermittent remains open and unexplained.
 
 ## Conformance-drift methodology
 
@@ -229,7 +306,7 @@ release is tagged.
 
 The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines six jobs:
 `lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, the `pin-drift` check, and
-the race-test step that also enforces the
+the standing [`-race` gate](#concurrency-and-race-posture) step that also enforces the
 [coverage floor](#coverage-targets-and-critical-path-enumeration)),
 `conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`), `interop` (the testcontainers matrix over the DIMSE,
 DICOMweb, and convert legs), `govulncheck` (the vulnerability scan of the root module), `cmd-radx` (build, vet, lint,
