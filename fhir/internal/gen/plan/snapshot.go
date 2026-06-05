@@ -22,10 +22,21 @@ func Snapshot(pt PlannedType) string {
 	return b.String()
 }
 
-// writeFields renders a field list indented by depth, one field per line.
+// writeFields renders a field list indented by depth, one field per line. A
+// primitive value field is tagged "primitive" and a generated "_field" sibling
+// records the value it pairs with, so the golden pins the primitive-extension
+// decisions (which fields are primitives, which carry siblings) the same way it
+// pins the pointer/slice choice.
 func writeFields(b *strings.Builder, fields []Field, depth int) {
 	indent := strings.Repeat("  ", depth)
 	for _, f := range fields {
-		fmt.Fprintf(b, "%sfield %s %s json=%s optional=%t\n", indent, f.GoName, f.GoType, f.JSONName, f.Optional)
+		fmt.Fprintf(b, "%sfield %s %s json=%s optional=%t", indent, f.GoName, f.GoType, f.JSONName, f.Optional)
+		switch {
+		case f.IsPrimitiveSibling():
+			fmt.Fprintf(b, " sibling-of=%s", f.SiblingOf)
+		case f.Primitive:
+			b.WriteString(" primitive")
+		}
+		b.WriteByte('\n')
 	}
 }

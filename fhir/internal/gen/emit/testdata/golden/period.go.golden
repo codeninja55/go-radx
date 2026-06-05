@@ -2,8 +2,77 @@
 
 package r5
 
+import (
+	"encoding/json"
+	"github.com/codeninja55/go-radx/fhir"
+)
+
 // Period is the generated FHIR Period datatype.
 type Period struct {
-	Start *string `json:"start,omitempty"`
-	End   *string `json:"end,omitempty"`
+	Start        *string                `json:"start,omitempty"`
+	StartElement *fhir.PrimitiveElement `json:"-"`
+	End          *string                `json:"end,omitempty"`
+	EndElement   *fhir.PrimitiveElement `json:"-"`
+}
+
+// MarshalJSON folds the primitive "_field" siblings into the encoded value: a scalar
+// sibling is dropped when it carries no id or extension, and a repeating sibling's
+// array is null-aligned with its value array, so a partially-extended repeating
+// primitive lines up position-for-position on the wire (a position with no
+// id/extension becomes a JSON null in the "_field" array).
+func (v Period) MarshalJSON() ([]byte, error) {
+	type alias Period
+	encoded, err := json.Marshal(alias(v))
+	if err != nil {
+		return nil, err
+	}
+	return marshalPeriodSiblings(&v, encoded)
+}
+
+// marshalPeriodSiblings appends the primitive "_field" siblings to the
+// already-encoded object, preserving the value fields' canonical order: an empty
+// scalar sibling and an un-extended repeating sibling are skipped, and a repeating
+// sibling's array is null-aligned with its value array.
+func marshalPeriodSiblings(v *Period, encoded []byte) ([]byte, error) {
+	var siblings []fhir.RawSibling
+	if raw, err := fhir.MarshalPrimitiveExtension(v.StartElement); err != nil {
+		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_start", Value: raw})
+	}
+	if raw, err := fhir.MarshalPrimitiveExtension(v.EndElement); err != nil {
+		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_end", Value: raw})
+	}
+	return fhir.AppendSiblings(encoded, siblings)
+}
+
+// UnmarshalJSON lifts each primitive "_field" sibling out of the object, decodes it
+// into its companion field, then decodes the remaining keys into the value struct.
+func (v *Period) UnmarshalJSON(data []byte) error {
+	obj, err := fhir.SplitRawObject(data)
+	if err != nil {
+		return err
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_start"); ok {
+		var element fhir.PrimitiveElement
+		if err := json.Unmarshal(raw, &element); err != nil {
+			return err
+		}
+		v.StartElement = &element
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_end"); ok {
+		var element fhir.PrimitiveElement
+		if err := json.Unmarshal(raw, &element); err != nil {
+			return err
+		}
+		v.EndElement = &element
+	}
+	residual, err := fhir.RemarshalObject(obj)
+	if err != nil {
+		return err
+	}
+	type alias Period
+	return json.Unmarshal(residual, (*alias)(v))
 }

@@ -281,6 +281,45 @@ arrays with `null` placeholders so positions line up between the value array and
 is generated **only** for true primitive elements, never for complex fields such as `contained`, `resource`, or `issue`
 (Codex FHIR-005).
 
+The shared sibling type lives in the root package and is referenced by every generated release primitive:
+
+```go
+package fhir
+
+// PrimitiveElement carries the id and extensions a FHIR primitive may hold
+// alongside its value, serialised under the "_field" key.
+type PrimitiveElement struct {
+    ID        *string         `json:"id,omitempty"`
+    Extension json.RawMessage `json:"extension,omitempty"`
+}
+```
+
+For each true primitive element the generator emits a paired companion field next to the value field. A **scalar**
+primitive `Status *string` gains `StatusElement *fhir.PrimitiveElement` tagged `json:"_status,omitempty"`; the value and
+its companion round-trip through ordinary struct tags. A **repeating** primitive `Given []string` gains
+`GivenElement []*fhir.PrimitiveElement` and a generated `MarshalJSON`/`UnmarshalJSON` pair that null-aligns the two
+arrays. On marshal, `["Jane","Q"]` with an id on the second element only serialises as `"given":["Jane","Q"]` and
+`"_given":[null,{"id":"x"}]`, the `null` keeping the companion array index-aligned with the value array; the `_given`
+key is omitted entirely when no position carries an id or extension. On unmarshal, the `null` placeholder is restored as
+a `nil` companion entry so the alignment survives both directions. The Go field identifier never contains the underscore
+— the underscore appears only on the JSON wire key.
+
+The `_field` companion is emitted only for an element whose single type is a FHIR primitive. A complex field
+(`HumanName.period`, a `Period`), a `[x]` choice (whose branches box their own primitives under the suffixed wire key),
+a backbone, and a `contentReference` recursion boundary all get no companion, so `contained`, `resource`, and
+`OperationOutcome.issue` are never given a spurious `_field` sibling (Codex FHIR-005).
+
+The `_field` companion fold preserves canonical element ordering: the value fields are encoded in their
+struct-declared order and the `_field` siblings are appended after them, rather than routed through a map (which would
+re-sort every key alphabetically).
+
+> **Limitation (repeating extension-only positions).** A repeating primitive's value slice is a plain Go slice
+> (`[]string`, `[]fhir.Decimal`), so a value-side JSON `null` — the FHIR encoding of a position that carries only an
+> extension and no value, `"given":[null,"Q"]` — decodes to the Go zero value and re-marshals as that zero value rather
+> than `null`. The `_field` extension data at that position still round-trips and stays index-aligned; only the
+> value-side `null` placeholder is lost. Nullable value elements (and the presence semantics that go with them) are an
+> Increment 6 concern, since they change every repeating primitive's value type.
+
 ### Bundle and summary
 
 `Bundle` is a resource, so like every resource it is generated per release: the type, its
@@ -599,12 +638,15 @@ boundaries, each stage gated by its own tests:
    separately.
 
 > **Implementation status: PARTIAL.** The loader, the model / IR stage, the planner and emitter skeleton, the resource
-> identity API (`Unmarshal[T]`, `As[T]`, `UnmarshalResource` with the FHIR-003 `resourceType` check), and the
-> init-populated `resourceType`→factory registry are implemented and tested. One representative datatype (`r5.Period`)
-> and one representative resource (`r5.Flag`, with its `ResourceType` method, always-emit-`resourceType` `MarshalJSON`,
-> and a generated registry entry) are generated end to end to prove the pipeline, the identity API, and the
-> byte-for-byte regeneration gate. The full datatype, resource, backbone, choice, enum, and Bundle generation, the
-> primitive-extension siblings, and the generated `fhir/r4` output, are not yet shipped.
+> identity API (`Unmarshal[T]`, `As[T]`, `UnmarshalResource` with the FHIR-003 `resourceType` check), the
+> init-populated `resourceType`→factory registry, the primitive → Go scalar mapping (with `decimal`→`fhir.Decimal`,
+> FHIR-009), and the primitive-extension `_field` sibling machinery (shared `fhir.PrimitiveElement`, scalar and
+> null-aligned repeating siblings, FHIR-005 no-sibling-on-complex) are implemented and tested. Representative datatypes
+> (`r5.Period`, and `r5.HumanName` which exercises the scalar siblings, the null-aligned repeating siblings, and the
+> FHIR-005 rule) and one representative resource (`r5.Flag`, with its `ResourceType` method, always-emit-`resourceType`
+> `MarshalJSON`, a primitive `_status` sibling, and a generated registry entry) are generated end to end to prove the
+> pipeline, the identity API, and the byte-for-byte regeneration gate. The full datatype, resource, backbone, choice,
+> enum, and Bundle generation, and the generated `fhir/r4` output, are not yet shipped.
 
 ## What this statement fixes (re-foundation note)
 

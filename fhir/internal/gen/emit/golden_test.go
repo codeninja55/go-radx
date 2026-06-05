@@ -40,6 +40,33 @@ func TestEmitPeriodGolden(t *testing.T) {
 	}
 }
 
+// TestEmitHumanNameGolden emits the representative primitive-extension datatype end
+// to end and pins the formatted Go against a committed golden. HumanName carries the
+// full primitive layer: scalar "_field" siblings (use, family) round-tripped through
+// ordinary struct tags, null-aligned repeating siblings (given, prefix, suffix) with
+// their generated MarshalJSON/UnmarshalJSON, and the FHIR-005 rule that its complex
+// Period field gets no "_field" companion. A regression in any of those is caught
+// here before it reaches the generated tree.
+func TestEmitHumanNameGolden(t *testing.T) {
+	got := emitType(t, "HumanName")
+
+	goldenPath := filepath.Join("testdata", "golden", "human_name.go.golden")
+	if *updateGolden {
+		if err := os.WriteFile(goldenPath, got, 0o644); err != nil {
+			t.Fatalf("write golden %s: %v", goldenPath, err)
+		}
+		return
+	}
+
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("read golden %s (run `go test ./fhir/internal/gen/emit -update` to create it): %v", goldenPath, err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("emitted HumanName drifted from golden %s.\nwant:\n%s\ngot:\n%s", goldenPath, string(want), string(got))
+	}
+}
+
 // TestEmitFlagGolden emits the representative resource end to end and pins the
 // formatted Go against a committed golden. Beyond the struct, the golden carries the
 // resource-specific output the resource shape adds: the resourceType constant, the

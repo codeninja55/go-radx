@@ -113,20 +113,28 @@ func EmitRegistry(r Registry) ([]byte, error) {
 
 // requiredImports computes the deduplicated, sorted import paths the planned types
 // reference. It recognises the dependencies the generated code in this stage can
-// carry: the root fhir import when a field uses fhir.Decimal, and encoding/json when
-// any type is a resource (whose generated MarshalJSON calls json.Marshal). Sorting
-// keeps the import block stable across runs.
+// carry: the root fhir import (fhir.Decimal, fhir.PrimitiveElement, and the
+// "_field" sibling helpers) and encoding/json (a resource's always-resourceType
+// MarshalJSON and the "_field" sibling marshal/unmarshal methods all call into
+// encoding/json). Sorting keeps the import block stable across runs.
 func requiredImports(types []plan.PlannedType) []string {
-	const decimalImport = "github.com/codeninja55/go-radx/fhir"
+	const fhirImport = "github.com/codeninja55/go-radx/fhir"
 	const jsonImport = "encoding/json"
 	set := map[string]bool{}
 	for _, t := range types {
 		if t.IsResource() {
 			set[jsonImport] = true
 		}
+		if hasPrimitiveSibling(t) {
+			set[jsonImport] = true
+			set[fhirImport] = true
+		}
 		for _, f := range allFields(t) {
 			if usesDecimal(f.GoType) {
-				set[decimalImport] = true
+				set[fhirImport] = true
+			}
+			if f.IsPrimitiveSibling() {
+				set[fhirImport] = true
 			}
 		}
 	}
@@ -136,6 +144,21 @@ func requiredImports(types []plan.PlannedType) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// hasPrimitiveSibling reports whether a planned type or any of its backbones owns a
+// primitive "_field" sibling, so the import set includes the dependencies the
+// generated sibling marshal/unmarshal methods need.
+func hasPrimitiveSibling(t plan.PlannedType) bool {
+	if t.HasPrimitiveSibling() {
+		return true
+	}
+	for _, bb := range t.Backbones {
+		if bb.HasPrimitiveSibling() {
+			return true
+		}
+	}
+	return false
 }
 
 // allFields flattens a planned type's top-level fields and its backbones' fields, so

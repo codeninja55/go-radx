@@ -106,9 +106,96 @@ func TestPlanFieldDecimalMapsToDecimal(t *testing.T) {
 	}
 }
 
+// TestPrimitiveGoTypeTable pins the FHIR primitive → Go scalar mapping against
+// fhir.md's table: boolean to bool, the integer family to sized integers, the
+// string and date/time families to string, and decimal to fhir.Decimal so lexical
+// precision survives a round trip rather than collapsing to float64 (Codex
+// FHIR-009). The table is the planner's authority for primitive-ness, so a drift
+// here changes every generated primitive field.
+func TestPrimitiveGoTypeTable(t *testing.T) {
+	t.Parallel()
+	want := map[string]string{
+		"boolean":      "bool",
+		"integer":      "int32",
+		"positiveInt":  "int32",
+		"unsignedInt":  "int32",
+		"integer64":    "int64",
+		"decimal":      "fhir.Decimal",
+		"string":       "string",
+		"code":         "string",
+		"id":           "string",
+		"markdown":     "string",
+		"uri":          "string",
+		"url":          "string",
+		"canonical":    "string",
+		"oid":          "string",
+		"uuid":         "string",
+		"base64Binary": "string",
+		"instant":      "string",
+		"dateTime":     "string",
+		"date":         "string",
+		"time":         "string",
+		"xhtml":        "string",
+	}
+	for code, goType := range want {
+		if got := primitiveGoTypes[code]; got != goType {
+			t.Errorf("primitiveGoTypes[%q] = %q, want %q", code, got, goType)
+		}
+	}
+	if len(primitiveGoTypes) != len(want) {
+		t.Errorf("primitiveGoTypes has %d entries, want %d; the table drifted from fhir.md", len(primitiveGoTypes), len(want))
+	}
+	if got := primitiveGoTypes["decimal"]; got == "float64" {
+		t.Error("decimal maps to float64; it must map to fhir.Decimal (FHIR-009)")
+	}
+}
+
+// TestNoPrimitiveSiblingOnComplexField is the FHIR-005 planner regression: a complex
+// field (a CodeableConcept, a Reference, a backbone) is not a primitive and carries
+// no "_field" sibling, so the planner emits no companion field for it.
+func TestNoPrimitiveSiblingOnComplexField(t *testing.T) {
+	t.Parallel()
+	complexElem := &model.Element{
+		Name:        "code",
+		Path:        "Flag.code",
+		Cardinality: model.Cardinality{Min: 0, Max: "1"},
+		Types:       []model.TypeRef{{Code: "CodeableConcept"}},
+	}
+	if PlanField(complexElem).Primitive {
+		t.Error("a CodeableConcept field is marked primitive; it must not carry a \"_field\" sibling (FHIR-005)")
+	}
+
+	backbone := &model.Element{
+		Name:        "issue",
+		Path:        "OperationOutcome.issue",
+		Cardinality: model.Cardinality{Min: 1, Max: "*"},
+		Types:       []model.TypeRef{{Code: "BackboneElement"}},
+		Children:    []*model.Element{{Name: "code", Path: "OperationOutcome.issue.code", Types: []model.TypeRef{{Code: "code"}}}},
+	}
+	if PlanField(backbone).Primitive {
+		t.Error("a backbone field is marked primitive; it must not carry a \"_field\" sibling (FHIR-005)")
+	}
+
+	choice := &model.Element{
+		Name:        "value[x]",
+		Path:        "Extension.value[x]",
+		IsChoice:    true,
+		ChoiceBase:  "value",
+		Cardinality: model.Cardinality{Min: 0, Max: "1"},
+		Types:       []model.TypeRef{{Code: "string"}, {Code: "boolean"}},
+	}
+	if PlanField(choice).Primitive {
+		t.Error("a choice field is marked primitive; it must not carry a \"_field\" sibling (FHIR-005)")
+	}
+}
+
 // TestPlanCollisionDeterministic asserts two FHIR element names that map to the same
 // Go identifier within one struct resolve to a stable, ascending-suffixed pair, so
-// the generated output is byte-stable regardless of map iteration order.
+// the generated output is byte-stable regardless of map iteration order. The scalar
+// string primitive "value" also contributes its "_field" sibling ("ValueElement"),
+// which the choice element "value[x]" must skip when resolving its own collision, so
+// the choice lands on "Value2" — not "Value" (taken by the primitive value) nor a
+// clash with the sibling.
 func TestPlanCollisionDeterministic(t *testing.T) {
 	t.Parallel()
 	root := &model.Element{
@@ -121,11 +208,20 @@ func TestPlanCollisionDeterministic(t *testing.T) {
 	}
 	ty := &model.Type{Name: "Thing", Kind: model.KindComplexType, Root: root}
 	pt := PlanType(ty, Options{})
-	if len(pt.Fields) != 2 {
-		t.Fatalf("planned %d fields, want 2", len(pt.Fields))
+	if len(pt.Fields) != 3 {
+		t.Fatalf("planned %d fields %+v, want 3 (value, ValueElement, value[x])", len(pt.Fields), pt.Fields)
 	}
-	if pt.Fields[0].GoName != "Value" || pt.Fields[1].GoName != "Value2" {
-		t.Errorf("collision resolution = (%q, %q), want (Value, Value2)", pt.Fields[0].GoName, pt.Fields[1].GoName)
+	if pt.Fields[0].GoName != "Value" || pt.Fields[1].GoName != "ValueElement" || pt.Fields[2].GoName != "Value2" {
+		t.Errorf("collision resolution = (%q, %q, %q), want (Value, ValueElement, Value2)",
+			pt.Fields[0].GoName, pt.Fields[1].GoName, pt.Fields[2].GoName)
+	}
+	if pt.Fields[1].SiblingOf != "Value" {
+		t.Errorf("sibling SiblingOf = %q, want Value", pt.Fields[1].SiblingOf)
+	}
+	// The choice element must not be mistaken for a primitive: a "[x]" choice gets no
+	// "_field" companion (its branches box their own primitives).
+	if pt.Fields[2].IsPrimitiveSibling() {
+		t.Error("the choice element must not be a primitive sibling (it has no \"_field\" companion)")
 	}
 }
 
@@ -173,8 +269,13 @@ func TestPlanSkipsBaseMembers(t *testing.T) {
 	}
 	ty := &model.Type{Name: "Period", Kind: model.KindComplexType, Root: root}
 	pt := PlanType(ty, Options{SkipBaseMembers: true})
-	if len(pt.Fields) != 1 || pt.Fields[0].GoName != "Start" {
-		t.Fatalf("SkipBaseMembers planned %d fields %+v, want only Start", len(pt.Fields), pt.Fields)
+	// The base members (id, extension) are skipped; the one own element (start, a
+	// dateTime primitive) survives along with its generated "_field" sibling.
+	if len(pt.Fields) != 2 {
+		t.Fatalf("SkipBaseMembers planned %d fields %+v, want Start and StartElement", len(pt.Fields), pt.Fields)
+	}
+	if pt.Fields[0].GoName != "Start" || pt.Fields[1].GoName != "StartElement" {
+		t.Errorf("SkipBaseMembers fields = (%q, %q), want (Start, StartElement)", pt.Fields[0].GoName, pt.Fields[1].GoName)
 	}
 }
 
