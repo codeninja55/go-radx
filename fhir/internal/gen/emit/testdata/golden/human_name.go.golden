@@ -2,15 +2,17 @@
 
 package r5
 
-import "encoding/json"
-import "github.com/codeninja55/go-radx/fhir"
+import (
+	"encoding/json"
+	"github.com/codeninja55/go-radx/fhir"
+)
 
 // HumanName is the generated FHIR HumanName datatype.
 type HumanName struct {
 	Use           *string                  `json:"use,omitempty"`
-	UseElement    *fhir.PrimitiveElement   `json:"_use,omitempty"`
+	UseElement    *fhir.PrimitiveElement   `json:"-"`
 	Family        *string                  `json:"family,omitempty"`
-	FamilyElement *fhir.PrimitiveElement   `json:"_family,omitempty"`
+	FamilyElement *fhir.PrimitiveElement   `json:"-"`
 	Given         []string                 `json:"given,omitempty"`
 	GivenElement  []*fhir.PrimitiveElement `json:"-"`
 	Prefix        []string                 `json:"prefix,omitempty"`
@@ -20,10 +22,11 @@ type HumanName struct {
 	Period        *Period                  `json:"period,omitempty"`
 }
 
-// MarshalJSON null-aligns the repeating primitives' "_field" sibling arrays with
-// their value arrays, so a partially-extended repeating primitive lines up
-// position-for-position on the wire (a position with no id/extension becomes a JSON
-// null in the "_field" array).
+// MarshalJSON folds the primitive "_field" siblings into the encoded value: a scalar
+// sibling is dropped when it carries no id or extension, and a repeating sibling's
+// array is null-aligned with its value array, so a partially-extended repeating
+// primitive lines up position-for-position on the wire (a position with no
+// id/extension becomes a JSON null in the "_field" array).
 func (v HumanName) MarshalJSON() ([]byte, error) {
 	type alias HumanName
 	encoded, err := json.Marshal(alias(v))
@@ -33,39 +36,60 @@ func (v HumanName) MarshalJSON() ([]byte, error) {
 	return marshalHumanNameSiblings(&v, encoded)
 }
 
-// marshalHumanNameSiblings folds each repeating primitive's null-aligned
-// "_field" array into the already-encoded object, keeping the value array and its
-// companion array in the same index space.
+// marshalHumanNameSiblings appends the primitive "_field" siblings to the
+// already-encoded object, preserving the value fields' canonical order: an empty
+// scalar sibling and an un-extended repeating sibling are skipped, and a repeating
+// sibling's array is null-aligned with its value array.
 func marshalHumanNameSiblings(v *HumanName, encoded []byte) ([]byte, error) {
-	obj, err := fhir.SplitRawObject(encoded)
-	if err != nil {
+	var siblings []fhir.RawSibling
+	if raw, err := fhir.MarshalPrimitiveExtension(v.UseElement); err != nil {
 		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_use", Value: raw})
+	}
+	if raw, err := fhir.MarshalPrimitiveExtension(v.FamilyElement); err != nil {
+		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_family", Value: raw})
 	}
 	if raw, err := fhir.MarshalPrimitiveExtensions(len(v.Given), v.GivenElement); err != nil {
 		return nil, err
 	} else {
-		fhir.SetRawField(obj, "_given", raw)
+		siblings = append(siblings, fhir.RawSibling{Key: "_given", Value: raw})
 	}
 	if raw, err := fhir.MarshalPrimitiveExtensions(len(v.Prefix), v.PrefixElement); err != nil {
 		return nil, err
 	} else {
-		fhir.SetRawField(obj, "_prefix", raw)
+		siblings = append(siblings, fhir.RawSibling{Key: "_prefix", Value: raw})
 	}
 	if raw, err := fhir.MarshalPrimitiveExtensions(len(v.Suffix), v.SuffixElement); err != nil {
 		return nil, err
 	} else {
-		fhir.SetRawField(obj, "_suffix", raw)
+		siblings = append(siblings, fhir.RawSibling{Key: "_suffix", Value: raw})
 	}
-	return fhir.RemarshalObject(obj)
+	return fhir.AppendSiblings(encoded, siblings)
 }
 
-// UnmarshalJSON lifts each repeating primitive's "_field" array out of the object,
-// decodes it into the null-aligned sibling slice, then decodes the remaining keys
-// into the value struct (which has no field bound to the "_field" keys).
+// UnmarshalJSON lifts each primitive "_field" sibling out of the object, decodes it
+// into its companion field, then decodes the remaining keys into the value struct.
 func (v *HumanName) UnmarshalJSON(data []byte) error {
 	obj, err := fhir.SplitRawObject(data)
 	if err != nil {
 		return err
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_use"); ok {
+		var element fhir.PrimitiveElement
+		if err := json.Unmarshal(raw, &element); err != nil {
+			return err
+		}
+		v.UseElement = &element
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_family"); ok {
+		var element fhir.PrimitiveElement
+		if err := json.Unmarshal(raw, &element); err != nil {
+			return err
+		}
+		v.FamilyElement = &element
 	}
 	if raw, ok := fhir.TakeRawField(obj, "_given"); ok {
 		elements, err := fhir.UnmarshalPrimitiveExtensions(raw)

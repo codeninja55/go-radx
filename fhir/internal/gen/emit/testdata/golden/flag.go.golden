@@ -2,8 +2,10 @@
 
 package r5
 
-import "encoding/json"
-import "github.com/codeninja55/go-radx/fhir"
+import (
+	"encoding/json"
+	"github.com/codeninja55/go-radx/fhir"
+)
 
 // FlagResourceType is the FHIR resourceType discriminator for Flag.
 const FlagResourceType = "Flag"
@@ -12,7 +14,7 @@ const FlagResourceType = "Flag"
 type Flag struct {
 	Identifier    []Identifier           `json:"identifier,omitempty"`
 	Status        *string                `json:"status,omitempty"`
-	StatusElement *fhir.PrimitiveElement `json:"_status,omitempty"`
+	StatusElement *fhir.PrimitiveElement `json:"-"`
 	Category      []CodeableConcept      `json:"category,omitempty"`
 	Code          *CodeableConcept       `json:"code,omitempty"`
 	Subject       *Reference             `json:"subject,omitempty"`
@@ -26,14 +28,57 @@ func (r *Flag) ResourceType() string { return FlagResourceType }
 
 // MarshalJSON emits the resource with "resourceType" as the first JSON key, always
 // carrying the type constant — even for a zero value, so a Flag never
-// serialises an empty "resourceType".
+// serialises an empty "resourceType". The primitive "_field" siblings are folded in
+// afterwards: a scalar sibling is dropped when it carries no id or extension, and a
+// repeating sibling's array is null-aligned with its value array so positions line
+// up on the wire.
 func (r *Flag) MarshalJSON() ([]byte, error) {
 	type alias Flag
-	return json.Marshal(struct {
+	encoded, err := json.Marshal(struct {
 		ResourceType string `json:"resourceType"`
 		*alias
 	}{
 		ResourceType: FlagResourceType,
 		alias:        (*alias)(r),
 	})
+	if err != nil {
+		return nil, err
+	}
+	return marshalFlagSiblings(r, encoded)
+}
+
+// marshalFlagSiblings appends the primitive "_field" siblings to the
+// already-encoded object, preserving the value fields' canonical order: an empty
+// scalar sibling and an un-extended repeating sibling are skipped, and a repeating
+// sibling's array is null-aligned with its value array.
+func marshalFlagSiblings(v *Flag, encoded []byte) ([]byte, error) {
+	var siblings []fhir.RawSibling
+	if raw, err := fhir.MarshalPrimitiveExtension(v.StatusElement); err != nil {
+		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_status", Value: raw})
+	}
+	return fhir.AppendSiblings(encoded, siblings)
+}
+
+// UnmarshalJSON lifts each primitive "_field" sibling out of the object, decodes it
+// into its companion field, then decodes the remaining keys into the value struct.
+func (v *Flag) UnmarshalJSON(data []byte) error {
+	obj, err := fhir.SplitRawObject(data)
+	if err != nil {
+		return err
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_status"); ok {
+		var element fhir.PrimitiveElement
+		if err := json.Unmarshal(raw, &element); err != nil {
+			return err
+		}
+		v.StatusElement = &element
+	}
+	residual, err := fhir.RemarshalObject(obj)
+	if err != nil {
+		return err
+	}
+	type alias Flag
+	return json.Unmarshal(residual, (*alias)(v))
 }
