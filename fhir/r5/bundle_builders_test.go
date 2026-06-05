@@ -233,3 +233,51 @@ func TestDocumentRejectsDuplicateFullURL(t *testing.T) {
 		t.Fatalf("err = %v, want ErrInvalidBundle", err)
 	}
 }
+
+func TestNewMessageRejectsTypedNilHeader(t *testing.T) {
+	var typedNil *r5.MessageHeader
+	_, err := r5.NewMessage(typedNil)
+	if !errors.Is(err, r5.ErrInvalidBundle) {
+		t.Fatalf("typed-nil header err = %v, want ErrInvalidBundle", err)
+	}
+}
+
+func TestContentBuildersRejectNilResource(t *testing.T) {
+	var nilObs *r5.Observation
+
+	if _, err := r5.NewSearchSet(0, r5.SearchEntry{Resource: nilObs}); !errors.Is(err, r5.ErrInvalidBundle) {
+		t.Errorf("NewSearchSet nil resource err = %v, want ErrInvalidBundle", err)
+	}
+	if _, err := r5.NewCollection(r5.CollectionEntry{Resource: nilObs}); !errors.Is(err, r5.ErrInvalidBundle) {
+		t.Errorf("NewCollection nil resource err = %v, want ErrInvalidBundle", err)
+	}
+	if _, err := r5.NewCollection(r5.CollectionEntry{}); !errors.Is(err, r5.ErrInvalidBundle) {
+		t.Errorf("NewCollection absent resource err = %v, want ErrInvalidBundle", err)
+	}
+	if _, err := r5.NewDocument(&r5.Composition{}, r5.DocumentEntry{Resource: nilObs}); !errors.Is(err, r5.ErrInvalidBundle) {
+		t.Errorf("NewDocument nil trailing resource err = %v, want ErrInvalidBundle", err)
+	}
+	if _, err := r5.NewMessage(&r5.MessageHeader{}, r5.MessageEntry{Resource: nilObs}); !errors.Is(err, r5.ErrInvalidBundle) {
+		t.Errorf("NewMessage nil trailing resource err = %v, want ErrInvalidBundle", err)
+	}
+}
+
+func TestSearchSetRejectsDuplicateFullURL(t *testing.T) {
+	_, err := r5.NewSearchSet(2,
+		r5.SearchEntry{FullURL: "urn:uuid:dup", Resource: &r5.Observation{}},
+		r5.SearchEntry{FullURL: "urn:uuid:dup", Resource: &r5.Observation{}},
+	)
+	if !errors.Is(err, r5.ErrInvalidBundle) {
+		t.Fatalf("err = %v, want ErrInvalidBundle", err)
+	}
+}
+
+func TestCollectionRejectsDuplicateFullURL(t *testing.T) {
+	_, err := r5.NewCollection(
+		r5.CollectionEntry{FullURL: "urn:uuid:dup", Resource: &r5.Observation{}},
+		r5.CollectionEntry{FullURL: "urn:uuid:dup", Resource: &r5.Observation{}},
+	)
+	if !errors.Is(err, r5.ErrInvalidBundle) {
+		t.Fatalf("err = %v, want ErrInvalidBundle", err)
+	}
+}

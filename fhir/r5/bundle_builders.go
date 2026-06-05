@@ -99,9 +99,9 @@ func NewSearchSet(total int32, entries ...SearchEntry) (*Bundle, error) {
 	bundleEntries := make([]BundleEntry, 0, len(entries))
 	for i := range entries {
 		entry := entries[i]
-		bundleEntry := BundleEntry{
-			Resource: resourcePtr(entry.Resource),
-			FullUrl:  fullURLPtr(entry.FullURL),
+		bundleEntry, err := contentEntry(i, entry.FullURL, entry.Resource)
+		if err != nil {
+			return nil, err
 		}
 		if entry.Mode != nil || entry.Score != nil {
 			bundleEntry.Search = &BundleEntrySearch{Mode: entry.Mode, Score: entry.Score}
@@ -184,10 +184,11 @@ func NewDocument(composition fhir.Resource, entries ...DocumentEntry) (*Bundle, 
 	bundleEntries := make([]BundleEntry, 0, len(entries)+1)
 	bundleEntries = append(bundleEntries, BundleEntry{Resource: resourcePtr(composition)})
 	for i := range entries {
-		bundleEntries = append(bundleEntries, BundleEntry{
-			Resource: resourcePtr(entries[i].Resource),
-			FullUrl:  fullURLPtr(entries[i].FullURL),
-		})
+		bundleEntry, err := contentEntry(i+1, entries[i].FullURL, entries[i].Resource)
+		if err != nil {
+			return nil, err
+		}
+		bundleEntries = append(bundleEntries, bundleEntry)
 	}
 	if err := checkUniqueFullURLs(bundleEntries); err != nil {
 		return nil, err
@@ -207,10 +208,11 @@ func NewMessage(header fhir.Resource, entries ...MessageEntry) (*Bundle, error) 
 	bundleEntries := make([]BundleEntry, 0, len(entries)+1)
 	bundleEntries = append(bundleEntries, BundleEntry{Resource: resourcePtr(header)})
 	for i := range entries {
-		bundleEntries = append(bundleEntries, BundleEntry{
-			Resource: resourcePtr(entries[i].Resource),
-			FullUrl:  fullURLPtr(entries[i].FullURL),
-		})
+		bundleEntry, err := contentEntry(i+1, entries[i].FullURL, entries[i].Resource)
+		if err != nil {
+			return nil, err
+		}
+		bundleEntries = append(bundleEntries, bundleEntry)
 	}
 	if err := checkUniqueFullURLs(bundleEntries); err != nil {
 		return nil, err
@@ -225,10 +227,11 @@ func NewMessage(header fhir.Resource, entries ...MessageEntry) (*Bundle, error) 
 func NewCollection(entries ...CollectionEntry) (*Bundle, error) {
 	bundleEntries := make([]BundleEntry, 0, len(entries))
 	for i := range entries {
-		bundleEntries = append(bundleEntries, BundleEntry{
-			Resource: resourcePtr(entries[i].Resource),
-			FullUrl:  fullURLPtr(entries[i].FullURL),
-		})
+		bundleEntry, err := contentEntry(i, entries[i].FullURL, entries[i].Resource)
+		if err != nil {
+			return nil, err
+		}
+		bundleEntries = append(bundleEntries, bundleEntry)
 	}
 	if err := checkUniqueFullURLs(bundleEntries); err != nil {
 		return nil, err
@@ -251,6 +254,19 @@ func requireResourceType(r fhir.Resource, want, bundleKind string) error {
 			ErrInvalidBundle, bundleKind, want, got.ResourceType())
 	}
 	return nil
+}
+
+// contentEntry builds a fullUrl + resource BundleEntry for a content bundle (searchset,
+// collection, and the trailing entries of a document or message), rejecting a nil or
+// typed-nil resource naming the entry index. A content entry carries no request or
+// response, so its resource is what satisfies bdl-5 (an entry must hold a resource, a
+// request, or a response); a missing resource would leave an empty entry, so it is a
+// fail-up-front error rather than a silently empty entry.
+func contentEntry(index int, fullURL string, r fhir.Resource) (BundleEntry, error) {
+	if _, ok := fhir.As[fhir.Resource](r); !ok {
+		return BundleEntry{}, fmt.Errorf("%w: entry %d is missing its resource", ErrInvalidBundle, index)
+	}
+	return BundleEntry{Resource: resourcePtr(r), FullUrl: fullURLPtr(fullURL)}, nil
 }
 
 // checkUniqueFullURLs reports the first duplicate fullUrl across the entries (bdl-7:

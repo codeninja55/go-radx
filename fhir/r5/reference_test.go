@@ -145,6 +145,34 @@ func TestCheckReferenceIntegrityResolvesIntraBundleFullURL(t *testing.T) {
 	}
 }
 
+func TestCheckReferenceIntegrityReportsDanglingURN(t *testing.T) {
+	// A urn:uuid: reference is intra-bundle (URNs are not network-dereferenceable), so a
+	// urn that matches no entry fullUrl is a dangling reference, not an external one.
+	obs := &r5.Observation{Subject: &r5.Reference{Reference: strptr("urn:uuid:not-present")}}
+	bundle, err := r5.NewCollection(
+		r5.CollectionEntry{FullURL: "urn:uuid:obs-1", Resource: obs},
+	)
+	if err != nil {
+		t.Fatalf("NewCollection: %v", err)
+	}
+	outcome := bundle.CheckReferenceIntegrity()
+	if !outcome.HasErrors() {
+		t.Errorf("a dangling urn:uuid: reference should be flagged, not skipped as external")
+	}
+}
+
+func TestResolveContainedReportsMalformedEvenWhenMatchFound(t *testing.T) {
+	p := containerWithContained("obs-c")
+	// Append a malformed (typed-nil) slot AFTER the matching one.
+	var nilObs *r5.Observation
+	p.Contained = append(p.Contained, nilObs)
+
+	_, err := p.ResolveContained("obs-c")
+	if !errors.Is(err, r5.ErrContained) {
+		t.Fatalf("err = %v, want ErrContained even though the id matched a clean slot", err)
+	}
+}
+
 func TestCheckReferenceIntegrityIgnoresExternalURL(t *testing.T) {
 	obs := &r5.Observation{Subject: &r5.Reference{Reference: strptr("https://example.org/fhir/Patient/ext")}}
 	bundle, err := r5.NewCollection(

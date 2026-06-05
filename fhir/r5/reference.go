@@ -73,16 +73,22 @@ func (b *Bundle) resolveFragment(ref string) (fhir.Resource, bool) {
 // matches id (the target of a "#id" reference). It is named ResolveContained rather
 // than Contained because the generated DomainResource already carries a Contained field
 // (the contained slice itself); the method resolves against that field. It returns an
-// aggregate error, not a silent miss, when a contained slot is malformed: a nil or
-// typed-nil contained resource cannot be addressed by id, and surfacing that as an
-// error naming the index is the FHIR-011 fix for the prototype that skipped a malformed
-// contained resource and reported the reference as merely "not found". A clean
-// not-found (no contained resource carries id, and none is malformed) returns (nil, nil).
+// aggregate error, not a silent miss, when ANY contained slot is malformed — a nil or
+// typed-nil contained resource cannot be addressed by id, and surfacing that as an error
+// naming the index is the FHIR-011 fix for the prototype that skipped a malformed
+// contained resource and reported the reference as merely "not found". The whole slice
+// is scanned before returning, so a malformed slot ordered after a matching one is never
+// missed: a malformed contained set makes resolution untrustworthy and fails closed even
+// when a candidate match exists. A clean not-found (no contained resource carries id, and
+// none is malformed) returns (nil, nil).
 func (d *DomainResource) ResolveContained(id string) (fhir.Resource, error) {
 	if d == nil {
 		return nil, nil
 	}
-	var malformed []error
+	var (
+		match     fhir.Resource
+		malformed []error
+	)
 	for i := range d.Contained {
 		c := d.Contained[i]
 		if _, ok := fhir.As[fhir.Resource](c); !ok {
@@ -95,14 +101,14 @@ func (d *DomainResource) ResolveContained(id string) (fhir.Resource, error) {
 				ErrContained, i, c.ResourceType()))
 			continue
 		}
-		if cid == id {
-			return c, nil
+		if cid == id && match == nil {
+			match = c
 		}
 	}
 	if len(malformed) > 0 {
 		return nil, errors.Join(malformed...)
 	}
-	return nil, nil
+	return match, nil
 }
 
 // CheckReferenceIntegrity walks every Reference reachable from the resources in this
@@ -155,9 +161,6 @@ func checkResourceReferences(r fhir.Resource, path string, fullURLs map[string]s
 	}
 
 	for _, found := range collectReferences(r, path) {
-		if isExternalAbsolute(found.ref) {
-			continue
-		}
 		if strings.HasPrefix(found.ref, "#") {
 			id := strings.TrimPrefix(found.ref, "#")
 			if _, ok := containedIDs[id]; ok {
@@ -166,7 +169,16 @@ func checkResourceReferences(r fhir.Resource, path string, fullURLs map[string]s
 			outcome.Issue = append(outcome.Issue, danglingIssue(found))
 			continue
 		}
+		// A non-fragment reference resolves locally when it names an entry fullUrl,
+		// whatever its form (an absolute http URL or a urn:uuid: the bundle uses as a
+		// fullUrl both count). Only when it matches no entry does external-ness decide
+		// whether to flag it: a urn or a relative reference is intra-bundle and a miss is
+		// dangling, while an external http(s) URL the bundle never claims to resolve is
+		// left alone.
 		if _, ok := fullURLs[found.ref]; ok {
+			continue
+		}
+		if isExternalAbsolute(found.ref) {
 			continue
 		}
 		outcome.Issue = append(outcome.Issue, danglingIssue(found))
@@ -191,23 +203,19 @@ func danglingIssue(found foundReference) OperationOutcomeIssue {
 	}
 }
 
-// isExternalAbsolute reports whether ref is an absolute URL to an external system,
-// which CheckReferenceIntegrity leaves alone. A "urn:" reference and an "http(s)://"
-// or "ftp://"-style scheme are treated as external; a "#id" fragment and a relative
-// "Type/id" reference are local and are checked. The check is intentionally simple:
-// any reference carrying a scheme (a "scheme:" prefix before the first "/") is external.
+// isExternalAbsolute reports whether ref is an absolute URL to an external system that
+// CheckReferenceIntegrity leaves alone when it matches no entry fullUrl. Only a network
+// scheme (the "scheme://" authority form, for example "https://server/fhir/Patient/1")
+// counts as external, because a server may dereference it off the bundle. A "urn:"
+// reference is NOT external: URNs (urn:uuid:, urn:oid:) are not network-dereferenceable,
+// so they are bundle-local identifiers and a urn that names no entry fullUrl is a
+// dangling intra-bundle reference, not an external one. A "#id" fragment and a relative
+// "Type/id" reference are likewise local and are checked, never skipped here.
 func isExternalAbsolute(ref string) bool {
-	if strings.HasPrefix(ref, "#") {
-		return false
-	}
-	if strings.HasPrefix(ref, "urn:") {
+	if slash := strings.Index(ref, "://"); slash > 0 {
 		return true
 	}
-	scheme := ref
-	if slash := strings.IndexByte(ref, '/'); slash >= 0 {
-		scheme = ref[:slash]
-	}
-	return strings.HasSuffix(scheme, ":") && len(scheme) > 1
+	return false
 }
 
 // HasErrors reports whether the outcome carries at least one issue of error or fatal
