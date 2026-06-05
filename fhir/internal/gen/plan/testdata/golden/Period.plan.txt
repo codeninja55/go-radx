@@ -1,0 +1,3 @@
+PlannedType Period fhir=Period kind=complex-type
+  field Start *string json=start optional=true
+  field End *string json=end optional=true

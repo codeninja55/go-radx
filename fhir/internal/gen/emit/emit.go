@@ -1,0 +1,107 @@
+// Package emit is the generator's emitter stage. It turns the planner's
+// emitter-ready PlannedTypes into byte-stable, gofmt-clean Go source through
+// text/template followed by a go/format pass, so the committed generated files are
+// reproduced byte-for-byte on every run. The emitter makes no Go-shape decision —
+// every name, type, and tag is already fixed by the planner; the emitter only
+// renders. The output carries the standard "DO NOT EDIT" banner so the
+// generated-never-hand-edited property is signalled in the file itself.
+package emit
+
+import (
+	"bytes"
+	"embed"
+	"fmt"
+	"go/format"
+	"sort"
+	"text/template"
+
+	"github.com/codeninja55/go-radx/fhir/internal/gen/plan"
+)
+
+//go:embed templates/*.tmpl
+var templatesFS embed.FS
+
+// File is the input to a single emitted Go file: the target package, the imports the
+// rendered types require, and the planned types to render in the file. The emitter
+// renders the types in the given order, so the caller fixes the order (canonical,
+// stable) before calling Emit.
+type File struct {
+	// Package is the Go package clause of the emitted file (for example "r5").
+	Package string
+
+	// Types are the planned types rendered into the file, in the order given.
+	Types []plan.PlannedType
+}
+
+// Emit renders a File to formatted Go source. It executes the datatype template, runs
+// the result through go/format (so the output is gofmt-stable and any template
+// whitespace slop is normalised), and returns the formatted bytes. A template or
+// format error is returned with the rendered source attached so a failure is
+// diagnosable. The returned bytes are deterministic for a given File: the same plan
+// always yields the same source, which is what makes regeneration byte-for-byte
+// reproducible.
+func Emit(f File) ([]byte, error) {
+	tmpl, err := template.New("datatype.go.tmpl").ParseFS(templatesFS, "templates/datatype.go.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("emit: parse template: %w", err)
+	}
+
+	data := struct {
+		Package string
+		Imports []string
+		Types   []plan.PlannedType
+	}{
+		Package: f.Package,
+		Imports: requiredImports(f.Types),
+		Types:   f.Types,
+	}
+
+	var raw bytes.Buffer
+	if err := tmpl.Execute(&raw, data); err != nil {
+		return nil, fmt.Errorf("emit: execute template: %w", err)
+	}
+
+	formatted, err := format.Source(raw.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("emit: gofmt the rendered source: %w\n--- rendered ---\n%s", err, raw.String())
+	}
+	return formatted, nil
+}
+
+// requiredImports computes the deduplicated, sorted import paths the planned types
+// reference. The skeleton recognises the one cross-package dependency the generated
+// datatypes can carry — fhir.Decimal — and adds the root fhir import when any field
+// uses it. Sorting keeps the import block stable across runs.
+func requiredImports(types []plan.PlannedType) []string {
+	const decimalImport = "github.com/codeninja55/go-radx/fhir"
+	set := map[string]bool{}
+	for _, t := range types {
+		for _, f := range allFields(t) {
+			if usesDecimal(f.GoType) {
+				set[decimalImport] = true
+			}
+		}
+	}
+	out := make([]string, 0, len(set))
+	for imp := range set {
+		out = append(out, imp)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// allFields flattens a planned type's top-level fields and its backbones' fields, so
+// import detection sees every field a file will write.
+func allFields(t plan.PlannedType) []plan.Field {
+	fields := append([]plan.Field(nil), t.Fields...)
+	for _, bb := range t.Backbones {
+		fields = append(fields, bb.Fields...)
+	}
+	return fields
+}
+
+// usesDecimal reports whether a Go field type references fhir.Decimal, the one root
+// import a generated datatype can require in this stage.
+func usesDecimal(goType string) bool {
+	return goType == "*fhir.Decimal" || goType == "[]fhir.Decimal" || goType == "fhir.Decimal"
+}
