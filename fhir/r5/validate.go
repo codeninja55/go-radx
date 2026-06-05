@@ -16,6 +16,84 @@ import (
 	"github.com/codeninja55/go-radx/fhir"
 )
 
+// init registers validation descriptors for the hand-written M2 workflow resources
+// (ServiceRequest, DiagnosticReport, ImagingStudy). The bulk generator excludes these
+// names (they are hand-written until the F1-O migration regenerates them), so the
+// generated validation_descriptors.go carries no descriptor for them; without one,
+// fhir.Validate would only warn that the type is unvalidated and skip their required
+// elements. These hand-written descriptors close that gap: they report an absent required
+// status/intent (a required `code` rendered as a plain string here, so presence is a
+// non-empty value, not a non-nil pointer). Binding validation for ServiceRequest's
+// status/intent composes the already-generated RequestStatus/RequestIntent enums; the
+// DiagnosticReport and ImagingStudy status bindings are validated when the F1-O migration
+// regenerates those resources with their closed-enum, pointer-typed status fields (the
+// same boundary the generated enums note). When F1-O regenerates these three, their
+// generated descriptors replace these, and this init is removed.
+func init() {
+	fhir.RegisterValidationDescriptor(serviceRequestResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*ServiceRequest)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			if v.Status == "" {
+				missing = append(missing, "ServiceRequest.status")
+			}
+			if v.Intent == "" {
+				missing = append(missing, "ServiceRequest.intent")
+			}
+			return missing
+		},
+		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
+			v, ok := r.(*ServiceRequest)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.BindingIssue
+			if v.Status != "" && !validRequestStatus(v.Status) {
+				issues = append(issues, fhir.BindingIssue{
+					Expression:  "ServiceRequest.status",
+					Diagnostics: "code is not in the required RequestStatus value set",
+				})
+			}
+			if v.Intent != "" && !validRequestIntent(v.Intent) {
+				issues = append(issues, fhir.BindingIssue{
+					Expression:  "ServiceRequest.intent",
+					Diagnostics: "code is not in the required RequestIntent value set",
+				})
+			}
+			return issues
+		},
+	})
+
+	fhir.RegisterValidationDescriptor(diagnosticReportResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*DiagnosticReport)
+			if !ok {
+				return nil
+			}
+			if v.Status == "" {
+				return []string{"DiagnosticReport.status"}
+			}
+			return nil
+		},
+	})
+
+	fhir.RegisterValidationDescriptor(imagingStudyResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*ImagingStudy)
+			if !ok {
+				return nil
+			}
+			if v.Status == "" {
+				return []string{"ImagingStudy.status"}
+			}
+			return nil
+		},
+	})
+}
+
 // BundleValidateExtra runs the Bundle-specific structural checks fhir.Validate cannot
 // derive from the StructureDefinition: the bdl-* per-type invariants over a decoded
 // Bundle and the intra-Bundle/contained reference-integrity walk. It is registered as
@@ -125,9 +203,11 @@ func checkEntryRequestResponse(entry *BundleEntry, path string, bundleType Bundl
 }
 
 // checkUniqueFullURLsOutcome reports each duplicate fullUrl across the entries (bdl-7) as
-// an issue naming the offending entry index and the repeated URL (a fullUrl is an
-// identifier, not patient data). An entry with no fullUrl is skipped, because uniqueness
-// constrains only the values present.
+// an issue naming the two offending entry indices only. The repeated fullUrl value is
+// deliberately not embedded in the diagnostic: a fullUrl can be a server URL that encodes
+// an identifier, so naming the indices (which locate the duplicate) keeps the message to
+// paths, never a value. An entry with no fullUrl is skipped, because uniqueness constrains
+// only the values present.
 func checkUniqueFullURLsOutcome(b *Bundle, outcome *fhir.OperationOutcome) {
 	seen := make(map[string]int, len(b.Entry))
 	for i := range b.Entry {
@@ -138,7 +218,7 @@ func checkUniqueFullURLsOutcome(b *Bundle, outcome *fhir.OperationOutcome) {
 		if first, dup := seen[url]; dup {
 			fhir.AddIssue(outcome, fhir.SeverityError, fhir.IssueTypeInvalid,
 				fmt.Sprintf("Bundle.entry[%d].fullUrl", i),
-				fmt.Sprintf("fullUrl %q is not unique; first used by entry[%d] (bdl-7)", url, first))
+				fmt.Sprintf("fullUrl is not unique; it repeats the fullUrl of entry[%d] (bdl-7)", first))
 			continue
 		}
 		seen[url] = i

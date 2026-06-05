@@ -193,6 +193,60 @@ func TestValidateNeverLeaksPHIAcrossResources(t *testing.T) {
 	}
 }
 
+// TestValidateWorkflowResourcesHaveDescriptors confirms the hand-written M2 workflow
+// resources (ServiceRequest, DiagnosticReport, ImagingStudy) carry registered descriptors
+// rather than only a warning: an empty required status/intent is an error, and a valid one
+// is clean. These resources are excluded from the bulk generator, so without a hand-written
+// descriptor they would slip through unvalidated.
+func TestValidateWorkflowResourcesHaveDescriptors(t *testing.T) {
+	// An empty ServiceRequest reports both required code elements.
+	oo := fhir.Validate(&r5.ServiceRequest{})
+	required := map[string]bool{}
+	for _, issue := range oo.Issue {
+		if issue.Code == fhir.IssueTypeRequired {
+			required[issue.Expression] = true
+		}
+	}
+	if !required["ServiceRequest.status"] || !required["ServiceRequest.intent"] {
+		t.Fatalf("expected required issues for ServiceRequest status and intent, got %+v", oo.Issue)
+	}
+
+	// An empty DiagnosticReport and ImagingStudy each report their required status.
+	if oo := fhir.Validate(&r5.DiagnosticReport{}); !hasRequired(oo, "DiagnosticReport.status") {
+		t.Errorf("expected a required issue for DiagnosticReport.status, got %+v", oo.Issue)
+	}
+	if oo := fhir.Validate(&r5.ImagingStudy{}); !hasRequired(oo, "ImagingStudy.status") {
+		t.Errorf("expected a required issue for ImagingStudy.status, got %+v", oo.Issue)
+	}
+
+	// An out-of-set ServiceRequest status is a binding value issue.
+	bad := fhir.Validate(&r5.ServiceRequest{Status: "banana", Intent: "order"})
+	if !hasIssue(bad, "ServiceRequest.status", fhir.IssueTypeValue) {
+		t.Errorf("expected a binding value issue for an out-of-set ServiceRequest.status, got %+v", bad.Issue)
+	}
+
+	// A well-formed ServiceRequest is clean.
+	good := fhir.Validate(&r5.ServiceRequest{Status: "active", Intent: "order"})
+	if good.HasErrors() {
+		t.Errorf("a valid ServiceRequest should have no error issues, got %+v", good.Issue)
+	}
+}
+
+// hasRequired reports whether the outcome carries a required issue at the given path.
+func hasRequired(oo *fhir.OperationOutcome, path string) bool {
+	return hasIssue(oo, path, fhir.IssueTypeRequired)
+}
+
+// hasIssue reports whether the outcome carries an issue at the given path with the given code.
+func hasIssue(oo *fhir.OperationOutcome, path string, code fhir.IssueType) bool {
+	for _, issue := range oo.Issue {
+		if issue.Expression == path && issue.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
 // FuzzValidateNeverPanics drives Validate with resources decoded from arbitrary JSON. A
 // malformed, partial, or hostile payload that decodes into a resource (or fails to decode)
 // must never make Validate panic: a structurally broken value yields an OperationOutcome,
