@@ -1,3 +1,5 @@
 PlannedType Period fhir=Period kind=complex-type
-  field Start *string json=start optional=true
-  field End *string json=end optional=true
+  field Start *string json=start optional=true primitive
+  field StartElement *fhir.PrimitiveElement json=_start optional=true sibling-of=Start
+  field End *string json=end optional=true primitive
+  field EndElement *fhir.PrimitiveElement json=_end optional=true sibling-of=End

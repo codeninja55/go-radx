@@ -2,8 +2,12 @@
 
 package r5
 
+import "github.com/codeninja55/go-radx/fhir"
+
 // Period is the generated FHIR Period datatype.
 type Period struct {
-	Start *string `json:"start,omitempty"`
-	End   *string `json:"end,omitempty"`
+	Start        *string                `json:"start,omitempty"`
+	StartElement *fhir.PrimitiveElement `json:"_start,omitempty"`
+	End          *string                `json:"end,omitempty"`
+	EndElement   *fhir.PrimitiveElement `json:"_end,omitempty"`
 }

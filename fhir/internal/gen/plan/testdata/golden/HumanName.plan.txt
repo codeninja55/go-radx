@@ -1,0 +1,12 @@
+PlannedType HumanName fhir=HumanName kind=complex-type
+  field Use *string json=use optional=true primitive
+  field UseElement *fhir.PrimitiveElement json=_use optional=true sibling-of=Use
+  field Family *string json=family optional=true primitive
+  field FamilyElement *fhir.PrimitiveElement json=_family optional=true sibling-of=Family
+  field Given []string json=given optional=true primitive
+  field GivenElement []*fhir.PrimitiveElement json=_given optional=true sibling-of=Given
+  field Prefix []string json=prefix optional=true primitive
+  field PrefixElement []*fhir.PrimitiveElement json=_prefix optional=true sibling-of=Prefix
+  field Suffix []string json=suffix optional=true primitive
+  field SuffixElement []*fhir.PrimitiveElement json=_suffix optional=true sibling-of=Suffix
+  field Period *Period json=period optional=true

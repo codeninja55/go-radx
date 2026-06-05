@@ -3,20 +3,22 @@
 package r5
 
 import "encoding/json"
+import "github.com/codeninja55/go-radx/fhir"
 
 // FlagResourceType is the FHIR resourceType discriminator for Flag.
 const FlagResourceType = "Flag"
 
 // Flag is the generated FHIR Flag resource.
 type Flag struct {
-	Identifier []Identifier      `json:"identifier,omitempty"`
-	Status     *string           `json:"status,omitempty"`
-	Category   []CodeableConcept `json:"category,omitempty"`
-	Code       *CodeableConcept  `json:"code,omitempty"`
-	Subject    *Reference        `json:"subject,omitempty"`
-	Period     *Period           `json:"period,omitempty"`
-	Encounter  *Reference        `json:"encounter,omitempty"`
-	Author     *Reference        `json:"author,omitempty"`
+	Identifier    []Identifier           `json:"identifier,omitempty"`
+	Status        *string                `json:"status,omitempty"`
+	StatusElement *fhir.PrimitiveElement `json:"_status,omitempty"`
+	Category      []CodeableConcept      `json:"category,omitempty"`
+	Code          *CodeableConcept       `json:"code,omitempty"`
+	Subject       *Reference             `json:"subject,omitempty"`
+	Period        *Period                `json:"period,omitempty"`
+	Encounter     *Reference             `json:"encounter,omitempty"`
+	Author        *Reference             `json:"author,omitempty"`
 }
 
 // ResourceType returns the FHIR discriminator "Flag".
