@@ -91,3 +91,15 @@ run = "golangci-lint run ./..."
 [tasks."pin-drift"]
 description = "Fail if any reference tool or interop image has floated back to an unpinned reference"
 run = "tools/pin-drift.sh"
+
+[tasks."conformance-drift"]
+description = "Fail if a conformance statement and the code it describes diverge (counts, banners, stability markers)"
+run = "go test ./tools/conformance-drift/..."
+
+[tasks."docs:build"]
+description = "Build the mkdocs documentation site, failing on any nav or link drift (--strict)"
+run = "mkdocs build --strict"
+
+[tasks."docs:serve"]
+description = "Preview the mkdocs documentation site locally with live reload"
+run = "mkdocs serve"
