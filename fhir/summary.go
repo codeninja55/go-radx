@@ -40,10 +40,11 @@ const (
 	// tag because the narrative is dropped.
 	SummaryData SummaryMode = "data"
 
-	// SummaryCount is intended for a Bundle: it emits the total and drops the entries, so
-	// a caller learns how many results match without transferring them. On a non-Bundle
-	// resource it behaves as a no-element view (only the always-retained infrastructure
-	// elements survive).
+	// SummaryCount is intended for a Bundle: it emits the count (a Bundle's total) and the
+	// mandatory elements, dropping the entries, so a caller learns how many results match
+	// without transferring them while the reduced view stays structurally valid (a Bundle
+	// keeps its mandatory type). On a non-Bundle resource it keeps the mandatory elements
+	// plus the always-retained infrastructure ones.
 	SummaryCount SummaryMode = "count"
 )
 
@@ -187,7 +188,7 @@ func summaryKeeps(mode SummaryMode, e SummaryElement) bool {
 	case SummaryData:
 		return !e.IsText
 	case SummaryCount:
-		return e.IsCount
+		return e.IsCount || e.IsMandatory
 	default:
 		return false
 	}
@@ -328,8 +329,11 @@ func tagSubsetted(filtered []byte) ([]byte, error) {
 // appendMetaTag returns the meta object with the SUBSETTED coding added to its tag array,
 // preserving meta's own canonical key order. It walks meta key-by-key (as the top-level
 // rewriters do, so a decode-into-map round trip never re-sorts meta's keys): an existing
-// tag array gains the SUBSETTED coding in place, and an absent tag is appended as the last
-// key, which is the tag field's canonical position in the Meta element order.
+// tag array gains the SUBSETTED coding in place. When meta has no tag, the new tag is
+// inserted before meta's first primitive "_field" sibling key (a "_"-prefixed key, which
+// Meta.MarshalJSON always trails after the value fields), so tag lands among the value
+// fields in the same slot a fresh re-marshal of the decoded Meta would put it — keeping the
+// summary byte-stable on round-trip. With no sibling key it is appended last.
 func appendMetaTag(rawMeta json.RawMessage) (json.RawMessage, error) {
 	dec := json.NewDecoder(bytes.NewReader(rawMeta))
 	open, err := dec.Token()
@@ -344,6 +348,8 @@ func appendMetaTag(rawMeta json.RawMessage) (json.RawMessage, error) {
 	buf.WriteByte('{')
 	first := true
 	hasTag := false
+	inserted := false
+	newTag := json.RawMessage(`[` + subsettedCoding + `]`)
 	for dec.More() {
 		keyTok, err := dec.Token()
 		if err != nil {
@@ -360,10 +366,16 @@ func appendMetaTag(rawMeta json.RawMessage) (json.RawMessage, error) {
 				return nil, err
 			}
 		}
+		// A missing tag is a value field, so it sorts ahead of meta's trailing "_field"
+		// siblings; insert it the moment the first sibling key is reached.
+		if !hasTag && !inserted && strings.HasPrefix(key, "_") {
+			writeMember(&buf, &first, "tag", newTag)
+			inserted = true
+		}
 		writeMember(&buf, &first, key, raw)
 	}
-	if !hasTag {
-		writeMember(&buf, &first, "tag", json.RawMessage(`[`+subsettedCoding+`]`))
+	if !hasTag && !inserted {
+		writeMember(&buf, &first, "tag", newTag)
 	}
 	buf.WriteByte('}')
 	return buf.Bytes(), nil

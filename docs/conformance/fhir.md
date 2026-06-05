@@ -505,7 +505,7 @@ const (
     SummaryTrue  SummaryMode = "true"  // elements flagged isSummary in the StructureDefinition
     SummaryText  SummaryMode = "text"  // narrative (text), id, meta, and mandatory elements only
     SummaryData  SummaryMode = "data"  // everything except the narrative (text)
-    SummaryCount SummaryMode = "count" // intended for Bundle: emit total only, no entries
+    SummaryCount SummaryMode = "count" // intended for Bundle: emit total and mandatory elements, no entries
 )
 
 // MarshalSummary serializes a resource under the given summary mode. It returns an error for a nil
@@ -597,7 +597,7 @@ modes match the FHIR `_summary` parameter:
 | `true` | `SummaryTrue` | the `isSummary`, mandatory, and modifier elements, plus `id`/`meta` |
 | `text` | `SummaryText` | the narrative (`text`), mandatory elements, plus `id`/`meta` |
 | `data` | `SummaryData` | everything except the narrative (`text`) |
-| `count` | `SummaryCount` | the Bundle `total` only, plus `id`/`meta`; entries are dropped |
+| `count` | `SummaryCount` | the Bundle `total` and the mandatory elements, plus `id`/`meta`; entries are dropped |
 
 Every mode except `SummaryFull` always retains the infrastructure keys (`resourceType`, `id`, `meta`) so a summarised
 resource stays a valid, identifiable resource. When a mode drops any element it sets the FHIR `SUBSETTED` tag on

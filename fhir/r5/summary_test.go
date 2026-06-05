@@ -149,6 +149,18 @@ func TestMarshalSummaryBundleCount(t *testing.T) {
 	if contains(keys, "entry") {
 		t.Errorf("_summary=count kept entry; keys = %v", keys)
 	}
+	// The mandatory Bundle.type must survive so the count view stays a valid Bundle: a
+	// re-decoded count summary must not report a missing required element.
+	if !contains(keys, "type") {
+		t.Errorf("_summary=count dropped the mandatory type; keys = %v", keys)
+	}
+	round, err := fhir.Unmarshal[*r5.Bundle](got)
+	if err != nil {
+		t.Fatalf("Unmarshal count summary: %v", err)
+	}
+	if outcome := fhir.Validate(round); outcome.HasErrors() {
+		t.Errorf("count summary failed validation: %s", outcome.Error())
+	}
 }
 
 // TestMarshalSummaryFullIsResourceJSON confirms _summary=false returns the resource's own
@@ -237,6 +249,35 @@ func TestMarshalSummaryPreservesMetaOrder(t *testing.T) {
 	}
 	if !strings.Contains(string(summary), `"code":"existing"`) || !strings.Contains(string(summary), "SUBSETTED") {
 		t.Errorf("summary did not keep the existing tag alongside SUBSETTED: %s", summary)
+	}
+}
+
+// TestMarshalSummaryMetaSiblingNoTag covers the byte-stable edge case where meta carries a
+// primitive "_field" sibling (a versionId with an id extension) but no existing tag: the
+// inserted SUBSETTED tag must land among meta's value fields, ahead of the trailing
+// sibling, so a fresh re-marshal of the decoded Meta (which orders tag before the sibling)
+// reproduces the summary byte-for-byte.
+func TestMarshalSummaryMetaSiblingNoTag(t *testing.T) {
+	patient := summaryPatient()
+	patient.Meta = &r5.Meta{
+		VersionId:        strPtr("7"),
+		VersionIdElement: &fhir.PrimitiveElement{ID: strPtr("vid")},
+	}
+
+	summary, err := fhir.MarshalSummary(patient, fhir.SummaryTrue)
+	if err != nil {
+		t.Fatalf("MarshalSummary: %v", err)
+	}
+	round, err := fhir.Unmarshal[*r5.Patient](summary)
+	if err != nil {
+		t.Fatalf("Unmarshal summary: %v", err)
+	}
+	reencoded, err := json.Marshal(round)
+	if err != nil {
+		t.Fatalf("Marshal round-trip: %v", err)
+	}
+	if string(reencoded) != string(summary) {
+		t.Fatalf("summary with a meta sibling not byte-stable:\n got  %s\n want %s", reencoded, summary)
 	}
 }
 

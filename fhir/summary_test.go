@@ -173,19 +173,22 @@ func TestMarshalSummaryDataDropsNarrative(t *testing.T) {
 	}
 }
 
-// TestMarshalSummaryCountKeepsTotalOnly confirms SummaryCount keeps only the count element
-// (plus infrastructure) and drops every other element.
-func TestMarshalSummaryCountKeepsTotalOnly(t *testing.T) {
+// TestMarshalSummaryCountKeepsTotalAndMandatory confirms SummaryCount keeps the count
+// element and the mandatory elements (so the reduced view stays structurally valid — a
+// Bundle keeps its mandatory type) and drops the rest, including non-mandatory data.
+func TestMarshalSummaryCountKeepsTotalAndMandatory(t *testing.T) {
 	registerSummarySample(t)
 	got, err := MarshalSummary(&summaryResource{body: sampleBody}, SummaryCount)
 	if err != nil {
 		t.Fatalf("MarshalSummary: %v", err)
 	}
 	keys := decodeKeys(t, got)
-	if !hasKey(keys, "total") {
-		t.Errorf("SummaryCount dropped total; keys = %v", keys)
+	for _, want := range []string{"total", "status"} { // status is mandatory in the fixture
+		if !hasKey(keys, want) {
+			t.Errorf("SummaryCount dropped %q it should keep; keys = %v", want, keys)
+		}
 	}
-	for _, drop := range []string{"text", "status", "code", "note"} {
+	for _, drop := range []string{"text", "code", "note"} {
 		if hasKey(keys, drop) {
 			t.Errorf("SummaryCount kept %q it should drop; keys = %v", drop, keys)
 		}

@@ -254,16 +254,18 @@ legacy codebase (`legacy-main`) and are not continued here.
   `fhir.MarshalSummary(r Resource, mode SummaryMode)` serializes a resource under the five FHIR `_summary` modes —
   `SummaryFull` (identity), `SummaryTrue` (the `isSummary`, mandatory, and modifier elements), `SummaryText` (the
   narrative plus mandatory elements), `SummaryData` (everything but the narrative), and `SummaryCount` (a Bundle's
-  `total` only) — by marshalling in full and then dropping the top-level elements the mode excludes, preserving the
+  `total` plus the mandatory elements so the count view stays a valid Bundle) — by marshalling in full and then dropping
+  the top-level elements the mode excludes, preserving the
   canonical element order the resource's `MarshalJSON` produced (the filter walks the encoded object key-by-key and
   re-emits the kept keys in place, never re-sorting through a map; a primitive `_field` sibling is kept exactly when its
-  value key is). When a mode drops any element it sets the FHIR `SUBSETTED` tag on `meta.tag`. A nil resource returns the
-  new `fhir.ErrNilResource` sentinel rather than panicking (the FHIR-012 regression fix), and a resource with no
+  value key is). When a mode drops any element it sets the FHIR `SUBSETTED` tag on `meta.tag`. A nil resource returns
+  the new `fhir.ErrNilResource` sentinel rather than panicking (the FHIR-012 regression fix), and a resource with no
   registered summary descriptor is returned in full rather than guessing which elements to drop. Filtering is
   data-driven by a generated per-resource summary descriptor emitted into `fhir/r5/validation_descriptors.go` and
   registered with the root serialiser at init time (`fhir.RegisterSummaryDescriptor`, `fhir.SummaryDescriptor`/
-  `fhir.SummaryElement`), so the serialization path takes no call-time metadata reflection: each descriptor carries every
-  top-level wire key with its `isSummary`, mandatory, modifier, narrative, and Bundle-count flags, with a choice (`[x]`)
+  `fhir.SummaryElement`), so the serialization path takes no call-time metadata reflection: each descriptor carries
+  every top-level wire key with its `isSummary`, mandatory, modifier, narrative, and Bundle-count flags, with a choice
+  (`[x]`)
   group contributing one entry per suffixed branch key. Canonical FHIR JSON now round-trips byte-for-byte: the generated
   `UnmarshalJSON` lifts each `_field` sibling into its companion field and decodes the residual keys into the value
   struct, and the matching `MarshalJSON` re-emits the same canonical order (value fields in `StructureDefinition`
