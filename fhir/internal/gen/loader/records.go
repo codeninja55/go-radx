@@ -141,11 +141,32 @@ type ValueSetCompose struct {
 }
 
 // ValueSetInclude is one compose.include (or exclude) rule. System names the code
-// system; Concept inlines specific codes; ValueSet references other value sets.
+// system; Concept inlines specific codes; ValueSet references other value sets;
+// Filter defines membership intensionally by a property/op/value rule.
+//
+// An include that carries a Filter (or a ValueSet reference) is intensional: its
+// membership is not the literal set of inlined Concepts but the codes a terminology
+// server resolves by applying the filter to the System. The generator does not run a
+// terminology server, so it cannot enumerate a filter-defined set; the enum stage
+// reads Filter to recognise such a binding and emit a documented not-inlined boundary
+// rather than a silently-empty const set. Capturing Filter here is what lets that
+// distinction be made at all.
 type ValueSetInclude struct {
 	System   string            `json:"system"`
 	Concept  []ValueSetConcept `json:"concept"`
 	ValueSet []string          `json:"valueSet"`
+	Filter   []ValueSetFilter  `json:"filter"`
+}
+
+// ValueSetFilter is one compose.include.filter rule: a property/op/value triple that
+// selects codes from the include's System intensionally (for example property
+// "concept", op "is-a", value "<root-code>"). The triple is captured verbatim so the
+// enum stage can report exactly which intensional rule made a value set non-enumerable
+// from the bundle alone.
+type ValueSetFilter struct {
+	Property string `json:"property"`
+	Op       string `json:"op"`
+	Value    string `json:"value"`
 }
 
 // ValueSetConcept is one inline code within a compose.include.

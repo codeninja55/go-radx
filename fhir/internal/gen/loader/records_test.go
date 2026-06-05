@@ -70,6 +70,87 @@ const valueSetStubJSON = `{
   }
 }`
 
+// intensionalValueSetStubJSON is a filter-defined (intensional) ValueSet: its
+// membership is the set of LOINC codes whose "parent" property equals "LP43571-6",
+// not a literal list of inlined concepts. It mirrors the shape of the R5
+// example-intensional value set so the loader's Filter capture is pinned against a
+// realistic intensional include.
+const intensionalValueSetStubJSON = `{
+  "resourceType": "ValueSet",
+  "id": "example-intensional",
+  "url": "http://hl7.org/fhir/ValueSet/example-intensional",
+  "name": "LOINCCodesForCholesterolInSerumPlasma",
+  "compose": {
+    "include": [
+      {
+        "system": "http://loinc.org",
+        "filter": [
+          {"property": "parent", "op": "=", "value": "LP43571-6"}
+        ]
+      }
+    ],
+    "exclude": [
+      {
+        "system": "http://loinc.org",
+        "concept": [
+          {"code": "5932-9", "display": "Cholesterol [Presence]"}
+        ]
+      }
+    ]
+  }
+}`
+
+// TestValueSetFilterDecode pins the loader's capture of a filter-based (intensional)
+// compose.include. A filter-defined include carries no inlined concepts; its codes
+// are resolved by a terminology server applying the property/op/value rule. The
+// generator does not enumerate such a set, so the enum stage relies on this captured
+// Filter to recognise the value set as non-enumerable and emit a documented
+// not-inlined boundary rather than a silently-empty const set. A regression that
+// dropped Filter on decode would make a filter-defined required binding silently
+// produce an empty enum, which is the failure this test exists to prevent.
+func TestValueSetFilterDecode(t *testing.T) {
+	t.Parallel()
+
+	var vs ValueSet
+	if err := json.Unmarshal([]byte(intensionalValueSetStubJSON), &vs); err != nil {
+		t.Fatalf("unmarshal intensional ValueSet: %v", err)
+	}
+
+	if vs.Compose == nil {
+		t.Fatal("Compose is nil")
+	}
+	if len(vs.Compose.Include) != 1 {
+		t.Fatalf("Compose.Include count = %d, want 1", len(vs.Compose.Include))
+	}
+	inc := vs.Compose.Include[0]
+	if inc.System != "http://loinc.org" {
+		t.Errorf("include system = %q, want http://loinc.org", inc.System)
+	}
+	if len(inc.Concept) != 0 {
+		t.Errorf("include concept count = %d, want 0 (filter-defined include inlines no concepts)", len(inc.Concept))
+	}
+	if len(inc.Filter) != 1 {
+		t.Fatalf("include filter count = %d, want 1", len(inc.Filter))
+	}
+	f := inc.Filter[0]
+	if f.Property != "parent" || f.Op != "=" || f.Value != "LP43571-6" {
+		t.Errorf("include filter = %+v, want {Property:parent Op:= Value:LP43571-6}", f)
+	}
+
+	// The exclude rule inlines a concept; its Filter is empty, so the two shapes are
+	// distinguishable on the same value set.
+	if len(vs.Compose.Exclude) != 1 {
+		t.Fatalf("Compose.Exclude count = %d, want 1", len(vs.Compose.Exclude))
+	}
+	exc := vs.Compose.Exclude[0]
+	if len(exc.Filter) != 0 {
+		t.Errorf("exclude filter count = %d, want 0", len(exc.Filter))
+	}
+	if len(exc.Concept) != 1 || exc.Concept[0].Code != "5932-9" {
+		t.Errorf("exclude concept = %+v, want one concept code 5932-9", exc.Concept)
+	}
+}
+
 func TestStructureDefinitionDecode(t *testing.T) {
 	t.Parallel()
 
