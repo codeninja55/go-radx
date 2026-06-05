@@ -2,6 +2,19 @@
 go = "1.26.4"
 golangci-lint = "2.12.2"
 
+[tasks."cover"]
+description = "Run the root-module race tests and write a single merged coverage profile (coverage.out)"
+# GOWORK=off scopes the run to the root module's go.mod even when the go.work workspace is present,
+# so the profile and its floor reflect the library only (cmd/radx is gated by its own job).
+# -coverpkg=./... puts every root-module statement in the denominator regardless of which test
+# binary exercises it; -covermode=atomic is required alongside -race.
+run = "GOWORK=off go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./..."
+
+[tasks."cover:check"]
+description = "Fail if aggregate coverage is below the PRD floor (§11.4); writes coverage.out first"
+depends = ["cover"]
+run = "tools/cover-check.sh coverage.out"
+
 [tasks."test:dicom"]
 description = "Run the dicom package test suite (race + coverage)"
 run = "go test -race -cover ./dicom/..."

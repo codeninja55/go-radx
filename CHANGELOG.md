@@ -12,6 +12,14 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Aggregate coverage measurement with an enforced 80% floor (PRD §11.4) in the CI `lint-test` job.
+  The race-test step now runs `mise run cover:check`, which writes a single merged profile with
+  `go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...` (scoped to the
+  root module via `GOWORK=off`, so `cmd/radx` is gated by its own job) and fails the build via
+  `tools/cover-check.sh` if the total drops below the floor. `-race` is preserved. The cross-cutting
+  conformance statement's coverage section now documents the method and enumerates the critical paths
+  (Part 10 reader, DIMSE association and DIMSE-C services, DICOMweb round-trips, cross-standard
+  converters) that carry a higher 90% target.
 - A root `go.work` workspace tying the library root module and the separate `cmd/radx` CLI module,
   and a `cmd-radx` CI job that builds, vets, lints, and pin-scans (`govulncheck@v1.3.0`) the CLI
   module on every push and pull request to `main`. The job runs with `GOWORK=off` so it gates the

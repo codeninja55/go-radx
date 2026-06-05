@@ -50,8 +50,12 @@ jobs:
         run: mise exec -- golangci-lint run --build-tags interop ./...
       - name: build
         run: go build ./...
-      - name: race tests (default build; race needs cgo but no codec libs)
-        run: go test -race ./...
+      - name: race tests + coverage floor (default build; race needs cgo but no codec libs)
+        # Runs the root-module race suite while writing a single merged coverage profile, then fails
+        # the step if aggregate statement coverage drops below the PRD floor (§11.4). cover:check
+        # depends on cover, so the profile is produced before the floor is checked. -race is
+        # preserved (a -race run with -covermode=atomic), as the concurrency posture requires.
+        run: mise run cover:check
 
   conformance:
     name: DICOM conformance (dciodvfy + pydicom, enforced)
