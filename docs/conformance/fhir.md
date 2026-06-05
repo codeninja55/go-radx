@@ -321,6 +321,13 @@ would ship enumerable-but-empty. For the vendored R5 5.0.0 bundle this yields cl
 required bindings and a small set of documented not-inlined boundaries for the external-terminology and
 value-set-composition cases above.
 
+One scope limit remains while the generator does not yet own the full resource set: the four M2 walking-skeleton types
+still hand-written under `fhir/r5` (`ServiceRequest`, `DiagnosticReport`, `ImagingStudy`, and the `Identifier`
+datatype) carry their required-binding code fields (`status`, `intent`, `use`) as plain strings, so an out-of-set code
+on those specific fields is not yet rejected at the JSON boundary. The closed enums those fields will adopt are already
+generated; the migration increment that retires the hand-written files (and re-points the converter and skeleton at the
+generated shapes) wires them, completing FHIR-013 enforcement on those types.
+
 ### Lexical-preserving decimal
 
 The FHIR `decimal` primitive maps to a `Decimal` that preserves the source lexical form, including trailing zeros and

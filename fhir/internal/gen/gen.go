@@ -49,6 +49,15 @@ var baseTypes = []string{"Element", "BackboneElement", "Resource", "DomainResour
 // package and break compilation. The migration increment (F1-O) deletes the
 // hand-written files, re-points convert and the skeleton at the generated shapes, and
 // drops this exclusion so the generator owns the full set.
+//
+// Because these types are not generated yet, their required-binding code fields
+// (ServiceRequest.Status/Intent, DiagnosticReport.Status, ImagingStudy.Status,
+// Identifier.Use) are still hand-written plain strings, so an out-of-set code on those
+// fields is not yet rejected at the JSON boundary (the FHIR-013 enforcement lands on
+// them when F1-O regenerates them). The closed enums those fields will use
+// (RequestStatus, RequestIntent, DiagnosticReportStatus, ImagingStudyStatus,
+// IdentifierUse) are already generated into bindings.go, so the migration is a field
+// retype, not new enum work.
 var handWrittenTypes = map[string]bool{
 	// Resources (fhir/r5/{service_request,diagnostic_report,imaging_study}.go and
 	// the ImagingStudy backbones the hand-written file defines).
