@@ -12,6 +12,17 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Formalized the pure-Go `go test -race ./...` unit-test run as a standing required gate and authored
+  the cross-cutting conformance statement's "Concurrency and race posture" section. The section
+  documents why `-race` is the pure-Go unit-test gate and intentionally does not extend to the cgo
+  `codecs` job (synchronous per-call transcoders with no Go goroutines) or the container-bound
+  `interop` matrix legs (where wire-protocol round-trip correctness, not in-process Go races, is the
+  failure mode), and adds a per-server `-race` checklist enumerating the concurrent surfaces each
+  server increment (`dimse.Server`, `dicomweb.Server`, the planned MLLP and FHIR servers, and the
+  `cmd/radx` daemon composition root) must exercise. It records honestly a single intermittent
+  `go test -race ./...` failure observed once on CI (commit `e2c12ab`) that did not reproduce in three
+  local runs and is not yet root-caused, as a known risk flagged for M8 hardening. The `lint-test`
+  race-test step's comment now points to this contract; no test logic changed.
 - Aggregate coverage measurement with an enforced 80% floor (PRD §11.4) in the CI `lint-test` job.
   The race-test step now runs `mise run cover:check`, which writes a single merged profile with
   `go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...` (scoped to the
