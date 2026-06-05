@@ -1,0 +1,10 @@
+{
+  "resourceType": "Patient",
+  "id": "mal-wrongtype",
+  "active": "yes",
+  "name": [
+    {
+      "family": 12345
+    }
+  ]
+}

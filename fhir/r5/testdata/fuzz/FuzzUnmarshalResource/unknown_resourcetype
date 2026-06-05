@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\n  \"resourceType\": \"NotARealResource\",\n  \"id\": \"mal-unknown\",\n  \"field\": \"value\"\n}\n")

@@ -3,6 +3,7 @@ package fhir
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"testing"
 )
 
@@ -72,6 +73,51 @@ func TestUnmarshalRejectsMissingResourceType(t *testing.T) {
 func TestUnmarshalReportsInvalidJSON(t *testing.T) {
 	if _, err := Unmarshal[*fakePatient]([]byte(`{not json`)); err == nil {
 		t.Error("Unmarshal of malformed JSON should return an error")
+	}
+}
+
+// TestUnmarshalTruncatedYieldsUnexpectedEOF is the truncation contract: a valid FHIR
+// payload cut short at any byte must surface io.ErrUnexpectedEOF (matchable with
+// errors.Is), not the stdlib's opaque "unexpected end of JSON input" syntax error nor a
+// panic. A reader handling a partial network read or a clipped stream can then
+// distinguish "the input ran out" from "the input is structurally wrong". Every decode
+// entry point is checked because each calls a different json boundary (peekResourceType
+// reads only the discriminator; the full decode reads the whole object). A genuinely
+// malformed payload (a stray brace mid-buffer) must NOT be mapped to truncation, so the
+// non-truncation cases are asserted to be plain errors.
+func TestUnmarshalTruncatedYieldsUnexpectedEOF(t *testing.T) {
+	withTestFactory(t, "Patient", func() Resource { return &fakePatient{} })
+
+	full := `{"resourceType":"Patient","id":"pat-trunc","extra":{"a":[1,2,3]}}`
+	// Truncate at a range of lengths so both the discriminator peek and the full-object
+	// decode see a clipped buffer. len(full)-1 clips inside the closing braces; a short
+	// prefix clips inside the resourceType key itself.
+	for _, n := range []int{1, 5, 10, len(full) - 20, len(full) - 1} {
+		truncated := []byte(full[:n])
+
+		if _, err := UnmarshalResource(truncated); !errors.Is(err, io.ErrUnexpectedEOF) {
+			t.Errorf("UnmarshalResource(truncated len=%d): err = %v, want io.ErrUnexpectedEOF", n, err)
+		}
+		if _, err := Unmarshal[*fakePatient](truncated); !errors.Is(err, io.ErrUnexpectedEOF) {
+			t.Errorf("Unmarshal[*fakePatient](truncated len=%d): err = %v, want io.ErrUnexpectedEOF", n, err)
+		}
+	}
+
+	// Empty input is the degenerate truncation: the value never began.
+	if _, err := UnmarshalResource([]byte{}); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Errorf("UnmarshalResource(empty): err = %v, want io.ErrUnexpectedEOF", err)
+	}
+
+	// A truncated resource array (the contained-decode path) maps the same way.
+	if _, err := UnmarshalResourceSlice([]byte(`[{"resourceType":"Patient"`)); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Errorf("UnmarshalResourceSlice(truncated): err = %v, want io.ErrUnexpectedEOF", err)
+	}
+
+	// A structurally malformed payload that is not merely cut short must stay a plain
+	// decode error: a trailing stray character after a complete value is a syntax error
+	// at an offset inside the buffer, never truncation.
+	if _, err := UnmarshalResource([]byte(`{"resourceType":"Patient"}}`)); errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Error("a trailing-brace syntax error was misreported as truncation (io.ErrUnexpectedEOF)")
 	}
 }
 

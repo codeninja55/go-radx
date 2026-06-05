@@ -1,0 +1,6 @@
+{
+  "resourceType": "Patient",
+  "id": "mal-syntax",
+  "active": true,,
+  "name": [{"family": "TESTPATIENT"}]
+}

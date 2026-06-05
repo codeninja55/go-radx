@@ -1,0 +1,6 @@
+{
+  "resourceType": "Observation",
+  "id": "mal-arrayobj",
+  "status": "final",
+  "code": ["this", "should", "be", "an", "object"]
+}
