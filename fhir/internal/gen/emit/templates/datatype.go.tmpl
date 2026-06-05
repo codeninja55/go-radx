@@ -15,6 +15,9 @@ const {{ .GoName }}ResourceType = "{{ .FHIRName }}"
 {{ end }}
 // {{ .GoName }} is the generated FHIR {{ .FHIRName }} {{ .KindNoun }}.
 type {{ .GoName }} struct {
+{{- if .EmbeddedBase }}
+	{{ .EmbeddedBase }}
+{{- end }}
 {{- range .Fields }}
 	{{ .GoName }} {{ .GoType }} `json:"{{ .JSONTag }}"`
 {{- end }}
@@ -80,6 +83,9 @@ func (v {{ .GoName }}) MarshalJSON() ([]byte, error) {
 {{ range .Backbones }}
 // {{ .GoName }} is a generated nested backbone element.
 type {{ .GoName }} struct {
+{{- if .EmbeddedBase }}
+	{{ .EmbeddedBase }}
+{{- end }}
 {{- range .Fields }}
 	{{ .GoName }} {{ .GoType }} `json:"{{ .JSONTag }}"`
 {{- end }}

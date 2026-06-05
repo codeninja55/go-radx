@@ -13,13 +13,12 @@ import "github.com/codeninja55/go-radx/dicom"
 type Decimal = dicom.Decimal
 
 // ParseDecimal builds a Decimal from a lexical string, validating it against the
-// decimal production and preserving the source form verbatim. An empty or
+// FHIR decimal production and preserving the source form verbatim. An empty or
 // malformed input returns an error.
 //
-// TODO(M6a): the shared dicom.ParseDecimal enforces the DICOM DS 16-byte cap
-// (PS3.5), which is stricter than the FHIR decimal production. The dicom/fhir
-// Decimal unification at M6a (see docs/plans walking-skeleton Open question 1)
-// must split the length rule so a long-but-valid FHIR decimal is not rejected by
-// the DS cap. M2 carries no FHIR decimal through any converter, so this edge is
-// unreachable in the M2 slice.
-func ParseDecimal(s string) (Decimal, error) { return dicom.ParseDecimal(s) }
+// The FHIR decimal production places no length limit on a value, so ParseDecimal
+// uses the shared lexical parser without the DICOM DS 16-byte cap (PS3.5): a long
+// but well-formed FHIR decimal is accepted here. The DS cap is a DICOM VR write
+// constraint enforced by dicom.ParseDecimal at the DICOM value boundary, not a
+// property of the shared lexical Decimal.
+func ParseDecimal(s string) (Decimal, error) { return dicom.ParseDecimalLexical(s) }

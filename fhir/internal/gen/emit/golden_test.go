@@ -173,7 +173,7 @@ func emitType(t *testing.T, fhirName string) []byte {
 	if err != nil {
 		t.Fatalf("BuildType(%s): %v", fhirName, err)
 	}
-	pt := plan.PlanType(typ, plan.Options{SkipBaseMembers: true})
+	pt := plan.PlanType(typ, plan.Options{})
 	src, err := Emit(File{Package: "r5", Types: []plan.PlannedType{pt}})
 	if err != nil {
 		t.Fatalf("Emit(%s): %v", fhirName, err)

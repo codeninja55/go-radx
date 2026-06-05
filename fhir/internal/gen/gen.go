@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"unicode"
 
 	"github.com/codeninja55/go-radx/fhir/internal/gen/emit"
 	"github.com/codeninja55/go-radx/fhir/internal/gen/loader"
@@ -30,47 +32,54 @@ type Config struct {
 	OutputDir string
 }
 
-// generatedType pairs a FHIR type name with the generated file's base name. The
-// generator currently emits a representative slice of the full type set; until the
-// bulk-generation increment lands, these slices are the single source of truth for
-// what the generator produces, so regeneration is reproducible from them alone.
+// baseTypes are the shared abstract base types every concrete resource and datatype
+// inherits from. They are generated once into base.go and embedded by the concrete
+// types so a resource is faithful (it carries id, meta, text, contained, extension,
+// and the rest) without restating the base members inline. A base type is generated
+// flat (it embeds nothing) and without primitive "_field" siblings: a base type must
+// not define MarshalJSON, because a value-embedded type whose MarshalJSON is promoted
+// would shadow the embedding type's own MarshalJSON and drop every non-base field on
+// the wire.
+var baseTypes = []string{"Element", "BackboneElement", "Resource", "DomainResource"}
+
+// handWrittenTypes are the R5 types the M2 walking skeleton still hand-writes
+// (fhir/r5/service_request.go, diagnostic_report.go, imaging_study.go, and
+// datatypes.go). The bulk generator does not emit these now, because a generated
+// definition would collide with the hand-written one at the same Go name in the same
+// package and break compilation. The migration increment (F1-O) deletes the
+// hand-written files, re-points convert and the skeleton at the generated shapes, and
+// drops this exclusion so the generator owns the full set.
+var handWrittenTypes = map[string]bool{
+	// Resources (fhir/r5/{service_request,diagnostic_report,imaging_study}.go and
+	// the ImagingStudy backbones the hand-written file defines).
+	"ServiceRequest":   true,
+	"DiagnosticReport": true,
+	"ImagingStudy":     true,
+	// Datatypes (fhir/r5/datatypes.go).
+	"Reference":         true,
+	"Identifier":        true,
+	"Coding":            true,
+	"CodeableConcept":   true,
+	"CodeableReference": true,
+}
+
+// generatedType pairs a FHIR type name with the generated file's base name and the
+// flag set when planning it as a base type. The generator derives this list from the
+// loaded bundle on every run (deterministically, by sorted name), so a single
+// authority decides what is generated and the byte-for-byte regeneration gate
+// reproduces it from the bundle alone.
 type generatedType struct {
-	fhirName string
-	fileName string
-}
-
-// representativeDatatypes are the complex datatypes the generator currently emits.
-// Period proves the simple pipeline end to end (load, model, plan, emit, write) with
-// two scalar primitive fields; HumanName proves the primitive-extension layer — the
-// scalar "_field" siblings (use, text, family), the null-aligned repeating siblings
-// (given, prefix, suffix), and the FHIR-005 no-sibling-on-complex rule (its period
-// field, a Period, gets no "_field" companion).
-var representativeDatatypes = []generatedType{
-	{fhirName: "HumanName", fileName: "human_name.go"},
-	{fhirName: "Period", fileName: "period.go"},
-}
-
-// representativeResources are the resources the generator currently emits — one
-// small resource that exercises the resource shape end to end: the resourceType
-// constant, the ResourceType method, the always-emit-resourceType MarshalJSON
-// (FHIR-004), and a factory registration in the generated registry so
-// fhir.UnmarshalResource can dispatch to it. The full resource set (about 158 R5
-// resources) is generated in a later increment; this one resource proves the
-// identity API and registry machinery without bulk-generating.
-//
-// Flag is chosen because its own elements reference only already-available types
-// (Identifier, CodeableConcept, Reference, and the generated Period); its inherited
-// Resource/DomainResource base members are planned away (Options.SkipBaseMembers)
-// until the base machinery lands, so the representative resource compiles today.
-var representativeResources = []generatedType{
-	{fhirName: "Flag", fileName: "flag.go"},
+	fhirName   string
+	fileName   string
+	isBaseType bool
 }
 
 // Generate runs the full generator pipeline for one release: load and verify the
 // bundle, build the model, plan each type, emit gofmt-stable Go, and write the
-// generated files into the release package. It is the single library entry point the
-// CLI and the go:generate directive call. Re-running it reproduces the committed
-// output byte-for-byte, which is the property the diff gate verifies.
+// generated files into the release package. It generates every concrete resource and
+// complex datatype (and the shared base types), excluding only the names the M2
+// walking skeleton still hand-writes. Re-running it reproduces the committed output
+// byte-for-byte, which is the property the diff gate verifies.
 func Generate(cfg Config) error {
 	if cfg.Release == "" {
 		return fmt.Errorf("fhir/gen: %w: release is required", errors.ErrUnsupported)
@@ -87,28 +96,113 @@ func Generate(cfg Config) error {
 		return fmt.Errorf("fhir/gen: load definitions: %w", err)
 	}
 
-	for _, dt := range representativeDatatypes {
-		if err := emitTypeFile(bundle, cfg, dt); err != nil {
+	types := GeneratedTypes(bundle)
+	if err := emitBaseFile(bundle, cfg); err != nil {
+		return err
+	}
+	for _, gt := range types {
+		if gt.isBaseType {
+			continue
+		}
+		if err := emitTypeFile(bundle, cfg, gt); err != nil {
 			return err
 		}
 	}
-	for _, res := range representativeResources {
-		if err := emitTypeFile(bundle, cfg, res); err != nil {
-			return err
-		}
-	}
-	if err := emitRegistryFile(bundle, cfg); err != nil {
+	if err := emitRegistryFile(bundle, cfg, types); err != nil {
 		return err
 	}
 	return nil
 }
 
-// emitTypeFile runs the back-half pipeline for one type and writes its generated Go
-// file into the output directory. Datatypes and resources share the pipeline; the
-// planner's recorded kind drives the resource-specific output (resourceType,
-// ResourceType, MarshalJSON), so the same emit path serves both.
+// GeneratedTypes returns, in stable order, every type the generator emits for the
+// bundle: the shared base types first (all written into base.go), then every concrete
+// resource and complex datatype the bundle defines, in sorted name order, excluding
+// the hand-written skeleton types and the abstract types the generator does not
+// model. Both Generate and the byte-for-byte regeneration gate read this single
+// authority, so the committed file set is exactly what a fresh run reproduces.
+func GeneratedTypes(bundle *loader.Bundle) []generatedType {
+	types := make([]generatedType, 0, len(baseTypes)+200)
+	for _, name := range baseTypes {
+		types = append(types, generatedType{fhirName: name, fileName: "base.go", isBaseType: true})
+	}
+
+	for _, name := range bundle.StructureDefinitionNames() {
+		if handWrittenTypes[name] || isBaseTypeName(name) {
+			continue
+		}
+		sd, ok := bundle.StructureDefinition(name)
+		if !ok || sd.Abstract {
+			continue
+		}
+		switch model.Classify(sd) {
+		case model.KindResource, model.KindComplexType:
+			types = append(types, generatedType{fhirName: name, fileName: goFileName(name)})
+		default:
+			// A primitive type (mapped to a Go scalar, not a struct) or a kind the
+			// generator does not model: skip it.
+		}
+	}
+	return types
+}
+
+// GeneratedFileNames returns the sorted set of file names the generator writes for
+// the bundle (base.go, every per-type file, and registry.go), so the regeneration
+// gate can diff exactly that set against the committed tree without re-deriving the
+// naming rules.
+func GeneratedFileNames(bundle *loader.Bundle) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, gt := range GeneratedTypes(bundle) {
+		if !seen[gt.fileName] {
+			seen[gt.fileName] = true
+			names = append(names, gt.fileName)
+		}
+	}
+	names = append(names, "registry.go")
+	return names
+}
+
+// isBaseTypeName reports whether a FHIR type name is one of the shared base types
+// emitted into base.go, so the per-type loop does not emit it a second time.
+func isBaseTypeName(name string) bool {
+	for _, b := range baseTypes {
+		if b == name {
+			return true
+		}
+	}
+	return false
+}
+
+// emitBaseFile renders the shared base types into base.go in their fixed order. The
+// base types share one file and one package import block, so they are emitted
+// together rather than one file per base; the order is the fixed baseTypes order so
+// the file is byte-stable.
+func emitBaseFile(bundle *loader.Bundle, cfg Config) error {
+	planned := make([]plan.PlannedType, 0, len(baseTypes))
+	for _, name := range baseTypes {
+		pt, err := planType(bundle, name, true)
+		if err != nil {
+			return err
+		}
+		planned = append(planned, pt)
+	}
+	src, err := emit.Emit(emit.File{Package: cfg.Release, Types: planned})
+	if err != nil {
+		return fmt.Errorf("fhir/gen: emit base types: %w", err)
+	}
+	outPath := filepath.Join(cfg.OutputDir, "base.go")
+	if err := os.WriteFile(outPath, src, 0o644); err != nil {
+		return fmt.Errorf("fhir/gen: write %s: %w", outPath, err)
+	}
+	return nil
+}
+
+// emitTypeFile runs the back-half pipeline for one concrete type and writes its
+// generated Go file. Datatypes and resources share the pipeline; the planner's
+// recorded kind drives the resource-specific output (resourceType, ResourceType,
+// MarshalJSON), so the same emit path serves both.
 func emitTypeFile(bundle *loader.Bundle, cfg Config, gt generatedType) error {
-	pt, err := planType(bundle, gt.fhirName)
+	pt, err := planType(bundle, gt.fhirName, gt.isBaseType)
 	if err != nil {
 		return err
 	}
@@ -127,14 +221,20 @@ func emitTypeFile(bundle *loader.Bundle, cfg Config, gt generatedType) error {
 // generated resources and writes registry.go. The registry's generated init()
 // registers each resource's factory with the root fhir package so
 // fhir.UnmarshalResource can dispatch by resourceType. The resources are listed in
-// representativeResources order, which is the canonical, stable order the
+// the same stable order GeneratedTypes produces, which is the canonical order the
 // byte-for-byte regeneration gate depends on.
-func emitRegistryFile(bundle *loader.Bundle, cfg Config) error {
-	entries := make([]emit.RegistryEntry, 0, len(representativeResources))
-	for _, res := range representativeResources {
-		pt, err := planType(bundle, res.fhirName)
+func emitRegistryFile(bundle *loader.Bundle, cfg Config, types []generatedType) error {
+	var entries []emit.RegistryEntry
+	for _, gt := range types {
+		if gt.isBaseType {
+			continue
+		}
+		pt, err := planType(bundle, gt.fhirName, false)
 		if err != nil {
 			return err
+		}
+		if !pt.IsResource() {
+			continue
 		}
 		entries = append(entries, emit.RegistryEntry{GoName: pt.GoName})
 	}
@@ -150,11 +250,10 @@ func emitRegistryFile(bundle *loader.Bundle, cfg Config) error {
 }
 
 // planType runs the front-half pipeline (model, plan) for one FHIR type and returns
-// its emitter-ready PlannedType. SkipBaseMembers is set because the shared base
-// machinery (Element id/extension, the resource and DomainResource bases, and the
-// primitive-extension siblings) is not yet generated; a later increment embeds the
-// base types and retires the option.
-func planType(bundle *loader.Bundle, fhirName string) (plan.PlannedType, error) {
+// its emitter-ready PlannedType. A concrete type embeds the shared base it inherits
+// from and drops the members that base supplies; a base type (isBaseType) keeps every
+// member, embeds nothing, and carries no primitive "_field" siblings.
+func planType(bundle *loader.Bundle, fhirName string, isBaseType bool) (plan.PlannedType, error) {
 	sd, ok := bundle.StructureDefinition(fhirName)
 	if !ok {
 		return plan.PlannedType{}, fmt.Errorf("fhir/gen: StructureDefinition %q not in bundle", fhirName)
@@ -163,5 +262,25 @@ func planType(bundle *loader.Bundle, fhirName string) (plan.PlannedType, error) 
 	if err != nil {
 		return plan.PlannedType{}, fmt.Errorf("fhir/gen: build model for %s: %w", fhirName, err)
 	}
-	return plan.PlanType(typ, plan.Options{SkipBaseMembers: true}), nil
+	return plan.PlanType(typ, plan.Options{IsBaseType: isBaseType}), nil
+}
+
+// goFileName maps a FHIR type name to its generated file's snake_case base name
+// ("CodeSystem" -> "code_system.go", "OperationOutcome" -> "operation_outcome.go"),
+// matching the existing hand-written file naming so the generated tree reads
+// consistently. The mapping is a pure function of the name, so it is stable across
+// runs.
+func goFileName(fhirName string) string {
+	var b strings.Builder
+	for i, r := range fhirName {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				b.WriteByte('_')
+			}
+			b.WriteRune(unicode.ToLower(r))
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String() + ".go"
 }

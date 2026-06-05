@@ -42,7 +42,7 @@ func TestPlanGoldenSnapshot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildType(%s): %v", name, err)
 			}
-			got := Snapshot(PlanType(typ, Options{SkipBaseMembers: true}))
+			got := Snapshot(PlanType(typ, Options{}))
 
 			goldenPath := filepath.Join("testdata", "golden", name+".plan.txt")
 			if *updateGolden {

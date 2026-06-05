@@ -9,6 +9,7 @@ import (
 
 // Period is the generated FHIR Period datatype.
 type Period struct {
+	Element
 	Start        *string                `json:"start,omitempty"`
 	StartElement *fhir.PrimitiveElement `json:"-"`
 	End          *string                `json:"end,omitempty"`

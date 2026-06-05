@@ -12,6 +12,7 @@ const FlagResourceType = "Flag"
 
 // Flag is the generated FHIR Flag resource.
 type Flag struct {
+	DomainResource
 	Identifier    []Identifier           `json:"identifier,omitempty"`
 	Status        *string                `json:"status,omitempty"`
 	StatusElement *fhir.PrimitiveElement `json:"-"`

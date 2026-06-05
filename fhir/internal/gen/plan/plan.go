@@ -31,16 +31,33 @@ type PlannedType struct {
 	// Fields are the planned top-level fields in canonical (snapshot) order.
 	Fields []Field
 
+	// EmbeddedBase is the Go base type this type embeds (DomainResource or Resource
+	// for a resource, Element or BackboneElement for a complex datatype), or empty
+	// for a base type itself. The emitter renders it as the struct's first,
+	// anonymous field so the base members (id, meta, text, extension, ...) are
+	// promoted and the type is faithful without restating them inline.
+	EmbeddedBase string
+
+	// IsBaseType marks one of the shared abstract base types (Element,
+	// BackboneElement, Resource, DomainResource). A base type is emitted as a plain
+	// struct: it carries no resourceType discriminator, no ResourceType method, and
+	// no MarshalJSON, even though Resource and DomainResource classify as FHIR
+	// resources. That suppression is mandatory, because a value-embedded type whose
+	// MarshalJSON is promoted would shadow the embedding resource's own MarshalJSON
+	// and drop every non-base field on the wire.
+	IsBaseType bool
+
 	// Backbones are the distinct nested backbone structs this type owns, deduplicated
 	// by shape and sorted by Go name so the emitter output is stable.
 	Backbones []PlannedBackbone
 }
 
-// IsResource reports whether the planned type is a FHIR resource, so the emitter
-// renders the resourceType discriminator, the ResourceType method, and the
-// always-emit-resourceType MarshalJSON for it (and not for a plain datatype). The
-// kind decision is the planner's; the emitter only reads this flag.
-func (t PlannedType) IsResource() bool { return t.Kind == model.KindResource }
+// IsResource reports whether the planned type is a FHIR resource the emitter renders
+// with the resourceType discriminator, the ResourceType method, and the always-emit-
+// resourceType MarshalJSON. A base type is never treated as a resource for emission
+// even though Resource and DomainResource classify as resources, so a base type
+// stays a plain struct with no promoted MarshalJSON.
+func (t PlannedType) IsResource() bool { return t.Kind == model.KindResource && !t.IsBaseType }
 
 // KindNoun returns the English noun the godoc summary uses for the type's kind
 // ("resource" or "datatype"), so the generated comment reads naturally for both.
@@ -76,6 +93,12 @@ func (t PlannedType) RepeatingPrimitives() []Field { return primitiveSiblings(t.
 type PlannedBackbone struct {
 	GoName string
 	Fields []Field
+
+	// EmbeddedBase is the Go base type this backbone embeds: BackboneElement for a
+	// resource backbone (which carries id, extension, and modifierExtension) or
+	// Element for a datatype backbone (id and extension). The members the base
+	// supplies are dropped from Fields and promoted through the embedded base.
+	EmbeddedBase string
 }
 
 // HasPrimitiveSibling reports whether the backbone owns a primitive "_field"
@@ -111,51 +134,113 @@ func primitiveSiblings(fields []Field, repeats bool) []Field {
 	return out
 }
 
-// Options tunes a planning run. The skeleton increment plans a single representative
-// datatype without the shared Element base machinery (id/extension and the
-// primitive-extension siblings arrive in later increments), so SkipBaseMembers omits
-// the inherited base members a complex type carries until that machinery exists.
+// Options tunes a planning run.
 type Options struct {
-	// SkipBaseMembers omits the Element/DataType base members (id and extension) from
-	// a planned complex type. It is set while the shared base type is not yet
-	// generated; once the base machinery lands the members are embedded instead of
-	// skipped and this option is retired.
-	SkipBaseMembers bool
+	// IsBaseType marks the planned type as one of the shared abstract base types
+	// (Element, BackboneElement, Resource, DomainResource). A base type is planned
+	// with its own members intact, embeds no base, and suppresses the primitive
+	// "_field" siblings: a base type must not define MarshalJSON, because a value-
+	// embedded type whose MarshalJSON is promoted would shadow the embedding type's
+	// own MarshalJSON and drop every non-base field on the wire. Base-member
+	// primitive extensions (Resource.id, language, implicitRules) are therefore not
+	// modelled in v1; the extension machinery is a later increment.
+	IsBaseType bool
 }
 
-// baseMemberNames are the base members a complex type or resource inherits from
-// Element, DataType, Resource, and DomainResource. They are planned away under
-// Options.SkipBaseMembers until the shared base types exist (Increment 5/6 embeds
-// them and retires the option). The set covers both the Element base (id, extension)
-// and the resource bases (meta, implicitRules, language) plus the DomainResource
-// bases (text, contained, modifierExtension), so a representative resource planned
-// before the base machinery lands carries only its own elements and compiles
-// against the already-generated type set.
-var baseMemberNames = map[string]bool{
-	"id":                true,
-	"extension":         true,
-	"meta":              true,
-	"implicitRules":     true,
-	"language":          true,
-	"text":              true,
-	"contained":         true,
-	"modifierExtension": true,
+// baseStrip describes how a concrete type inherits its base members: the Go base
+// type it embeds and the set of element names that base supplies (and which are
+// therefore dropped from the concrete type's own field list, since the embedded
+// base carries them). A faithful resource keeps meta/text/contained/extension and
+// the rest through the embedded DomainResource rather than restating them.
+type baseStrip struct {
+	embed string          // Go base type name to embed (for example "DomainResource")
+	drop  map[string]bool // element names supplied by the embedded base
+}
+
+// elementBaseMembers are the members the Element base supplies (id, extension). A
+// complex datatype embeds Element and drops these.
+var elementBaseMembers = map[string]bool{"id": true, "extension": true}
+
+// backboneBaseMembers are the members the BackboneElement base supplies (Element's
+// id and extension plus modifierExtension). A resource backbone, and a complex
+// datatype that carries a top-level modifierExtension (a BackboneType such as
+// Dosage or Timing), embeds BackboneElement and drops these.
+var backboneBaseMembers = map[string]bool{"id": true, "extension": true, "modifierExtension": true}
+
+// resourceBaseMembers are the members the Resource base supplies (id, meta,
+// implicitRules, language). A resource that is not a DomainResource (Bundle,
+// Binary, Parameters) embeds Resource and drops these.
+var resourceBaseMembers = map[string]bool{"id": true, "meta": true, "implicitRules": true, "language": true}
+
+// domainResourceBaseMembers are the members the DomainResource base supplies (the
+// Resource members plus text, contained, extension, modifierExtension). Most
+// resources embed DomainResource and drop these.
+var domainResourceBaseMembers = map[string]bool{
+	"id": true, "meta": true, "implicitRules": true, "language": true,
+	"text": true, "contained": true, "extension": true, "modifierExtension": true,
+}
+
+// planBase decides which base a concrete type embeds and which of its members the
+// base supplies, by reading the type's own top-level members rather than walking
+// the base-definition chain (which the planner does not resolve): a resource that
+// carries text/contained is a DomainResource, one that does not is a plain
+// Resource; a complex datatype that carries a top-level modifierExtension is a
+// BackboneType (embeds BackboneElement), otherwise it embeds Element. This keeps
+// the decision release-agnostic and dependent only on the IR.
+func planBase(t *model.Type) baseStrip {
+	top := topLevelNames(t.Root)
+	if t.Kind == model.KindResource {
+		if top["text"] || top["contained"] {
+			return baseStrip{embed: "DomainResource", drop: domainResourceBaseMembers}
+		}
+		return baseStrip{embed: "Resource", drop: resourceBaseMembers}
+	}
+	if top["modifierExtension"] {
+		return baseStrip{embed: "BackboneElement", drop: backboneBaseMembers}
+	}
+	return baseStrip{embed: "Element", drop: elementBaseMembers}
+}
+
+// topLevelNames is the set of direct-member element names of a type's root.
+func topLevelNames(root *model.Element) map[string]bool {
+	names := make(map[string]bool, len(root.Children))
+	for _, c := range root.Children {
+		names[c.Name] = true
+	}
+	return names
 }
 
 // PlanType turns a classified model.Type into an emitter-ready PlannedType. It plans
 // each top-level element into a Go field with a deterministic, collision-free name,
 // collects the distinct nested backbone structs (deduplicated by shape), and records
-// the canonical field order. The planner makes no I/O and reads no template.
+// the canonical field order. A concrete type embeds the shared base it inherits from
+// (DomainResource/Resource for a resource, Element/BackboneElement for a datatype)
+// and drops the members that base supplies, so a generated resource is faithful
+// (meta, text, contained, extension, ...) without restating the base inline. A base
+// type itself (Options.IsBaseType) embeds nothing and keeps every member. The
+// planner makes no I/O and reads no template.
 func PlanType(t *model.Type, opts Options) PlannedType {
 	pt := PlannedType{
-		GoName:   GoTypeName(t.Name),
-		FHIRName: t.Name,
-		Kind:     t.Kind,
+		GoName:     GoTypeName(t.Name),
+		FHIRName:   t.Name,
+		Kind:       t.Kind,
+		IsBaseType: opts.IsBaseType,
+	}
+
+	var drop map[string]bool
+	if !opts.IsBaseType {
+		base := planBase(t)
+		pt.EmbeddedBase = base.embed
+		drop = base.drop
 	}
 
 	backbones := newBackboneSet()
 	used := map[string]bool{}
-	pt.Fields = planFields(t.Name, t.Root.Children, opts, used, backbones)
+	if pt.EmbeddedBase != "" {
+		// Reserve the embedded base's Go name so an own field never collides with it.
+		used[pt.EmbeddedBase] = true
+	}
+	pt.Fields = planFields(t.Name, t.Root.Children, drop, opts.IsBaseType, used, backbones)
 	pt.Backbones = backbones.sorted()
 	return pt
 }
@@ -163,12 +248,15 @@ func PlanType(t *model.Type, opts Options) PlannedType {
 // planFields plans the direct children of a node into fields, resolving Go-name
 // collisions deterministically within the node's scope and recording any nested
 // backbone shape it encounters. ownerType is the FHIR type the backbone names are
-// rooted under. Each scope (a struct's field set) gets its own used-name map, so a
-// field named "Type" in one struct never disambiguates a "Type" in another.
-func planFields(ownerType string, children []*model.Element, opts Options, used map[string]bool, backbones *backboneSet) []Field {
+// rooted under. drop names the members the embedded base supplies (skipped here);
+// suppressSiblings is set for a base type, which must not emit primitive "_field"
+// siblings (and so must not define MarshalJSON). Each scope (a struct's field set)
+// gets its own used-name map, so a field named "Type" in one struct never
+// disambiguates a "Type" in another.
+func planFields(ownerType string, children []*model.Element, drop map[string]bool, suppressSiblings bool, used map[string]bool, backbones *backboneSet) []Field {
 	fields := make([]Field, 0, len(children))
 	for _, child := range children {
-		if opts.SkipBaseMembers && baseMemberNames[child.Name] {
+		if drop[child.Name] {
 			continue
 		}
 
@@ -183,16 +271,18 @@ func planFields(ownerType string, children []*model.Element, opts Options, used 
 			// self- or mutually-recursive backbone. Its Go type is the named backbone
 			// type of the anchor it points back to, decorated by cardinality, so a
 			// recursive structure becomes a slice-of-self rather than an undefined or
-			// expanded-forever type.
+			// expanded-forever type. The donor backbone and this boundary resolve to
+			// the same GoBackboneTypeName, so the recursion collapses to one
+			// self-referential named type rather than two distinct names.
 			anchorName := GoBackboneTypeName(ownerType, pathSegmentsAfterOwner(ownerType, child.ContentReference))
 			f.GoType = decorateBackbone(child.Cardinality, anchorName)
 		case child.IsBackbone():
-			bb := planBackbone(ownerType, child, opts, backbones)
+			bb := planBackbone(ownerType, child, backbones)
 			f.GoType = decorateBackbone(child.Cardinality, bb.GoName)
 		}
 
 		fields = append(fields, f)
-		if f.Primitive {
+		if f.Primitive && !suppressSiblings {
 			fields = append(fields, planPrimitiveSibling(f, used))
 		}
 	}
@@ -230,11 +320,30 @@ func planPrimitiveSibling(value Field, used map[string]bool) Field {
 // given shape is seen, so the same shape at several paths always resolves to the same
 // Go type. planBackbone recurses, so a backbone containing another backbone is
 // planned all the way down.
-func planBackbone(ownerType string, e *model.Element, opts Options, backbones *backboneSet) PlannedBackbone {
-	used := map[string]bool{}
-	fields := planFields(ownerType, e.Children, opts, used, backbones)
+//
+// A backbone embeds its element base just as a top-level type does: a resource
+// backbone carries a modifierExtension child (a BackboneElement) and embeds
+// BackboneElement, a datatype backbone carries only id/extension (an Element) and
+// embeds Element. The base members are dropped from the backbone's own fields.
+func planBackbone(ownerType string, e *model.Element, backbones *backboneSet) PlannedBackbone {
+	embed, drop := backboneBase(e)
+	used := map[string]bool{embed: true}
+	fields := planFields(ownerType, e.Children, drop, false, used, backbones)
 	goName := GoBackboneTypeName(ownerType, pathSegmentsAfterOwner(ownerType, e.Path))
-	return backbones.add(goName, fields)
+	return backbones.add(goName, fields, embed)
+}
+
+// backboneBase decides which element base a backbone embeds and which members that
+// base supplies. A backbone carrying a modifierExtension child is a BackboneElement
+// (a resource backbone, or a BackboneType datatype's nested element); one carrying
+// only id/extension is a plain Element (a datatype backbone such as Timing.repeat).
+func backboneBase(e *model.Element) (string, map[string]bool) {
+	for _, c := range e.Children {
+		if c.Name == "modifierExtension" {
+			return "BackboneElement", backboneBaseMembers
+		}
+	}
+	return "Element", elementBaseMembers
 }
 
 // isRecursionBoundary reports whether an element is a contentReference recursion
@@ -283,13 +392,15 @@ func newBackboneSet() *backboneSet {
 // add records a backbone shape under its structural fingerprint and returns the
 // canonical backbone for that shape. If the shape was seen before, the previously
 // recorded backbone (and its name) is returned, so the same shape never produces two
-// Go types — shape-dedup, not path-dedup.
-func (s *backboneSet) add(goName string, fields []Field) PlannedBackbone {
-	fp := fingerprint(fields)
+// Go types — shape-dedup, not path-dedup. The embedded base is part of the
+// fingerprint so two backbones with the same own-fields but a different element base
+// stay distinct.
+func (s *backboneSet) add(goName string, fields []Field, embed string) PlannedBackbone {
+	fp := embed + "|" + fingerprint(fields)
 	if existing, ok := s.byShape[fp]; ok {
 		return existing
 	}
-	bb := PlannedBackbone{GoName: goName, Fields: fields}
+	bb := PlannedBackbone{GoName: goName, Fields: fields, EmbeddedBase: embed}
 	s.byShape[fp] = bb
 	return bb
 }

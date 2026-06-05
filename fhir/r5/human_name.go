@@ -9,8 +9,11 @@ import (
 
 // HumanName is the generated FHIR HumanName datatype.
 type HumanName struct {
+	Element
 	Use           *string                  `json:"use,omitempty"`
 	UseElement    *fhir.PrimitiveElement   `json:"-"`
+	Text          *string                  `json:"text,omitempty"`
+	TextElement   *fhir.PrimitiveElement   `json:"-"`
 	Family        *string                  `json:"family,omitempty"`
 	FamilyElement *fhir.PrimitiveElement   `json:"-"`
 	Given         []string                 `json:"given,omitempty"`
@@ -46,6 +49,11 @@ func marshalHumanNameSiblings(v *HumanName, encoded []byte) ([]byte, error) {
 		return nil, err
 	} else {
 		siblings = append(siblings, fhir.RawSibling{Key: "_use", Value: raw})
+	}
+	if raw, err := fhir.MarshalPrimitiveExtension(v.TextElement); err != nil {
+		return nil, err
+	} else {
+		siblings = append(siblings, fhir.RawSibling{Key: "_text", Value: raw})
 	}
 	if raw, err := fhir.MarshalPrimitiveExtension(v.FamilyElement); err != nil {
 		return nil, err
@@ -83,6 +91,13 @@ func (v *HumanName) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		v.UseElement = &element
+	}
+	if raw, ok := fhir.TakeRawField(obj, "_text"); ok {
+		var element fhir.PrimitiveElement
+		if err := json.Unmarshal(raw, &element); err != nil {
+			return err
+		}
+		v.TextElement = &element
 	}
 	if raw, ok := fhir.TakeRawField(obj, "_family"); ok {
 		var element fhir.PrimitiveElement

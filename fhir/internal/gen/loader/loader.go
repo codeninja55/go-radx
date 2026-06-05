@@ -66,6 +66,19 @@ func (b *Bundle) StructureDefinitionByURL(url string) (*StructureDefinition, boo
 	return sd, ok
 }
 
+// StructureDefinitionNames returns every loaded StructureDefinition name in sorted
+// order, so the bulk generator can iterate the full type set deterministically. The
+// sort makes generation order independent of the bundle's entry order and of map
+// iteration, which is what keeps the generated tree byte-for-byte reproducible.
+func (b *Bundle) StructureDefinitionNames() []string {
+	names := make([]string, 0, len(b.sdByName))
+	for name := range b.sdByName {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 // ValueSet returns the ValueSet indexed by its canonical URL.
 func (b *Bundle) ValueSet(url string) (*ValueSet, bool) {
 	vs, ok := b.vsByURL[url]
