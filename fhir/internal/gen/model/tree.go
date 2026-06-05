@@ -92,10 +92,11 @@ type Element struct {
 	// stripped base is available via ChoiceBase.
 	Name string
 
-	// Path is the full dotted FHIR path of the element within its defining
-	// StructureDefinition (for example "Observation.referenceRange.low"). After a
-	// contentReference graft the grafted children keep the path they had under the
-	// referenced element, since that is where the StructureDefinition defines them.
+	// Path is the full dotted occurrence path of the element in this tree (for
+	// example "Observation.component.referenceRange.low"). After a contentReference
+	// graft the grafted children are rebased onto the occurrence path so Path always
+	// reflects where the element sits in this tree, not the donor path the
+	// StructureDefinition defined it under.
 	Path string
 
 	// Cardinality is the element's occurrence constraint.

@@ -125,6 +125,78 @@ func TestContentReferenceGraft(t *testing.T) {
 	}
 }
 
+// TestContentReferenceRebasesChildPaths asserts grafted children are rebased onto
+// their occurrence path, not left under the donor path the snapshot defined them
+// under, so the IR is a true occurrence-path tree.
+func TestContentReferenceRebasesChildPaths(t *testing.T) {
+	t.Parallel()
+
+	def := sd("Observation",
+		elem("Observation", 0, "*", "BackboneElement"),
+		elem("Observation.referenceRange", 0, "*", "BackboneElement"),
+		elem("Observation.referenceRange.low", 0, "1", "Quantity"),
+		elem("Observation.component", 0, "*", "BackboneElement"),
+		func() loader.ElementDefinition {
+			ed := elem("Observation.component.referenceRange", 0, "*")
+			ed.ContentReference = "#Observation.referenceRange"
+			return ed
+		}(),
+	)
+
+	typ, err := BuildType(def)
+	if err != nil {
+		t.Fatalf("BuildType: %v", err)
+	}
+
+	low := childPath(t, typ.Root, "component", "referenceRange", "low")
+	if low.Path != "Observation.component.referenceRange.low" {
+		t.Errorf("grafted low path = %q, want the occurrence path Observation.component.referenceRange.low", low.Path)
+	}
+}
+
+// TestRecursiveContentReferenceBounded is the unbounded-recursion regression: a
+// self-recursive contentReference (concept.concept reuses #concept) must be grafted
+// once and then bounded at the recursion boundary, which keeps its contentReference
+// marker and carries no further expansion. Without the bound, BuildType would
+// expand forever.
+func TestRecursiveContentReferenceBounded(t *testing.T) {
+	t.Parallel()
+
+	def := sd("CodeSystem",
+		elem("CodeSystem", 0, "1", "DomainResource"),
+		elem("CodeSystem.concept", 0, "*", "BackboneElement"),
+		elem("CodeSystem.concept.code", 1, "1", "code"),
+		func() loader.ElementDefinition {
+			ed := elem("CodeSystem.concept.concept", 0, "*")
+			ed.ContentReference = "#CodeSystem.concept"
+			return ed
+		}(),
+	)
+
+	typ, err := BuildType(def)
+	if err != nil {
+		t.Fatalf("BuildType: %v", err)
+	}
+
+	// concept -> concept is grafted once with the donor's children (code, concept).
+	cc := childPath(t, typ.Root, "concept", "concept")
+	if _, ok := cc.Child("code"); !ok {
+		t.Error("first concept.concept should be grafted with the donor's code child")
+	}
+
+	// concept -> concept -> concept is the boundary: no further expansion, marker kept.
+	boundary := childPath(t, cc, "concept")
+	if len(boundary.Children) != 0 {
+		t.Errorf("recursion boundary has %d children; want it bounded at 0", len(boundary.Children))
+	}
+	if boundary.ContentReference != "CodeSystem.concept" {
+		t.Errorf("recursion boundary contentReference = %q, want the marker kept", boundary.ContentReference)
+	}
+	if boundary.Path != "CodeSystem.concept.concept.concept" {
+		t.Errorf("recursion boundary path = %q, want the occurrence path", boundary.Path)
+	}
+}
+
 // TestMissingParentIsError asserts the model fails closed when a child path's
 // parent is absent from the snapshot, rather than silently dropping the element
 // (the failure mode that produces empty backbones).

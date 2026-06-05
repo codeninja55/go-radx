@@ -34,15 +34,26 @@ func BuildType(sd *loader.StructureDefinition) (*Type, error) {
 		Base:     sd.BaseDefinition,
 	}
 
-	root, byPath, err := buildTree(sd)
+	root, idx, err := buildTree(sd)
 	if err != nil {
 		return nil, err
 	}
-	if err := resolveContentReferences(sd.Name, root, byPath); err != nil {
+	if err := resolveContentReferences(sd.Name, root, idx, map[string]bool{}); err != nil {
 		return nil, err
 	}
 	t.Root = root
 	return t, nil
+}
+
+// byPath is an index of the direct-child structure of every snapshot element,
+// keyed by full path. It records each element's own immediate children only, taken
+// before any contentReference graft, so it is a frozen donor view: graft resolution
+// reads child lists from here rather than from the result tree's nodes, which the
+// graft mutates. This keeps resolution order-independent — a donor's children are
+// always its pristine direct children, never a partially-grafted version.
+type byPath struct {
+	nodes    map[string]*Element // path -> the element node (direct children only)
+	children map[string][]string // path -> ordered direct-child paths
 }
 
 // buildTree nests the snapshot elements into a tree keyed by full path. The first
@@ -51,10 +62,13 @@ func BuildType(sd *loader.StructureDefinition) (*Type, error) {
 // by-path index used by contentReference resolution. A child whose parent path is
 // absent is a hard error: silently dropping it is exactly how the prototype
 // produced empty backbones.
-func buildTree(sd *loader.StructureDefinition) (*Element, map[string]*Element, error) {
+func buildTree(sd *loader.StructureDefinition) (*Element, *byPath, error) {
 	elements := sd.Snapshot.Element
 	root := newElement(&elements[0])
-	byPath := map[string]*Element{root.Path: root}
+	idx := &byPath{
+		nodes:    map[string]*Element{root.Path: root},
+		children: map[string][]string{},
+	}
 
 	for i := 1; i < len(elements); i++ {
 		ed := &elements[i]
@@ -64,23 +78,24 @@ func buildTree(sd *loader.StructureDefinition) (*Element, map[string]*Element, e
 		if parentPath == "" {
 			return nil, nil, fmt.Errorf("model: %s: element %q has no parent segment", sd.Name, ed.Path)
 		}
-		parent, ok := byPath[parentPath]
+		parent, ok := idx.nodes[parentPath]
 		if !ok {
 			return nil, nil, fmt.Errorf(
 				"model: %s: element %q references missing parent %q (snapshot out of order or incomplete)",
 				sd.Name, ed.Path, parentPath)
 		}
 		parent.Children = append(parent.Children, node)
+		idx.children[parentPath] = append(idx.children[parentPath], node.Path)
 
 		// Index by full path. A choice element is also indexed under its stripped
 		// base so a contentReference or a child path that targets the base resolves;
 		// FHIR never nests under a "[x]" element, so the two never collide.
-		byPath[node.Path] = node
+		idx.nodes[node.Path] = node
 		if node.IsChoice {
-			byPath[strings.TrimSuffix(node.Path, choiceSuffix)] = node
+			idx.nodes[strings.TrimSuffix(node.Path, choiceSuffix)] = node
 		}
 	}
-	return root, byPath, nil
+	return root, idx, nil
 }
 
 // newElement maps a raw ElementDefinition to a tree Element, carrying cardinality,
@@ -123,57 +138,105 @@ func newElement(ed *loader.ElementDefinition) *Element {
 }
 
 // resolveContentReferences walks the tree and, for every element carrying a
-// contentReference, deep-copies the referenced element's children onto it. FHIR
-// uses contentReference for recursive or shared backbone shapes (for example
-// Observation.component.referenceRange reuses #Observation.referenceRange) and
-// does not restate the referenced children inline, so without this graft the
-// referencing backbone would be empty. The copy is deep so each occurrence owns
-// its subtree and a later stage editing one does not perturb another.
-func resolveContentReferences(typeName string, node *Element, byPath map[string]*Element) error {
+// contentReference, grafts a deep copy of the referenced element's child structure
+// onto it. FHIR uses contentReference for recursive or shared backbone shapes (for
+// example Observation.component.referenceRange reuses #Observation.referenceRange)
+// and does not restate the referenced children inline, so without this graft the
+// referencing backbone would be empty.
+//
+// The graft is bounded against self- and mutually-recursive anchors, which FHIR
+// uses for genuinely recursive structures (CodeSystem.concept.concept reuses
+// #CodeSystem.concept; Composition.section.section reuses #Composition.section).
+// Expanding such an anchor inline would never terminate, so when a contentReference
+// target is already on the active expansion chain the node is left carrying its
+// contentReference marker unexpanded: it is the recursion boundary the planner
+// turns into a self-referential named type. A non-recursive anchor is expanded
+// fully.
+//
+// The donor's children are read from the frozen byPath index (its pristine direct
+// children), not from the result tree, so resolution order never affects the graft.
+// chain holds the contentReference target paths currently being expanded above
+// node, so a cycle is detected in O(1).
+func resolveContentReferences(typeName string, node *Element, idx *byPath, chain map[string]bool) error {
 	if node.ContentReference != "" && len(node.Children) == 0 {
-		target, ok := byPath[node.ContentReference]
-		if !ok {
+		if _, ok := idx.nodes[node.ContentReference]; !ok {
 			return fmt.Errorf(
 				"model: %s: element %q contentReference %q resolves to no element in the snapshot",
 				typeName, node.Path, node.ContentReference)
 		}
-		for _, child := range target.Children {
-			node.Children = append(node.Children, child.clone())
+		// A target already on the active chain is a recursion cycle; leave the node
+		// as the boundary rather than expanding forever.
+		if !chain[node.ContentReference] {
+			chain[node.ContentReference] = true
+			// Graft a deep copy of each donor child, rebased so its path reflects this
+			// occurrence (Observation.component.referenceRange.low) rather than the
+			// donor path it was defined under (Observation.referenceRange.low). The
+			// rebase keeps the IR a true occurrence-path tree.
+			for _, childPath := range idx.children[node.ContentReference] {
+				node.Children = append(node.Children, idx.cloneRebased(childPath, node.ContentReference, node.Path))
+			}
+			if err := resolveChildren(typeName, node, idx, chain); err != nil {
+				return err
+			}
+			delete(chain, node.ContentReference)
+			return nil
 		}
 	}
+	return resolveChildren(typeName, node, idx, chain)
+}
+
+// resolveChildren recurses contentReference resolution into a node's children.
+func resolveChildren(typeName string, node *Element, idx *byPath, chain map[string]bool) error {
 	for _, child := range node.Children {
-		if err := resolveContentReferences(typeName, child, byPath); err != nil {
+		if err := resolveContentReferences(typeName, child, idx, chain); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// clone deep-copies an element subtree so a grafted contentReference target is
-// independent of its source. Slices are copied rather than aliased so the two
-// occurrences never share backing arrays.
-func (e *Element) clone() *Element {
-	c := *e
-	if e.Types != nil {
-		c.Types = make([]TypeRef, len(e.Types))
-		for i, t := range e.Types {
+// cloneRebased deep-copies the donor element at donorPath (and its frozen subtree
+// from the byPath index) into an independent Element, rewriting each node's path so
+// the donor prefix becomes the occurrence prefix. Reading the subtree from the
+// frozen index rather than from the donor node's live Children makes the clone
+// independent of any graft already applied to the result tree.
+func (idx *byPath) cloneRebased(donorPath, donorPrefix, occurrencePrefix string) *Element {
+	src := idx.nodes[donorPath]
+	c := *src
+	c.Path = rebasePath(src.Path, donorPrefix, occurrencePrefix)
+	c.Children = nil
+	if src.Types != nil {
+		c.Types = make([]TypeRef, len(src.Types))
+		for i, t := range src.Types {
 			c.Types[i] = t
 			if t.TargetProfiles != nil {
 				c.Types[i].TargetProfiles = append([]string(nil), t.TargetProfiles...)
 			}
 		}
 	}
-	if e.Binding != nil {
-		b := *e.Binding
+	if src.Binding != nil {
+		b := *src.Binding
 		c.Binding = &b
 	}
-	if e.Children != nil {
-		c.Children = make([]*Element, len(e.Children))
-		for i, child := range e.Children {
-			c.Children[i] = child.clone()
-		}
+	for _, childPath := range idx.children[donorPath] {
+		c.Children = append(c.Children, idx.cloneRebased(childPath, donorPrefix, occurrencePrefix))
 	}
 	return &c
+}
+
+// rebasePath replaces the donor prefix of a grafted child's path with the
+// occurrence prefix, so "Observation.referenceRange.low" grafted under
+// "Observation.component.referenceRange" becomes
+// "Observation.component.referenceRange.low". A path that does not start with the
+// donor prefix is returned unchanged (defensive; the grafted children always do).
+func rebasePath(path, donorPrefix, occurrencePrefix string) string {
+	if path == donorPrefix {
+		return occurrencePrefix
+	}
+	if strings.HasPrefix(path, donorPrefix+".") {
+		return occurrencePrefix + path[len(donorPrefix):]
+	}
+	return path
 }
 
 // parentOf returns the dotted path one level up from path ("Observation.component"

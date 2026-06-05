@@ -21,12 +21,15 @@ const vendoredR5Dir = "../testdata/definitions/r5"
 
 // goldenTypes are the representative R5 types pinned by the golden snapshot, chosen
 // to exercise every IR feature against real definitions:
-//   - Observation: deep backbones, a contentReference-grafted backbone
-//     (component.referenceRange reuses #Observation.referenceRange), and choice
-//     elements (value[x]) — the structural fix for empty backbones.
+//   - Observation: deep backbones, a non-recursive contentReference-grafted
+//     backbone (component.referenceRange reuses #Observation.referenceRange), and
+//     choice elements (value[x]) — the structural fix for empty backbones.
+//   - CodeSystem: a self-recursive contentReference (concept.concept reuses
+//     #CodeSystem.concept), which must be grafted once and then bounded at the
+//     recursion boundary rather than expanded forever.
 //   - Period: a small complex datatype.
 //   - boolean: a primitive type, proving classification across all three kinds.
-var goldenTypes = []string{"Observation", "Period", "boolean"}
+var goldenTypes = []string{"Observation", "CodeSystem", "Period", "boolean"}
 
 func TestModelGoldenSnapshot(t *testing.T) {
 	bundle, err := loader.Load(vendoredR5Dir)
@@ -95,8 +98,14 @@ func TestModelGoldenObservationProperties(t *testing.T) {
 	if len(refRange.Children) == 0 {
 		t.Fatal("Observation.component.referenceRange is an empty backbone (the FHIR-006 defect on real definitions)")
 	}
-	if _, ok := refRange.Child("low"); !ok {
-		t.Error("grafted component.referenceRange should carry a low child")
+	low, ok := refRange.Child("low")
+	if !ok {
+		t.Fatal("grafted component.referenceRange should carry a low child")
+	}
+	// The grafted child must be rebased onto its occurrence path, not the donor path
+	// it was defined under (Observation.referenceRange.low).
+	if low.Path != "Observation.component.referenceRange.low" {
+		t.Errorf("grafted low path = %q, want the occurrence path Observation.component.referenceRange.low", low.Path)
 	}
 
 	value, ok := walk(typ.Root, "value[x]")
@@ -105,6 +114,47 @@ func TestModelGoldenObservationProperties(t *testing.T) {
 	}
 	if len(value.Types) < 2 {
 		t.Errorf("value[x] should carry multiple branch types, got %d", len(value.Types))
+	}
+}
+
+// TestModelRecursiveContentReferenceBounded asserts a self-recursive
+// contentReference on real definitions is grafted once and then bounded, not
+// expanded forever. CodeSystem.concept.concept reuses #CodeSystem.concept, so the
+// first concept.concept is populated while the recursion boundary one level deeper
+// keeps its contentReference marker and carries no further expansion.
+func TestModelRecursiveContentReferenceBounded(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := loader.Load(vendoredR5Dir)
+	if err != nil {
+		t.Fatalf("load vendored R5 bundle: %v", err)
+	}
+	sd, ok := bundle.StructureDefinition("CodeSystem")
+	if !ok {
+		t.Fatal("CodeSystem not in bundle")
+	}
+	typ, err := BuildType(sd)
+	if err != nil {
+		t.Fatalf("BuildType(CodeSystem): %v", err)
+	}
+
+	concept, ok := walk(typ.Root, "concept", "concept")
+	if !ok {
+		t.Fatal("CodeSystem.concept.concept not in tree")
+	}
+	if len(concept.Children) == 0 {
+		t.Fatal("CodeSystem.concept.concept is empty; the recursive backbone was not grafted once")
+	}
+
+	boundary, ok := concept.Child("concept")
+	if !ok {
+		t.Fatal("CodeSystem.concept.concept.concept (the recursion boundary) not in tree")
+	}
+	if len(boundary.Children) != 0 {
+		t.Errorf("recursion boundary has %d children; it should be bounded, not expanded further", len(boundary.Children))
+	}
+	if boundary.ContentReference != "CodeSystem.concept" {
+		t.Errorf("recursion boundary contentReference = %q, want the marker kept so the planner emits a self-referential type", boundary.ContentReference)
 	}
 }
 

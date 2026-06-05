@@ -60,13 +60,13 @@ Type Observation kind=resource abstract=false
       Observation.component.dataAbsentReason [0..1] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/data-absent-reason)
       Observation.component.interpretation [0..*] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/observation-interpretation)
       Observation.component.referenceRange [0..*] contentReference=Observation.referenceRange
-        Observation.referenceRange.id [0..1] types=string
-        Observation.referenceRange.extension [0..*] types=Extension
-        Observation.referenceRange.modifierExtension [0..*] types=Extension summary modifier
-        Observation.referenceRange.low [0..1] types=Quantity
-        Observation.referenceRange.high [0..1] types=Quantity
-        Observation.referenceRange.normalValue [0..1] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/observation-referencerange-normalvalue)
-        Observation.referenceRange.type [0..1] types=CodeableConcept binding=preferred(http://hl7.org/fhir/ValueSet/referencerange-meaning)
-        Observation.referenceRange.appliesTo [0..*] types=CodeableConcept binding=example(http://hl7.org/fhir/ValueSet/referencerange-appliesto)
-        Observation.referenceRange.age [0..1] types=Range
-        Observation.referenceRange.text [0..1] types=markdown
+        Observation.component.referenceRange.id [0..1] types=string
+        Observation.component.referenceRange.extension [0..*] types=Extension
+        Observation.component.referenceRange.modifierExtension [0..*] types=Extension summary modifier
+        Observation.component.referenceRange.low [0..1] types=Quantity
+        Observation.component.referenceRange.high [0..1] types=Quantity
+        Observation.component.referenceRange.normalValue [0..1] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/observation-referencerange-normalvalue)
+        Observation.component.referenceRange.type [0..1] types=CodeableConcept binding=preferred(http://hl7.org/fhir/ValueSet/referencerange-meaning)
+        Observation.component.referenceRange.appliesTo [0..*] types=CodeableConcept binding=example(http://hl7.org/fhir/ValueSet/referencerange-appliesto)
+        Observation.component.referenceRange.age [0..1] types=Range
+        Observation.component.referenceRange.text [0..1] types=markdown
