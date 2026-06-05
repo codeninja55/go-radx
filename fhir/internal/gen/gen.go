@@ -42,35 +42,14 @@ type Config struct {
 // the wire.
 var baseTypes = []string{"Element", "BackboneElement", "Resource", "DomainResource"}
 
-// handWrittenTypes are the R5 types the M2 walking skeleton still hand-writes
-// (fhir/r5/service_request.go, diagnostic_report.go, imaging_study.go, and
-// datatypes.go). The bulk generator does not emit these now, because a generated
-// definition would collide with the hand-written one at the same Go name in the same
-// package and break compilation. The migration increment (F1-O) deletes the
-// hand-written files, re-points convert and the skeleton at the generated shapes, and
-// drops this exclusion so the generator owns the full set.
-//
-// Because these types are not generated yet, their required-binding code fields
-// (ServiceRequest.Status/Intent, DiagnosticReport.Status, ImagingStudy.Status,
-// Identifier.Use) are still hand-written plain strings, so an out-of-set code on those
-// fields is not yet rejected at the JSON boundary (the FHIR-013 enforcement lands on
-// them when F1-O regenerates them). The closed enums those fields will use
-// (RequestStatus, RequestIntent, DiagnosticReportStatus, ImagingStudyStatus,
-// IdentifierUse) are already generated into bindings.go, so the migration is a field
-// retype, not new enum work.
-var handWrittenTypes = map[string]bool{
-	// Resources (fhir/r5/{service_request,diagnostic_report,imaging_study}.go and
-	// the ImagingStudy backbones the hand-written file defines).
-	"ServiceRequest":   true,
-	"DiagnosticReport": true,
-	"ImagingStudy":     true,
-	// Datatypes (fhir/r5/datatypes.go).
-	"Reference":         true,
-	"Identifier":        true,
-	"Coding":            true,
-	"CodeableConcept":   true,
-	"CodeableReference": true,
-}
+// handWrittenTypes are FHIR type names the generator must not emit because the
+// release package hand-writes them. The bundle's StructureDefinition would collide
+// with the hand-written one at the same Go name in the same package and break
+// compilation. The set is empty: the generator owns every concrete resource and
+// complex datatype the bundle defines. The Bundle builders and reference-integrity
+// helpers remain hand-written (Open question 5), but they extend the generated
+// Bundle type rather than redefining it, so they do not need exclusion here.
+var handWrittenTypes = map[string]bool{}
 
 // generatedType pairs a FHIR type name with the generated file's base name and the
 // flag set when planning it as a base type. The generator derives this list from the

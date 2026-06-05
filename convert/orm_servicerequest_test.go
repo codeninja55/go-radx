@@ -53,13 +53,13 @@ func TestORMToServiceRequestR5(t *testing.T) {
 	}
 
 	// ORC-1 NW maps to active.
-	if sr.Status != "active" {
-		t.Errorf("Status = %q, want active", sr.Status)
+	if sr.Status == nil || *sr.Status != r5.RequestStatusActive {
+		t.Errorf("Status = %v, want active", sr.Status)
 	}
 
 	// intent is defaulted to order and recorded in Report.Defaulted.
-	if sr.Intent != "order" {
-		t.Errorf("Intent = %q, want order", sr.Intent)
+	if sr.Intent == nil || *sr.Intent != r5.RequestIntentOrder {
+		t.Errorf("Intent = %v, want order", sr.Intent)
 	}
 	if !hasDefault(report, "ServiceRequest.intent", "order") {
 		t.Errorf("Report.Defaulted does not record the intent default: %+v", report.Defaulted)

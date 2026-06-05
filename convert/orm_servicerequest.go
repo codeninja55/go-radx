@@ -56,11 +56,13 @@ func ORMToServiceRequestR5(msg *hl7v2.Message, opts ...Option) (*r5.ServiceReque
 	appendIdentifier(&sr.Identifier, group.Common.PlacerOrderNumber)
 	appendIdentifier(&sr.Identifier, group.Common.FillerOrderNumber)
 
-	sr.Status = orderStatus(group.Common)
+	status := orderStatus(group.Common)
+	sr.Status = &status
 
 	// intent is required by FHIR and has no HL7 source; default it and record the
 	// default so the mapping decision is auditable.
-	sr.Intent = "order"
+	intent := r5.RequestIntentOrder
+	sr.Intent = &intent
 	report.defaulted("ServiceRequest.intent", "order", "ORM has no intent field; defaulted per convert.md")
 
 	if len(group.Requests) > 0 {
@@ -116,22 +118,22 @@ func collectOrderGroups(orm hl7v2.ORM) []hl7v2.OrderGroup {
 // orderStatus maps ORC-1 Order Control / ORC-5 Order Status to a FHIR
 // ServiceRequest.status. ORC-1 is the authoritative control code; ORC-5 is a
 // secondary signal. An unrecognised pair defaults to "active".
-func orderStatus(orc hl7v2.ORC) string {
+func orderStatus(orc hl7v2.ORC) r5.RequestStatus {
 	switch orc.OrderControl {
 	case "NW", "XO":
-		return "active"
+		return r5.RequestStatusActive
 	case "CA":
-		return "revoked"
+		return r5.RequestStatusRevoked
 	case "CM":
-		return "completed"
+		return r5.RequestStatusCompleted
 	}
 	switch orc.OrderStatus {
 	case "CM":
-		return "completed"
+		return r5.RequestStatusCompleted
 	case "CA":
-		return "revoked"
+		return r5.RequestStatusRevoked
 	}
-	return "active"
+	return r5.RequestStatusActive
 }
 
 // serviceCode maps an OBR-4 CWE to a FHIR CodeableConcept, or nil when the code

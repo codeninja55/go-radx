@@ -1781,6 +1781,47 @@ func init() {
 			return issues
 		},
 	})
+	fhir.RegisterValidationDescriptor(DiagnosticReportResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*DiagnosticReport)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			if v.Status == nil {
+				missing = append(missing, "DiagnosticReport.status")
+			}
+			if v.Code == nil {
+				missing = append(missing, "DiagnosticReport.code")
+			}
+			return missing
+		},
+		Choices: func(r fhir.Resource) []string {
+			v, ok := r.(*DiagnosticReport)
+			if !ok {
+				return nil
+			}
+			var violations []string
+			if fhir.CountSet(v.EffectiveDateTime != nil, v.EffectivePeriod != nil) > 1 {
+				violations = append(violations, "DiagnosticReport.effective[x]")
+			}
+			return violations
+		},
+		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
+			v, ok := r.(*DiagnosticReport)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.BindingIssue
+			if v.Status != nil && !validDiagnosticReportStatus(string(*v.Status)) {
+				issues = append(issues, fhir.BindingIssue{
+					Expression:  "DiagnosticReport.status",
+					Diagnostics: "code is not in the required DiagnosticReportStatus value set",
+				})
+			}
+			return issues
+		},
+	})
 	fhir.RegisterValidationDescriptor(DocumentReferenceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*DocumentReference)
@@ -2554,6 +2595,36 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "ImagingSelection.status",
 					Diagnostics: "code is not in the required ImagingSelectionStatus value set",
+				})
+			}
+			return issues
+		},
+	})
+	fhir.RegisterValidationDescriptor(ImagingStudyResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*ImagingStudy)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			if v.Status == nil {
+				missing = append(missing, "ImagingStudy.status")
+			}
+			if v.Subject == nil {
+				missing = append(missing, "ImagingStudy.subject")
+			}
+			return missing
+		},
+		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
+			v, ok := r.(*ImagingStudy)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.BindingIssue
+			if v.Status != nil && !validImagingStudyStatus(string(*v.Status)) {
+				issues = append(issues, fhir.BindingIssue{
+					Expression:  "ImagingStudy.status",
+					Diagnostics: "code is not in the required ImagingStudyStatus value set",
 				})
 			}
 			return issues
@@ -4473,6 +4544,68 @@ func init() {
 						Diagnostics: "code is not in the required SearchModifierCode value set",
 					})
 				}
+			}
+			return issues
+		},
+	})
+	fhir.RegisterValidationDescriptor(ServiceRequestResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*ServiceRequest)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			if v.Status == nil {
+				missing = append(missing, "ServiceRequest.status")
+			}
+			if v.Intent == nil {
+				missing = append(missing, "ServiceRequest.intent")
+			}
+			if v.Subject == nil {
+				missing = append(missing, "ServiceRequest.subject")
+			}
+			return missing
+		},
+		Choices: func(r fhir.Resource) []string {
+			v, ok := r.(*ServiceRequest)
+			if !ok {
+				return nil
+			}
+			var violations []string
+			if fhir.CountSet(v.QuantityQuantity != nil, v.QuantityRatio != nil, v.QuantityRange != nil) > 1 {
+				violations = append(violations, "ServiceRequest.quantity[x]")
+			}
+			if fhir.CountSet(v.OccurrenceDateTime != nil, v.OccurrencePeriod != nil, v.OccurrenceTiming != nil) > 1 {
+				violations = append(violations, "ServiceRequest.occurrence[x]")
+			}
+			if fhir.CountSet(v.AsNeededBoolean != nil, v.AsNeededCodeableConcept != nil) > 1 {
+				violations = append(violations, "ServiceRequest.asNeeded[x]")
+			}
+			return violations
+		},
+		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
+			v, ok := r.(*ServiceRequest)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.BindingIssue
+			if v.Status != nil && !validRequestStatus(string(*v.Status)) {
+				issues = append(issues, fhir.BindingIssue{
+					Expression:  "ServiceRequest.status",
+					Diagnostics: "code is not in the required RequestStatus value set",
+				})
+			}
+			if v.Intent != nil && !validRequestIntent(string(*v.Intent)) {
+				issues = append(issues, fhir.BindingIssue{
+					Expression:  "ServiceRequest.intent",
+					Diagnostics: "code is not in the required RequestIntent value set",
+				})
+			}
+			if v.Priority != nil && !validRequestPriority(string(*v.Priority)) {
+				issues = append(issues, fhir.BindingIssue{
+					Expression:  "ServiceRequest.priority",
+					Diagnostics: "code is not in the required RequestPriority value set",
+				})
 			}
 			return issues
 		},
@@ -6852,6 +6985,40 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
+	fhir.RegisterSummaryDescriptor(DiagnosticReportResourceType, fhir.SummaryDescriptor{
+		Elements: []fhir.SummaryElement{
+			{JSONName: "id", IsSummary: true},
+			{JSONName: "meta", IsSummary: true},
+			{JSONName: "implicitRules", IsSummary: true, IsModifier: true},
+			{JSONName: "language"},
+			{JSONName: "text", IsText: true},
+			{JSONName: "contained"},
+			{JSONName: "extension"},
+			{JSONName: "modifierExtension", IsSummary: true, IsModifier: true},
+			{JSONName: "identifier", IsSummary: true},
+			{JSONName: "basedOn"},
+			{JSONName: "status", IsSummary: true, IsMandatory: true, IsModifier: true},
+			{JSONName: "category", IsSummary: true},
+			{JSONName: "code", IsSummary: true, IsMandatory: true},
+			{JSONName: "subject", IsSummary: true},
+			{JSONName: "encounter", IsSummary: true},
+			{JSONName: "effectiveDateTime", IsSummary: true},
+			{JSONName: "effectivePeriod", IsSummary: true},
+			{JSONName: "issued", IsSummary: true},
+			{JSONName: "performer", IsSummary: true},
+			{JSONName: "resultsInterpreter", IsSummary: true},
+			{JSONName: "specimen"},
+			{JSONName: "result"},
+			{JSONName: "note"},
+			{JSONName: "study"},
+			{JSONName: "supportingInfo"},
+			{JSONName: "media", IsSummary: true},
+			{JSONName: "composition"},
+			{JSONName: "conclusion"},
+			{JSONName: "conclusionCode"},
+			{JSONName: "presentedForm"},
+		},
+	})
 	fhir.RegisterSummaryDescriptor(DocumentReferenceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
@@ -7573,6 +7740,36 @@ func init() {
 			{JSONName: "bodySite", IsSummary: true},
 			{JSONName: "focus", IsSummary: true},
 			{JSONName: "instance", IsSummary: true},
+		},
+	})
+	fhir.RegisterSummaryDescriptor(ImagingStudyResourceType, fhir.SummaryDescriptor{
+		Elements: []fhir.SummaryElement{
+			{JSONName: "id", IsSummary: true},
+			{JSONName: "meta", IsSummary: true},
+			{JSONName: "implicitRules", IsSummary: true, IsModifier: true},
+			{JSONName: "language"},
+			{JSONName: "text", IsText: true},
+			{JSONName: "contained"},
+			{JSONName: "extension"},
+			{JSONName: "modifierExtension", IsSummary: true, IsModifier: true},
+			{JSONName: "identifier", IsSummary: true},
+			{JSONName: "status", IsSummary: true, IsMandatory: true, IsModifier: true},
+			{JSONName: "modality", IsSummary: true},
+			{JSONName: "subject", IsSummary: true, IsMandatory: true},
+			{JSONName: "encounter", IsSummary: true},
+			{JSONName: "started", IsSummary: true},
+			{JSONName: "basedOn", IsSummary: true},
+			{JSONName: "partOf", IsSummary: true},
+			{JSONName: "referrer", IsSummary: true},
+			{JSONName: "endpoint", IsSummary: true},
+			{JSONName: "numberOfSeries", IsSummary: true},
+			{JSONName: "numberOfInstances", IsSummary: true},
+			{JSONName: "procedure", IsSummary: true},
+			{JSONName: "location", IsSummary: true},
+			{JSONName: "reason", IsSummary: true},
+			{JSONName: "note", IsSummary: true},
+			{JSONName: "description", IsSummary: true},
+			{JSONName: "series", IsSummary: true},
 		},
 	})
 	fhir.RegisterSummaryDescriptor(ImmunizationResourceType, fhir.SummaryDescriptor{
@@ -9401,6 +9598,56 @@ func init() {
 			{JSONName: "modifier"},
 			{JSONName: "chain"},
 			{JSONName: "component"},
+		},
+	})
+	fhir.RegisterSummaryDescriptor(ServiceRequestResourceType, fhir.SummaryDescriptor{
+		Elements: []fhir.SummaryElement{
+			{JSONName: "id", IsSummary: true},
+			{JSONName: "meta", IsSummary: true},
+			{JSONName: "implicitRules", IsSummary: true, IsModifier: true},
+			{JSONName: "language"},
+			{JSONName: "text", IsText: true},
+			{JSONName: "contained"},
+			{JSONName: "extension"},
+			{JSONName: "modifierExtension", IsSummary: true, IsModifier: true},
+			{JSONName: "identifier", IsSummary: true},
+			{JSONName: "instantiatesCanonical", IsSummary: true},
+			{JSONName: "instantiatesUri", IsSummary: true},
+			{JSONName: "basedOn", IsSummary: true},
+			{JSONName: "replaces", IsSummary: true},
+			{JSONName: "requisition", IsSummary: true},
+			{JSONName: "status", IsSummary: true, IsMandatory: true, IsModifier: true},
+			{JSONName: "intent", IsSummary: true, IsMandatory: true, IsModifier: true},
+			{JSONName: "category", IsSummary: true},
+			{JSONName: "priority", IsSummary: true},
+			{JSONName: "doNotPerform", IsSummary: true, IsModifier: true},
+			{JSONName: "code", IsSummary: true},
+			{JSONName: "orderDetail", IsSummary: true},
+			{JSONName: "quantityQuantity", IsSummary: true},
+			{JSONName: "quantityRatio", IsSummary: true},
+			{JSONName: "quantityRange", IsSummary: true},
+			{JSONName: "subject", IsSummary: true, IsMandatory: true},
+			{JSONName: "focus", IsSummary: true},
+			{JSONName: "encounter", IsSummary: true},
+			{JSONName: "occurrenceDateTime", IsSummary: true},
+			{JSONName: "occurrencePeriod", IsSummary: true},
+			{JSONName: "occurrenceTiming", IsSummary: true},
+			{JSONName: "asNeededBoolean", IsSummary: true},
+			{JSONName: "asNeededCodeableConcept", IsSummary: true},
+			{JSONName: "authoredOn", IsSummary: true},
+			{JSONName: "requester", IsSummary: true},
+			{JSONName: "performerType", IsSummary: true},
+			{JSONName: "performer", IsSummary: true},
+			{JSONName: "location", IsSummary: true},
+			{JSONName: "reason", IsSummary: true},
+			{JSONName: "insurance"},
+			{JSONName: "supportingInfo"},
+			{JSONName: "specimen", IsSummary: true},
+			{JSONName: "bodySite", IsSummary: true},
+			{JSONName: "bodyStructure", IsSummary: true},
+			{JSONName: "note"},
+			{JSONName: "patientInstruction"},
+			{JSONName: "relevantHistory"},
 		},
 	})
 	fhir.RegisterSummaryDescriptor(SlotResourceType, fhir.SummaryDescriptor{

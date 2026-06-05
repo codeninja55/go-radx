@@ -3832,6 +3832,59 @@ func (c *DeviceUsageStatus) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// DiagnosticReportStatus is the closed Go enum for the FHIR required binding "DiagnosticReportStatus"
+// (http://hl7.org/fhir/ValueSet/diagnostic-report-status). Only the codes in the bound value set are valid; strict decode
+// rejects an out-of-set code with fhir.ErrUnknownCode (FHIR-013).
+type DiagnosticReportStatus string
+
+const (
+	DiagnosticReportStatusRegistered     DiagnosticReportStatus = "registered"
+	DiagnosticReportStatusPartial        DiagnosticReportStatus = "partial"
+	DiagnosticReportStatusPreliminary    DiagnosticReportStatus = "preliminary"
+	DiagnosticReportStatusModified       DiagnosticReportStatus = "modified"
+	DiagnosticReportStatusFinal          DiagnosticReportStatus = "final"
+	DiagnosticReportStatusAmended        DiagnosticReportStatus = "amended"
+	DiagnosticReportStatusCorrected      DiagnosticReportStatus = "corrected"
+	DiagnosticReportStatusAppended       DiagnosticReportStatus = "appended"
+	DiagnosticReportStatusCancelled      DiagnosticReportStatus = "cancelled"
+	DiagnosticReportStatusEnteredInError DiagnosticReportStatus = "entered-in-error"
+	DiagnosticReportStatusUnknown        DiagnosticReportStatus = "unknown"
+)
+
+// validDiagnosticReportStatus reports whether s is a member of the DiagnosticReportStatus closed set, the
+// membership closure the boundary decode and Parse helpers validate against.
+func validDiagnosticReportStatus(s string) bool {
+	switch DiagnosticReportStatus(s) {
+	case DiagnosticReportStatusRegistered, DiagnosticReportStatusPartial, DiagnosticReportStatusPreliminary, DiagnosticReportStatusModified, DiagnosticReportStatusFinal, DiagnosticReportStatusAmended, DiagnosticReportStatusCorrected, DiagnosticReportStatusAppended, DiagnosticReportStatusCancelled, DiagnosticReportStatusEnteredInError, DiagnosticReportStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// ParseDiagnosticReportStatus validates s against the DiagnosticReportStatus required binding and returns
+// the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
+// binding name and the offending token (no PHI). Parse always applies the strict rule,
+// regardless of any decode mode.
+func ParseDiagnosticReportStatus(s string) (DiagnosticReportStatus, error) {
+	v, err := fhir.ParseCode(s, validDiagnosticReportStatus, "DiagnosticReportStatus")
+	return DiagnosticReportStatus(v), err
+}
+
+// UnmarshalJSON decodes a DiagnosticReportStatus at the JSON boundary under the strict
+// unknown-code policy: an out-of-set code is rejected with fhir.ErrUnknownCode, so a
+// non-conformant payload fails closed rather than silently populating the field
+// (FHIR-013). Lenient retention is the opt-in alternative threaded through
+// fhir.DecodeLenient.
+func (c *DiagnosticReportStatus) UnmarshalJSON(data []byte) error {
+	v, _, err := fhir.DecodeCode(data, validDiagnosticReportStatus, "DiagnosticReportStatus", fhir.DecodeStrict)
+	if err != nil {
+		return err
+	}
+	*c = DiagnosticReportStatus(v)
+	return nil
+}
+
 // DiscriminatorType is the closed Go enum for the FHIR required binding "DiscriminatorType"
 // (http://hl7.org/fhir/ValueSet/discriminator-type). Only the codes in the bound value set are valid; strict decode
 // rejects an out-of-set code with fhir.ErrUnknownCode (FHIR-013).
@@ -5857,6 +5910,53 @@ func (c *HTTPVerb) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// IdentifierUse is the closed Go enum for the FHIR required binding "IdentifierUse"
+// (http://hl7.org/fhir/ValueSet/identifier-use). Only the codes in the bound value set are valid; strict decode
+// rejects an out-of-set code with fhir.ErrUnknownCode (FHIR-013).
+type IdentifierUse string
+
+const (
+	IdentifierUseUsual     IdentifierUse = "usual"
+	IdentifierUseOfficial  IdentifierUse = "official"
+	IdentifierUseTemp      IdentifierUse = "temp"
+	IdentifierUseSecondary IdentifierUse = "secondary"
+	IdentifierUseOld       IdentifierUse = "old"
+)
+
+// validIdentifierUse reports whether s is a member of the IdentifierUse closed set, the
+// membership closure the boundary decode and Parse helpers validate against.
+func validIdentifierUse(s string) bool {
+	switch IdentifierUse(s) {
+	case IdentifierUseUsual, IdentifierUseOfficial, IdentifierUseTemp, IdentifierUseSecondary, IdentifierUseOld:
+		return true
+	default:
+		return false
+	}
+}
+
+// ParseIdentifierUse validates s against the IdentifierUse required binding and returns
+// the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
+// binding name and the offending token (no PHI). Parse always applies the strict rule,
+// regardless of any decode mode.
+func ParseIdentifierUse(s string) (IdentifierUse, error) {
+	v, err := fhir.ParseCode(s, validIdentifierUse, "IdentifierUse")
+	return IdentifierUse(v), err
+}
+
+// UnmarshalJSON decodes a IdentifierUse at the JSON boundary under the strict
+// unknown-code policy: an out-of-set code is rejected with fhir.ErrUnknownCode, so a
+// non-conformant payload fails closed rather than silently populating the field
+// (FHIR-013). Lenient retention is the opt-in alternative threaded through
+// fhir.DecodeLenient.
+func (c *IdentifierUse) UnmarshalJSON(data []byte) error {
+	v, _, err := fhir.DecodeCode(data, validIdentifierUse, "IdentifierUse", fhir.DecodeStrict)
+	if err != nil {
+		return err
+	}
+	*c = IdentifierUse(v)
+	return nil
+}
+
 // IdentityAssuranceLevel is the closed Go enum for the FHIR required binding "IdentityAssuranceLevel"
 // (http://hl7.org/fhir/ValueSet/identity-assuranceLevel). Only the codes in the bound value set are valid; strict decode
 // rejects an out-of-set code with fhir.ErrUnknownCode (FHIR-013).
@@ -6040,6 +6140,53 @@ func (c *ImagingSelectionStatus) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*c = ImagingSelectionStatus(v)
+	return nil
+}
+
+// ImagingStudyStatus is the closed Go enum for the FHIR required binding "ImagingStudyStatus"
+// (http://hl7.org/fhir/ValueSet/imagingstudy-status). Only the codes in the bound value set are valid; strict decode
+// rejects an out-of-set code with fhir.ErrUnknownCode (FHIR-013).
+type ImagingStudyStatus string
+
+const (
+	ImagingStudyStatusRegistered     ImagingStudyStatus = "registered"
+	ImagingStudyStatusAvailable      ImagingStudyStatus = "available"
+	ImagingStudyStatusCancelled      ImagingStudyStatus = "cancelled"
+	ImagingStudyStatusEnteredInError ImagingStudyStatus = "entered-in-error"
+	ImagingStudyStatusUnknown        ImagingStudyStatus = "unknown"
+)
+
+// validImagingStudyStatus reports whether s is a member of the ImagingStudyStatus closed set, the
+// membership closure the boundary decode and Parse helpers validate against.
+func validImagingStudyStatus(s string) bool {
+	switch ImagingStudyStatus(s) {
+	case ImagingStudyStatusRegistered, ImagingStudyStatusAvailable, ImagingStudyStatusCancelled, ImagingStudyStatusEnteredInError, ImagingStudyStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// ParseImagingStudyStatus validates s against the ImagingStudyStatus required binding and returns
+// the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
+// binding name and the offending token (no PHI). Parse always applies the strict rule,
+// regardless of any decode mode.
+func ParseImagingStudyStatus(s string) (ImagingStudyStatus, error) {
+	v, err := fhir.ParseCode(s, validImagingStudyStatus, "ImagingStudyStatus")
+	return ImagingStudyStatus(v), err
+}
+
+// UnmarshalJSON decodes a ImagingStudyStatus at the JSON boundary under the strict
+// unknown-code policy: an out-of-set code is rejected with fhir.ErrUnknownCode, so a
+// non-conformant payload fails closed rather than silently populating the field
+// (FHIR-013). Lenient retention is the opt-in alternative threaded through
+// fhir.DecodeLenient.
+func (c *ImagingStudyStatus) UnmarshalJSON(data []byte) error {
+	v, _, err := fhir.DecodeCode(data, validImagingStudyStatus, "ImagingStudyStatus", fhir.DecodeStrict)
+	if err != nil {
+		return err
+	}
+	*c = ImagingStudyStatus(v)
 	return nil
 }
 

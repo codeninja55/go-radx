@@ -7,16 +7,18 @@ import (
 	"github.com/codeninja55/go-radx/fhir"
 )
 
-// Reference is the generated FHIR Reference datatype.
-type Reference struct {
+// Identifier is the generated FHIR Identifier datatype.
+type Identifier struct {
 	Element
-	Reference        *string                `json:"reference,omitempty"`
-	ReferenceElement *fhir.PrimitiveElement `json:"-"`
-	Type             *string                `json:"type,omitempty"`
-	TypeElement      *fhir.PrimitiveElement `json:"-"`
-	Identifier       *Identifier            `json:"identifier,omitempty"`
-	Display          *string                `json:"display,omitempty"`
-	DisplayElement   *fhir.PrimitiveElement `json:"-"`
+	Use           *IdentifierUse         `json:"use,omitempty"`
+	UseElement    *fhir.PrimitiveElement `json:"-"`
+	Type          *CodeableConcept       `json:"type,omitempty"`
+	System        *string                `json:"system,omitempty"`
+	SystemElement *fhir.PrimitiveElement `json:"-"`
+	Value         *string                `json:"value,omitempty"`
+	ValueElement  *fhir.PrimitiveElement `json:"-"`
+	Period        *Period                `json:"period,omitempty"`
+	Assigner      *Reference             `json:"assigner,omitempty"`
 }
 
 // MarshalJSON folds the primitive "_field" siblings into the encoded value: a scalar
@@ -24,71 +26,71 @@ type Reference struct {
 // array is null-aligned with its value array, so a partially-extended repeating
 // primitive lines up position-for-position on the wire (a position with no
 // id/extension becomes a JSON null in the "_field" array).
-func (v Reference) MarshalJSON() ([]byte, error) {
-	type alias Reference
+func (v Identifier) MarshalJSON() ([]byte, error) {
+	type alias Identifier
 	encoded, err := json.Marshal(alias(v))
 	if err != nil {
 		return nil, err
 	}
-	return marshalReferenceSiblings(&v, encoded)
+	return marshalIdentifierSiblings(&v, encoded)
 }
 
-// marshalReferenceSiblings appends the primitive "_field" siblings to the
+// marshalIdentifierSiblings appends the primitive "_field" siblings to the
 // already-encoded object, preserving the value fields' canonical order: an empty
 // scalar sibling and an un-extended repeating sibling are skipped, and a repeating
 // sibling's array is null-aligned with its value array.
-func marshalReferenceSiblings(v *Reference, encoded []byte) ([]byte, error) {
+func marshalIdentifierSiblings(v *Identifier, encoded []byte) ([]byte, error) {
 	var siblings []fhir.RawSibling
-	if raw, err := fhir.MarshalPrimitiveExtension(v.ReferenceElement); err != nil {
+	if raw, err := fhir.MarshalPrimitiveExtension(v.UseElement); err != nil {
 		return nil, err
 	} else {
-		siblings = append(siblings, fhir.RawSibling{Key: "_reference", Value: raw})
+		siblings = append(siblings, fhir.RawSibling{Key: "_use", Value: raw})
 	}
-	if raw, err := fhir.MarshalPrimitiveExtension(v.TypeElement); err != nil {
+	if raw, err := fhir.MarshalPrimitiveExtension(v.SystemElement); err != nil {
 		return nil, err
 	} else {
-		siblings = append(siblings, fhir.RawSibling{Key: "_type", Value: raw})
+		siblings = append(siblings, fhir.RawSibling{Key: "_system", Value: raw})
 	}
-	if raw, err := fhir.MarshalPrimitiveExtension(v.DisplayElement); err != nil {
+	if raw, err := fhir.MarshalPrimitiveExtension(v.ValueElement); err != nil {
 		return nil, err
 	} else {
-		siblings = append(siblings, fhir.RawSibling{Key: "_display", Value: raw})
+		siblings = append(siblings, fhir.RawSibling{Key: "_value", Value: raw})
 	}
 	return fhir.AppendSiblings(encoded, siblings)
 }
 
 // UnmarshalJSON lifts each primitive "_field" sibling out of the object, decodes it
 // into its companion field, then decodes the remaining keys into the value struct.
-func (v *Reference) UnmarshalJSON(data []byte) error {
+func (v *Identifier) UnmarshalJSON(data []byte) error {
 	obj, err := fhir.SplitRawObject(data)
 	if err != nil {
 		return err
 	}
-	if raw, ok := fhir.TakeRawField(obj, "_reference"); ok {
+	if raw, ok := fhir.TakeRawField(obj, "_use"); ok {
 		var element fhir.PrimitiveElement
 		if err := json.Unmarshal(raw, &element); err != nil {
 			return err
 		}
-		v.ReferenceElement = &element
+		v.UseElement = &element
 	}
-	if raw, ok := fhir.TakeRawField(obj, "_type"); ok {
+	if raw, ok := fhir.TakeRawField(obj, "_system"); ok {
 		var element fhir.PrimitiveElement
 		if err := json.Unmarshal(raw, &element); err != nil {
 			return err
 		}
-		v.TypeElement = &element
+		v.SystemElement = &element
 	}
-	if raw, ok := fhir.TakeRawField(obj, "_display"); ok {
+	if raw, ok := fhir.TakeRawField(obj, "_value"); ok {
 		var element fhir.PrimitiveElement
 		if err := json.Unmarshal(raw, &element); err != nil {
 			return err
 		}
-		v.DisplayElement = &element
+		v.ValueElement = &element
 	}
 	residual, err := fhir.RemarshalObject(obj)
 	if err != nil {
 		return err
 	}
-	type alias Reference
+	type alias Identifier
 	return json.Unmarshal(residual, (*alias)(v))
 }

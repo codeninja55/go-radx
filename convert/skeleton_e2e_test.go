@@ -11,6 +11,7 @@ import (
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dicomweb"
 	"github.com/codeninja55/go-radx/dimse"
+	"github.com/codeninja55/go-radx/fhir/r5"
 	"github.com/codeninja55/go-radx/hl7v2"
 )
 
@@ -189,8 +190,9 @@ func TestSkeletonEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("leg 5a ORMToServiceRequestR5: %v", err)
 	}
-	if sr.Status != "active" || sr.Intent != "order" {
-		t.Errorf("leg 5a ServiceRequest status/intent = %q/%q, want active/order", sr.Status, sr.Intent)
+	if sr.Status == nil || *sr.Status != r5.RequestStatusActive ||
+		sr.Intent == nil || *sr.Intent != r5.RequestIntentOrder {
+		t.Errorf("leg 5a ServiceRequest status/intent = %v/%v, want active/order", sr.Status, sr.Intent)
 	}
 	if len(sr.Identifier) == 0 {
 		t.Error("leg 5a ServiceRequest has no identifiers")
@@ -211,7 +213,7 @@ func TestSkeletonEndToEnd(t *testing.T) {
 	if len(dr.Identifier) == 0 || dr.Identifier[0].System == nil || *dr.Identifier[0].System != "urn:dicom:uid" {
 		t.Errorf("leg 5b DiagnosticReport identifier = %+v, want a urn:dicom:uid identifier", dr.Identifier)
 	}
-	if dr.Status == "" {
+	if dr.Status == nil {
 		t.Error("leg 5b DiagnosticReport has no status")
 	}
 
