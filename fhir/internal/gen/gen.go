@@ -30,17 +30,36 @@ type Config struct {
 	OutputDir string
 }
 
-// representativeDatatypes are the FHIR types the generator currently emits — one
-// simple complex datatype that proves the pipeline end to end (load, model, plan,
-// emit, write). Each entry pairs a FHIR type name with the generated file's base
-// name. The full type set is generated in a later increment; until then this set is
-// the single source of truth for what the generator produces, so regeneration is
-// reproducible from it alone.
-var representativeDatatypes = []struct {
+// generatedType pairs a FHIR type name with the generated file's base name. The
+// generator currently emits a representative slice of the full type set; until the
+// bulk-generation increment lands, these slices are the single source of truth for
+// what the generator produces, so regeneration is reproducible from them alone.
+type generatedType struct {
 	fhirName string
 	fileName string
-}{
+}
+
+// representativeDatatypes are the complex datatypes the generator currently emits —
+// one simple datatype that proves the pipeline end to end (load, model, plan, emit,
+// write).
+var representativeDatatypes = []generatedType{
 	{fhirName: "Period", fileName: "period.go"},
+}
+
+// representativeResources are the resources the generator currently emits — one
+// small resource that exercises the resource shape end to end: the resourceType
+// constant, the ResourceType method, the always-emit-resourceType MarshalJSON
+// (FHIR-004), and a factory registration in the generated registry so
+// fhir.UnmarshalResource can dispatch to it. The full resource set (about 158 R5
+// resources) is generated in a later increment; this one resource proves the
+// identity API and registry machinery without bulk-generating.
+//
+// Flag is chosen because its own elements reference only already-available types
+// (Identifier, CodeableConcept, Reference, and the generated Period); its inherited
+// Resource/DomainResource base members are planned away (Options.SkipBaseMembers)
+// until the base machinery lands, so the representative resource compiles today.
+var representativeResources = []generatedType{
+	{fhirName: "Flag", fileName: "flag.go"},
 }
 
 // Generate runs the full generator pipeline for one release: load and verify the
@@ -65,35 +84,80 @@ func Generate(cfg Config) error {
 	}
 
 	for _, dt := range representativeDatatypes {
-		src, err := emitDatatype(bundle, cfg.Release, dt.fhirName)
-		if err != nil {
+		if err := emitTypeFile(bundle, cfg, dt); err != nil {
 			return err
 		}
-		outPath := filepath.Join(cfg.OutputDir, dt.fileName)
-		if err := os.WriteFile(outPath, src, 0o644); err != nil {
-			return fmt.Errorf("fhir/gen: write %s: %w", outPath, err)
+	}
+	for _, res := range representativeResources {
+		if err := emitTypeFile(bundle, cfg, res); err != nil {
+			return err
 		}
+	}
+	if err := emitRegistryFile(bundle, cfg); err != nil {
+		return err
 	}
 	return nil
 }
 
-// emitDatatype runs the back-half pipeline (model, plan, emit) for one datatype and
-// returns its formatted Go source. SkipBaseMembers is set because the shared Element
-// base machinery (id/extension and the primitive-extension siblings) is not yet
-// generated; a later increment embeds the base and retires the option.
-func emitDatatype(bundle *loader.Bundle, release, fhirName string) ([]byte, error) {
+// emitTypeFile runs the back-half pipeline for one type and writes its generated Go
+// file into the output directory. Datatypes and resources share the pipeline; the
+// planner's recorded kind drives the resource-specific output (resourceType,
+// ResourceType, MarshalJSON), so the same emit path serves both.
+func emitTypeFile(bundle *loader.Bundle, cfg Config, gt generatedType) error {
+	pt, err := planType(bundle, gt.fhirName)
+	if err != nil {
+		return err
+	}
+	src, err := emit.Emit(emit.File{Package: cfg.Release, Types: []plan.PlannedType{pt}})
+	if err != nil {
+		return fmt.Errorf("fhir/gen: emit %s: %w", gt.fhirName, err)
+	}
+	outPath := filepath.Join(cfg.OutputDir, gt.fileName)
+	if err := os.WriteFile(outPath, src, 0o644); err != nil {
+		return fmt.Errorf("fhir/gen: write %s: %w", outPath, err)
+	}
+	return nil
+}
+
+// emitRegistryFile renders the per-release resourceType→factory registry from the
+// generated resources and writes registry.go. The registry's generated init()
+// registers each resource's factory with the root fhir package so
+// fhir.UnmarshalResource can dispatch by resourceType. The resources are listed in
+// representativeResources order, which is the canonical, stable order the
+// byte-for-byte regeneration gate depends on.
+func emitRegistryFile(bundle *loader.Bundle, cfg Config) error {
+	entries := make([]emit.RegistryEntry, 0, len(representativeResources))
+	for _, res := range representativeResources {
+		pt, err := planType(bundle, res.fhirName)
+		if err != nil {
+			return err
+		}
+		entries = append(entries, emit.RegistryEntry{GoName: pt.GoName})
+	}
+	src, err := emit.EmitRegistry(emit.Registry{Package: cfg.Release, Resources: entries})
+	if err != nil {
+		return fmt.Errorf("fhir/gen: emit registry: %w", err)
+	}
+	outPath := filepath.Join(cfg.OutputDir, "registry.go")
+	if err := os.WriteFile(outPath, src, 0o644); err != nil {
+		return fmt.Errorf("fhir/gen: write %s: %w", outPath, err)
+	}
+	return nil
+}
+
+// planType runs the front-half pipeline (model, plan) for one FHIR type and returns
+// its emitter-ready PlannedType. SkipBaseMembers is set because the shared base
+// machinery (Element id/extension, the resource and DomainResource bases, and the
+// primitive-extension siblings) is not yet generated; a later increment embeds the
+// base types and retires the option.
+func planType(bundle *loader.Bundle, fhirName string) (plan.PlannedType, error) {
 	sd, ok := bundle.StructureDefinition(fhirName)
 	if !ok {
-		return nil, fmt.Errorf("fhir/gen: StructureDefinition %q not in bundle", fhirName)
+		return plan.PlannedType{}, fmt.Errorf("fhir/gen: StructureDefinition %q not in bundle", fhirName)
 	}
 	typ, err := model.BuildType(sd)
 	if err != nil {
-		return nil, fmt.Errorf("fhir/gen: build model for %s: %w", fhirName, err)
+		return plan.PlannedType{}, fmt.Errorf("fhir/gen: build model for %s: %w", fhirName, err)
 	}
-	pt := plan.PlanType(typ, plan.Options{SkipBaseMembers: true})
-	src, err := emit.Emit(emit.File{Package: release, Types: []plan.PlannedType{pt}})
-	if err != nil {
-		return nil, fmt.Errorf("fhir/gen: emit %s: %w", fhirName, err)
-	}
-	return src, nil
+	return plan.PlanType(typ, plan.Options{SkipBaseMembers: true}), nil
 }

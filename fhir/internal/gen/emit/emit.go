@@ -68,14 +68,62 @@ func Emit(f File) ([]byte, error) {
 	return formatted, nil
 }
 
+// Registry is the input to the per-release registry file: the target package and the
+// resources whose factories the generated init() registers. The emitter renders the
+// resources in the order given, so the caller fixes a stable (canonical) order before
+// calling EmitRegistry.
+type Registry struct {
+	// Package is the Go package clause of the emitted registry file (for example "r5").
+	Package string
+
+	// Resources are the release's resources, each contributing one factory
+	// registration. Only the Go name is needed; the resourceType constant the
+	// registration references is the generated <GoName>ResourceType.
+	Resources []RegistryEntry
+}
+
+// RegistryEntry names one resource for the registry: its Go type name, from which the
+// generated <GoName>ResourceType constant and the &<GoName>{} factory are derived.
+type RegistryEntry struct {
+	GoName string
+}
+
+// EmitRegistry renders a release's resourceType→factory registry file to formatted Go
+// source. The generated init() registers each resource's factory with the root fhir
+// package, so fhir.UnmarshalResource can dispatch by resourceType. Like Emit, the
+// output is deterministic for a given Registry, which keeps regeneration
+// byte-for-byte reproducible.
+func EmitRegistry(r Registry) ([]byte, error) {
+	tmpl, err := template.New("registry.go.tmpl").ParseFS(templatesFS, "templates/registry.go.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("emit: parse registry template: %w", err)
+	}
+
+	var raw bytes.Buffer
+	if err := tmpl.Execute(&raw, r); err != nil {
+		return nil, fmt.Errorf("emit: execute registry template: %w", err)
+	}
+
+	formatted, err := format.Source(raw.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("emit: gofmt the rendered registry: %w\n--- rendered ---\n%s", err, raw.String())
+	}
+	return formatted, nil
+}
+
 // requiredImports computes the deduplicated, sorted import paths the planned types
-// reference. The skeleton recognises the one cross-package dependency the generated
-// datatypes can carry — fhir.Decimal — and adds the root fhir import when any field
-// uses it. Sorting keeps the import block stable across runs.
+// reference. It recognises the dependencies the generated code in this stage can
+// carry: the root fhir import when a field uses fhir.Decimal, and encoding/json when
+// any type is a resource (whose generated MarshalJSON calls json.Marshal). Sorting
+// keeps the import block stable across runs.
 func requiredImports(types []plan.PlannedType) []string {
 	const decimalImport = "github.com/codeninja55/go-radx/fhir"
+	const jsonImport = "encoding/json"
 	set := map[string]bool{}
 	for _, t := range types {
+		if t.IsResource() {
+			set[jsonImport] = true
+		}
 		for _, f := range allFields(t) {
 			if usesDecimal(f.GoType) {
 				set[decimalImport] = true

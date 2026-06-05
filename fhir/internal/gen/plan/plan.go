@@ -36,6 +36,21 @@ type PlannedType struct {
 	Backbones []PlannedBackbone
 }
 
+// IsResource reports whether the planned type is a FHIR resource, so the emitter
+// renders the resourceType discriminator, the ResourceType method, and the
+// always-emit-resourceType MarshalJSON for it (and not for a plain datatype). The
+// kind decision is the planner's; the emitter only reads this flag.
+func (t PlannedType) IsResource() bool { return t.Kind == model.KindResource }
+
+// KindNoun returns the English noun the godoc summary uses for the type's kind
+// ("resource" or "datatype"), so the generated comment reads naturally for both.
+func (t PlannedType) KindNoun() string {
+	if t.Kind == model.KindResource {
+		return "resource"
+	}
+	return "datatype"
+}
+
 // PlannedBackbone is one distinct nested backbone struct: a Go name and its fields.
 // Multiple occurrence paths that share the same shape collapse to one PlannedBackbone
 // (deduplicated by shape), so a resource with the same anonymous structure at several
@@ -57,12 +72,23 @@ type Options struct {
 	SkipBaseMembers bool
 }
 
-// baseMemberNames are the Element/DataType base members every complex type and
-// resource inherits. They are planned away under Options.SkipBaseMembers until the
-// shared base type exists.
+// baseMemberNames are the base members a complex type or resource inherits from
+// Element, DataType, Resource, and DomainResource. They are planned away under
+// Options.SkipBaseMembers until the shared base types exist (Increment 5/6 embeds
+// them and retires the option). The set covers both the Element base (id, extension)
+// and the resource bases (meta, implicitRules, language) plus the DomainResource
+// bases (text, contained, modifierExtension), so a representative resource planned
+// before the base machinery lands carries only its own elements and compiles
+// against the already-generated type set.
 var baseMemberNames = map[string]bool{
-	"id":        true,
-	"extension": true,
+	"id":                true,
+	"extension":         true,
+	"meta":              true,
+	"implicitRules":     true,
+	"language":          true,
+	"text":              true,
+	"contained":         true,
+	"modifierExtension": true,
 }
 
 // PlanType turns a classified model.Type into an emitter-ready PlannedType. It plans
