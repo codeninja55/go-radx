@@ -309,6 +309,17 @@ The `_field` companion is emitted only for an element whose single type is a FHI
 a backbone, and a `contentReference` recursion boundary all get no companion, so `contained`, `resource`, and
 `OperationOutcome.issue` are never given a spurious `_field` sibling (Codex FHIR-005).
 
+The `_field` companion fold preserves canonical element ordering: the value fields are encoded in their
+struct-declared order and the `_field` siblings are appended after them, rather than routed through a map (which would
+re-sort every key alphabetically).
+
+> **Limitation (repeating extension-only positions).** A repeating primitive's value slice is a plain Go slice
+> (`[]string`, `[]fhir.Decimal`), so a value-side JSON `null` — the FHIR encoding of a position that carries only an
+> extension and no value, `"given":[null,"Q"]` — decodes to the Go zero value and re-marshals as that zero value rather
+> than `null`. The `_field` extension data at that position still round-trips and stays index-aligned; only the
+> value-side `null` placeholder is lost. Nullable value elements (and the presence semantics that go with them) are an
+> Increment 6 concern, since they change every repeating primitive's value type.
+
 ### Bundle and summary
 
 `Bundle` is a resource, so like every resource it is generated per release: the type, its
