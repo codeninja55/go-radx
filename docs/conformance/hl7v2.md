@@ -44,9 +44,10 @@ In scope for v1:
 - Acknowledgement construction (`BuildACK`) honouring original-mode and enhanced-mode acknowledgement codes.
 
 > **Implementation status: PARTIAL.** This list is the v1 target. Of it, the parse tree, the typed segments and
-> composites, encoding-character derivation and `DTM` precision, the typed `ORM` view, and the `AckCode` enum with its
-> predicates ship today. The typed `ADT`/`OMG`/`ORU`/`ACK` views, batch/file container parsing, MLLP transport, and
-> `BuildACK` are **NOT YET SHIPPED**; the per-section banners below mark exactly which surface each describes.
+> composites, encoding-character derivation and `DTM` precision, Chapter 2 §2.10 escape/unescape, the typed `ORM` view,
+> and the `AckCode` enum with its predicates ship today. The typed `ADT`/`OMG`/`ORU`/`ACK` views, batch/file container
+> parsing, MLLP transport, and `BuildACK` are **NOT YET SHIPPED**; the per-section banners below mark exactly which
+> surface each describes.
 
 Out of scope for v1 is listed explicitly in [Conformance scope and limits](#conformance-scope-and-limits). Notably:
 HL7 v2 XML encoding, FHIR-based v2 representations, inline character-set switching inside escape sequences, the full
@@ -256,13 +257,21 @@ malformed request, not an absent optional.
 
 ### Encoding characters and escaping
 
+> **Implementation status: SHIPPED.** `Escape`, `Unescape`, and the `UnescapeNote` channel ship today; `Encoding`,
+> `DefaultEncoding`, and `DeriveEncoding` ship alongside them.
+
 Encoding characters are derived from `MSH-1` and `MSH-2` on every parse; they are never hardcoded, so a sender using
-non-standard delimiters round-trips correctly. Escape and unescape implement HL7 Chapter 2 §2.10: the field,
-repetition, component, subcomponent, and escape separators (`\F\`, `\R\`, `\S\`, `\T\`, `\E\`), hex data (`\Xdd...\`),
-highlight (`\H\`/`\N\`), rich-text formatting (`\.br\` and the formatting commands), and application-defined sequences.
-`MSH-1` and `MSH-2` are themselves never unescaped, because they *define* the escape mechanism. Inline character-set
-switching inside escape sequences (`\Cxxyy\`, `\Mxxyyzz\`) is out of scope for v1; it is surfaced as an `UnescapeNotes`
-entry rather than silently lost, matching the reference library's documented limitation.
+non-standard delimiters round-trips correctly. `Escape` and `Unescape` implement HL7 Chapter 2 §2.10 against the escape
+table **derived from the message's encoding characters**, never the static defaults: the field, repetition, component,
+subcomponent, and escape separators (`\F\`, `\R\`, `\S\`, `\T\`, `\E\`), hex data (`\Xdd...\`), highlight (`\H\`/`\N\`),
+rich-text formatting (`\.br\` and the formatting commands), and application-defined sequences (`\Zxxx\`). Highlight,
+formatting, and application-defined sequences carry no character data and decode to the empty string. A malformed
+sequence — an unterminated escape, a non-hex `\X\` body, or an empty `\\` — is preserved verbatim so a value is
+never silently corrupted. `MSH-1` and `MSH-2` are themselves never unescaped, because they *define* the escape
+mechanism.
+Inline character-set switching inside escape sequences (`\Cxxyy\`, `\Mxxyyzz\`) is out of scope for v1; `Unescape`
+preserves the raw sequence and reports it through the `UnescapeNote` slice it returns rather than silently losing it,
+matching the reference library's documented limitation.
 
 ### Concurrency
 
