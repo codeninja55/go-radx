@@ -12,6 +12,16 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Wired every Phase 0 gate into the CI workflow so it runs on every push and pull request: `phi-sanity`
+  (the PHI-default log sweep, `internal/phisweep`), `fuzz` (a bounded smoke run over all five fuzz targets —
+  `FuzzRead`/`FuzzReadPixelDataFrom` in `dicom` and `FuzzReadPDU`/`FuzzDecodeAssociateAC`/`FuzzDecodePDV` in
+  `dimse/pdu` — each wrapped in `timeout` so a hang fails the build rather than being skipped),
+  `benchmark-baseline` (a run-once pass over the `dicom` benchmarks so the benchmark code and its committed
+  baselines cannot rot), `conformance-drift` (`tools/conformance-drift`), `docs` (`mkdocs build --strict` on a
+  pinned `mkdocs`/`mkdocs-material` toolchain recorded in `tools/versions`), and `tracked-binary-hygiene`
+  (fails if a compiled binary is tracked under `cmd/`). Added matching `mise` tasks (`phi-sweep`, `fuzz`,
+  `bench`) and updated the cross-cutting statement's "Gate enforcement status" to list the now-wired jobs,
+  which run on every push and pull request but remain advisory (the `main` ruleset is still disabled).
 - A conformance-drift check (`tools/conformance-drift`, run as `go test ./tools/conformance-drift/...`
   or `mise run conformance-drift`) and an mkdocs documentation site (`mkdocs.yml`, built with
   `mise run docs:build` / `mkdocs build --strict`) so the conformance statements cannot silently

@@ -346,10 +346,10 @@ site navigation, or a navigation entry pointing at a missing or excluded file, a
 published statements in step with the `docs/` tree, so a new statement cannot be authored and then silently left out of
 the site, and a removed one cannot linger as a dead navigation entry.
 
-Both gates run locally today (`mise run conformance-drift`, `mise run docs:build`). Running them as CI jobs — and
-provisioning the `mkdocs` toolchain the site build needs — is part of the gate-wiring work tracked under
-[Gate enforcement status](#gate-enforcement-status); until that lands, they are local and review-time gates, not
-merge-blocking CI checks.
+Both gates run locally (`mise run conformance-drift`, `mise run docs:build`) and as CI jobs: the `conformance-drift`
+job runs the drift check, and the `docs` job provisions the pinned `mkdocs` toolchain and runs the strict site build.
+Like every CI job they report status on each push and pull request but remain advisory rather than merge-blocking —
+see [Gate enforcement status](#gate-enforcement-status).
 
 ## Governance and stability posture
 
@@ -365,14 +365,25 @@ release is tagged.
 
 ## Gate enforcement status
 
-The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines six jobs:
+The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines thirteen jobs.
+The core build and test jobs are:
 `lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, the `pin-drift` check, and
 the standing [`-race` gate](#concurrency-and-race-posture) step that also enforces the
 [coverage floor](#coverage-targets-and-critical-path-enumeration)),
 `conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`), `interop` (the testcontainers matrix over the DIMSE,
 DICOMweb, and convert legs), `govulncheck` (the vulnerability scan of the root module), `cmd-radx` (build, vet, lint,
-and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed pixel codecs built from source). These
-jobs report status on every pull request.
+and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed pixel codecs built from source).
+
+The Phase 0 Lane-A artifacts are wired as their own jobs so each runs on every push and pull request:
+`phi-sanity` (the PHI-default log sweep, `internal/phisweep`), `fuzz` (a bounded smoke run over all five fuzz
+targets — `FuzzRead` and `FuzzReadPixelDataFrom` in `dicom`, `FuzzReadPDU`, `FuzzDecodeAssociateAC`, and
+`FuzzDecodePDV` in `dimse/pdu` — each wrapped in `timeout` so a hang is a failure, never a skip),
+`benchmark-baseline` (a run-once pass
+over the `dicom` benchmarks so the benchmark code and the committed baselines under `docs/conformance/benchmarks/`
+cannot rot), `conformance-drift` (the drift check at `tools/conformance-drift`), `docs` (the strict
+`mkdocs build --strict` site build on a pinned `mkdocs` toolchain), and `tracked-binary-hygiene` (fails if a compiled
+binary is tracked under `cmd/`, which is committed as source only). All thirteen jobs report status on every pull
+request.
 
 They are **currently advisory, not merge-blocking.** The `main` branch ruleset exists but its enforcement is set to
 *disabled*, and `main` has no branch-protection configured, so a red CI run does not block a merge at the GitHub level.

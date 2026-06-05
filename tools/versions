@@ -26,6 +26,13 @@ dicom3tools=1.00~20240118131615-1
 # pydicom round-trip gate. 3.x is required: the gate uses save_as(enforce_file_format=...), a 3.0 API.
 pydicom=3.0.2
 
+# --- Documentation site toolchain (live pins in .github/workflows/ci.yml, docs job) ---
+# The conformance site is built with `mkdocs build --strict` (mise run docs:build). The docs job
+# installs both at exact == pins from PyPI so the strict build is reproducible; bumping either is a
+# deliberate change made here and at the install site together.
+mkdocs=1.6.1
+mkdocs-material=9.6.21
+
 # --- Interop container images (live pins in the testcontainers helpers; digest-pinned) ---
 # Orthanc: dimse/integration/orthanc/orthanc.go and dicomweb/integration/orthanc/orthanc.go.
 orthanc.image=orthancteam/orthanc:26.6.0
