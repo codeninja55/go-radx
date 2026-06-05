@@ -20,9 +20,11 @@ var updateGolden = flag.Bool("update", false, "rewrite planned-model golden snap
 const vendoredR5Dir = "../testdata/definitions/r5"
 
 // goldenTypes are the representative R5 types pinned by the planned-model snapshot.
-// Period exercises the optional-scalar-to-pointer decision end to end on a real
-// datatype; the set grows as later increments add resources and backbones.
-var goldenTypes = []string{"Period"}
+// Period exercises the optional-scalar-to-pointer decision and the scalar "_field"
+// sibling; HumanName exercises the full primitive-extension layer — scalar siblings,
+// repeating siblings, and the FHIR-005 rule that the complex Period field gets no
+// sibling. The set grows as later increments add resources and backbones.
+var goldenTypes = []string{"HumanName", "Period"}
 
 func TestPlanGoldenSnapshot(t *testing.T) {
 	bundle, err := loader.Load(vendoredR5Dir)
