@@ -185,6 +185,24 @@ legacy codebase (`legacy-main`) and are not continued here.
   across all resources uses the real machinery, pinned by planner and emitter golden tests (`Annotation`), the
   byte-for-byte regeneration gate (now covering `primitives.go`), and choice round-trip / mutual-exclusion unit
   tests (`fhir/r5/choice_test.go`).
+- Required-binding enum generation (FHIR-013): every `required`-strength value-set binding on a `code` field now
+  becomes a closed Go enum — a defined string type, a const set enumerated from the bound value set, a set-membership
+  validator, a strict-by-default `ParseXxx`, and a strict `UnmarshalJSON` that rejects an out-of-set code at the JSON
+  boundary with `fhir.ErrUnknownCode` (wrapped with the binding name and offending token, no PHI). `ParseXxx` is always
+  strict; lenient retention is the opt-in alternative threaded as `fhir.DecodeLenient` through the boundary helper
+  `fhir.DecodeCode` (a value, not a global toggle, so concurrent decodes never race). The generator enumerates a value
+  set from the vendored bundle when it is extensional (inlined concepts) or names a vendored `CodeSystem` with complete
+  content, applying `compose.exclude` rules; a value set defined intensionally by a `compose.include.filter`, drawing
+  from an un-vendored external terminology (LOINC, UCUM, IETF/ISO registries), or composed from another value set is
+  emitted as a documented not-inlined plain `code` string with a godoc reason — never a silently-empty const set. To
+  feed that distinction the loader now captures `ValueSetInclude.Filter` (the property/op/value triple of an
+  intensional include), pinned by a golden loader test. The empty-const-set invariant is enforced by a guard test
+  (`TestNoEmptyRequiredBindingEnum`) that fails the build if any required-binding enum would ship enumerable-but-empty,
+  and a binding the resolver claims inlineable but that yields no codes is downgraded to the not-inlined boundary. The
+  full R5 tree is regenerated so every required-binding code field across all resources uses the real enum (a repeating
+  binding becomes a slice of the enum, a single one a pointer, keeping the presence and `_field`-sibling rules intact),
+  pinned by an emitter golden (`bindings.go.golden`), planner binding unit tests, the byte-for-byte regeneration gate
+  (now covering `bindings.go`), and root-package and `fhir/r5/enum_test.go` decode/parse regressions.
 
 ### Documentation
 
