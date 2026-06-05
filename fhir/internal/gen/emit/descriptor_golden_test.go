@@ -27,12 +27,24 @@ func descriptorFixture() []plan.ValidationDescriptor {
 				{GoName: "Gender", Validator: "validAdministrativeGender", EnumName: "AdministrativeGender", Path: "Sample.gender"},
 				{GoName: "Categories", Validator: "validSampleCategory", EnumName: "SampleCategory", Path: "Sample.category", Repeats: true},
 			},
+			Summary: []plan.SummaryFlag{
+				{JSONName: "text", IsText: true},
+				{JSONName: "status", IsSummary: true, IsMandatory: true, IsModifier: true},
+				{JSONName: "valueQuantity", IsSummary: true},
+				{JSONName: "valueString", IsSummary: true},
+				{JSONName: "note"},
+			},
 		},
 		{
 			GoName:   "Bundle",
 			FHIRName: "Bundle",
 			Required: []plan.RequiredField{{GoName: "Type", Path: "Bundle.type"}},
 			HasExtra: true,
+			Summary: []plan.SummaryFlag{
+				{JSONName: "type", IsSummary: true, IsMandatory: true},
+				{JSONName: "total", IsSummary: true, IsCount: true},
+				{JSONName: "entry", IsSummary: true},
+			},
 		},
 	}
 }
