@@ -159,10 +159,41 @@ mise-provided Go). The job runs on every push and pull request to `main` alongsi
 
 ## Coverage targets and critical-path enumeration
 
-Not yet authored. This section will declare the coverage contract: the measurement method, the enforced floor, and the
-explicit enumeration of the critical paths (the Part 10 reader, the DIMSE association and DIMSE-C services, the DICOMweb
-round-trips, and the cross-standard converters) that the floor is meant to protect — so coverage is a guarantee on the
-paths that matter, not just an aggregate percentage.
+go-radx enforces an aggregate statement-coverage floor on the library module: the build fails if coverage drops below
+it. The floor is **80%** (PRD §11.4). It is measured and enforced in the `lint-test` job's race-test step
+([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)), which runs the `cover:check` mise task. That task first
+runs `cover` — a single `go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...` over the
+root module — then runs [`tools/cover-check.sh`](../../tools/cover-check.sh), which reads the merged profile's
+`total:` line and fails the step if the aggregate is below the floor. The same gate runs locally via
+`mise run cover:check`.
+
+The measurement method matters for what the number means. `-coverpkg=./...` puts every statement in the root module in
+the denominator, so a package with no tests (today `server` and `fhir/r4`) lowers the aggregate rather than being
+silently excluded; the percentage is union coverage across all test binaries, not a per-binary figure. The run is
+scoped to the root module with `GOWORK=off`, so the `go.work` workspace does not pull `cmd/radx` into the figure — the
+CLI module is gated by its own `cmd-radx` job (see
+[Build and module layout](#build-and-module-layout-gowork-cmdradx-ci)), not by this floor. `-race` is preserved
+alongside `-covermode=atomic` (atomic is the coverage mode the race detector
+requires), so the concurrency posture in [Concurrency and race posture](#concurrency-and-race-posture) and the coverage
+floor are enforced by one run rather than two.
+
+The 80% aggregate is a floor on the whole module, not a guarantee on the paths that carry patient data. The critical
+paths below carry a higher **90%** target so coverage is a guarantee where a defect is most consequential. This target
+is enumerated here as the standing contract; it is **not yet a separate enforced gate** — only the 80% aggregate is
+merge-blocking today, and raising the critical-path packages to a per-path 90% check is tracked Phase-1 work. The
+critical paths, with the primary files each comprises, are:
+
+| Critical path | Package(s) | Primary files |
+|---------------|------------|---------------|
+| Part 10 reader / writer | `dicom` | `file.go`, `file_meta.go`, `file_meta_write.go`, `dataset.go`, `dataset_codec.go`, `dataset_stream.go`, `dataset_writefile.go`, `element_header.go`, `reader_writer.go`, `bounded_reader.go`, `pixel_reader.go` |
+| DIMSE association (DUL/ACSE state machine + negotiation) | `dimse/dul`, `dimse/acse` | `dul/statemachine.go`, `dul/state.go`, `dul/event.go`, `dul/action.go`, `dul/connection.go`, `acse/negotiate.go`, `acse/associate.go` |
+| DIMSE-C services (SCU + SCP) | `dimse`, `dimse/pdu` | `association.go`, `command.go`, `message.go`, `dispatch.go`, `handler.go`, `server.go`, `echo.go`, `find.go`, `find_scp.go`, `move.go`, `move_scp.go`, `store.go`, and the PDU/PDV encode-decode in `dimse/pdu` |
+| DICOMweb round-trips | `dicomweb` | `client.go`, `server.go`, `instance.go`, `resource.go`, `multipart.go`, `json.go`, `negotiation.go`, `store_response.go`, `bulkdata.go` |
+| Cross-standard converters | `convert` | `orm_servicerequest.go`, `sr_diagnosticreport.go`, `dicom_imagingstudy.go`, `report.go`, `identity.go`, `subject.go`, `dicom_helpers.go`, `hl7_helpers.go` |
+
+The file lists name the units the 90% target protects; they track the source tree and are re-checked when the tree
+moves. A new critical path (a new standard subsystem, or a new server entry point on an existing one) is added to this
+table as it ships, so the enumeration stays the authoritative map of what the coverage contract is meant to guarantee.
 
 ## Concurrency and race posture
 
@@ -191,7 +222,8 @@ release is tagged.
 ## Gate enforcement status
 
 The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines six jobs:
-`lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, and `go test -race ./...`),
+`lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, the `pin-drift` check, and
+the race-test step that also enforces the coverage floor — see [Coverage targets](#coverage-targets-and-critical-path-enumeration)),
 `conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`), `interop` (the testcontainers matrix over the DIMSE,
 DICOMweb, and convert legs), `govulncheck` (the vulnerability scan of the root module), `cmd-radx` (build, vet, lint,
 and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed pixel codecs built from source). These
