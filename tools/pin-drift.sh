@@ -118,7 +118,7 @@ scan_unpinned_pip() {
   local file="$1"
   [ -f "$file" ] || return 0
   local tool
-  for tool in pydicom pynetdicom hl7; do
+  for tool in pydicom pynetdicom hl7 mkdocs mkdocs-material; do
     while IFS=: read -r lineno line; do
       [ -z "${lineno:-}" ] && continue
       is_comment "$line" && continue
