@@ -126,6 +126,9 @@ func Generate(cfg Config) error {
 	if err := emitRegistryFile(bundle, cfg, types); err != nil {
 		return err
 	}
+	if err := emitDescriptorsFile(bundle, cfg, types); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -173,7 +176,7 @@ func GeneratedFileNames(bundle *loader.Bundle) []string {
 			names = append(names, gt.fileName)
 		}
 	}
-	names = append(names, "primitives.go", "bindings.go", "registry.go")
+	names = append(names, "primitives.go", "bindings.go", "registry.go", "validation_descriptors.go")
 	return names
 }
 
@@ -302,6 +305,60 @@ func emitRegistryFile(bundle *loader.Bundle, cfg Config, types []generatedType) 
 		return fmt.Errorf("fhir/gen: write %s: %w", outPath, err)
 	}
 	return nil
+}
+
+// emitDescriptorsFile renders the per-release validation descriptors from the generated
+// resources and writes validation_descriptors.go. The generated init() registers one
+// fhir.ValidationDescriptor per resource with the root engine, carrying generated typed
+// closures for required-element presence, choice-group mutual exclusion, and
+// required-binding code validity, so fhir.Validate is data-driven and takes no metadata
+// reflection on the validation path. The resources are listed in the same stable order
+// GeneratedTypes produces, which is the canonical order the byte-for-byte regeneration
+// gate depends on.
+func emitDescriptorsFile(bundle *loader.Bundle, cfg Config, types []generatedType) error {
+	var descriptors []plan.ValidationDescriptor
+	for _, gt := range types {
+		if gt.isBaseType {
+			continue
+		}
+		vd, ok, err := planDescriptor(bundle, gt.fhirName)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			continue
+		}
+		descriptors = append(descriptors, vd)
+	}
+	src, err := emit.EmitDescriptors(emit.Descriptors{Package: cfg.Release, Descriptors: descriptors})
+	if err != nil {
+		return fmt.Errorf("fhir/gen: emit validation descriptors: %w", err)
+	}
+	outPath := filepath.Join(cfg.OutputDir, "validation_descriptors.go")
+	if err := os.WriteFile(outPath, src, 0o644); err != nil {
+		return fmt.Errorf("fhir/gen: write %s: %w", outPath, err)
+	}
+	return nil
+}
+
+// planDescriptor runs the front-half pipeline (model, plan) for one FHIR type and builds
+// its validation descriptor, returning ok=false for a type that is not a concrete
+// resource (a complex datatype has no resourceType to register under). It plans the type
+// with the binding resolver so a code field's required-binding check references the same
+// closed enum the field is typed as.
+func planDescriptor(bundle *loader.Bundle, fhirName string) (plan.ValidationDescriptor, bool, error) {
+	sd, ok := bundle.StructureDefinition(fhirName)
+	if !ok {
+		return plan.ValidationDescriptor{}, false, fmt.Errorf("fhir/gen: StructureDefinition %q not in bundle", fhirName)
+	}
+	typ, err := model.BuildType(sd)
+	if err != nil {
+		return plan.ValidationDescriptor{}, false, fmt.Errorf("fhir/gen: build model for %s: %w", fhirName, err)
+	}
+	resolver := newBindingResolver(bundle)
+	pt := plan.PlanType(typ, plan.Options{Bindings: resolver})
+	vd, ok := plan.PlanValidationDescriptor(typ, pt, resolver)
+	return vd, ok, nil
 }
 
 // planType runs the front-half pipeline (model, plan) for one FHIR type and returns
