@@ -142,6 +142,18 @@ legacy codebase (`legacy-main`) and are not continued here.
   prove the pipeline, with `go generate ./fhir/...` reproducing it byte-for-byte and a
   `TestRegenerationByteForByte` gate (wired into the `gen:verify` task) that fails on a hand edit, so
   "generated, never hand-edited" is a verifiable property.
+- The resource identity API in the root `fhir` package: `Unmarshal[T]` peeks a payload's
+  `resourceType` and verifies it matches `T` before decoding, returning `ErrResourceTypeMismatch` on a
+  mismatch and the zero value (the FHIR-003 checked-decode fix); `As[T]` is a checked downcast that fails
+  closed on a nil interface and a typed-nil pointer; and `UnmarshalResource` dispatches by `resourceType`
+  through an `init`-populated factory registry, returning `ErrUnknownResourceType` for an absent, empty,
+  or unregistered type. The registry is guarded by a read-write mutex and populated only from generated
+  per-release `init()` via the exported `RegisterFactory` hook, which panics on a duplicate registration.
+- Resource generation in the emitter: a generated resource emits a `ResourceType()` method and a
+  `MarshalJSON` that always writes the `resourceType` constant — even for a zero value, never the empty
+  string (the FHIR-004 fix) — plus a per-release `registry.go` whose `init()` registers each resource's
+  factory. The representative resource `r5.Flag` is generated end to end to exercise the identity API and
+  the registry, pinned by emitter golden tests and the byte-for-byte regeneration gate.
 
 ### Documentation
 
