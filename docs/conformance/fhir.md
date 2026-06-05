@@ -598,10 +598,13 @@ boundaries, each stage gated by its own tests:
    and its regenerated output are committed together (generator first); a definition-bundle change is committed
    separately.
 
-> **Implementation status: PARTIAL.** The loader, the model / IR stage, and the planner and emitter skeleton are
-> implemented and tested, with one representative datatype (`r5.Period`) generated end to end to prove the pipeline and
-> the byte-for-byte regeneration gate. The full datatype, resource, backbone, choice, enum, and Bundle generation, and
-> the generated `fhir/r4` output, are not yet shipped.
+> **Implementation status: PARTIAL.** The loader, the model / IR stage, the planner and emitter skeleton, the resource
+> identity API (`Unmarshal[T]`, `As[T]`, `UnmarshalResource` with the FHIR-003 `resourceType` check), and the
+> init-populated `resourceType`→factory registry are implemented and tested. One representative datatype (`r5.Period`)
+> and one representative resource (`r5.Flag`, with its `ResourceType` method, always-emit-`resourceType` `MarshalJSON`,
+> and a generated registry entry) are generated end to end to prove the pipeline, the identity API, and the
+> byte-for-byte regeneration gate. The full datatype, resource, backbone, choice, enum, and Bundle generation, the
+> primitive-extension siblings, and the generated `fhir/r4` output, are not yet shipped.
 
 ## What this statement fixes (re-foundation note)
 
