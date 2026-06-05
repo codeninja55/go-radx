@@ -84,7 +84,6 @@ var DefaultTransferSyntaxes = []dicom.TransferSyntax{
 // not a standards term). Each returns proposals keyed by odd presentation-context IDs over DefaultTransferSyntaxes.
 func VerificationContexts() []dimse.PresentationContext      // 1 context  — Verification SOP Class
 func StorageContexts() []dimse.PresentationContext           // radiology-first Storage set (see table below)
-func AllStorageContexts() []dimse.PresentationContext        // every registered Storage SOP Class (transport only)
 func QueryRetrieveContexts() []dimse.PresentationContext     // Patient Root + Study Root C-FIND/C-GET/C-MOVE
 func BasicWorklistContexts() []dimse.PresentationContext     // Modality Worklist Information Model — FIND
 func ModalityPerformedContexts() []dimse.PresentationContext // MPPS SOP Class (MPPS SCU)
@@ -117,12 +116,12 @@ go-radx supports a curated, radiology-first Storage SOP Class set as both **Stor
 **Storage SCP** (C-STORE provider, e.g. the reference store daemon). The full `pynetdicom` selected-Storage preset is
 120 SOP Classes (`StoragePresentationContexts`) and the all-Storage preset is 170
 (`AllStoragePresentationContexts`); go-radx declares conformance for the radiology-relevant subset below as the
-**supported, validated** Storage set, and exposes the rest only for negotiation and opaque transport via
-`AllStorageContexts()`.
+**supported, validated** Storage set.
 
 The distinction is deliberate. A SOP Class in the supported set is round-trip-tested (parse, write, `dciodvfy`, and
-Orthanc/dcm4chee-arc interop). A SOP Class reachable only through `AllStorageContexts()` is accepted on the wire and
-stored or forwarded byte-for-byte, but go-radx makes no IOD-semantic claim about it — it is "transport-only."
+Orthanc/dcm4chee-arc interop). A transport-only forwarding preset that proposes the full registered Storage set
+(`AllStorageContexts()`) — accepted on the wire and stored or forwarded byte-for-byte, with no IOD-semantic claim — is
+**NOT YET SHIPPED**; the validated `StorageContexts()` set below is the only Storage preset v1 exposes.
 
 Supported (validated) Storage SOP Classes:
 
@@ -175,8 +174,9 @@ document structure, not merely byte-for-byte storage. Secondary Capture is inclu
 encapsulated-document classes the convert layer needs, not the long tail of ophthalmic, dermatologic, RT-treatment, and
 waveform classes that v1 does not validate.
 
-`AllStorageContexts()` proposes every registered Storage SOP Class (the 170-Class transport set) for consumers who
-need a forwarding store; instances of unsupported classes are stored and retrieved verbatim with no IOD-level claim.
+A transport-only forwarding preset that proposes every registered Storage SOP Class (the 170-Class transport set) for
+consumers who need a forwarding store — `AllStorageContexts()`, where instances of unsupported classes would be stored
+and retrieved verbatim with no IOD-level claim — is **NOT YET SHIPPED** in v1.
 
 ### Query/Retrieve
 
@@ -237,7 +237,7 @@ N-EVENT-REPORT result as a `StorageCommitmentResult`. The SCP side is deferred. 
 |-------------------------|------|---------------|
 | `VerificationContexts()` | Verification SCU/SCP | 1 |
 | `StorageContexts()` | Storage SCU/SCP (validated radiology set) | 36 (table above) |
-| `AllStorageContexts()` | Storage transport-only | 170 (registered Storage set) |
+| `AllStorageContexts()` | Storage transport-only | NOT YET SHIPPED (would be 170, the registered Storage set) |
 | `QueryRetrieveContexts()` | Patient Root + Study Root Q/R | 6 |
 | `BasicWorklistContexts()` | Modality Worklist FIND | 1 |
 | `ModalityPerformedContexts()` | MPPS SCU | 1 |
@@ -552,8 +552,9 @@ This statement is the v1 DICOM scope contract. To restate the boundaries precise
   dcm4chee-arc (PRD §11.1). A SOP Class in the supported Storage table is exercised against these; a transport-only
   class is not.
 - **Supported Storage is the radiology subset, not the 120-Class `pynetdicom` selection.** Non-radiology image classes
-  (ophthalmic, dermatologic, RT treatment objects, waveforms, raw data) are negotiable for transport via
-  `AllStorageContexts()` but carry no IOD-semantic guarantee in v1.
+  (ophthalmic, dermatologic, RT treatment objects, waveforms, raw data) would be negotiable for transport via the
+  transport-only `AllStorageContexts()` forwarding preset, which is **NOT YET SHIPPED** in v1; only the validated
+  `StorageContexts()` set is exposed.
 - **N-services are SCU-only.** MPPS and Storage Commitment have no SCP side in v1; every other DIMSE-N service is out of
   scope entirely. The N-service SCP roles, Print Management, UPS, and RT Machine Verification are deferred (PRD §3.2,
   §5.1).

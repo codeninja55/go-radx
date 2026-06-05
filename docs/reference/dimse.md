@@ -413,7 +413,6 @@ Storage, 13 Q/R) is cited only as the upstream reference these presets filter fr
 ```go
 func VerificationContexts() []PresentationContext        // 1 context (Verification SOP Class)
 func StorageContexts() []PresentationContext             // 36 contexts (validated radiology Storage set)
-func AllStorageContexts() []PresentationContext          // 170 contexts (every registered Storage SOP Class)
 func QueryRetrieveContexts() []PresentationContext       // 6 contexts (Patient Root + Study Root Q/R models)
 func BasicWorklistContexts() []PresentationContext       // 1 context (Modality Worklist Information Model — FIND)
 func ModalityPerformedContexts() []PresentationContext   // 1 context (MPPS SOP Class, for the MPPS SCU)
@@ -421,11 +420,11 @@ func StorageCommitmentContexts() []PresentationContext   // 1 context (Storage C
 ```
 
 `StorageContexts()` returns the 36-class validated radiology set — round-trip-tested and interop-verified —
-intentionally narrower than the 120-class `pynetdicom` selected-Storage floor. `AllStorageContexts()` proposes all 170
-registered Storage SOP Classes for transport-only use. Because the A-ASSOCIATE-RQ has a 128-context limit, a single
-`AllStorageContexts()` proposal must be split across associations; the curated `StorageContexts()` set stays well under
-the limit. The accepted side always returns a single transfer syntax per context; rejected contexts still encode exactly
-one (insignificant) transfer-syntax sub-item, which the prototype omitted (Codex DIMSE-008).
+intentionally narrower than the 120-class `pynetdicom` selected-Storage floor. A transport-only forwarding preset that
+proposes all 170 registered Storage SOP Classes (`AllStorageContexts()`) is **NOT YET SHIPPED**; when added it must be
+split across associations because the A-ASSOCIATE-RQ has a 128-context limit, whereas the curated `StorageContexts()`
+set stays well under the limit. The accepted side always returns a single transfer syntax per context; rejected contexts
+still encode exactly one (insignificant) transfer-syntax sub-item, which the prototype omitted (Codex DIMSE-008).
 
 ## The DUL state machine (PS3.8 Table 9-10)
 
@@ -943,7 +942,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	srv := dimse.NewServer(ae, dimse.AllStorageContexts(), &fileStore{dir: "/var/dicom"})
+	// The validated radiology Storage set. A transport-only AllStorageContexts() forwarding
+	// preset (the full 170-class registered set) is NOT YET SHIPPED in v1.
+	srv := dimse.NewServer(ae, dimse.StorageContexts(), &fileStore{dir: "/var/dicom"})
 	ctx := context.Background()
 	// Default bind is loopback; pass an explicit address to bind elsewhere.
 	if err := srv.ListenAndServe(ctx, "127.0.0.1:11112"); err != nil {

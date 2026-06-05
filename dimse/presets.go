@@ -39,7 +39,8 @@ var queryRetrieveSOPClasses = []dicom.SOPClassUID{
 // declares conformance for as both Storage SCU and Storage SCP. It is the "Supported
 // (validated) Storage SOP Classes" table in docs/conformance/dicom.md — 36 classes,
 // intentionally narrower than the 120-class pynetdicom selected-Storage floor. Each is
-// round-trip-tested and interop-verified; the rest are reachable only via AllStorageContexts.
+// round-trip-tested and interop-verified. A transport-only forwarding preset over the full
+// registered Storage set is documented as NOT YET SHIPPED in docs/conformance/dicom.md.
 var validatedStorageSOPClasses = []dicom.SOPClassUID{
 	"1.2.840.10008.5.1.4.1.1.1",      // Computed Radiography Image Storage
 	"1.2.840.10008.5.1.4.1.1.1.1",    // Digital X-Ray Image Storage — For Presentation
