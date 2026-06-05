@@ -635,7 +635,9 @@ binding checks are deferred (a backbone's own required elements are not yet walk
 (`date`/`dateTime`/`time` calendar and offset rules, Codex FHIR-008) is also deferred — `decimal` already preserves
 lexical precision through `fhir.Decimal` (FHIR-009), and required-binding codes are validated against their closed enum.
 The HL7 FHIR validator (the conformance gate) covers the deferred depth; `Validate` is the fast in-process structural
-gate for the common, top-level errors.
+gate for the common, top-level errors. The hand-written M2 workflow resources (`ServiceRequest`, `DiagnosticReport`,
+`ImagingStudy`), which the bulk generator excludes until the migration increment regenerates them, carry hand-written
+descriptors so their required `status`/`intent` are still validated rather than silently skipped.
 
 The authoritative external check is the **HL7 FHIR validator**, merge-blocking in CI (PRD §11.1). go-radx's own
 validation is the fast in-process gate; the official validator is the conformance gate.
