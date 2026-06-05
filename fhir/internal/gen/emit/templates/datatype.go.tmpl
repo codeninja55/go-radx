@@ -5,13 +5,35 @@ package {{ .Package }}
 import "{{ . }}"
 {{- end }}
 {{ range .Types }}
-// {{ .GoName }} is the generated FHIR {{ .FHIRName }} datatype.
+{{- if .IsResource }}
+// {{ .GoName }}ResourceType is the FHIR resourceType discriminator for {{ .FHIRName }}.
+const {{ .GoName }}ResourceType = "{{ .FHIRName }}"
+{{ end }}
+// {{ .GoName }} is the generated FHIR {{ .FHIRName }} {{ .KindNoun }}.
 type {{ .GoName }} struct {
 {{- range .Fields }}
 	{{ .GoName }} {{ .GoType }} `json:"{{ .JSONName }}{{ if .Optional }},omitempty{{ end }}"`
 {{- end }}
 }
-{{ range .Backbones }}
+{{ if .IsResource }}
+// ResourceType returns the FHIR discriminator {{ printf "%q" .FHIRName }}.
+func (r *{{ .GoName }}) ResourceType() string { return {{ .GoName }}ResourceType }
+
+// MarshalJSON emits the resource with "resourceType" as the first JSON key, always
+// carrying the type constant — even for a zero value, so a {{ .GoName }} never
+// serialises an empty "resourceType".
+func (r *{{ .GoName }}) MarshalJSON() ([]byte, error) {
+	type alias {{ .GoName }}
+	return json.Marshal(struct {
+		ResourceType string `json:"resourceType"`
+		*alias
+	}{
+		ResourceType: {{ .GoName }}ResourceType,
+		alias:        (*alias)(r),
+	})
+}
+{{ end }}
+{{- range .Backbones }}
 // {{ .GoName }} is a generated nested backbone element.
 type {{ .GoName }} struct {
 {{- range .Fields }}

@@ -15,7 +15,11 @@
 // Stability: experimental. Pre-1.0; the API may change between v0.x releases.
 package fhir
 
-import "errors"
+import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+)
 
 // Resource is the base unit of FHIR exchange. ResourceType returns the FHIR
 // discriminator (for example "Patient"), which is a compile-time constant per
@@ -27,13 +31,150 @@ type Resource interface {
 var (
 	// ErrResourceTypeMismatch is returned by Unmarshal[T] when the payload's
 	// resourceType does not match T.
-	ErrResourceTypeMismatch = errors.New("fhir: resourceType does not match target type")
+	ErrResourceTypeMismatch = newSentinel("resourceType does not match target type")
 
 	// ErrUnknownResourceType is returned by UnmarshalResource when resourceType
 	// is absent or not in the registry.
-	ErrUnknownResourceType = errors.New("fhir: unknown resourceType")
+	ErrUnknownResourceType = newSentinel("unknown resourceType")
 
 	// ErrUnknownCode is returned by ParseXxx and by strict decode of a required
 	// binding when a code is outside the bound value set.
-	ErrUnknownCode = errors.New("fhir: code not in required value set")
+	ErrUnknownCode = newSentinel("code not in required value set")
 )
+
+// Unmarshal decodes FHIR JSON into the concrete resource type T, verifying the
+// payload's embedded "resourceType" matches T before fully decoding. A Patient
+// payload decoded as *r5.Observation returns ErrResourceTypeMismatch and the zero
+// value of T; it never silently succeeds against the wrong type. This is the
+// checked-decode contract the prototype lacked: its UnmarshalResource[T] decoded
+// the bytes into T without ever comparing the discriminator (Codex FHIR-003).
+//
+// A payload whose "resourceType" is absent or empty also fails, with
+// ErrResourceTypeMismatch, because a resource with no discriminator cannot be
+// asserted to be a T. The error names both discriminators (the payload's and T's),
+// never any patient value.
+func Unmarshal[T Resource](data []byte) (T, error) {
+	var zero T
+
+	payloadType, err := peekResourceType(data)
+	if err != nil {
+		return zero, err
+	}
+
+	// T is an interface constrained to Resource; its concrete dynamic type is a
+	// pointer to a generated resource struct (for example *r5.Patient). Allocate a
+	// fresh, decode-ready value of that concrete type so the discriminator can be
+	// checked against a real ResourceType() before any field decode happens. An
+	// instantiation that is not a pointer to a struct (the bare Resource interface, a
+	// value type) cannot be allocated this way; newConcrete reports that as an error
+	// rather than panicking, honouring the never-panic-on-misuse contract.
+	target, err := newConcrete[T]()
+	if err != nil {
+		return zero, err
+	}
+	wantType := target.ResourceType()
+	if payloadType != wantType {
+		return zero, fmt.Errorf("fhir: %w: payload %q, want %q",
+			ErrResourceTypeMismatch, payloadType, wantType)
+	}
+
+	if err := json.Unmarshal(data, target); err != nil {
+		return zero, fmt.Errorf("fhir: decode %s: %w", wantType, err)
+	}
+	return target, nil
+}
+
+// As is a checked downcast from the Resource interface to the concrete type T. It
+// returns (value, true) when r's dynamic type is T and r is not a nil pointer, and
+// (zero, false) otherwise, so a caller never panics at a polymorphic boundary
+// (Bundle.entry.resource, contained) and never receives a non-nil ok alongside a nil
+// pointer it would dereference. A nil interface and a typed-nil pointer both fail
+// closed.
+//
+//	patient, ok := fhir.As[*r5.Patient](entry.Resource)
+func As[T Resource](r Resource) (T, bool) {
+	var zero T
+	if r == nil || isNilResource(r) {
+		return zero, false
+	}
+	t, ok := r.(T)
+	return t, ok
+}
+
+// UnmarshalResource decodes FHIR JSON into the concrete type named by its
+// "resourceType", dispatching through the init-populated factory registry. The
+// returned Resource holds the dynamic type (for example *r5.Patient). A payload
+// whose "resourceType" is absent, empty, or not registered returns
+// ErrUnknownResourceType and a nil Resource; dispatch fails closed rather than
+// guessing a type.
+func UnmarshalResource(data []byte) (Resource, error) {
+	resourceType, err := peekResourceType(data)
+	if err != nil {
+		return nil, err
+	}
+
+	factory, ok := lookupFactory(resourceType)
+	if !ok {
+		return nil, fmt.Errorf("fhir: %w: %q", ErrUnknownResourceType, resourceType)
+	}
+
+	r := factory()
+	if err := json.Unmarshal(data, r); err != nil {
+		return nil, fmt.Errorf("fhir: decode %s: %w", resourceType, err)
+	}
+	return r, nil
+}
+
+// discriminator is the minimal envelope used to peek a payload's "resourceType"
+// before committing to a concrete decode, so the checked path reads only the one
+// key it needs.
+type discriminator struct {
+	ResourceType string `json:"resourceType"`
+}
+
+// peekResourceType reads only the "resourceType" key from a FHIR JSON payload. An
+// absent or empty discriminator is reported as ErrUnknownResourceType, matching the
+// "reject a payload whose resourceType is absent, empty, or unknown" rule, so both
+// the checked and the registry path treat a discriminator-less payload identically.
+func peekResourceType(data []byte) (string, error) {
+	var d discriminator
+	if err := json.Unmarshal(data, &d); err != nil {
+		return "", fmt.Errorf("fhir: read resourceType: %w", err)
+	}
+	if d.ResourceType == "" {
+		return "", fmt.Errorf("fhir: %w: payload has no resourceType", ErrUnknownResourceType)
+	}
+	return d.ResourceType, nil
+}
+
+// newConcrete constructs a fresh, non-nil value of the concrete type behind
+// interface T. Every generated resource type instantiates T as a pointer to a struct
+// (*r5.Patient, ...); allocating the pointed-to struct yields a decode-ready value
+// whose ResourceType() returns the type's constant discriminator. The one reflect
+// allocation runs once per Unmarshal call, off any hot path, and keeps Unmarshal
+// independent of the registry so a type need not be registered to be decoded by its
+// static type.
+//
+// An instantiation whose concrete type is not a pointer (Unmarshal called with the
+// bare Resource interface, or a value-receiver Resource) cannot be allocated into a
+// decode target. newConcrete returns an error for that misuse rather than a nil or
+// non-pointer value that would later panic or fail a json decode; no generated type
+// triggers this path.
+func newConcrete[T Resource]() (T, error) {
+	var zero T
+	t := reflect.TypeFor[T]()
+	if t.Kind() != reflect.Pointer {
+		return zero, fmt.Errorf("fhir: Unmarshal target %s is not a pointer resource type; "+
+			"instantiate Unmarshal with a concrete pointer type such as *r5.Patient", t)
+	}
+	return reflect.New(t.Elem()).Interface().(T), nil
+}
+
+// isNilResource reports whether r holds a typed-nil pointer, so a checked downcast of
+// a Resource whose dynamic value is (for example) a nil *r5.Patient fails closed
+// instead of handing back a nil the caller would dereference. A non-pointer dynamic
+// value is never "nil" in this sense.
+func isNilResource(r Resource) bool {
+	v := reflect.ValueOf(r)
+	return v.Kind() == reflect.Pointer && v.IsNil()
+}

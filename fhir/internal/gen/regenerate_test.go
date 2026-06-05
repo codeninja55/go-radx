@@ -27,21 +27,32 @@ func TestRegenerationByteForByte(t *testing.T) {
 		t.Fatalf("Generate: %v", err)
 	}
 
+	// Every file Generate writes — the representative datatypes, the representative
+	// resources, and the per-release registry — must match its committed counterpart.
+	var fileNames []string
 	for _, dt := range representativeDatatypes {
-		t.Run(dt.fileName, func(t *testing.T) {
-			regenerated, err := os.ReadFile(filepath.Join(tmp, dt.fileName))
+		fileNames = append(fileNames, dt.fileName)
+	}
+	for _, res := range representativeResources {
+		fileNames = append(fileNames, res.fileName)
+	}
+	fileNames = append(fileNames, "registry.go")
+
+	for _, name := range fileNames {
+		t.Run(name, func(t *testing.T) {
+			regenerated, err := os.ReadFile(filepath.Join(tmp, name))
 			if err != nil {
-				t.Fatalf("read regenerated %s: %v", dt.fileName, err)
+				t.Fatalf("read regenerated %s: %v", name, err)
 			}
-			committed, err := os.ReadFile(filepath.Join(committedR5Dir, dt.fileName))
+			committed, err := os.ReadFile(filepath.Join(committedR5Dir, name))
 			if err != nil {
-				t.Fatalf("read committed %s (run `mise run gen:fhir-r5`): %v", dt.fileName, err)
+				t.Fatalf("read committed %s (run `mise run gen:fhir-r5`): %v", name, err)
 			}
 			if string(regenerated) != string(committed) {
 				t.Errorf("committed %s differs from a fresh regeneration; the file was hand-edited "+
 					"or the generator changed without regenerating. Run `mise run gen:fhir-r5` and commit the result.\n"+
 					"--- committed ---\n%s\n--- regenerated ---\n%s",
-					dt.fileName, string(committed), string(regenerated))
+					name, string(committed), string(regenerated))
 			}
 		})
 	}
