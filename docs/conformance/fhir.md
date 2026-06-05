@@ -538,13 +538,14 @@ transaction/batch entry must carry a resource, and a `GET`, `HEAD`, or `DELETE` 
 does not define `subscription-notification`; R5 5.0.0 adds it, the one `Bundle.type` difference between
 the two release packages.
 
-Three `bdl-*` rules are deferred to the cardinality/required `Validate` increment rather than enforced
-in the builder: a document Bundle's required `identifier` and `timestamp` (bdl-9, bdl-10), the
-`searchset` `self` link (bdl-18), and the `meta.versionId` exception to fullUrl uniqueness (bdl-7's
-clause that two entries may share a fullUrl when they carry different versions, and bdl-8's
-`/_history/` form). The builders enforce the conservative, workflow-relevant subset — flat fullUrl
-uniqueness, first-entry type, request/response presence, and verb/resource equivalence — and `Validate`
-will report the remaining structural rules over a decoded bundle.
+Some `bdl-*` rules are checked by `Validate` over a decoded bundle rather than by the builder. `Validate`
+honours the `meta.versionId` exception to fullUrl uniqueness (bdl-7's clause that two entries may share a
+fullUrl when they carry different `meta.versionId`, and the history-bundle exemption, bdl-8): its
+uniqueness key is `(fullUrl, versionId)` and a history bundle is exempt entirely, so a valid versioned or
+history bundle is not falsely rejected. The builders enforce the conservative, workflow-relevant subset —
+flat fullUrl uniqueness, first-entry type, request/response presence, and verb/resource equivalence — over a
+bundle they construct fresh (where no version distinguishes two entries). A document Bundle's required
+`identifier` and `timestamp` (bdl-9, bdl-10) and the `searchset` `self` link (bdl-18) remain deferred.
 
 ## Serialization
 
