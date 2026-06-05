@@ -17,7 +17,9 @@ package fhir
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"reflect"
 )
 
@@ -79,7 +81,7 @@ func Unmarshal[T Resource](data []byte) (T, error) {
 	}
 
 	if err := json.Unmarshal(data, target); err != nil {
-		return zero, fmt.Errorf("fhir: decode %s: %w", wantType, err)
+		return zero, fmt.Errorf("fhir: decode %s: %w", wantType, mapDecodeError(err))
 	}
 	return target, nil
 }
@@ -120,7 +122,7 @@ func UnmarshalResource(data []byte) (Resource, error) {
 
 	r := factory()
 	if err := json.Unmarshal(data, r); err != nil {
-		return nil, fmt.Errorf("fhir: decode %s: %w", resourceType, err)
+		return nil, fmt.Errorf("fhir: decode %s: %w", resourceType, mapDecodeError(err))
 	}
 	return r, nil
 }
@@ -136,7 +138,7 @@ func UnmarshalResource(data []byte) (Resource, error) {
 func UnmarshalResourceSlice(data []byte) ([]Resource, error) {
 	var raws []json.RawMessage
 	if err := json.Unmarshal(data, &raws); err != nil {
-		return nil, fmt.Errorf("fhir: decode resource array: %w", err)
+		return nil, fmt.Errorf("fhir: decode resource array: %w", mapDecodeError(err))
 	}
 	if raws == nil {
 		return nil, nil
@@ -166,7 +168,7 @@ type discriminator struct {
 func peekResourceType(data []byte) (string, error) {
 	var d discriminator
 	if err := json.Unmarshal(data, &d); err != nil {
-		return "", fmt.Errorf("fhir: read resourceType: %w", err)
+		return "", fmt.Errorf("fhir: read resourceType: %w", mapDecodeError(err))
 	}
 	if d.ResourceType == "" {
 		return "", fmt.Errorf("fhir: %w: payload has no resourceType", ErrUnknownResourceType)
@@ -204,4 +206,42 @@ func newConcrete[T Resource]() (T, error) {
 func isNilResource(r Resource) bool {
 	v := reflect.ValueOf(r)
 	return v.Kind() == reflect.Pointer && v.IsNil()
+}
+
+// errUnexpectedEndOfJSON is the message encoding/json attaches to the *json.SyntaxError
+// it returns when a buffer ends before the JSON value it carries is closed — the
+// signature of a truncated payload. It is matched verbatim (rather than by offset)
+// because a trailing-garbage error ("invalid character … after top-level value") also
+// sits at the end of the buffer yet is a structural fault, not truncation. This message
+// has been stable across Go releases; mapping keys off it, with io.EOF/io.ErrUnexpectedEOF
+// (the Decoder path) covered separately.
+const errUnexpectedEndOfJSON = "unexpected end of JSON input"
+
+// mapDecodeError normalises the error encoding/json returns for a payload that ends
+// mid-value to the io.ErrUnexpectedEOF sentinel, so a truncated FHIR resource — a stream
+// cut short, a partial network read — is matchable with
+// errors.Is(err, io.ErrUnexpectedEOF) regardless of which decode entry point produced it.
+// json.Unmarshal reports a buffer that runs out before the value closes as a
+// *json.SyntaxError carrying errUnexpectedEndOfJSON; json.Decoder.Decode reports the same
+// condition as io.ErrUnexpectedEOF (mid-value) or io.EOF (no value at all). All three are
+// folded to io.ErrUnexpectedEOF here while the original error is preserved in the chain
+// (wrapped with %w) so callers keep the stdlib diagnostic and gain the sentinel. A
+// genuine syntax fault that is not mere truncation — a stray brace after a complete value,
+// a bad token mid-buffer — is left untouched. The error carries no payload bytes, so no
+// PHI leaks.
+func mapDecodeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			return err
+		}
+		return fmt.Errorf("%w: %w", io.ErrUnexpectedEOF, err)
+	}
+	var syntaxErr *json.SyntaxError
+	if errors.As(err, &syntaxErr) && syntaxErr.Error() == errUnexpectedEndOfJSON {
+		return fmt.Errorf("%w: %w", io.ErrUnexpectedEOF, err)
+	}
+	return err
 }

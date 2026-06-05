@@ -304,12 +304,12 @@ jobs:
         run: mise run fuzz
 
   benchmark-baseline:
-    # Run every dicom benchmark once (-benchtime=1x, -run='^$' so no unit tests run) so the
+    # Run every dicom and fhir benchmark once (-benchtime=1x, -run='^$' so no unit tests run) so the
     # benchmark code and its committed baselines (docs/conformance/benchmarks/) cannot rot
     # unnoticed: a benchmark that no longer compiles or panics fails the build. This is the pure-Go
     # default build, so the cgo-tagged codec benchmarks are excluded; the codecs job covers those.
     # GOWORK=off scopes the run to the root module.
-    name: Benchmark baseline (dicom, run-once)
+    name: Benchmark baseline (dicom + fhir, run-once)
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
@@ -318,7 +318,7 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run dicom benchmarks once
+      - name: Run dicom + fhir benchmarks once
         run: mise run bench
 
   conformance-drift:

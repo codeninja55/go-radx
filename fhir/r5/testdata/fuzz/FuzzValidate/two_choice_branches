@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\n  \"resourceType\": \"Patient\",\n  \"id\": \"mal-twochoice\",\n  \"deceasedBoolean\": true,\n  \"deceasedDateTime\": \"2024-01-01T00:00:00Z\"\n}\n")

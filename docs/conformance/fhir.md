@@ -727,6 +727,54 @@ validation is the fast in-process gate; the official validator is the conformanc
   mutate concurrently, and any mutating builder documents that it is not concurrent-safe or guards itself (Codex
   FHIR-015). The package holds no global mutable state (PRD §9.4).
 
+### Fuzzing posture
+
+The untrusted-JSON surfaces — registry-dispatched decode and the in-process validation gate — are exercised by Go
+native fuzz targets that guard the hostile-input guarantees above: on arbitrary, truncated, wrong-typed, or deeply
+nested input the decoder and validator must return rather than panic (PRD §9.3), and no validation issue may echo a
+patient value (PRD §9.1). The targets live in `fhir/r5/fuzz_test.go`, in the release package because that is where the
+factory and validation-descriptor registries are populated, so the fuzzer exercises the production decode of registered
+resources:
+
+- `FuzzUnmarshalResource` drives `fhir.UnmarshalResource` over fuzzed bytes. It asserts the survival property (no
+  panic), that a successful decode yields a non-empty `resourceType`, and that re-feeding a once-decoded resource's
+  bytes never panics the polymorphic Bundle/`contained` decode path.
+- `FuzzValidate` decodes then runs `fhir.Validate` over the result, asserting the validator never panics and that no
+  issue diagnostic or expression contains one of the synthetic patient-data sentinels the seed corpus carries.
+- `FuzzValidateTypedResource` validates a fuzzer-shaped typed `Patient` (including arbitrary `gender` codes), exercising
+  the required/choice/binding closures over field combinations a decode might not reach. The never-panic property is the
+  contract; the PHI-no-leak property is proven by `FuzzValidate` and the validation unit tests, not re-checked here,
+  because a fuzzer-chosen field value can be any substring of a path or code.
+
+Each target ships a version-controlled seed corpus under `fhir/r5/testdata/fuzz/<FuzzName>/`: clean workflow instances
+alongside hostile regression seeds (truncated, two-choice-branch, unknown-`resourceType`, empty), so a normal `go test`
+replays both as regression cases without a fuzzing build. The targets additionally seed at runtime from the synthetic
+clean corpus (`testdata/fhir/r5`) and the malformed corpus (`testdata/fhir/malformed`), both PHI-free. The targets run
+in the CI fuzz job (`mise run fuzz`), each `timeout`-wrapped at a budget above its `-fuzztime` so a hang fails the
+build.
+
+The **truncation contract** is asserted explicitly, not only fuzzed: `TestUnmarshalTruncatedYieldsUnexpectedEOF` (root
+package) and `TestCorpusTruncationMapsToUnexpectedEOF` (over the real corpus instances) verify that a valid payload cut
+short at any byte surfaces `io.ErrUnexpectedEOF` (matchable with `errors.Is`), distinct from a mid-buffer structural
+syntax fault. The decoder folds the standard library's "unexpected end of JSON input" syntax error and the decoder
+path's `io.EOF`/`io.ErrUnexpectedEOF` to the `io.ErrUnexpectedEOF` sentinel at every decode boundary while preserving
+the original diagnostic in the error chain.
+
+### Performance baseline
+
+The FHIR-JSON decode, validate, and summary hot paths carry a committed benchmark baseline so a regression is a visible,
+reviewable change rather than silent drift (PRD §9.3, minimise allocations in hot paths). The default-build baseline,
+[`benchmarks/fhir-baseline.txt`](benchmarks/fhir-baseline.txt), is the pure-Go build (`CGO_ENABLED=0`). It covers
+`BenchmarkMarshalSearchSetBundle` and `BenchmarkUnmarshalSearchSetBundle` (a 200-entry searchset Bundle — a realistic
+worklist page — exercising the per-entry polymorphic marshal and the `resourceType`-peek-then-registry-dispatch decode
+at scale), `BenchmarkValidateWorkflowSet` (the in-process gate over the full workflow set), and
+`BenchmarkMarshalSummary` across the five `_summary` modes. Every subject is a go-radx synthetic, PHI-free corpus
+instance.
+
+The benchmark code is run once per CI build (`mise run bench`, `-benchtime=1x`) so a benchmark that no longer compiles
+or panics fails the build. Regenerate the baseline with the command recorded in the file's header, and compare a
+candidate run with `benchstat benchmarks/fhir-baseline.txt <candidate>.txt`.
+
 ## Worked examples
 
 ### Type-safe decode with discriminator check

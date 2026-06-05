@@ -1,0 +1,6 @@
+{
+  "resourceType": "Patient",
+  "id": "mal-twochoice",
+  "deceasedBoolean": true,
+  "deceasedDateTime": "2024-01-01T00:00:00Z"
+}
