@@ -13,6 +13,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/fhir"
+	"github.com/codeninja55/go-radx/fhir/r5"
 	"github.com/codeninja55/go-radx/hl7v2"
 	"github.com/codeninja55/go-radx/logging"
 )
@@ -185,6 +187,62 @@ func exerciseHL7(ctx context.Context) []error {
 	return errs
 }
 
+// exerciseFHIR drives the FHIR structural validator over resources seeded with PHI
+// sentinels in their value fields, then surfaces the resulting OperationOutcome as both a
+// returned error string and a logged message. fhir.Validate builds its issue diagnostics
+// and element paths from element names and codes, never field values, so a sentinel
+// planted in a patient's name, identifier, or a free-text field must not appear in the
+// outcome error string or the log. This is the FHIR half of the no-PHI guarantee, swept
+// through the same machinery as the DICOM and HL7 paths.
+func exerciseFHIR(ctx context.Context) []error {
+	log := logging.FromContext(ctx)
+	var errs []error
+
+	// A Patient whose human-readable fields carry sentinels, plus an out-of-set gender
+	// (a binding violation) and a direct two-branch choice write (a mutual-exclusion
+	// violation), so the outcome reports issues over a resource full of PHI.
+	bad := r5.AdministrativeGender(sentinelPatientName)
+	deceasedBool := r5.FHIRBoolean(true)
+	deceasedTime := r5.FHIRDateTime(sentinelBirthDate)
+	patient := &r5.Patient{
+		Gender:           &bad,
+		DeceasedBoolean:  &deceasedBool,
+		DeceasedDateTime: &deceasedTime,
+	}
+
+	oo := fhir.Validate(patient)
+	if err := oo.Error(); err != nil {
+		// The outcome error string is scanned for any sentinel; a leak would surface here.
+		errs = append(errs, fmt.Errorf("validate patient: %w", err))
+	}
+	log.Info("validated fhir patient", zap.Int("issue_count", len(oo.Issue)))
+
+	// A Bundle with a dangling reference and a non-Composition first entry drives the
+	// bdl-* and reference-integrity extra checks. The reference value is a neutral local
+	// fragment id (an opaque element id, not patient data, per the documented rule that a
+	// reference string is not PHI); the PHI sentinel stays in the free-text value field,
+	// where a leak would actually be a leak.
+	bt := r5.BundleTypeDocument
+	obs := &r5.Observation{
+		Code:    &r5.CodeableConcept{Text: stringPtr(sentinelPatientID)},
+		Subject: &r5.Reference{Reference: stringPtr("#dangling-target")},
+	}
+	bundle := &r5.Bundle{
+		Type:  &bt,
+		Entry: []r5.BundleEntry{{Resource: resourceRef(obs)}},
+	}
+	if err := fhir.Validate(bundle).Error(); err != nil {
+		errs = append(errs, fmt.Errorf("validate bundle: %w", err))
+	}
+	return errs
+}
+
+// stringPtr boxes a string for an optional FHIR field in the sweep fixtures.
+func stringPtr(s string) *string { return &s }
+
+// resourceRef boxes a resource into the *fhir.Resource a BundleEntry carries.
+func resourceRef(r fhir.Resource) *fhir.Resource { return &r }
+
 // TestPHISanitySweep is the authoritative library-wide PHI-default sanity sweep
 // (PRD §11.2). It exercises representative DICOM and HL7 v2 entry points at default
 // verbosity over fixtures carrying known PHI sentinel tokens and fails if any token
@@ -201,6 +259,7 @@ func TestPHISanitySweep(t *testing.T) {
 	}{
 		{"dicom", func(ctx context.Context) []error { return exerciseDICOM(ctx, sentinelPath) }},
 		{"hl7v2", exerciseHL7},
+		{"fhir", exerciseFHIR},
 	}
 
 	sentinels := allSentinels()

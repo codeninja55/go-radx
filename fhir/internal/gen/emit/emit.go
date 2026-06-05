@@ -239,6 +239,44 @@ func EmitRegistry(r Registry) ([]byte, error) {
 	return formatted, nil
 }
 
+// Descriptors is the input to the per-release validation-descriptor file: the target
+// package and the resource validation descriptors to render. The emitter renders them
+// in the order given, so the caller fixes a stable (canonical) order before calling
+// EmitDescriptors.
+type Descriptors struct {
+	// Package is the Go package clause of the emitted file (for example "r5").
+	Package string
+
+	// Descriptors are the release's per-resource validation descriptors, in stable
+	// order.
+	Descriptors []plan.ValidationDescriptor
+}
+
+// EmitDescriptors renders a release's per-resource validation descriptors to formatted
+// Go source. The generated init() registers one fhir.ValidationDescriptor per resource
+// with the root engine, each carrying typed closures over the concrete resource for
+// required-element presence, choice-group mutual exclusion, and required-binding code
+// validity, so fhir.Validate consumes generated metadata rather than reflecting at call
+// time. Like Emit, the output is deterministic for a given Descriptors, keeping
+// regeneration byte-for-byte reproducible.
+func EmitDescriptors(d Descriptors) ([]byte, error) {
+	tmpl, err := template.New("descriptor.go.tmpl").ParseFS(templatesFS, "templates/descriptor.go.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("emit: parse descriptor template: %w", err)
+	}
+
+	var raw bytes.Buffer
+	if err := tmpl.Execute(&raw, d); err != nil {
+		return nil, fmt.Errorf("emit: execute descriptor template: %w", err)
+	}
+
+	formatted, err := format.Source(raw.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("emit: gofmt the rendered descriptors: %w\n--- rendered ---\n%s", err, raw.String())
+	}
+	return formatted, nil
+}
+
 // requiredImports computes the deduplicated, sorted import paths the planned types
 // reference. It recognises the dependencies the generated code in this stage can
 // carry: the root fhir import (fhir.Decimal, fhir.PrimitiveElement, and the
