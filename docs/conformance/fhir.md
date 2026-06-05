@@ -526,6 +526,48 @@ if oo := fhir.Validate(b); oo.HasErrors() {
 data, err := json.Marshal(b) // canonical element ordering; fullUrl uniqueness already checked
 ```
 
+## Generator pipeline
+
+The generated FHIR packages are produced by a build-time generator under `fhir/internal/gen`, invoked by `go generate`
+and never part of the runtime dependency graph. The generator is staged as a pipeline with single-responsibility
+boundaries, each stage gated by its own tests:
+
+1. **Loader** (`fhir/internal/gen/loader`) reads the vendored, checksum-pinned HL7 FHIR definition bundle
+   (`profiles-types.json`, `profiles-resources.json`, `valuesets.json`), verifies every file against the committed
+   `SHA256SUMS` manifest before parsing, decodes the `StructureDefinition` / `ValueSet` / `CodeSystem` entries into
+   raw records, and indexes them by canonical URL and by name. It fails closed: a checksum mismatch, a missing
+   required file, or a malformed entry is a typed error, never a "regenerate anyway." The loader never reaches the
+   network, so generation is reproducible from the pinned input alone.
+
+2. **Model / IR** (`fhir/internal/gen/model`) turns the loader's flat list of dotted-path `ElementDefinition`s into
+   the explicit element-path tree the later stages recurse over. From a `StructureDefinition` snapshot
+   (`Observation`, `Observation.component`, `Observation.component.referenceRange`, `Observation.referenceRange.low`)
+   it nests the paths into a tree so a backbone element carries its real child elements rather than an empty stub. It
+   resolves the `contentReference` indirection FHIR uses for recursive or shared backbone shapes — for example
+   `Observation.component.referenceRange` reuses `#Observation.referenceRange` and does not restate those children
+   inline, so the model deep-copies the referenced element's children onto the referencing node. This recursion, with
+   the graft, is the structural fix for empty backbone structs. Each element carries the metadata the later stages
+   need: cardinality (`min`/`max`), the type set, the binding strength and value-set reference, the `isSummary` and
+   `isModifier` flags, the choice (`[x]`) grouping with its branch types, and the resolved `contentReference`. The
+   model classifies every `StructureDefinition` by `kind` (primitive type, complex type, resource). It is
+   **release-agnostic**: it records only what the loaded bundle describes and makes no R4-versus-R5 assumption, maps
+   no FHIR type to a Go type, and decides no Go name — those are the planner's job. The model emits no Go source; its
+   only output is the in-memory tree, pinned by a golden snapshot test (run `go test ./fhir/internal/gen/model
+   -update` to regenerate the snapshots when the IR shape changes on purpose). The model fails closed on a child
+   whose parent path is absent from the snapshot and on a `contentReference` whose anchor is missing, since a silent
+   drop is exactly how an empty backbone is produced.
+
+3. **Planner** decides Go names (FHIR path to Go identifier, with the cross-standard collision rules), Go types (FHIR
+   type to Go type, pointer-versus-slice from cardinality), choice grouping, required-binding enums, and the
+   primitive-extension sibling fields per element.
+
+4. **Emitter** renders the planned types through `text/template` and `go/format` into `gofmt`-stable Go, written into
+   the `fhir/r4` and `fhir/r5` release packages. `go generate ./fhir/...` reproduces the committed output
+   byte-for-byte; the generated code is never hand-edited.
+
+> **Implementation status: PARTIAL.** The loader and the model / IR stage are implemented and tested. The planner and
+> emitter stages, and the generated `fhir/r4` / `fhir/r5` output they produce, are not yet shipped.
+
 ## What this statement fixes (re-foundation note)
 
 The prototype FHIR subsystem was audited as not production-grade: the generator emitted every choice branch as required,

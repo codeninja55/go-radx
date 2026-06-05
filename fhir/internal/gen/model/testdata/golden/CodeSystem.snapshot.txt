@@ -1,0 +1,104 @@
+Type CodeSystem kind=resource abstract=false
+  base http://hl7.org/fhir/StructureDefinition/DomainResource
+  CodeSystem [0..*]
+    CodeSystem.id [0..1] types=string summary
+    CodeSystem.meta [0..1] types=Meta summary
+    CodeSystem.implicitRules [0..1] types=uri summary modifier
+    CodeSystem.language [0..1] types=code binding=required(http://hl7.org/fhir/ValueSet/all-languages)
+    CodeSystem.text [0..1] types=Narrative
+    CodeSystem.contained [0..*] types=Resource
+    CodeSystem.extension [0..*] types=Extension
+    CodeSystem.modifierExtension [0..*] types=Extension summary modifier
+    CodeSystem.url [0..1] types=uri summary
+    CodeSystem.identifier [0..*] types=Identifier summary
+    CodeSystem.version [0..1] types=string summary
+    CodeSystem.versionAlgorithm[x] [0..1] types=string|Coding binding=extensible(http://hl7.org/fhir/ValueSet/version-algorithm) choice=versionAlgorithm summary
+    CodeSystem.name [0..1] types=string summary
+    CodeSystem.title [0..1] types=string summary
+    CodeSystem.status [1..1] types=code binding=required(http://hl7.org/fhir/ValueSet/publication-status) summary modifier
+    CodeSystem.experimental [0..1] types=boolean summary
+    CodeSystem.date [0..1] types=dateTime summary
+    CodeSystem.publisher [0..1] types=string summary
+    CodeSystem.contact [0..*] types=ContactDetail summary
+    CodeSystem.description [0..1] types=markdown
+    CodeSystem.useContext [0..*] types=UsageContext summary
+    CodeSystem.jurisdiction [0..*] types=CodeableConcept binding=extensible(http://hl7.org/fhir/ValueSet/jurisdiction) summary
+    CodeSystem.purpose [0..1] types=markdown
+    CodeSystem.copyright [0..1] types=markdown
+    CodeSystem.copyrightLabel [0..1] types=string
+    CodeSystem.approvalDate [0..1] types=date
+    CodeSystem.lastReviewDate [0..1] types=date
+    CodeSystem.effectivePeriod [0..1] types=Period summary
+    CodeSystem.topic [0..*] types=CodeableConcept binding=example(http://hl7.org/fhir/ValueSet/definition-topic)
+    CodeSystem.author [0..*] types=ContactDetail
+    CodeSystem.editor [0..*] types=ContactDetail
+    CodeSystem.reviewer [0..*] types=ContactDetail
+    CodeSystem.endorser [0..*] types=ContactDetail
+    CodeSystem.relatedArtifact [0..*] types=RelatedArtifact
+    CodeSystem.caseSensitive [0..1] types=boolean summary
+    CodeSystem.valueSet [0..1] types=canonical->[ValueSet] summary
+    CodeSystem.hierarchyMeaning [0..1] types=code binding=required(http://hl7.org/fhir/ValueSet/codesystem-hierarchy-meaning) summary
+    CodeSystem.compositional [0..1] types=boolean summary
+    CodeSystem.versionNeeded [0..1] types=boolean summary
+    CodeSystem.content [1..1] types=code binding=required(http://hl7.org/fhir/ValueSet/codesystem-content-mode) summary
+    CodeSystem.supplements [0..1] types=canonical->[CodeSystem] summary
+    CodeSystem.count [0..1] types=unsignedInt summary
+    CodeSystem.filter [0..*] types=BackboneElement summary
+      CodeSystem.filter.id [0..1] types=string
+      CodeSystem.filter.extension [0..*] types=Extension
+      CodeSystem.filter.modifierExtension [0..*] types=Extension summary modifier
+      CodeSystem.filter.code [1..1] types=code summary
+      CodeSystem.filter.description [0..1] types=string summary
+      CodeSystem.filter.operator [1..*] types=code binding=required(http://hl7.org/fhir/ValueSet/filter-operator) summary
+      CodeSystem.filter.value [1..1] types=string summary
+    CodeSystem.property [0..*] types=BackboneElement summary
+      CodeSystem.property.id [0..1] types=string
+      CodeSystem.property.extension [0..*] types=Extension
+      CodeSystem.property.modifierExtension [0..*] types=Extension summary modifier
+      CodeSystem.property.code [1..1] types=code summary
+      CodeSystem.property.uri [0..1] types=uri summary
+      CodeSystem.property.description [0..1] types=string summary
+      CodeSystem.property.type [1..1] types=code binding=required(http://hl7.org/fhir/ValueSet/concept-property-type) summary
+    CodeSystem.concept [0..*] types=BackboneElement
+      CodeSystem.concept.id [0..1] types=string
+      CodeSystem.concept.extension [0..*] types=Extension
+      CodeSystem.concept.modifierExtension [0..*] types=Extension summary modifier
+      CodeSystem.concept.code [1..1] types=code
+      CodeSystem.concept.display [0..1] types=string
+      CodeSystem.concept.definition [0..1] types=string
+      CodeSystem.concept.designation [0..*] types=BackboneElement
+        CodeSystem.concept.designation.id [0..1] types=string
+        CodeSystem.concept.designation.extension [0..*] types=Extension
+        CodeSystem.concept.designation.modifierExtension [0..*] types=Extension summary modifier
+        CodeSystem.concept.designation.language [0..1] types=code binding=required(http://hl7.org/fhir/ValueSet/all-languages)
+        CodeSystem.concept.designation.use [0..1] types=Coding binding=extensible(http://hl7.org/fhir/ValueSet/designation-use)
+        CodeSystem.concept.designation.additionalUse [0..*] types=Coding binding=extensible(http://hl7.org/fhir/ValueSet/designation-use)
+        CodeSystem.concept.designation.value [1..1] types=string
+      CodeSystem.concept.property [0..*] types=BackboneElement
+        CodeSystem.concept.property.id [0..1] types=string
+        CodeSystem.concept.property.extension [0..*] types=Extension
+        CodeSystem.concept.property.modifierExtension [0..*] types=Extension summary modifier
+        CodeSystem.concept.property.code [1..1] types=code
+        CodeSystem.concept.property.value[x] [1..1] types=code|Coding|string|integer|boolean|dateTime|decimal choice=value
+      CodeSystem.concept.concept [0..*] contentReference=CodeSystem.concept
+        CodeSystem.concept.concept.id [0..1] types=string
+        CodeSystem.concept.concept.extension [0..*] types=Extension
+        CodeSystem.concept.concept.modifierExtension [0..*] types=Extension summary modifier
+        CodeSystem.concept.concept.code [1..1] types=code
+        CodeSystem.concept.concept.display [0..1] types=string
+        CodeSystem.concept.concept.definition [0..1] types=string
+        CodeSystem.concept.concept.designation [0..*] types=BackboneElement
+          CodeSystem.concept.concept.designation.id [0..1] types=string
+          CodeSystem.concept.concept.designation.extension [0..*] types=Extension
+          CodeSystem.concept.concept.designation.modifierExtension [0..*] types=Extension summary modifier
+          CodeSystem.concept.concept.designation.language [0..1] types=code binding=required(http://hl7.org/fhir/ValueSet/all-languages)
+          CodeSystem.concept.concept.designation.use [0..1] types=Coding binding=extensible(http://hl7.org/fhir/ValueSet/designation-use)
+          CodeSystem.concept.concept.designation.additionalUse [0..*] types=Coding binding=extensible(http://hl7.org/fhir/ValueSet/designation-use)
+          CodeSystem.concept.concept.designation.value [1..1] types=string
+        CodeSystem.concept.concept.property [0..*] types=BackboneElement
+          CodeSystem.concept.concept.property.id [0..1] types=string
+          CodeSystem.concept.concept.property.extension [0..*] types=Extension
+          CodeSystem.concept.concept.property.modifierExtension [0..*] types=Extension summary modifier
+          CodeSystem.concept.concept.property.code [1..1] types=code
+          CodeSystem.concept.concept.property.value[x] [1..1] types=code|Coding|string|integer|boolean|dateTime|decimal choice=value
+        CodeSystem.concept.concept.concept [0..*] contentReference=CodeSystem.concept

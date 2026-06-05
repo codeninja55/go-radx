@@ -124,6 +124,14 @@ legacy codebase (`legacy-main`) and are not continued here.
 - Raw StructureDefinition/ValueSet decode records, and a loader that indexes the verified
   R5 definition bundle (fail-closed on resource-less entries, unpinned required files,
   truncated bundles, and trailing garbage).
+- The generator model / IR stage (`fhir/internal/gen/model`): a release-agnostic element-path
+  tree built from a StructureDefinition snapshot, with backbone elements fully recursed and
+  `contentReference` shapes resolved by grafting the referenced element's children onto the
+  referencing node (the empty-backbone fix). Each element carries its cardinality, type set,
+  binding strength and value-set reference, summary/modifier flags, and choice (`[x]`) grouping.
+  Pinned by a golden snapshot test over the real R5 `Observation`/`Period`/`boolean` definitions
+  (`go test ./fhir/internal/gen/model -update` to regenerate). Fails closed on a missing parent
+  path or a dangling `contentReference`.
 
 ### Documentation
 

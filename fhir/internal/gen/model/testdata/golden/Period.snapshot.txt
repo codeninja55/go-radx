@@ -1,0 +1,7 @@
+Type Period kind=complex-type abstract=false
+  base http://hl7.org/fhir/StructureDefinition/DataType
+  Period [0..*]
+    Period.id [0..1] types=string
+    Period.extension [0..*] types=Extension
+    Period.start [0..1] types=dateTime summary
+    Period.end [0..1] types=dateTime summary
