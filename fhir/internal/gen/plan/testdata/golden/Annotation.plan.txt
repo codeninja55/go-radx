@@ -1,0 +1,11 @@
+PlannedType Annotation fhir=Annotation kind=complex-type
+  embeds Element
+  field AuthorReference *Reference json=authorReference optional=true
+  field AuthorString *FHIRString json=authorString optional=true
+  field Time *string json=time optional=true primitive
+  field TimeElement *fhir.PrimitiveElement json=_time optional=true sibling-of=Time
+  field Text *string json=text optional=true primitive
+  field TextElement *fhir.PrimitiveElement json=_text optional=true sibling-of=Text
+  choice author iface=AnnotationAuthor getter=Author
+    branch AuthorReference json=authorReference setter=SetAuthorReference type=Reference primitive=false
+    branch AuthorString json=authorString setter=SetAuthorString type=FHIRString primitive=true

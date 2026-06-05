@@ -80,6 +80,9 @@ func (v {{ .GoName }}) MarshalJSON() ([]byte, error) {
 {{- if .HasPrimitiveSibling }}
 {{ template "siblings" . }}
 {{- end }}
+{{- if .Choices }}
+{{ template "choices" . }}
+{{- end }}
 {{ range .Backbones }}
 // {{ .GoName }} is a generated nested backbone element.
 type {{ .GoName }} struct {
@@ -104,6 +107,9 @@ func (v {{ .GoName }}) MarshalJSON() ([]byte, error) {
 }
 {{ template "siblings" . }}
 {{ end }}
+{{- if .Choices }}
+{{ template "choices" . }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -172,4 +178,55 @@ func (v *{{ .GoName }}) UnmarshalJSON(data []byte) error {
 	type alias {{ .GoName }}
 	return json.Unmarshal(residual, (*alias)(v))
 }
+{{- end }}
+
+{{- /*
+choices renders the choice-type machinery for every "[x]" group a type or backbone
+owns: a sealed value interface closed by an unexported marker method, that marker
+implemented on each branch type so only this package's named types satisfy the
+interface (a built-in scalar never can), a Value-style getter that returns the one set
+branch, and one setter per branch that clears every sibling so at most one branch is
+ever populated. The two-branches-set state is unrepresentable through this API, and
+because every storage field is omitempty exactly one suffixed key is authored on the
+wire. The dot is a PlannedType or PlannedBackbone, both of which expose GoName and
+Choices.
+*/ -}}
+{{- define "choices" }}
+{{- $goName := .GoName }}
+{{- range $choice := .Choices }}
+// {{ $choice.Interface }} is the sealed value interface for the {{ $choice.Base }}[x]
+// choice group. It is implemented only by this package's branch types — the named
+// datatype structs and the release primitive wrappers — through the unexported
+// {{ $choice.Marker }} marker, so a built-in scalar can never satisfy it and the
+// branch set stays closed.
+type {{ $choice.Interface }} interface{ {{ $choice.Marker }}() }
+
+{{ range $choice.Branches -}}
+func ({{ .GoType }}) {{ $choice.Marker }}() {}
+{{ end -}}
+// {{ $choice.Getter }} returns the value set in the {{ $choice.Base }}[x] choice
+// group, or (nil, false) when no branch is set. The returned value is one of the
+// branch types; a type switch recovers which branch was chosen.
+func (r *{{ $goName }}) {{ $choice.Getter }}() ({{ $choice.Interface }}, bool) {
+	switch {
+{{- range $choice.Branches }}
+	case r.{{ .Field }} != nil:
+		return *r.{{ .Field }}, true
+{{- end }}
+	}
+	return nil, false
+}
+{{ range $branch := $choice.Branches }}
+// {{ $branch.Setter }} sets {{ $choice.Base }}[x] to a {{ $branch.GoType }}{{ if $branch.IsPrimitive }} (the
+// release primitive wrapper that carries the {{ $choice.Marker }} marker; the built-in
+// scalar cannot){{ end }} and clears every other branch, so the group holds at most one
+// value and marshals exactly one suffixed key.
+func (r *{{ $goName }}) {{ $branch.Setter }}(v {{ $branch.GoType }}) {
+{{- range $choice.Branches }}
+	r.{{ .Field }} = nil
+{{- end }}
+	r.{{ $branch.Field }} = &v
+}
+{{ end -}}
+{{- end }}
 {{- end }}

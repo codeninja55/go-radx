@@ -100,6 +100,9 @@ func Generate(cfg Config) error {
 	if err := emitBaseFile(bundle, cfg); err != nil {
 		return err
 	}
+	if err := emitPrimitivesFile(cfg); err != nil {
+		return err
+	}
 	for _, gt := range types {
 		if gt.isBaseType {
 			continue
@@ -158,7 +161,7 @@ func GeneratedFileNames(bundle *loader.Bundle) []string {
 			names = append(names, gt.fileName)
 		}
 	}
-	names = append(names, "registry.go")
+	names = append(names, "primitives.go", "registry.go")
 	return names
 }
 
@@ -191,6 +194,23 @@ func emitBaseFile(bundle *loader.Bundle, cfg Config) error {
 		return fmt.Errorf("fhir/gen: emit base types: %w", err)
 	}
 	outPath := filepath.Join(cfg.OutputDir, "base.go")
+	if err := os.WriteFile(outPath, src, 0o644); err != nil {
+		return fmt.Errorf("fhir/gen: write %s: %w", outPath, err)
+	}
+	return nil
+}
+
+// emitPrimitivesFile renders the release's primitive wrapper types into primitives.go.
+// The wrappers box a primitive value so it can satisfy a choice group's sealed value
+// interface, which a built-in scalar cannot carry; they are emitted once per release
+// from the fixed wrapper set, so the file is byte-stable and does not depend on the
+// loaded bundle.
+func emitPrimitivesFile(cfg Config) error {
+	src, err := emit.EmitPrimitives(emit.Primitives{Package: cfg.Release, Wrappers: plan.PrimitiveWrappers()})
+	if err != nil {
+		return fmt.Errorf("fhir/gen: emit primitive wrappers: %w", err)
+	}
+	outPath := filepath.Join(cfg.OutputDir, "primitives.go")
 	if err := os.WriteFile(outPath, src, 0o644); err != nil {
 		return fmt.Errorf("fhir/gen: write %s: %w", outPath, err)
 	}

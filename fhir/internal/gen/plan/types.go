@@ -125,9 +125,12 @@ const (
 //   - an optional scalar (min 0, max 1) becomes a pointer.
 //
 // The Go base type is the primitive Go scalar for a primitive element or the Go type
-// name for a complex/resource element. A choice element ("[x]") is handled by a later
-// stage; PlanField plans its base name and leaves the decorated type to that stage by
-// using the first branch's type, which the choice stage overrides.
+// name for a complex/resource element. A choice element ("[x]") is not planned through
+// PlanField in the pipeline: planFields intercepts a choice and expands it into its
+// suffixed storage fields and a PlannedChoice. PlanField left applied to a choice
+// element still yields a non-primitive single field (its branches box their own
+// primitives), which the FHIR-005 guard test relies on, but the bulk pipeline never
+// reaches that path for a "[x]" element.
 func PlanField(e *model.Element) Field {
 	base := goBaseType(e)
 
