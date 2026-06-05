@@ -584,6 +584,17 @@ positional
 go-radx's canonical form (siblings trailing the value keys); a document that interleaves a `_field` sibling immediately
 after its value is still decoded correctly but re-encodes in the canonical trailing form.
 
+A field typed as the abstract `Resource` interface — `Bundle.entry.resource`, `Bundle.issues`,
+`Bundle.entry.response.outcome`, `Parameters.parameter.resource`, and `DomainResource.contained` — cannot be decoded
+by the standard codec, which has no concrete type to unmarshal a resource object into. The generated `UnmarshalJSON`
+lifts each such key out of the raw object (the same `SplitRawObject`/`TakeRawField` mechanism) and routes its bytes
+through
+`fhir.UnmarshalResource` (peek `resourceType`, dispatch via the factory registry), so the value behind the interface is
+the correct concrete type — recoverable with `fhir.As[T]` or a type switch — and a multi-resource-type `searchset`
+Bundle round-trips. A repeating resource field (`contained`) routes through `fhir.UnmarshalResourceSlice`, which fails
+the whole decode (it never returns a partial slice) if any element's `resourceType` is absent, empty, or unregistered;
+an absent or unknown discriminator on any such field is an `ErrUnknownResourceType`, never a panic.
+
 ### Summary modes
 
 `_summary` filtering is driven by the `isSummary` flag carried on each element in the `StructureDefinition` (the same

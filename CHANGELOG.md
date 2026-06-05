@@ -310,6 +310,21 @@ legacy codebase (`legacy-main`) and are not continued here.
   and records an honest gate-enforcement note — CI runs on every push and pull request to `main` but is currently
   advisory, since the `main` branch ruleset is disabled — flagged as a known gap against the Phase 0 definition.
 
+### Fixed
+
+- Polymorphic decode of interface-typed resource fields. A field typed as the abstract FHIR `Resource`
+  (`Bundle.entry.resource`, `Bundle.issues`, `Bundle.entry.response.outcome`, `Parameters.parameter.resource`, and the
+  `DomainResource.contained` slice) previously failed to unmarshal — the generated `UnmarshalJSON` fell back to the
+  standard codec, which cannot decode a resource object into the `fhir.Resource` interface, so decoding a searchset
+  `Bundle` or any resource carrying `contained` resources errored. The generator now emits decode handling that lifts
+  each such field out of the raw object and routes it through `fhir.UnmarshalResource` (resourceType peek then registry
+  dispatch), so the value behind the interface is the correct concrete type, recoverable with `fhir.As[T]` or a type
+  switch, and a multi-resource-type Bundle round-trips. A repeating field decodes through the new
+  `fhir.UnmarshalResourceSlice`, which fails the whole decode (never a partial slice) when any element's `resourceType`
+  is absent, empty, or unregistered; such a discriminator surfaces a clear `ErrUnknownResourceType` rather than a panic.
+  The `docs/conformance/fhir.md` round-trip section and the `fhir/r5` corpus test, which had excluded the workflow
+  Bundle from full decode round-trip as a known gap, are corrected now that the gap is closed.
+
 ### Removed
 
 - Stopped tracking the compiled `cmd/radx/radx` binary and added it to `.gitignore`; the CLI
