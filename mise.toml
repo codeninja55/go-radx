@@ -53,8 +53,12 @@ description = "Regenerate every FHIR release package from the pinned definition 
 run = "go generate ./fhir/..."
 
 [tasks."gen:verify"]
-description = "Regenerate the FHIR release packages and fail on any drift from the committed tree (wired in M6 Increment 13)"
-run = "go generate ./fhir/... && git diff --exit-code -- fhir/r4 fhir/r5"
+description = "Regenerate the FHIR release packages and fail on any drift from the committed tree"
+# The byte-for-byte regeneration test is the authoritative gate: it regenerates into a temp dir
+# and diffs against the committed files, so a hand edit or an un-regenerated generator change fails
+# with a precise message and without depending on git staging. The trailing git diff catches the
+# rarer case where the committed tree itself was edited and committed.
+run = "go test ./fhir/internal/gen/ -run TestRegenerationByteForByte && go generate ./fhir/... && git diff --exit-code -- fhir/r4 fhir/r5"
 
 [tasks."fhir:refresh-r5"]
 description = "Refresh-only: re-download and re-checksum the vendored HL7 FHIR R5 definition bundle (never run at generate time)"

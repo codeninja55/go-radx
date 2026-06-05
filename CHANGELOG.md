@@ -132,6 +132,16 @@ legacy codebase (`legacy-main`) and are not continued here.
   Pinned by a golden snapshot test over the real R5 `Observation`/`Period`/`boolean` definitions
   (`go test ./fhir/internal/gen/model -update` to regenerate). Fails closed on a missing parent
   path or a dangling `contentReference`.
+- The generator planner and emitter skeleton (`fhir/internal/gen/plan`, `fhir/internal/gen/emit`):
+  a planner that maps FHIR names to idiomatic Go identifiers with deterministic collision resolution,
+  decides pointer-versus-value-versus-slice per element (required scalars become pointers so a present
+  `false`/`0` is distinguishable from absent, repeats become slices, `decimal` maps to `fhir.Decimal`),
+  and deduplicates nested backbone types by shape rather than path; and a `text/template` plus
+  `go/format` emitter producing `gofmt`-clean, byte-stable Go. The planner's decisions are pinned by a
+  golden planned-model snapshot. The representative datatype `r5.Period` is generated end to end to
+  prove the pipeline, with `go generate ./fhir/...` reproducing it byte-for-byte and a
+  `TestRegenerationByteForByte` gate (wired into the `gen:verify` task) that fails on a hand edit, so
+  "generated, never hand-edited" is a verifiable property.
 
 ### Documentation
 
