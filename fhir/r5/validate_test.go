@@ -176,6 +176,33 @@ func TestValidateBundleReferenceIntegrity(t *testing.T) {
 	assertNoPHI(t, oo)
 }
 
+// TestValidateBundleNilEntryResourceNoPanic is the never-panic regression for a malformed
+// in-memory Bundle: a document/message bundle whose first entry holds a *fhir.Resource that
+// points at a nil interface (a valid Go construction a caller can build directly). The
+// first-entry check must report it as an issue, never dereference the nil interface and
+// panic (PRD §9.3).
+func TestValidateBundleNilEntryResourceNoPanic(t *testing.T) {
+	for _, bt := range []r5.BundleType{r5.BundleTypeDocument, r5.BundleTypeMessage} {
+		t.Run(string(bt), func(t *testing.T) {
+			bundleType := bt
+			var nilResource fhir.Resource // a nil interface boxed in a non-nil pointer
+			b := &r5.Bundle{
+				Type:  &bundleType,
+				Entry: []r5.BundleEntry{{Resource: &nilResource}},
+			}
+			defer func() {
+				if p := recover(); p != nil {
+					t.Fatalf("Validate panicked on a nil-interface entry resource: %v", p)
+				}
+			}()
+			oo := fhir.Validate(b)
+			if !hasIssue(oo, "Bundle.entry[0]", fhir.IssueTypeInvalid) {
+				t.Errorf("expected a bdl-3 first-entry issue for a nil entry resource, got %+v", oo.Issue)
+			}
+		})
+	}
+}
+
 // TestValidateNeverLeaksPHIAcrossResources seeds the sentinel into many fields of several
 // resources and asserts no issue ever surfaces it, the property the Phase 0 PHI sweep
 // depends on: a validation message names paths and codes, never patient values.

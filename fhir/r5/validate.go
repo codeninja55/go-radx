@@ -24,11 +24,15 @@ import (
 // elements. These hand-written descriptors close that gap: they report an absent required
 // status/intent (a required `code` rendered as a plain string here, so presence is a
 // non-empty value, not a non-nil pointer). Binding validation for ServiceRequest's
-// status/intent composes the already-generated RequestStatus/RequestIntent enums; the
-// DiagnosticReport and ImagingStudy status bindings are validated when the F1-O migration
-// regenerates those resources with their closed-enum, pointer-typed status fields (the
-// same boundary the generated enums note). When F1-O regenerates these three, their
-// generated descriptors replace these, and this init is removed.
+// status/intent composes the already-generated RequestStatus/RequestIntent enums.
+// DiagnosticReport.status and ImagingStudy.status get presence checks but no binding
+// check: their bound value sets are not emitted as closed enums in bindings.go, so there
+// is no generated set-membership closure to validate against — the same not-inlined
+// boundary the generator documents, and inventing a closed set here would be wrong. That
+// binding lands when the F1-O migration regenerates these resources and the generator
+// either inlines the value set or records it as a documented not-inlined boundary. When
+// F1-O regenerates these three, their generated descriptors replace these, and this init
+// is removed.
 func init() {
 	fhir.RegisterValidationDescriptor(serviceRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -154,8 +158,11 @@ func checkBundleInvariants(b *Bundle, outcome *fhir.OperationOutcome) {
 
 // checkFirstEntryType enforces the document/message first-entry rule (bdl-3): a document
 // bundle's first entry must be a Composition and a message bundle's first entry must be a
-// MessageHeader. A bundle of the type with no entries is reported (the leading resource is
-// mandatory), and a first entry of the wrong type names the type it should have been.
+// MessageHeader. A bundle of the type with no entries, or whose first entry holds a nil or
+// typed-nil resource, is reported (the leading resource is mandatory); a first entry of the
+// wrong type names the type it should have been. The first resource is recovered through
+// fhir.As, which fails closed on a nil interface or a typed-nil pointer, so a malformed
+// entry yields an issue rather than a nil-dereference panic (PRD §9.3).
 func checkFirstEntryType(b *Bundle, bundleType BundleType, outcome *fhir.OperationOutcome) {
 	var want string
 	switch bundleType {
@@ -167,17 +174,21 @@ func checkFirstEntryType(b *Bundle, bundleType BundleType, outcome *fhir.Operati
 		return
 	}
 
-	if len(b.Entry) == 0 || b.Entry[0].Resource == nil {
+	var first fhir.Resource
+	if len(b.Entry) > 0 && b.Entry[0].Resource != nil {
+		first = *b.Entry[0].Resource
+	}
+	got, ok := fhir.As[fhir.Resource](first)
+	if !ok {
 		fhir.AddIssue(outcome, fhir.SeverityError, fhir.IssueTypeInvalid,
 			"Bundle.entry[0]",
 			fmt.Sprintf("a %s bundle's first entry must be a %s (bdl-3)", bundleType, want))
 		return
 	}
-	got := (*b.Entry[0].Resource).ResourceType()
-	if got != want {
+	if got.ResourceType() != want {
 		fhir.AddIssue(outcome, fhir.SeverityError, fhir.IssueTypeInvalid,
 			"Bundle.entry[0].resource",
-			fmt.Sprintf("a %s bundle's first entry must be a %s, got %s (bdl-3)", bundleType, want, got))
+			fmt.Sprintf("a %s bundle's first entry must be a %s, got %s (bdl-3)", bundleType, want, got.ResourceType()))
 	}
 }
 
