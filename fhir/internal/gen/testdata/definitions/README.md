@@ -25,11 +25,11 @@ manifest and a `SOURCE.md` recording provenance, license, and refresh instructio
 ## Integrity
 
 Each `SHA256SUMS` records a SHA-256 per bundle file. The generator's loader (`fhir/internal/gen/loader`) verifies the
-manifest before parsing and fails closed on any mismatch, a missing file, or an unpinned bundle. Verify a bundle on
-the command line with:
+manifest before parsing and fails closed on any mismatch, a missing file, or an unpinned bundle. The manifest lists
+each file by its bare name, so verify from inside the release directory:
 
 ```bash
-shasum -a 256 -c r4/SHA256SUMS  # or r5/SHA256SUMS
+(cd r4 && shasum -a 256 -c SHA256SUMS)  # or: (cd r5 && shasum -a 256 -c SHA256SUMS)
 ```
 
 ## Refreshing

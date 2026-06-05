@@ -840,8 +840,8 @@ independent of the Go suite, and the loader re-verifies the same manifest fail-c
 bundle is a deliberate, reviewed change run through the refresh-only mise tasks (`mise run fhir:refresh-r5` /
 `fhir:refresh-r4`), which re-download from the canonical HL7 archive, verify the release version, and re-record the
 manifest; refreshing never happens at generate time. The R5 bundle drives the generated `fhir/r5` package today; the
-R4 bundle is load-verified today (a loader test loads it and asserts the resource/datatype/value-set counts) and is
-wired through the rest of the pipeline in milestone M6b.
+R4 bundle is load-verified today (a loader test loads it, resolves the core resources and datatypes by name and URL,
+and asserts the resource count sits in a sane band) and is wired through the rest of the pipeline in milestone M6b.
 
 ## Generator pipeline
 
