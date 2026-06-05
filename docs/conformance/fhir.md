@@ -239,11 +239,14 @@ distinct named type per FHIR primitive code: `FHIRBoolean`, `FHIRInteger`, `FHIR
 `FHIRMarkdown`, `FHIRURI`, `FHIRURL`, `FHIRCanonical`, `FHIROID`, `FHIRUUID`, `FHIRBase64Binary`,
 `FHIRInstant`, `FHIRDateTime`, `FHIRDate`, `FHIRTime`, and `FHIRXHTML`. Two codes that share a Go
 scalar (`string`, `code`, `uri`) still get distinct wrappers, because the choice suffix and storage
-field differ and a `Value()` type switch must recover which branch was set. Each scalar-backed
-wrapper marshals natively as the bare FHIR value (a JSON string, number, or boolean — never a
-wrapping object). `FHIRDecimal` is a defined type over `fhir.Decimal`; its `MarshalJSON` and
-`UnmarshalJSON` delegate to `fhir.Decimal` so the lexical form (trailing zeros, precision) survives
-the round trip (Codex FHIR-009).
+field differ and a `Value()` type switch must recover which branch was set. The string, boolean,
+and 32-bit integer wrappers marshal natively as the bare FHIR value (a JSON string, number, or
+boolean — never a wrapping object). Two wrappers carry a generated `MarshalJSON`/`UnmarshalJSON`
+pair where the FHIR R5 wire form is not the Go-native one: `FHIRDecimal` is a defined type over
+`fhir.Decimal` whose methods delegate to `fhir.Decimal` so the lexical form (trailing zeros,
+precision) survives the round trip (Codex FHIR-009); `FHIRInteger64` renders as a quoted JSON
+string (`"9007199254740993"`), the FHIR R5 representation that keeps a 64-bit value exact past JSON
+parsers that decode numbers as `float64`.
 
 ### Required-binding enums
 
