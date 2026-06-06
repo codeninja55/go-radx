@@ -46,9 +46,9 @@ In scope for v1:
 > **Implementation status: PARTIAL.** This list is the v1 target. Of it, the parse tree, the typed segments and
 > composites, encoding-character derivation and `DTM` precision, Chapter 2 §2.10 escape/unescape, the typed `ORM`,
 > `ADT`, `ORU`, and `ACK` views, the `AckCode` enum with its predicates, message construction (`NewMessage` / `SetMSH` /
-> `AppendSegment` and the `MSH`/`PID`/`ORC`/`OBR` segment renderers), and `BuildACK` ship today. The typed `OMG` view,
-> batch/file container parsing, and MLLP transport are **NOT YET SHIPPED**; the per-section banners below mark exactly
-> which surface each describes.
+> `AppendSegment` and the `MSH`/`PID`/`ORC`/`OBR` segment renderers), `BuildACK`, and MLLP transport (the frame codec,
+> the blocking `Client`, and the `context`-aware `Server`) ship today. The typed `OMG` view and batch/file container
+> parsing are **NOT YET SHIPPED**; the per-section banners below mark exactly which surface each describes.
 
 Out of scope for v1 is listed explicitly in [Conformance scope and limits](#conformance-scope-and-limits). Notably:
 HL7 v2 XML encoding, FHIR-based v2 representations, inline character-set switching inside escape sequences, the full
@@ -198,9 +198,9 @@ producing a malformed reply. Signatures are in the API reference.
 
 ### MLLP transport in scope
 
-> **Implementation status: NOT YET SHIPPED.** The MLLP `Client`, `Server`, and `Handler` described below are not yet
-> implemented; the `hl7v2` package currently has no transport layer. The behaviour in this section is the planned
-> design.
+> **Implementation status: SHIPPED.** The MLLP frame codec (`StartBlock`/`EndBlock`/`CarriageReturn`,
+> `DefaultMaxFrameSize`, `WriteFrame`, `ReadFrame`), the blocking `Client` (`NewClient` / `Send` / `SendRaw` / `Close`),
+> and the `context`-aware `Server` (`NewServer` / `Handler` / `ListenAndServe` / `Shutdown`) ship today.
 
 MLLP (Minimal Lower Layer Protocol) frames each message as `0x0B` `<message>` `0x1C` `0x0D` over TCP (glossary).
 go-radx adds `context` cancellation and a configurable maximum frame length to guard against a hostile or runaway peer
@@ -208,10 +208,18 @@ go-radx adds `context` cancellation and a configurable maximum frame length to g
 `NewClient`) that sends a message and blocks for the acknowledgement frame, and a `context`-aware `Server` (constructed
 with `NewServer`) that invokes a `Handler` once per inbound framed message. The `Handler.Handle(ctx, m)` method decides
 the acknowledgement, so a consumer can reject (`AR`) or report an error (`AE`) deliberately rather than have the server
-auto-build a reply. Returning a non-nil error from the handler is logged without PHI and closes that connection. The
-server binds to loopback unless an explicit non-loopback address is supplied (PRD §9.1), and supports a configurable
-maximum frame length, read timeouts, and TLS with peer verification (PRD §9.7). Type and option signatures are in the
-API reference.
+auto-build a reply. A nil handler installs the default that replies with the `BuildACK` acceptance. Returning a non-nil
+error from the handler closes that connection without a reply (used when no meaningful ACK can be produced); the error
+is never logged with payload bytes, so no PHI leaks. The server binds to loopback unless an explicit non-loopback
+address is supplied (PRD §9.1), and supports a configurable maximum frame length, read timeouts, and TLS with peer
+verification (PRD §9.7). `ReadFrame` is bounded: it stops at the end block or at the maximum frame size before the
+payload buffer can grow without limit, so a peer that never sends an end block cannot drive an unbounded allocation.
+Type and option signatures are in the API reference.
+
+Cross-implementation framing against an external `python-hl7`/`hl7apy` MLLP peer is exercised by a build-tagged
+(`//go:build interop`) test that runs only when `RADX_HL7_MLLP_PEER` names a reachable listener; no such peer is
+provisioned in CI, so it skips by default. The go-radx client-to-server round-trip over real loopback TCP (which needs
+no external peer) is the hard correctness gate.
 
 ### Batch and file containers in scope
 
