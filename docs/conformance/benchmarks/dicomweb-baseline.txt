@@ -1,0 +1,38 @@
+# go-radx DICOMweb parser benchmark baseline — default (pure-Go) build
+#
+# Recorded with: go test -bench=. -benchtime=2000x -count=6 -run=^$ ./dicomweb/
+# CGO_ENABLED=0 default build. Lines beginning with # are benchstat comments. Compare a new
+# run against this file with:
+#   benchstat docs/conformance/benchmarks/dicomweb-baseline.txt <new-run>.txt
+#
+# BenchmarkMarshalJSON / BenchmarkUnmarshalJSON defend the DICOM-JSON hot path on a
+# metadata-shaped dataset (study/series/instance identity, the common patient and study
+# attributes, image geometry, and a one-item Referenced Image Sequence) — the per-instance
+# encode a QIDO-RS result row or WADO-RS metadata instance runs and the trust-boundary decode
+# every JSON payload passes through. BenchmarkMultipartRead defends the multipart/related
+# retrieve and store path: a 16-part body iterated through the bounded reader, each part
+# header parsed and each body drained through the per-part size cap. All subjects are go-radx
+# synthetic, PHI-free fixtures.
+#
+goos: darwin
+goarch: arm64
+pkg: github.com/codeninja55/go-radx/dicomweb
+cpu: Apple M1
+BenchmarkMarshalJSON-8     	    2000	     19481 ns/op	  36.34 MB/s	    7695 B/op	     121 allocs/op
+BenchmarkMarshalJSON-8     	    2000	     13645 ns/op	  51.89 MB/s	    7696 B/op	     121 allocs/op
+BenchmarkMarshalJSON-8     	    2000	     11497 ns/op	  61.58 MB/s	    7697 B/op	     121 allocs/op
+BenchmarkMarshalJSON-8     	    2000	     11481 ns/op	  61.67 MB/s	    7690 B/op	     121 allocs/op
+BenchmarkMarshalJSON-8     	    2000	     11274 ns/op	  62.80 MB/s	    7695 B/op	     121 allocs/op
+BenchmarkMarshalJSON-8     	    2000	     11635 ns/op	  60.85 MB/s	    7696 B/op	     121 allocs/op
+BenchmarkUnmarshalJSON-8   	    2000	     31126 ns/op	  22.75 MB/s	   17713 B/op	     321 allocs/op
+BenchmarkUnmarshalJSON-8   	    2000	     31257 ns/op	  22.65 MB/s	   17712 B/op	     321 allocs/op
+BenchmarkUnmarshalJSON-8   	    2000	     28249 ns/op	  25.06 MB/s	   17712 B/op	     321 allocs/op
+BenchmarkUnmarshalJSON-8   	    2000	     28035 ns/op	  25.25 MB/s	   17712 B/op	     321 allocs/op
+BenchmarkUnmarshalJSON-8   	    2000	     28081 ns/op	  25.21 MB/s	   17712 B/op	     321 allocs/op
+BenchmarkUnmarshalJSON-8   	    2000	     27704 ns/op	  25.56 MB/s	   17711 B/op	     321 allocs/op
+BenchmarkMultipartRead-8   	    2000	     18036 ns/op	1001.67 MB/s	   81677 B/op	     160 allocs/op
+BenchmarkMultipartRead-8   	    2000	     18103 ns/op	 997.95 MB/s	   81662 B/op	     160 allocs/op
+BenchmarkMultipartRead-8   	    2000	     17397 ns/op	1038.43 MB/s	   81661 B/op	     160 allocs/op
+BenchmarkMultipartRead-8   	    2000	     18427 ns/op	 980.43 MB/s	   81580 B/op	     160 allocs/op
+BenchmarkMultipartRead-8   	    2000	     18292 ns/op	 987.63 MB/s	   81617 B/op	     160 allocs/op
+BenchmarkMultipartRead-8   	    2000	     17860 ns/op	1011.54 MB/s	   81649 B/op	     160 allocs/op
