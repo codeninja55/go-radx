@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r5"
 	"github.com/codeninja55/go-radx/hl7v2"
 )
@@ -113,11 +112,11 @@ func TestORUToDiagnosticReportR5(t *testing.T) {
 	}
 
 	// The DiagnosticReport and each Observation validate by construction.
-	if oo := fhir.Validate(dr); oo.HasErrors() {
+	if oo := r5.Validate(dr); oo.HasErrors() {
 		t.Errorf("DiagnosticReport fails validation: %+v", oo.Issue)
 	}
 	for i, o := range obs {
-		if oo := fhir.Validate(o); oo.HasErrors() {
+		if oo := r5.Validate(o); oo.HasErrors() {
 			t.Errorf("Observation[%d] fails validation: %+v", i, oo.Issue)
 		}
 	}
@@ -229,7 +228,7 @@ func TestOBXToObservationR5ValueTypeDispatch(t *testing.T) {
 			t.Fatalf("obxToObservationR5(%s) returned ok=false", c.valueType)
 		}
 		c.check(t, o)
-		if oo := fhir.Validate(o); oo.HasErrors() {
+		if oo := r5.Validate(o); oo.HasErrors() {
 			t.Errorf("Observation(%s) fails validation: %+v", c.valueType, oo.Issue)
 		}
 	}
@@ -329,7 +328,7 @@ func TestOBXUnparsableTemporalDropped(t *testing.T) {
 					t.Errorf("Report leaks the raw temporal value: %+v", d)
 				}
 			}
-			if oo := fhir.Validate(o); oo.HasErrors() {
+			if oo := r5.Validate(o); oo.HasErrors() {
 				t.Errorf("Observation(%s) fails validation: %+v", c.valueType, oo.Issue)
 			}
 		})
@@ -379,7 +378,7 @@ func TestOBXRepeatedValueExtrasDropped(t *testing.T) {
 			t.Errorf("Report leaks a raw OBX-5 repetition: %+v", d)
 		}
 	}
-	if oo := fhir.Validate(o); oo.HasErrors() {
+	if oo := r5.Validate(o); oo.HasErrors() {
 		t.Errorf("Observation fails validation: %+v", oo.Issue)
 	}
 }

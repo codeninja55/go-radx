@@ -150,8 +150,9 @@ func marshalBundleEntrySiblings(v *BundleEntry, encoded []byte) ([]byte, error) 
 // UnmarshalJSON lifts each primitive "_field" sibling and resource-typed field out of
 // the object, decodes each into its companion field, then decodes the remaining keys
 // into the value struct. A resource-typed field (the fhir.Resource interface) is decoded
-// through fhir.UnmarshalResource so the concrete type behind the interface is recovered;
-// the standard codec cannot decode a resource object into an interface.
+// through the release-local UnmarshalResource so the concrete type behind the interface
+// is recovered as a resource of this release; the standard codec cannot decode a resource
+// object into an interface.
 func (v *BundleEntry) UnmarshalJSON(data []byte) error {
 	obj, err := fhir.SplitRawObject(data)
 	if err != nil {
@@ -165,7 +166,7 @@ func (v *BundleEntry) UnmarshalJSON(data []byte) error {
 		v.FullUrlElement = &element
 	}
 	if raw, ok := fhir.TakeRawField(obj, "resource"); ok {
-		resource, err := fhir.UnmarshalResource(raw)
+		resource, err := UnmarshalResource(raw)
 		if err != nil {
 			return err
 		}
@@ -362,8 +363,9 @@ func marshalBundleEntryResponseSiblings(v *BundleEntryResponse, encoded []byte) 
 // UnmarshalJSON lifts each primitive "_field" sibling and resource-typed field out of
 // the object, decodes each into its companion field, then decodes the remaining keys
 // into the value struct. A resource-typed field (the fhir.Resource interface) is decoded
-// through fhir.UnmarshalResource so the concrete type behind the interface is recovered;
-// the standard codec cannot decode a resource object into an interface.
+// through the release-local UnmarshalResource so the concrete type behind the interface
+// is recovered as a resource of this release; the standard codec cannot decode a resource
+// object into an interface.
 func (v *BundleEntryResponse) UnmarshalJSON(data []byte) error {
 	obj, err := fhir.SplitRawObject(data)
 	if err != nil {
@@ -398,7 +400,7 @@ func (v *BundleEntryResponse) UnmarshalJSON(data []byte) error {
 		v.LastModifiedElement = &element
 	}
 	if raw, ok := fhir.TakeRawField(obj, "outcome"); ok {
-		resource, err := fhir.UnmarshalResource(raw)
+		resource, err := UnmarshalResource(raw)
 		if err != nil {
 			return err
 		}

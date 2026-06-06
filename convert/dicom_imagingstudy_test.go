@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
-	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r5"
 )
 
@@ -357,7 +356,7 @@ func TestDICOMToImagingStudyR5StudyStartedFixture(t *testing.T) {
 		*study.Series[0].Started != "1995-05-01T16:22:53.7700-04:00" {
 		t.Errorf("series.started = %+v, want 1995-05-01T16:22:53.7700-04:00", study.Series)
 	}
-	if oo := fhir.Validate(study); oo.HasErrors() {
+	if oo := r5.Validate(study); oo.HasErrors() {
 		t.Errorf("ImagingStudy fails validation: %+v", oo.Issue)
 	}
 }

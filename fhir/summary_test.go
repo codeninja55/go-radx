@@ -24,7 +24,7 @@ func (r *summaryResource) MarshalJSON() ([]byte, error) { return []byte(r.body),
 // and the registry rejects a duplicate, so registration is guarded to run a single time.
 func registerSummarySample(t *testing.T) {
 	t.Helper()
-	if _, ok := lookupSummaryDescriptor("SummarySample"); ok {
+	if _, ok := defaultRegistry.lookupSummaryDescriptor("SummarySample"); ok {
 		return
 	}
 	// The fixture keeps each summary flag on a distinct element so a mode test pins exactly

@@ -4,8 +4,12 @@
 // never mixes the two by accident; this root package holds only the
 // release-agnostic machinery — the Resource interface, the checked
 // Unmarshal[T]/As[T] identity API, the Decimal primitive that preserves lexical
-// fidelity, the sentinel error types, and the resourceType→factory registry. It
-// serializes JSON only in v1, enforces choice-type mutual exclusion at the
+// fidelity, the sentinel error types, and the Registry type that backs
+// resourceType-dispatched decode, validation, and summary serialization. The
+// Registry is release-scoped: each release package owns its own instance keyed by
+// resourceType, because a FHIR JSON resource carries no release marker and so a
+// single registry shared between R4 and R5 would be ambiguous and collide at init.
+// It serializes JSON only in v1, enforces choice-type mutual exclusion at the
 // serialization boundary, and round-trips the FHIR-JSON primitive-extension
 // (_field) mechanic.
 //
@@ -104,18 +108,19 @@ func As[T Resource](r Resource) (T, bool) {
 }
 
 // UnmarshalResource decodes FHIR JSON into the concrete type named by its
-// "resourceType", dispatching through the init-populated factory registry. The
+// "resourceType", dispatching through this registry's init-populated factory map. The
 // returned Resource holds the dynamic type (for example *r5.Patient). A payload
 // whose "resourceType" is absent, empty, or not registered returns
 // ErrUnknownResourceType and a nil Resource; dispatch fails closed rather than
-// guessing a type.
-func UnmarshalResource(data []byte) (Resource, error) {
+// guessing a type. Because the registry is release-scoped, the returned dynamic type
+// is always of the release that owns this Registry.
+func (reg *Registry) UnmarshalResource(data []byte) (Resource, error) {
 	resourceType, err := peekResourceType(data)
 	if err != nil {
 		return nil, err
 	}
 
-	factory, ok := lookupFactory(resourceType)
+	factory, ok := reg.lookupFactory(resourceType)
 	if !ok {
 		return nil, fmt.Errorf("fhir: %w: %q", ErrUnknownResourceType, resourceType)
 	}
@@ -128,14 +133,14 @@ func UnmarshalResource(data []byte) (Resource, error) {
 }
 
 // UnmarshalResourceSlice decodes a JSON array of FHIR resource objects, dispatching
-// each element through UnmarshalResource. It backs the decode of a repeating
-// resource-typed field (DomainResource.contained), where the standard codec cannot
-// unmarshal a JSON object into the fhir.Resource interface. A JSON null yields a nil
-// slice; any element whose resourceType is absent, empty, or unregistered fails the
-// whole decode with ErrUnknownResourceType rather than skipping the element, so a
+// each element through this registry's UnmarshalResource. It backs the decode of a
+// repeating resource-typed field (DomainResource.contained), where the standard codec
+// cannot unmarshal a JSON object into the fhir.Resource interface. A JSON null yields
+// a nil slice; any element whose resourceType is absent, empty, or unregistered fails
+// the whole decode with ErrUnknownResourceType rather than skipping the element, so a
 // partial slice is never returned. The element index is named in the error so a
 // caller can locate the offending entry without exposing any element value.
-func UnmarshalResourceSlice(data []byte) ([]Resource, error) {
+func (reg *Registry) UnmarshalResourceSlice(data []byte) ([]Resource, error) {
 	var raws []json.RawMessage
 	if err := json.Unmarshal(data, &raws); err != nil {
 		return nil, fmt.Errorf("fhir: decode resource array: %w", mapDecodeError(err))
@@ -145,13 +150,28 @@ func UnmarshalResourceSlice(data []byte) ([]Resource, error) {
 	}
 	out := make([]Resource, 0, len(raws))
 	for i, raw := range raws {
-		r, err := UnmarshalResource(raw)
+		r, err := reg.UnmarshalResource(raw)
 		if err != nil {
 			return nil, fmt.Errorf("fhir: decode resource array element %d: %w", i, err)
 		}
 		out = append(out, r)
 	}
 	return out, nil
+}
+
+// UnmarshalResource decodes FHIR JSON through the root package's default registry. It
+// is the release-agnostic counterpart to (*Registry).UnmarshalResource; a consumer
+// that wants a specific release decodes through that release's r4.UnmarshalResource or
+// r5.UnmarshalResource so the dynamic type is unambiguous.
+func UnmarshalResource(data []byte) (Resource, error) {
+	return defaultRegistry.UnmarshalResource(data)
+}
+
+// UnmarshalResourceSlice decodes a JSON array of FHIR resources through the root
+// package's default registry. It is the release-agnostic counterpart to
+// (*Registry).UnmarshalResourceSlice.
+func UnmarshalResourceSlice(data []byte) ([]Resource, error) {
+	return defaultRegistry.UnmarshalResourceSlice(data)
 }
 
 // discriminator is the minimal envelope used to peek a payload's "resourceType"

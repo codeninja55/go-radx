@@ -25,7 +25,7 @@ func loadCorpusResource(b *testing.B, name string) fhir.Resource {
 	if err != nil {
 		b.Fatalf("read corpus %s: %v", name, err)
 	}
-	resource, err := fhir.UnmarshalResource(raw)
+	resource, err := r5.UnmarshalResource(raw)
 	if err != nil {
 		b.Fatalf("decode corpus %s: %v", name, err)
 	}
@@ -63,7 +63,7 @@ func BenchmarkMarshalSearchSetBundle(b *testing.B) {
 	bundle := largeSearchSet(b)
 	b.ReportAllocs()
 	for b.Loop() {
-		if _, err := fhir.MarshalSummary(bundle, fhir.SummaryFull); err != nil {
+		if _, err := r5.MarshalSummary(bundle, fhir.SummaryFull); err != nil {
 			b.Fatalf("marshal: %v", err)
 		}
 	}
@@ -75,14 +75,14 @@ func BenchmarkMarshalSearchSetBundle(b *testing.B) {
 // throughput and ReportAllocs the decode allocation profile.
 func BenchmarkUnmarshalSearchSetBundle(b *testing.B) {
 	bundle := largeSearchSet(b)
-	encoded, err := fhir.MarshalSummary(bundle, fhir.SummaryFull)
+	encoded, err := r5.MarshalSummary(bundle, fhir.SummaryFull)
 	if err != nil {
 		b.Fatalf("encode bundle: %v", err)
 	}
 	b.SetBytes(int64(len(encoded)))
 	b.ReportAllocs()
 	for b.Loop() {
-		if _, err := fhir.UnmarshalResource(encoded); err != nil {
+		if _, err := r5.UnmarshalResource(encoded); err != nil {
 			b.Fatalf("unmarshal: %v", err)
 		}
 	}
@@ -101,7 +101,7 @@ func BenchmarkValidateWorkflowSet(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		for _, r := range resources {
-			_ = fhir.Validate(r)
+			_ = r5.Validate(r)
 		}
 	}
 }
@@ -126,7 +126,7 @@ func BenchmarkMarshalSummary(b *testing.B) {
 		b.Run(m.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := fhir.MarshalSummary(patient, m.mode); err != nil {
+				if _, err := r5.MarshalSummary(patient, m.mode); err != nil {
 					b.Fatalf("MarshalSummary(%s): %v", m.name, err)
 				}
 			}

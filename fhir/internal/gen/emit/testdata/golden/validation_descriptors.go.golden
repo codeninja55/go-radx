@@ -5,13 +5,13 @@ package r5
 import "github.com/codeninja55/go-radx/fhir"
 
 // init registers a structural validation descriptor for every r5 resource with
-// the release-agnostic engine in the root fhir package, so fhir.Validate can check a
-// resource's required-element presence, choice-group mutual exclusion, and required-binding
-// codes from generated metadata without reflecting over the resource at call time. Each
-// descriptor's closures type-assert the fhir.Resource to the concrete type once and read
-// exactly the fields the generator resolved as required, polymorphic, or bound.
+// the release-local Registry, so r5.Validate can check a resource's
+// required-element presence, choice-group mutual exclusion, and required-binding codes from
+// generated metadata without reflecting over the resource at call time. Each descriptor's
+// closures type-assert the fhir.Resource to the concrete type once and read exactly the
+// fields the generator resolved as required, polymorphic, or bound.
 func init() {
-	fhir.RegisterValidationDescriptor(SampleResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SampleResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Sample)
 			if !ok {
@@ -60,7 +60,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(BundleResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(BundleResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Bundle)
 			if !ok {
@@ -77,13 +77,13 @@ func init() {
 }
 
 // init registers a summary descriptor for every r5 resource with the
-// release-agnostic serialiser in the root fhir package, so fhir.MarshalSummary can filter
-// a resource's top-level elements per _summary mode from generated metadata without
-// reflecting over the resource at call time. Each descriptor lists every top-level wire
-// key with the isSummary, mandatory, modifier, narrative, and count flags the five modes
-// test; a choice ([x]) group contributes one entry per suffixed branch key.
+// release-local Registry, so r5.MarshalSummary can filter a resource's
+// top-level elements per _summary mode from generated metadata without reflecting over the
+// resource at call time. Each descriptor lists every top-level wire key with the isSummary,
+// mandatory, modifier, narrative, and count flags the five modes test; a choice ([x]) group
+// contributes one entry per suffixed branch key.
 func init() {
-	fhir.RegisterSummaryDescriptor(SampleResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SampleResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "text", IsText: true},
 			{JSONName: "status", IsSummary: true, IsMandatory: true, IsModifier: true},
@@ -92,7 +92,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(BundleResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(BundleResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "type", IsSummary: true, IsMandatory: true},
 			{JSONName: "total", IsSummary: true, IsCount: true},

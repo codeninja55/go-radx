@@ -8,8 +8,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/codeninja55/go-radx/fhir"
-	_ "github.com/codeninja55/go-radx/fhir/r5"
+	"github.com/codeninja55/go-radx/fhir/r5"
 )
 
 // corpusDir is the vendored R5 example corpus the conformance gate validates with the
@@ -55,7 +54,7 @@ func TestCorpusCoversWorkflowSet(t *testing.T) {
 // validatesCleanly lists the corpus instances that pass go-radx's in-process Validate
 // with no errors. Every corpus instance decodes and round-trips structurally (the
 // polymorphic interface-typed fields Bundle.entry.resource and DomainResource.contained
-// now decode through fhir.UnmarshalResource); the workflow Bundle is the one instance
+// now decode through r5.UnmarshalResource); the workflow Bundle is the one instance
 // whose validation reports issues, because its entries reference each other by
 // relative reference (Patient/wf-patient, ...) rather than by fullUrl, which the
 // intra-Bundle reference-integrity walk reports as unresolved. The Bundle's decode and
@@ -81,7 +80,7 @@ func TestCorpusValidatesAndRoundTrips(t *testing.T) {
 				t.Fatalf("read %s: %v", path, err)
 			}
 
-			resource, err := fhir.UnmarshalResource(raw)
+			resource, err := r5.UnmarshalResource(raw)
 			if err != nil {
 				t.Fatalf("UnmarshalResource(%s): %v", name, err)
 			}
@@ -96,7 +95,7 @@ func TestCorpusValidatesAndRoundTrips(t *testing.T) {
 			// integrity walk reports as unresolved (a corpus-data property, not a decode or
 			// marshal defect).
 			if validatesCleanly[name] {
-				if outcome := fhir.Validate(resource); outcome.HasErrors() {
+				if outcome := r5.Validate(resource); outcome.HasErrors() {
 					t.Fatalf("Validate(%s) reported errors: %v", name, outcome.Error())
 				}
 			}
@@ -111,7 +110,7 @@ func TestCorpusValidatesAndRoundTrips(t *testing.T) {
 			if err != nil {
 				t.Fatalf("re-marshal %s: %v", name, err)
 			}
-			redecoded, err := fhir.UnmarshalResource(reencoded)
+			redecoded, err := r5.UnmarshalResource(reencoded)
 			if err != nil {
 				t.Fatalf("re-decode %s: %v", name, err)
 			}

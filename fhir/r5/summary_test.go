@@ -64,7 +64,7 @@ func summaryPatient() *r5.Patient {
 // the isSummary-flagged elements, drops the non-summary ones, tags SUBSETTED, and preserves
 // the canonical element order the resource's own MarshalJSON produces.
 func TestMarshalSummaryPatientTrue(t *testing.T) {
-	got, err := fhir.MarshalSummary(summaryPatient(), fhir.SummaryTrue)
+	got, err := r5.MarshalSummary(summaryPatient(), fhir.SummaryTrue)
 	if err != nil {
 		t.Fatalf("MarshalSummary: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestMarshalSummaryPatientTrue(t *testing.T) {
 // mandatory elements only (Patient has no mandatory element beyond the base, so only the
 // narrative plus infrastructure survive) and drops the data elements.
 func TestMarshalSummaryPatientText(t *testing.T) {
-	got, err := fhir.MarshalSummary(summaryPatient(), fhir.SummaryText)
+	got, err := r5.MarshalSummary(summaryPatient(), fhir.SummaryText)
 	if err != nil {
 		t.Fatalf("MarshalSummary: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestMarshalSummaryPatientText(t *testing.T) {
 // TestMarshalSummaryPatientData confirms _summary=data keeps everything except the
 // narrative.
 func TestMarshalSummaryPatientData(t *testing.T) {
-	got, err := fhir.MarshalSummary(summaryPatient(), fhir.SummaryData)
+	got, err := r5.MarshalSummary(summaryPatient(), fhir.SummaryData)
 	if err != nil {
 		t.Fatalf("MarshalSummary: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestMarshalSummaryBundleCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSearchSet: %v", err)
 	}
-	got, err := fhir.MarshalSummary(bundle, fhir.SummaryCount)
+	got, err := r5.MarshalSummary(bundle, fhir.SummaryCount)
 	if err != nil {
 		t.Fatalf("MarshalSummary: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestMarshalSummaryBundleCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unmarshal count summary: %v", err)
 	}
-	if outcome := fhir.Validate(round); outcome.HasErrors() {
+	if outcome := r5.Validate(round); outcome.HasErrors() {
 		t.Errorf("count summary failed validation: %s", outcome.Error())
 	}
 }
@@ -171,7 +171,7 @@ func TestMarshalSummaryFullIsResourceJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("json.Marshal: %v", err)
 	}
-	got, err := fhir.MarshalSummary(patient, fhir.SummaryFull)
+	got, err := r5.MarshalSummary(patient, fhir.SummaryFull)
 	if err != nil {
 		t.Fatalf("MarshalSummary: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestMarshalSummaryPreservesMetaOrder(t *testing.T) {
 		Tag:       []r5.Coding{existingTag},
 	}
 
-	summary, err := fhir.MarshalSummary(patient, fhir.SummaryTrue)
+	summary, err := r5.MarshalSummary(patient, fhir.SummaryTrue)
 	if err != nil {
 		t.Fatalf("MarshalSummary: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestMarshalSummaryMetaSiblingNoTag(t *testing.T) {
 		VersionIdElement: &fhir.PrimitiveElement{ID: strPtr("vid")},
 	}
 
-	summary, err := fhir.MarshalSummary(patient, fhir.SummaryTrue)
+	summary, err := r5.MarshalSummary(patient, fhir.SummaryTrue)
 	if err != nil {
 		t.Fatalf("MarshalSummary: %v", err)
 	}

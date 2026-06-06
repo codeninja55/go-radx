@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
-	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r5"
 	"github.com/codeninja55/go-radx/hl7v2"
 )
@@ -51,11 +50,11 @@ func TestSRRoundTripPreservesMeasurements(t *testing.T) {
 	// The resources produced from the rebuilt SR must pass the in-process structural
 	// gate, which mirrors the merge-blocking FHIR validator gate that runs over convert
 	// output in CI.
-	if outcome := fhir.Validate(dr2); outcome.HasErrors() {
+	if outcome := r5.Validate(dr2); outcome.HasErrors() {
 		t.Errorf("round-tripped DiagnosticReport is not structurally valid: %s", outcome.Error())
 	}
 	for i, o := range observations2 {
-		if outcome := fhir.Validate(o); outcome.HasErrors() {
+		if outcome := r5.Validate(o); outcome.HasErrors() {
 			t.Errorf("round-tripped Observation[%d] is not structurally valid: %s", i, outcome.Error())
 		}
 	}

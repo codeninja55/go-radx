@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r5"
 	"github.com/codeninja55/go-radx/hl7v2"
 )
@@ -61,7 +60,7 @@ func TestADTToPatientR5(t *testing.T) {
 		t.Errorf("address city = %+v, want METROPOLIS", pat.Address)
 	}
 
-	if oo := fhir.Validate(pat); oo.HasErrors() {
+	if oo := r5.Validate(pat); oo.HasErrors() {
 		t.Errorf("Patient fails validation: %+v", oo.Issue)
 	}
 }
@@ -92,7 +91,7 @@ func TestADTToPatientR5UnknownGenderSubstituted(t *testing.T) {
 			t.Errorf("Report leaks the raw gender code: %+v", s)
 		}
 	}
-	if oo := fhir.Validate(pat); oo.HasErrors() {
+	if oo := r5.Validate(pat); oo.HasErrors() {
 		t.Errorf("Patient fails validation with an unknown gender: %+v", oo.Issue)
 	}
 }
@@ -124,7 +123,7 @@ func TestADTToPatientR5BirthDateTimePrecisionDropped(t *testing.T) {
 			t.Errorf("Report leaks the raw birth-date value: %+v", d)
 		}
 	}
-	if oo := fhir.Validate(pat); oo.HasErrors() {
+	if oo := r5.Validate(pat); oo.HasErrors() {
 		t.Errorf("Patient fails validation: %+v", oo.Issue)
 	}
 }
@@ -213,7 +212,7 @@ func TestADTToEncounterR5(t *testing.T) {
 		t.Errorf("subject identifier = %+v, want 555-44-4444", enc.Subject.Identifier)
 	}
 
-	if oo := fhir.Validate(enc); oo.HasErrors() {
+	if oo := r5.Validate(enc); oo.HasErrors() {
 		t.Errorf("Encounter fails validation: %+v", oo.Issue)
 	}
 }
@@ -250,7 +249,7 @@ func TestADTToEncounterR5TriggerStatusMapping(t *testing.T) {
 		if c.wantSubstituted && !hasSubstitutionContaining(report, "Encounter.status") {
 			t.Errorf("status(%s) did not record a Substitution: %+v", c.event, report.Substituted)
 		}
-		if oo := fhir.Validate(enc); oo.HasErrors() {
+		if oo := r5.Validate(enc); oo.HasErrors() {
 			t.Errorf("Encounter(%s) fails validation: %+v", c.event, oo.Issue)
 		}
 	}
