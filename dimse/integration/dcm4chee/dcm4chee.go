@@ -421,6 +421,62 @@ func (c *Container) ExportStudy(ctx context.Context, studyInstanceUID, destAET s
 	return reply.Completed, nil
 }
 
+// WorklistItem is the minimal set of Modality Worklist attributes CreateWorklistItem seeds into the
+// archive so an MWL C-FIND has a scheduled procedure step to return. The values are synthetic test
+// fixtures supplied by the interop test; this struct carries no real patient data.
+type WorklistItem struct {
+	StudyInstanceUID         string
+	AccessionNumber          string
+	RequestedProcedureID     string
+	ScheduledStationAETitle  string
+	ScheduledProcedureStepID string
+	Modality                 string
+	ScheduledStartDate       string // DICOM DA, e.g. "20260606"
+	ScheduledStartTime       string // DICOM TM, e.g. "090000"
+}
+
+// dicomJSONValue is a writable DICOM-JSON attribute (VR plus a value array), the mirror of the
+// dicomJSONAttr read type. A nested sequence carries its items in the same Value array, each a
+// DICOM-JSON object keyed by tag.
+type dicomJSONValue struct {
+	VR    string `json:"vr"`
+	Value []any  `json:"Value,omitempty"`
+}
+
+// CreateWorklistItem seeds a single Modality Worklist item into the archive's MWL SCP via its REST
+// API (POST .../rs/mwlitems, application/dicom+json), so a subsequent MWL C-FIND has a scheduled
+// procedure step to match. The item carries a top-level Study Instance UID, Accession Number, and
+// Requested Procedure ID plus a Scheduled Procedure Step Sequence (0040,0100) item holding the
+// Modality, Scheduled Station AE Title, Scheduled Procedure Step ID, and start date/time — the keys
+// a modality matches on. The attribute values are synthetic test fixtures, never real patient data.
+func (c *Container) CreateWorklistItem(ctx context.Context, item WorklistItem) error {
+	doc := map[string]dicomJSONValue{
+		"00080050": {VR: "SH", Value: []any{item.AccessionNumber}},
+		"0020000D": {VR: "UI", Value: []any{item.StudyInstanceUID}},
+		"00401001": {VR: "SH", Value: []any{item.RequestedProcedureID}},
+		"00321060": {VR: "LO", Value: []any{"Interop MWL Procedure"}},
+		"00400100": {VR: "SQ", Value: []any{
+			map[string]dicomJSONValue{
+				"00080060": {VR: "CS", Value: []any{item.Modality}},
+				"00400001": {VR: "AE", Value: []any{item.ScheduledStationAETitle}},
+				"00400002": {VR: "DA", Value: []any{item.ScheduledStartDate}},
+				"00400003": {VR: "TM", Value: []any{item.ScheduledStartTime}},
+				"00400007": {VR: "LO", Value: []any{"Interop Scheduled Step"}},
+				"00400009": {VR: "SH", Value: []any{item.ScheduledProcedureStepID}},
+			},
+		}},
+	}
+	body, err := json.Marshal(doc)
+	if err != nil {
+		return fmt.Errorf("marshal MWL item: %w", err)
+	}
+	path := fmt.Sprintf("/dcm4chee-arc/aets/%s/rs/mwlitems", AETitle)
+	if err := c.post(ctx, path, "application/dicom+json", body, nil); err != nil {
+		return fmt.Errorf("create MWL item: %w", err)
+	}
+	return nil
+}
+
 // getJSON issues a GET against the archive REST API and decodes the JSON body into out. A QIDO-RS
 // query with zero matches answers 204 No Content per the DICOMweb standard, which is a valid empty
 // result, not an error: getJSON leaves out at its zero value and returns nil, so the asynchronous
