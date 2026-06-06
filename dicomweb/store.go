@@ -156,6 +156,13 @@ func (b *storeResponseBuilder) counts() (accepted, failed int) {
 	return len(b.referenced), len(b.failed)
 }
 
+// hasOtherFailure reports whether a top-level Failure Reason (the "Other failures" path) was
+// recorded. It feeds the status decision so a store that built no per-instance Failed item yet
+// carries a top-level Failure Reason is never reported as a complete success (PS3.18 §10.5.3).
+func (b *storeResponseBuilder) hasOtherFailure() bool {
+	return b.otherFail != 0
+}
+
 // readMetadataBulkParts drains a metadata+bulkdata STOW body, returning the concatenated
 // application/dicom+json metadata bytes and a map of bulkdata payloads keyed by every locator
 // a metadata BulkDataURI might name: the part's Content-Location and the cid: form of its

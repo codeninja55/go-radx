@@ -134,6 +134,57 @@ func TestStoreResponseOtherFailure(t *testing.T) {
 	}
 }
 
+// TestStorePartialOtherFailureIsNot200 asserts a metadata+bulkdata store where one instance
+// is accepted but another fails as a top-level Other failure (no per-instance Failed item is
+// built) is reported as 202 Accepted carrying the top-level Failure Reason, never 200 OK. A
+// partial store must not be advertised as a complete success (PS3.18 §10.5.3).
+func TestStorePartialOtherFailureIsNot200(t *testing.T) {
+	store := newMemStore()
+	srv, err := NewServer(WithStoreBackend(store))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	// One well-formed instance (accepted) and one with no SOP identity (a top-level Other
+	// failure rather than a Failed item with empty UIDs).
+	good := `{
+		"00080016": {"vr": "UI", "Value": ["1.2.840.10008.5.1.4.1.1.4"]},
+		"00080018": {"vr": "UI", "Value": ["1.2.3.4.5"]},
+		"0020000D": {"vr": "UI", "Value": ["1.2.3"]},
+		"0020000E": {"vr": "UI", "Value": ["1.2.3.4"]}
+	}`
+	body, ct := metadataBulkBody(t, []string{good, `{}`}, nil)
+	resp, err := hs.Client().Post(hs.URL+"/studies", ct, body)
+	if err != nil {
+		t.Fatalf("POST /studies: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusOK {
+		t.Fatal("a partial store with a top-level Other failure was reported as 200 OK")
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("partial-store status = %d, want 202 Accepted", resp.StatusCode)
+	}
+	raw, _ := io.ReadAll(resp.Body)
+	ds, err := UnmarshalJSON(raw)
+	if err != nil {
+		t.Fatalf("decode store response: %v", err)
+	}
+	parsed := parseStoreResponse(ds)
+	if len(parsed.Referenced) != 1 {
+		t.Fatalf("Referenced len = %d, want 1 (the good instance was accepted)", len(parsed.Referenced))
+	}
+	if parsed.OtherFailure == 0 {
+		t.Fatal("partial-store response carried no top-level Other failure")
+	}
+	if parsed.IsComplete() {
+		t.Fatal("a partial store with a top-level Other failure read as complete")
+	}
+}
+
 // TestStoreMetadataBulkDataVariant asserts the metadata+bulkdata STOW variant stores: a
 // type="application/dicom+json" body whose metadata references a bulkdata part by
 // Content-Location is reassembled and stored, then retrievable.
@@ -245,8 +296,15 @@ func TestStoreQZeroRefused(t *testing.T) {
 	if !negotiateDICOMJSON("application/dicom+json;q=1") {
 		t.Fatal("negotiateDICOMJSON refused application/dicom+json at q=1")
 	}
-	// A q=0 on one range with a wildcard fallback at q>0 is still acceptable.
-	if !negotiateDICOMJSON("application/dicom+json;q=0, */*") {
-		t.Fatal("negotiateDICOMJSON refused a representation a wildcard fallback admits")
+	// An explicit q=0 on the specific range vetoes a later */* wildcard: the more specific
+	// refusal wins under HTTP precedence (RFC 9110 §12.5.1), so the refused representation is
+	// not served via the wildcard.
+	if negotiateDICOMJSON("application/dicom+json;q=0, */*") {
+		t.Fatal("negotiateDICOMJSON served a representation an explicit q=0 refused over a */* wildcard")
+	}
+	// A wildcard refusal with a more specific acceptance still serves: the specific accept
+	// outranks the */* refusal.
+	if !negotiateDICOMJSON("*/*;q=0, application/dicom+json") {
+		t.Fatal("negotiateDICOMJSON refused a specific acceptance that outranks a */* refusal")
 	}
 }

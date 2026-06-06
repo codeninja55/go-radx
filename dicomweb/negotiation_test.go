@@ -81,6 +81,12 @@ func TestNegotiateDICOMJSON(t *testing.T) {
 		{"*/*", true},
 		{"application/dicom+xml", false}, // XML deferred in v1
 		{"multipart/related", false},
+		// An explicit q=0 on the specific range vetoes a later */* wildcard (HTTP precedence,
+		// RFC 9110 §12.5.1): the refused representation is not served via the wildcard.
+		{"application/dicom+json;q=0, */*", false},
+		{"application/json;q=0, */*", false},
+		// A wildcard refusal cannot veto a more specific acceptance.
+		{"*/*;q=0, application/dicom+json", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.accept, func(t *testing.T) {

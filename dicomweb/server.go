@@ -477,17 +477,20 @@ func (s *Server) writeStoreResponse(w http.ResponseWriter, r *http.Request, b *s
 	}
 	accepted, failed := b.counts()
 	w.Header().Set("Content-Type", mediaTypeDICOMJSON)
-	w.WriteHeader(storeStatus(accepted, failed))
+	w.WriteHeader(storeStatus(accepted, failed, b.hasOtherFailure()))
 	_, _ = w.Write(out)
 }
 
-// storeStatus maps the accepted/failed counts to the STOW-RS HTTP status (PS3.18
-// §10.5.3): 200 OK when every instance was accepted, 409 Conflict when none was, and 202
-// Accepted for a partial store. An empty body (no parts) is reported as 409, since the
-// request stored nothing.
-func storeStatus(accepted, failed int) int {
+// storeStatus maps the store outcome to the STOW-RS HTTP status (PS3.18 §10.5.3): 200 OK
+// only when every instance was accepted with no failure of any kind, 409 Conflict when
+// nothing was accepted, and 202 Accepted for a partial store. A top-level Other failure is a
+// failure even when no per-instance Failed item was built, so a store that accepted some
+// instances yet carries a top-level Failure Reason is 202, never 200 — the response body's
+// failure must never be laundered into a complete success. An empty body (no parts) reports
+// 409, since the request stored nothing.
+func storeStatus(accepted, failed int, otherFailure bool) int {
 	switch {
-	case failed == 0 && accepted > 0:
+	case failed == 0 && !otherFailure && accepted > 0:
 		return http.StatusOK
 	case accepted == 0:
 		return http.StatusConflict

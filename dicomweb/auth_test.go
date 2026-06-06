@@ -165,6 +165,47 @@ func (t *markerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return baseOrDefault(t.base).RoundTrip(r)
 }
 
+// TestSharedHTTPClientNotMutated asserts building two authenticated DICOMweb clients over one
+// shared *http.Client leaves the first client's credential behaviour intact and gives each
+// client its own correct credential. Mutating the shared client (the prior bug) would rewrite
+// the first client's transport and double-wrap the second over the first's credential layer,
+// so for a same-origin request the inner layer would overwrite the outer Authorization header
+// and the second client would send the wrong bearer.
+func TestSharedHTTPClientNotMutated(t *testing.T) {
+	const tokenA, tokenB = "bearer-for-client-a", "bearer-for-client-b"
+	var seen string
+	hs := authProbeServer(t, &seen)
+
+	shared := hs.Client()
+	baseTransport := shared.Transport
+
+	clientA, err := NewClient(hs.URL, WithHTTPClient(shared), WithBearerToken(tokenA))
+	if err != nil {
+		t.Fatalf("NewClient A: %v", err)
+	}
+	// Building the second client over the same shared *http.Client must not disturb the shared
+	// client or client A.
+	clientB, err := NewClient(hs.URL, WithHTTPClient(shared), WithBearerToken(tokenB))
+	if err != nil {
+		t.Fatalf("NewClient B: %v", err)
+	}
+
+	if shared.Transport != baseTransport {
+		t.Fatal("the shared *http.Client's transport was mutated by building DICOMweb clients over it")
+	}
+
+	_, _ = clientB.Store(context.Background(), sampleInstance("1.2.3", "1.2.3.4", "1.2.3.4.5"))
+	if seen != "Bearer "+tokenB {
+		t.Fatalf("client B sent Authorization = %q, want its own bearer %q", seen, "Bearer "+tokenB)
+	}
+
+	// Client A's behaviour is intact: it still sends its own credential, not B's.
+	_, _ = clientA.Store(context.Background(), sampleInstance("1.2.3", "1.2.3.4", "1.2.3.4.5"))
+	if seen != "Bearer "+tokenA {
+		t.Fatalf("client A sent Authorization = %q, want its own bearer %q", seen, "Bearer "+tokenA)
+	}
+}
+
 // TestWithClientCertificateMutualTLS asserts WithClientCertificate presents a client
 // certificate that a TLS server requiring client auth accepts, so the handshake completes and
 // the handler is reached. A self-signed certificate generated in the test acts as both the

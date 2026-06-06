@@ -283,14 +283,19 @@ func negotiateDICOMJSON(accept string) bool {
 // malformed Accept never silently widens what is served.
 //
 // A range carrying q=0 explicitly refuses that representation (RFC 9110 §12.4.2): a matching
-// range with q=0 does not admit the representation, so an Accept of "application/dicom;q=0"
-// is unacceptable even though the media type otherwise matches. Full quality-ordered
-// selection across competing ranges is out of scope; only the q=0 refusal is honoured.
+// range with q=0 does not admit the representation. HTTP precedence is honoured (RFC 9110
+// §12.5.1): the most specific matching range governs, so an Accept of
+// "application/dicom+json;q=0, */*" is unacceptable for application/dicom+json because the
+// specific q=0 range outranks the */* wildcard that would otherwise admit it. A refusal that
+// ties the most specific acceptance also wins, since q=0 is a definite "not acceptable".
+// Full quality-ordered selection across competing ranges (q between 0 and 1) is out of scope;
+// only the q=0 refusal and its precedence are honoured.
 func negotiate(accept string, match func(mt string, params map[string]string) bool) bool {
 	accept = strings.TrimSpace(accept)
 	if accept == "" {
 		return true
 	}
+	bestAccept, bestRefuse := -1, -1
 	for _, part := range strings.Split(accept, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
@@ -300,17 +305,47 @@ func negotiate(accept string, match func(mt string, params map[string]string) bo
 		if err != nil {
 			continue
 		}
-		if !match(strings.ToLower(mt), params) {
+		mt = strings.ToLower(mt)
+		if !match(mt, params) {
 			continue
 		}
+		spec := rangeSpecificity(mt, params)
 		if isRefused(params) {
-			// The range matches the representation but refuses it (q=0); it does not admit
-			// the representation. A later range may still accept it, so keep scanning.
+			if spec > bestRefuse {
+				bestRefuse = spec
+			}
 			continue
 		}
-		return true
+		if spec > bestAccept {
+			bestAccept = spec
+		}
 	}
-	return false
+	// No matching range accepted the representation: unacceptable.
+	if bestAccept < 0 {
+		return false
+	}
+	// A matching q=0 refusal at least as specific as the best acceptance vetoes it.
+	return bestRefuse < bestAccept
+}
+
+// rangeSpecificity ranks a matching media range by HTTP precedence (RFC 9110 §12.5.1): a
+// fully specific type/subtype outranks a type/* subtype wildcard, which outranks the */*
+// wildcard. A multipart/related range with a concrete type parameter is treated as more
+// specific than one without, so a parameterised refusal outranks a bare multipart acceptance.
+func rangeSpecificity(mt string, params map[string]string) int {
+	switch mt {
+	case "*/*":
+		return 0
+	case "application/*":
+		return 1
+	}
+	if mt == mediaTypeMultipart {
+		if t := params["type"]; t != "" && t != "*/*" {
+			return 3
+		}
+		return 2
+	}
+	return 2
 }
 
 // isRefused reports whether a media range's q-value is zero (a q=0 refusal, RFC 9110

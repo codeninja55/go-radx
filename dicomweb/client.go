@@ -137,7 +137,25 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 // source, or the static bearer) wraps the result so every request carries the scheme's
 // header. Layering through the RoundTripper seam keeps the request path branch-free and lets
 // the cloud adapters compose without modifying the client (DIP, PRD §8.2).
+//
+// A caller-supplied *http.Client is never mutated: the credential layer is set on a shallow
+// copy, leaving the caller's shared client untouched. Layering over the original base
+// transport (not over whatever this client previously installed) means building a second
+// authenticated client over the same shared *http.Client does not wrap the first client's
+// credential layer, which would otherwise let the inner same-origin layer overwrite the outer
+// Authorization header so requests carry the wrong credential.
 func (c *Client) applyAuth() {
+	layer := c.authLayer
+	if layer == nil && c.bearerToken != "" {
+		// WithBearerToken keeps its field-set behaviour; it is expressed as a RoundTripper
+		// here so it composes identically to the other schemes (PRD §9.8).
+		layer = bearerAuthLayer(c.bearerToken)
+	}
+	if layer == nil && c.transport == nil && c.clientCert == nil {
+		// No auth option touches the transport; leave the supplied client's transport as-is.
+		return
+	}
+
 	base := c.transport
 	if base == nil {
 		base = c.httpClient.Transport
@@ -148,20 +166,15 @@ func (c *Client) applyAuth() {
 	if c.clientCert != nil {
 		base = withClientCertificate(base, *c.clientCert)
 	}
-
-	layer := c.authLayer
-	if layer == nil && c.bearerToken != "" {
-		// WithBearerToken keeps its field-set behaviour; it is expressed as a RoundTripper
-		// here so it composes identically to the other schemes (PRD §9.8).
-		layer = bearerAuthLayer(c.bearerToken)
-	}
 	if layer != nil {
 		// The origin scopes every credential to the configured host; a base URL that does not
 		// parse yields a nil origin, which fails closed (no request is same-origin).
 		origin, _ := url.Parse(c.baseURL)
 		base = layer(base, origin)
 	}
-	c.httpClient.Transport = base
+	clientCopy := *c.httpClient
+	clientCopy.Transport = base
+	c.httpClient = &clientCopy
 }
 
 // withClientCertificate returns a transport that presents cert during the TLS handshake. An
