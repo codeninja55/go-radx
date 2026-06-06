@@ -46,9 +46,10 @@ In scope for v1:
 > **Implementation status: PARTIAL.** This list is the v1 target. Of it, the parse tree, the typed segments and
 > composites, encoding-character derivation and `DTM` precision, Chapter 2 §2.10 escape/unescape, the typed `ORM`,
 > `ADT`, `ORU`, and `ACK` views, the `AckCode` enum with its predicates, message construction (`NewMessage` / `SetMSH` /
-> `AppendSegment` and the `MSH`/`PID`/`ORC`/`OBR` segment renderers), `BuildACK`, and MLLP transport (the frame codec,
-> the blocking `Client`, and the `context`-aware `Server`) ship today. The typed `OMG` view and batch/file container
-> parsing are **NOT YET SHIPPED**; the per-section banners below mark exactly which surface each describes.
+> `AppendSegment` and the `MSH`/`PID`/`ORC`/`OBR` segment renderers), `BuildACK`, MLLP transport (the frame codec,
+> the blocking `Client`, and the `context`-aware `Server`), and batch/file container parsing (`ParseBatch` /
+> `ParseFile` / `ParseAny`) ship today. The typed `OMG` view is **NOT YET SHIPPED**; the per-section banners below mark
+> exactly which surface each describes.
 
 Out of scope for v1 is listed explicitly in [Conformance scope and limits](#conformance-scope-and-limits). Notably:
 HL7 v2 XML encoding, FHIR-based v2 representations, inline character-set switching inside escape sequences, the full
@@ -171,10 +172,17 @@ datatypes, never bare strings. Two scope-load-bearing field placements are fixed
 
 Typed composites are returned by the typed segment accessors. The reference library leaves these stringly-typed;
 go-radx models them (PRD §6.3). The in-scope composites are `XPN` (person name: `Family`, `Given`, `Middle`, `Suffix`,
-`Prefix`, `Degree`, `NameTypeCode`), `XAD` (address), `CX` (identifier with assigning authority), `CWE` (coded with
-exceptions, with `Code`/`Text` plus coding-system and alternate fields; supersedes the retired `CE`), `HD` (hierarchic
-designator), and `DTM` (variable-precision timestamp). Exact field lists and component numbers are in the API
-reference.
+`Prefix`, `Degree`, `NameTypeCode`), `XCN` (extended composite ID number and name for persons: `IDNumber`, `Family`,
+`Given`, `Middle`, `Suffix`, `Prefix`, `Degree`, `AssigningAuthority`, `NameTypeCode`, `IdentifierTypeCode`), `XAD`
+(address), `CX` (identifier with assigning authority), `CWE` (coded with exceptions, with `Code`/`Text` plus
+coding-system and alternate fields; supersedes the retired `CE`), `HD` (hierarchic designator), and `DTM`
+(variable-precision timestamp). Exact field lists and component numbers are in the API reference.
+
+`XCN` and `XPN` are distinct and not interchangeable: `XCN` leads with an ID number (`XCN-1`) and carries the family
+name at `XCN-2`, whereas `XPN` leads with the family name (`XPN-1`). The provider-identity fields `PV1-7` (attending
+doctor), `PV1-8`, `PV1-9`, `PV1-17`, `OBR-16` (ordering provider), and `ORC-12` are `XCN`. `PV1.AttendingDoctor` is
+modelled as `XCN`, so a value such as `1234^DOE^JANE^^^^DR` reads as the ID number `1234` with family name `DOE` —
+reading it as `XPN` would mistake the ID number for the family name and shift every following name part.
 
 `DTM` **preserves precision** (glossary: "preserve precision, don't zero-fill"). A date-only `19720101` does not
 silently become midnight; the precision is retained so it round-trips and so a consumer can tell a true midnight from
@@ -223,14 +231,20 @@ no external peer) is the hard correctness gate.
 
 ### Batch and file containers in scope
 
-> **Implementation status: NOT YET SHIPPED.** The `Batch` and `File` container types and the `ParseBatch` / `ParseFile`
-> functions described below are not yet implemented. The behaviour in this section is the planned design.
+> **Implementation status: SHIPPED.** The `Batch` and `File` container types, the `ParseBatch` / `ParseFile` /
+> `ParseAny` functions, and the `Container` interface ship today, verified by byte-exact round-trip against the
+> `batch.hl7` and `file.hl7` corpus fixtures.
 
 `Batch` (`BHS`/`BTS`) and `File` (`FHS`/`FTS`) are optional bulk containers. The headers and trailers are present
 together or not at all — a header without its trailer (or vice versa) is a malformed container, matching the reference
 library's "both or neither" rule. "File" here is the HL7 batch-protocol container, not an OS or `.dcm` file (glossary).
-`ParseBatch`/`ParseFile` parse them and the containers re-render through `MarshalText`; signatures are in the API
-reference.
+A bare sequence of `MSH`-led messages with no `BHS`/`BTS` parses as a header-less `Batch`, and a `File` with no inner
+`BHS` wraps its messages in a single header-less batch, matching `python-hl7`'s implied-container handling.
+`ParseBatch`/`ParseFile` parse them, `ParseAny` dispatches on the leading segment (`MSH` → `Message`, `BHS` →
+`Batch`, `FHS` → `File`), and every container re-renders byte-for-byte through `MarshalText`; signatures are in the
+API reference. The encoding characters are derived from the leading `BHS`/`FHS`/`MSH` segment, never a static default,
+so a container using non-standard delimiters round-trips. A malformed container — a header without its trailer, or a
+second `BHS`/`FHS` inside the body — is a `*ParseError`.
 
 ## Supported message types and trigger events
 
@@ -274,9 +288,11 @@ tree (`Message.Segment`, `Message.Get`).
 
 ## Supported composite datatypes
 
-`XPN`, `XAD`, `CX`, `CWE` (supersedes `CE`), `HD`, and `DTM` are typed. Subcomponents beyond the modelled fields remain
-reachable through the generic tree. Datatypes not listed (for example `XCN`, `XON`, `EI`, `MSG`, `PT`, `TS`) parse into
-the generic tree as raw component lists; they are not given dedicated structs in v1.
+`XPN`, `XCN`, `XAD`, `CX`, `CWE` (supersedes `CE`), `HD`, and `DTM` are typed. Subcomponents beyond the modelled fields
+remain reachable through the generic tree. `XCN` is the provider-identity datatype for `PV1-7`/`PV1-8`/`PV1-9`/
+`PV1-17`, `OBR-16`, and `ORC-12`; it is distinct from `XPN` because it leads with an ID number rather than a family
+name. Datatypes not listed (for example `XON`, `EI`, `MSG`, `PT`, `TS`) parse into the generic tree as raw component
+lists; they are not given dedicated structs in v1.
 
 ## Behaviour and error model
 
@@ -426,9 +442,10 @@ In scope (v1):
 - Six-level lossless parse tree for any well-formed `MSH`-led message; byte-for-byte round-trip via `MarshalText`.
 - Typed message types `ADT` (A01/A02/A03/A04/A08), `ORM^O01`, `OMG^O19`, `ORU^R01`, `ACK`.
 - Typed segments `MSH`, `EVN`, `PID`, `PV1`, `ORC`, `OBR`, `OBX`, `MSA`, `ERR`, plus `BHS`/`BTS` and `FHS`/`FTS`.
-- Typed composites `XPN`, `XAD`, `CX`, `CWE`, `HD`, `DTM`.
+- Typed composites `XPN`, `XCN`, `XAD`, `CX`, `CWE`, `HD`, `DTM`.
 - Encoding-character derivation, escape/unescape per Chapter 2 §2.10, variable-precision `DTM`.
-- `Batch`/`File` container parsing and construction with the both-or-neither header/trailer rule.
+- `Batch`/`File` container parsing (`ParseBatch`/`ParseFile`/`ParseAny`) with the both-or-neither header/trailer rule
+  and byte-exact round-trip.
 - MLLP client and `context`-aware server with configurable max frame length, read timeout, TLS, and encoding.
 - `BuildACK` for original-mode and enhanced-mode acknowledgement codes.
 
