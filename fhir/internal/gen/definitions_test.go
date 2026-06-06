@@ -10,56 +10,78 @@ import (
 	"testing"
 )
 
-// vendoredR5Dir is the committed, checksum-pinned R5 definition bundle the
-// generator reads. The path is relative to this package directory.
-const vendoredR5Dir = "testdata/definitions/r5"
+// vendoredR5Dir and vendoredR4Dir are the committed, checksum-pinned definition
+// bundles the generator reads, one per release. The paths are relative to this
+// package directory.
+const (
+	vendoredR5Dir = "testdata/definitions/r5"
+	vendoredR4Dir = "testdata/definitions/r4"
+)
 
-// requiredR5Files are the bundle files every later increment depends on.
-var requiredR5Files = []string{
+// requiredBundleFiles are the bundle files every release's generation depends on.
+// The set is the same across R4 and R5.
+var requiredBundleFiles = []string{
 	"profiles-types.json",
 	"profiles-resources.json",
 	"valuesets.json",
 }
 
-// TestVendoredR5BundlePresent guards that the vendored R5 bundle and its checksum
-// manifest are committed, before Increment 1's loader consumes them. It is
+// vendoredBundles names each release's committed bundle directory, so the presence
+// and checksum guards run over both R4 and R5 from one table.
+var vendoredBundles = []struct {
+	release string
+	dir     string
+}{
+	{release: "r4", dir: vendoredR4Dir},
+	{release: "r5", dir: vendoredR5Dir},
+}
+
+// TestVendoredBundlesPresent guards that each release's vendored bundle and its
+// checksum manifest are committed, before the loader consumes them. It is
 // deliberately loader-independent: it re-derives the SHA-256 here rather than
 // calling generator code, so the pin is verified by an outside witness.
-func TestVendoredR5BundlePresent(t *testing.T) {
+func TestVendoredBundlesPresent(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range requiredR5Files {
-		if _, err := os.Stat(filepath.Join(vendoredR5Dir, name)); err != nil {
-			t.Errorf("required bundle file missing: %v", err)
-		}
-	}
-	if _, err := os.Stat(filepath.Join(vendoredR5Dir, "SHA256SUMS")); err != nil {
-		t.Fatalf("SHA256SUMS missing: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(vendoredR5Dir, "SOURCE.md")); err != nil {
-		t.Errorf("SOURCE.md provenance missing: %v", err)
+	for _, b := range vendoredBundles {
+		t.Run(b.release, func(t *testing.T) {
+			for _, name := range requiredBundleFiles {
+				if _, err := os.Stat(filepath.Join(b.dir, name)); err != nil {
+					t.Errorf("required bundle file missing: %v", err)
+				}
+			}
+			if _, err := os.Stat(filepath.Join(b.dir, "SHA256SUMS")); err != nil {
+				t.Fatalf("SHA256SUMS missing: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(b.dir, "SOURCE.md")); err != nil {
+				t.Errorf("SOURCE.md provenance missing: %v", err)
+			}
+		})
 	}
 }
 
-// TestVendoredR5ChecksumsMatch re-computes the SHA-256 of each on-disk file and
-// asserts it equals the value recorded in SHA256SUMS, so the pin is real before
-// Increment 1's fail-closed loader relies on it. Every required file must appear
-// in the manifest.
-func TestVendoredR5ChecksumsMatch(t *testing.T) {
+// TestVendoredBundlesChecksumsMatch re-computes the SHA-256 of each on-disk file and
+// asserts it equals the value recorded in SHA256SUMS, so the pin is real before the
+// fail-closed loader relies on it. Every required file must appear in the manifest.
+func TestVendoredBundlesChecksumsMatch(t *testing.T) {
 	t.Parallel()
 
-	sums := readSHA256SUMS(t, filepath.Join(vendoredR5Dir, "SHA256SUMS"))
+	for _, b := range vendoredBundles {
+		t.Run(b.release, func(t *testing.T) {
+			sums := readSHA256SUMS(t, filepath.Join(b.dir, "SHA256SUMS"))
 
-	for _, name := range requiredR5Files {
-		want, ok := sums[name]
-		if !ok {
-			t.Errorf("SHA256SUMS has no entry for %s", name)
-			continue
-		}
-		got := sha256HexFile(t, filepath.Join(vendoredR5Dir, name))
-		if got != want {
-			t.Errorf("%s checksum mismatch: on-disk %s, recorded %s", name, got, want)
-		}
+			for _, name := range requiredBundleFiles {
+				want, ok := sums[name]
+				if !ok {
+					t.Errorf("SHA256SUMS has no entry for %s", name)
+					continue
+				}
+				got := sha256HexFile(t, filepath.Join(b.dir, name))
+				if got != want {
+					t.Errorf("%s checksum mismatch: on-disk %s, recorded %s", name, got, want)
+				}
+			}
+		})
 	}
 }
 
