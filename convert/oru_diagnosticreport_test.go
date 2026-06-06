@@ -259,3 +259,127 @@ func TestOBXUnknownValueTypeDropped(t *testing.T) {
 		}
 	}
 }
+
+// TestORUSkippedOBXRecordsDropped confirms an OBX with no OBX-3 identifier (which
+// has no FHIR home, since Observation.code is required) is recorded on Report.Dropped
+// rather than skipped silently, so the OBX-5 value is not lost without a trace.
+func TestORUSkippedOBXRecordsDropped(t *testing.T) {
+	const oru = "MSH|^~\\&|LIS|HOSP|EMR|HOSP|202605311230||ORU^R01|MSGORU2|P|2.4\r" +
+		"OBR|1|P1|F1|24331-1^LIPID^LN|||202605311230\r" +
+		"OBX|1|NM|2093-3^CHOLESTEROL^LN||242|mg/dL^mg/dL^UCUM|||||F\r" +
+		"OBX|2|TX|||secret-narrative|||||\r"
+	msg, err := hl7v2.Parse([]byte(oru))
+	if err != nil {
+		t.Fatalf("parse ORU: %v", err)
+	}
+	_, obs, report, err := ORUToDiagnosticReportR5(msg)
+	if err != nil {
+		t.Fatalf("ORUToDiagnosticReportR5: %v", err)
+	}
+	// Only the coded OBX becomes an Observation; the OBX-3-less row is dropped.
+	if len(obs) != 1 {
+		t.Fatalf("Observations = %d, want 1 (the OBX-3-less row is dropped)", len(obs))
+	}
+	if !hasDroppedContaining(report, "OBX") {
+		t.Errorf("Report.Dropped does not record the skipped OBX: %+v", report.Dropped)
+	}
+	for _, d := range report.Dropped {
+		if strings.Contains(d.Source+d.Reason, "secret-narrative") {
+			t.Errorf("Report leaks the raw OBX value: %+v", d)
+		}
+	}
+	// Under strict-loss the skipped OBX escalates to a *LossError.
+	if _, _, _, serr := ORUToDiagnosticReportR5(msg, WithStrictLoss()); serr == nil {
+		t.Error("error = nil under WithStrictLoss, want a *LossError for the skipped OBX")
+	}
+}
+
+// TestOBXUnparsableTemporalDropped confirms a non-empty but unparsable DT/TM OBX-5
+// records a Dropped entry and emits no value-less Observation value[x].
+func TestOBXUnparsableTemporalDropped(t *testing.T) {
+	cases := []struct {
+		name      string
+		valueType string
+		value     string
+		locus     string
+	}{
+		{"DT", "DT", "not-a-date", "DT/TS"},
+		{"TS", "TS", "20XX0531", "DT/TS"},
+		{"TM", "TM", "99:99", "TM"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			obx := hl7v2.OBX{
+				ValueType:     c.valueType,
+				ObservationID: hl7v2.CWE{Code: "X", Text: "test", CodingSystem: "LN"},
+				Value:         []string{c.value},
+			}
+			o, report, ok := obxToObservationR5(obx, &Report{})
+			if !ok {
+				t.Fatalf("obxToObservationR5(%s) returned ok=false for a coded leaf", c.valueType)
+			}
+			if o.ValueDateTime != nil || o.ValueTime != nil {
+				t.Errorf("%s set a value[x] for an unparsable value: %+v", c.valueType, o)
+			}
+			if !hasDroppedContaining(report, c.locus) {
+				t.Errorf("%s did not record a Dropped entry: %+v", c.valueType, report.Dropped)
+			}
+			for _, d := range report.Dropped {
+				if strings.Contains(d.Source+d.Reason, c.value) {
+					t.Errorf("Report leaks the raw temporal value: %+v", d)
+				}
+			}
+			if oo := fhir.Validate(o); oo.HasErrors() {
+				t.Errorf("Observation(%s) fails validation: %+v", c.valueType, oo.Issue)
+			}
+		})
+	}
+}
+
+// TestOBXEmptyTemporalNotDropped confirms an empty DT/TM OBX-5 records nothing: an
+// absent value is not a loss.
+func TestOBXEmptyTemporalNotDropped(t *testing.T) {
+	for _, vt := range []string{"DT", "TM"} {
+		obx := hl7v2.OBX{
+			ValueType:     vt,
+			ObservationID: hl7v2.CWE{Code: "X", Text: "test", CodingSystem: "LN"},
+			Value:         nil,
+		}
+		_, report, ok := obxToObservationR5(obx, &Report{})
+		if !ok {
+			t.Fatalf("obxToObservationR5(%s) returned ok=false", vt)
+		}
+		if len(report.Dropped) != 0 {
+			t.Errorf("%s with no value recorded a Dropped entry: %+v", vt, report.Dropped)
+		}
+	}
+}
+
+// TestOBXRepeatedValueExtrasDropped confirms repeated OBX-5 values map the first to
+// value[x] and record the unconverted repetitions on Report.Dropped (never the raw
+// values), so nothing is lost silently and strict-loss can escalate it.
+func TestOBXRepeatedValueExtrasDropped(t *testing.T) {
+	obx := hl7v2.OBX{
+		ValueType:     "ST",
+		ObservationID: hl7v2.CWE{Code: "X", Text: "test", CodingSystem: "LN"},
+		Value:         []string{"first-value", "second-value", "third-value"},
+	}
+	o, report, ok := obxToObservationR5(obx, &Report{})
+	if !ok {
+		t.Fatal("obxToObservationR5 returned ok=false")
+	}
+	if o.ValueString == nil || string(*o.ValueString) != "first-value" {
+		t.Errorf("valueString = %v, want the first OBX-5 repetition", o.ValueString)
+	}
+	if !hasDroppedContaining(report, "OBX-5") {
+		t.Errorf("Report.Dropped does not record the extra OBX-5 repetitions: %+v", report.Dropped)
+	}
+	for _, d := range report.Dropped {
+		if strings.Contains(d.Source+d.Reason, "second-value") || strings.Contains(d.Source+d.Reason, "third-value") {
+			t.Errorf("Report leaks a raw OBX-5 repetition: %+v", d)
+		}
+	}
+	if oo := fhir.Validate(o); oo.HasErrors() {
+		t.Errorf("Observation fails validation: %+v", oo.Issue)
+	}
+}

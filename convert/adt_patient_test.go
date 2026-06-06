@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -93,6 +94,62 @@ func TestADTToPatientR5UnknownGenderSubstituted(t *testing.T) {
 	}
 	if oo := fhir.Validate(pat); oo.HasErrors() {
 		t.Errorf("Patient fails validation with an unknown gender: %+v", oo.Issue)
+	}
+}
+
+// TestADTToPatientR5BirthDateTimePrecisionDropped confirms a PID-7 birth date that
+// carries time precision Patient.birthDate (a date) cannot hold records a Dropped
+// entry naming the concept, never the raw value.
+func TestADTToPatientR5BirthDateTimePrecisionDropped(t *testing.T) {
+	const adt = "MSH|^~\\&|ADT1|HOSP|EMR|HOSP|202605311230||ADT^A01|M|P|2.4\r" +
+		"PID|||555-44-4444^^^HOSP^MR||DOE^JANE||196203201415|F\r" +
+		"PV1|1|I\r"
+	msg, err := hl7v2.Parse([]byte(adt))
+	if err != nil {
+		t.Fatalf("parse ADT: %v", err)
+	}
+	pat, report, err := ADTToPatientR5(msg)
+	if err != nil {
+		t.Fatalf("ADTToPatientR5: %v", err)
+	}
+	// The date components survive; the time-of-birth precision is dropped.
+	if pat.BirthDate == nil || *pat.BirthDate != "1962-03-20" {
+		t.Errorf("birthDate = %v, want 1962-03-20 (time precision reduced)", pat.BirthDate)
+	}
+	if !hasDroppedContaining(report, "PID-7") {
+		t.Errorf("Report.Dropped does not record the dropped birth-date time precision: %+v", report.Dropped)
+	}
+	for _, d := range report.Dropped {
+		if strings.Contains(d.Source+d.Reason, "1415") || strings.Contains(d.Source+d.Reason, "196203201415") {
+			t.Errorf("Report leaks the raw birth-date value: %+v", d)
+		}
+	}
+	if oo := fhir.Validate(pat); oo.HasErrors() {
+		t.Errorf("Patient fails validation: %+v", oo.Issue)
+	}
+}
+
+// TestADTToPatientR5StrictLossEscalates confirms WithStrictLoss escalates a lossy
+// birth-date reduction to a *LossError instead of a silent Report.Dropped entry.
+func TestADTToPatientR5StrictLossEscalates(t *testing.T) {
+	const adt = "MSH|^~\\&|ADT1|HOSP|EMR|HOSP|202605311230||ADT^A01|M|P|2.4\r" +
+		"PID|||555-44-4444^^^HOSP^MR||DOE^JANE||196203201415|F\r" +
+		"PV1|1|I\r"
+	msg, err := hl7v2.Parse([]byte(adt))
+	if err != nil {
+		t.Fatalf("parse ADT: %v", err)
+	}
+	_, _, err = ADTToPatientR5(msg, WithStrictLoss())
+	if err == nil {
+		t.Fatal("error = nil, want a *LossError under WithStrictLoss for a lossy birth date")
+	}
+	var le *LossError
+	if !errors.As(err, &le) {
+		t.Fatalf("error = %T, want *LossError", err)
+	}
+	// The default (lenient) path must keep returning a nil error.
+	if _, _, err := ADTToPatientR5(msg); err != nil {
+		t.Errorf("lenient ADTToPatientR5 returned an error: %v", err)
 	}
 }
 

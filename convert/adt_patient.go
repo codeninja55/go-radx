@@ -16,9 +16,11 @@ import (
 // rejected with ErrUnsupportedSource.
 //
 // Patient has no FHIR-required field, so the conversion never fails closed on a
-// sparse PID; an absent element is simply left unset.
+// sparse PID; an absent element is simply left unset. A lossy reduction (a PID-7
+// birth date carrying time precision Patient.birthDate cannot hold) is recorded on
+// the Report and escalated to a *LossError when WithStrictLoss is set.
 func ADTToPatientR5(msg *hl7v2.Message, opts ...Option) (*r5.Patient, *Report, error) {
-	_ = newConfig(opts...)
+	cfg := newConfig(opts...)
 	report := &Report{}
 
 	if msg == nil {
@@ -65,7 +67,8 @@ func ADTToPatientR5(msg *hl7v2.Message, opts ...Option) (*r5.Patient, *Report, e
 		pat.Address = []r5.Address{*addr}
 	}
 
-	return pat, report, nil
+	rep, err := cfg.finalize(report)
+	return pat, rep, err
 }
 
 // ParseAdministrativeGender maps an HL7 v2 administrative-sex code (PID-8, Table

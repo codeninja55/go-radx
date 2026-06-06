@@ -89,6 +89,13 @@ func ORUToDiagnosticReportR5(msg *hl7v2.Message, opts ...Option) (*r5.Diagnostic
 	for i := range group.Observations {
 		o, obxReport, ok := obxToObservationR5(group.Observations[i], report)
 		if !ok {
+			// An OBX with no OBX-3 identifier has no FHIR home (Observation.code is
+			// required); record the loss by locus so the OBX-5 clinical value is not
+			// lost silently and strict-loss can escalate it.
+			report.dropped(
+				fmt.Sprintf("OBX (observation %d)", i+1),
+				"OBX has no OBX-3 observation identifier for the required Observation.code; the row was not mapped",
+			)
 			continue
 		}
 		_ = obxReport
@@ -179,11 +186,23 @@ func obxToObservationR5(obx hl7v2.OBX, report *Report) (*r5.Observation, *Report
 
 // setObservationValue dispatches the OBX value into the Observation's value[x] by
 // OBX-2 ValueType: NM→valueQuantity, CE/CWE→valueCodeableConcept, TX/ST/FT→valueString,
-// DT/DATE→valueDateTime, TM/TIME→valueTime. An unrecognised value type or an
-// unparseable value leaves value[x] unset and records the loss by locus only — the
-// raw clinical value is never named in the report (PRD §9.1).
+// DT/DATE→valueDateTime, TM/TIME→valueTime. value[x] is a single choice element, so
+// only the first OBX-5 repetition is mapped; any further repetitions are recorded by
+// locus. An unrecognised value type or a non-empty unparseable value likewise leaves
+// value[x] unset and records the loss by locus only — the raw clinical value is never
+// named in the report (PRD §9.1).
 func setObservationValue(o *r5.Observation, obx hl7v2.OBX, report *Report) {
 	raw := firstValue(obx.Value)
+	if len(obx.Value) > 1 {
+		// FHIR Observation.value[x] is a single choice element; the leading OBX-5
+		// repetition maps to it and the remainder have no home in this resource.
+		// Record the count of unconverted repetitions by locus (never the values)
+		// so the loss is reported and strict-loss can escalate it.
+		report.dropped(
+			fmt.Sprintf("OBX-5 ObservationValue (%d additional repetitions)", len(obx.Value)-1),
+			"FHIR Observation.value[x] holds a single value; OBX-5 repetitions beyond the first were not mapped",
+		)
+	}
 	switch obx.ValueType {
 	case "NM":
 		if q, ok := numericQuantity(raw, obx.Units); ok {
@@ -209,10 +228,18 @@ func setObservationValue(o *r5.Observation, obx hl7v2.OBX, report *Report) {
 			o.SetValueDateTime(r5.FHIRDateTime(when))
 			return
 		}
+		if raw != "" {
+			report.dropped("OBX-5 ObservationValue (DT/TS)",
+				"the date/time result value is not a valid FHIR dateTime; valueDateTime was not set")
+		}
 	case "TM", "TIME":
 		if when, ok := timeValue(raw); ok {
 			o.SetValueTime(r5.FHIRTime(when))
 			return
+		}
+		if raw != "" {
+			report.dropped("OBX-5 ObservationValue (TM)",
+				"the time result value is not a valid FHIR time; valueTime was not set")
 		}
 	default:
 		report.dropped("OBX-5 ObservationValue",
