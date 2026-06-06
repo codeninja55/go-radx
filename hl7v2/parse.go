@@ -147,46 +147,62 @@ func nextLine(b []byte, offset int) (line []byte, term string, next int) {
 }
 
 // parseSegment splits one segment line into the field/repetition/component/
-// subcomponent tree. The MSH segment is offset-quirky: the field separator is
-// itself MSH-1 and the encoding characters are MSH-2, so they are spliced in
-// verbatim before the remaining fields are split (matching python-hl7's _split).
+// subcomponent tree. The header segments MSH, BHS, and FHS are offset-quirky:
+// the field separator is itself field 1 and the encoding characters are field 2,
+// so they are spliced in verbatim before the remaining fields are split (matching
+// python-hl7's _split).
 func parseSegment(line []byte, term string, enc EncodingCharacters, baseOffset int) (Segment, error) {
 	id := line
 	if len(line) >= 3 {
 		id = line[:3]
 	}
 
-	if bytes.Equal(id, []byte("MSH")) {
-		return parseMSHSegment(line, term, enc, baseOffset)
+	if hasDelimiterFields(string(id)) {
+		return parseHeaderSegment(string(id), line, term, enc, baseOffset)
 	}
 
 	fields := splitFields(line, enc)
 	return Segment{Fields: fields, term: term}, nil
 }
 
-// parseMSHSegment handles the MSH header's indexing quirk: Fields[0] is "MSH",
-// Fields[1] is the field separator (MSH-1, a single byte), Fields[2] is the
-// encoding characters (MSH-2), and the remaining fields split normally from
-// after MSH-2's terminating field separator.
-func parseMSHSegment(line []byte, term string, enc EncodingCharacters, baseOffset int) (Segment, error) {
-	// line[3] is the field separator; MSH-2 runs to the next field separator.
+// hasDelimiterFields reports whether a segment carries the header delimiter
+// quirk: field 1 is the field separator itself and field 2 is the encoding
+// characters. MSH, BHS, and FHS are the only segments with this structure, so a
+// caller can index their header fields by HL7 position the same way for all
+// three.
+func hasDelimiterFields(id string) bool {
+	switch id {
+	case "MSH", "BHS", "FHS":
+		return true
+	default:
+		return false
+	}
+}
+
+// parseHeaderSegment handles the indexing quirk shared by MSH, BHS, and FHS:
+// Fields[0] is the segment ID, Fields[1] is the field separator (field 1, a
+// single byte), Fields[2] is the encoding characters (field 2), and the
+// remaining fields split normally from after field 2's terminating field
+// separator.
+func parseHeaderSegment(id string, line []byte, term string, enc EncodingCharacters, baseOffset int) (Segment, error) {
+	// line[3] is the field separator; field 2 runs to the next field separator.
 	if len(line) < 4 {
-		return Segment{}, truncatedAt(baseOffset+len(line), "MSH segment truncated before MSH-1 field separator")
+		return Segment{}, truncatedAt(baseOffset+len(line), id+" segment truncated before its field separator")
 	}
 	fieldSep := line[3]
 	rel := indexByte(line[4:], fieldSep)
 	if rel < 0 {
-		return Segment{}, truncatedAt(baseOffset+len(line), "MSH segment truncated before MSH-2 is terminated")
+		return Segment{}, truncatedAt(baseOffset+len(line), id+" segment truncated before its encoding characters are terminated")
 	}
 	end := 4 + rel
 
 	fields := []Field{
-		leafField(line[:3]),    // MSH-0: "MSH"
-		leafField(line[3:4]),   // MSH-1: the field separator, verbatim
-		leafField(line[4:end]), // MSH-2: the encoding characters, verbatim
+		leafField(line[:3]),    // field 0: the segment ID
+		leafField(line[3:4]),   // field 1: the field separator, verbatim
+		leafField(line[4:end]), // field 2: the encoding characters, verbatim
 	}
-	// line[end] is the field separator that terminates MSH-2; fields from MSH-3
-	// onward are everything after it, split normally.
+	// line[end] is the field separator that terminates field 2; fields from
+	// field 3 onward are everything after it, split normally.
 	rest := line[end+1:]
 	fields = append(fields, splitFields(rest, enc)...)
 

@@ -172,11 +172,13 @@ func (e EVN) Segment(enc EncodingCharacters) Segment {
 
 // PV1 — patient visit. Only the fields the encounter converter reads are
 // modelled. VisitNumber is at PV1-19 (not PV1-18 — a common off-by-one).
+// AttendingDoctor is XCN, not XPN: PV1-7 leads with the provider's ID number,
+// so reading it as a name composite would mistake that ID for a family name.
 type PV1 struct {
 	SetID            string // PV1-1
 	PatientClass     string // PV1-2, e.g. "I" inpatient, "O" outpatient
 	AssignedLocation string // PV1-3 (PL, rendered)
-	AttendingDoctor  XPN    // PV1-7
+	AttendingDoctor  XCN    // PV1-7
 	VisitNumber      CX     // PV1-19
 }
 
@@ -189,7 +191,7 @@ func ParsePV1(s Segment) (PV1, error) {
 		SetID:            s.field(1).raw(),
 		PatientClass:     s.field(2).raw(),
 		AssignedLocation: renderField(s.field(3)),
-		AttendingDoctor:  firstXPN(s.field(7)),
+		AttendingDoctor:  firstXCN(s.field(7)),
 		VisitNumber:      firstCX(s.field(19)),
 	}, nil
 }
@@ -408,6 +410,15 @@ func firstXPN(f Field) XPN {
 		return XPN{}
 	}
 	return parseXPN(f.Repetitions[0])
+}
+
+// firstXCN parses the first repetition of f as an XCN, the provider-identity
+// composite whose leading component is an ID number rather than a family name.
+func firstXCN(f Field) XCN {
+	if len(f.Repetitions) == 0 {
+		return XCN{}
+	}
+	return parseXCN(f.Repetitions[0])
 }
 
 // firstCWE parses the first repetition of f as a CWE.

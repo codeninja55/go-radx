@@ -198,6 +198,64 @@ func (x XPN) repetition() Repetition {
 	})
 }
 
+// XCN — extended composite ID number and name for persons. It leads with an ID
+// number (XCN-1), unlike XPN which leads with the family name, so the
+// provider-identity fields PV1-7/8/9/17, OBR-16, and ORC-12 must be read as XCN:
+// reading them as XPN silently treats the provider's ID number as a family name.
+// Only the components the radiology workflow reads are modelled; later XCN
+// components remain reachable through the generic tree.
+type XCN struct {
+	IDNumber           string // XCN-1
+	Family             string // XCN-2 (family name)
+	Given              string // XCN-3
+	Middle             string // XCN-4 (second and further given names)
+	Suffix             string // XCN-5
+	Prefix             string // XCN-6
+	Degree             string // XCN-7
+	AssigningAuthority HD     // XCN-9
+	NameTypeCode       string // XCN-10, e.g. "L" legal
+	IdentifierTypeCode string // XCN-13, e.g. "DN" doctor number
+}
+
+// parseXCN reads an XCN from one repetition of a field. XCN-9 (assigning
+// authority) is itself an HD whose subcomponents are the namespace/universal-ID
+// parts, the same nesting CX-4 uses.
+func parseXCN(r Repetition) XCN {
+	return XCN{
+		IDNumber:           r.component(1),
+		Family:             r.component(2),
+		Given:              r.component(3),
+		Middle:             r.component(4),
+		Suffix:             r.component(5),
+		Prefix:             r.component(6),
+		Degree:             r.component(7),
+		AssigningAuthority: parseHDFromComponent(r, 9),
+		NameTypeCode:       r.component(10),
+		IdentifierTypeCode: r.component(13),
+	}
+}
+
+// repetition renders an XCN, with its assigning authority (XCN-9) as a nested HD
+// in the ninth component's subcomponents, and the identifier type code held at
+// component 13 so a rendered value re-parses equal.
+func (x XCN) repetition() Repetition {
+	return componentsToRepetition([][]string{
+		{x.IDNumber},
+		{x.Family},
+		{x.Given},
+		{x.Middle},
+		{x.Suffix},
+		{x.Prefix},
+		{x.Degree},
+		{""}, // XCN-8 (source table) is not modelled
+		x.AssigningAuthority.subcomponents(),
+		{x.NameTypeCode},
+		{""}, // XCN-11 (identifier check digit) is not modelled
+		{""}, // XCN-12 (check digit scheme) is not modelled
+		{x.IdentifierTypeCode},
+	})
+}
+
 // XAD — extended address (PID-11, ...). Only the modelled postal components are
 // read; HL7's later XAD components (address type, geo coordinates, ...) are not.
 type XAD struct {

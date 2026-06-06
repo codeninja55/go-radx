@@ -59,8 +59,8 @@ func (m *Message) String() string {
 
 // render writes the segment and its terminator to buf using enc.
 func (s Segment) render(buf *bytes.Buffer, enc EncodingCharacters) {
-	if s.ID() == "MSH" {
-		s.renderMSH(buf, enc)
+	if hasDelimiterFields(s.ID()) {
+		s.renderHeader(buf, enc)
 	} else {
 		for i := range s.Fields {
 			if i > 0 {
@@ -72,11 +72,12 @@ func (s Segment) render(buf *bytes.Buffer, enc EncodingCharacters) {
 	buf.WriteString(s.term)
 }
 
-// renderMSH reproduces the MSH header's quirk: Fields[1] (the field separator)
-// and Fields[2] (the encoding characters) are emitted verbatim, and the field
-// separator that ordinarily joins them is implicit in Fields[1] itself.
-func (s Segment) renderMSH(buf *bytes.Buffer, enc EncodingCharacters) {
-	buf.WriteString(s.Fields[0].raw()) // "MSH"
+// renderHeader reproduces the delimiter quirk shared by MSH, BHS, and FHS:
+// Fields[1] (the field separator) and Fields[2] (the encoding characters) are
+// emitted verbatim, and the field separator that ordinarily joins them is
+// implicit in Fields[1] itself.
+func (s Segment) renderHeader(buf *bytes.Buffer, enc EncodingCharacters) {
+	buf.WriteString(s.Fields[0].raw()) // the segment ID
 	if len(s.Fields) > 1 {
 		buf.WriteString(s.Fields[1].raw()) // the field separator, verbatim
 	}
