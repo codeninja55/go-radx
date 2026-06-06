@@ -18,8 +18,10 @@ const comprehensiveSRSOPClass = "1.2.840.10008.5.1.4.1.1.88.33"
 // DiagnosticReportToSR converts a FHIR R5 DiagnosticReport together with its
 // Observations back to a DICOM Structured Report document, the inverse of
 // SRToDiagnosticReportR5. The report's code becomes the root CONTAINER's Concept Name
-// Code Sequence; the conclusion becomes a TEXT child; each Observation becomes a
-// measurement leaf through observationToContentItem. The document-level status,
+// Code Sequence; the conclusion becomes a bare (un-coded) TEXT child; each Observation
+// becomes a measurement leaf through observationToContentItem (a string Observation
+// becomes a concept-named TEXT leaf, so it re-imports as an Observation, not narrative).
+// The document-level status,
 // content date/time, and patient identity are written from the report's status,
 // effectiveDateTime, and subject identifier.
 //
@@ -49,10 +51,14 @@ func DiagnosticReportToSR(dr *r5.DiagnosticReport, observations []*r5.Observatio
 	}
 
 	if dr.Conclusion != nil && strings.TrimSpace(*dr.Conclusion) != "" {
+		// The conclusion is emitted as a bare (un-coded) TEXT child: the forward path
+		// routes a TEXT leaf with no Concept Name Code Sequence to
+		// DiagnosticReport.conclusion, while a concept-named TEXT leaf is an Observation.
+		// Giving the conclusion a concept name would re-import it as a string Observation
+		// and lose the conclusion, so it carries none.
 		root.Children = append(root.Children, dicom.ContentItem{
 			ValueType:    dicom.ValueTypeText,
 			Relationship: dicom.RelationshipContains,
-			ConceptName:  rootConcept,
 			Text:         *dr.Conclusion,
 		})
 	}

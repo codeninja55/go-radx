@@ -29,10 +29,12 @@ func TestSRToDiagnosticReportR5(t *testing.T) {
 		t.Fatal("DiagnosticReport is nil")
 	}
 
-	// The Basic Text SR fixture carries two CODE leaves; the measurement walk emits one
-	// Observation per coded/measured leaf and links each from DiagnosticReport.result.
-	if len(observations) != 2 {
-		t.Errorf("len(observations) = %d, want 2 (one per CODE leaf)", len(observations))
+	// The Basic Text SR fixture carries two CODE leaves and two concept-named TEXT leaves
+	// (a Recording Observer's Organization Name and a Report Text); each names what its
+	// value states, so the measurement walk emits one Observation per coded/measured/
+	// concept-named-text leaf and links each from DiagnosticReport.result.
+	if len(observations) != 4 {
+		t.Errorf("len(observations) = %d, want 4 (two CODE leaves and two concept-named TEXT leaves)", len(observations))
 	}
 	if len(dr.Result) != len(observations) {
 		t.Errorf("len(Result) = %d, want %d", len(dr.Result), len(observations))
@@ -74,9 +76,11 @@ func TestSRToDiagnosticReportR5(t *testing.T) {
 		t.Errorf("EffectiveDateTime = %v, want 2005-05-30 (time dropped for lack of offset)", dr.EffectiveDateTime)
 	}
 
-	// The TEXT items concatenate into the conclusion.
-	if dr.Conclusion == nil || *dr.Conclusion == "" {
-		t.Errorf("Conclusion not populated from TEXT items: %+v", dr.Conclusion)
+	// Every TEXT leaf in this fixture carries a Concept Name Code Sequence, so each is a
+	// string-valued Observation, not document narrative. The fixture has no bare
+	// (un-coded) TEXT leaf, so there is no conclusion.
+	if dr.Conclusion != nil {
+		t.Errorf("Conclusion = %v, want nil (every TEXT leaf is concept-named, so none is narrative)", dr.Conclusion)
 	}
 
 	// The fixture has no PatientID, so subject is left unset and recorded.

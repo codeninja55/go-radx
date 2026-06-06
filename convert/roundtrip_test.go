@@ -345,6 +345,57 @@ func TestOBXRoundTripPreservesTextOnlyIdentifier(t *testing.T) {
 	}
 }
 
+// TestSRRoundTripStringObservationStaysObservation confirms a string-valued Observation
+// survives DiagnosticReport -> SR -> DiagnosticReport as an Observation, not as report
+// narrative. A concept-named TEXT content item is a measurement Observation, so the
+// reverse path must emit the string Observation with its concept name and the forward
+// path must re-import it as a valueString Observation rather than folding it into
+// DiagnosticReport.conclusion.
+func TestSRRoundTripStringObservationStaysObservation(t *testing.T) {
+	drCode := &r5.CodeableConcept{
+		Coding: []r5.Coding{{System: strPtr("http://loinc.org"), Code: strPtr("11528-7"), Display: strPtr("Radiology Report")}},
+	}
+	status := r5.DiagnosticReportStatusFinal
+	conclusion := "Overall impression: unremarkable."
+	dr := &r5.DiagnosticReport{Code: drCode, Status: &status, Conclusion: &conclusion}
+
+	stringObs := &r5.Observation{Code: numConcept()}
+	stringObs.SetValueString(r5.FHIRString("Solitary pulmonary nodule."))
+
+	sr, _, err := DiagnosticReportToSR(dr, []*r5.Observation{stringObs}, WithUIDRoot(roundTripUIDRoot))
+	if err != nil {
+		t.Fatalf("reverse DiagnosticReportToSR: %v", err)
+	}
+
+	dr2, observations2, _, err := SRToDiagnosticReportR5(sr)
+	if err != nil {
+		t.Fatalf("forward SRToDiagnosticReportR5: %v", err)
+	}
+
+	// The string Observation must come back as an Observation with the same valueString,
+	// not be merged into the conclusion.
+	var got *r5.Observation
+	for _, o := range observations2 {
+		if v, ok := o.Value(); ok {
+			if s, isStr := v.(r5.FHIRString); isStr && string(s) == "Solitary pulmonary nodule." {
+				got = o
+			}
+		}
+	}
+	if got == nil {
+		t.Fatalf("the string Observation did not survive the round trip as an Observation; observations=%d conclusion=%v",
+			len(observations2), dr2.Conclusion)
+	}
+	if !sameConcept(got.Code, stringObs.Code) {
+		t.Errorf("string Observation code lost across round trip: %+v -> %+v", stringObs.Code, got.Code)
+	}
+
+	// The bare conclusion still routes to DiagnosticReport.conclusion, not an Observation.
+	if dr2.Conclusion == nil || *dr2.Conclusion != conclusion {
+		t.Errorf("conclusion lost across round trip: %v -> %v", conclusion, dr2.Conclusion)
+	}
+}
+
 // renderOBX runs the reverse converter and renders the OBX to its wire line through the
 // hl7v2 message renderer, so the assertion exercises the real serialisation path.
 func renderOBX(t *testing.T, o *r5.Observation) string {

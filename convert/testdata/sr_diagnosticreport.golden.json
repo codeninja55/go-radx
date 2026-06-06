@@ -42,14 +42,33 @@
       },
       {
         "reference": "urn:uuid:7e50e944-e325-5c28-bd4b-d6ebc0d45600"
+      },
+      {
+        "reference": "urn:uuid:8209b603-38fe-5378-a884-14ef5c8e4161"
       }
     ],
-    "conclusion": "Solitary pulmonary nodule."
+    "conclusion": "No acute findings."
   },
   "observations": [
     {
       "resourceType": "Observation",
       "id": "aaa0cb85-d861-5a10-a563-e1cc36226c7d",
+      "status": "final",
+      "code": {
+        "coding": [
+          {
+            "system": "http://dicom.nema.org/resources/ontology/DCM",
+            "code": "121071",
+            "display": "Finding"
+          }
+        ],
+        "text": "Finding"
+      },
+      "valueString": "Solitary pulmonary nodule."
+    },
+    {
+      "resourceType": "Observation",
+      "id": "9e572b43-1435-5807-8c88-699ce84511f4",
       "status": "final",
       "code": {
         "coding": [
@@ -74,7 +93,7 @@
     },
     {
       "resourceType": "Observation",
-      "id": "9e572b43-1435-5807-8c88-699ce84511f4",
+      "id": "858f01a6-2fe5-5515-9b81-e47cb5279bb1",
       "status": "final",
       "code": {
         "coding": [
@@ -95,7 +114,7 @@
     },
     {
       "resourceType": "Observation",
-      "id": "858f01a6-2fe5-5515-9b81-e47cb5279bb1",
+      "id": "7e50e944-e325-5c28-bd4b-d6ebc0d45600",
       "status": "final",
       "code": {
         "coding": [
@@ -111,7 +130,7 @@
     },
     {
       "resourceType": "Observation",
-      "id": "7e50e944-e325-5c28-bd4b-d6ebc0d45600",
+      "id": "8209b603-38fe-5378-a884-14ef5c8e4161",
       "status": "final",
       "code": {
         "coding": [

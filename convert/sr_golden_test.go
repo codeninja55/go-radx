@@ -16,12 +16,14 @@ import (
 // updateGolden regenerates the golden files instead of asserting against them.
 var updateGolden = flag.Bool("update", false, "regenerate golden test files")
 
-// measurementSR builds an in-memory Comprehensive SR document with a narrative TEXT
-// item, a coded CODE item, a NUM measurement, a DATETIME with no inline offset, and a
-// TIME item, plus the document-level identity, status, modality, and timezone offset a
-// conformant SR carries. The DATETIME exercises the document-level
-// TimezoneOffsetFromUTC fallback and the TIME exercises valueTime. It is the fixture
-// for the SR -> DiagnosticReport + Observations golden conversion.
+// measurementSR builds an in-memory Comprehensive SR document with a concept-named TEXT
+// finding (a string-valued Observation), a coded CODE item, a NUM measurement, a
+// DATETIME with no inline offset, a TIME item, and a bare (un-coded) TEXT conclusion,
+// plus the document-level identity, status, modality, and timezone offset a conformant
+// SR carries. The concept-named TEXT exercises the string-Observation classification and
+// the bare TEXT exercises the narrative conclusion; the DATETIME exercises the
+// document-level TimezoneOffsetFromUTC fallback and the TIME exercises valueTime. It is
+// the fixture for the SR -> DiagnosticReport + Observations golden conversion.
 func measurementSR(t *testing.T) *dicom.DataSet {
 	t.Helper()
 	value, err := dicom.ParseDecimal("12.5")
@@ -56,6 +58,13 @@ func measurementSR(t *testing.T) *dicom.DataSet {
 				Relationship: dicom.RelationshipContains,
 				ConceptName:  dicom.ConceptNameCode{CodeValue: "111526", CodingSchemeDesignator: "DCM", CodeMeaning: "DateTime Started"},
 				DateTime:     mustDT(t, "20050530081530"),
+			},
+			{
+				// A bare (un-coded) TEXT leaf is the document narrative, mapped to
+				// DiagnosticReport.conclusion rather than a string Observation.
+				ValueType:    dicom.ValueTypeText,
+				Relationship: dicom.RelationshipContains,
+				Text:         "No acute findings.",
 			},
 		},
 	}
@@ -179,8 +188,8 @@ func TestSRToDiagnosticReportR5LinksObservations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SRToDiagnosticReportR5: %v", err)
 	}
-	if len(observations) != 4 {
-		t.Fatalf("len(observations) = %d, want 4 (CODE, NUM, DATETIME, TIME leaves; TEXT is the conclusion)", len(observations))
+	if len(observations) != 5 {
+		t.Fatalf("len(observations) = %d, want 5 (concept-named TEXT finding, CODE, NUM, DATETIME, TIME leaves; the bare TEXT is the conclusion)", len(observations))
 	}
 	if len(dr.Result) != len(observations) {
 		t.Fatalf("len(Result) = %d, want %d", len(dr.Result), len(observations))
