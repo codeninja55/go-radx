@@ -89,8 +89,8 @@ func (m *MPPS) Create(ctx context.Context, attrs *dicom.DataSet) (dicom.UID, Sta
 	if released {
 		return "", Status{}, &AssociationError{Kind: AssociationNotEstablished, Detail: "MPPS Create on a released association"}
 	}
-	if attrs == nil {
-		return "", Status{}, &ValidationError{Detail: "MPPS Create requires a non-nil attribute set for the N-CREATE data set"}
+	if attrs == nil || attrs.Len() == 0 {
+		return "", Status{}, &ValidationError{Detail: "MPPS Create requires a non-empty attribute set for the N-CREATE data set"}
 	}
 
 	pcID, ts, ok := a.contextForQuery(modalityPerformedStepSOPClass)
@@ -180,8 +180,8 @@ func (m *MPPS) Set(ctx context.Context, instanceUID dicom.UID, attrs *dicom.Data
 	if instanceUID == "" {
 		return Status{}, &ValidationError{Detail: "MPPS Set requires the SOP Instance UID of the procedure step to update"}
 	}
-	if attrs == nil {
-		return Status{}, &ValidationError{Detail: "MPPS Set requires a non-nil attribute set for the N-SET data set"}
+	if attrs == nil || attrs.Len() == 0 {
+		return Status{}, &ValidationError{Detail: "MPPS Set requires a non-empty attribute set for the N-SET data set"}
 	}
 
 	pcID, ts, ok := a.contextForQuery(modalityPerformedStepSOPClass)

@@ -385,6 +385,11 @@ func TestMPPSCreateRejectsEmptyAttributes(t *testing.T) {
 	if _, _, err := assoc.MPPS().Create(ctx, nil); err == nil {
 		t.Error("MPPS Create should reject a nil attribute set")
 	}
+	// A non-nil but empty data set carries none of the required MPPS attributes; it must be
+	// rejected before any N-CREATE reaches the peer, not sent as an empty object.
+	if _, _, err := assoc.MPPS().Create(ctx, dicom.NewDataSet()); err == nil {
+		t.Error("MPPS Create should reject an empty attribute set")
+	}
 	_ = assoc.Release(ctx)
 }
 

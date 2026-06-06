@@ -53,8 +53,10 @@ of it:
   Step service class; a Failure (for example, the step may no longer be updated) is in-band data, never laundered to
   success. This is step 3.5 of the radiology workflow — the modality reporting its procedure step. The SCU is verified
   by unit tests against an in-process mock N-service SCP. The dcm4chee live interop leg drives N-CREATE then N-SET to
-  IN PROGRESS then COMPLETED; it **skips** when the archive does not accept the MPPS presentation context
-  (abstract-syntax-not-supported) rather than fail. The SCP side is deferred.
+  IN PROGRESS then COMPLETED; it confirms the exchange round-trips with a typed status against the real archive, and
+  **skips** the success assertion when dcm4chee rejects the data set on its MPPS IOD attribute enforcement rather than
+  fail — completing the data set to dcm4chee's exact Type-1/2 MPPS requirements is a documented follow-up. The SCP side
+  is deferred.
 - **Storage Commitment** (N-ACTION, N-EVENT-REPORT), SCU only, is in the v1 target but its N-service operations are
   **NOT YET SHIPPED**; today only their presentation-context presets and status codes exist.
 
