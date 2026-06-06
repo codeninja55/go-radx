@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"strings"
@@ -45,6 +46,7 @@ type Server struct {
 	maxRequestBytes int64
 	maxParts        int
 	maxQueryResults int
+	retrieveURLBase string
 }
 
 // ServerOption configures a Server. There is no global configuration; every knob is an
@@ -88,6 +90,15 @@ func WithMaxRequestBytes(n int64) ServerOption {
 // WithMaxMultipartParts caps the number of parts in a STOW-RS body (default 10,000).
 func WithMaxMultipartParts(n int) ServerOption {
 	return func(s *Server) { s.maxParts = n }
+}
+
+// WithStoreRetrieveURLBase sets the absolute base URL the STOW-RS store response's Retrieve
+// URLs are rooted at, for example https://pacs.example.org/dicom-web. When unset, the base is
+// derived per request from its scheme and host, which is correct for a directly-addressed
+// server but wrong behind a reverse proxy that rewrites the public origin; set this to the
+// public DICOMweb root in that deployment so a returned Retrieve URL resolves from the client.
+func WithStoreRetrieveURLBase(base string) ServerOption {
+	return func(s *Server) { s.retrieveURLBase = strings.TrimRight(base, "/") }
 }
 
 // NewServer constructs a Server from the given options. With no address it binds
@@ -310,9 +321,40 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request, targetStudy
 	}
 	mr.MaxParts = s.maxParts
 
-	resp := dicom.NewDataSet()
-	var referenced, failed []*dicom.DataSet
+	// The multipart "type" parameter selects the STOW-RS variant (PS3.18 §10.5): a
+	// type="application/dicom" body carries whole Part 10 objects, while a
+	// type="application/dicom+json" body carries one metadata part plus separate bulkdata
+	// parts the metadata references. application/dicom+xml metadata is deferred.
+	switch storeBodyType(r.Header.Get("Content-Type")) {
+	case mediaTypeDICOMJSON:
+		s.storeMetadataBulkData(w, r, mr, targetStudy)
+	default:
+		s.storeDICOMParts(w, r, mr, targetStudy)
+	}
+}
 
+// storeBodyType returns the related body's root media type from the multipart "type"
+// parameter, lower-cased; an absent or unparseable parameter defaults to application/dicom,
+// the whole-object STOW variant.
+func storeBodyType(contentType string) string {
+	_, params, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return mediaTypeDICOM
+	}
+	t := strings.ToLower(strings.TrimSpace(params["type"]))
+	if t == "" {
+		return mediaTypeDICOM
+	}
+	return t
+}
+
+// storeDICOMParts processes the whole-object STOW variant: each application/dicom part is a
+// complete Part 10 instance. Accepted instances carry their Retrieve URL (and a Warning Reason
+// when the backend warned); rejected instances carry their Failure Reason. The HTTP status
+// follows PS3.18 §10.5.3 (200/202/409), fail-closed so a partial store is never read as a
+// clean success (PRD §9.2).
+func (s *Server) storeDICOMParts(w http.ResponseWriter, r *http.Request, mr *MultipartReader, targetStudy string) {
+	b := newStoreResponseBuilder(s.storeRetrieveURLBase(r))
 	for {
 		ct, part, perr := mr.NextPart()
 		if errors.Is(perr, io.EOF) {
@@ -323,10 +365,10 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request, targetStudy
 			return
 		}
 		if mt := mediaTypeOf(ct); mt != mediaTypeDICOM {
-			// A non-application/dicom part cannot be stored in this slice; drain and reject.
+			// A non-application/dicom part cannot be stored in this variant; drain and reject.
 			_, _ = io.Copy(io.Discard, part)
 			s.writeProblem(w, r, http.StatusUnsupportedMediaType, ErrUnsupported,
-				"STOW-RS parts must be application/dicom")
+				"STOW-RS application/dicom parts must be application/dicom")
 			return
 		}
 
@@ -344,44 +386,98 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request, targetStudy
 			s.writeProblem(w, r, http.StatusBadRequest, err, "a STOW-RS part has no SOP identity")
 			return
 		}
+		s.storeOne(r, b, ds, targetStudy)
+	}
+	s.writeStoreResponse(w, r, b)
+}
 
-		if targetStudy != "" {
-			if study, _ := ds.GetString(dicom.TagStudyInstanceUID); study != targetStudy {
-				// The instance belongs to a different study than the URL targets; reject it
-				// rather than store it under the wrong hierarchy (PS3.18 §10.5.1).
-				failed = append(failed, failedItem(ds, failureReasonNotInStudy))
-				continue
-			}
+// storeOne stores one decoded instance into the response builder: it rejects an instance that
+// does not belong to a constrained target study, then stores the rest through the backend,
+// recording an accept (with any Warning Reason) or a failure. The caller has already rejected
+// an instance with no SOP identity.
+func (s *Server) storeOne(r *http.Request, b *storeResponseBuilder, ds *dicom.DataSet, targetStudy string) {
+	if targetStudy != "" {
+		if study, _ := ds.GetString(dicom.TagStudyInstanceUID); study != targetStudy {
+			// The instance belongs to a different study than the URL targets; reject it rather
+			// than store it under the wrong hierarchy (PS3.18 §10.5.1).
+			b.reject(ds, failureReasonNotInStudy)
+			return
 		}
+	}
+	res, serr := s.storeInstance(r.Context(), ds)
+	if serr != nil {
+		b.reject(ds, storeFailureReason(serr))
+		return
+	}
+	b.accept(ds, res.Warning)
+}
 
-		if serr := s.store.Store(r.Context(), ds); serr != nil {
-			failed = append(failed, failedItem(ds, storeFailureReason(serr)))
+// storeMetadataBulkData processes the metadata-plus-bulkdata STOW variant (PS3.18 §10.5): a
+// type="application/dicom+json" body carries a metadata part (a DICOM-JSON array of instances)
+// plus separate bulkdata parts the metadata references by BulkDataURI. The bulkdata parts are
+// collected keyed by their Content-Location (or Content-ID); each metadata instance is then
+// reassembled by resolving its references against that map and stored. A reference that names
+// no part fails that instance into the Failed SOP Sequence rather than storing a partial
+// object (PRD §9.2).
+func (s *Server) storeMetadataBulkData(w http.ResponseWriter, r *http.Request, mr *MultipartReader, targetStudy string) {
+	metadata, bulk, perr := readMetadataBulkParts(mr)
+	if perr != nil {
+		s.writeProblem(w, r, statusForError(perr), perr, "cannot read the metadata+bulkdata body")
+		return
+	}
+	if len(metadata) == 0 {
+		s.writeProblem(w, r, http.StatusBadRequest, ErrInvalidResource,
+			"the metadata+bulkdata body carried no application/dicom+json metadata part")
+		return
+	}
+
+	docs, derr := splitJSONInstances(metadata)
+	if derr != nil {
+		s.writeProblem(w, r, statusForError(derr), derr, "the STOW-RS metadata part is not valid DICOM JSON")
+		return
+	}
+
+	resolver := func(_ context.Context, uri BulkDataURI) ([]byte, error) {
+		raw, ok := bulk[string(uri)]
+		if !ok {
+			return nil, fmt.Errorf("%w: bulkdata reference resolves to no part", ErrInvalidResource)
+		}
+		return raw, nil
+	}
+
+	b := newStoreResponseBuilder(s.storeRetrieveURLBase(r))
+	for _, doc := range docs {
+		ds, err := UnmarshalJSON(doc, WithBulkDataResolver(resolver), WithResolverContext(r.Context()))
+		if err != nil {
+			// A metadata instance whose bulkdata reference is missing or whose JSON is
+			// malformed cannot be stored intact; reject it without echoing the document
+			// (PRD §9.1, §9.2). With no SOP identity it is recorded as a top-level Other
+			// failure rather than a Failed item with empty UIDs.
+			b.otherFailure(0x0110)
 			continue
 		}
-		referenced = append(referenced, referencedItem(ds))
+		if err := requireSOPIdentity(ds); err != nil {
+			b.otherFailure(0x0110)
+			continue
+		}
+		s.storeOne(r, b, ds, targetStudy)
 	}
+	s.writeStoreResponse(w, r, b)
+}
 
-	if len(referenced) > 0 {
-		resp.Set(dicom.Element{
-			Tag: dicom.TagReferencedSOPSequence, VR: dicom.VRSQ,
-			Value: dicom.NewSequenceValue(dicom.NewSequence(referenced...)),
-		})
-	}
-	if len(failed) > 0 {
-		resp.Set(dicom.Element{
-			Tag: dicom.TagFailedSOPSequence, VR: dicom.VRSQ,
-			Value: dicom.NewSequenceValue(dicom.NewSequence(failed...)),
-		})
-	}
-
+// writeStoreResponse renders the accumulated store response and writes it with the STOW-RS
+// status. The status follows the accepted/failed counts (PS3.18 §10.5.3); a top-level Other
+// failure with nothing accepted is reported as 409 Conflict.
+func (s *Server) writeStoreResponse(w http.ResponseWriter, r *http.Request, b *storeResponseBuilder) {
+	resp := b.build()
 	out, merr := MarshalJSON(resp)
 	if merr != nil {
 		s.writeProblem(w, r, http.StatusInternalServerError, merr, "cannot encode the store response")
 		return
 	}
-
+	accepted, failed := b.counts()
 	w.Header().Set("Content-Type", mediaTypeDICOMJSON)
-	w.WriteHeader(storeStatus(len(referenced), len(failed)))
+	w.WriteHeader(storeStatus(accepted, failed))
 	_, _ = w.Write(out)
 }
 

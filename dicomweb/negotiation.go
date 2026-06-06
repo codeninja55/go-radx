@@ -3,6 +3,7 @@ package dicomweb
 import (
 	"fmt"
 	"mime"
+	"strconv"
 	"strings"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -281,8 +282,10 @@ func negotiateDICOMJSON(accept string) bool {
 // A media range that fails to parse is skipped rather than treated as a match, so a
 // malformed Accept never silently widens what is served.
 //
-// TODO: M8 — honour the q-value: a range with q=0 explicitly refuses that representation
-// and full quality-ordered selection across ranges is out of this thin slice's scope.
+// A range carrying q=0 explicitly refuses that representation (RFC 9110 §12.4.2): a matching
+// range with q=0 does not admit the representation, so an Accept of "application/dicom;q=0"
+// is unacceptable even though the media type otherwise matches. Full quality-ordered
+// selection across competing ranges is out of scope; only the q=0 refusal is honoured.
 func negotiate(accept string, match func(mt string, params map[string]string) bool) bool {
 	accept = strings.TrimSpace(accept)
 	if accept == "" {
@@ -297,11 +300,32 @@ func negotiate(accept string, match func(mt string, params map[string]string) bo
 		if err != nil {
 			continue
 		}
-		if match(strings.ToLower(mt), params) {
-			return true
+		if !match(strings.ToLower(mt), params) {
+			continue
 		}
+		if isRefused(params) {
+			// The range matches the representation but refuses it (q=0); it does not admit
+			// the representation. A later range may still accept it, so keep scanning.
+			continue
+		}
+		return true
 	}
 	return false
+}
+
+// isRefused reports whether a media range's q-value is zero (a q=0 refusal, RFC 9110
+// §12.4.2). An absent or unparseable q parameter is treated as q=1 (not refused), so a
+// malformed q never silently refuses a representation the client did not refuse.
+func isRefused(params map[string]string) bool {
+	q, ok := params["q"]
+	if !ok {
+		return false
+	}
+	v, err := strconv.ParseFloat(strings.TrimSpace(q), 64)
+	if err != nil {
+		return false
+	}
+	return v == 0
 }
 
 // isMultipartRelated reports whether a Content-Type names multipart/related, the framing

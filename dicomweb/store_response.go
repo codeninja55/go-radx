@@ -20,21 +20,29 @@ type StoreResponse struct {
 	// Failed lists the instances the origin rejected, each with its Failure Reason
 	// (Failed SOP Sequence, 0008,1198).
 	Failed []dicom.FailedSOPInstance
+	// OtherFailure is the response's top-level Failure Reason (0008,1197), set when the
+	// origin reported a failure that belongs to no single instance (PS3.18 §10.5.3.2 "Other
+	// failures"). Zero when the response named no top-level failure.
+	OtherFailure uint16
 }
 
 // StoredInstance is an accepted STOW-RS instance: the canonical referenced SOP Class /
-// SOP Instance pair plus the per-instance Retrieve URL (0008,1190) the origin assigns.
-// Embedding the shared dicom type keeps the SOP UID vocabulary identical to dimse and
-// dicom without re-declaring it.
+// SOP Instance pair plus the per-instance Retrieve URL (0008,1190) the origin assigns and an
+// optional Warning Reason (0008,1196). A non-zero WarningReason means the instance was stored
+// with a caveat (for example a coerced data element or a duplicate that already existed), so a
+// caller is never misled into thinking the stored object is byte-identical to what it sent.
+// Embedding the shared dicom type keeps the SOP UID vocabulary identical to dimse and dicom
+// without re-declaring it.
 type StoredInstance struct {
 	dicom.ReferencedSOPInstance
-	RetrieveURL string
+	RetrieveURL   string
+	WarningReason uint16
 }
 
-// IsComplete reports whether every posted instance was accepted: true only when no
-// instance failed.
+// IsComplete reports whether every posted instance was accepted: true only when no instance
+// failed and the response named no top-level Other failure.
 func (r *StoreResponse) IsComplete() bool {
-	return r != nil && len(r.Failed) == 0
+	return r != nil && len(r.Failed) == 0 && r.OtherFailure == 0
 }
 
 // parseStoreResponse decodes a STOW-RS store-response dataset (already unmarshalled from
@@ -49,17 +57,22 @@ func parseStoreResponse(ds *dicom.DataSet) *StoreResponse {
 	if url, ok := ds.GetString(dicom.TagRetrieveURL); ok {
 		resp.RetrieveURL = url
 	}
+	if reason, ok := ds.GetInt(dicom.TagFailureReason); ok {
+		resp.OtherFailure = uint16(reason)
+	}
 	if seq, ok := ds.GetSequence(dicom.TagReferencedSOPSequence); ok {
 		for item := range seq.Items() {
 			class, _ := item.DataSet.GetString(dicom.TagReferencedSOPClassUID)
 			instance, _ := item.DataSet.GetString(dicom.TagReferencedSOPInstanceUID)
 			url, _ := item.DataSet.GetString(dicom.TagRetrieveURL)
+			warn, _ := item.DataSet.GetInt(dicom.TagWarningReason)
 			resp.Referenced = append(resp.Referenced, StoredInstance{
 				ReferencedSOPInstance: dicom.ReferencedSOPInstance{
 					SOPClassUID:    dicom.SOPClassUID(class),
 					SOPInstanceUID: dicom.SOPInstanceUID(instance),
 				},
-				RetrieveURL: url,
+				RetrieveURL:   url,
+				WarningReason: uint16(warn),
 			})
 		}
 	}
