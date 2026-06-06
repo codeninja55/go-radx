@@ -44,10 +44,11 @@ In scope for v1:
 - Acknowledgement construction (`BuildACK`) honouring original-mode and enhanced-mode acknowledgement codes.
 
 > **Implementation status: PARTIAL.** This list is the v1 target. Of it, the parse tree, the typed segments and
-> composites, encoding-character derivation and `DTM` precision, Chapter 2 §2.10 escape/unescape, the typed `ORM` view,
-> and the `AckCode` enum with its predicates ship today. The typed `ADT`/`OMG`/`ORU`/`ACK` views, batch/file container
-> parsing, MLLP transport, and `BuildACK` are **NOT YET SHIPPED**; the per-section banners below mark exactly which
-> surface each describes.
+> composites, encoding-character derivation and `DTM` precision, Chapter 2 §2.10 escape/unescape, the typed `ORM`,
+> `ADT`, `ORU`, and `ACK` views, the `AckCode` enum with its predicates, message construction (`NewMessage` / `SetMSH` /
+> `AppendSegment` and the `MSH`/`PID`/`ORC`/`OBR` segment renderers), and `BuildACK` ship today. The typed `OMG` view,
+> batch/file container parsing, and MLLP transport are **NOT YET SHIPPED**; the per-section banners below mark exactly
+> which surface each describes.
 
 Out of scope for v1 is listed explicitly in [Conformance scope and limits](#conformance-scope-and-limits). Notably:
 HL7 v2 XML encoding, FHIR-based v2 representations, inline character-set switching inside escape sequences, the full
@@ -181,16 +182,19 @@ an unspecified time. The `Precision` enum and the resolving accessors are in the
 
 ### Acknowledgement (ACK) in scope
 
-> **Implementation status: PARTIAL.** The `AckCode` typed enum and its `IsPositive()` / `IsError()` / `IsReject()`
-> predicates ship today. `BuildACK` and the typed `ACK` message view are NOT YET SHIPPED; the spec-correct response
-> construction described below is the planned design.
+> **Implementation status: SHIPPED.** The `AckCode` typed enum with its `IsPositive()` / `IsError()` / `IsReject()`
+> predicates, the typed `ACK` message view (`AsACK`, `MSA()`, `Errors()`), and `BuildACK` for both original and enhanced
+> acknowledgement modes all ship today, verified against `python-hl7`'s `create_ack` field-swap.
 
 There is no "NACK" message in HL7 (glossary). A negative acknowledgement is an `ACK` whose `MSA-1` carries a rejecting
 code. go-radx models `AckCode` as a typed enum over HL7 Table 0008, covering both original-mode (`AA`/`AE`/`AR`) and
 enhanced-mode (`CA`/`CE`/`CR`) acknowledgement codes, with the predicates `IsPositive()` (AA or CA), `IsError()` (AE or
-CE), and `IsReject()` (AR or CR). `BuildACK` constructs the spec-correct `ACK` response per HL7 §2.9.2: it swaps
-sender/receiver application and facility, echoes the inbound control ID into `MSA-2`, mints a fresh `MSH-10` for the
-`ACK`, and sets `MSA-1` to the chosen code. Signatures are in the API reference.
+CE), and `IsReject()` (AR or CR). `BuildACK` constructs the spec-correct `ACK` response per HL7 §2.9.2: it swaps the
+sending and receiving application and facility (`MSH-3` with `MSH-5`, `MSH-4` with `MSH-6`), sets `MSH-9` to
+`ACK^<inbound trigger>^ACK`, mints a fresh `MSH-10` (the control-ID source is injectable for deterministic tests and
+defaults to a synthetic generator that never derives the ID from message content), echoes the inbound `MSH-10` into
+`MSA-2`, and sets `MSA-1` to the chosen code. A source message with no `MSH` returns a typed `*SegmentError` rather than
+producing a malformed reply. Signatures are in the API reference.
 
 ### MLLP transport in scope
 
@@ -222,8 +226,9 @@ reference.
 
 ## Supported message types and trigger events
 
-> **Implementation status: PARTIAL.** Of the message types in the table below, only `ORM` has a shipped typed view
-> today. `ADT`, `OMG`, `ORU`, and `ACK` are NOT YET SHIPPED as typed views; their rows describe the planned scope.
+> **Implementation status: PARTIAL.** Of the message types in the table below, `ORM`, `ADT`, `ORU`, and `ACK` have
+> shipped typed views (`AsORM` / `AsADT` / `AsORU` / `AsACK`) today. `OMG` is NOT YET SHIPPED as a typed view; its row
+> describes the planned scope.
 
 The following message types are typed and conformance-tested in v1. Other trigger events of these message types parse
 into the generic tree but do not get a dedicated typed view.

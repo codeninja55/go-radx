@@ -277,12 +277,15 @@ func ParseMSA(s Segment) (MSA, error) {
 	}, nil
 }
 
-// Segment renders the MSA back to a generic Segment.
+// Segment renders the MSA back to a generic Segment, escaping its leaf values on
+// write like the other renderers. MSA-3 is free diagnostic text, so an in-band
+// delimiter or a CR/LF in it is emitted as its escape sequence rather than
+// splitting the field, truncating the line, or forging a spurious segment break.
 func (m MSA) Segment(enc EncodingCharacters) Segment {
 	return buildSegment(enc, "MSA",
-		leaf(string(m.AckCode)), // MSA-1
-		leaf(m.ControlID),       // MSA-2
-		leaf(m.TextMessage),     // MSA-3
+		leaf(Escape(string(m.AckCode), enc)), // MSA-1
+		leaf(Escape(m.ControlID, enc)),       // MSA-2
+		leaf(Escape(m.TextMessage, enc)),     // MSA-3
 	)
 }
 
