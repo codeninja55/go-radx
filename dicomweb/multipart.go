@@ -33,8 +33,17 @@ func NewMultipartWriter(w io.Writer, rootType string) *MultipartWriter {
 // AddPart writes one body part with the given Content-Type, copying body to the output.
 // It returns any error from constructing the part header or copying the body.
 func (mw *MultipartWriter) AddPart(contentType string, body io.Reader) error {
-	header := make(textproto.MIMEHeader)
-	header.Set("Content-Type", contentType)
+	return mw.AddPartWithHeader(map[string]string{"Content-Type": contentType}, body)
+}
+
+// AddPartWithHeader writes one body part carrying the given MIME headers, copying body to the
+// output. It is used by the metadata+bulkdata STOW variant, where a bulkdata part is keyed to
+// its metadata reference by a Content-Location or Content-ID header alongside its Content-Type.
+func (mw *MultipartWriter) AddPartWithHeader(headers map[string]string, body io.Reader) error {
+	header := make(textproto.MIMEHeader, len(headers))
+	for k, v := range headers {
+		header.Set(k, v)
+	}
 	part, err := mw.w.CreatePart(header)
 	if err != nil {
 		return fmt.Errorf("dicomweb: create multipart part: %w", err)
@@ -145,6 +154,16 @@ func (mr *MultipartReader) NextPart() (contentType string, body io.Reader, err e
 	mr.current = &boundedPartReader{part: part, remaining: mr.MaxPartBytes, limit: mr.MaxPartBytes}
 	ct := part.Header.Get("Content-Type")
 	return ct, mr.current, nil
+}
+
+// PartHeader returns the MIME header of the part most recently returned by NextPart, or nil
+// before the first part. It exposes per-part headers such as Content-Location and Content-ID
+// that the metadata+bulkdata STOW variant uses to key bulkdata parts to their references.
+func (mr *MultipartReader) PartHeader() textproto.MIMEHeader {
+	if mr.current == nil {
+		return nil
+	}
+	return mr.current.part.Header
 }
 
 // boundedPartReader caps a single part's body at limit bytes and converts the
