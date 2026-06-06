@@ -355,5 +355,26 @@ func (a *Association) getPreflight(model dicom.SOPClassUID, level QueryLevel, st
 			Detail: "no accepted presentation context for Query/Retrieve model " + string(model),
 		}
 	}
+	if !a.hasGrantedStorageSCPRole() {
+		return &ValidationError{
+			Detail: "C-GET requires a negotiated Storage SCP role to receive sub-operation instances; " +
+				"propose Storage contexts with WithRoleSelection(RoleSelection{<storageUID>, SCPRole: true})",
+		}
+	}
 	return nil
+}
+
+// hasGrantedStorageSCPRole reports whether the acceptor granted the requestor the Storage SCP role
+// for at least one SOP Class (a NegotiatedRoles entry with SCPRole set). A same-association C-GET
+// cannot proceed without it: the requestor must act as the Storage SCP to receive the sub-operation
+// C-STOREs the SCP sends back (the acceptor then acts as the complementary Storage SCU). Without a
+// granted SCP role the requestor cannot accept those sub-operations and a real peer rejects or aborts,
+// so the preflight fails closed before any wire I/O rather than sending a C-GET that cannot complete.
+func (a *Association) hasGrantedStorageSCPRole() bool {
+	for _, role := range a.NegotiatedRoles() {
+		if role.SCPRole {
+			return true
+		}
+	}
+	return false
 }

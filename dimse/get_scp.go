@@ -89,9 +89,14 @@ func serveGetMessage(ctx context.Context, acc *acse.Acceptor, h GetHandler, cmd 
 		// C-STORE the matched instance back to the requestor on the SAME association as a sub-operation.
 		// A wire fault here breaks the association: end the retrieve with a terminal Failure rather than
 		// reporting partial progress over a connection that is gone (PRD §9.2/§9.4).
-		subStatus, storeErr := store.send(ctx, instance)
+		subStatus, canceled, storeErr := store.send(ctx, instance)
 		if storeErr != nil {
 			return storeErr
+		}
+		// The requestor sent a C-CANCEL-GET-RQ in place of the C-STORE-RSP: stop the loop and report the
+		// terminal Cancel status with the counts accumulated so far, leaving the association clean.
+		if canceled {
+			return sendGetResponse(ctx, acc, cmd, pcID, StatusGetCancel, counts)
 		}
 		switch {
 		case subStatus.IsWarning():
@@ -136,18 +141,26 @@ type getSubOperationStore struct {
 // send transmits one sub-operation C-STORE-RQ and reads its C-STORE-RSP on the acceptor association,
 // returning the requestor's status. A returned error is a wire/protocol fault (the association is
 // broken); a Failure-category status is in-band data the caller accumulates as a failed sub-operation,
-// never an error. A SOP Class with no accepted Storage context selects no context, so the instance
-// cannot be sent: it is reported as a failed sub-operation via a Storage failure status (fail-closed),
-// not a fault, so one unstorable instance does not break the whole retrieve.
-func (s *getSubOperationStore) send(ctx context.Context, ds *dicom.DataSet) (Status, error) {
+// never an error. A SOP Class with no accepted Storage context, OR an accepted context for which role
+// selection did not grant the requestor the Storage SCP role, selects no context: the instance cannot
+// be sent in a granted role, so it is reported as a failed sub-operation via a Storage failure status
+// (fail-closed) rather than transmitted as a C-STORE-RQ in the wrong role. One such instance does not
+// break the whole retrieve; the terminal status reflects the failure (PRD §9.2).
+//
+// The canceled return reports that the requestor interrupted the retrieve: instead of the C-STORE-RSP,
+// the read returned a C-CANCEL-RQ for this C-GET (the SCU broke its iterator mid-retrieve and sent a
+// C-CANCEL-GET-RQ on the same association, PS3.7 §9.3.2.3). That is a clean cancellation, not a
+// protocol fault: the caller stops the sub-operation loop and reports the terminal Cancel status with
+// the accumulated counts, leaving the association reusable rather than poisoned by a spurious fault.
+func (s *getSubOperationStore) send(ctx context.Context, ds *dicom.DataSet) (status Status, canceled bool, err error) {
 	sopClass, _ := ds.GetString(tagSOPClassUID)
 	sopInstance, _ := ds.GetString(tagSOPInstanceUID)
 	if sopClass == "" || sopInstance == "" {
-		return StatusStoreDataSetDoesNotMatchSOPClass, nil
+		return StatusStoreDataSetDoesNotMatchSOPClass, false, nil
 	}
 	pcID, ts, ok := s.contextForStorage(dicom.SOPClassUID(sopClass))
 	if !ok {
-		return StatusStoreCannotUnderstand, nil
+		return StatusStoreCannotUnderstand, false, nil
 	}
 
 	s.nextMsgID++
@@ -169,27 +182,41 @@ func (s *getSubOperationStore) send(ctx context.Context, ds *dicom.DataSet) (Sta
 	conn := s.acc.Conn()
 	m := s.acc.Machine()
 	sendCap := MaxPDULength(s.acc.PeerMaxPDULength()).SendCap(defaultMaxPDULength)
-	if err := sendMessage(ctx, conn, m, pcID, rq, ds, ts, sendCap); err != nil {
-		return Status{}, err
+	if serr := sendMessage(ctx, conn, m, pcID, rq, ds, ts, sendCap); serr != nil {
+		return Status{}, false, serr
 	}
 
-	rsp, _, _, err := receiveMessage(ctx, conn, m, newMessageReassembler(ts))
-	if err != nil {
-		return Status{}, err
+	rsp, _, _, rerr := receiveMessage(ctx, conn, m, newMessageReassembler(ts))
+	if rerr != nil {
+		return Status{}, false, rerr
+	}
+	// A C-CANCEL-GET-RQ for this operation in place of the expected C-STORE-RSP is the SCU breaking
+	// the retrieve mid-flight (PS3.7 §9.3.2.3). Treat it as a clean cancellation rather than a protocol
+	// fault so the association is not poisoned: the caller stops and reports the terminal Cancel status.
+	if rsp.CommandField == CommandCCancelRQ && rsp.MessageIDBeingRespondedTo == s.getMessageID {
+		return Status{}, true, nil
 	}
 	if rsp.CommandField != CommandCStoreRSP || !rsp.HasStatus {
-		return Status{}, &ProtocolError{
+		return Status{}, false, &ProtocolError{
 			State:  m.CurrentState(),
 			Detail: "expected a C-STORE-RSP for the C-GET sub-operation",
 		}
 	}
-	return NewStatus(rsp.Status, ServiceClassStorage), nil
+	return NewStatus(rsp.Status, ServiceClassStorage), false, nil
 }
 
 // contextForStorage returns the acceptor's accepted presentation context ID and its negotiated
-// transfer syntax for the given Storage SOP Class, or false when none was accepted. Selection is by
-// abstract syntax; the first accepted matching context wins.
+// transfer syntax for the given Storage SOP Class, or false when none qualifies. A context qualifies
+// only when its abstract syntax matches AND role selection granted the requestor the Storage SCP role
+// for that SOP Class (a NegotiatedRoles entry with SCPRole set). Under default roles the requestor is
+// the Storage SCU and the acceptor the Storage SCP, so this acceptor sending a C-STORE-RQ would be the
+// wrong role; the granted SCP role is what makes the requestor the Storage SCP and this acceptor the
+// complementary SCU, which is the role same-association C-GET sub-operations require. The first
+// accepted, role-granted matching context wins.
 func (s *getSubOperationStore) contextForStorage(sopClass dicom.SOPClassUID) (uint8, dicom.TransferSyntax, bool) {
+	if !s.storageSCPRoleGranted(sopClass) {
+		return 0, "", false
+	}
 	requested := s.acc.RequestedContexts()
 	for _, pc := range s.acc.AcceptedContexts() {
 		if pc.Result != 0 { // 0 == acceptance (PS3.8 9.3.3.2)
@@ -202,6 +229,20 @@ func (s *getSubOperationStore) contextForStorage(sopClass dicom.SOPClassUID) (ui
 		}
 	}
 	return 0, "", false
+}
+
+// storageSCPRoleGranted reports whether role selection granted the requestor the Storage SCP role for
+// sopClass (a NegotiatedRoles entry with SCPRole set). Without it the requestor is the Storage SCU
+// under default roles, so this acceptor must not send a sub-operation C-STORE-RQ for that SOP Class:
+// the caller counts the instance as a failed sub-operation instead, so the terminal status surfaces
+// the failure rather than the runtime transmitting in a role the peer did not grant (PRD §9.2).
+func (s *getSubOperationStore) storageSCPRoleGranted(sopClass dicom.SOPClassUID) bool {
+	for _, role := range s.acc.NegotiatedRoles() {
+		if dicom.SOPClassUID(role.SOPClassUID) == sopClass && role.SCPRole {
+			return true
+		}
+	}
+	return false
 }
 
 // getTerminalStatus resolves the terminal C-GET-RSP status from the accumulated sub-operation counts
