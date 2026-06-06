@@ -65,6 +65,8 @@ validation:
 
 nav:
   - Home: index.md
+  - User guide:
+      - DICOMweb cloud authentication: user-guide/dicomweb/cloud-auth.md
   - Conformance statements:
       - Cross-cutting posture: conformance/cross-cutting.md
       - DICOM: conformance/dicom.md
