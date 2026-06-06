@@ -1,0 +1,6 @@
+multipart/related
+--abc
+Content-Type: application/dicom
+
+body
+--abc--

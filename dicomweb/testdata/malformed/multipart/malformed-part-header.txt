@@ -1,0 +1,5 @@
+multipart/related; boundary=abc
+--abc
+Content-Type application/dicom no colon
+garbage
+--abc--

@@ -1,0 +1,162 @@
+multipart/related; boundary=b
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b
+Content-Type: application/dicom
+
+
+--b--

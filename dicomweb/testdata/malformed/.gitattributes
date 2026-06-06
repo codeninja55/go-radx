@@ -1,0 +1,5 @@
+# The malformed corpus seeds are exact byte fixtures: the multipart/related files carry CRLF
+# MIME line terminators on purpose, and every file is a verbatim hostile-input seed. Mark the
+# tree as binary so git stores the bytes unchanged and never normalises line endings, which
+# would silently alter what the fuzz targets replay.
+* -text
