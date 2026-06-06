@@ -130,6 +130,45 @@ Concept Name Code Sequence becomes the required `Observation.code`, the status i
 The DICOM coding-scheme designator maps to its registered FHIR `system` URI (`DCM`, `SCT`, `LN`, `UCUM`); an unknown
 designator is carried verbatim under `urn:dicom:scheme:<designator>` so no value is lost.
 
+### DiagnosticReport to SR (`DiagnosticReportToSR`)
+
+`DiagnosticReportToSR` is the reverse of `SRToDiagnosticReportR5`: it reads a FHIR R5 `DiagnosticReport` together with
+its `Observation`s and produces a DICOM Structured Report document dataset (Comprehensive SR IOD). The report's code
+becomes the root `CONTAINER` Concept Name Code Sequence; the conclusion becomes a `TEXT` child; each `Observation`
+becomes a measurement leaf through the shared `ObservationToContentItem` helper.
+
+| DICOM SR target | FHIR `DiagnosticReport` source | Notes |
+|-----------------|--------------------------------|-------|
+| root `CONTAINER` Concept Name Code Sequence `(0040,A043)` | `code` | required; the conversion fails closed when the code maps to no concept |
+| `TEXT` child | `conclusion` | the narrative re-encodes as a single `TEXT` content item |
+| measurement leaves | each `Observation` | one content item per Observation via `ObservationToContentItem` |
+| CompletionFlag `(0040,A491)` / VerificationFlag `(0040,A493)` | `status` | `final` → `COMPLETE`+`VERIFIED`; any other status → `COMPLETE`+`UNVERIFIED` |
+| ContentDate `(0008,0023)` + ContentTime `(0008,0033)` + TimezoneOffsetFromUTC `(0008,0201)` | `effectiveDateTime` | split back into date, time, and the document-level offset |
+| PatientID `(0010,0020)` | `subject` logical `Reference.identifier` | a subject carried as a resolvable `Reference.reference` URL has no DICOM PatientID home and is recorded |
+| Study / Series / SOP Instance UID `(0020,000D)` / `(0020,000E)` / `(0008,0018)` | minted | deterministic under `WithUIDRoot`; see below |
+
+The Study, Series, and SOP Instance UIDs are minted deterministically under the organisation root supplied by
+`WithUIDRoot`, derived from the report's identity (its DICOM UID identifier when present, otherwise its code and
+conclusion) and a per-UID role label, so the same report mints byte-identical UIDs across runs and a full round trip
+from one SR source re-derives the same triple. Absent a configured root, the document carries no UIDs and the absence
+is recorded in `Report.Defaulted` — go-radx ships no default registered root and never fabricates an unregistered UID.
+
+Each `Observation` re-encodes through `ObservationToContentItem`, the inverse of `ContentItemToObservationR5`. The
+`Observation.code` becomes the leaf's Concept Name Code Sequence and the `value[x]` branch chooses the SR `ValueType`:
+
+| FHIR `Observation.value[x]` | SR `ValueType` | Notes |
+|-----------------------------|----------------|-------|
+| `valueQuantity` | `NUM` | `Quantity.value` → MeasuredValue `(0040,A30A)`; `Quantity.code`/`unit`/`system` → MeasurementUnits `(0040,08EA)` (the UCUM system URI maps back to the `UCUM` designator) |
+| `valueCodeableConcept` | `CODE` | first `Coding` → Concept Code Sequence `(0040,A168)` triplet |
+| `valueString` | `TEXT` | → Text Value `(0040,A160)` |
+| `valueDateTime` | `DATE` / `DATETIME` | a date-only value yields `DATE`; a value with a time yields `DATETIME`, the offset re-encoded as the DICOM `&ZZXX` form |
+| `valueTime` | — | recorded as loss; see the loss policy |
+
+The FHIR `system` URI maps back to its DICOM coding-scheme designator (`DCM`, `SCT`, `LN`, `UCUM`); a system under the
+synthetic `urn:dicom:scheme:<designator>` prefix is unwrapped to the verbatim designator it preserved on the forward
+path, so a code round-trips its scheme. An `Observation` with no code, or whose `value[x]` is unset or has no SR form,
+is not emitted and the loss is recorded by FHIR element path — never the clinical value.
+
 ### ORU to DiagnosticReport (`ORUToDiagnosticReportR5`)
 
 `ORUToDiagnosticReportR5` converts an HL7 v2 observation result message (`ORU^R01`) to a FHIR R5 `DiagnosticReport`
@@ -167,6 +206,39 @@ each flag is carried verbatim under the `v3-ObservationInterpretation` system. O
 `Observation.referenceRange`: a `low-high` form becomes `low`/`high` bare-value `Quantity`s, and any other form is
 carried as `referenceRange.text` so the range is preserved. An OBX whose OBX-2 value type is outside the supported set
 leaves `value[x]` unset and records the loss by locus only — the raw clinical value is never named.
+
+### Observation to OBX (`ObservationToOBX`)
+
+`ObservationToOBX` is the reverse of `OBXToObservationR5`: it maps one FHIR R5 `Observation` back to an HL7 v2 OBX
+segment. The `Observation.code` becomes OBX-3 (the observation identifier), the `value[x]` branch chooses OBX-2 (the
+value type) and renders OBX-5, the interpretation maps back to OBX-8, and a numeric reference range to OBX-7. OBX-11 is
+`F` (final), matching the status the forward path assigns a reported result.
+
+| HL7 v2 OBX target | FHIR `Observation` source | Notes |
+|-------------------|---------------------------|-------|
+| OBX-3 (`CWE`) | `code` | required; an Observation with no code is not emitted and the loss is recorded |
+| OBX-2 / OBX-5 | `value[x]` | `valueQuantity` → `NM` + OBX-6 units; `valueCodeableConcept` → `CWE` (`code^text^system`); `valueString` → `ST`; `valueDateTime` → `TS`; `valueTime` → `TM` |
+| OBX-6 (`CWE`) | `valueQuantity` units | `Quantity.code`/`unit`/`system` → CWE-1/2/3 (the UCUM system URI maps back to the `UCUM` identifier) |
+| OBX-8 | `interpretation` | each interpretation `Coding.code` carried verbatim (the FHIR and HL7 symbols match) |
+| OBX-7 | `referenceRange` | a `low`/`high` `Quantity` pair renders `low-high`; a text range renders its text verbatim |
+
+A `value[x]` branch with no OBX form leaves OBX-2/5 unset and records the loss by FHIR element path only — the raw
+clinical value is never named in the report.
+
+### Round-trip fidelity
+
+The reverse converters are verified by round-trip fixtures that assert no silent loss of a measurement, unit, code, or
+identity:
+
+- **DICOM SR → `DiagnosticReport` + `Observation`s → DICOM SR.** The rebuilt SR re-parses as a conformant content
+  tree and re-converts to the same report code, conclusion, NUM value/units, and CODE value. The one branch the reverse
+  content-item builder cannot carry — a `valueTime`, which maps to a DICOM SR `TIME` content item of VR TM that the
+  `dicom.DT` value cannot hold from the `convert` package — is recorded in `Report.Dropped`, never dropped silently.
+- **HL7 v2 OBX → `Observation` → HL7 v2 OBX.** The rebuilt OBX carries the same value type, OBX-5 value, OBX-3 code,
+  OBX-6 units, OBX-7 reference range, and OBX-8 flags, rendered through the `hl7v2` message serialiser.
+- **Determinism.** Converting the same input twice produces byte-identical output: the reverse SR path mints
+  byte-identical Study/Series/SOP Instance UIDs under a fixed `WithUIDRoot`, and the reverse OBX path renders an
+  identical segment.
 
 ### ADT to Patient (`ADTToPatientR5`)
 
@@ -218,9 +290,16 @@ no target home (recorded as a `Dropped`) and from a target the source never supp
 
 ## Loss policy
 
-Not yet authored. This section will declare the strict-versus-lossy contract: which conversions fail closed on
-unmappable input (the `WithStrictLoss` option) and which record loss without rejecting, so a consumer knows when a
-conversion is total and when it is best-effort.
+Not yet authored as a complete strict-versus-lossy contract across every conversion. The reverse converters
+(`DiagnosticReportToSR`, `ObservationToContentItem`, `ObservationToOBX`) follow the same loss model as the forward
+ones: a clean conversion records optional, unmappable data on the `*Report` (`Dropped`, `Defaulted`, `Substituted`) and
+returns a `nil` error, while a genuinely unconstructible target fails closed. `DiagnosticReportToSR` fails closed
+(`ErrMalformedSource`) when the report's code maps to no Concept Name Code Sequence, because the SR document root
+requires one; the leaf converters return `(_, false)` and record the FHIR element by path when an Observation has no
+code or no re-encodable `value[x]`. The reverse-direction losses recorded today are an `Observation.valueTime` (no DICOM
+SR `TIME` content-item form the `convert` package can carry) and a `DiagnosticReport.subject` carried only as a
+resolvable `Reference.reference` URL (no DICOM PatientID home). `WithStrictLoss` escalates any recorded `Dropped` entry
+to a returned `*LossError` for consumers that cannot accept loss.
 
 ## Verification
 
