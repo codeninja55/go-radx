@@ -67,6 +67,11 @@ func DICOMToImagingStudyR5(instances []*dicom.DataSet, opts ...Option) (*r5.Imag
 		d := desc
 		study.Description = &d
 	}
+	if ref := referrerReference(first); ref != nil {
+		study.Referrer = ref
+	}
+	study.Procedure = codeSequenceConcepts(first, dicom.TagProcedureCodeSequence)
+	study.Reason = appendStudyReason(study.Reason, first, report)
 
 	series, modalities := groupSeries(instances, report)
 	study.Series = series
@@ -212,6 +217,12 @@ func newSeries(ds *dicom.DataSet, seriesUID string, report *Report) r5.ImagingSt
 	if body, has := ds.GetString(dicom.TagBodyPartExamined); has && body != "" {
 		s.BodySite = &r5.CodeableReference{Concept: plainConcept(body)}
 	}
+	if lat, has := ds.GetString(dicom.TagLaterality); has && lat != "" {
+		s.Laterality = lateralityConcept(lat)
+	}
+	if when := combineDateTime(ds, dicom.TagSeriesDate, dicom.TagSeriesTime, report, "ImagingStudy.series.started"); when != "" {
+		s.Started = &when
+	}
 	return s
 }
 
@@ -264,4 +275,114 @@ func modalityConcept(modality string) r5.CodeableConcept {
 func plainConcept(text string) *r5.CodeableConcept {
 	t := text
 	return &r5.CodeableConcept{Text: &t}
+}
+
+// dicomDCMSystem is the FHIR system URI for the DICOM controlled-terminology
+// (DCM) coding scheme, the home of enumerated DICOM CS values such as Laterality.
+const dicomDCMSystem = "http://dicom.nema.org/resources/ontology/DCM"
+
+// lateralityConcept builds a CodeableConcept for a DICOM Laterality CS value
+// (e.g. "L", "R"), carrying the code under the DICOM coding system.
+func lateralityConcept(laterality string) *r5.CodeableConcept {
+	system := dicomDCMSystem
+	code := laterality
+	return &r5.CodeableConcept{Coding: []r5.Coding{{System: &system, Code: &code}}}
+}
+
+// referrerReference builds the ImagingStudy.referrer Reference from
+// ReferringPhysicianName (0008,0090). The name is carried as Reference.display
+// only — a referring physician PN is not a server-resolvable identity, so it is
+// never a fabricated Reference.reference URL (the identity rule). Absent or empty
+// the reference is nil.
+func referrerReference(ds *dicom.DataSet) *r5.Reference {
+	name, has := ds.GetString(dicom.TagReferringPhysicianName)
+	if !has || name == "" {
+		return nil
+	}
+	display := name
+	refType := practitionerReferenceType
+	return &r5.Reference{Type: &refType, Display: &display}
+}
+
+// practitionerReferenceType is the FHIR resource type the referrer Reference
+// points at.
+const practitionerReferenceType = "Practitioner"
+
+// appendStudyReason appends the ImagingStudy.reason CodeableReferences derived
+// from the coded ReasonForRequestedProcedureCodeSequence (0040,100A) and the
+// free-text ReasonForStudy (0032,1030). A coded reason becomes a concept Coding;
+// the free-text reason becomes a text-only concept so the clinical reason is
+// preserved without inventing a code.
+func appendStudyReason(reasons []r5.CodeableReference, ds *dicom.DataSet, report *Report) []r5.CodeableReference {
+	reasons = append(reasons, codeSequenceConcepts(ds, dicom.TagReasonForRequestedProcedureCodeSequence)...)
+	if text, has := ds.GetString(dicom.TagReasonForStudy); has && text != "" {
+		reasons = append(reasons, r5.CodeableReference{Concept: plainConcept(text)})
+	}
+	return reasons
+}
+
+// codeSequenceConcepts reads a DICOM code sequence (one or more coded-entry items,
+// each carrying a code value plus CodingSchemeDesignator/CodeMeaning) at tag t and
+// renders each item as a CodeableReference whose Concept carries the coded entry.
+// An absent or non-sequence attribute yields nil; an item carrying none of the
+// three standard code-value forms is skipped.
+func codeSequenceConcepts(ds *dicom.DataSet, t dicom.Tag) []r5.CodeableReference {
+	seq, ok := ds.GetSequence(t)
+	if !ok {
+		return nil
+	}
+	var out []r5.CodeableReference
+	for item := range seq.Items() {
+		if item.DataSet == nil {
+			continue
+		}
+		if concept := codeItemConcept(item.DataSet); concept != nil {
+			out = append(out, r5.CodeableReference{Concept: concept})
+		}
+	}
+	return out
+}
+
+// codeItemConcept maps one DICOM coded-entry item to a FHIR CodeableConcept, with
+// the CodingSchemeDesignator resolved to its registered FHIR system URI by the
+// shared schemeDesignatorSystem helper. The DICOM Code Sequence Macro (PS3.3
+// Table 8.8-1) admits three standard code-value forms — Code Value (0008,0100),
+// Long Code Value (0008,0119), and URN Code Value (0008,0120) — exactly one of
+// which is present per item; the value carries verbatim into Coding.code. nil when
+// the item carries none of the three, so a malformed item never produces a
+// value-less Coding.
+func codeItemConcept(item *dicom.DataSet) *r5.CodeableConcept {
+	value, has := codeItemValue(item)
+	if !has {
+		return nil
+	}
+	coding := r5.Coding{}
+	code := value
+	coding.Code = &code
+	if scheme, ok := item.GetString(dicom.TagCodingSchemeDesignator); ok && scheme != "" {
+		system := schemeDesignatorSystem(scheme)
+		coding.System = &system
+	}
+	cc := &r5.CodeableConcept{}
+	if meaning, ok := item.GetString(dicom.TagCodeMeaning); ok && meaning != "" {
+		display := meaning
+		coding.Display = &display
+		text := meaning
+		cc.Text = &text
+	}
+	cc.Coding = []r5.Coding{coding}
+	return cc
+}
+
+// codeItemValue returns the code value of a DICOM coded-entry item, reading the
+// three standard forms of the Code Sequence Macro in the order the standard lists
+// them: Code Value, then Long Code Value, then URN Code Value. The first non-empty
+// form wins. The boolean is false when the item carries none of them.
+func codeItemValue(item *dicom.DataSet) (string, bool) {
+	for _, t := range []dicom.Tag{dicom.TagCodeValue, dicom.TagLongCodeValue, dicom.TagURNCodeValue} {
+		if v, ok := item.GetString(t); ok && v != "" {
+			return v, true
+		}
+	}
+	return "", false
 }
