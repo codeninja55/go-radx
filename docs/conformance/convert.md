@@ -130,6 +130,92 @@ Concept Name Code Sequence becomes the required `Observation.code`, the status i
 The DICOM coding-scheme designator maps to its registered FHIR `system` URI (`DCM`, `SCT`, `LN`, `UCUM`); an unknown
 designator is carried verbatim under `urn:dicom:scheme:<designator>` so no value is lost.
 
+### ORU to DiagnosticReport (`ORUToDiagnosticReportR5`)
+
+`ORUToDiagnosticReportR5` converts an HL7 v2 observation result message (`ORU^R01`) to a FHIR R5 `DiagnosticReport`
+together with the set of `Observation`s carrying its results. The first result group's OBR becomes the report; each OBX
+that follows becomes one `Observation`, linked from `DiagnosticReport.result` by an intra-call `urn:uuid` logical
+reference. An ORU with no OBR is rejected fail-closed (`ErrMalformedSource`): `DiagnosticReport.code` is required and
+OBR-4 is its only source. A panel split across additional OBRs is recorded by locus in `Report.Dropped` (v1 maps the
+first result group).
+
+| FHIR `DiagnosticReport` element | HL7 v2 source | Notes |
+|---------------------------------|---------------|-------|
+| `code` | OBR-4 Universal Service Identifier (`CWE`) | required; the conversion fails closed when absent |
+| `status` | OBR-25 Result Status (Table 0123) | `F`→`final`, `P`→`preliminary`, `C`→`corrected`, `X`→`cancelled`; an absent or out-of-table code defaults to `final` and is recorded (the binding is required) |
+| `effectiveDateTime` | OBR-7 Observation Date/Time (`DTM`) | precision preserved; a timezone-less time is dropped to date-only and recorded |
+| `result[]` | each OBX result | one `Observation` per OBX, linked by an intra-call `urn:uuid` reference |
+| `subject` | PID-3 (`CX`), or `WithSubjectR5` | logical `Reference.identifier`, never a fabricated URL |
+
+The `result[]` links are derived deterministically from the MSH-10 message control ID and each OBX's position (an RFC
+4122 version-5 name-based UUID), so the same ORU produces byte-identical output. The control ID is locally unique, not a
+patient value.
+
+Each OBX maps to an `Observation` through the shared `OBXToObservationR5` helper. OBX-3 becomes the required
+`Observation.code`, the status is `final`, and the value maps by OBX-2 `ValueType`:
+
+| OBX-2 `ValueType` | FHIR `Observation.value[x]` | Notes |
+|-------------------|-----------------------------|-------|
+| `NM` | `valueQuantity` | OBX-5 → `Quantity.value` (a `Decimal`, lexical precision preserved); OBX-6 units (`CWE`) → `Quantity.code`/`unit`/`system` (`UCUM` → `http://unitsofmeasure.org`, otherwise the system carried verbatim) |
+| `CE` / `CWE` | `valueCodeableConcept` | OBX-5 `code^text^system` → `Coding` |
+| `TX` / `ST` / `FT` | `valueString` | OBX-5 carried verbatim |
+| `DT` / `TS` | `valueDateTime` | day precision yields `YYYY-MM-DD`; a time is rendered only with a UTC offset, else dropped to date-only |
+| `TM` | `valueTime` | rendered `hh:mm:ss`; FHIR `time` carries no timezone |
+
+OBX-8 abnormal flags (Table 0078) map to `Observation.interpretation`: the HL7 and FHIR codes share the same symbols, so
+each flag is carried verbatim under the `v3-ObservationInterpretation` system. OBX-7 maps to a single
+`Observation.referenceRange`: a `low-high` form becomes `low`/`high` bare-value `Quantity`s, and any other form is
+carried as `referenceRange.text` so the range is preserved. An OBX whose OBX-2 value type is outside the supported set
+leaves `value[x]` unset and records the loss by locus only — the raw clinical value is never named.
+
+### ADT to Patient (`ADTToPatientR5`)
+
+`ADTToPatientR5` converts an HL7 v2 admission/discharge/transfer message (`ADT^Axx`) to a FHIR R5 `Patient`. PD1
+(additional demographics) carries no element the v1 mapping reads. `Patient` has no FHIR-required field, so the
+conversion never fails closed on a sparse PID.
+
+| FHIR `Patient` element | HL7 v2 source | Notes |
+|------------------------|---------------|-------|
+| `identifier[]` | PID-3 patient identifier list (`CX`) | each → logical `Identifier` (value + assigning-authority system), never a Reference URL |
+| `name` | PID-5 Patient Name (`XPN`) | family → `family`; given and middle → `given[]`; prefix/suffix → the matching lists |
+| `gender` | PID-8 Administrative Sex (Table 0001) | value-set-safe `ParseAdministrativeGender`; an out-of-table code maps to `unknown` and records a `Substitution` |
+| `birthDate` | PID-7 Date/Time of Birth (`DTM`) | precision preserved; FHIR `birthDate` is a date, so a time-of-birth precision is dropped and recorded |
+| `address` | PID-11 Patient Address (`XAD`) | street/other → `line[]`; city/state/postalCode/country → the matching fields |
+
+`ParseAdministrativeGender` maps `M`→`male`, `F`→`female`, `O`/`A`/`N`→`other`, `U` and the empty value→`unknown`, and
+any other code→`unknown` (recording a `Substitution`). The result is always a member of the required
+`AdministrativeGender` value set, so the produced `Patient` validates by construction.
+
+### ADT to Encounter (`ADTToEncounterR5`)
+
+`ADTToEncounterR5` converts an `ADT^Axx` message to a FHIR R5 `Encounter`, reading the trigger event, PV1, and PID-3.
+
+| FHIR `Encounter` element | HL7 v2 source | Notes |
+|--------------------------|---------------|-------|
+| `status` | MSH-9.2 / EVN-1 trigger event | `A01`→`in-progress`, `A03`→`completed`, `A11`→`cancelled`; an unmapped trigger → `unknown`; every mapping records a `Substitution` (the trigger event and the encounter status are not the same concept) |
+| `identifier[]` | PV1-19 Visit Number (`CX`) | logical `Identifier`, never a Reference URL |
+| `class` | PV1-2 Patient Class | `I`→`IMP`, `O`/`R`/`B`→`AMB`, `E`→`EMER`, `P`→`PRENC` under the `v3-ActCode` system; an unmapped class is carried verbatim and records a `Substitution` |
+| `subject` | PID-3 (`CX`), or `WithSubjectR5` | logical `Reference.identifier`, never a fabricated URL |
+
+`Encounter.status` is always a member of the required `EncounterStatus` value set, so the produced `Encounter` validates
+by construction.
+
+### The Substituted channel
+
+Alongside `Report.Dropped` (source data with no target home) and `Report.Defaulted` (a target the source did not
+supply), the report carries a third channel, `Report.Substituted`, for an *approximate* mapping: a source value the
+converter populated into the target, but only after coercing it into something the FHIR value set or datatype permits.
+A `Substitution` names the FHIR `Concept` (the element path) and the `Approximation` (the value-set-safe value chosen),
+never the raw patient value (PRD §9.1). The approximate mappings recorded are:
+
+- an unknown PID-8 administrative-sex code rendered as `Patient.gender` = `unknown`;
+- an ADT trigger event mapped to a `Encounter.status` (always approximate, since the trigger event and the encounter
+  status are different concepts);
+- an unrecognised PV1-2 patient class carried verbatim under the `v3-ActCode` system as `Encounter.class`.
+
+A consumer uses the channel to distinguish a lossy-but-present mapping (recorded as a `Substitution`) from a value with
+no target home (recorded as a `Dropped`) and from a target the source never supplied (recorded as a `Defaulted`).
+
 ## Loss policy
 
 Not yet authored. This section will declare the strict-versus-lossy contract: which conversions fail closed on
