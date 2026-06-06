@@ -133,6 +133,51 @@ func TestParseXPNDegree(t *testing.T) {
 	}
 }
 
+func TestParseXCN(t *testing.T) {
+	// PV1-7 of a real ADT: ID^Family^Given^Middle^Suffix^Prefix^Degree.
+	// The leading component is the provider's ID number; reading this as an XPN
+	// would silently treat "1234" as the family name and shift every name part.
+	r := parseRepetition([]byte("1234^DOE^JANE^^^^DR"), DefaultEncoding())
+	xcn := parseXCN(r)
+	if xcn.IDNumber != "1234" {
+		t.Errorf("XCN.IDNumber = %q, want 1234", xcn.IDNumber)
+	}
+	if xcn.Family != "DOE" {
+		t.Errorf("XCN.Family = %q, want DOE (not the ID number)", xcn.Family)
+	}
+	if xcn.Given != "JANE" {
+		t.Errorf("XCN.Given = %q, want JANE", xcn.Given)
+	}
+	if xcn.Degree != "DR" {
+		t.Errorf("XCN.Degree = %q, want DR", xcn.Degree)
+	}
+
+	// Reading the same wire value as an XPN is the defect this change fixes: the
+	// ID number lands in Family. This guards against the regression silently
+	// returning.
+	xpn := parseXPN(r)
+	if xpn.Family != "1234" {
+		t.Errorf("parseXPN of an XCN value = family %q, want the ID number 1234 (proves XCN-vs-XPN matters)", xpn.Family)
+	}
+}
+
+func TestParseXCNAssigningAuthorityAndTypeCode(t *testing.T) {
+	// XCN-9 (assigning authority, a nested HD) and XCN-13 (identifier type code)
+	// must read at their own component positions, not collapse into the name.
+	r := parseRepetition([]byte("9001^SMITH^JOHN^^^^^^HOSP&1.2.3&ISO^L^^^DN"), DefaultEncoding())
+	xcn := parseXCN(r)
+	if xcn.NameTypeCode != "L" {
+		t.Errorf("XCN-10 NameTypeCode = %q, want L", xcn.NameTypeCode)
+	}
+	if xcn.IdentifierTypeCode != "DN" {
+		t.Errorf("XCN-13 IdentifierTypeCode = %q, want DN", xcn.IdentifierTypeCode)
+	}
+	got := xcn.AssigningAuthority
+	if got.NamespaceID != "HOSP" || got.UniversalID != "1.2.3" || got.UniversalIDType != "ISO" {
+		t.Errorf("XCN-9 AssigningAuthority = %+v, want {HOSP 1.2.3 ISO}", got)
+	}
+}
+
 func TestParseXAD(t *testing.T) {
 	// Street^OtherDesignation^City^State^Zip^Country.
 	r := parseRepetition([]byte("123 MAIN ST^APT 4^METROPOLIS^NY^10001^USA"), DefaultEncoding())
@@ -270,6 +315,19 @@ func TestCompositeRoundTrip(t *testing.T) {
 		}, true},
 		{"XPN/empty", "", func(r string) string {
 			return renderRepetition(parseXPN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		// XCN
+		{"XCN/id-name-degree", "1234^DOE^JANE^^^^DR", func(r string) string {
+			return renderRepetition(parseXCN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XCN/id-only", "1234", func(r string) string {
+			return renderRepetition(parseXCN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XCN/nested-authority-and-type", "9001^SMITH^JOHN^^^^^^HOSP&1.2.3&ISO^L^^^DN", func(r string) string {
+			return renderRepetition(parseXCN(parseRepetition([]byte(r), enc)).repetition(), enc)
+		}, true},
+		{"XCN/empty", "", func(r string) string {
+			return renderRepetition(parseXCN(parseRepetition([]byte(r), enc)).repetition(), enc)
 		}, true},
 		// XAD
 		{"XAD/full", "123 MAIN ST^APT 4^METROPOLIS^NY^10001^USA", func(r string) string {

@@ -152,9 +152,10 @@ func TestParseEVN(t *testing.T) {
 func TestParsePV1(t *testing.T) {
 	// Field positions verified against HL7 v2.5: PatientClass at PV1-2, attending
 	// doctor at PV1-7, VisitNumber at PV1-19 (NOT PV1-18 — the Inc 0 off-by-one).
-	// The attending doctor is modelled as an XPN, so its first component is the
-	// family name (the reference doc commits XPN, not the wire XCN).
-	seg := parseTestSegment("PV1|1|I|ICU^101^A||||DOE^JANE^^^^^DR||||||||||||V123")
+	// PV1-7 is an XCN, so its first component is the provider's ID number and the
+	// family name is the second component — not the XPN reading that would treat
+	// the ID number "1234" as a family name.
+	seg := parseTestSegment("PV1|1|I|ICU^101^A||||1234^DOE^JANE^^^^DR||||||||||||V123")
 	p, err := ParsePV1(seg)
 	if err != nil {
 		t.Fatalf("ParsePV1 error = %v", err)
@@ -165,8 +166,11 @@ func TestParsePV1(t *testing.T) {
 	if p.AssignedLocation != "ICU^101^A" {
 		t.Errorf("PV1-3 AssignedLocation = %q, want ICU^101^A", p.AssignedLocation)
 	}
-	if p.AttendingDoctor.Family != "DOE" || p.AttendingDoctor.Given != "JANE" {
-		t.Errorf("PV1-7 AttendingDoctor = %+v, want family DOE given JANE", p.AttendingDoctor)
+	if p.AttendingDoctor.IDNumber != "1234" || p.AttendingDoctor.Family != "DOE" || p.AttendingDoctor.Given != "JANE" {
+		t.Errorf("PV1-7 AttendingDoctor = %+v, want ID 1234 family DOE given JANE", p.AttendingDoctor)
+	}
+	if p.AttendingDoctor.Degree != "DR" {
+		t.Errorf("PV1-7 AttendingDoctor.Degree = %q, want DR", p.AttendingDoctor.Degree)
 	}
 	if p.VisitNumber.ID != "V123" {
 		t.Errorf("PV1-19 VisitNumber = %q, want V123", p.VisitNumber.ID)
@@ -362,7 +366,7 @@ func TestTypedSegmentRoundTrip(t *testing.T) {
 	}
 
 	pv1 := PV1{SetID: "1", PatientClass: "I", AssignedLocation: "ICU^101^A",
-		AttendingDoctor: XPN{Family: "DOE", Given: "JANE", NameTypeCode: "L"},
+		AttendingDoctor: XCN{IDNumber: "1234", Family: "DOE", Given: "JANE", NameTypeCode: "L"},
 		VisitNumber:     CX{ID: "V123", IdentifierTypeCode: "VN"}}
 	if got, err := ParsePV1(pv1.Segment(enc)); err != nil || got != pv1 {
 		t.Errorf("PV1 round-trip = %+v (err %v), want %+v", got, err, pv1)
