@@ -29,8 +29,11 @@ of it:
 
 - **Verification** (C-ECHO) as SCU and SCP — implemented.
 - **Storage** (C-STORE) as Storage SCU and Storage SCP over the radiology-first SOP Class set — implemented.
-- **Query/Retrieve**: C-FIND and C-MOVE under the Patient Root and Study Root information models, as SCU and SCP, are
-  implemented. **C-GET is NOT YET SHIPPED** — it is in the v1 target but not yet exposed as an operation.
+- **Query/Retrieve**: C-FIND, C-MOVE, and C-GET under the Patient Root and Study Root information models, as SCU and
+  SCP, are implemented. C-GET uses same-association SCP/SCU role selection: the SCP C-STOREs each matched instance back
+  to the requestor over the same association, so the requestor takes the Storage SCP role to receive the sub-operations.
+  A partial failure (one or more sub-operations the destination rejects) surfaces as a Warning or Failure terminal
+  status, never laundered into Success.
 - **Modality Worklist** (C-FIND) as SCU, with a reference worklist SCP — implemented.
 - **MPPS** (N-CREATE, N-SET) and **Storage Commitment** (N-ACTION, N-EVENT-REPORT), SCU only, are in the v1 target but
   the N-service operations are **NOT YET SHIPPED**; today only their presentation-context presets and status codes
