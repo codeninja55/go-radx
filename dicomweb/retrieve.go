@@ -2,6 +2,7 @@ package dicomweb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,9 +17,18 @@ import (
 // retrieve transfer-syntax policy (passthrough, transcode, or 406); a zero TransferSyntax is
 // treated as the universal uncompressed syntax (Explicit VR Little Endian), the safe default
 // every DICOMweb origin accepts.
+//
+// Encoded is the byte-exact Part-10 object the instance is stored as, when the backend can
+// supply it. It exists because go-radx writes only the four uncompressed transfer syntaxes:
+// an instance stored in an encapsulated (compressed) syntax cannot be re-encoded from its
+// decoded DataSet, so a passthrough of such a syntax must return the stored bytes unchanged.
+// A backend that holds the original bytes sets this; the server then serves them verbatim on
+// passthrough rather than re-encoding through dicom.Write. When Encoded is nil and the stored
+// syntax is encapsulated, the server has no writable representation and answers 406.
 type RetrievedInstance struct {
 	DataSet        *dicom.DataSet
 	TransferSyntax dicom.TransferSyntax
+	Encoded        []byte
 }
 
 // transferSyntaxOrDefault returns the instance's stored transfer syntax, substituting the
@@ -157,7 +167,15 @@ func (s *Server) writeInstanceParts(w http.ResponseWriter, r *http.Request, inst
 				"no acceptable transfer syntax for a retrieved instance")
 			return
 		}
-		raw, err := encodeInstance(si.DataSet, decision.syntax)
+		raw, err := encodeRetrievedInstance(si, decision)
+		if errors.Is(err, ErrNotAcceptable) {
+			// An instance stored in an encapsulated syntax has no byte-exact bytes to pass
+			// through and go-radx writes no encapsulated syntax: 406, never a 500 from a
+			// doomed re-encode (PRD §9.7 fail-closed negotiation).
+			s.writeProblem(w, r, http.StatusNotAcceptable, err,
+				"a stored instance is in a compressed transfer syntax that cannot be served unchanged")
+			return
+		}
 		if err != nil {
 			s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot encode a retrieved instance")
 			return

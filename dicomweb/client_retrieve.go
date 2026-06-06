@@ -7,6 +7,7 @@ import (
 	"io"
 	"iter"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -153,13 +154,19 @@ func (c *Client) RetrieveBulkData(ctx context.Context, p ResourcePath) ([][]byte
 // origin is resolvable without the caller reconstructing the absolute URL. An absolute
 // reference is fetched as given. The reference is never logged, since it carries resource
 // UIDs (PRD §9.1).
+//
+// The client's bearer token is attached only when the resolved URL is same-origin with the
+// configured base URL (matching scheme, host, and port). Server-supplied metadata can carry an
+// absolute BulkDataURI on an arbitrary host; sending the Authorization header there would let a
+// malicious or compromised origin harvest the PACS credential, so a cross-origin reference is
+// fetched without credentials (PRD §9.8).
 func (c *Client) ResolveBulkDataURI(ctx context.Context, uri BulkDataURI) ([]byte, error) {
 	target := c.absoluteBulkDataURL(string(uri))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return nil, fmt.Errorf("dicomweb: build bulkdata request: %w", err)
 	}
-	if c.bearerToken != "" {
+	if c.bearerToken != "" && c.sameOriginAsBase(target) {
 		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
 	}
 	req.Header.Set("Accept", acceptOctetStream())
@@ -209,6 +216,52 @@ func (c *Client) absoluteBulkDataURL(ref string) string {
 		return base + ref
 	}
 	return base + "/" + ref
+}
+
+// sameOriginAsBase reports whether target shares an origin (scheme, host, and port) with the
+// client's configured base URL. It is the gate for attaching the bearer token to a resolved
+// absolute reference: only a same-origin request carries the credential, so a cross-origin
+// BulkDataURI drawn from server-supplied metadata cannot exfiltrate the PACS token (PRD §9.8).
+// A target or base URL that fails to parse is treated as cross-origin, failing closed.
+func (c *Client) sameOriginAsBase(target string) bool {
+	tu, err := url.Parse(target)
+	if err != nil {
+		return false
+	}
+	bu, err := url.Parse(c.baseURL)
+	if err != nil {
+		return false
+	}
+	return sameOrigin(tu, bu)
+}
+
+// sameOrigin reports whether two URLs share scheme, host, and port. The comparison is
+// case-insensitive on scheme and host (per RFC 3986) and normalises the default port so that,
+// for example, https without an explicit port matches https on 443.
+func sameOrigin(a, b *url.URL) bool {
+	if !strings.EqualFold(a.Scheme, b.Scheme) {
+		return false
+	}
+	if !strings.EqualFold(a.Hostname(), b.Hostname()) {
+		return false
+	}
+	return originPort(a) == originPort(b)
+}
+
+// originPort returns a URL's effective port, substituting the scheme's default when the URL
+// names none, so an explicit and an implicit default port compare equal.
+func originPort(u *url.URL) string {
+	if p := u.Port(); p != "" {
+		return p
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	default:
+		return ""
+	}
 }
 
 // retrieveOctetParts issues a multipart/related WADO-RS GET against path with the given

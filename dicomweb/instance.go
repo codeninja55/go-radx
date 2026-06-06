@@ -43,6 +43,28 @@ func encodeInstance(ds *dicom.DataSet, ts dicom.TransferSyntax) ([]byte, error) 
 	return buf.Bytes(), nil
 }
 
+// encodeRetrievedInstance renders a retrieved instance as a Part-10 application/dicom object
+// for a WADO-RS response, honouring the transfer-syntax decision. The decision is taken to be
+// acceptable; the caller has already answered 406 otherwise.
+//
+// A passthrough of a syntax go-radx cannot write (every encapsulated/compressed syntax) is
+// served byte-exact from the instance's stored Encoded bytes, never re-encoded through
+// dicom.Write, which emits only the four uncompressed syntaxes. When such a passthrough has no
+// stored bytes the instance has no writable representation, reported as ErrNotAcceptable so the
+// caller answers 406 rather than 500 from a doomed re-encode. A writable syntax (passthrough or
+// transcode) is encoded from the DataSet as before.
+func encodeRetrievedInstance(si RetrievedInstance, decision transferSyntaxDecision) ([]byte, error) {
+	if decision.passthrough && decision.syntax.IsEncapsulated() {
+		if len(si.Encoded) == 0 {
+			return nil, fmt.Errorf("%w: stored instance is in encapsulated transfer syntax %s with no byte-exact "+
+				"representation to pass through, and go-radx transcodes no pixel data in this slice",
+				ErrNotAcceptable, decision.syntax.Name())
+		}
+		return si.Encoded, nil
+	}
+	return encodeInstance(si.DataSet, decision.syntax)
+}
+
 // requireSOPIdentity rejects a dataset that lacks the SOP Class UID (0008,0016) or SOP
 // Instance UID (0008,0018) a STOW-RS store response must reference. An instance with no
 // SOP identity cannot be reported as accepted or failed, so it is rejected as an invalid

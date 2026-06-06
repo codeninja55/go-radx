@@ -406,8 +406,11 @@ func storeStatus(accepted, failed int) int {
 // transfer-syntax parameter, else 406 (the server transcodes no pixel data in this slice).
 // A backend that reports its stored transfer syntax (StoredInstanceRetriever) drives the
 // policy with the true stored syntax; a base RetrieveBackend is treated as storing the
-// default uncompressed syntax. Content negotiation that asks for an unservable
-// representation answers 406 (PRD §9.7 fail-closed negotiation).
+// default uncompressed syntax. A passthrough of an encapsulated (compressed) syntax is
+// served byte-exact from the instance's stored bytes, since go-radx writes only uncompressed
+// syntaxes; when those bytes are absent the request answers 406 rather than a 500 from a
+// doomed re-encode. Content negotiation that asks for an unservable representation answers
+// 406 (PRD §9.7 fail-closed negotiation).
 func (s *Server) handleRetrieveInstance(w http.ResponseWriter, r *http.Request, segs []string) {
 	if s.retrieve == nil {
 		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS retrieval is not implemented")
@@ -439,7 +442,15 @@ func (s *Server) handleRetrieveInstance(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	raw, err := encodeInstance(si.DataSet, decision.syntax)
+	raw, err := encodeRetrievedInstance(si, decision)
+	if errors.Is(err, ErrNotAcceptable) {
+		// The stored syntax is encapsulated and the backend supplied no byte-exact bytes to
+		// pass through; go-radx writes no encapsulated syntax, so this is an honest 406 rather
+		// than a 500 from a doomed re-encode (PRD §9.7 fail-closed negotiation).
+		s.writeProblem(w, r, http.StatusNotAcceptable, err,
+			"the stored instance is in a compressed transfer syntax that cannot be served unchanged")
+		return
+	}
 	if err != nil {
 		s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot encode the retrieved instance")
 		return

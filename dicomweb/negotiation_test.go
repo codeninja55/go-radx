@@ -204,6 +204,48 @@ func TestNegotiateRetrieveTransferSyntax(t *testing.T) {
 	}
 }
 
+// TestNegotiateRetrieveTransferSyntaxBindsRangeToMediaType is the mismatched-range regression:
+// a transfer-syntax parameter must only constrain the served representation when it is named on
+// a media range that actually matches that representation. An Accept whose DICOM range names a
+// syntax the server cannot serve, but whose unrelated range (application/json) names the stored
+// syntax, must NOT pass: the json range's transfer-syntax does not bind the application/dicom
+// part, so the request is 406, not a passthrough.
+func TestNegotiateRetrieveTransferSyntaxBindsRangeToMediaType(t *testing.T) {
+	const stored = dicom.ExplicitVRLittleEndian
+	const storedTS = "1.2.840.10008.1.2.1"
+	const jpegTS = "1.2.840.10008.1.2.4.50"
+
+	// The DICOM range names only JPEG (unservable here); the json range names the stored
+	// syntax but qualifies application/json, not the served application/dicom part.
+	accept := `multipart/related; type="application/dicom"; transfer-syntax=` + jpegTS +
+		`, application/json; transfer-syntax=` + storedTS
+	got := negotiateRetrieveTransferSyntax(accept, stored)
+	if got.acceptable {
+		t.Fatalf("acceptable = true, want 406: the stored syntax was named only on an unrelated (json) range")
+	}
+
+	// Control: the same stored-syntax token on the DICOM range itself does bind and passes
+	// through, confirming the binding is per media type, not a blanket rejection.
+	acceptDICOM := `multipart/related; type="application/dicom"; transfer-syntax=` + storedTS
+	if got := negotiateRetrieveTransferSyntax(acceptDICOM, stored); !got.acceptable || !got.passthrough {
+		t.Fatalf("stored syntax on the DICOM range: acceptable=%v passthrough=%v, want both true", got.acceptable, got.passthrough)
+	}
+}
+
+// TestAcceptTransferSyntaxesOnlyMatchingRanges asserts acceptTransferSyntaxes collects a
+// transfer-syntax token only from a range whose media type matches, ignoring tokens on
+// unrelated ranges.
+func TestAcceptTransferSyntaxesOnlyMatchingRanges(t *testing.T) {
+	const dicomTS = "1.2.840.10008.1.2.1"
+	const jsonOnlyTS = "1.2.840.10008.1.2.4.50"
+	accept := `application/dicom; transfer-syntax=` + dicomTS +
+		`, application/json; transfer-syntax=` + jsonOnlyTS
+	got := acceptTransferSyntaxes(accept, dicomRangeMatchesMediaType)
+	if len(got) != 1 || got[0] != dicomTS {
+		t.Fatalf("acceptTransferSyntaxes = %v, want only the DICOM range's token %q", got, dicomTS)
+	}
+}
+
 func TestIsMultipartRelated(t *testing.T) {
 	if !isMultipartRelated(`multipart/related; boundary=abc; type="application/dicom"`) {
 		t.Fatal("multipart/related Content-Type not recognised")

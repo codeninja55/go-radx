@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -334,6 +335,94 @@ func TestRetrieveInstanceUnservableSyntaxIs406(t *testing.T) {
 	}
 }
 
+// TestRetrieveInstanceCompressedPassthroughDefaultAccept is the compressed-passthrough
+// regression: an instance stored in an encapsulated (compressed) syntax, retrieved with the
+// default Accept (no transfer-syntax preference), is served byte-exact from its stored bytes
+// rather than 500ing on a doomed dicom.Write of an encapsulated syntax. The default Accept
+// selects passthrough, and go-radx writes no encapsulated syntax, so the stored bytes must be
+// returned unchanged.
+func TestRetrieveInstanceCompressedPassthroughDefaultAccept(t *testing.T) {
+	const sop = "1.2.3.4.5"
+	// A byte-exact stored object the server must echo verbatim. The bytes need not be a valid
+	// JPEG stream: passthrough copies them unchanged, and the test asserts that copy is exact.
+	storedBytes := bytes.Repeat([]byte{0x4A, 0x50, 0x45, 0x47}, 32)
+
+	store := newWADOStore()
+	store.put(RetrievedInstance{
+		DataSet:        sampleInstance("1.2.3", "1.2.3.4", sop),
+		TransferSyntax: dicom.JPEGBaseline8Bit,
+		Encoded:        storedBytes,
+	})
+	srv, err := NewServer(WithRetrieveBackend(store))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	// Default Accept with no transfer-syntax preference: the passthrough path that previously
+	// 500ed when the stored syntax was encapsulated.
+	req, _ := http.NewRequest(http.MethodGet, hs.URL+"/studies/1.2.3/series/1.2.3.4/instances/"+sop, http.NoBody)
+	req.Header.Set("Accept", acceptInstances())
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("GET instance: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("compressed passthrough status = %d, want 200 (must not 500 on dicom.Write of an encapsulated syntax)", resp.StatusCode)
+	}
+	if !isMultipartRelated(resp.Header.Get("Content-Type")) {
+		t.Fatalf("response Content-Type = %q, want multipart/related", resp.Header.Get("Content-Type"))
+	}
+
+	mr, err := NewMultipartReader(resp.Body, resp.Header.Get("Content-Type"))
+	if err != nil {
+		t.Fatalf("NewMultipartReader: %v", err)
+	}
+	_, part, err := mr.NextPart()
+	if err != nil {
+		t.Fatalf("NextPart: %v", err)
+	}
+	got, err := io.ReadAll(part)
+	if err != nil {
+		t.Fatalf("read part: %v", err)
+	}
+	if !bytes.Equal(got, storedBytes) {
+		t.Fatalf("passthrough body (%d bytes) is not byte-exact with the stored bytes (%d bytes)", len(got), len(storedBytes))
+	}
+}
+
+// TestRetrieveInstanceCompressedNoBytesIs406 asserts the honest-406 fallback: an instance
+// stored in an encapsulated syntax with no byte-exact bytes to pass through cannot be served
+// (go-radx writes no encapsulated syntax), so the default-Accept passthrough answers 406 rather
+// than a 500 from a doomed re-encode.
+func TestRetrieveInstanceCompressedNoBytesIs406(t *testing.T) {
+	const sop = "1.2.3.4.5"
+	store := newWADOStore()
+	store.put(RetrievedInstance{
+		DataSet:        sampleInstance("1.2.3", "1.2.3.4", sop),
+		TransferSyntax: dicom.JPEG2000Lossless,
+	})
+	srv, err := NewServer(WithRetrieveBackend(store))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	req, _ := http.NewRequest(http.MethodGet, hs.URL+"/studies/1.2.3/series/1.2.3.4/instances/"+sop, http.NoBody)
+	req.Header.Set("Accept", acceptInstances())
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("GET instance: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusNotAcceptable {
+		t.Fatalf("encapsulated-no-bytes status = %d, want 406 (never 500 from writing an encapsulated syntax)", resp.StatusCode)
+	}
+}
+
 // TestRetrieveStudyNotImplementedWhenBaseBackend asserts a backend implementing only the base
 // RetrieveBackend answers 501 for study retrieval, never a silent 200 no-op.
 func TestRetrieveStudyNotImplementedWhenBaseBackend(t *testing.T) {
@@ -402,5 +491,86 @@ func TestAbsoluteBulkDataURL(t *testing.T) {
 				t.Fatalf("absoluteBulkDataURL(%q) = %q, want %q", tc.ref, got, tc.want)
 			}
 		})
+	}
+}
+
+// bulkDataEchoServer is a test origin that records the Authorization header of the request it
+// received and answers a one-part multipart/related application/octet-stream body, so a test
+// can assert whether ResolveBulkDataURI attached the bearer token.
+func bulkDataEchoServer(t *testing.T, payload []byte) (*httptest.Server, *string) {
+	t.Helper()
+	var gotAuth string
+	hs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		var buf bytes.Buffer
+		mw := NewMultipartWriter(&buf, mediaTypeOctet)
+		if err := mw.AddPart(mediaTypeOctet, bytes.NewReader(payload)); err != nil {
+			t.Errorf("AddPart: %v", err)
+		}
+		if _, err := mw.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+		w.Header().Set("Content-Type", mw.ContentType())
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(buf.Bytes())
+	}))
+	t.Cleanup(hs.Close)
+	return hs, &gotAuth
+}
+
+// TestResolveBulkDataURISameOriginSendsToken asserts the bearer token is attached when the
+// resolved absolute BulkDataURI is same-origin with the client's configured base URL.
+func TestResolveBulkDataURISameOriginSendsToken(t *testing.T) {
+	const token = "s3cr3t-pacs-token"
+	payload := bytes.Repeat([]byte{0xAB}, 16)
+	origin, gotAuth := bulkDataEchoServer(t, payload)
+
+	c, err := NewClient(origin.URL, WithHTTPClient(origin.Client()), WithBearerToken(token))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	// An absolute BulkDataURI on the same origin (host:port) as the base URL.
+	uri := BulkDataURI(origin.URL + "/studies/1.2.3/series/1.2.3.4/instances/1.2.3.4.5/bulkdata/0")
+	got, err := c.ResolveBulkDataURI(context.Background(), uri)
+	if err != nil {
+		t.Fatalf("ResolveBulkDataURI: %v", err)
+	}
+	if !bytes.Equal(got, payload) {
+		t.Fatalf("resolved bulk data does not match the payload")
+	}
+	if *gotAuth != "Bearer "+token {
+		t.Fatalf("same-origin Authorization = %q, want the bearer token to be sent", *gotAuth)
+	}
+}
+
+// TestResolveBulkDataURICrossOriginOmitsToken is the credential-leak regression: a
+// server-supplied absolute BulkDataURI on a different host must be fetched WITHOUT the bearer
+// token, so a malicious or compromised origin cannot harvest the PACS credential.
+func TestResolveBulkDataURICrossOriginOmitsToken(t *testing.T) {
+	const token = "s3cr3t-pacs-token"
+	payload := bytes.Repeat([]byte{0xCD}, 16)
+
+	// The configured origin (its handler is never reached for the cross-origin reference).
+	base, baseAuth := bulkDataEchoServer(t, payload)
+	// A different host: a distinct httptest server gets its own port, so it is cross-origin.
+	evil, evilAuth := bulkDataEchoServer(t, payload)
+
+	c, err := NewClient(base.URL, WithHTTPClient(base.Client()), WithBearerToken(token))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	uri := BulkDataURI(evil.URL + "/harvested/bulkdata/0")
+	got, err := c.ResolveBulkDataURI(context.Background(), uri)
+	if err != nil {
+		t.Fatalf("ResolveBulkDataURI: %v", err)
+	}
+	if !bytes.Equal(got, payload) {
+		t.Fatalf("resolved bulk data does not match the cross-origin payload")
+	}
+	if *evilAuth != "" {
+		t.Fatalf("cross-origin Authorization = %q, want NO credential sent (token must not leak cross-origin)", *evilAuth)
+	}
+	if *baseAuth != "" {
+		t.Fatalf("base origin saw Authorization = %q, but the cross-origin reference should never reach it", *baseAuth)
 	}
 }

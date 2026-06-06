@@ -165,7 +165,7 @@ type transferSyntaxDecision struct {
 // server's encoder can actually produce; passing only the stored syntax (or none) makes the
 // policy passthrough-or-406, never an unsupported transcode.
 func negotiateRetrieveTransferSyntax(accept string, stored dicom.TransferSyntax, transcodable ...dicom.TransferSyntax) transferSyntaxDecision {
-	wants := acceptTransferSyntaxes(accept)
+	wants := acceptTransferSyntaxes(accept, dicomRangeMatchesMediaType)
 	if len(wants) == 0 {
 		// No transfer-syntax constraint anywhere in the Accept header: serve what is stored.
 		return transferSyntaxDecision{syntax: stored, passthrough: true, acceptable: true}
@@ -194,12 +194,15 @@ func negotiateRetrieveTransferSyntax(accept string, stored dicom.TransferSyntax,
 	return transferSyntaxDecision{acceptable: false}
 }
 
-// acceptTransferSyntaxes collects every transfer-syntax token named across the Accept
-// header's media ranges, preserving order and de-duplicating. An empty result means no
-// range constrained the transfer syntax (the caller serves its stored/default syntax). A
-// range that fails to parse is skipped, so a malformed Accept never silently widens what is
-// served.
-func acceptTransferSyntaxes(accept string) []string {
+// acceptTransferSyntaxes collects the transfer-syntax tokens named across the Accept header's
+// media ranges, preserving order and de-duplicating. Only ranges whose media type rangeMatches
+// the representation being served contribute their transfer-syntax parameter: a transfer-syntax
+// parameter is a property of the media type it qualifies (PS3.18 §8.7.3.3), so a token named on
+// an unrelated range (for example application/json) must not constrain the served DICOM part.
+// An empty result means no matching range constrained the transfer syntax (the caller serves
+// its stored/default syntax). A range that fails to parse is skipped, so a malformed Accept
+// never silently widens what is served.
+func acceptTransferSyntaxes(accept string, rangeMatches func(mt string, params map[string]string) bool) []string {
 	accept = strings.TrimSpace(accept)
 	if accept == "" {
 		return nil
@@ -211,8 +214,11 @@ func acceptTransferSyntaxes(accept string) []string {
 		if part == "" {
 			continue
 		}
-		_, params, err := mime.ParseMediaType(part)
+		mt, params, err := mime.ParseMediaType(part)
 		if err != nil {
+			continue
+		}
+		if !rangeMatches(strings.ToLower(mt), params) {
 			continue
 		}
 		ts, ok := params["transfer-syntax"]
@@ -232,6 +238,27 @@ func acceptTransferSyntaxes(accept string) []string {
 		}
 	}
 	return out
+}
+
+// dicomRangeMatchesMediaType reports whether an Accept media range names the WADO-RS
+// application/dicom representation, ignoring any transfer-syntax constraint. It is the
+// media-type gate acceptTransferSyntaxes uses to decide which ranges may carry a
+// transfer-syntax parameter for the served instance: multipart/related with a compatible type
+// parameter, application/dicom, or a wildcard. It mirrors negotiateMediaTypeDICOM's media-type
+// predicate so the set of ranges admitted there and the set whose transfer-syntax binds here
+// stay identical.
+func dicomRangeMatchesMediaType(mt string, params map[string]string) bool {
+	switch mt {
+	case mediaTypeMultipart:
+		if t, ok := params["type"]; ok && t != mediaTypeDICOM && t != "*/*" {
+			return false
+		}
+		return true
+	case mediaTypeDICOM, "application/*", "*/*":
+		return true
+	default:
+		return false
+	}
 }
 
 // negotiateDICOMJSON reports whether an Accept header admits application/dicom+json
