@@ -2,7 +2,9 @@ package hl7v2
 
 import (
 	"errors"
+	"strings"
 	"testing"
+	"time"
 )
 
 // fixedControlID is a deterministic control-ID source for the BuildACK tests so
@@ -171,6 +173,82 @@ func TestBuildACKDoesNotEchoPatientID(t *testing.T) {
 	h, _ := ack.MSH()
 	if h.ControlID == "555-44-4444" {
 		t.Error("minted control ID echoes the patient identifier; must be synthetic")
+	}
+}
+
+// TestBuildACKStampsOwnCreationTime confirms MSH-7 of the ACK is the time the ACK
+// is built (from the injected clock), not a copy of the source MSH-7. The source
+// here is older, so copying it would misreport the ACK's creation time.
+func TestBuildACKStampsOwnCreationTime(t *testing.T) {
+	src, _ := Parse([]byte(canonicalORM))
+	srcMSH, _ := src.MSH()
+	if srcMSH.DateTime.String() != "202605311230" {
+		t.Fatalf("source MSH-7 = %q, want 202605311230 (fixture changed)", srcMSH.DateTime.String())
+	}
+
+	ackTime := time.Date(2026, 6, 1, 9, 30, 15, 0, time.UTC)
+	ack, err := src.BuildACK(AckAccept,
+		WithControlIDSource(fixedControlID("ACK700")),
+		WithACKClock(func() time.Time { return ackTime }))
+	if err != nil {
+		t.Fatalf("BuildACK error = %v", err)
+	}
+
+	h, _ := ack.MSH()
+	if h.DateTime.String() != "20260601093015" {
+		t.Errorf("ACK MSH-7 = %q, want the clock time 20260601093015", h.DateTime.String())
+	}
+	if h.DateTime.String() == srcMSH.DateTime.String() {
+		t.Errorf("ACK MSH-7 %q copies the source MSH-7; want the ACK's own creation time", h.DateTime.String())
+	}
+}
+
+// TestBuildACKEscapesACKText proves MSA-3 diagnostic text carrying active
+// delimiters round-trips byte-faithfully: the '|', '^', and '~' are escaped on
+// write so the text neither splits MSA-3 nor forges a spurious segment, and the
+// unescaping accessor returns the original text.
+func TestBuildACKEscapesACKText(t *testing.T) {
+	src, _ := Parse([]byte(canonicalORM))
+	const diagnostic = "OBX-5|field^sub~rep failed"
+	ack, err := src.BuildACK(AckError,
+		WithControlIDSource(fixedControlID("ACK800")),
+		WithACKText(diagnostic))
+	if err != nil {
+		t.Fatalf("BuildACK error = %v", err)
+	}
+
+	out, err := ack.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText error = %v", err)
+	}
+	// The active delimiters must not appear raw inside MSA-3; they are escaped.
+	if strings.Contains(string(out), "OBX-5|field") {
+		t.Errorf("MSA-3 wrote the active '|' raw, splitting the field\nrendered = %q", out)
+	}
+
+	reparsed, err := Parse(out)
+	if err != nil {
+		t.Fatalf("re-parse of built ACK error = %v\nrendered = %q", err, out)
+	}
+	// The framing is intact: exactly MSH + MSA, no forged or split segment.
+	if got := len(reparsed.Segments); got != 2 {
+		t.Fatalf("re-parsed ACK has %d segments, want 2 (MSH, MSA); text fractured framing", got)
+	}
+	typed, ok := AsACK(reparsed)
+	if !ok {
+		t.Fatal("re-parsed ACK is not an ACK lens")
+	}
+	msa, ok := typed.MSA()
+	if !ok {
+		t.Fatal("re-parsed ACK has no MSA")
+	}
+	// The typed read path returns the still-escaped bytes; the unescaping accessor
+	// returns the original text exactly.
+	if got, _ := reparsed.Get("MSA-3"); got != diagnostic {
+		t.Errorf("Get(MSA-3) = %q, want the original text %q", got, diagnostic)
+	}
+	if msa.AckCode != AckError {
+		t.Errorf("MSA-1 = %q, want AE", msa.AckCode)
 	}
 }
 

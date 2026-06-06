@@ -82,6 +82,49 @@ func TestPIDSegmentRoundTrip(t *testing.T) {
 	}
 }
 
+// TestPIDSegmentPreservesAllPatientIDs proves PID-3 renders every identifier in
+// AllPatientIDs as a '~'-separated repetition list, so a value such as "MRN~SSN"
+// keeps its alternate identifier through a typed round-trip rather than dropping
+// AllPatientIDs[1:].
+func TestPIDSegmentPreservesAllPatientIDs(t *testing.T) {
+	enc := DefaultEncoding()
+	ids := []CX{
+		{ID: "555-44-4444", AssigningAuthority: HD{NamespaceID: "HOSP"}, IdentifierTypeCode: "MR"},
+		{ID: "123-45-6789", AssigningAuthority: HD{NamespaceID: "SSA"}, IdentifierTypeCode: "SS"},
+	}
+	p := PID{SetID: "1", PatientID: ids[0], AllPatientIDs: ids, Sex: "F"}
+
+	got, err := ParsePID(p.Segment(enc))
+	if err != nil {
+		t.Fatalf("ParsePID(rendered) error = %v", err)
+	}
+	if len(got.AllPatientIDs) != 2 {
+		t.Fatalf("round-trip AllPatientIDs len = %d, want 2 (alternate identifier dropped)", len(got.AllPatientIDs))
+	}
+	if got.AllPatientIDs[0].ID != "555-44-4444" || got.AllPatientIDs[0].IdentifierTypeCode != "MR" {
+		t.Errorf("PID-3 rep 1 = %+v, want MRN", got.AllPatientIDs[0])
+	}
+	if got.AllPatientIDs[1].ID != "123-45-6789" || got.AllPatientIDs[1].IdentifierTypeCode != "SS" {
+		t.Errorf("PID-3 rep 2 = %+v, want SSN", got.AllPatientIDs[1])
+	}
+}
+
+// TestPIDSegmentFallsBackToPatientID proves a PID built without AllPatientIDs
+// still renders its primary identifier from PatientID, so the empty-slice path
+// does not drop PID-3 entirely.
+func TestPIDSegmentFallsBackToPatientID(t *testing.T) {
+	enc := DefaultEncoding()
+	p := PID{SetID: "1", PatientID: CX{ID: "555-44-4444", IdentifierTypeCode: "MR"}}
+
+	got, err := ParsePID(p.Segment(enc))
+	if err != nil {
+		t.Fatalf("ParsePID(rendered) error = %v", err)
+	}
+	if got.PatientID.ID != "555-44-4444" || got.PatientID.IdentifierTypeCode != "MR" {
+		t.Errorf("PID-3 fallback = %+v, want the single PatientID", got.PatientID)
+	}
+}
+
 func TestORCSegmentRoundTrip(t *testing.T) {
 	enc := DefaultEncoding()
 	dt, _ := ParseDTM("202605311230")

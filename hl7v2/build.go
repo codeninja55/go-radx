@@ -59,11 +59,13 @@ func (h MSH) Segment(enc EncodingCharacters) Segment {
 }
 
 // Segment renders the PID back to a generic Segment, escaping its leaf values on
-// write so an in-band delimiter survives the round-trip.
+// write so an in-band delimiter survives the round-trip. PID-3 carries every
+// patient identifier as a '~'-separated repetition list (MRN, SSN, ...), so an
+// alternate identifier is not dropped on a typed round-trip.
 func (p PID) Segment(enc EncodingCharacters) Segment {
 	fields := newFields("PID", 11)
 	fields[1] = escapedLeaf(p.SetID, enc)                               // PID-1
-	fields[3] = escapedRepetitionField(p.PatientID.repetition(), enc)   // PID-3
+	fields[3] = escapedPatientIDField(p, enc)                           // PID-3
 	fields[5] = escapedRepetitionField(p.PatientName.repetition(), enc) // PID-5
 	fields[7] = escapedLeaf(p.BirthDate.String(), enc)                  // PID-7
 	fields[8] = escapedLeaf(p.Sex, enc)                                 // PID-8
@@ -122,6 +124,25 @@ func escapedLeaf(v string, enc EncodingCharacters) Field {
 	return leaf(Escape(v, enc))
 }
 
+// escapedPatientIDField renders PID-3 from the full AllPatientIDs repetition list
+// so a value such as "MRN~SSN" keeps every identifier through a typed round-trip,
+// mirroring how ParsePID populated AllPatientIDs from allCX(field 3). When
+// AllPatientIDs is empty it falls back to the single PatientID, so a PID built
+// without the slice still renders its primary identifier. Each CX is escaped on
+// write like the other composite renderers.
+func escapedPatientIDField(p PID, enc EncodingCharacters) Field {
+	ids := p.AllPatientIDs
+	if len(ids) == 0 {
+		return escapedRepetitionField(p.PatientID.repetition(), enc)
+	}
+	reps := make([]Repetition, 0, len(ids))
+	for i := range ids {
+		f := escapedRepetitionField(ids[i].repetition(), enc)
+		reps = append(reps, f.Repetitions...)
+	}
+	return Field{Repetitions: reps}
+}
+
 // escapedRepetitionField builds a single-repetition Field from a composite
 // repetition, escaping each leaf subcomponent against enc so an in-band delimiter
 // inside a component (e.g. an '&' in a name) does not fracture the composite on
@@ -154,13 +175,14 @@ func trimTrailingEmpty(fields []Field) []Field {
 // ackConfig holds the resolved BuildACK options.
 type ackConfig struct {
 	controlID  func() string
+	now        func() time.Time
 	text       string
 	sendingApp *HD
 	sendingFac *HD
 }
 
-// ACKOption overrides a BuildACK default: the minted control-ID source, the
-// MSA-3 text, or the responder's sending application/facility.
+// ACKOption overrides a BuildACK default: the minted control-ID source, the ACK
+// creation clock, the MSA-3 text, or the responder's sending application/facility.
 type ACKOption func(*ackConfig)
 
 // WithControlIDSource sets the source of the fresh MSH-10 control ID for the
@@ -170,6 +192,18 @@ func WithControlIDSource(src func() string) ACKOption {
 	return func(c *ackConfig) {
 		if src != nil {
 			c.controlID = src
+		}
+	}
+}
+
+// WithACKClock sets the source of the acknowledgement's own creation time
+// (MSH-7). It is injectable so tests are deterministic; the default is the wall
+// clock. MSH-7 is the date/time the ACK is built, so it is taken from this clock
+// rather than copied from the source message, whose MSH-7 may be older.
+func WithACKClock(now func() time.Time) ACKOption {
+	return func(c *ackConfig) {
+		if now != nil {
+			c.now = now
 		}
 	}
 }
@@ -205,6 +239,14 @@ func defaultControlID() string {
 	return "ACK" + strconv.FormatInt(time.Now().UnixNano(), 36) + strconv.FormatUint(n, 36)
 }
 
+// dtmFromTime renders t as a second-precision HL7 DTM (YYYYMMDDHHMMSS), the form
+// the package stamps a generated date/time at, and parses it back so MSH-7 stays
+// a DTM whose lexical form round-trips through render and parse.
+func dtmFromTime(t time.Time) DTM {
+	d, _ := ParseDTM(t.UTC().Format("20060102150405"))
+	return d
+}
+
 // BuildACK constructs a spec-correct acknowledgement for m per HL7 Chapter 2
 // §2.9.2, following the field-swap logic of python-hl7's create_ack: the sending
 // and receiving application/facility are swapped from the source MSH (MSH-3 with
@@ -219,7 +261,7 @@ func (m *Message) BuildACK(code AckCode, opts ...ACKOption) (*Message, error) {
 		return nil, &SegmentError{Segment: "MSH", Reason: "cannot acknowledge a message without an MSH header"}
 	}
 
-	cfg := ackConfig{controlID: defaultControlID}
+	cfg := ackConfig{controlID: defaultControlID, now: time.Now}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -238,7 +280,7 @@ func (m *Message) BuildACK(code AckCode, opts ...ACKOption) (*Message, error) {
 		SendingFacility:      sendingFac,
 		ReceivingApplication: src.SendingApplication,
 		ReceivingFacility:    src.SendingFacility,
-		DateTime:             src.DateTime,
+		DateTime:             dtmFromTime(cfg.now()),
 		MessageType:          MessageType{Code: "ACK", TriggerEvent: src.MessageType.TriggerEvent, Structure: "ACK"},
 		ControlID:            cfg.controlID(),
 		ProcessingID:         src.ProcessingID,
