@@ -96,6 +96,40 @@ here. The `Accessor` segment-instance field is `SegmentNum` (1 selects the first
 1-based path string and returns the unescaped leaf value with an error channel. See the API reference for the exact
 signatures.
 
+### Accessor and Set
+
+> **Implementation status: SHIPPED.** `Accessor`, `ParseAccessor`, `Accessor.String`, `Message.Get`, and `Message.Set`
+> ship today, alongside the `AccessorError` type.
+
+`ParseAccessor` accepts both accepted key styles and never mixes them within one key:
+
+- The numeric style `PID-5-1-2` (segment `PID`, field 5, repetition 1, component 2), which also accepts the dotted
+  spelling `PID.5.1.2`.
+- The prefixed style `PID.F5.R1.C2`, where each level is named and the levels must still appear in `F`, `R`, `C`, `S`
+  order with no level skipped.
+
+A trailing segment-instance index is written inline, so `PID2-5` selects field 5 of the second `PID` segment. A
+malformed key — a segment ID that is not three characters, a non-positive or non-numeric index, a doubled separator,
+or an out-of-order or unknown level prefix — returns an `*AccessorError`. `Accessor.String` renders the canonical
+form, for example `PID2-5-1-2`.
+
+`Message.Get` follows the `python-hl7` `extract_field` resolution rules, the parity floor. Omitted repetition,
+component, and subcomponent levels default to index 1; a path shallower than the tree descends the first child to a
+leaf; a path deeper than the tree reaches the leaf when every extra index is 1. An absent segment instance, field, or
+repetition reads as `("", nil)`. The HL7 explicit null — a present-but-empty field encoded as the literal `""` quote
+pair — is preserved and distinguished from absence, which reads as the empty string. A path that descends past a leaf
+(asking for a component or subcomponent above index 1 of a value that has none) returns an `*AccessorError`, because
+that is a malformed request rather than an absent optional.
+
+Every leaf is unescaped on read against the message's encoding characters, except `MSH-1` and `MSH-2`: those are the
+field separator and the encoding characters themselves and are returned verbatim, since unescaping the bytes that
+*define* the escape mechanism would be circular.
+
+`Message.Set` escapes the value on write against the message's encoding characters so a delimiter byte in the value
+cannot forge structure, and grows fields, repetitions, components, and subcomponents as needed to reach the path. It
+never invents a segment: a `Set` against an absent segment instance returns an `*AccessorError`, and `MSH-1`/`MSH-2`
+are rejected because reassigning the delimiters would desynchronize the message from its own encoding.
+
 ### Generic tree and typed layers in scope
 
 Two access layers are in scope:
