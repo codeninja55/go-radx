@@ -68,6 +68,28 @@ func negotiateMultipartDICOM(accept string, emitTS dicom.TransferSyntax) bool {
 	})
 }
 
+// negotiateMediaTypeDICOM reports whether an Accept header admits a multipart/related body
+// of application/dicom parts, ignoring any transfer-syntax constraint. It is the media-type
+// gate the instance/study/series retrieval applies before the stored instance is fetched, so
+// an Accept naming a wholly unservable media type (for example application/dicom+xml) fails
+// fast as 406 without a backend lookup; the precise transfer-syntax decision is then made
+// against the true stored syntax once the instance is in hand.
+func negotiateMediaTypeDICOM(accept string) bool {
+	return negotiate(accept, func(mt string, params map[string]string) bool {
+		switch mt {
+		case mediaTypeMultipart:
+			if t, ok := params["type"]; ok && t != mediaTypeDICOM && t != "*/*" {
+				return false
+			}
+			return true
+		case mediaTypeDICOM, "application/*", "*/*":
+			return true
+		default:
+			return false
+		}
+	})
+}
+
 // transferSyntaxAcceptable reports whether a media range's transfer-syntax parameter (if
 // any) admits emitTS. An absent parameter or the "*" wildcard accepts any syntax; a
 // concrete parameter must name emitTS. The parameter may be a comma-separated list, each
@@ -84,6 +106,132 @@ func transferSyntaxAcceptable(params map[string]string, emitTS dicom.TransferSyn
 		}
 	}
 	return false
+}
+
+// acceptOctetStream is the Accept header a WADO-RS frame or bulkdata retrieval sends: a
+// multipart/related body of application/octet-stream parts (PS3.18 §10.4.3, §10.4.4). Raw
+// frame and bulk-data octets are carried as octet-stream parts, not application/dicom.
+func acceptOctetStream() string {
+	return relatedContentType(mediaTypeOctet)
+}
+
+// negotiateMultipartOctet reports whether an Accept header admits a multipart/related body
+// of application/octet-stream parts, the framing a WADO-RS frame or bulkdata response uses.
+// An empty Accept (no preference) is accepted; a present Accept must name multipart/related
+// with a compatible type parameter, application/octet-stream, or a wildcard. A
+// transfer-syntax parameter is honoured against emitTS for frame retrieval, where the pixel
+// data's transfer syntax is meaningful; bulk-data retrieval passes an empty emitTS, which a
+// concrete transfer-syntax parameter then cannot match (it answers 406).
+func negotiateMultipartOctet(accept string, emitTS dicom.TransferSyntax) bool {
+	return negotiate(accept, func(mt string, params map[string]string) bool {
+		switch mt {
+		case mediaTypeMultipart:
+			if t, ok := params["type"]; ok && t != mediaTypeOctet && t != "*/*" {
+				return false
+			}
+			return transferSyntaxAcceptable(params, emitTS)
+		case mediaTypeOctet, "application/*", "*/*":
+			return transferSyntaxAcceptable(params, emitTS)
+		default:
+			return false
+		}
+	})
+}
+
+// transferSyntaxDecision is the outcome of the WADO-RS retrieve transfer-syntax policy: the
+// transfer syntax the response is encoded in, and whether the stored syntax was served
+// unchanged (passthrough) or had to be re-encoded (transcode). When acceptable is false the
+// caller answers 406 Not Acceptable rather than serve a syntax the client did not admit.
+type transferSyntaxDecision struct {
+	syntax      dicom.TransferSyntax
+	passthrough bool
+	acceptable  bool
+}
+
+// negotiateRetrieveTransferSyntax applies the WADO-RS retrieve transfer-syntax policy
+// (PS3.18 §8.7.3.3, §10.4): given the syntax an instance is stored in and the syntaxes the
+// server can transcode to, it picks the response encoding from the Accept header's
+// transfer-syntax parameters.
+//
+//   - No transfer-syntax constraint (absent parameter, or the "*" wildcard): the stored
+//     syntax is served unchanged (passthrough). "*" explicitly means "any syntax you hold",
+//     so the origin never transcodes for a wildcard.
+//   - A constraint that names the stored syntax: passthrough.
+//   - A constraint that names a syntax in transcodable (and not the stored one): transcode.
+//   - A constraint that names no servable syntax: not acceptable (the caller answers 406).
+//
+// A wildcard-or-stored match is preferred over a transcode so a client that accepts the
+// stored syntax is never made to pay for a re-encode. transcodable lists the syntaxes the
+// server's encoder can actually produce; passing only the stored syntax (or none) makes the
+// policy passthrough-or-406, never an unsupported transcode.
+func negotiateRetrieveTransferSyntax(accept string, stored dicom.TransferSyntax, transcodable ...dicom.TransferSyntax) transferSyntaxDecision {
+	wants := acceptTransferSyntaxes(accept)
+	if len(wants) == 0 {
+		// No transfer-syntax constraint anywhere in the Accept header: serve what is stored.
+		return transferSyntaxDecision{syntax: stored, passthrough: true, acceptable: true}
+	}
+
+	var transcodeTo dicom.TransferSyntax
+	var haveTranscode bool
+	for _, want := range wants {
+		if want == "*" || want == string(stored) {
+			return transferSyntaxDecision{syntax: stored, passthrough: true, acceptable: true}
+		}
+		if haveTranscode {
+			continue
+		}
+		for _, t := range transcodable {
+			if want == string(t) {
+				transcodeTo = t
+				haveTranscode = true
+				break
+			}
+		}
+	}
+	if haveTranscode {
+		return transferSyntaxDecision{syntax: transcodeTo, passthrough: false, acceptable: true}
+	}
+	return transferSyntaxDecision{acceptable: false}
+}
+
+// acceptTransferSyntaxes collects every transfer-syntax token named across the Accept
+// header's media ranges, preserving order and de-duplicating. An empty result means no
+// range constrained the transfer syntax (the caller serves its stored/default syntax). A
+// range that fails to parse is skipped, so a malformed Accept never silently widens what is
+// served.
+func acceptTransferSyntaxes(accept string) []string {
+	accept = strings.TrimSpace(accept)
+	if accept == "" {
+		return nil
+	}
+	var out []string
+	seen := make(map[string]struct{})
+	for _, part := range strings.Split(accept, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		_, params, err := mime.ParseMediaType(part)
+		if err != nil {
+			continue
+		}
+		ts, ok := params["transfer-syntax"]
+		if !ok || ts == "" {
+			continue
+		}
+		for _, want := range strings.Split(ts, ",") {
+			want = strings.TrimSpace(want)
+			if want == "" {
+				continue
+			}
+			if _, dup := seen[want]; dup {
+				continue
+			}
+			seen[want] = struct{}{}
+			out = append(out, want)
+		}
+	}
+	return out
 }
 
 // negotiateDICOMJSON reports whether an Accept header admits application/dicom+json
