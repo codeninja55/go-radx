@@ -12,14 +12,14 @@ import (
 // returned error string may contain any of them: the report names concepts and
 // loci, never patient data (PRD §9.1).
 var seededPHI = []string{
-	"555-44-4444",  // MRN (PID-3)
-	"EVERYWOMAN",   // family name (PID-5)
-	"EVE",          // given name (PID-5)
-	"19620320",     // birth date (PID-7)
-	"123 MAIN ST",  // street (PID-11)
-	"METROPOLIS",   // city (PID-11)
-	"VISIT-9001",   // visit number (PV1-19)
-	"242",          // observed numeric value (OBX-5)
+	"555-44-4444",            // MRN (PID-3)
+	"EVERYWOMAN",             // family name (PID-5)
+	"EVE",                    // given name (PID-5)
+	"19620320",               // birth date (PID-7)
+	"123 MAIN ST",            // street (PID-11)
+	"METROPOLIS",             // city (PID-11)
+	"VISIT-9001",             // visit number (PV1-19)
+	"242",                    // observed numeric value (OBX-5)
 	"Sample mildly lipemic.", // narrative (OBX-5)
 }
 
