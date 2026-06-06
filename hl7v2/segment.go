@@ -2,8 +2,6 @@ package hl7v2
 
 import (
 	"bytes"
-	"strconv"
-	"strings"
 )
 
 // ID returns the segment's three-character identifier (Fields[0] rendered),
@@ -165,84 +163,4 @@ func (s Segment) field(n int) Field {
 		return Field{}
 	}
 	return s.Fields[n]
-}
-
-// Get resolves a 1-based HL7 accessor key of the form "SEG-F-R-C-S" (or the
-// dotted "SEG.F.R.C.S" form) against the message and returns the leaf value, or
-// "" with no error when the position is simply absent. This is the minimal M2
-// accessor: it descends field/repetition/component/subcomponent in 1-based HL7
-// spec numbering and is sufficient for the ORM-feeding slice. The full
-// future-proofed resolution and the prefixed key form arrive in M5.
-func (m *Message) Get(key string) (string, error) {
-	parts := strings.FieldsFunc(key, func(r rune) bool { return r == '-' || r == '.' })
-	if len(parts) == 0 {
-		return "", &ParseError{Offset: 0, Reason: "empty accessor key"}
-	}
-
-	segID := parts[0]
-	seg, ok := m.Segment(segID)
-	if !ok {
-		return "", nil
-	}
-	if len(parts) == 1 {
-		return seg.ID(), nil
-	}
-
-	nums := make([]int, len(parts)-1)
-	for i, p := range parts[1:] {
-		n, err := strconv.Atoi(p)
-		if err != nil || n < 1 {
-			return "", &ParseError{Offset: 0, Reason: "accessor key has a non-positive or non-numeric index"}
-		}
-		nums[i] = n
-	}
-
-	return resolveSegment(seg, nums), nil
-}
-
-// resolveSegment resolves field/repetition/component/subcomponent indices.
-// HL7 field N lives at Fields[N] for every segment: ordinary segments store the
-// ID at Fields[0], and MSH additionally stores MSH-1/MSH-2 (the field separator
-// and encoding characters) at Fields[1]/Fields[2], so the field-N-at-Fields[N]
-// mapping holds uniformly and MSH-1/MSH-2 read back verbatim.
-func resolveSegment(seg Segment, nums []int) string {
-	fieldNum := nums[0]
-	if fieldNum >= len(seg.Fields) {
-		return ""
-	}
-	return resolveField(seg.Fields[fieldNum], nums[1:])
-}
-
-// resolveField descends the remaining 1-based repetition/component/subcomponent
-// indices into f.
-func resolveField(f Field, nums []int) string {
-	if len(nums) == 0 {
-		return f.raw()
-	}
-	repNum := nums[0]
-	if repNum < 1 || repNum > len(f.Repetitions) {
-		return ""
-	}
-	rep := f.Repetitions[repNum-1]
-
-	if len(nums) == 1 {
-		return rep.raw()
-	}
-	compNum := nums[1]
-	if compNum < 1 || compNum > len(rep.Components) {
-		return ""
-	}
-	comp := rep.Components[compNum-1]
-
-	if len(nums) == 2 {
-		if len(comp.Subcomponents) == 0 {
-			return ""
-		}
-		return comp.Subcomponents[0]
-	}
-	subNum := nums[2]
-	if subNum < 1 || subNum > len(comp.Subcomponents) {
-		return ""
-	}
-	return comp.Subcomponents[subNum-1]
 }

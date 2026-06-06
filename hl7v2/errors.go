@@ -40,3 +40,15 @@ type SegmentError struct {
 func (e *SegmentError) Error() string {
 	return fmt.Sprintf("hl7v2: %s segment: %s", e.Segment, e.Reason)
 }
+
+// AccessorError reports a malformed accessor key or a path that descends past a
+// leaf node. It names the offending key and the structural reason; the key is a
+// 1-based path such as "PID-5-1-2", never a field value, so it carries no PHI.
+type AccessorError struct {
+	Key    string // the accessor key involved, e.g. "PID-5-1-2"
+	Reason string // structural description, free of field values
+}
+
+func (e *AccessorError) Error() string {
+	return fmt.Sprintf("hl7v2: accessor %q: %s", e.Key, e.Reason)
+}
