@@ -154,10 +154,16 @@ func TestRetrieveInstanceRoundTrip(t *testing.T) {
 	}
 }
 
-// TestQIDOReturns501 is the named regression: an unimplemented QIDO-RS request answers
-// 501 with a typed problem document naming ErrUnsupported, never a 200 empty result.
-func TestQIDOReturns501(t *testing.T) {
-	srv, err := NewServer(WithStoreBackend(newMemStore()))
+// TestQIDORouteReachable is the named regression for the QIDO-RS wiring: with a query
+// backend registered, a /studies search is routed to the query handler and returns a
+// conformant application/dicom+json result, not the 501 the route answered before QIDO
+// was implemented. The no-backend 501 contract is covered by
+// TestQIDONotImplementedWhenNoBackend in qido_test.go.
+func TestQIDORouteReachable(t *testing.T) {
+	backend := &memQuery{candidates: []*dicom.DataSet{
+		studyRecord("1.2.3", "12345", "Doe^Jane", "20200101", "ACC1", "CT"),
+	}}
+	srv, err := NewServer(WithQueryBackend(backend))
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -169,21 +175,18 @@ func TestQIDOReturns501(t *testing.T) {
 		t.Fatalf("GET /studies: %v", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusNotImplemented {
-		t.Fatalf("QIDO status = %d, want 501", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("QIDO status = %d, want 200 (route reachable, one match)", resp.StatusCode)
 	}
-	if ct := resp.Header.Get("Content-Type"); ct != "application/problem+json" {
-		t.Fatalf("QIDO Content-Type = %q, want application/problem+json", ct)
+	if ct := resp.Header.Get("Content-Type"); ct != mediaTypeDICOMJSON {
+		t.Fatalf("QIDO Content-Type = %q, want %q", ct, mediaTypeDICOMJSON)
 	}
-	var doc problemDocument
-	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil {
-		t.Fatalf("decode problem document: %v", err)
+	var results []json.RawMessage
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		t.Fatalf("decode QIDO results: %v", err)
 	}
-	if doc.Status != http.StatusNotImplemented {
-		t.Fatalf("problem status = %d, want 501", doc.Status)
-	}
-	if doc.Title != ErrUnsupported.Error() {
-		t.Fatalf("problem title = %q, want %q", doc.Title, ErrUnsupported.Error())
+	if len(results) != 1 {
+		t.Fatalf("QIDO results = %d, want 1", len(results))
 	}
 }
 
