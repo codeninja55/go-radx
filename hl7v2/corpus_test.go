@@ -17,16 +17,15 @@ import (
 const corpusDir = "../testdata/hl7v2"
 
 // corpusKind classifies a fixture by its top-level container so the harness
-// knows which entry point will eventually parse it. The single-message
-// fixtures parse with Parse today; the batch/file containers are parsed by
-// ParseBatch/ParseFile in a later increment, so the harness only loads their
-// raw bytes for now.
+// knows which entry point parses it: single-message fixtures parse with Parse,
+// batch containers with ParseBatch, file containers with ParseFile. Every kind
+// round-trips byte-exactly through MarshalText.
 type corpusKind int
 
 const (
 	kindMessage corpusKind = iota // a single MSH-led message (Parse)
-	kindBatch                     // a BHS/BTS batch (ParseBatch, later increment)
-	kindFile                      // an FHS/FTS file (ParseFile, later increment)
+	kindBatch                     // a BHS/BTS batch (ParseBatch)
+	kindFile                      // an FHS/FTS file (ParseFile)
 )
 
 // corpusFixture describes one vendored fixture: its filename, container kind,
@@ -69,8 +68,8 @@ func corpusByName(t *testing.T, name string) corpusFixture {
 }
 
 // corpusRaw loads a fixture's exact bytes from disk. It does not parse, so it
-// serves every fixture kind including the batch/file containers whose parsers
-// land in a later increment.
+// serves every fixture kind including the batch/file containers, which the
+// harness then parses through ParseAny.
 func corpusRaw(t *testing.T, name string) []byte {
 	t.Helper()
 	f := corpusByName(t, name)
@@ -97,11 +96,10 @@ func corpusMessage(t *testing.T, name string) *Message {
 	return msg
 }
 
-// TestCorpusHarness is the Increment 0 gate: every fixture is present and
-// loadable, every single-message fixture parses and round-trips byte-exact
-// through the existing Parse/MarshalText, and every container fixture is
-// present with a header/trailer the later batch/file parser will consume. It
-// proves the corpus is wired before any increment depends on it.
+// TestCorpusHarness is the corpus gate: every fixture is present, loadable, and
+// round-trips byte-exact through the parser for its kind. A single-message
+// fixture parses with Parse; a batch with ParseBatch; a file with ParseFile.
+// ParseAny must also dispatch to the same container and round-trip it.
 func TestCorpusHarness(t *testing.T) {
 	for _, f := range corpus {
 		t.Run(f.Name, func(t *testing.T) {
@@ -112,22 +110,85 @@ func TestCorpusHarness(t *testing.T) {
 
 			switch f.Kind {
 			case kindMessage:
+				assertLeadingSegment(t, raw, "MSH")
 				msg := corpusMessage(t, f.Name)
-				out, err := msg.MarshalText()
-				if err != nil {
-					t.Fatalf("MarshalText(%q): %v", f.File, err)
-				}
-				if string(out) != string(raw) {
-					t.Fatalf("round-trip mismatch for %q:\n got = %q\nwant = %q", f.File, out, raw)
-				}
+				assertContainerRoundTrip(t, f.File, msg, raw)
 			case kindBatch:
 				assertLeadingSegment(t, raw, "BHS")
 				assertContainsSegment(t, raw, "BTS")
+				batch, err := ParseBatch(raw)
+				if err != nil {
+					t.Fatalf("ParseBatch(%q): %v", f.File, err)
+				}
+				assertContainerRoundTrip(t, f.File, batch, raw)
 			case kindFile:
 				assertLeadingSegment(t, raw, "FHS")
 				assertContainsSegment(t, raw, "FTS")
+				file, err := ParseFile(raw)
+				if err != nil {
+					t.Fatalf("ParseFile(%q): %v", f.File, err)
+				}
+				assertContainerRoundTrip(t, f.File, file, raw)
 			}
+
+			// ParseAny dispatches on the leading segment and the result round-trips
+			// byte-exactly regardless of kind.
+			c, err := ParseAny(raw)
+			if err != nil {
+				t.Fatalf("ParseAny(%q): %v", f.File, err)
+			}
+			assertContainerRoundTrip(t, f.File, c, raw)
 		})
+	}
+}
+
+// assertContainerRoundTrip fails unless c renders back to raw byte-for-byte.
+func assertContainerRoundTrip(t *testing.T, file string, c Container, raw []byte) {
+	t.Helper()
+	out, err := c.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText(%q): %v", file, err)
+	}
+	if string(out) != string(raw) {
+		t.Fatalf("round-trip mismatch for %q:\n got = %q\nwant = %q", file, out, raw)
+	}
+}
+
+// TestCorpusEscapeDecode asserts the escaped fixture decodes its Chapter 2 §2.10
+// escape sequences on read while still round-tripping byte-exact when rendered.
+// The escaped value carries separator escapes (\S\ \F\ \E\ \T\) and a hex CR
+// (\X0D\); Get unescapes them against the message's derived encoding.
+func TestCorpusEscapeDecode(t *testing.T) {
+	msg := corpusMessage(t, "escaped")
+
+	// The escaped fixture round-trips byte-exact even though Get unescapes on read
+	// (Unescape is a read-side projection that never mutates the tree).
+	out, err := msg.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText: %v", err)
+	}
+	if string(out) != string(corpusRaw(t, "escaped")) {
+		t.Fatalf("escaped fixture did not round-trip byte-exact")
+	}
+
+	// PID-5.1 family name carries \T\ (the subcomponent separator '&').
+	family, err := msg.Get("PID-5-1-1")
+	if err != nil {
+		t.Fatalf("Get(PID-5-1-1): %v", err)
+	}
+	if family != "O&BRIEN-SMITH" {
+		t.Errorf("Get(PID-5-1-1) = %q, want %q (\\T\\ decoded to '&')", family, "O&BRIEN-SMITH")
+	}
+
+	// OBX-5 carries \S\ (component '^'), \F\ (field '|'), \E\ (escape '\'), and a
+	// hex CR \X0D\. Every sequence must decode to its literal byte.
+	value, err := msg.Get("OBX-5")
+	if err != nil {
+		t.Fatalf("Get(OBX-5): %v", err)
+	}
+	want := "Reads 5^6 mg per 100|unit\\ then \rdone"
+	if value != want {
+		t.Errorf("Get(OBX-5) = %q, want %q", value, want)
 	}
 }
 
