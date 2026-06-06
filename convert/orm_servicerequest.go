@@ -84,8 +84,26 @@ func ORMToServiceRequestR5(msg *hl7v2.Message, opts ...Option) (*r5.ServiceReque
 		sr.AuthoredOn = &authored
 	}
 
+	if priority, ok := orderPriority(msg, report); ok {
+		sr.Priority = &priority
+	}
+
 	if subject := patientSubjectR5(cfg, msg, report, "ServiceRequest.subject"); subject != nil {
 		sr.Subject = subject
+	}
+
+	if encounter := encounterReferenceR5(msg); encounter != nil {
+		sr.Encounter = encounter
+	}
+
+	if requester := requesterReferenceR5(msg); requester != nil {
+		sr.Requester = requester
+	}
+
+	sr.Reason = append(sr.Reason, reasonForStudy(msg)...)
+
+	if occ := orderOccurrence(msg, report); occ != "" {
+		sr.SetOccurrenceDateTime(r5.FHIRDateTime(occ))
 	}
 
 	rep, err := cfg.finalize(report)
@@ -173,4 +191,156 @@ func appendIdentifier(ids *[]r5.Identifier, value string) {
 	}
 	v := value
 	*ids = append(*ids, r5.Identifier{Value: &v})
+}
+
+// orderPriority maps the HL7 v2 Quantity/Timing priority (ORC-7 component 6,
+// falling back to OBR-27 component 6) to a FHIR RequestPriority. The HL7 Table
+// 0027 codes map S→stat, A→asap, R/P→routine; an unrecognised code is dropped and
+// recorded by locus only (never the raw value), because ServiceRequest.priority
+// has a required binding and an out-of-set code would fail validation. ok is false
+// when no priority is present or the code is unmapped.
+func orderPriority(msg *hl7v2.Message, report *Report) (r5.RequestPriority, bool) {
+	code := firstNonEmpty(getField(msg, "ORC-7-1-6"), getField(msg, "OBR-27-1-6"))
+	if code == "" {
+		return "", false
+	}
+	switch code {
+	case "S":
+		return r5.RequestPriorityStat, true
+	case "A":
+		return r5.RequestPriorityAsap, true
+	case "R", "P":
+		return r5.RequestPriorityRoutine, true
+	default:
+		report.dropped("ORC-7 / OBR-27 priority",
+			"the Quantity/Timing priority code is not in HL7 Table 0027; ServiceRequest.priority needs a bound code, so it was dropped")
+		return "", false
+	}
+}
+
+// encounterReferenceR5 builds the ServiceRequest.encounter Reference from the
+// PV1-19 Visit Number, carried as a logical Reference.identifier — never a
+// fabricated Reference.reference URL (the identity rule). nil when no PV1 visit
+// number is present.
+func encounterReferenceR5(msg *hl7v2.Message) *r5.Reference {
+	pv1, ok := msg.PV1()
+	if !ok || pv1.VisitNumber.ID == "" {
+		return nil
+	}
+	id := cxToIdentifierR5(pv1.VisitNumber)
+	refType := encounterReferenceType
+	return &r5.Reference{Type: &refType, Identifier: &id}
+}
+
+// encounterReferenceType is the FHIR resource type the encounter Reference points
+// at.
+const encounterReferenceType = "Encounter"
+
+// requesterReferenceType is the FHIR resource type the requester Reference points
+// at.
+const requesterReferenceType = "Practitioner"
+
+// requesterReferenceR5 builds the ServiceRequest.requester Reference from the
+// ORC-12 Ordering Provider (an XCN). The provider's ID component becomes a logical
+// Reference.identifier and the family/given name components the display — never a
+// fabricated Reference.reference URL (the identity rule). nil when ORC-12 carries
+// neither an ID nor a name.
+func requesterReferenceR5(msg *hl7v2.Message) *r5.Reference {
+	id := getField(msg, "ORC-12-1-1")
+	family := getField(msg, "ORC-12-1-2")
+	given := getField(msg, "ORC-12-1-3")
+	if id == "" && family == "" && given == "" {
+		return nil
+	}
+
+	refType := requesterReferenceType
+	ref := &r5.Reference{Type: &refType}
+	if id != "" {
+		value := id
+		ref.Identifier = &r5.Identifier{Value: &value}
+	}
+	if display := providerDisplay(family, given); display != "" {
+		ref.Display = &display
+	}
+	return ref
+}
+
+// providerDisplay renders an XCN family/given pair as a "family^given" display,
+// dropping an empty component, or "" when both are empty.
+func providerDisplay(family, given string) string {
+	switch {
+	case family != "" && given != "":
+		return family + "^" + given
+	case family != "":
+		return family
+	default:
+		return given
+	}
+}
+
+// reasonForStudy maps OBR-31 Reason for Study (a CWE) to a ServiceRequest.reason
+// CodeableReference concept, carrying the code, optional coding system, and
+// display verbatim. An empty OBR-31 yields no reason.
+func reasonForStudy(msg *hl7v2.Message) []r5.CodeableReference {
+	code := getField(msg, "OBR-31-1-1")
+	display := getField(msg, "OBR-31-1-2")
+	system := getField(msg, "OBR-31-1-3")
+	if code == "" && display == "" {
+		return nil
+	}
+	coding := r5.Coding{}
+	if code != "" {
+		c := code
+		coding.Code = &c
+	}
+	if display != "" {
+		d := display
+		coding.Display = &d
+	}
+	if system != "" {
+		s := system
+		coding.System = &s
+	}
+	cc := &r5.CodeableConcept{Coding: []r5.Coding{coding}}
+	if display != "" {
+		t := display
+		cc.Text = &t
+	}
+	return []r5.CodeableReference{{Concept: cc}}
+}
+
+// orderOccurrence maps the requested service date/time (OBR-6, falling back to
+// OBR-27 component 4) to a FHIR dateTime for ServiceRequest.occurrenceDateTime,
+// preserving source precision and dropping a timezone-less time per
+// hl7DateTimeToFHIR. "" when no requested date/time is present or parseable.
+func orderOccurrence(msg *hl7v2.Message, report *Report) string {
+	raw := firstNonEmpty(getField(msg, "OBR-6"), getField(msg, "OBR-27-1-4"))
+	if raw == "" {
+		return ""
+	}
+	dtm, err := hl7v2.ParseDTM(raw)
+	if err != nil {
+		return ""
+	}
+	return hl7DateTimeToFHIR(dtm, report, "ServiceRequest.occurrenceDateTime")
+}
+
+// getField resolves a 1-based HL7 accessor key against the message, returning "" on
+// any resolution error (the field model treats an absent position as empty).
+func getField(msg *hl7v2.Message, key string) string {
+	v, err := msg.Get(key)
+	if err != nil {
+		return ""
+	}
+	return v
+}
+
+// firstNonEmpty returns the first non-empty argument, or "".
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
