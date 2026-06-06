@@ -14,12 +14,13 @@ import (
 // dicom.md table marks NOT YET SHIPPED has no entry here, so the existence check confirms it is
 // genuinely absent from the public API.
 var codePresetCounts = map[string]PresetCounter{
-	"VerificationContexts":      func() int { return len(dimse.VerificationContexts()) },
-	"StorageContexts":           func() int { return len(dimse.StorageContexts()) },
-	"QueryRetrieveContexts":     func() int { return len(dimse.QueryRetrieveContexts()) },
-	"BasicWorklistContexts":     func() int { return len(dimse.BasicWorklistContexts()) },
-	"ModalityPerformedContexts": func() int { return len(dimse.ModalityPerformedContexts()) },
-	"StorageCommitmentContexts": func() int { return len(dimse.StorageCommitmentContexts()) },
+	"VerificationContexts":             func() int { return len(dimse.VerificationContexts()) },
+	"StorageContexts":                  func() int { return len(dimse.StorageContexts()) },
+	"QueryRetrieveContexts":            func() int { return len(dimse.QueryRetrieveContexts()) },
+	"QueryRetrieveWithStorageContexts": func() int { return len(dimse.QueryRetrieveWithStorageContexts()) },
+	"BasicWorklistContexts":            func() int { return len(dimse.BasicWorklistContexts()) },
+	"ModalityPerformedContexts":        func() int { return len(dimse.ModalityPerformedContexts()) },
+	"StorageCommitmentContexts":        func() int { return len(dimse.StorageCommitmentContexts()) },
 }
 
 // TestNoConformanceDrift is the merge-blocking gate: it runs every drift class against the real
