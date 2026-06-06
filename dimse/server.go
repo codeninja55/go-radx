@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/acse"
 	"github.com/codeninja55/go-radx/dimse/dul"
 )
@@ -27,6 +28,12 @@ type serverConfig struct {
 	// is answered with the terminal 0xA801 "Move Destination Unknown" status (PS3.4 C.4.2.1.5). It is
 	// nil when no destinations are configured, so a Server with no C-MOVE support refuses every move.
 	moveDestinations map[AETitle]string
+	// getStorageRoles lists the Storage SOP Classes the C-GET SCP grants the requestor the Storage SCP
+	// role for (PS3.7 D.3.3.4). A C-GET C-STOREs each matched instance back to the requestor on the
+	// same association, so the requestor must take the Storage SCP role to receive them — which the
+	// acceptor only grants for a SOP Class it declares here. It is nil when no roles are configured, so
+	// a Server with no C-GET support grants no SCP role and same-association C-GET cannot proceed.
+	getStorageRoles []dicom.SOPClassUID
 }
 
 // ServerOption configures a Server at construction.
@@ -78,6 +85,26 @@ func WithMoveDestinations(dests map[AETitle]string) ServerOption {
 			copied[aet] = addr
 		}
 		c.moveDestinations = copied
+	}
+}
+
+// WithGetStorageRoles declares the Storage SOP Classes the C-GET SCP grants the requestor the Storage
+// SCP role for at negotiation (PS3.7 D.3.3.4). A C-GET differs from a C-MOVE in that the matched
+// instances are C-STOREd back to the requestor on the SAME association, so the requestor must take the
+// Storage SCP role to receive them; the acceptor grants that role only for a SOP Class declared here
+// (and only when the requestor proposed it). Pass the Storage SOP Classes the Server's C-GET SCP may
+// return — typically the same set the Server advertises as Storage contexts. It copies the slice so a
+// later caller mutation cannot change the Server's grant (no shared mutable state, PRD §9.4); a nil or
+// empty slice leaves the Server granting no SCP role, so same-association C-GET cannot proceed.
+func WithGetStorageRoles(sopClasses ...dicom.SOPClassUID) ServerOption {
+	return func(c *serverConfig) {
+		if len(sopClasses) == 0 {
+			c.getStorageRoles = nil
+			return
+		}
+		copied := make([]dicom.SOPClassUID, len(sopClasses))
+		copy(copied, sopClasses)
+		c.getStorageRoles = copied
 	}
 }
 
@@ -260,6 +287,10 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 		// (PS3.7 D.3.3.2); without this the inbound side silently dropped the configured identity.
 		ImplementationClassUID: string(s.ae.config().implementationClassUID),
 		ImplementationVersion:  s.ae.config().implementationVersion,
+		// Grant the requestor the Storage SCP role for each configured C-GET Storage SOP Class so a
+		// same-association C-GET can C-STORE the matched instances back (PS3.7 D.3.3.4). The SCU role
+		// is granted too, so an everyday Storage SCU on the same SOP Class is unaffected.
+		SupportedRoles: s.getStorageSupportedRoles(),
 	}
 	move := moveSupport{ae: s.ae, destinations: s.cfg.moveDestinations}
 	if err := dispatchAssociation(ctx, conn, params, s.ae.config().acseTimeout, s.ae.config().networkTimeout, s.handler, move); err != nil {
@@ -433,6 +464,27 @@ func toSupportedContexts(contexts []PresentationContext) []acse.SupportedContext
 		})
 	}
 	return out
+}
+
+// getStorageSupportedRoles builds the acceptor-side SCP/SCU role grants for the configured C-GET
+// Storage SOP Classes: each is granted both the SCP role (so a same-association C-GET can C-STORE the
+// matched instances back to the requestor) and the SCU role (so an everyday Storage SCU on the same
+// SOP Class still negotiates the default SCU role). A SOP Class not declared here is left to the
+// default roles by NegotiateRoles, never an explicit denial. It returns nil when no C-GET roles are
+// configured, so a Server with no C-GET support sends no role grants.
+func (s *Server) getStorageSupportedRoles() []acse.SupportedRole {
+	if len(s.cfg.getStorageRoles) == 0 {
+		return nil
+	}
+	roles := make([]acse.SupportedRole, 0, len(s.cfg.getStorageRoles))
+	for _, sopClass := range s.cfg.getStorageRoles {
+		roles = append(roles, acse.SupportedRole{
+			SOPClassUID: string(sopClass),
+			SCURole:     true,
+			SCPRole:     true,
+		})
+	}
+	return roles
 }
 
 // aeTitleStrings projects AE titles to their string form for the acse AcceptParams.

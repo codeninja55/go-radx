@@ -105,6 +105,49 @@ func TestStorageContextsOddUniqueIDs(t *testing.T) {
 	}
 }
 
+// TestQueryRetrieveWithStorageContexts verifies the combined C-GET preset proposes every
+// Query/Retrieve model and every validated Storage SOP Class with odd, unique, non-colliding
+// presentation context IDs (PS3.8 9.3.2.2). The non-collision is the load-bearing property: a C-GET
+// SCU must propose both sets, and combining the two single-preset slices directly would reuse IDs
+// (each restarts numbering at 1), breaking acceptor negotiation and the AC-result mapping.
+func TestQueryRetrieveWithStorageContexts(t *testing.T) {
+	combined := QueryRetrieveWithStorageContexts()
+	wantCount := len(QueryRetrieveContexts()) + len(StorageContexts())
+	if len(combined) != wantCount {
+		t.Fatalf("QueryRetrieveWithStorageContexts() returned %d contexts, want %d", len(combined), wantCount)
+	}
+
+	seen := map[uint8]bool{}
+	for _, pc := range combined {
+		if pc.ID%2 == 0 {
+			t.Errorf("context ID %d is even; IDs must be odd (PS3.8 9.3.2.2)", pc.ID)
+		}
+		if seen[pc.ID] {
+			t.Errorf("duplicate context ID %d; the combined preset must not reuse IDs", pc.ID)
+		}
+		seen[pc.ID] = true
+	}
+
+	// Every Query/Retrieve model and every validated Storage class must be present.
+	present := map[dicom.SOPClassUID]bool{}
+	for _, pc := range combined {
+		present[pc.AbstractSyntax] = true
+	}
+	for _, sop := range append(append([]dicom.SOPClassUID(nil), queryRetrieveSOPClasses...), validatedStorageSOPClasses...) {
+		if !present[sop] {
+			t.Errorf("combined preset is missing SOP Class %s", sop)
+		}
+	}
+
+	// Fresh slice each call.
+	a := QueryRetrieveWithStorageContexts()
+	b := QueryRetrieveWithStorageContexts()
+	a[0].ID = 250
+	if b[0].ID == 250 {
+		t.Error("QueryRetrieveWithStorageContexts() returns a shared slice; callers can corrupt each other")
+	}
+}
+
 // TestPresetsReturnFreshSlices verifies each preset returns a fresh slice so a caller may
 // mutate it without affecting later calls (dimse.md "Presets").
 func TestPresetsReturnFreshSlices(t *testing.T) {

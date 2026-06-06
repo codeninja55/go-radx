@@ -34,6 +34,16 @@ const (
 	// sub-operation counts, then one terminal RSP carrying the final counts and status. No C-MOVE-RSP
 	// carries a dataset.
 	CommandCMoveRSP CommandField = 0x8021
+	// CommandCGetRQ is the C-GET request command field (PS3.7 §9.1.3, verified against pynetdicom
+	// dimse_messages.py C_GET_RQ 0x0010). It carries the query identifier; the SCP C-STOREs each
+	// matched instance back to the requestor as a sub-operation on the SAME association (no Move
+	// Destination is carried), which is why same-association role selection is required.
+	CommandCGetRQ CommandField = 0x0010
+	// CommandCGetRSP is the C-GET response command field (PS3.7 §9.1.3, pynetdicom C_GET_RSP
+	// 0x8010). A C-GET produces multiple responses: zero or more Pending RSPs each carrying the four
+	// sub-operation counts, then one terminal RSP carrying the final counts and status. No C-GET-RSP
+	// carries a dataset.
+	CommandCGetRSP CommandField = 0x8010
 	// CommandCFindRQ is the C-FIND request command field (PS3.7 §9.1.2, verified against pynetdicom
 	// dimse_messages.py C_FIND_RQ 0x0020).
 	CommandCFindRQ CommandField = 0x0020

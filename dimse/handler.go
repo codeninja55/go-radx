@@ -79,13 +79,32 @@ type MoveHandler interface {
 	Move(ctx context.Context, query *dicom.DataSet, level QueryLevel, dest AETitle, info OpInfo) iter.Seq2[Status, *dicom.DataSet]
 }
 
+// GetHandler answers a C-GET retrieve, mirroring the SCU iterator (dimse.md "SCP handlers and the
+// event model"). It yields one (Status, instance) pair per matched instance — a Pending status
+// (0xFF00) carrying the matched instance dataset the runtime then C-STOREs back to the requestor on
+// the SAME association as a sub-operation — and the iterator ends after the matches are exhausted.
+// A C-GET differs from a C-MOVE only in where the sub-operation C-STOREs go: back to the requestor
+// over the existing association rather than to a separately-resolved Move Destination AE, which is
+// why the requestor must have been granted the Storage SCP role at negotiation. The runtime owns
+// the sub-operation store loop (each with a distinct non-zero Message ID, DIMSE-016) and the count
+// accumulation; the handler supplies only the matched instances. A retrieve-only SCP implements
+// GetHandler alone (interface segregation, PRD §8.2).
+//
+// The handler MUST observe its context: the runtime cancels it on a fault, Server.Shutdown, or once
+// the iteration ends, so a handler that threads ctx through its match resolution stops promptly.
+type GetHandler interface {
+	// Get yields (Status, instance) for each matched instance a C-GET should retrieve. A Pending
+	// status carries the matched instance dataset; the iterator ends after the matches are exhausted
+	// (an optional terminal status from the handler ends the matches early).
+	Get(ctx context.Context, query *dicom.DataSet, level QueryLevel, info OpInfo) iter.Seq2[Status, *dicom.DataSet]
+}
+
 // Handler answers inbound DIMSE-C operations dispatched by the SCP. An intervention operation is
 // answered with a typed Status, so a handler cannot forget to answer (PRD §8.2). It is the union
 // of the per-service capabilities; an SCP that supports only some services implements the narrower
-// interfaces (EchoHandler, StoreHandler, FindHandler, MoveHandler) and the dispatcher type-asserts
-// for each. A handler returning success on work it did not do is a defect (PRD §9.2 fail-closed).
-// The remaining query/retrieve capability (Get) joins this union with its service in a later M3
-// increment.
+// interfaces (EchoHandler, StoreHandler, FindHandler, MoveHandler, GetHandler) and the dispatcher
+// type-asserts for each. A handler returning success on work it did not do is a defect (PRD §9.2
+// fail-closed).
 //
 // A handler MUST observe the context it is passed: Server.Shutdown cancels it, and a handler that
 // selects on ctx.Done() (or threads ctx through its I/O) is woken cooperatively and returns
@@ -96,6 +115,7 @@ type Handler interface {
 	StoreHandler
 	FindHandler
 	MoveHandler
+	GetHandler
 }
 
 // serveEcho services one inbound C-ECHO over an established acceptor association: it reads the
@@ -392,6 +412,35 @@ func validateMoveContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (di
 // validates a WithQueryModel against, so the SCU and SCP agree on what a MOVE context is.
 func isMoveModel(sopClass dicom.SOPClassUID) bool {
 	_, ok := moveModels[sopClass]
+	return ok
+}
+
+// validateGetContext fails closed when a C-GET-RQ arrives on a presentation context whose negotiated
+// abstract syntax is not a Query/Retrieve GET information model, OR when the command's Affected SOP
+// Class UID is not that same negotiated GET model. Either lets a peer run a retrieve outside the
+// negotiated/declared SOP Class, bypassing presentation-context negotiation (PS3.4 C.4.3 makes the
+// C-GET-RQ Affected SOP Class UID Type 1) — the same protocol fault the C-MOVE/C-FIND/C-STORE/C-ECHO
+// paths reject, kept symmetric across the context and the command checks.
+func validateGetContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (dicom.SOPClassUID, bool), state State) error {
+	abstract, ok := abstractFor(pcID)
+	if !ok || !isGetModel(abstract) {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-GET arrived on presentation context %d whose abstract syntax %q is not a Query/Retrieve GET information model",
+			pcID, abstract)}
+	}
+	if dicom.SOPClassUID(cmd.AffectedSOPClassUID) != abstract {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"C-GET Affected SOP Class %q does not match the abstract syntax negotiated for presentation context %d",
+			cmd.AffectedSOPClassUID, pcID)}
+	}
+	return nil
+}
+
+// isGetModel reports whether the SOP Class is one of the C-GET information models go-radx serves as
+// an SCP (the Patient Root / Study Root GET models). It reuses the getModels set the SCU side
+// validates a WithQueryModel against, so the SCU and SCP agree on what a GET context is.
+func isGetModel(sopClass dicom.SOPClassUID) bool {
+	_, ok := getModels[sopClass]
 	return ok
 }
 
