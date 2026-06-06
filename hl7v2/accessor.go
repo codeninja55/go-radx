@@ -189,7 +189,7 @@ func (m *Message) Get(key string) (string, error) {
 		return "", err
 	}
 
-	if a.Segment == "MSH" && (a.Field == 1 || a.Field == 2) {
+	if hasDelimiterFields(a.Segment) && (a.Field == 1 || a.Field == 2) {
 		return raw, nil
 	}
 	decoded, _ := Unescape(raw, m.Enc)
@@ -264,9 +264,10 @@ func (m *Message) segmentInstance(id string, n int) (Segment, bool) {
 // EncodingCharacters so a delimiter byte in value cannot forge structure, then
 // growing fields, repetitions, components, and subcomponents as needed to reach
 // the path. The target segment must already exist: Set never invents a segment,
-// so a Set against an absent segment instance returns an *AccessorError. MSH-1
-// and MSH-2 are rejected because assigning them would desynchronize the message
-// from the delimiters it is parsed and rendered with.
+// so a Set against an absent segment instance returns an *AccessorError. Fields
+// 1 and 2 of a header segment (MSH, BHS, FHS) are rejected because assigning
+// them would desynchronize the message from the delimiters it is parsed and
+// rendered with.
 func (m *Message) Set(key, value string) error {
 	a, err := ParseAccessor(key)
 	if err != nil {
@@ -275,8 +276,8 @@ func (m *Message) Set(key, value string) error {
 	if a.Field == 0 {
 		return &AccessorError{Key: key, Reason: "Set requires a field; a segment ID alone is not assignable"}
 	}
-	if a.Segment == "MSH" && (a.Field == 1 || a.Field == 2) {
-		return &AccessorError{Key: key, Reason: "MSH-1 and MSH-2 are the encoding characters and are not assignable"}
+	if hasDelimiterFields(a.Segment) && (a.Field == 1 || a.Field == 2) {
+		return &AccessorError{Key: key, Reason: "fields 1 and 2 of a header segment are the encoding characters and are not assignable"}
 	}
 
 	idx, ok := m.segmentInstanceIndex(a.Segment, a.SegmentNum)

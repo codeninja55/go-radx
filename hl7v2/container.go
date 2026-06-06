@@ -73,13 +73,22 @@ func ParseFile(b []byte, opts ...ParseOption) (*File, error) {
 	return fileFromSegments(segments, enc)
 }
 
-// ParseAny dispatches on the leading segment: MSH yields a *Message, FHS yields a
-// *File, and BHS or a bare multi-message body yields a *Batch. It returns the
-// concrete container in the Container interface so a caller can render any of
-// them. A body whose first segment is not MSH, BHS, or FHS is a *ParseError.
+// ParseAny dispatches on the leading segment: a single-MSH body yields a
+// *Message, a bare body with more than one MSH and no BHS/FHS yields a *Batch
+// (the header-less batch), FHS yields a *File, and BHS yields a *Batch. It
+// returns the concrete container in the Container interface so a caller can
+// render any of them. A body whose first segment is not MSH, BHS, or FHS is a
+// *ParseError.
 func ParseAny(b []byte, opts ...ParseOption) (Container, error) {
 	switch leadingSegmentID(b) {
 	case "MSH":
+		// A bare sequence of multiple MSH-led messages is a header-less batch:
+		// routing it through Parse would flatten every segment into a single
+		// *Message and lose the batch grouping, so callers could not address each
+		// message. A single-MSH body is an ordinary *Message.
+		if countMSHSegments(b) > 1 {
+			return ParseBatch(b, opts...)
+		}
 		return Parse(b, opts...)
 	case "FHS":
 		return ParseFile(b, opts...)
@@ -88,6 +97,26 @@ func ParseAny(b []byte, opts ...ParseOption) (Container, error) {
 	default:
 		return nil, &ParseError{Offset: 0, Reason: "container must begin with an MSH, BHS, or FHS segment"}
 	}
+}
+
+// countMSHSegments counts the MSH-led segments in b so ParseAny can tell a single
+// message from a header-less batch of several. It only inspects the start of each
+// segment line, so a malformed body is left for ParseBatch or Parse to diagnose
+// with a precise *ParseError.
+func countMSHSegments(b []byte) int {
+	count := 0
+	offset := 0
+	for offset < len(b) {
+		line, term, next := nextLine(b, offset)
+		if len(line) == 0 && term == "" {
+			break
+		}
+		if len(line) >= 3 && line[0] == 'M' && line[1] == 'S' && line[2] == 'H' {
+			count++
+		}
+		offset = next
+	}
+	return count
 }
 
 // fileFromSegments groups a flat segment list into a File: an optional FHS/FTS

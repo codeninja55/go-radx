@@ -207,6 +207,51 @@ func TestParseAnyDispatch(t *testing.T) {
 	}
 }
 
+func TestParseAnyBareMultiMessageYieldsBatch(t *testing.T) {
+	// A bare body with more than one MSH and no BHS/FHS is a header-less batch, so
+	// ParseAny must return a type-assertable *Batch carrying every message —
+	// routing it through Parse would flatten the segments into one *Message and
+	// lose the grouping.
+	bare := "MSH|^~\\&|A|B|C|D|202605311230||ADT^A04^ADT_A01|M1|P|2.5.1\r" +
+		"PID|1\r" +
+		"MSH|^~\\&|A|B|C|D|202605311231||ADT^A04^ADT_A01|M2|P|2.5.1\r" +
+		"PID|1\r"
+	c, err := ParseAny([]byte(bare))
+	if err != nil {
+		t.Fatalf("ParseAny(bare multi-message) error = %v", err)
+	}
+	batch, ok := c.(*Batch)
+	if !ok {
+		t.Fatalf("ParseAny(bare multi-message) = %T, want *Batch", c)
+	}
+	if batch.Header != nil || batch.Trailer != nil {
+		t.Errorf("header-less batch should have no BHS/BTS, got %+v / %+v", batch.Header, batch.Trailer)
+	}
+	if len(batch.Messages) != 2 {
+		t.Fatalf("batch Messages = %d, want 2", len(batch.Messages))
+	}
+	out, err := c.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText error = %v", err)
+	}
+	if string(out) != bare {
+		t.Errorf("bare batch round-trip mismatch:\n got = %q\nwant = %q", out, bare)
+	}
+}
+
+func TestParseAnySingleMessageYieldsMessage(t *testing.T) {
+	// A single-MSH body stays a *Message; only multi-MSH bodies become batches.
+	single := "MSH|^~\\&|A|B|C|D|202605311230||ADT^A04^ADT_A01|M1|P|2.5.1\r" +
+		"PID|1\r"
+	c, err := ParseAny([]byte(single))
+	if err != nil {
+		t.Fatalf("ParseAny(single message) error = %v", err)
+	}
+	if _, ok := c.(*Message); !ok {
+		t.Fatalf("ParseAny(single message) = %T, want *Message", c)
+	}
+}
+
 func TestParseAnyRejectsUnknownLeadingSegment(t *testing.T) {
 	if _, err := ParseAny([]byte("PID|1\r")); err == nil {
 		t.Error("ParseAny on a non-MSH/BHS/FHS body = nil error, want *ParseError")
