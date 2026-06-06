@@ -76,6 +76,31 @@ const (
 	// 0x8120). It echoes the Affected SOP Class/Instance UID of the updated object and carries the
 	// status.
 	CommandNSetRSP CommandField = 0x8120
+	// CommandNActionRQ is the N-ACTION request command field (PS3.7 §10.1.4, verified against
+	// pynetdicom dimse_messages.py N_ACTION_RQ 0x0130). The normalised N-ACTION invokes an action on
+	// an existing managed SOP Instance — for Storage Commitment, requesting commitment of a set of
+	// SOP Instances on the well-known Storage Commitment Push Model instance. It references the target
+	// by Requested SOP Class UID (0000,0003) and Requested SOP Instance UID (0000,1001), carries the
+	// Action Type ID (0000,1008), and the action-information attributes follow as the command's data
+	// set.
+	CommandNActionRQ CommandField = 0x0130
+	// CommandNActionRSP is the N-ACTION response command field (PS3.7 §10.1.4, pynetdicom N_ACTION_RSP
+	// 0x8130). It echoes the Affected SOP Class/Instance UID and the Action Type ID and carries the
+	// status; the commitment result itself follows asynchronously via N-EVENT-REPORT, not in this
+	// response.
+	CommandNActionRSP CommandField = 0x8130
+	// CommandNEventReportRQ is the N-EVENT-REPORT request command field (PS3.7 §10.1.1, verified
+	// against pynetdicom dimse_messages.py N_EVENT_REPORT_RQ 0x0100). The normalised N-EVENT-REPORT
+	// reports an event about a managed SOP Instance — for Storage Commitment, the result of a prior
+	// N-ACTION commitment request. It carries the Affected SOP Class UID (0000,0002), Affected SOP
+	// Instance UID (0000,1000), and the Event Type ID (0000,1002); the event-information attributes
+	// follow as the command's data set. The roles invert: the Storage Commitment SCP sends it to the
+	// SCU, typically on a later association.
+	CommandNEventReportRQ CommandField = 0x0100
+	// CommandNEventReportRSP is the N-EVENT-REPORT response command field (PS3.7 §10.1.1, pynetdicom
+	// N_EVENT_REPORT_RSP 0x8100). The N-EVENT-REPORT receiver returns it to acknowledge the report,
+	// echoing the Affected SOP Class/Instance UID and the Event Type ID and carrying the status.
+	CommandNEventReportRSP CommandField = 0x8100
 )
 
 // Priority is the DIMSE operation priority (0000,0700), a US value (PS3.7 §10.3.1). The wire
@@ -115,6 +140,8 @@ var (
 	tagCommandField              = dicom.NewTag(0x0000, 0x0100) // US
 	tagMessageID                 = dicom.NewTag(0x0000, 0x0110) // US
 	tagMessageIDBeingRespondedTo = dicom.NewTag(0x0000, 0x0120) // US
+	tagEventTypeID               = dicom.NewTag(0x0000, 0x1002) // US
+	tagActionTypeID              = dicom.NewTag(0x0000, 0x1008) // US
 	tagMoveDestination           = dicom.NewTag(0x0000, 0x0600) // AE
 	tagPriority                  = dicom.NewTag(0x0000, 0x0700) // US
 	tagCommandDataSetType        = dicom.NewTag(0x0000, 0x0800) // US
@@ -142,6 +169,8 @@ var commandVR = map[dicom.Tag]dicom.VR{
 	tagCommandField:              dicom.VRUS,
 	tagMessageID:                 dicom.VRUS,
 	tagMessageIDBeingRespondedTo: dicom.VRUS,
+	tagEventTypeID:               dicom.VRUS,
+	tagActionTypeID:              dicom.VRUS,
 	tagMoveDestination:           dicom.VRAE,
 	tagPriority:                  dicom.VRUS,
 	tagCommandDataSetType:        dicom.VRUS,
@@ -173,7 +202,18 @@ type CommandSet struct {
 	// N-CREATE; CommandSet.elements() emits each only when non-empty.
 	RequestedSOPClassUID    dicom.UID
 	RequestedSOPInstanceUID dicom.UID
-	CommandDataSetType      uint16
+	// ActionTypeID is the Action Type ID (0000,1008), VR US, an N-ACTION request/response field
+	// naming which action is invoked (PS3.7 §10.3.7) — for Storage Commitment, action type 1
+	// "Request Storage Commitment". EventTypeID is the Event Type ID (0000,1002), VR US, an
+	// N-EVENT-REPORT field naming which event is reported (PS3.7 §10.3.8) — for Storage Commitment,
+	// event type 1 (all committed) or 2 (failures exist). HasActionTypeID/HasEventTypeID distinguish a
+	// present zero value from an absent element, and gate emission so a C-service command carries
+	// neither.
+	HasActionTypeID    bool
+	ActionTypeID       uint16
+	HasEventTypeID     bool
+	EventTypeID        uint16
+	CommandDataSetType uint16
 	// Priority is the operation priority (0000,0700); present on data-bearing requests (C-STORE,
 	// C-FIND, C-GET, C-MOVE). HasPriority distinguishes a present medium priority (0x0000) from an
 	// absent element, since PriorityMedium is the zero value.
@@ -302,6 +342,12 @@ func (cs CommandSet) elements() []commandElement {
 	if cs.RequestedSOPInstanceUID != "" {
 		es = append(es, encodeCommandString(tagRequestedSOPInstanceUID, string(cs.RequestedSOPInstanceUID)))
 	}
+	if cs.HasEventTypeID {
+		es = append(es, encodeCommandUS(tagEventTypeID, cs.EventTypeID))
+	}
+	if cs.HasActionTypeID {
+		es = append(es, encodeCommandUS(tagActionTypeID, cs.ActionTypeID))
+	}
 	if cs.HasSubOpCounts {
 		// NumberOfRemainingSubOperations is conditional: omit it when the responder does not know the
 		// outstanding count (a streaming retrieve) and on the terminal response (PS3.4 C.4.2.1.5).
@@ -401,6 +447,12 @@ func (cs *CommandSet) applyElement(tag dicom.Tag, value []byte) {
 		cs.AffectedSOPInstanceUID = dicom.UID(decodeUI(value))
 	case tagRequestedSOPInstanceUID:
 		cs.RequestedSOPInstanceUID = dicom.UID(decodeUI(value))
+	case tagEventTypeID:
+		cs.HasEventTypeID = true
+		cs.EventTypeID = decodeUS(value)
+	case tagActionTypeID:
+		cs.HasActionTypeID = true
+		cs.ActionTypeID = decodeUS(value)
 	case tagNumRemainingSubOps:
 		cs.HasSubOpCounts = true
 		cs.HasRemainingSubOp = true
