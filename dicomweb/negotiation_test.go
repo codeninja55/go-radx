@@ -102,6 +102,108 @@ func TestNegotiateSkipsMalformedRange(t *testing.T) {
 	}
 }
 
+func TestNegotiateMultipartOctet(t *testing.T) {
+	cases := []struct {
+		accept string
+		want   bool
+	}{
+		{"", true},
+		{`multipart/related; type="application/octet-stream"`, true},
+		{"multipart/related", true},
+		{"application/octet-stream", true},
+		{"*/*", true},
+		{`multipart/related; type="application/dicom"`, false},
+		{"application/dicom+json", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.accept, func(t *testing.T) {
+			if got := negotiateMultipartOctet(tc.accept, dicom.ExplicitVRLittleEndian); got != tc.want {
+				t.Fatalf("negotiateMultipartOctet(%q) = %v, want %v", tc.accept, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestNegotiateRetrieveTransferSyntax exercises the WADO-RS retrieve transfer-syntax policy:
+// passthrough when the stored syntax satisfies the Accept (or no constraint / wildcard),
+// transcode when a transcodable syntax is named, and not-acceptable (the caller answers 406)
+// when nothing servable is named.
+func TestNegotiateRetrieveTransferSyntax(t *testing.T) {
+	const stored = dicom.ExplicitVRLittleEndian
+	const storedTS = "1.2.840.10008.1.2.1"
+	const jpeg = dicom.JPEGBaseline8Bit
+	const jpegTS = "1.2.840.10008.1.2.4.50"
+
+	cases := []struct {
+		name            string
+		accept          string
+		transcodable    []dicom.TransferSyntax
+		wantAcceptable  bool
+		wantPassthrough bool
+		wantSyntax      dicom.TransferSyntax
+	}{
+		{
+			name:            "no constraint passes through stored",
+			accept:          `multipart/related; type="application/dicom"`,
+			wantAcceptable:  true,
+			wantPassthrough: true,
+			wantSyntax:      stored,
+		},
+		{
+			name:            "wildcard passes through stored",
+			accept:          `multipart/related; type="application/dicom"; transfer-syntax=*`,
+			wantAcceptable:  true,
+			wantPassthrough: true,
+			wantSyntax:      stored,
+		},
+		{
+			name:            "names stored syntax passes through",
+			accept:          `multipart/related; type="application/dicom"; transfer-syntax=` + storedTS,
+			wantAcceptable:  true,
+			wantPassthrough: true,
+			wantSyntax:      stored,
+		},
+		{
+			name:            "names a transcodable syntax transcodes",
+			accept:          `multipart/related; type="application/dicom"; transfer-syntax=` + jpegTS,
+			transcodable:    []dicom.TransferSyntax{jpeg},
+			wantAcceptable:  true,
+			wantPassthrough: false,
+			wantSyntax:      jpeg,
+		},
+		{
+			name:           "names only an unservable syntax is not acceptable",
+			accept:         `multipart/related; type="application/dicom"; transfer-syntax=` + jpegTS,
+			wantAcceptable: false,
+		},
+		{
+			name:            "prefers stored over transcode when both named",
+			accept:          `multipart/related; transfer-syntax=` + jpegTS + `, multipart/related; transfer-syntax=` + storedTS,
+			transcodable:    []dicom.TransferSyntax{jpeg},
+			wantAcceptable:  true,
+			wantPassthrough: true,
+			wantSyntax:      stored,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := negotiateRetrieveTransferSyntax(tc.accept, stored, tc.transcodable...)
+			if got.acceptable != tc.wantAcceptable {
+				t.Fatalf("acceptable = %v, want %v", got.acceptable, tc.wantAcceptable)
+			}
+			if !tc.wantAcceptable {
+				return
+			}
+			if got.passthrough != tc.wantPassthrough {
+				t.Fatalf("passthrough = %v, want %v", got.passthrough, tc.wantPassthrough)
+			}
+			if got.syntax != tc.wantSyntax {
+				t.Fatalf("syntax = %q, want %q", got.syntax, tc.wantSyntax)
+			}
+		})
+	}
+}
+
 func TestIsMultipartRelated(t *testing.T) {
 	if !isMultipartRelated(`multipart/related; boundary=abc; type="application/dicom"`) {
 		t.Fatal("multipart/related Content-Type not recognised")

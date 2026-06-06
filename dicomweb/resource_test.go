@@ -96,6 +96,54 @@ func TestResourcePathFrames(t *testing.T) {
 	}
 }
 
+func TestResourcePathMetadata(t *testing.T) {
+	cases := []struct {
+		name string
+		path ResourcePath
+		want string
+	}{
+		{"study", NewStudy("1.2.3"), "/studies/1.2.3/metadata"},
+		{"series", NewSeries("1.2.3", "1.2.3.4"), "/studies/1.2.3/series/1.2.3.4/metadata"},
+		{
+			"instance",
+			NewInstance("1.2.3", "1.2.3.4", "1.2.3.4.5"),
+			"/studies/1.2.3/series/1.2.3.4/instances/1.2.3.4.5/metadata",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.path.Metadata()
+			if err != nil {
+				t.Fatalf("Metadata() error = %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("Metadata() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+	if _, err := (ResourcePath{Study: "1.2.abc"}).Metadata(); !errors.Is(err, ErrInvalidResource) {
+		t.Fatal("Metadata() on a bad study UID did not reject it")
+	}
+}
+
+func TestResourcePathBulkData(t *testing.T) {
+	p := NewInstance("1.2.3", "1.2.3.4", "1.2.3.4.5")
+	got, err := p.BulkData()
+	if err != nil {
+		t.Fatalf("BulkData() error = %v", err)
+	}
+	want := "/studies/1.2.3/series/1.2.3.4/instances/1.2.3.4.5/bulkdata"
+	if got != want {
+		t.Fatalf("BulkData() = %q, want %q", got, want)
+	}
+	if _, err := NewStudy("1.2.3").BulkData(); !errors.Is(err, ErrInvalidResource) {
+		t.Fatalf("study-level BulkData() error = %v, want ErrInvalidResource", err)
+	}
+	if _, err := NewSeries("1.2.3", "1.2.3.4").BulkData(); !errors.Is(err, ErrInvalidResource) {
+		t.Fatalf("series-level BulkData() error = %v, want ErrInvalidResource", err)
+	}
+}
+
 func TestValidateUIDDelegatesToDicom(t *testing.T) {
 	// A 65-character UID exceeds the PS3.5 limit; validateUID must reject it via the
 	// dicom validator rather than admit it.
