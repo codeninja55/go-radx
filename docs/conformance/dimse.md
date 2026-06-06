@@ -57,8 +57,36 @@ of it:
   **skips** the success assertion when dcm4chee rejects the data set on its MPPS IOD attribute enforcement rather than
   fail — completing the data set to dcm4chee's exact Type-1/2 MPPS requirements is a documented follow-up. The SCP side
   is deferred.
-- **Storage Commitment** (N-ACTION, N-EVENT-REPORT), SCU only, is in the v1 target but its N-service operations are
-  **NOT YET SHIPPED**; today only their presentation-context presets and status codes exist.
+- **Storage Commitment** (Push Model) as SCU — implemented. The `Association.StorageCommitment()` entry point returns a
+  `*StorageCommitment` whose `Request` issues the N-ACTION (Action Type ID 1, "Request Storage Commitment") against the
+  well-known Storage Commitment Push Model SOP Instance `1.2.840.10008.1.20.1.1` (PS3.4 J.3.2). The request carries a
+  caller-allocated Transaction UID (0008,1195) and the Referenced SOP Sequence (0008,1199) of the SOP Instances whose
+  commitment is sought; it references the target by Requested SOP Class UID (0000,0003) and Requested SOP Instance UID
+  (0000,1001), the normalised reference pair distinct from the C-service Affected pair, and carries the Action Type ID
+  (0000,1008). `Request` surfaces the N-ACTION-RSP as a typed Status categorised against the Storage Commitment service
+  class; a Success there means the SCP accepted the *request*, not that commitment succeeded. The authoritative
+  commitment outcome arrives later via N-EVENT-REPORT.
+
+  **Separate-association reporting model (supported).** A real Storage Commitment SCP (for example dcm4chee-arc) reports
+  the result on a LATER association it opens back to the SCU, on which the roles invert: the original SCU becomes the
+  acceptor and the N-EVENT-REPORT receiver. go-radx implements this supported model with `CommitmentReceiver`: the SCU
+  accepts an inbound connection on its listening port and drives `ServeConn`, which negotiates the Storage Commitment
+  context, reads the N-EVENT-REPORT-RQ, parses the result, invokes the configured `WithCommitmentHandler` callback, and
+  acknowledges the report with an N-EVENT-REPORT-RSP. Receiving the result SYNCHRONOUSLY on the original N-ACTION request
+  association is a **stated limitation, not supported** — in the Push Model the request and the report are distinct
+  associations.
+
+  **Partial-failure semantics.** The parsed `StorageCommitmentResult` lists the committed instances (Referenced SOP
+  Sequence) and the failed instances (Failed SOP Sequence, each with its Failure Reason 0008,1197). A non-empty failed
+  list is a FAILURE: `HasFailures()` reports it and `Err()` returns a typed `*CommitmentFailureError`, so a failed
+  instance is never laundered into success — the same typed-status honesty as C-GET/STOW partial failures (PRD §9.2
+  fail-closed). The SCU is verified by unit tests against an in-process mock N-service SCP (the N-ACTION request, the
+  separate-association N-EVENT-REPORT receipt, and a failed-instance result that must surface as failure). The
+  dcm4chee live interop leg drives the N-ACTION request and asserts it round-trips with a typed status; it **skips**
+  when dcm4chee does not advertise the Storage Commitment context as SCP, and the live N-EVENT-REPORT receipt is a
+  documented follow-up because dcm4chee opens the reporting association only to a remote AE it has been configured with
+  (a known AE Title bound to the SCU's host and port), which the ephemeral interop harness does not register. The SCP
+  side (committing instances) is deferred.
 
 The DIMSE-C service operations and the roles each ships as today:
 
@@ -76,7 +104,7 @@ The DIMSE-N service operations and the roles each ships as today:
 | Service | SOP Class | SCU | SCP | Reference |
 |---------|-----------|-----|-----|-----------|
 | N-CREATE, N-SET | Modality Performed Procedure Step | Shipped | Deferred | PS3.4 F.7.1, PS3.7 §10.1 |
-| N-ACTION, N-EVENT-REPORT | Storage Commitment Push Model | Not yet shipped | Deferred | PS3.4 J.3 |
+| N-ACTION, N-EVENT-REPORT | Storage Commitment Push Model | Shipped (SCU; separate-assoc report) | Deferred | PS3.4 J.3 |
 
 ## Association negotiation
 
