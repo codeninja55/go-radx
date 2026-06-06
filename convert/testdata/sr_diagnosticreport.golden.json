@@ -36,6 +36,12 @@
       },
       {
         "reference": "urn:uuid:9e572b43-1435-5807-8c88-699ce84511f4"
+      },
+      {
+        "reference": "urn:uuid:858f01a6-2fe5-5515-9b81-e47cb5279bb1"
+      },
+      {
+        "reference": "urn:uuid:7e50e944-e325-5c28-bd4b-d6ebc0d45600"
       }
     ],
     "conclusion": "Solitary pulmonary nodule."
@@ -86,6 +92,38 @@
         "system": "http://unitsofmeasure.org",
         "code": "mm"
       }
+    },
+    {
+      "resourceType": "Observation",
+      "id": "858f01a6-2fe5-5515-9b81-e47cb5279bb1",
+      "status": "final",
+      "code": {
+        "coding": [
+          {
+            "system": "http://dicom.nema.org/resources/ontology/DCM",
+            "code": "111526",
+            "display": "DateTime Started"
+          }
+        ],
+        "text": "DateTime Started"
+      },
+      "valueDateTime": "2005-05-30T08:15:30-05:00"
+    },
+    {
+      "resourceType": "Observation",
+      "id": "7e50e944-e325-5c28-bd4b-d6ebc0d45600",
+      "status": "final",
+      "code": {
+        "coding": [
+          {
+            "system": "http://dicom.nema.org/resources/ontology/DCM",
+            "code": "111526",
+            "display": "Time"
+          }
+        ],
+        "text": "Time"
+      },
+      "valueTime": "08:15:45"
     }
   ]
 }

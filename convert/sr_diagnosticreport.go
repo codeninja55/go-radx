@@ -81,7 +81,7 @@ func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticRe
 
 	dr.Subject = dicomPatientSubjectR5(cfg, sr, report, "DiagnosticReport.subject")
 
-	observations := measurementObservations(root, string(sopInstanceUID), opts...)
+	observations := measurementObservations(root, sr, string(sopInstanceUID), report)
 	for _, o := range observations {
 		ref := "urn:uuid:" + *o.ID
 		dr.Result = append(dr.Result, r5.Reference{Reference: &ref})
@@ -96,8 +96,11 @@ func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticRe
 // a deterministic urn:uuid logical id derived from the SR SOP Instance UID and the
 // leaf's position. TEXT leaves are skipped here: they form the narrative conclusion,
 // not separate observations. CONTAINER and coordinate/reference items are structure and
-// produce no observation.
-func measurementObservations(root *dicom.ContentItem, sopInstanceUID string, opts ...Option) []*r5.Observation {
+// produce no observation. The dataset's TimezoneOffsetFromUTC (0008,0201) is resolved
+// once and applied to any DATETIME leaf lacking an inline offset; leaves whose value
+// cannot become a conformant value[x] are recorded on report rather than emitted.
+func measurementObservations(root *dicom.ContentItem, ds *dicom.DataSet, sopInstanceUID string, report *Report) []*r5.Observation {
+	tzOffset, hasTZ := fhirTimezoneOffset(ds)
 	var observations []*r5.Observation
 	index := 0
 	var walk func(items []dicom.ContentItem)
@@ -105,7 +108,7 @@ func measurementObservations(root *dicom.ContentItem, sopInstanceUID string, opt
 		for i := range items {
 			it := items[i]
 			if it.ValueType != dicom.ValueTypeText {
-				if o, ok := ContentItemToObservationR5(it, opts...); ok {
+				if o, ok := contentItemToObservationR5(it, tzOffset, hasTZ, report); ok {
 					id := deterministicObservationUUID(sopInstanceUID, index)
 					o.ID = &id
 					observations = append(observations, o)

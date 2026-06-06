@@ -20,18 +20,29 @@ const ucumSystem = "http://unitsofmeasure.org"
 // Observation. The leaf's Concept Name Code Sequence becomes the required
 // Observation.code, and the leaf value maps to value[x] by ValueType: NUM to
 // valueQuantity (MeasuredValue plus MeasurementUnits), CODE to valueCodeableConcept,
-// TEXT to valueString, and DATE/TIME/DATETIME to valueDateTime. The Observation is
-// emitted with status "final"; the SR document's verification state governs the
-// enclosing DiagnosticReport.status, while a leaf observation is a completed
-// measurement.
+// TEXT to valueString, TIME to valueTime, and DATE/DATETIME to valueDateTime. The
+// Observation is emitted with status "final"; the SR document's verification state
+// governs the enclosing DiagnosticReport.status, while a leaf observation is a
+// completed measurement.
 //
 // ok is false for a content item that is structure rather than an observation — a
 // CONTAINER, a spatial/temporal coordinate, a waveform, or a referenced instance —
 // or for a leaf whose value could not be rendered into a conformant value[x] (for
-// example a date-only-precision DATETIME with a time but no timezone). The returned
-// Observation has no id; the caller assigns the deterministic urn:uuid logical id it
-// links from DiagnosticReport.result.
+// example a date-only-precision DATETIME with a time but no timezone, or a NUM with
+// no numeric value). The returned Observation has no id; the caller assigns the
+// deterministic urn:uuid logical id it links from DiagnosticReport.result.
 func ContentItemToObservationR5(item dicom.ContentItem, _ ...Option) (*r5.Observation, bool) {
+	return contentItemToObservationR5(item, "", false, &Report{})
+}
+
+// contentItemToObservationR5 is the loss-aware leaf converter. tzOffset is the FHIR
+// timezone suffix resolved from the dataset's TimezoneOffsetFromUTC (0008,0201);
+// hasTZ reports whether the dataset carried one. A DATETIME leaf without an inline
+// offset borrows the dataset offset so a timestamped value is not degraded to
+// date-only when the document states its zone. A leaf whose value cannot become a
+// conformant value[x] is dropped on report rather than emitted as a null-valued
+// resource.
+func contentItemToObservationR5(item dicom.ContentItem, tzOffset string, hasTZ bool, report *Report) (*r5.Observation, bool) {
 	code := conceptNameCode(item.ConceptName)
 	if code == nil {
 		// Without a concept name there is no Observation.code, which is required; the
@@ -45,7 +56,15 @@ func ContentItemToObservationR5(item dicom.ContentItem, _ ...Option) (*r5.Observ
 
 	switch item.ValueType {
 	case dicom.ValueTypeNum:
-		o.SetValueQuantity(measurementQuantity(item))
+		q, ok := measurementQuantity(item)
+		if !ok {
+			// A Quantity without a value would marshal valueQuantity.value: null, which
+			// is non-conformant; drop the leaf and record the loss instead.
+			report.dropped(dicomTagSource(dicom.TagNumericValue),
+				"NUM content item has no usable numeric value; a value-less Quantity is non-conformant, so the Observation was dropped")
+			return nil, false
+		}
+		o.SetValueQuantity(q)
 	case dicom.ValueTypeCode:
 		cc := conceptNameCode(item.Code)
 		if cc == nil {
@@ -54,8 +73,14 @@ func ContentItemToObservationR5(item dicom.ContentItem, _ ...Option) (*r5.Observ
 		o.SetValueCodeableConcept(*cc)
 	case dicom.ValueTypeText:
 		o.SetValueString(r5.FHIRString(item.Text))
-	case dicom.ValueTypeDate, dicom.ValueTypeTime, dicom.ValueTypeDateTime:
-		when, ok := srDateTimeToFHIR(item.DateTime)
+	case dicom.ValueTypeTime:
+		when, ok := srTimeToFHIR(item.DateTime)
+		if !ok {
+			return nil, false
+		}
+		o.SetValueTime(r5.FHIRTime(when))
+	case dicom.ValueTypeDate, dicom.ValueTypeDateTime:
+		when, ok := srDateTimeToFHIR(item.DateTime, tzOffset, hasTZ)
 		if !ok {
 			return nil, false
 		}
@@ -72,8 +97,12 @@ func ContentItemToObservationR5(item dicom.ContentItem, _ ...Option) (*r5.Observ
 // precision survives; the units' code, meaning, and scheme map to Quantity.code,
 // Quantity.unit, and Quantity.system. A units scheme of UCUM resolves to the UCUM
 // system URI; any other scheme is carried verbatim under its registered or
-// urn:dicom:scheme: URI so the value is preserved.
-func measurementQuantity(item dicom.ContentItem) r5.Quantity {
+// urn:dicom:scheme: URI so the value is preserved. ok is false when the leaf carries
+// no numeric value, since a Quantity with a null value is non-conformant.
+func measurementQuantity(item dicom.ContentItem) (r5.Quantity, bool) {
+	if item.MeasuredValue.String() == "" {
+		return r5.Quantity{}, false
+	}
 	q := r5.Quantity{}
 	value := fhir.Decimal(item.MeasuredValue)
 	q.Value = &value
@@ -91,7 +120,7 @@ func measurementQuantity(item dicom.ContentItem) r5.Quantity {
 		system := measurementUnitSystem(units.CodingSchemeDesignator)
 		q.System = &system
 	}
-	return q
+	return q, true
 }
 
 // measurementUnitSystem maps a measurement-units coding-scheme designator to its FHIR
@@ -104,12 +133,16 @@ func measurementUnitSystem(designator string) string {
 	return schemeDesignatorSystem(designator)
 }
 
-// srDateTimeToFHIR renders a DICOM SR DATE/TIME/DATETIME value as a FHIR dateTime.
-// A date-only value yields "YYYY-MM-DD". A value carrying a time is only rendered when
-// it also carries a UTC offset, because FHIR dateTime forbids a timezone-less time; an
-// offset-less time falls back to date-only. ok is false when the value lacks a full
-// calendar date, so a partial-precision value is never widened into a fabricated date.
-func srDateTimeToFHIR(dt dicom.DT) (string, bool) {
+// srDateTimeToFHIR renders a DICOM SR DATE/DATETIME value as a FHIR dateTime. A
+// date-only value yields "YYYY-MM-DD". A value carrying a time is rendered with a
+// timezone, because FHIR dateTime forbids a timezone-less time: the inline &ZZXX
+// offset takes precedence, and when the value omits one the dataset-level
+// TimezoneOffsetFromUTC (0008,0201) supplied as datasetOffset is applied. Only when
+// no offset is available at all does the value fall back to date-only. The lexical
+// fractional second is preserved verbatim so a sub-second timestamp is not truncated.
+// ok is false when the value lacks a full calendar date, so a partial-precision value
+// is never widened into a fabricated date.
+func srDateTimeToFHIR(dt dicom.DT, datasetOffset string, hasDatasetOffset bool) (string, bool) {
 	if dt.Precision() < dicom.DTPrecisionDay {
 		return "", false
 	}
@@ -121,13 +154,41 @@ func srDateTimeToFHIR(dt dicom.DT) (string, bool) {
 	if dt.Precision() < dicom.DTPrecisionHour {
 		return date, true
 	}
-	if !dt.HasOffset() {
-		// A time without a timezone has no valid FHIR dateTime form; fall back to the
-		// date so the value is preserved at day precision rather than dropped.
+
+	offset := ""
+	switch {
+	case dt.HasOffset():
+		offset = offsetSuffix(dt.OffsetSeconds())
+	case hasDatasetOffset:
+		offset = datasetOffset
+	default:
+		// No inline offset and no document-level offset: a timezone-less time has no
+		// valid FHIR dateTime form, so fall back to the date rather than fabricate a
+		// zone, preserving the value at day precision.
 		return date, true
 	}
-	timePart := pad2(t.Hour()) + ":" + pad2(t.Minute()) + ":" + pad2(t.Second())
-	return date + "T" + timePart + offsetSuffix(dt.OffsetSeconds()), true
+
+	timePart := pad2(t.Hour()) + ":" + pad2(t.Minute()) + ":" + pad2(t.Second()) + fractionOf(dt.String())
+	return date + "T" + timePart + offset, true
+}
+
+// srTimeToFHIR renders a DICOM SR TIME content value as a FHIR time ("hh:mm:ss" with
+// an optional fractional second). The TIME value is parsed not as a DT but as a TM:
+// an SR TIME content item carries a (0040,A122) Time value whose lexical form is the
+// HHMMSS[.FFFFFF] of VR TM, which the content-tree parser preserves on the DT's
+// lexical string even though it is not a valid DT. FHIR time carries no timezone, so
+// the dataset offset does not apply. ok is false when the value does not parse as a
+// time or lacks at least an hour.
+func srTimeToFHIR(dt dicom.DT) (string, bool) {
+	tm, err := dicom.ParseTM(dt.String())
+	if err != nil {
+		return "", false
+	}
+	t, ok := tm.Time()
+	if !ok {
+		return "", false
+	}
+	return pad2(t.Hour()) + ":" + pad2(t.Minute()) + ":" + pad2(t.Second()) + fractionOf(tm.String()), true
 }
 
 // offsetSuffix renders a signed UTC offset in seconds as a FHIR timezone suffix: "Z"

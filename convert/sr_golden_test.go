@@ -17,8 +17,10 @@ import (
 var updateGolden = flag.Bool("update", false, "regenerate golden test files")
 
 // measurementSR builds an in-memory Comprehensive SR document with a narrative TEXT
-// item, a coded CODE item, and a NUM measurement, plus the document-level identity,
-// status, modality, and timezone offset a conformant SR carries. It is the fixture
+// item, a coded CODE item, a NUM measurement, a DATETIME with no inline offset, and a
+// TIME item, plus the document-level identity, status, modality, and timezone offset a
+// conformant SR carries. The DATETIME exercises the document-level
+// TimezoneOffsetFromUTC fallback and the TIME exercises valueTime. It is the fixture
 // for the SR -> DiagnosticReport + Observations golden conversion.
 func measurementSR(t *testing.T) *dicom.DataSet {
 	t.Helper()
@@ -49,6 +51,12 @@ func measurementSR(t *testing.T) *dicom.DataSet {
 				MeasuredValue:    value,
 				MeasurementUnits: dicom.ConceptNameCode{CodeValue: "mm", CodingSchemeDesignator: "UCUM", CodeMeaning: "millimeter"},
 			},
+			{
+				ValueType:    dicom.ValueTypeDateTime,
+				Relationship: dicom.RelationshipContains,
+				ConceptName:  dicom.ConceptNameCode{CodeValue: "111526", CodingSchemeDesignator: "DCM", CodeMeaning: "DateTime Started"},
+				DateTime:     mustDT(t, "20050530081530"),
+			},
 		},
 	}
 
@@ -56,6 +64,7 @@ func measurementSR(t *testing.T) *dicom.DataSet {
 	if err := dicom.BuildSR(ds, root); err != nil {
 		t.Fatalf("BuildSR: %v", err)
 	}
+	appendTimeContentItem(t, ds, "081545")
 	ds.SetString(dicom.TagSOPClassUID, "1.2.840.10008.5.1.4.1.1.88.33") // Comprehensive SR
 	ds.SetString(dicom.TagSOPInstanceUID, "1.2.840.113619.2.55.3.604688.1")
 	ds.SetString(dicom.TagModality, "SR")
@@ -65,6 +74,28 @@ func measurementSR(t *testing.T) *dicom.DataSet {
 	ds.SetString(dicom.TagCompletionFlag, "COMPLETE")
 	ds.SetString(dicom.TagVerificationFlag, "VERIFIED")
 	return ds
+}
+
+// appendTimeContentItem appends a TIME content item carrying the lexical TM value to
+// the root Content Sequence. A TIME value is VR TM, not a constructible DT, so it is
+// written directly to the (0040,A730) sequence rather than through the ContentItem
+// tree, matching how a real SR carries a (0040,A122) Time leaf.
+func appendTimeContentItem(t *testing.T, ds *dicom.DataSet, lexical string) {
+	t.Helper()
+	seq, ok := ds.GetSequence(dicom.TagContentSequence)
+	if !ok {
+		t.Fatal("SR has no Content Sequence to append the TIME item to")
+	}
+	child := dicom.NewDataSet()
+	child.SetString(dicom.TagValueType, "TIME")
+	child.SetString(dicom.TagRelationshipType, "CONTAINS")
+	child.SetString(dicom.TagTime, lexical)
+	concept := dicom.NewDataSet()
+	concept.SetString(dicom.TagCodeValue, "111526")
+	concept.SetString(dicom.TagCodingSchemeDesignator, "DCM")
+	concept.SetString(dicom.TagCodeMeaning, "Time")
+	child.Set(dicom.Element{Tag: dicom.TagConceptNameCodeSequence, VR: dicom.VRSQ, Value: dicom.NewSequenceValue(dicom.NewSequence(concept))})
+	seq.Append(child)
 }
 
 // goldenEnvelope is the deterministic marshalling envelope: the DiagnosticReport
@@ -148,8 +179,8 @@ func TestSRToDiagnosticReportR5LinksObservations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SRToDiagnosticReportR5: %v", err)
 	}
-	if len(observations) != 2 {
-		t.Fatalf("len(observations) = %d, want 2 (CODE and NUM leaves; TEXT is the conclusion)", len(observations))
+	if len(observations) != 4 {
+		t.Fatalf("len(observations) = %d, want 4 (CODE, NUM, DATETIME, TIME leaves; TEXT is the conclusion)", len(observations))
 	}
 	if len(dr.Result) != len(observations) {
 		t.Fatalf("len(Result) = %d, want %d", len(dr.Result), len(observations))
