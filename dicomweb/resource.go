@@ -140,6 +140,34 @@ func (p ResourcePath) Frames(frames ...int) (string, error) {
 	return base + "/frames/" + strings.Join(nums, ","), nil
 }
 
+// Metadata renders the WADO-RS metadata sub-resource path for the resource, e.g.
+// "/studies/{study}/metadata" or "/studies/.../instances/{uid}/metadata". The path may be
+// study, series, or instance level (PS3.18 §10.4.1.1); the metadata sub-resource appends
+// "/metadata" to the resource path.
+func (p ResourcePath) Metadata() (string, error) {
+	base, err := p.Path()
+	if err != nil {
+		return "", err
+	}
+	return base + "/metadata", nil
+}
+
+// BulkData renders the instance-level WADO-RS bulkdata sub-resource path, e.g.
+// "/studies/.../instances/{uid}/bulkdata" (PS3.18 §10.4.1.1). The bulkdata sub-resource is
+// instance-level; a study- or series-level path is rejected. The fully qualified BulkDataURI
+// for a specific attribute is emitted by the origin in the instance metadata, so a client
+// resolves that absolute URI directly rather than constructing an attribute path here.
+func (p ResourcePath) BulkData() (string, error) {
+	if p.Level() != LevelInstance {
+		return "", fmt.Errorf("%w: bulkdata requires an instance-level path", ErrInvalidResource)
+	}
+	base, err := p.Path()
+	if err != nil {
+		return "", err
+	}
+	return base + "/bulkdata", nil
+}
+
 // validateUID rejects an empty or non-conformant UID with a typed ErrInvalidResource
 // naming the field, never the offending value: a malformed identifier is
 // attacker-controlled and could carry PHI (PRD §9.1).

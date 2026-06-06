@@ -126,8 +126,18 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodPost && isStudiesStore(segs):
 		s.handleStore(w, r, targetStudyUID(segs))
+	case r.Method == http.MethodGet && isMetadataRetrieve(segs):
+		s.handleRetrieveMetadata(w, r, retrievePath(segs))
+	case r.Method == http.MethodGet && isBulkDataRetrieve(segs):
+		s.handleRetrieveBulkData(w, r, retrievePath(segs))
+	case r.Method == http.MethodGet && isFrameRetrieve(segs):
+		s.routeFrames(w, r, segs)
 	case r.Method == http.MethodGet && isInstanceRetrieve(segs):
 		s.handleRetrieveInstance(w, r, segs)
+	case r.Method == http.MethodGet && isSeriesRetrieve(segs):
+		s.handleRetrieveSeries(w, r, dicom.UID(segs[1]), dicom.UID(segs[3]))
+	case r.Method == http.MethodGet && isStudyRetrieve(segs):
+		s.handleRetrieveStudy(w, r, dicom.UID(segs[1]))
 	case isQIDO(r.Method, segs):
 		s.handleQuery(w, r, segs)
 	default:
@@ -170,6 +180,73 @@ func targetStudyUID(segs []string) string {
 func isInstanceRetrieve(segs []string) bool {
 	return len(segs) == 6 &&
 		segs[0] == "studies" && segs[2] == "series" && segs[4] == "instances"
+}
+
+// isStudyRetrieve reports a WADO-RS study target: /studies/{study}. Its final segment is a
+// UID, so it never collides with the QIDO-RS /studies search resource.
+func isStudyRetrieve(segs []string) bool {
+	return len(segs) == 2 && segs[0] == "studies"
+}
+
+// isSeriesRetrieve reports a WADO-RS series target:
+// /studies/{study}/series/{series}. Its final segment is a UID, so it never collides with
+// the QIDO-RS /studies/{study}/series search resource.
+func isSeriesRetrieve(segs []string) bool {
+	return len(segs) == 4 && segs[0] == "studies" && segs[2] == "series"
+}
+
+// isMetadataRetrieve reports a WADO-RS metadata sub-resource target at the study, series,
+// or instance level: a path ending in "/metadata" beneath /studies.
+func isMetadataRetrieve(segs []string) bool {
+	n := len(segs)
+	if n == 0 || segs[n-1] != "metadata" || segs[0] != "studies" {
+		return false
+	}
+	switch n {
+	case 3: // /studies/{study}/metadata
+		return true
+	case 5: // /studies/{study}/series/{series}/metadata
+		return segs[2] == "series"
+	case 7: // /studies/{study}/series/{series}/instances/{instance}/metadata
+		return segs[2] == "series" && segs[4] == "instances"
+	default:
+		return false
+	}
+}
+
+// isBulkDataRetrieve reports a WADO-RS instance-level bulkdata sub-resource target:
+// /studies/{study}/series/{series}/instances/{instance}/bulkdata.
+// isBulkDataRetrieve reports a WADO-RS instance-level bulkdata sub-resource target:
+// /studies/{study}/series/{series}/instances/{instance}/bulkdata, optionally followed by a
+// bulk-data reference suffix (".../bulkdata/{ref}") the metadata response emits per attribute
+// (PS3.18 §10.4.4).
+func isBulkDataRetrieve(segs []string) bool {
+	return len(segs) >= 7 && segs[0] == "studies" && segs[2] == "series" &&
+		segs[4] == "instances" && segs[6] == "bulkdata"
+}
+
+// isFrameRetrieve reports a WADO-RS frame target:
+// /studies/{study}/series/{series}/instances/{instance}/frames/{frameList}.
+func isFrameRetrieve(segs []string) bool {
+	return len(segs) == 8 && segs[0] == "studies" && segs[2] == "series" &&
+		segs[4] == "instances" && segs[6] == "frames"
+}
+
+// retrievePath builds the ResourcePath a metadata or bulkdata sub-resource addresses from
+// its path segments. The metadata and bulkdata keywords sit at the tail, so the identifying
+// UIDs are at the fixed study/series/instance offsets.
+func retrievePath(segs []string) ResourcePath {
+	var p ResourcePath
+	if len(segs) >= 2 {
+		p.Study = dicom.UID(segs[1])
+	}
+	if len(segs) >= 4 && segs[2] == "series" {
+		p.Series = dicom.UID(segs[3])
+	}
+	if len(segs) >= 6 && segs[4] == "instances" {
+		p.Instance = dicom.UID(segs[5])
+	}
+	return p
 }
 
 // isQIDO reports a QIDO-RS search target: a GET whose final segment is a search resource
@@ -324,14 +401,23 @@ func storeStatus(accepted, failed int) int {
 }
 
 // handleRetrieveInstance answers a WADO-RS instance GET with a multipart/related body of
-// one application/dicom part. Content negotiation that asks for an unservable
-// representation answers 406 (PRD §9.7 fail-closed negotiation).
+// one application/dicom part. The instance is encoded in the syntax the retrieve
+// transfer-syntax policy selects: passthrough when the stored syntax satisfies the Accept
+// transfer-syntax parameter, else 406 (the server transcodes no pixel data in this slice).
+// A backend that reports its stored transfer syntax (StoredInstanceRetriever) drives the
+// policy with the true stored syntax; a base RetrieveBackend is treated as storing the
+// default uncompressed syntax. A passthrough of an encapsulated (compressed) syntax is
+// served byte-exact from the instance's stored bytes, since go-radx writes only uncompressed
+// syntaxes; when those bytes are absent the request answers 406 rather than a 500 from a
+// doomed re-encode. Content negotiation that asks for an unservable representation answers
+// 406 (PRD §9.7 fail-closed negotiation).
 func (s *Server) handleRetrieveInstance(w http.ResponseWriter, r *http.Request, segs []string) {
 	if s.retrieve == nil {
 		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS retrieval is not implemented")
 		return
 	}
-	if !negotiateMultipartDICOM(r.Header.Get("Accept"), defaultStorageTransferSyntax) {
+
+	if !negotiateMediaTypeDICOM(r.Header.Get("Accept")) {
 		s.writeProblem(w, r, http.StatusNotAcceptable, ErrNotAcceptable,
 			"WADO-RS instance retrieval serves multipart/related application/dicom only")
 		return
@@ -343,13 +429,28 @@ func (s *Server) handleRetrieveInstance(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	ds, err := s.retrieve.RetrieveInstance(r.Context(), p)
+	si, err := s.retrieveStoredInstance(r.Context(), p)
 	if err != nil {
 		s.writeProblem(w, r, http.StatusNotFound, err, "instance not found")
 		return
 	}
 
-	raw, err := encodeInstance(ds, defaultStorageTransferSyntax)
+	decision := negotiateRetrieveTransferSyntax(r.Header.Get("Accept"), si.transferSyntaxOrDefault())
+	if !decision.acceptable {
+		s.writeProblem(w, r, http.StatusNotAcceptable, ErrNotAcceptable,
+			"no acceptable transfer syntax for the retrieved instance")
+		return
+	}
+
+	raw, err := encodeRetrievedInstance(si, decision)
+	if errors.Is(err, ErrNotAcceptable) {
+		// The stored syntax is encapsulated and the backend supplied no byte-exact bytes to
+		// pass through; go-radx writes no encapsulated syntax, so this is an honest 406 rather
+		// than a 500 from a doomed re-encode (PRD §9.7 fail-closed negotiation).
+		s.writeProblem(w, r, http.StatusNotAcceptable, err,
+			"the stored instance is in a compressed transfer syntax that cannot be served unchanged")
+		return
+	}
 	if err != nil {
 		s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot encode the retrieved instance")
 		return
@@ -368,6 +469,22 @@ func (s *Server) handleRetrieveInstance(w http.ResponseWriter, r *http.Request, 
 	w.Header().Set("Content-Type", mw.ContentType())
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.WriteString(w, buf.String())
+}
+
+// retrieveStoredInstance resolves an instance through the richer StoredInstanceRetriever
+// when the backend implements it, so the retrieve transfer-syntax policy sees the true
+// stored syntax. A backend that implements only the base RetrieveBackend yields a
+// RetrievedInstance with no transfer syntax set, which the policy treats as the default
+// uncompressed syntax (its prior behaviour).
+func (s *Server) retrieveStoredInstance(ctx context.Context, p ResourcePath) (RetrievedInstance, error) {
+	if sr, ok := s.retrieve.(StoredInstanceRetriever); ok {
+		return sr.RetrieveStoredInstance(ctx, p)
+	}
+	ds, err := s.retrieve.RetrieveInstance(ctx, p)
+	if err != nil {
+		return RetrievedInstance{}, err
+	}
+	return RetrievedInstance{DataSet: ds}, nil
 }
 
 // referencedItem builds a Referenced SOP Sequence (0008,1199) item for an accepted

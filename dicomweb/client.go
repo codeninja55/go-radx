@@ -32,6 +32,7 @@ type Client struct {
 	bearerToken      string
 	maxResponseBytes int64
 	transferSyntaxes []dicom.TransferSyntax
+	bulkDataBaseURL  string
 }
 
 // ClientOption configures a Client. There is no global configuration; every knob is an
@@ -59,6 +60,16 @@ func WithMaxResponseBytes(n int64) ClientOption {
 // most-preferred first.
 func WithTransferSyntaxes(ts ...dicom.TransferSyntax) ClientOption {
 	return func(c *Client) { c.transferSyntaxes = append([]dicom.TransferSyntax(nil), ts...) }
+}
+
+// WithClientBulkDataBaseURL sets the base URL a relative BulkDataURI is resolved against by
+// ResolveBulkDataURI. A metadata response may carry a BulkDataURI relative to the origin;
+// configuring the base so it matches the origin lets the client resolve it without the
+// caller reconstructing the absolute URL. Without it, a relative reference is resolved
+// against the client's own origin base URL. An absolute BulkDataURI is always fetched as
+// given, regardless of this option.
+func WithClientBulkDataBaseURL(base string) ClientOption {
+	return func(c *Client) { c.bulkDataBaseURL = strings.TrimRight(base, "/") }
 }
 
 // WithInsecureSkipVerify disables TLS peer verification. It is reachable only through

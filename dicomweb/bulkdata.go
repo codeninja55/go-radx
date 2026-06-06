@@ -41,3 +41,28 @@ const bulkRefSentinelLen uint32 = 2
 
 // URI returns the referenced BulkDataURI.
 func (b *bulkRef) URI() BulkDataURI { return b.uri }
+
+// BulkDataURIs walks ds (and any nested sequence items) and returns the unresolved
+// BulkDataURI references it carries, in dataset order. A metadata response decoded without a
+// resolver leaves each over-threshold binary value as such a reference; the caller resolves
+// each with Client.ResolveBulkDataURI. A dataset with no unresolved references returns nil.
+func BulkDataURIs(ds *dicom.DataSet) []BulkDataURI {
+	if ds == nil {
+		return nil
+	}
+	var uris []BulkDataURI
+	for e := range ds.All() {
+		if ref, ok := e.Value.(*bulkRef); ok {
+			uris = append(uris, ref.URI())
+			continue
+		}
+		if e.VR == dicom.VRSQ {
+			if seq, ok := ds.GetSequence(e.Tag); ok {
+				for item := range seq.Items() {
+					uris = append(uris, BulkDataURIs(item.DataSet)...)
+				}
+			}
+		}
+	}
+	return uris
+}
