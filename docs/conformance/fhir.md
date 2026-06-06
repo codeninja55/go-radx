@@ -64,15 +64,17 @@ directly (it remains the most deployed release and US Core runs on it) rather th
 
 ### In scope (v1)
 
-> **Implementation status: R5 generated, R4 pending.** The full R5 generated resource set ships today: `fhir/r5` is
-> generated end to end from the official R5 `StructureDefinition` bundle, including the radiology + clinical workflow
-> resources (`ImagingStudy`, `DiagnosticReport`, `ServiceRequest`) and the complex datatypes (`Identifier`,
-> `Reference`, `Coding`, `CodeableConcept`, `CodeableReference`) — these were briefly hand-written for the M2 walking
-> skeleton and were retired in favour of the faithful generated supersets when the generator took over the full set.
-> `fhir/r4` is still an empty shell; R4 generation lands in milestone M6b. The "every resource and backbone element …
-> all of which compile-test" guarantee below describes R5 today and R4 once its bundle is generated. The R4 4.0.1
-> `StructureDefinition` bundle is already vendored and checksum-pinned (see "Vendored definition bundles" below), and
-> the loader load-verifies it today; M6b wires that bundle through the rest of the generator pipeline.
+> **Implementation status: R4 and R5 generated.** Both release trees ship today, each generated end to end from its
+> official `StructureDefinition` bundle. `fhir/r5` includes the radiology + clinical workflow resources (`ImagingStudy`,
+> `DiagnosticReport`, `ServiceRequest`) and the complex datatypes (`Identifier`, `Reference`, `Coding`,
+> `CodeableConcept`, `CodeableReference`) — these were briefly hand-written for the M2 walking skeleton and were retired
+> in favour of the faithful generated supersets when the generator took over the full set. `fhir/r4` is generated from
+> the vendored R4 4.0.1 bundle (see "Vendored definition bundles" below); the generator is data-driven from the
+> `StructureDefinition`s, so the release differences fall out of the R4 definitions themselves — R4 has no
+> `CodeableReference` (an R4 `ServiceRequest.code` is a `CodeableConcept`), R4 `ImagingStudy.modality` is a `Coding`
+> (a `CodeableConcept` in R5), R4 `Encounter.class` is a single `Coding` (a list in R5), and R4 carries
+> `Encounter.period` where R5 renamed it `actualPeriod`. The "every resource and backbone element … all of which
+> compile-test" guarantee below holds for both releases.
 
 - Typed Go models for **every resource and backbone element** of R4 4.0.1 and R5 5.0.0, all of which compile-test.
 - The **radiology + clinical workflow resource set** (enumerated below), which is conformance-tested against the HL7
@@ -118,12 +120,13 @@ Two tiers of guarantee apply, and the distinction is load-bearing for what a con
 
 The conformance-tested set is the radiology and clinical workflow resources required to close the PRD §5.1 loop:
 
-> **Implementation status: R5 shipped, R4 pending.** The whole workflow set below ships in R5, generated from the R5
-> `StructureDefinition` bundle: `ServiceRequest`, `ImagingStudy`, `DiagnosticReport`, `Observation`, `Patient`,
-> `Encounter`, `Bundle`, and `OperationOutcome`. There are no R4 resources yet (R4 generation lands in milestone M6b).
-> The converters that exist are correspondingly R5-only: `convert.DICOMToImagingStudyR5`, `convert.SRToDiagnosticReportR5`,
-> and `convert.ORMToServiceRequestR5`. The remaining converters named below (the `…R4` twins, `DiagnosticReportToSR`,
-> `ORUToDiagnosticReport`, `ADTToPatient`, `ADTToEncounter`) are not yet implemented.
+> **Implementation status: R4 and R5 resources shipped; R4 converter twins pending.** The whole workflow set below
+> ships in both releases, each generated from its `StructureDefinition` bundle: `ServiceRequest`, `ImagingStudy`,
+> `DiagnosticReport`, `Observation`, `Patient`, `Encounter`, `Bundle`, and `OperationOutcome`, conformance-validated by
+> the HL7 validator against 4.0.1 and 5.0.0. The converters that exist are still R5-only:
+> `convert.DICOMToImagingStudyR5`, `convert.SRToDiagnosticReportR5`, and `convert.ORMToServiceRequestR5`. The remaining
+> converters named below (the `…R4` twins, `DiagnosticReportToSR`, `ORUToDiagnosticReport`, `ADTToPatient`,
+> `ADTToEncounter`) are not yet implemented.
 
 | Resource | Role in the workflow | Releases |
 |----------|----------------------|----------|
@@ -887,9 +890,9 @@ normalisation that would break the pin); they are not stored in git-lfs. A stand
 independent of the Go suite, and the loader re-verifies the same manifest fail-closed before parsing. Refreshing a
 bundle is a deliberate, reviewed change run through the refresh-only mise tasks (`mise run fhir:refresh-r5` /
 `fhir:refresh-r4`), which re-download from the canonical HL7 archive, verify the release version, and re-record the
-manifest; refreshing never happens at generate time. The R5 bundle drives the generated `fhir/r5` package today; the
-R4 bundle is load-verified today (a loader test loads it, resolves the core resources and datatypes by name and URL,
-and asserts the resource count sits in a sane band) and is wired through the rest of the pipeline in milestone M6b.
+manifest; refreshing never happens at generate time. Each bundle drives its generated release package: the R5 bundle
+produces `fhir/r5` and the R4 bundle produces `fhir/r4`, both reproduced byte-for-byte by the regeneration gate
+(`TestRegenerationByteForByte` runs over both releases) so neither tree can be hand-edited or drift from its bundle.
 
 ## Generator pipeline
 
