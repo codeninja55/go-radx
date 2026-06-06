@@ -19,7 +19,11 @@ func ExampleSigV4RoundTripper() {
 		return
 	}
 
-	rt := awsauth.SigV4RoundTripper(cfg, "us-east-1", http.DefaultTransport)
+	endpoint := "https://dicom-medical-imaging.us-east-1.amazonaws.com"
+	rt, err := awsauth.SigV4RoundTripper(cfg, "us-east-1", endpoint, http.DefaultTransport)
+	if err != nil {
+		return
+	}
 	_ = &http.Client{Transport: rt}
 	// Output:
 }

@@ -40,6 +40,9 @@ const (
 	testAccessKey = "AKIDEXAMPLE"
 	testSecretKey = "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
 	testRegion    = "us-east-1"
+	// testEndpoint is the HealthImaging origin signing is scoped to. Every signed-request test
+	// targets a URL under this origin so the in-scope signing path runs.
+	testEndpoint = "https://dicom-medical-imaging.us-east-1.amazonaws.com"
 )
 
 // fixedTimeTransport wraps a SigV4 transport with a frozen clock so the signature is
@@ -50,12 +53,16 @@ func fixedTimeRoundTripper(t *testing.T, base http.RoundTripper, at time.Time) *
 		Region:      testRegion,
 		Credentials: credentials.NewStaticCredentialsProvider(testAccessKey, testSecretKey, ""),
 	}
-	rt, ok := SigV4RoundTripper(cfg, testRegion, base).(*sigV4Transport)
-	if !ok {
-		t.Fatalf("SigV4RoundTripper returned %T, want *sigV4Transport", SigV4RoundTripper(cfg, testRegion, base))
+	rt, err := SigV4RoundTripper(cfg, testRegion, testEndpoint, base)
+	if err != nil {
+		t.Fatalf("SigV4RoundTripper: %v", err)
 	}
-	rt.now = func() time.Time { return at }
-	return rt
+	transport, ok := rt.(*sigV4Transport)
+	if !ok {
+		t.Fatalf("SigV4RoundTripper returned %T, want *sigV4Transport", rt)
+	}
+	transport.now = func() time.Time { return at }
+	return transport
 }
 
 // TestSigV4ProducesWellFormedAuthorization asserts the RoundTripper stamps a
@@ -178,7 +185,11 @@ func TestSigV4SignsEachRequestIndependently(t *testing.T) {
 		Region:      testRegion,
 		Credentials: credentials.NewStaticCredentialsProvider(testAccessKey, testSecretKey, ""),
 	}
-	rt := SigV4RoundTripper(cfg, testRegion, base).(*sigV4Transport)
+	roundTripper, err := SigV4RoundTripper(cfg, testRegion, testEndpoint, base)
+	if err != nil {
+		t.Fatalf("SigV4RoundTripper: %v", err)
+	}
+	rt := roundTripper.(*sigV4Transport)
 
 	const url = "https://dicom-medical-imaging.us-east-1.amazonaws.com/datastore/ds-123/studies/1.2.3"
 	collect := func(at time.Time) string {
@@ -197,6 +208,44 @@ func TestSigV4SignsEachRequestIndependently(t *testing.T) {
 	}
 }
 
+// TestSigV4SignsOnlyEndpointOrigin asserts the transport scopes signing to the configured
+// HealthImaging endpoint origin: a same-origin request is signed, but a cross-origin request
+// — for example a BulkDataURI a metadata response names on a different host — is forwarded
+// UNSIGNED, so the caller's AWS credentials never reach a host the operator did not target.
+func TestSigV4SignsOnlyEndpointOrigin(t *testing.T) {
+	at := time.Date(2026, 6, 7, 12, 0, 0, 0, time.UTC)
+
+	roundTrip := func(t *testing.T, target string) *http.Request {
+		t.Helper()
+		base := &staticTransport{}
+		rt := fixedTimeRoundTripper(t, base, at)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, target, nil)
+		if err != nil {
+			t.Fatalf("new request: %v", err)
+		}
+		if _, err := rt.RoundTrip(req); err != nil {
+			t.Fatalf("RoundTrip: %v", err)
+		}
+		if base.got == nil {
+			t.Fatal("transport did not forward the request")
+		}
+		return base.got
+	}
+
+	// A request to the configured endpoint origin must carry a SigV4 Authorization header.
+	signed := roundTrip(t, testEndpoint+"/datastore/ds-123/studies/1.2.3")
+	if auth := signed.Header.Get("Authorization"); !strings.HasPrefix(auth, "AWS4-HMAC-SHA256 ") {
+		t.Fatalf("same-origin request Authorization = %q, want an AWS4-HMAC-SHA256 signature", auth)
+	}
+
+	// A request to a different host (a cross-origin BulkDataURI) must be forwarded unsigned: no
+	// Authorization header, so the credentials never leak off the endpoint origin.
+	forwarded := roundTrip(t, "https://attacker.example.com/bulkdata/abc")
+	if auth := forwarded.Header.Get("Authorization"); auth != "" {
+		t.Fatalf("cross-origin request carried Authorization = %q, want it forwarded unsigned", auth)
+	}
+}
+
 // errProvider is a credentials provider that always fails, to prove a credential error
 // surfaces from RoundTrip without leaking material.
 type errProvider struct{}
@@ -210,11 +259,14 @@ func (errProvider) Retrieve(context.Context) (awssdk.Credentials, error) {
 func TestSigV4CredentialErrorSurfaces(t *testing.T) {
 	base := &staticTransport{}
 	cfg := awssdk.Config{Region: testRegion, Credentials: errProvider{}}
-	rt := SigV4RoundTripper(cfg, testRegion, base)
+	rt, err := SigV4RoundTripper(cfg, testRegion, testEndpoint, base)
+	if err != nil {
+		t.Fatalf("SigV4RoundTripper: %v", err)
+	}
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet,
 		"https://dicom-medical-imaging.us-east-1.amazonaws.com/datastore/ds-123/studies", nil)
-	_, err := rt.RoundTrip(req)
+	_, err = rt.RoundTrip(req)
 	if err == nil {
 		t.Fatal("RoundTrip with a failing credentials provider returned nil error")
 	}
