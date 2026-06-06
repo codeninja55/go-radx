@@ -19,11 +19,12 @@ const (
 // SRToDiagnosticReportR5 converts a DICOM Structured Report document dataset to a
 // FHIR R5 DiagnosticReport and the set of Observations carrying its measurements. It
 // maps the document identity, status, code, category, effective date/time, subject,
-// and the concatenated TEXT narrative to DiagnosticReport.conclusion, then walks the
-// SR content tree for measurement leaves: each NUM, CODE, and date/time leaf becomes
-// one Observation (via ContentItemToObservationR5), linked from DiagnosticReport.result
-// by an intra-call urn:uuid logical reference. TEXT items remain the narrative
-// conclusion rather than separate observations, so a finding is represented once.
+// and the bare (un-coded) TEXT narrative to DiagnosticReport.conclusion, then walks the
+// SR content tree for measurement leaves: each NUM, CODE, date/time, and concept-named
+// TEXT leaf becomes one Observation (via ContentItemToObservationR5), linked from
+// DiagnosticReport.result by an intra-call urn:uuid logical reference. A concept-named
+// TEXT leaf names what its text states, so it is a string-valued Observation; only an
+// un-coded TEXT leaf is document narrative and becomes the conclusion.
 //
 // The result links are derived deterministically from the SR SOP Instance UID and each
 // leaf's position, so the same input yields byte-identical output. The SOP Instance UID
@@ -92,13 +93,15 @@ func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticRe
 }
 
 // measurementObservations walks the SR content tree depth-first in document order and
-// emits one Observation per measurement leaf (NUM, CODE, or date/time), assigning each
-// a deterministic urn:uuid logical id derived from the SR SOP Instance UID and the
-// leaf's position. TEXT leaves are skipped here: they form the narrative conclusion,
-// not separate observations. CONTAINER and coordinate/reference items are structure and
-// produce no observation. The dataset's TimezoneOffsetFromUTC (0008,0201) is resolved
-// once and applied to any DATETIME leaf lacking an inline offset; leaves whose value
-// cannot become a conformant value[x] are recorded on report rather than emitted.
+// emits one Observation per measurement leaf (NUM, CODE, date/time, or a concept-named
+// TEXT), assigning each a deterministic urn:uuid logical id derived from the SR SOP
+// Instance UID and the leaf's position. A TEXT leaf that carries a Concept Name Code
+// Sequence names what its text states, so it is a string-valued Observation; only a
+// bare (un-coded) TEXT leaf is document narrative and is left to the conclusion. CONTAINER
+// and coordinate/reference items are structure and produce no observation. The dataset's
+// TimezoneOffsetFromUTC (0008,0201) is resolved once and applied to any DATETIME leaf
+// lacking an inline offset; leaves whose value cannot become a conformant value[x] are
+// recorded on report rather than emitted.
 func measurementObservations(root *dicom.ContentItem, ds *dicom.DataSet, sopInstanceUID string, report *Report) []*r5.Observation {
 	tzOffset, hasTZ := fhirTimezoneOffset(ds)
 	var observations []*r5.Observation
@@ -107,7 +110,7 @@ func measurementObservations(root *dicom.ContentItem, ds *dicom.DataSet, sopInst
 	walk = func(items []dicom.ContentItem) {
 		for i := range items {
 			it := items[i]
-			if it.ValueType != dicom.ValueTypeText {
+			if !isConclusionText(it) {
 				if o, ok := contentItemToObservationR5(it, tzOffset, hasTZ, report); ok {
 					id := deterministicObservationUUID(sopInstanceUID, index)
 					o.ID = &id
@@ -120,6 +123,16 @@ func measurementObservations(root *dicom.ContentItem, ds *dicom.DataSet, sopInst
 	}
 	walk(root.Children)
 	return observations
+}
+
+// isConclusionText reports whether a content item is the report's narrative conclusion
+// rather than a measurement: a TEXT leaf with no Concept Name Code Sequence states the
+// document narrative, whereas a concept-named TEXT leaf names an observation. This is
+// the single classification both the forward conclusion walk and the measurement walk
+// share, so a concept-named string Observation round-trips as an Observation and a bare
+// conclusion routes to DiagnosticReport.conclusion.
+func isConclusionText(it dicom.ContentItem) bool {
+	return it.ValueType == dicom.ValueTypeText && it.ConceptName.IsZero()
 }
 
 // srStatus maps CompletionFlag (0040,A491) and VerificationFlag (0040,A493) to a
@@ -195,16 +208,18 @@ func schemeDesignatorSystem(designator string) string {
 	}
 }
 
-// narrative concatenates the TEXT content items of the SR tree into a single
-// markdown conclusion, in document order. Non-text items contribute structure,
-// not narrative, and are skipped here (their full mapping is M7).
+// narrative concatenates the bare (un-coded) TEXT content items of the SR tree into a
+// single markdown conclusion, in document order. A concept-named TEXT leaf names a
+// string-valued observation and is mapped by measurementObservations instead, so it is
+// not folded into the narrative here. Non-text items contribute structure, not
+// narrative, and are skipped (their full mapping is M7).
 func narrative(root *dicom.ContentItem) string {
 	var parts []string
 	var walk func(items []dicom.ContentItem)
 	walk = func(items []dicom.ContentItem) {
 		for i := range items {
 			it := items[i]
-			if it.ValueType == dicom.ValueTypeText && strings.TrimSpace(it.Text) != "" {
+			if isConclusionText(it) && strings.TrimSpace(it.Text) != "" {
 				parts = append(parts, it.Text)
 			}
 			walk(it.Children)
