@@ -25,15 +25,21 @@ const (
 // the cap protects memory without rejecting legitimate traffic.
 const DefaultMaxFrameSize = 8 << 20 // 8 MiB
 
-// FrameError reports a malformed MLLP frame: a missing start block, or a
-// payload that exceeds the configured maximum before an end block. It names the
-// structural fault and the byte count involved, never any payload bytes, since
-// an HL7 message routinely carries PHI (PRD §9.1).
+// FrameError reports a malformed MLLP frame: a missing start block, a payload
+// that exceeds the configured maximum before an end block, or a stream that ends
+// mid-frame. It names the structural fault and the byte count involved, never any
+// payload bytes, since an HL7 message routinely carries PHI (PRD §9.1).
 type FrameError struct {
 	Reason string // structural description, free of payload bytes
+	err    error  // optional wrapped sentinel (e.g. io.ErrUnexpectedEOF on truncation)
 }
 
 func (e *FrameError) Error() string { return "hl7v2: mllp frame error: " + e.Reason }
+
+// Unwrap exposes the wrapped sentinel so a caller can match a mid-frame
+// truncation with errors.Is(err, io.ErrUnexpectedEOF) while errors.As still
+// identifies the error as a *FrameError.
+func (e *FrameError) Unwrap() error { return e.err }
 
 // WriteFrame writes payload as a single MLLP frame to w: StartBlock, the
 // payload bytes verbatim, EndBlock, then CarriageReturn. The payload is not
@@ -51,16 +57,24 @@ func WriteFrame(w io.Writer, payload []byte) error {
 	return nil
 }
 
-// ReadFrame reads one MLLP frame from r and returns its payload (the bytes
+// ReadFrame reads one MLLP frame from br and returns its payload (the bytes
 // between the start and end blocks). It is bounded and context-aware: the read
 // stops at EndBlock or at max accumulated payload bytes BEFORE the buffer can
 // grow without limit, so a peer that never sends an end block cannot drive an
 // unbounded allocation (PRD §9.3). A non-positive max uses DefaultMaxFrameSize.
 //
+// br MUST persist across the frames of a connection. A persistent MLLP stream
+// can carry frames back to back, and a bufio.Reader prefetches bytes belonging
+// to the NEXT frame while decoding the current one; reusing the same reader
+// keeps those prefetched bytes available for the following ReadFrame instead of
+// discarding them with a per-call reader. The Client and Server each hold one
+// *bufio.Reader per connection and pass it to successive calls for this reason.
+//
 // The error contract distinguishes the cases a caller must tell apart:
 //   - io.EOF when the stream is empty before any byte (a closed connection,
 //     which a server read loop treats as a clean stop, not a fault).
-//   - io.ErrUnexpectedEOF (wrapped) when the stream ends mid-frame.
+//   - io.ErrUnexpectedEOF (wrapped in a *FrameError) when the stream ends
+//     mid-frame.
 //   - *FrameError when the first byte is not StartBlock, or the payload reaches
 //     max before an EndBlock.
 //   - ctx.Err() when ctx is cancelled while a read blocks.
@@ -72,17 +86,12 @@ func WriteFrame(w io.Writer, payload []byte) error {
 // the connection closes. A caller that needs the read itself interrupted at the
 // socket should also set a read deadline on the connection, which the Server
 // and Client do via their read timeouts.
-func ReadFrame(ctx context.Context, r io.Reader, max int) ([]byte, error) {
+func ReadFrame(ctx context.Context, br *bufio.Reader, max int) ([]byte, error) {
 	if max <= 0 {
 		max = DefaultMaxFrameSize
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
-	}
-
-	br, ok := r.(*bufio.Reader)
-	if !ok {
-		br = bufio.NewReader(r)
 	}
 
 	type result struct {
@@ -152,14 +161,9 @@ func scanFrame(br *bufio.Reader, max int) ([]byte, error) {
 }
 
 // truncatedFrame builds a *FrameError wrapping io.ErrUnexpectedEOF so a caller
-// can match truncation with errors.Is(err, io.ErrUnexpectedEOF) while the
-// message names only the structural fault.
-func truncatedFrame(reason string) error {
-	return &frameTruncation{FrameError{Reason: reason}}
+// can match truncation with both errors.As(err, &fe *FrameError) and
+// errors.Is(err, io.ErrUnexpectedEOF) while the message names only the
+// structural fault.
+func truncatedFrame(reason string) *FrameError {
+	return &FrameError{Reason: reason, err: io.ErrUnexpectedEOF}
 }
-
-// frameTruncation is a *FrameError that also unwraps to io.ErrUnexpectedEOF, so
-// truncation satisfies both errors.As(&FrameError) and errors.Is(io.ErrUnexpectedEOF).
-type frameTruncation struct{ FrameError }
-
-func (frameTruncation) Unwrap() error { return io.ErrUnexpectedEOF }

@@ -1,6 +1,7 @@
 package hl7v2
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -78,6 +79,7 @@ type Client struct {
 
 	mu     sync.Mutex
 	conn   net.Conn
+	br     *bufio.Reader // persists across Sends so back-to-back ACK frames are not lost
 	closed bool
 }
 
@@ -95,7 +97,7 @@ func NewClient(addr string, opts ...ClientOption) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{cfg: cfg, addr: addr, conn: conn}, nil
+	return &Client{cfg: cfg, addr: addr, conn: conn, br: bufio.NewReader(conn)}, nil
 }
 
 // dial opens the transport for addr per cfg: a plain TCP connection, or a TLS
@@ -173,7 +175,7 @@ func (c *Client) SendRaw(ctx context.Context, payload []byte) ([]byte, error) {
 		defer func() { _ = c.conn.SetReadDeadline(time.Time{}) }()
 	}
 
-	ack, err := ReadFrame(ctx, c.conn, c.cfg.maxFrameSize)
+	ack, err := ReadFrame(ctx, c.br, c.cfg.maxFrameSize)
 	if err != nil {
 		return nil, ctxErrOr(ctx, err)
 	}

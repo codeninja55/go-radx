@@ -1,6 +1,7 @@
 package hl7v2
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -51,7 +52,7 @@ func TestReadFrameRoundTrip(t *testing.T) {
 		t.Fatalf("WriteFrame: %v", err)
 	}
 
-	got, err := ReadFrame(context.Background(), &buf, DefaultMaxFrameSize)
+	got, err := ReadFrame(context.Background(), bufio.NewReader(&buf), DefaultMaxFrameSize)
 	if err != nil {
 		t.Fatalf("ReadFrame: %v", err)
 	}
@@ -60,10 +61,42 @@ func TestReadFrameRoundTrip(t *testing.T) {
 	}
 }
 
+func TestReadFrameReadsBackToBackFrames(t *testing.T) {
+	// Two frames written back to back into a single stream must both decode intact
+	// from one persistent bufio.Reader: the reader prefetches bytes of the second
+	// frame while decoding the first, so reusing it (rather than wrapping a fresh
+	// reader per call) is what keeps those bytes from being lost.
+	first := []byte("MSH|^~\\&|SEND|FAC|RECV|FAC|20240101010101||ADT^A01|MSG1|P|2.5.1\rPID|1")
+	second := []byte("MSH|^~\\&|SEND|FAC|RECV|FAC|20240101010102||ADT^A02|MSG2|P|2.5.1\rPID|2")
+	var buf bytes.Buffer
+	if err := WriteFrame(&buf, first); err != nil {
+		t.Fatalf("WriteFrame first: %v", err)
+	}
+	if err := WriteFrame(&buf, second); err != nil {
+		t.Fatalf("WriteFrame second: %v", err)
+	}
+
+	br := bufio.NewReader(&buf)
+	got1, err := ReadFrame(context.Background(), br, DefaultMaxFrameSize)
+	if err != nil {
+		t.Fatalf("ReadFrame first: %v", err)
+	}
+	if !bytes.Equal(got1, first) {
+		t.Fatalf("first payload = %q, want %q", got1, first)
+	}
+	got2, err := ReadFrame(context.Background(), br, DefaultMaxFrameSize)
+	if err != nil {
+		t.Fatalf("ReadFrame second: %v", err)
+	}
+	if !bytes.Equal(got2, second) {
+		t.Fatalf("second payload = %q, want %q", got2, second)
+	}
+}
+
 func TestReadFrameRejectsMissingStartBlock(t *testing.T) {
 	// A frame whose first byte is not the start block is a framing error, not
 	// silently tolerated, because a peer that drops the start block has lost sync.
-	src := bytes.NewReader([]byte{0x42, EndBlock, CarriageReturn})
+	src := bufio.NewReader(bytes.NewReader([]byte{0x42, EndBlock, CarriageReturn}))
 	_, err := ReadFrame(context.Background(), src, DefaultMaxFrameSize)
 	var fe *FrameError
 	if !errors.As(err, &fe) {
@@ -81,26 +114,32 @@ func TestReadFrameBoundsBeforeAllocation(t *testing.T) {
 	for len(hostile) < max+8 {
 		hostile = append(hostile, 'A') // never an EndBlock
 	}
-	_, err := ReadFrame(context.Background(), bytes.NewReader(hostile), max)
+	_, err := ReadFrame(context.Background(), bufio.NewReader(bytes.NewReader(hostile)), max)
 	var fe *FrameError
 	if !errors.As(err, &fe) {
 		t.Fatalf("err = %v, want *FrameError for oversize frame", err)
 	}
 }
 
-func TestReadFrameTruncatedIsUnexpectedEOF(t *testing.T) {
+func TestReadFrameTruncatedIsFrameErrorAndUnexpectedEOF(t *testing.T) {
 	// A start block followed by payload but no end block, then EOF, is truncation.
-	src := bytes.NewReader(append([]byte{StartBlock}, []byte("MSH|^~\\&")...))
+	// It must satisfy BOTH errors.As(*FrameError) and errors.Is(io.ErrUnexpectedEOF):
+	// truncation is a frame fault that also unwraps to the unexpected-EOF sentinel.
+	src := bufio.NewReader(bytes.NewReader(append([]byte{StartBlock}, []byte("MSH|^~\\&")...)))
 	_, err := ReadFrame(context.Background(), src, DefaultMaxFrameSize)
+	var fe *FrameError
+	if !errors.As(err, &fe) {
+		t.Fatalf("err = %v, want *FrameError on truncation", err)
+	}
 	if !errors.Is(err, io.ErrUnexpectedEOF) {
-		t.Fatalf("err = %v, want io.ErrUnexpectedEOF", err)
+		t.Fatalf("err = %v, want io.ErrUnexpectedEOF on truncation", err)
 	}
 }
 
 func TestReadFrameEOFBeforeStartBlock(t *testing.T) {
 	// An empty stream is a clean io.EOF so a server read loop can stop without
 	// treating a closed connection as a fault.
-	_, err := ReadFrame(context.Background(), bytes.NewReader(nil), DefaultMaxFrameSize)
+	_, err := ReadFrame(context.Background(), bufio.NewReader(bytes.NewReader(nil)), DefaultMaxFrameSize)
 	if !errors.Is(err, io.EOF) {
 		t.Fatalf("err = %v, want io.EOF", err)
 	}
@@ -110,7 +149,7 @@ func TestReadFrameContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	// A blocking reader plus a cancelled context must return ctx.Err(), not hang.
-	src := &blockingReader{}
+	src := bufio.NewReader(&blockingReader{})
 	_, err := ReadFrame(ctx, src, DefaultMaxFrameSize)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
@@ -123,7 +162,7 @@ func TestReadFrameZeroMaxUsesDefault(t *testing.T) {
 	if err := WriteFrame(&buf, payload); err != nil {
 		t.Fatalf("WriteFrame: %v", err)
 	}
-	got, err := ReadFrame(context.Background(), &buf, 0)
+	got, err := ReadFrame(context.Background(), bufio.NewReader(&buf), 0)
 	if err != nil {
 		t.Fatalf("ReadFrame with zero max: %v", err)
 	}
@@ -163,7 +202,7 @@ func FuzzReadFrame(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		// Must never panic; an error is the acceptable outcome for malformed input,
 		// and a decoded payload must never exceed the cap.
-		got, err := ReadFrame(context.Background(), bytes.NewReader(data), fuzzMax)
+		got, err := ReadFrame(context.Background(), bufio.NewReader(bytes.NewReader(data)), fuzzMax)
 		if err == nil && len(got) > fuzzMax {
 			t.Fatalf("decoded payload %d bytes exceeds cap %d", len(got), fuzzMax)
 		}

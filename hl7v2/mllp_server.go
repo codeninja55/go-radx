@@ -1,6 +1,7 @@
 package hl7v2
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -220,12 +221,17 @@ func (s *Server) acceptLoop(ctx context.Context, ln net.Listener) error {
 func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 	defer func() { _ = conn.Close() }()
 
+	// One buffered reader for the lifetime of the connection: a persistent MLLP
+	// stream can carry frames back to back, and a per-frame reader would discard
+	// bytes it prefetched for the next frame. Reusing it keeps those bytes.
+	br := bufio.NewReader(conn)
+
 	for {
 		if s.cfg.readTimeout > 0 {
 			_ = conn.SetReadDeadline(time.Now().Add(s.cfg.readTimeout))
 		}
 
-		payload, err := ReadFrame(ctx, conn, s.cfg.maxFrameSize)
+		payload, err := ReadFrame(ctx, br, s.cfg.maxFrameSize)
 		if err != nil {
 			// A peer that closed the connection (io.EOF) is a clean end, not a
 			// fault; any other error (framing fault, truncation, timeout,
