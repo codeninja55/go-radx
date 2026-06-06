@@ -34,6 +34,67 @@ rule `convert.<Source>To<Target><Release>`. The conversions intended to close th
 Each is intended to ship with an `R4` and `R5` twin. The currently implemented set is R5-only and partial; the
 authored statement will declare exactly which `(conversion, release)` pairs are conformance-tested.
 
+### DICOM to ImagingStudy (`DICOMToImagingStudyR5`)
+
+`DICOMToImagingStudyR5` groups one or more DICOM instances of a study by Series Instance UID and SOP Instance UID and
+produces a FHIR R5 `ImagingStudy`. It reads the Patient, General Study, General Series, and SOP Common modules;
+`numberOfSeries` and `numberOfInstances` are recomputed from the distinct UIDs seen, never copied from a possibly stale
+source attribute. `ImagingStudy` is an index, not a copy of the dataset, so attributes outside those modules are
+recorded in `Report.Dropped`.
+
+| FHIR `ImagingStudy` element | DICOM source | Notes |
+|------------------------------|--------------|-------|
+| `identifier` | Study Instance UID `(0020,000D)` | logical `urn:dicom:uid` / `urn:oid:` identifier, never a Reference URL |
+| `status` | — | defaulted to `available`; recorded in `Report.Defaulted` |
+| `subject` | PatientID `(0010,0020)` + Issuer `(0010,0021)`, or `WithSubjectR5` | logical `Reference.identifier`, never a fabricated URL |
+| `started` | StudyDate `(0008,0020)` + StudyTime `(0008,0030)` + TimezoneOffsetFromUTC `(0008,0201)` | precision preserved; a timezone-less time is dropped to date-only and recorded |
+| `numberOfSeries` / `numberOfInstances` | computed | distinct Series / SOP Instance UIDs seen |
+| `description` | StudyDescription `(0008,1030)` | |
+| `modality` (study-level) | union of series Modality `(0008,0060)` | `CodeableConcept` under the DICOM `DCM` system |
+| `referrer` | ReferringPhysicianName `(0008,0090)` | `Reference.display` only (rendered PN), never a fabricated URL |
+| `procedure[]` | ProcedureCodeSequence `(0008,1032)` | each coded item → `CodeableReference.concept` |
+| `reason[]` | ReasonForRequestedProcedureCodeSequence `(0040,100A)` + ReasonForStudy `(0032,1030)` | coded items → concept `Coding`; the free-text reason → concept `text` |
+| `series.uid` | Series Instance UID `(0020,000E)` | |
+| `series.modality` | Modality `(0008,0060)` | required; repaired from a later instance when the first lacks it; the series is dropped (recorded) when no instance carries one |
+| `series.number` | SeriesNumber `(0020,0011)` | `IS` → `unsignedInt`; a negative or out-of-range value is dropped and recorded |
+| `series.description` | SeriesDescription `(0008,103E)` | |
+| `series.bodySite` | BodyPartExamined `(0018,0015)` | `CodeableReference.concept` (free-text rendering) |
+| `series.laterality` | Laterality `(0020,0060)` | `CodeableConcept` `Coding` under the DICOM `DCM` system |
+| `series.started` | SeriesDate `(0008,0021)` + SeriesTime `(0008,0031)` + TimezoneOffsetFromUTC `(0008,0201)` | precision preserved; a timezone-less time is dropped to date-only |
+| `series.instance.uid` | SOP Instance UID `(0008,0018)` | |
+| `series.instance.sopClass` | SOP Class UID `(0008,0016)` | required `Coding{ system:"urn:ietf:rfc:3986", code:"urn:oid:"+uid }`; an instance with no SOP Class UID is dropped (recorded) |
+| `series.instance.number` | InstanceNumber `(0020,0013)` | `IS` → `unsignedInt`; a negative or out-of-range value is dropped and recorded |
+
+A coded entry (procedure, reason) carries its DICOM coding-scheme designator to the registered FHIR `system` URI (`DCM`,
+`SCT`, `LN`); an unknown designator is carried verbatim under `urn:dicom:scheme:<designator>` so no value is lost. The
+identity rule holds throughout: a UID becomes an `Identifier`, never a `Reference.reference` URL, and a person name
+becomes `Reference.display` only.
+
+### ORM to ServiceRequest (`ORMToServiceRequestR5`)
+
+`ORMToServiceRequestR5` converts one HL7 v2 order group (an ORC with its OBR requests) from an `ORM^O01` / `OMG^O19`
+message to a FHIR R5 `ServiceRequest`. A message carrying multiple order groups is rejected fail-closed
+(`ErrUnsupportedSource`): v1 maps one order per call. It reads MSH, PID, PV1, ORC, and OBR.
+
+| FHIR `ServiceRequest` element | HL7 v2 source | Notes |
+|-------------------------------|---------------|-------|
+| `identifier` | ORC-2 Placer + ORC-3 Filler Order Number | each → `Identifier.value` |
+| `status` | ORC-1 Order Control / ORC-5 Order Status | `NW`/`XO`→`active`, `CA`→`revoked`, `CM`→`completed`; unrecognised → `active` |
+| `intent` | — | defaulted to `order`; recorded in `Report.Defaulted` |
+| `priority` | ORC-7 / OBR-27 Quantity-Timing priority (component 6) | `S`→`stat`, `A`→`asap`, `R`/`P`→`routine`; an out-of-table code is dropped and recorded (the binding is required) |
+| `code` | OBR-4 Universal Service Identifier (`CWE`) | `CodeableReference.concept`; extra OBR requests are dropped and recorded by locus |
+| `subject` | PID-3 (`CX`), or `WithSubjectR5` | logical `Reference.identifier`, never a fabricated URL |
+| `encounter` | PV1-19 Visit Number (`CX`) | logical `Reference.identifier`, never a fabricated URL |
+| `authoredOn` | ORC-9 Date/Time of Transaction (`DTM`) | precision preserved; a timezone-less time is dropped to date-only and recorded |
+| `requester` | ORC-12 Ordering Provider (`XCN`) | logical `Reference.identifier` (ID component) plus `Reference.display` (`family^given`), never a fabricated URL |
+| `reason[]` | OBR-31 Reason for Study (`CWE`) | `CodeableReference.concept` carrying code, system, and display verbatim |
+| `occurrenceDateTime` | OBR-6 / OBR-27 requested date/time (`DTM`) | precision preserved; a timezone-less time is dropped to date-only and recorded |
+
+`bodySite` has no `ORM^O01` / `OMG^O19` v1 source field, so it is left unset; an imaging order conveys the body region
+through the ordered procedure code (OBR-4), not a discrete field. go-radx does not translate between code systems; a
+`CWE` coding system is carried verbatim. The identity rule holds throughout: every patient, encounter, and requester
+link is a logical `Reference.identifier` (with an optional non-resolving `display`), never a `Reference.reference` URL.
+
 ### SR to DiagnosticReport (`SRToDiagnosticReportR5`)
 
 `SRToDiagnosticReportR5` reads a DICOM Structured Report document dataset and produces a FHIR R5 `DiagnosticReport`
