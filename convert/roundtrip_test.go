@@ -266,6 +266,85 @@ func TestOBXRoundTripDeterministic(t *testing.T) {
 	}
 }
 
+// TestOBXRoundTripPreservesPartialDateTime confirms a partial-precision OBX-5 dateTime
+// (year or year-month) survives OBX -> Observation -> OBX without being dropped. The
+// forward path emits a partial FHIR dateTime, so the reverse path must re-emit the
+// matching partial HL7 DTM rather than rejecting anything shorter than a full date.
+func TestOBXRoundTripPreservesPartialDateTime(t *testing.T) {
+	tests := []struct {
+		name    string
+		dtm     string // OBX-5 value the forward path reads
+		wantDTM string // OBX-5 value the reverse path must re-emit
+	}{
+		{name: "year precision", dtm: "2026", wantDTM: "2026"},
+		{name: "year-month precision", dtm: "202605", wantDTM: "202605"},
+		{name: "full date precision", dtm: "20260531", wantDTM: "20260531"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obx := hl7v2.OBX{
+				ValueType:     "TS",
+				ObservationID: hl7v2.CWE{Code: "21112-8", Text: "Birth date", CodingSystem: "LN"},
+				Value:         []string{tt.dtm},
+				ResultStatus:  "F",
+			}
+			o, fwdReport, ok := OBXToObservationR5(obx)
+			if !ok {
+				t.Fatalf("forward OBXToObservationR5 ok=false")
+			}
+			if len(fwdReport.Dropped) != 0 {
+				t.Errorf("forward conversion dropped a supported partial dateTime: %+v", fwdReport.Dropped)
+			}
+
+			back, revReport, ok := ObservationToOBX(o)
+			if !ok {
+				t.Fatalf("reverse ObservationToOBX ok=false")
+			}
+			if len(revReport.Dropped) != 0 {
+				t.Errorf("reverse conversion dropped the partial dateTime instead of re-emitting it: %+v", revReport.Dropped)
+			}
+			if back.ValueType != "TS" {
+				t.Errorf("OBX-2 = %q, want TS", back.ValueType)
+			}
+			if len(back.Value) != 1 || back.Value[0] != tt.wantDTM {
+				t.Errorf("OBX-5 partial dateTime lost: %q -> %v, want %q", tt.dtm, back.Value, tt.wantDTM)
+			}
+		})
+	}
+}
+
+// TestOBXRoundTripPreservesTextOnlyIdentifier confirms a text-only OBX-3 (CWE.2 present,
+// CWE.1 empty) survives OBX -> Observation -> OBX. The forward converter accepts a
+// text-only coded identifier as Observation.code, so the reverse path must re-emit the
+// OBX rather than dropping it for lack of a code.
+func TestOBXRoundTripPreservesTextOnlyIdentifier(t *testing.T) {
+	obx := hl7v2.OBX{
+		ValueType:     "ST",
+		ObservationID: hl7v2.CWE{Text: "Free-text observation label"},
+		Value:         []string{"within normal limits"},
+		ResultStatus:  "F",
+	}
+	o, _, ok := OBXToObservationR5(obx)
+	if !ok {
+		t.Fatalf("forward OBXToObservationR5 ok=false for a text-only OBX-3")
+	}
+
+	back, revReport, ok := ObservationToOBX(o)
+	if !ok {
+		t.Fatalf("reverse ObservationToOBX ok=false; a text-only OBX-3 was not re-emitted")
+	}
+	if len(revReport.Dropped) != 0 {
+		t.Errorf("reverse conversion dropped the text-only identifier: %+v", revReport.Dropped)
+	}
+	if back.ObservationID.Code != "" {
+		t.Errorf("OBX-3 code = %q, want empty (the source carried text only)", back.ObservationID.Code)
+	}
+	if back.ObservationID.Text != "Free-text observation label" {
+		t.Errorf("OBX-3 text lost: %q", back.ObservationID.Text)
+	}
+}
+
 // renderOBX runs the reverse converter and renders the OBX to its wire line through the
 // hl7v2 message renderer, so the assertion exercises the real serialisation path.
 func renderOBX(t *testing.T, o *r5.Observation) string {

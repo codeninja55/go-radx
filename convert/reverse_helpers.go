@@ -58,10 +58,12 @@ func conceptNameFor(cc *r5.CodeableConcept) dicom.ConceptNameCode {
 // fhirDateTimeToDICOM converts a FHIR dateTime lexical form to a DICOM DT lexical form:
 // it strips the "-" date separators and ":" time separators, joins the date and time on
 // no separator, and rewrites a "+hh:mm"/"-hh:mm"/"Z" timezone suffix as the DICOM
-// "&ZZXX" form ("+0000" for "Z"). A date-only value yields the YYYYMMDD form. The
-// fractional second is carried verbatim. ok is false for a value that is not at least a
-// full calendar date, so a partial-precision FHIR value is never widened into a
-// fabricated DICOM date.
+// "&ZZXX" form ("+0000" for "Z"). The fractional second is carried verbatim. The source
+// precision is preserved rather than widened: a year-only value yields YYYY, a
+// year-month value YYYYMM, a full date YYYYMMDD, and a timestamp the colon-free
+// YYYYMMDDHHMMSS[.f][&ZZXX] form. ok is false only for a value that is not even a
+// well-formed year, so a partial-precision FHIR value the forward path emits round-trips
+// instead of being dropped.
 func fhirDateTimeToDICOM(value string) (string, bool) {
 	date, rest, ok := splitFHIRDate(value)
 	if !ok {
@@ -74,18 +76,54 @@ func fhirDateTimeToDICOM(value string) (string, bool) {
 	return date + stripColons(timePart) + dicomOffset(offset), true
 }
 
-// splitFHIRDate splits a FHIR dateTime into its YYYYMMDD date head and the remainder
-// after the "T". ok is false unless the value carries a full year-month-day date, so a
-// year- or month-only FHIR value is rejected rather than padded.
+// splitFHIRDate splits a FHIR dateTime into its packed DICOM date head and the remainder
+// after the "T". The head is accepted at year (YYYY), year-month (YYYY-MM), or full date
+// (YYYY-MM-DD) precision and emitted at the matching DICOM precision (YYYY, YYYYMM,
+// YYYYMMDD); the "-" separators are stripped. A time remainder can only follow a full
+// date, so a "T" after a year- or month-only head is malformed. ok is false for a head
+// that is not at least a well-formed four-digit year.
 func splitFHIRDate(value string) (date, rest string, ok bool) {
 	head := value
 	if t := indexByte(value, 'T'); t >= 0 {
 		head, rest = value[:t], value[t+1:]
 	}
-	if len(head) != len("YYYY-MM-DD") || head[4] != '-' || head[7] != '-' {
+	// A time-of-day can only follow a full calendar date in FHIR; a "T" after a year- or
+	// month-only head is malformed and must not be widened into an invalid DICOM DT.
+	if rest != "" && len(head) != len("YYYY-MM-DD") {
 		return "", "", false
 	}
-	return head[0:4] + head[5:7] + head[8:10], rest, true
+	switch len(head) {
+	case len("YYYY"):
+		if !allDigits(head) {
+			return "", "", false
+		}
+		return head, rest, true
+	case len("YYYY-MM"):
+		if head[4] != '-' || !allDigits(head[0:4]) || !allDigits(head[5:7]) {
+			return "", "", false
+		}
+		return head[0:4] + head[5:7], rest, true
+	case len("YYYY-MM-DD"):
+		if head[4] != '-' || head[7] != '-' || !allDigits(head[0:4]) || !allDigits(head[5:7]) || !allDigits(head[8:10]) {
+			return "", "", false
+		}
+		return head[0:4] + head[5:7] + head[8:10], rest, true
+	default:
+		return "", "", false
+	}
+}
+
+// allDigits reports whether s is non-empty and every byte is an ASCII digit.
+func allDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // splitFHIRTimeOffset splits the post-"T" remainder into its time-of-day and its

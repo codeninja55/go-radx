@@ -70,10 +70,10 @@ func setOBXValue(obx *hl7v2.OBX, o *r5.Observation, report *Report) {
 		obx.Value = []string{v.Value.String()}
 		obx.Units = quantityToCWE(v)
 	case r5.CodeableConcept:
-		cwe, hasCode := conceptToCWE(&v)
-		if !hasCode {
+		cwe, ok := conceptToCWE(&v)
+		if !ok {
 			report.dropped("Observation.valueCodeableConcept",
-				"the coded value carried no Coding; OBX-5 was left unset")
+				"the coded value carried no code or text; OBX-5 was left unset")
 			return
 		}
 		obx.ValueType = "CWE"
@@ -85,7 +85,7 @@ func setOBXValue(obx *hl7v2.OBX, o *r5.Observation, report *Report) {
 		lexical, lok := fhirDateTimeToDICOM(string(v))
 		if !lok {
 			report.dropped("Observation.valueDateTime",
-				"the dateTime is not at least a full calendar date; OBX-5 was left unset")
+				"the dateTime is not a well-formed FHIR dateTime; OBX-5 was left unset")
 			return
 		}
 		obx.ValueType = "TS"
@@ -128,9 +128,10 @@ func obxUnitSystem(system string) string {
 
 // conceptToCWE maps the first Coding of a FHIR CodeableConcept back to an HL7 CWE
 // (code, text, coding system), the inverse of cweConcept. The Coding.display, or the
-// CodeableConcept.text when the Coding has none, becomes CWE-2. ok is false when the
-// concept carries no Coding with a code, since an OBX-3 with no code has no observation
-// identity.
+// CodeableConcept.text when the Coding has none, becomes CWE-2. ok mirrors what the
+// forward cweConcept accepts: a CWE with a code OR a text carries an observation
+// identity (a text-only CWE.2 is a valid identifier the forward path accepts), so only a
+// CWE with neither a code nor text yields ok=false.
 func conceptToCWE(cc *r5.CodeableConcept) (hl7v2.CWE, bool) {
 	if cc == nil || len(cc.Coding) == 0 {
 		return hl7v2.CWE{}, false
@@ -152,7 +153,7 @@ func conceptToCWE(cc *r5.CodeableConcept) (hl7v2.CWE, bool) {
 	if cwe.Code == "" && cwe.Text == "" {
 		return hl7v2.CWE{}, false
 	}
-	return cwe, cwe.Code != ""
+	return cwe, true
 }
 
 // renderInlineCWE renders a CWE as the canonical "code^text^system" OBX-5 value form
