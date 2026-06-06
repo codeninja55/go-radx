@@ -42,9 +42,21 @@ of it:
   The SCU is verified by unit tests against a mock worklist SCP. The dcm4chee live interop leg is present but **skips**
   until the archive is configured as a Modality Worklist FIND SCP: dcm4chee-arc's default archive AE rejects the MWL FIND
   presentation context as abstract-syntax-not-supported, so the dcm4chee MWL interop gate is a documented follow-up.
-- **MPPS** (N-CREATE, N-SET) and **Storage Commitment** (N-ACTION, N-EVENT-REPORT), SCU only, are in the v1 target but
-  the N-service operations are **NOT YET SHIPPED**; today only their presentation-context presets and status codes
-  exist.
+- **MPPS** (Modality Performed Procedure Step) as SCU — implemented. The `Association.MPPS()` entry point returns an
+  `*MPPS` whose `Create` issues the N-CREATE that opens a procedure step in the **IN PROGRESS** state and whose `Set`
+  issues the N-SET that advances it to **COMPLETED** or **DISCONTINUED** (PS3.4 F.7.1, the Performed Procedure Step
+  Status keywords of PS3.3 C.4.14). `Create` defaults the IN PROGRESS state into a copy of the caller's attribute set
+  when absent and returns the procedure-step SOP Instance UID — the SCU's own when supplied, otherwise the one the SCP
+  assigns and echoes in the N-CREATE-RSP — which the caller passes to `Set`. The N-SET references the step by Requested
+  SOP Class UID (0000,0003) and Requested SOP Instance UID (0000,1001), the normalised reference pair distinct from the
+  C-service Affected SOP Class/Instance UID. Each operation surfaces a typed Status categorised against the Procedure
+  Step service class; a Failure (for example, the step may no longer be updated) is in-band data, never laundered to
+  success. This is step 3.5 of the radiology workflow — the modality reporting its procedure step. The SCU is verified
+  by unit tests against an in-process mock N-service SCP. The dcm4chee live interop leg drives N-CREATE then N-SET to
+  IN PROGRESS then COMPLETED; it **skips** when the archive does not accept the MPPS presentation context
+  (abstract-syntax-not-supported) rather than fail. The SCP side is deferred.
+- **Storage Commitment** (N-ACTION, N-EVENT-REPORT), SCU only, is in the v1 target but its N-service operations are
+  **NOT YET SHIPPED**; today only their presentation-context presets and status codes exist.
 
 The DIMSE-C service operations and the roles each ships as today:
 
@@ -56,6 +68,13 @@ The DIMSE-C service operations and the roles each ships as today:
 | C-FIND | Modality Worklist (flat, no level) | Shipped | Shipped | PS3.4 K.4.1.2, K.6.1.2.1 |
 | C-MOVE | Patient Root / Study Root Q/R | Shipped | Shipped | PS3.4 C.4.2 |
 | C-GET | Patient Root / Study Root Q/R | Shipped | Shipped | PS3.4 C.4.3 |
+
+The DIMSE-N service operations and the roles each ships as today:
+
+| Service | SOP Class | SCU | SCP | Reference |
+|---------|-----------|-----|-----|-----------|
+| N-CREATE, N-SET | Modality Performed Procedure Step | Shipped | Deferred | PS3.4 F.7.1, PS3.7 §10.1 |
+| N-ACTION, N-EVENT-REPORT | Storage Commitment Push Model | Not yet shipped | Deferred | PS3.4 J.3 |
 
 ## Association negotiation
 
