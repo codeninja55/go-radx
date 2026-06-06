@@ -1,45 +1,39 @@
 # DICOMweb conformance statement
 
-> **Implementation status: NOT YET SHIPPED.** This is a scaffold. The DICOMweb conformance statement — the versioned,
-> validator-backed scope contract for the `dicomweb` package — is not yet authored. Until this banner is removed and
-> the sections below are filled, **no DICOMweb behaviour is conformance-guaranteed**. The `dicomweb` package contains a
-> client and an embeddable server, but their declared scope, role matrix, and validator gates are deferred to a later
-> milestone. Do not cite this document as a conformance basis.
-
 | Field | Value |
 |-------|-------|
 | Standard | DICOMweb (DICOM PS3.18, RESTful services) |
 | Library | `github.com/codeninja55/go-radx` |
-| Conformance version | unassigned (statement not yet authored) |
-| Status | **NOT YET SHIPPED** — scaffold only |
-| Scope authority | This document will become the single source of truth for DICOMweb scope (PRD §6.1) |
+| Conformance version | 1 |
+| Status | Published |
+| Scope authority | This document is the single source of truth for DICOMweb scope (PRD §6.1) |
 
-This document will be the DICOMweb Conformance Statement in the sense of PRD §6.1: it will declare exactly which
-DICOMweb services, query parameters, content types, and authentication modes the `dicomweb` package supports, and the
-client/server role for each — verified against reference origin servers. It is the HTTP-based counterpart to the DIMSE
-conformance statement in [`./dicom.md`](./dicom.md); the two share the `dicom.TransferSyntax` and SOP Class UID
-vocabulary but negotiate transport differently. Until it is authored, the DIMSE statement remains the only versioned
-DICOM-network scope contract.
+This document is the DICOMweb Conformance Statement in the sense of PRD §6.1: it declares exactly which DICOMweb
+services, query parameters, content types, and authentication modes the `dicomweb` package supports, and the
+client/server role for each. It is the HTTP-based counterpart to the DIMSE conformance statement in
+[`./dicom.md`](./dicom.md); the two share the `dicom.TransferSyntax` and SOP Class UID vocabulary but negotiate
+transport differently. Anything not enumerated here is out of scope (see [Out of scope](#out-of-scope)); the package
+never silently substitutes an unsupported behaviour for a supported one.
 
 ## Scope summary
 
-Not yet authored. This section will enumerate the in-scope services and their roles:
+The package ships the three core DICOMweb services on both the client and the embeddable server:
 
 - **WADO-RS** (web access to DICOM objects) — RESTful retrieval of studies, series, instances, frames, metadata, and
-  bulk data. **Implemented; client interop-gated against Orthanc** — see [WADO-RS](#wado-rs-implemented) below.
-- **STOW-RS** (store over the web) — RESTful storage via HTTP POST of `multipart/related` payloads.
-  **Implemented; client interop-gated against Orthanc** — see [STOW-RS](#stow-rs-implemented) below.
-- **QIDO-RS** (query based on ID for DICOM objects) — RESTful search over studies, series, and instances.
-  **Implemented; client interop-gated against Orthanc** — see [QIDO-RS](#qido-rs-implemented) below.
+  bulk data. See [WADO-RS](#wado-rs).
+- **STOW-RS** (store over the web) — RESTful storage via HTTP POST of `multipart/related` payloads. See
+  [STOW-RS](#stow-rs).
+- **QIDO-RS** (query based on ID for DICOM objects) — RESTful search over studies, series, and instances. See
+  [QIDO-RS](#qido-rs).
 
-The supported query parameters, `Accept`/`Content-Type` negotiation, transfer-syntax selection, bulk-data
-referencing, and pagination semantics will be declared here with their client and server roles.
+The supported query parameters, `Accept`/`Content-Type` negotiation, transfer-syntax selection, bulk-data referencing,
+pagination semantics, and authentication modes are declared in the sections below with their client and server roles.
+The deferred surfaces — `application/dicom+xml` metadata, WADO-URI, and the wider service set — are recorded in
+[Out of scope](#out-of-scope).
 
-## WADO-RS (implemented)
+## WADO-RS
 
-The `dicomweb` package implements WADO-RS retrieval (PS3.18 §10.4) on both the embeddable server and the client. The
-overall statement above remains a scaffold until STOW-RS is likewise authored; this section declares the WADO surface
-that is shipped today.
+The `dicomweb` package implements WADO-RS retrieval (PS3.18 §10.4) on both the embeddable server and the client.
 
 ### Retrieve resources
 
@@ -114,11 +108,9 @@ echoing the offending text.
 | WADO-RS bulkdata retrieve | Implemented (optional `BulkDataRetriever`) | Implemented |
 | Pixel-data transcoding | Deferred (policy answers `406` for an unservable syntax) | Deferred |
 
-## QIDO-RS (implemented)
+## QIDO-RS
 
-The `dicomweb` package implements QIDO-RS search (PS3.18 §10.6) on both the embeddable server and the client. The
-overall statement above remains a scaffold until WADO-RS and STOW-RS are likewise authored; this section declares the
-QIDO surface that is shipped today.
+The `dicomweb` package implements QIDO-RS search (PS3.18 §10.6) on both the embeddable server and the client.
 
 ### Search resources (server)
 
@@ -178,11 +170,9 @@ recorded in an error, since a QIDO query string can carry patient identifiers.
 |---------|--------|--------|
 | QIDO-RS search (study / series / instance) | Implemented (pluggable `QueryBackend`) | Implemented |
 
-## STOW-RS (implemented)
+## STOW-RS
 
-The `dicomweb` package implements STOW-RS storage (PS3.18 §10.5) on both the embeddable server and the client. The
-overall statement above remains a scaffold until the full surface is authored; this section declares the STOW surface
-that is shipped today.
+The `dicomweb` package implements STOW-RS storage (PS3.18 §10.5) on both the embeddable server and the client.
 
 ### Store targets and variants
 
@@ -304,7 +294,9 @@ OIDC access mode needs no adapter because it authenticates with a standard OAuth
 
 ## Out of scope
 
-The full deferral list is still being authored. The deferrals recorded today:
+The deferrals below are the complete out-of-scope boundary for conformance version 1. A consumer can rely on this list:
+a service or media type not named in the sections above and not listed here is simply unimplemented, and the package
+answers an unservable request with an honest status (`406`, `501`) rather than a substitute.
 
 - **`application/dicom+xml` metadata** — the XML representation of DICOM-JSON (PS3.18 Annex A). Metadata and store
   responses are `application/dicom+json` only; an `Accept` naming only XML is answered `406 Not Acceptable`, and a
@@ -314,10 +306,16 @@ The full deferral list is still being authored. The deferrals recorded today:
 - **WADO-URI** (the legacy single-object query-parameter retrieval, PS3.18 §9) — superseded by WADO-RS for the
   workflows in scope. Retrieval is WADO-RS (`multipart/related`) only; the `?requestType=WADO` query form is not
   served. Deferred as a legacy surface with no new capability over WADO-RS.
-
-Further deferrals — for example UPS-RS (worklist over the web), capabilities (`/`) discovery, rendered retrieval
-(`/rendered`), and thumbnail endpoints — will be recorded here so the boundary is explicit and a consumer is never
-surprised.
+- **Rendered retrieval and thumbnails** (`/rendered`, `/thumbnail`, PS3.18 §10.4.1.2) — server-side rendering to
+  consumer image formats (JPEG/PNG). Out of scope: the package retrieves DICOM objects, frames, and bulk data, not
+  rendered pixels.
+- **UPS-RS** (Unified Procedure Step / worklist over the web, PS3.18 §11) and **capabilities discovery** (the
+  `OPTIONS /` / `/capabilities` document, PS3.18 §8.9) — no endpoint is served. The DIMSE Modality Worklist
+  ([`./dicom.md`](./dicom.md)) is the worklist surface today.
+- **Pixel-data transcoding** — the WADO-RS transfer-syntax policy answers `406 Not Acceptable` for a syntax the origin
+  cannot serve; the shipped server registers no transcoders (see [Transfer-syntax policy](#transfer-syntax-policy)).
+- **STOW-RS metadata + bulk-data client** — the server accepts both store variants, but the client posts whole objects
+  only (see the [STOW-RS roles](#roles-2)).
 
 ## Verification
 
@@ -335,8 +333,17 @@ searching it back:
 The STOW-RS store-response completeness, the metadata-plus-bulkdata variant, the per-instance Retrieve URL and Warning
 Reason, the Other-failures path, the q=0 negotiation refusal, and every client authentication mode (bearer, basic,
 OAuth2 token source, mutual TLS, custom RoundTripper) are unit-tested in `dicomweb` (`store_test.go`, `auth_test.go`).
-QIDO parameter parsing is fuzzed (`FuzzParseQueryRequest`). A dcm4chee-arc DICOMweb leg is not yet wired (the
-WADO/STOW interop is Orthanc-only today) and is recorded as a follow-up.
+A dcm4chee-arc DICOMweb leg is not yet wired (the WADO/STOW interop is Orthanc-only today) and is recorded as a
+follow-up.
+
+The trust-boundary parsers are fuzzed. QIDO parameter parsing has `FuzzParseQueryRequest` and `FuzzSafeAttributeName`
+(`qido_fuzz_test.go`). The DICOM-JSON decoder and the `multipart/related` reader have `FuzzUnmarshalJSON`,
+`FuzzMultipartReader`, and `FuzzParseMediaType` (`parser_fuzz_test.go`). Each target seeds from inline edge cases and a
+committed, PHI-free malformed corpus (`dicomweb/testdata/malformed`, documented in its `SOURCE.md`) and holds the
+recursion, part-count, and per-part-size caps low so a hostile input trips its `*LimitExceededError` before it can drive
+the run to memory exhaustion or a hang. The JSON and multipart hot paths carry allocation-reporting benchmarks
+(`parser_bench_test.go`: `BenchmarkMarshalJSON`, `BenchmarkUnmarshalJSON`, `BenchmarkMultipartRead`) whose baseline is
+recorded under `docs/conformance/benchmarks/`.
 
 The cloud-provider adapters are unit-tested without any live cloud call. The Google ADC token source is exercised
 against a mock OAuth2 token endpoint that returns a bearer (`dicomweb/auth/gcp`, `gcp_test.go`). The AWS SigV4
