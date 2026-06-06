@@ -1,6 +1,7 @@
 package hl7v2
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -19,6 +20,9 @@ func TestEscapeDefaultDelimiters(t *testing.T) {
 		{"escape character", `a\b`, `a\E\b`},
 		{"a literal backslash before a delimiter is not doubled", `5\6`, `5\E\6`},
 		{"every delimiter at once", `|^&~\`, `\F\\S\\T\\R\\E\`},
+		{"carriage return is hex-escaped not emitted raw", "line1\rline2", `line1\X0D\line2`},
+		{"line feed is hex-escaped not emitted raw", "line1\nline2", `line1\X0A\line2`},
+		{"a lone carriage return triggers the builder path", "\r", `\X0D\`},
 		{"empty string", "", ""},
 	}
 	for _, tc := range tests {
@@ -74,7 +78,7 @@ func TestUnescapeDefaultDelimiters(t *testing.T) {
 		{"multiple hex bytes", `\X48656C6C6F\`, "Hello"},
 		{"highlight start and end are removed", `\H\warn\N\`, "warn"},
 		{"formatting break is removed", `line\.br\next`, "linenext"},
-		{"application-defined sequence is removed", `pre\Zlocal\post`, "prepost"},
+		{"application-defined sequence is preserved verbatim", `pre\Zlocal\post`, `pre\Zlocal\post`},
 		{"the OBX note from the escaped fixture", `Reads 5\S\6 mg per 100\F\unit\E\ then \X0D\done`, "Reads 5^6 mg per 100|unit\\ then \rdone"},
 		{"empty string", "", ""},
 	}
@@ -97,31 +101,42 @@ func TestUnescapeDerivedDelimiters(t *testing.T) {
 	}
 }
 
-func TestUnescapeNotesSurfacesDeclinedCharsetEscapes(t *testing.T) {
+func TestUnescapeNotesSurfacesDeclinedEscapes(t *testing.T) {
 	enc := DefaultEncoding()
 	tests := []struct {
 		name      string
 		in        string
 		want      string
 		wantNotes int
+		wantSeq   string
 	}{
 		{
 			name:      "single-byte charset switch is surfaced not corrupted",
 			in:        `before\C2842\after`,
 			want:      `before\C2842\after`,
 			wantNotes: 1,
+			wantSeq:   `\C2842\`,
 		},
 		{
 			name:      "multi-byte charset switch is surfaced not corrupted",
 			in:        `x\M060000\y`,
 			want:      `x\M060000\y`,
 			wantNotes: 1,
+			wantSeq:   `\M060000\`,
+		},
+		{
+			name:      "application-defined sequence is surfaced not discarded",
+			in:        `pre\Zlocal\post`,
+			want:      `pre\Zlocal\post`,
+			wantNotes: 1,
+			wantSeq:   `\Zlocal\`,
 		},
 		{
 			name:      "a standard escape alongside a declined one only notes the declined one",
 			in:        `a\S\b\C2842\c`,
 			want:      `a^b\C2842\c`,
 			wantNotes: 1,
+			wantSeq:   `\C2842\`,
 		},
 		{
 			name:      "no declined escapes yields no notes",
@@ -138,6 +153,14 @@ func TestUnescapeNotesSurfacesDeclinedCharsetEscapes(t *testing.T) {
 			}
 			if len(notes) != tc.wantNotes {
 				t.Fatalf("Unescape(%q) notes = %d (%v), want %d", tc.in, len(notes), notes, tc.wantNotes)
+			}
+			if tc.wantNotes > 0 {
+				if notes[0].Sequence != tc.wantSeq {
+					t.Fatalf("Unescape(%q) note sequence = %q, want %q", tc.in, notes[0].Sequence, tc.wantSeq)
+				}
+				if notes[0].Reason == "" {
+					t.Fatalf("Unescape(%q) note has empty reason", tc.in)
+				}
 			}
 		})
 	}
@@ -178,6 +201,34 @@ func TestEscapeUnescapeRoundTrip(t *testing.T) {
 		"",
 	} {
 		escaped := Escape(in, enc)
+		got, notes := Unescape(escaped, enc)
+		if got != in {
+			t.Fatalf("round-trip Escape→Unescape(%q) = %q via %q", in, got, escaped)
+		}
+		if len(notes) != 0 {
+			t.Fatalf("round-trip of %q produced unexpected notes %v", in, notes)
+		}
+	}
+}
+
+// TestEscapeControlBytesRoundTrip proves a value carrying a raw segment
+// terminator emits no raw CR or LF byte after Escape — which would forge a
+// spurious segment break on re-parse — and still round-trips back to the
+// original through Unescape.
+func TestEscapeControlBytesRoundTrip(t *testing.T) {
+	enc := DefaultEncoding()
+	for _, in := range []string{
+		"line1\rline2",
+		"line1\nline2",
+		"\r\n",
+		"a|b\rc^d\ne",
+		"\r",
+		"\n",
+	} {
+		escaped := Escape(in, enc)
+		if strings.ContainsAny(escaped, "\r\n") {
+			t.Fatalf("Escape(%q) = %q still contains a raw CR or LF byte", in, escaped)
+		}
 		got, notes := Unescape(escaped, enc)
 		if got != in {
 			t.Fatalf("round-trip Escape→Unescape(%q) = %q via %q", in, got, escaped)

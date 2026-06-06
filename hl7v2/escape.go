@@ -57,19 +57,23 @@ func (t escapeTable) delimiterFor(code byte) (byte, bool) {
 // intact. The escape table is derived from enc, so a non-standard sender's
 // delimiters are escaped against its own header rather than the defaults. The
 // escape character maps to \E\, which keeps a literal escape byte from being read
-// back as the start of a sequence on unescape.
+// back as the start of a sequence on unescape. Carriage return and line feed are
+// emitted as their \Xdd\ hex escapes so a value carrying a raw segment terminator
+// cannot forge a spurious segment break when serialized.
 //
-// Escape is the inverse of Unescape for values that contain no hex, highlight,
+// Escape is the inverse of Unescape for values that contain no highlight,
 // formatting, or application-defined sequences; those are read-side only and
-// Escape never emits them.
+// Escape never emits them. The \Xdd\ hex escapes it does emit round-trip through
+// Unescape, which decodes them back to the original bytes.
 func Escape(value string, enc EncodingCharacters) string {
 	table := escapeTable{enc: enc}
 
-	// Most leaf values carry no delimiter byte, so scan first and return the
-	// input unchanged when there is nothing to escape, avoiding an allocation.
+	// Most leaf values carry no delimiter or control byte, so scan first and
+	// return the input unchanged when there is nothing to escape, avoiding an
+	// allocation.
 	needsEscape := false
 	for i := 0; i < len(value); i++ {
-		if _, ok := table.escapeCode(value[i]); ok {
+		if _, ok := table.escapeCode(value[i]); ok || needsHexEscape(value[i]) {
 			needsEscape = true
 			break
 		}
@@ -87,18 +91,42 @@ func Escape(value string, enc EncodingCharacters) string {
 			b.WriteByte(enc.Escape)
 			continue
 		}
+		if needsHexEscape(value[i]) {
+			b.WriteByte(enc.Escape)
+			b.WriteByte('X')
+			b.WriteByte(hexDigit(value[i] >> 4))
+			b.WriteByte(hexDigit(value[i] & 0x0F))
+			b.WriteByte(enc.Escape)
+			continue
+		}
 		b.WriteByte(value[i])
 	}
 	return b.String()
 }
 
+// needsHexEscape reports whether a byte is a segment terminator that must be
+// emitted as a \Xdd\ hex escape. A raw CR or LF in a leaf value would otherwise
+// be read back as a segment break, corrupting message framing on re-parse.
+func needsHexEscape(b byte) bool {
+	return b == '\r' || b == '\n'
+}
+
+// hexDigit returns the uppercase hexadecimal digit for a nibble in 0..15.
+func hexDigit(n byte) byte {
+	if n < 10 {
+		return '0' + n
+	}
+	return 'A' + (n - 10)
+}
+
 // UnescapeNote records a §2.10 escape sequence that Unescape recognised but
 // declined to apply, so the caller can surface it rather than discover a value
-// silently changed. The only declined sequences are inline character-set
-// switches (\Cxxyy\ and \Mxxyyzz\), which are out of scope for v1; their raw
-// bytes are preserved verbatim in the returned value. Sequence holds the exact
-// source bytes including both escape delimiters, never any surrounding field
-// value, so a note carries no PHI.
+// silently changed. The declined sequences are inline character-set switches
+// (\Cxxyy\ and \Mxxyyzz\), which are out of scope for v1, and application-defined
+// sequences (\Zxxx\), which carry no portable meaning here; their raw bytes are
+// preserved verbatim in the returned value. Sequence holds the exact source
+// bytes including both escape delimiters, never any surrounding field value, so a
+// note carries no PHI.
 type UnescapeNote struct {
 	Sequence string // the verbatim escape sequence, e.g. `\C2842\`
 	Reason   string // why it was declined, free of field values
@@ -106,17 +134,16 @@ type UnescapeNote struct {
 
 // Unescape decodes a leaf value read from a message, reversing the §2.10 escape
 // sequences against the table derived from enc. It handles the delimiter escapes
-// (\F\ \S\ \T\ \R\ \E\), hex data (\Xdd...\), highlight start/end (\H\ \N\), the
-// formatting and rich-text commands (\.br\ and the other \.xx\ sequences), and
-// application-defined sequences (\Zxxx\). Highlight, formatting, and
-// application-defined sequences carry no character data, so they decode to the
-// empty string.
+// (\F\ \S\ \T\ \R\ \E\), hex data (\Xdd...\), highlight start/end (\H\ \N\), and
+// the formatting and rich-text commands (\.br\ and the other \.xx\ sequences).
+// Highlight and formatting sequences carry no character data, so they decode to
+// the empty string.
 //
-// Inline character-set switches (\Cxxyy\, \Mxxyyzz\) are out of scope for v1: they
-// are preserved verbatim in the result and reported through the returned notes
-// rather than corrupted. A malformed sequence — an unterminated escape, a
-// non-hex \X\ body, or an empty \\ — is also preserved verbatim so a value is
-// never silently lost.
+// Inline character-set switches (\Cxxyy\, \Mxxyyzz\) and application-defined
+// sequences (\Zxxx\) are not interpreted: they are preserved verbatim in the
+// result and reported through the returned notes rather than discarded. A
+// malformed sequence — an unterminated escape, a non-hex \X\ body, or an empty \\
+// — is also preserved verbatim so a value is never silently lost.
 //
 // Unescape never mutates the message; it is a read-side projection, so a value
 // round-trips byte-exact through Parse and MarshalText regardless of how it is
@@ -202,8 +229,9 @@ func decodeEscape(body string, table escapeTable) (string, *UnescapeNote, bool) 
 		return "", nil, true
 	case 'Z':
 		// Application-defined sequence (\Zxxx\): locally agreed, no portable
-		// meaning, so it decodes to nothing.
-		return "", nil, true
+		// meaning here, so it is preserved verbatim and surfaced via a note
+		// rather than silently discarded.
+		return "", &UnescapeNote{Reason: "application-defined escape sequence is not interpreted"}, true
 	case 'C', 'M':
 		// Inline character-set switch: declined for v1 and surfaced via a note.
 		return "", &UnescapeNote{Reason: "inline character-set switch escape is not applied (out of scope)"}, true
