@@ -38,10 +38,25 @@ of it:
 
 ## Association negotiation
 
-Not yet authored. This section will declare the negotiated features. Implemented today: presentation-context
-negotiation, maximum PDU length, and implementation identity. The remaining v1-target features — SCP/SCU role
-selection, asynchronous-operations window, user identity, SOP Class extended and common extended negotiation, and
-DIMSE-TLS — are declared in [`./dicom.md`](./dicom.md) but **NOT YET SHIPPED** as negotiation options.
+Not yet authored. This section will declare the negotiated features. The table below tracks the negotiation options
+against the v1 target declared in [`./dicom.md`](./dicom.md); a feature is shipped only when both peer roles
+(requestor and acceptor) round-trip it through the codec and negotiation layers.
+
+| Negotiation feature | Reference | Status |
+|---------------------|-----------|--------|
+| Presentation-context negotiation | PS3.8 §9.3.3.2 | Shipped |
+| Maximum PDU length | PS3.7 Annex D.1 | Shipped |
+| Implementation identity (class UID, version name) | PS3.7 D.3.3.2 | Shipped |
+| SCP/SCU role selection (sub-item 0x54) | PS3.7 D.3.3.4 | Shipped |
+| Asynchronous-operations window | PS3.7 D.3.3.3 | Not yet shipped |
+| User identity | PS3.7 D.3.3.7 | Not yet shipped |
+| SOP Class extended and common extended negotiation | PS3.7 D.3.3.5, D.3.3.6 | Not yet shipped |
+| DIMSE-TLS | PS3.15 §B.1 | Not yet shipped |
+
+SCP/SCU role selection lets the requestor propose, per SOP Class, which of the SCU and SCP roles each peer plays; the
+acceptor responds with the roles it grants, never granting a role it does not itself support. The negotiated SCP role
+is observable on the established association, which is the prerequisite for same-association C-GET. The remaining
+not-yet-shipped features are declared in [`./dicom.md`](./dicom.md).
 
 ## Out of scope
 

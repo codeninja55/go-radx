@@ -17,6 +17,7 @@ const (
 	ItemTypeUserInformation        byte = 0x50
 	ItemTypeMaxLength              byte = 0x51
 	ItemTypeImplementationClassUID byte = 0x52
+	ItemTypeRoleSelection          byte = 0x54
 	ItemTypeImplementationVersion  byte = 0x55
 )
 
@@ -46,11 +47,24 @@ const (
 const insignificantTransferSyntax = "1.2.840.10008.1.2"
 
 // UserInformation carries the negotiated user-information sub-items (PS3.7 Annex D): the
-// maximum PDU length, the implementation class UID, and the implementation version name.
+// maximum PDU length, the implementation class UID, the implementation version name, and the
+// SCP/SCU role-selection sub-items, one per SOP Class for which a non-default role is
+// requested (requestor) or granted (acceptor).
 type UserInformation struct {
 	MaxPDULength           uint32
 	ImplementationClassUID string
 	ImplementationVersion  string
+	RoleSelections         []RoleSelection
+}
+
+// RoleSelection is one SCP/SCU Role Selection sub-item (item type 0x54, PS3.7 D.3.3.4). In an
+// A-ASSOCIATE-RQ it requests the roles the requestor proposes to play for a SOP Class; in an
+// A-ASSOCIATE-AC it carries the roles the acceptor grants. SCURole and SCPRole map to the
+// 1-byte SCU-role and SCP-role flags (0/1) that follow the SOP Class UID.
+type RoleSelection struct {
+	SOPClassUID string
+	SCURole     bool
+	SCPRole     bool
 }
 
 // PresentationContextRQ is one proposed presentation context in an A-ASSOCIATE-RQ.
@@ -426,6 +440,9 @@ func encodeUserInformation(out *bytes.Buffer, ui UserInformation) {
 	if ui.ImplementationVersion != "" {
 		encodeItem(&buf, ItemTypeImplementationVersion, []byte(ui.ImplementationVersion))
 	}
+	for _, rs := range ui.RoleSelections {
+		encodeRoleSelection(&buf, rs)
+	}
 	encodeItem(out, ItemTypeUserInformation, buf.Bytes())
 }
 
@@ -446,9 +463,59 @@ func decodeUserInformation(data []byte) (UserInformation, error) {
 			ui.ImplementationClassUID = string(itemData)
 		case ItemTypeImplementationVersion:
 			ui.ImplementationVersion = string(itemData)
+		case ItemTypeRoleSelection:
+			rs, err := decodeRoleSelection(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.RoleSelections = append(ui.RoleSelections, rs)
 		}
 	}
 	return ui, nil
+}
+
+// encodeRoleSelection writes one SCP/SCU Role Selection sub-item (item type 0x54, PS3.7
+// D.3.3.4): a 2-byte UID length, the SOP Class UID bytes, then the 1-byte SCU-role and
+// 1-byte SCP-role flags.
+func encodeRoleSelection(out *bytes.Buffer, rs RoleSelection) {
+	var body bytes.Buffer
+	var lb [2]byte
+	binary.BigEndian.PutUint16(lb[:], uint16(len(rs.SOPClassUID)))
+	body.Write(lb[:])
+	body.WriteString(rs.SOPClassUID)
+	body.WriteByte(boolToFlag(rs.SCURole))
+	body.WriteByte(boolToFlag(rs.SCPRole))
+	encodeItem(out, ItemTypeRoleSelection, body.Bytes())
+}
+
+// decodeRoleSelection parses one role-selection sub-item body, validating the declared UID
+// length against the bytes present before slicing and requiring the two trailing role flags
+// (PS3.7 D.3.3.4). A truncated body is a *PDUError, never a panic (PRD §9.3).
+func decodeRoleSelection(data []byte) (RoleSelection, error) {
+	var rs RoleSelection
+	if len(data) < 2 {
+		return rs, &PDUError{Detail: fmt.Sprintf("role-selection sub-item is %d bytes, need at least 2 for the UID length", len(data))}
+	}
+	uidLen := int(binary.BigEndian.Uint16(data[:2]))
+	if len(data) < 2+uidLen+2 {
+		return rs, &PDUError{
+			Detail: fmt.Sprintf("role-selection sub-item declares a %d-byte UID but carries %d bytes after the length field",
+				uidLen, len(data)-2),
+		}
+	}
+	rs.SOPClassUID = string(data[2 : 2+uidLen])
+	rs.SCURole = data[2+uidLen] != 0
+	rs.SCPRole = data[3+uidLen] != 0
+	return rs, nil
+}
+
+// boolToFlag maps a role flag to its 1-byte wire value (PS3.7 D.3.3.4: 0 = not supported,
+// 1 = supported).
+func boolToFlag(b bool) byte {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // padAETitle pads an AE title to the 16-byte DICOM field with trailing spaces.

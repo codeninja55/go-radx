@@ -40,6 +40,12 @@ type Request struct {
 
 	ImplementationClassUID string
 	ImplementationVersion  string
+
+	// RoleSelections requests the SCP/SCU roles the requestor proposes to play per SOP Class
+	// (PS3.7 D.3.3.4). A requestor proposing the acceptor as SCP (and itself as SCU) is the
+	// prerequisite for same-association C-GET. The acceptor's grant is read back via
+	// Requestor.NegotiatedRoles.
+	RoleSelections []pdu.RoleSelection
 }
 
 // AcceptParams is the acceptor-side input to Accept: the local called AE title, the
@@ -63,6 +69,12 @@ type AcceptParams struct {
 
 	ImplementationClassUID string
 	ImplementationVersion  string
+
+	// SupportedRoles bounds the SCP/SCU roles the acceptor is willing to play per SOP Class
+	// (PS3.7 D.3.3.4). It is matched against the requestor's proposed role-selection sub-items;
+	// the acceptor never grants a role it does not declare here. An acceptor that declares an
+	// SCP role for a storage SOP Class is what lets a same-association C-GET proceed.
+	SupportedRoles []SupportedRole
 }
 
 // Requestor is an established outbound association from the requestor's perspective. It
@@ -77,14 +89,16 @@ type Requestor struct {
 
 	peerImplementationClassUID string
 	peerImplementationVersion  string
+	negotiatedRoles            []pdu.RoleSelection
 }
 
 // Acceptor is an established inbound association from the acceptor's perspective.
 type Acceptor struct {
-	conn     *dul.Conn
-	machine  *dul.StateMachine
-	accepted []pdu.PresentationContextAC
-	request  *pdu.AssociateRQ
+	conn            *dul.Conn
+	machine         *dul.StateMachine
+	accepted        []pdu.PresentationContextAC
+	request         *pdu.AssociateRQ
+	negotiatedRoles []pdu.RoleSelection
 }
 
 // Associate drives the requestor side of association establishment over conn: it advances
@@ -128,6 +142,7 @@ func Associate(ctx context.Context, conn *dul.Conn, req Request) (*Requestor, er
 			peerMax:                    p.UserInfo.MaxPDULength,
 			peerImplementationClassUID: p.UserInfo.ImplementationClassUID,
 			peerImplementationVersion:  p.UserInfo.ImplementationVersion,
+			negotiatedRoles:            p.UserInfo.RoleSelections,
 		}, nil
 	case *pdu.AssociateRJ:
 		return nil, &RejectedError{Result: p.Result, Source: p.Source, Reason: p.Reason}
@@ -186,14 +201,15 @@ func Accept(ctx context.Context, conn *dul.Conn, params AcceptParams) (*Acceptor
 		return nil, rejectAssociation(ctx, conn, m, reason)
 	}
 
-	ac := buildAssociateAC(params, rq, results)
+	roles := NegotiateRoles(rq.UserInfo.RoleSelections, params.SupportedRoles)
+	ac := buildAssociateAC(params, rq, results, roles)
 	if _, _, serr := m.Apply(dul.Evt7); serr != nil { // accept -> AE-7 (send AC) -> Sta6
 		return nil, wrapState(m, serr)
 	}
 	if err := conn.WritePDU(ctx, ac); err != nil {
 		return nil, err
 	}
-	return &Acceptor{conn: conn, machine: m, accepted: results, request: rq}, nil
+	return &Acceptor{conn: conn, machine: m, accepted: results, request: rq, negotiatedRoles: roles}, nil
 }
 
 // aeTitleRejection reports whether the inbound A-ASSOCIATE-RQ violates the acceptor's AE-title
@@ -331,6 +347,16 @@ func (r *Requestor) AcceptedContexts() []pdu.PresentationContextAC { return r.ac
 // AcceptedContexts returns the presentation contexts the acceptor accepted.
 func (a *Acceptor) AcceptedContexts() []pdu.PresentationContextAC { return a.accepted }
 
+// NegotiatedRoles returns the SCP/SCU role-selection responses the acceptor granted in its
+// A-ASSOCIATE-AC (PS3.7 D.3.3.4), one per SOP Class the requestor proposed a role for. It is
+// nil when no role selection was negotiated. The granted SCP role for a storage SOP Class is
+// what lets the requestor start a same-association C-GET.
+func (r *Requestor) NegotiatedRoles() []pdu.RoleSelection { return r.negotiatedRoles }
+
+// NegotiatedRoles returns the SCP/SCU role-selection responses the acceptor granted (the same
+// sub-items it sent in its A-ASSOCIATE-AC). It is nil when no role selection was negotiated.
+func (a *Acceptor) NegotiatedRoles() []pdu.RoleSelection { return a.negotiatedRoles }
+
 // PeerMaxPDULength reports the maximum PDU length the peer advertised (0 = unlimited).
 func (r *Requestor) PeerMaxPDULength() uint32 { return r.peerMax }
 
@@ -406,11 +432,12 @@ func buildAssociateRQ(req Request) *pdu.AssociateRQ {
 			MaxPDULength:           req.MaxPDULength,
 			ImplementationClassUID: req.ImplementationClassUID,
 			ImplementationVersion:  req.ImplementationVersion,
+			RoleSelections:         req.RoleSelections,
 		},
 	}
 }
 
-func buildAssociateAC(params AcceptParams, rq *pdu.AssociateRQ, results []pdu.PresentationContextAC) *pdu.AssociateAC {
+func buildAssociateAC(params AcceptParams, rq *pdu.AssociateRQ, results []pdu.PresentationContextAC, roles []pdu.RoleSelection) *pdu.AssociateAC {
 	return &pdu.AssociateAC{
 		ProtocolVersion:      protocolVersion,
 		CalledAETitle:        rq.CalledAETitle,
@@ -421,6 +448,7 @@ func buildAssociateAC(params AcceptParams, rq *pdu.AssociateRQ, results []pdu.Pr
 			MaxPDULength:           params.MaxPDULength,
 			ImplementationClassUID: params.ImplementationClassUID,
 			ImplementationVersion:  params.ImplementationVersion,
+			RoleSelections:         roles,
 		},
 	}
 }
