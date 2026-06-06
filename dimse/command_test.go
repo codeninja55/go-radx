@@ -640,6 +640,175 @@ func TestCMoveRSPOmitsRemainingSubOp(t *testing.T) {
 	}
 }
 
+// TestCommandFieldNServiceValues pins the N-CREATE and N-SET command field constants to their
+// PS3.7 §10.1 wire values (verified against pynetdicom dimse_messages.py: N_CREATE_RQ 0x0140,
+// N_CREATE_RSP 0x8140, N_SET_RQ 0x0120, N_SET_RSP 0x8120).
+func TestCommandFieldNServiceValues(t *testing.T) {
+	cases := []struct {
+		name string
+		got  CommandField
+		want CommandField
+	}{
+		{"CommandNCreateRQ", CommandNCreateRQ, 0x0140},
+		{"CommandNCreateRSP", CommandNCreateRSP, 0x8140},
+		{"CommandNSetRQ", CommandNSetRQ, 0x0120},
+		{"CommandNSetRSP", CommandNSetRSP, 0x8120},
+	}
+	for _, tc := range cases {
+		if tc.got != tc.want {
+			t.Errorf("%s = %#04x, want %#04x", tc.name, uint16(tc.got), uint16(tc.want))
+		}
+	}
+}
+
+// TestCommandSetRoundTripNCreateRQ round-trips an N-CREATE-RQ carrying the Affected SOP Class UID
+// and a data set, and confirms the Affected SOP Instance UID (0000,1000) is encoded when the SCU
+// assigns it. The N-CREATE references the new object by Affected SOP Class/Instance UID, never the
+// Requested pair.
+func TestCommandSetRoundTripNCreateRQ(t *testing.T) {
+	const (
+		mpps    = "1.2.840.10008.3.1.2.3.3"
+		stepUID = "1.2.826.0.1.3680043.8.498.55555"
+	)
+	cs := CommandSet{
+		CommandField:           CommandNCreateRQ,
+		MessageID:              3,
+		AffectedSOPClassUID:    dicom.UID(mpps),
+		AffectedSOPInstanceUID: dicom.UID(stepUID),
+		CommandDataSetType:     CommandDataSetPresent,
+	}
+	encoded, err := cs.Encode()
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	assertIncreasingTagOrder(t, encoded)
+
+	// The N-CREATE-RQ carries Message ID (0000,0110), not Message ID Being Responded To.
+	if findCommandElementValue(t, encoded, 0x0000, 0x0110) == nil {
+		t.Error("N-CREATE-RQ should carry Message ID (0000,0110)")
+	}
+	// It must NOT carry the Requested SOP Class/Instance UID — those are the N-SET reference pair.
+	if findCommandElementValue(t, encoded, 0x0000, 0x0003) != nil {
+		t.Error("N-CREATE-RQ should not carry Requested SOP Class UID (0000,0003)")
+	}
+	if findCommandElementValue(t, encoded, 0x0000, 0x1001) != nil {
+		t.Error("N-CREATE-RQ should not carry Requested SOP Instance UID (0000,1001)")
+	}
+
+	got, err := DecodeCommandSet(encoded)
+	if err != nil {
+		t.Fatalf("DecodeCommandSet: %v", err)
+	}
+	if got.CommandField != CommandNCreateRQ {
+		t.Errorf("CommandField = %#04x, want N-CREATE-RQ", uint16(got.CommandField))
+	}
+	if got.MessageID != 3 {
+		t.Errorf("MessageID = %d, want 3", got.MessageID)
+	}
+	if got.AffectedSOPClassUID != dicom.UID(mpps) {
+		t.Errorf("AffectedSOPClassUID = %q, want %q", got.AffectedSOPClassUID, mpps)
+	}
+	if got.AffectedSOPInstanceUID != dicom.UID(stepUID) {
+		t.Errorf("AffectedSOPInstanceUID = %q, want %q", got.AffectedSOPInstanceUID, stepUID)
+	}
+	if !got.HasDataSet() {
+		t.Error("N-CREATE-RQ should declare a data set follows")
+	}
+}
+
+// TestCommandSetRoundTripNSetRQ round-trips an N-SET-RQ and asserts it carries the Requested SOP
+// Class UID (0000,0003) and Requested SOP Instance UID (0000,1001) — the reference pair distinct
+// from the C-service/N-CREATE Affected pair (PS3.7 §10.3.4, §10.3.5).
+func TestCommandSetRoundTripNSetRQ(t *testing.T) {
+	const (
+		mpps    = "1.2.840.10008.3.1.2.3.3"
+		stepUID = "1.2.826.0.1.3680043.8.498.55555"
+	)
+	cs := CommandSet{
+		CommandField:            CommandNSetRQ,
+		MessageID:               4,
+		RequestedSOPClassUID:    dicom.UID(mpps),
+		RequestedSOPInstanceUID: dicom.UID(stepUID),
+		CommandDataSetType:      CommandDataSetPresent,
+	}
+	encoded, err := cs.Encode()
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	assertIncreasingTagOrder(t, encoded)
+
+	// The Requested SOP Class/Instance UID must be present; the Affected pair must be absent.
+	if findCommandElementValue(t, encoded, 0x0000, 0x0003) == nil {
+		t.Error("N-SET-RQ should carry Requested SOP Class UID (0000,0003)")
+	}
+	if findCommandElementValue(t, encoded, 0x0000, 0x1001) == nil {
+		t.Error("N-SET-RQ should carry Requested SOP Instance UID (0000,1001)")
+	}
+	if findCommandElementValue(t, encoded, 0x0000, 0x0002) != nil {
+		t.Error("N-SET-RQ should not carry Affected SOP Class UID (0000,0002)")
+	}
+	if findCommandElementValue(t, encoded, 0x0000, 0x1000) != nil {
+		t.Error("N-SET-RQ should not carry Affected SOP Instance UID (0000,1000)")
+	}
+
+	got, err := DecodeCommandSet(encoded)
+	if err != nil {
+		t.Fatalf("DecodeCommandSet: %v", err)
+	}
+	if got.CommandField != CommandNSetRQ {
+		t.Errorf("CommandField = %#04x, want N-SET-RQ", uint16(got.CommandField))
+	}
+	if got.RequestedSOPClassUID != dicom.UID(mpps) {
+		t.Errorf("RequestedSOPClassUID = %q, want %q", got.RequestedSOPClassUID, mpps)
+	}
+	if got.RequestedSOPInstanceUID != dicom.UID(stepUID) {
+		t.Errorf("RequestedSOPInstanceUID = %q, want %q", got.RequestedSOPInstanceUID, stepUID)
+	}
+}
+
+// TestCommandSetRoundTripNCreateRSP round-trips an N-CREATE-RSP that echoes the Affected SOP
+// Class/Instance UID the SCP assigned, the Message ID Being Responded To, and the status.
+func TestCommandSetRoundTripNCreateRSP(t *testing.T) {
+	const (
+		mpps    = "1.2.840.10008.3.1.2.3.3"
+		stepUID = "1.2.826.0.1.3680043.8.498.77777"
+	)
+	cs := CommandSet{
+		CommandField:              CommandNCreateRSP,
+		MessageIDBeingRespondedTo: 3,
+		AffectedSOPClassUID:       dicom.UID(mpps),
+		AffectedSOPInstanceUID:    dicom.UID(stepUID),
+		CommandDataSetType:        CommandDataSetNotPresent,
+		HasStatus:                 true,
+		Status:                    0x0000,
+	}
+	encoded, err := cs.Encode()
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	assertIncreasingTagOrder(t, encoded)
+
+	got, err := DecodeCommandSet(encoded)
+	if err != nil {
+		t.Fatalf("DecodeCommandSet: %v", err)
+	}
+	if got.CommandField != CommandNCreateRSP {
+		t.Errorf("CommandField = %#04x, want N-CREATE-RSP", uint16(got.CommandField))
+	}
+	if !got.IsResponse() {
+		t.Error("N-CREATE-RSP.IsResponse() = false, want true")
+	}
+	if got.MessageIDBeingRespondedTo != 3 {
+		t.Errorf("MessageIDBeingRespondedTo = %d, want 3", got.MessageIDBeingRespondedTo)
+	}
+	if got.AffectedSOPInstanceUID != dicom.UID(stepUID) {
+		t.Errorf("AffectedSOPInstanceUID = %q, want %q", got.AffectedSOPInstanceUID, stepUID)
+	}
+	if !got.HasStatus || got.Status != 0x0000 {
+		t.Errorf("status = (has=%v, %#04x), want (true, 0x0000)", got.HasStatus, got.Status)
+	}
+}
+
 // findCommandElementValue walks an Implicit VR LE command set and returns the value bytes of the
 // element at (group,element), or nil if absent.
 func findCommandElementValue(t *testing.T, encoded []byte, group, element uint16) []byte {

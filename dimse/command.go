@@ -55,6 +55,27 @@ const (
 	// pynetdicom C_CANCEL_RQ 0x0FFF). It has no response bit but carries Message ID Being Responded
 	// To (0000,0120) — the Message ID of the operation being cancelled — not Message ID (0000,0110).
 	CommandCCancelRQ CommandField = 0x0FFF
+	// CommandNCreateRQ is the N-CREATE request command field (PS3.7 §10.1.5, verified against
+	// pynetdicom dimse_messages.py N_CREATE_RQ 0x0140). The normalised N-CREATE creates a new managed
+	// SOP Instance — for MPPS, the Performed Procedure Step object in the IN PROGRESS state. The RQ
+	// carries the Affected SOP Class UID (0000,0002) and, when the SCU assigns the instance UID, the
+	// Affected SOP Instance UID (0000,1000); the attributes follow as the command's data set.
+	CommandNCreateRQ CommandField = 0x0140
+	// CommandNCreateRSP is the N-CREATE response command field (PS3.7 §10.1.5, pynetdicom N_CREATE_RSP
+	// 0x8140). It echoes the Affected SOP Class/Instance UID of the created object (the SCP may assign
+	// the instance UID when the SCU did not) and carries the status.
+	CommandNCreateRSP CommandField = 0x8140
+	// CommandNSetRQ is the N-SET request command field (PS3.7 §10.1.3, verified against pynetdicom
+	// dimse_messages.py N_SET_RQ 0x0120). The normalised N-SET updates attributes of an existing
+	// managed SOP Instance — for MPPS, advancing the Performed Procedure Step to COMPLETED or
+	// DISCONTINUED. Unlike N-CREATE the N-SET references the target by Requested SOP Class UID
+	// (0000,0003) and Requested SOP Instance UID (0000,1001), distinct from the C-service Affected
+	// SOP Class/Instance UID fields, and the updated attributes follow as the command's data set.
+	CommandNSetRQ CommandField = 0x0120
+	// CommandNSetRSP is the N-SET response command field (PS3.7 §10.1.3, pynetdicom N_SET_RSP
+	// 0x8120). It echoes the Affected SOP Class/Instance UID of the updated object and carries the
+	// status.
+	CommandNSetRSP CommandField = 0x8120
 )
 
 // Priority is the DIMSE operation priority (0000,0700), a US value (PS3.7 §10.3.1). The wire
@@ -90,6 +111,7 @@ const (
 var (
 	tagCommandGroupLength        = dicom.NewTag(0x0000, 0x0000) // UL
 	tagAffectedSOPClassUID       = dicom.NewTag(0x0000, 0x0002) // UI
+	tagRequestedSOPClassUID      = dicom.NewTag(0x0000, 0x0003) // UI
 	tagCommandField              = dicom.NewTag(0x0000, 0x0100) // US
 	tagMessageID                 = dicom.NewTag(0x0000, 0x0110) // US
 	tagMessageIDBeingRespondedTo = dicom.NewTag(0x0000, 0x0120) // US
@@ -98,6 +120,7 @@ var (
 	tagCommandDataSetType        = dicom.NewTag(0x0000, 0x0800) // US
 	tagStatus                    = dicom.NewTag(0x0000, 0x0900) // US
 	tagAffectedSOPInstanceUID    = dicom.NewTag(0x0000, 0x1000) // UI
+	tagRequestedSOPInstanceUID   = dicom.NewTag(0x0000, 0x1001) // UI
 	tagNumRemainingSubOps        = dicom.NewTag(0x0000, 0x1020) // US
 	tagNumCompletedSubOps        = dicom.NewTag(0x0000, 0x1021) // US
 	tagNumFailedSubOps           = dicom.NewTag(0x0000, 0x1022) // US
@@ -115,6 +138,7 @@ var (
 var commandVR = map[dicom.Tag]dicom.VR{
 	tagCommandGroupLength:        dicom.VRUL,
 	tagAffectedSOPClassUID:       dicom.VRUI,
+	tagRequestedSOPClassUID:      dicom.VRUI,
 	tagCommandField:              dicom.VRUS,
 	tagMessageID:                 dicom.VRUS,
 	tagMessageIDBeingRespondedTo: dicom.VRUS,
@@ -123,6 +147,7 @@ var commandVR = map[dicom.Tag]dicom.VR{
 	tagCommandDataSetType:        dicom.VRUS,
 	tagStatus:                    dicom.VRUS,
 	tagAffectedSOPInstanceUID:    dicom.VRUI,
+	tagRequestedSOPInstanceUID:   dicom.VRUI,
 	tagNumRemainingSubOps:        dicom.VRUS,
 	tagNumCompletedSubOps:        dicom.VRUS,
 	tagNumFailedSubOps:           dicom.VRUS,
@@ -141,7 +166,14 @@ type CommandSet struct {
 	MessageIDBeingRespondedTo uint16
 	AffectedSOPClassUID       dicom.UID
 	AffectedSOPInstanceUID    dicom.UID
-	CommandDataSetType        uint16
+	// RequestedSOPClassUID (0000,0003) and RequestedSOPInstanceUID (0000,1001) reference the existing
+	// managed SOP Instance a normalised N-SET (and the other DIMSE-N operations that act on an
+	// existing object) targets — distinct from the Affected SOP Class/Instance UID a C-service or an
+	// N-CREATE carries (PS3.7 §10.3.4, §10.3.5). They are empty on a C-service command and on an
+	// N-CREATE; CommandSet.elements() emits each only when non-empty.
+	RequestedSOPClassUID    dicom.UID
+	RequestedSOPInstanceUID dicom.UID
+	CommandDataSetType      uint16
 	// Priority is the operation priority (0000,0700); present on data-bearing requests (C-STORE,
 	// C-FIND, C-GET, C-MOVE). HasPriority distinguishes a present medium priority (0x0000) from an
 	// absent element, since PriorityMedium is the zero value.
@@ -245,6 +277,9 @@ func (cs CommandSet) elements() []commandElement {
 	if cs.AffectedSOPClassUID != "" {
 		es = append(es, encodeCommandString(tagAffectedSOPClassUID, string(cs.AffectedSOPClassUID)))
 	}
+	if cs.RequestedSOPClassUID != "" {
+		es = append(es, encodeCommandString(tagRequestedSOPClassUID, string(cs.RequestedSOPClassUID)))
+	}
 	es = append(es, encodeCommandUS(tagCommandField, uint16(cs.CommandField)))
 	if cs.usesRespondedToMessageID() {
 		es = append(es, encodeCommandUS(tagMessageIDBeingRespondedTo, cs.MessageIDBeingRespondedTo))
@@ -263,6 +298,9 @@ func (cs CommandSet) elements() []commandElement {
 	}
 	if cs.AffectedSOPInstanceUID != "" {
 		es = append(es, encodeCommandString(tagAffectedSOPInstanceUID, string(cs.AffectedSOPInstanceUID)))
+	}
+	if cs.RequestedSOPInstanceUID != "" {
+		es = append(es, encodeCommandString(tagRequestedSOPInstanceUID, string(cs.RequestedSOPInstanceUID)))
 	}
 	if cs.HasSubOpCounts {
 		// NumberOfRemainingSubOperations is conditional: omit it when the responder does not know the
@@ -341,6 +379,8 @@ func (cs *CommandSet) applyElement(tag dicom.Tag, value []byte) {
 	switch tag {
 	case tagAffectedSOPClassUID:
 		cs.AffectedSOPClassUID = dicom.UID(decodeUI(value))
+	case tagRequestedSOPClassUID:
+		cs.RequestedSOPClassUID = dicom.UID(decodeUI(value))
 	case tagCommandField:
 		cs.CommandField = CommandField(decodeUS(value))
 	case tagMessageID:
@@ -359,6 +399,8 @@ func (cs *CommandSet) applyElement(tag dicom.Tag, value []byte) {
 		cs.Status = decodeUS(value)
 	case tagAffectedSOPInstanceUID:
 		cs.AffectedSOPInstanceUID = dicom.UID(decodeUI(value))
+	case tagRequestedSOPInstanceUID:
+		cs.RequestedSOPInstanceUID = dicom.UID(decodeUI(value))
 	case tagNumRemainingSubOps:
 		cs.HasSubOpCounts = true
 		cs.HasRemainingSubOp = true
