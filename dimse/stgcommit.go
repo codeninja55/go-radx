@@ -375,6 +375,14 @@ func (r *CommitmentReceiver) ServeConn(ctx context.Context, nc net.Conn) error {
 			AbstractSyntax:   string(storageCommitmentPushModelSOPClass),
 			TransferSyntaxes: []string{string(dicom.ExplicitVRLittleEndian), string(dicom.ImplicitVRLittleEndian)},
 		}},
+		// In the separate-association reporting model the commitment provider opens this report
+		// association and proposes the Storage Commitment Push Model SCP role (it is the
+		// N-EVENT-REPORT SCP); grant the requestor that SCP role so the inverted-role negotiation
+		// resolves and a strict peer is not refused. The acceptor takes the complementary SCU role.
+		SupportedRoles: []acse.SupportedRole{{
+			SOPClassUID: string(storageCommitmentPushModelSOPClass),
+			SCPRole:     true,
+		}},
 	})
 	if err != nil {
 		return err
@@ -395,15 +403,9 @@ func (r *CommitmentReceiver) serveReport(ctx context.Context, acc *acse.Acceptor
 	machine := acc.Machine()
 	conn := acc.Conn()
 
-	var (
-		pcID uint8
-		ts   = dicom.ImplicitVRLittleEndian
-		have bool
-	)
+	have := false
 	for _, pc := range acc.AcceptedContexts() {
 		if pc.Result == 0 {
-			pcID = pc.ID
-			ts = dicom.TransferSyntax(pc.TransferSyntax)
 			have = true
 			break
 		}
@@ -415,7 +417,11 @@ func (r *CommitmentReceiver) serveReport(ctx context.Context, acc *acse.Acceptor
 		}
 	}
 
-	cmd, ds, _, err := receiveMessage(ctx, conn, machine, newMessageReassembler(ts))
+	// Decode the event data set with the transfer syntax of whichever accepted context the report
+	// actually arrived on, and answer on that same context: when the reporter negotiated more than
+	// one Storage Commitment context and sent on a later one, fixing on the first context would
+	// mis-decode the data set or reply on the wrong context (mirrors the C-service dispatch path).
+	cmd, ds, pcID, err := receiveMessage(ctx, conn, machine, newMessageReassemblerFunc(acceptedTransferSyntaxResolver(acc)))
 	if err != nil {
 		return err
 	}
@@ -438,7 +444,23 @@ func (r *CommitmentReceiver) serveReport(ctx context.Context, acc *acse.Acceptor
 		Status:                    StatusSuccess.Code,
 	}
 
-	result, parseErr := parseCommitmentResult(StorageCommitmentEventType(cmd.EventTypeID), ds)
+	// The Event Type ID is mandatory and bounds the report's meaning (PS3.4 J.3.3): only 1 (complete)
+	// and 2 (failures exist) are defined. An absent or unrecognised type must not be parsed as a clean
+	// result — a missing type leaves cmd.EventTypeID zero, which would otherwise look like a success
+	// with no failed items. Answer "No Such Event Type" (PS3.7 §10.3.5) and surface the fault.
+	eventType := StorageCommitmentEventType(cmd.EventTypeID)
+	if !cmd.HasEventTypeID || (eventType != StorageCommitmentEventComplete && eventType != StorageCommitmentEventFailures) {
+		rsp.Status = NewStatus(0x0113, ServiceClassStorageCommitment).Code
+		if serr := sendCommand(ctx, conn, machine, pcID, rsp); serr != nil {
+			return serr
+		}
+		return &ProtocolError{
+			State:  machine.CurrentState(),
+			Detail: "N-EVENT-REPORT-RQ carried no valid Storage Commitment Event Type ID",
+		}
+	}
+
+	result, parseErr := parseCommitmentResult(eventType, ds)
 	if parseErr != nil {
 		// The report could not be parsed; still answer so the peer is not left hanging, then surface
 		// the fault. PS3.7 §10.3.5 No Such Argument fits a malformed event report.
@@ -456,6 +478,7 @@ func (r *CommitmentReceiver) serveReport(ctx context.Context, acc *acse.Acceptor
 	if r.cfg.handler == nil {
 		return nil
 	}
+	ts, _ := acceptedTransferSyntaxResolver(acc)(pcID)
 	info := OpInfo{
 		CallingAETitle: AETitle(acc.CallingAETitle()),
 		CalledAETitle:  r.ae.Title(),

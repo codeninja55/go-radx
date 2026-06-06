@@ -465,6 +465,208 @@ func TestReceiveResultOnSeparateAssociation(t *testing.T) {
 	}
 }
 
+// TestCommitmentReceiverGrantsProviderSCPRole drives the inverted-role negotiation of the
+// separate-association reporting model: the commitment provider opens the report association and
+// proposes the Storage Commitment Push Model SCP role (it is the N-EVENT-REPORT SCP). The
+// receiver's accept params must grant that SCP role so a strict peer is not refused; the test reads
+// the grant back from the requestor's NegotiatedRoles, then completes a real report over the
+// inverted-role association so the negotiation is exercised end to end.
+func TestCommitmentReceiverGrantsProviderSCPRole(t *testing.T) {
+	const transactionUID = "1.2.826.0.1.3680043.8.498.49000500"
+
+	ae, err := NewAE(AETitle("STGCMTSCU"), WithACSETimeout(5*time.Second), WithDIMSETimeout(5*time.Second))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	recv := NewCommitmentReceiver(ae, WithCommitmentHandler(func(_ context.Context, _ OpInfo, _ StorageCommitmentResult) error {
+		return nil
+	}))
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+
+	recvCtx, recvCancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer recvCancel()
+	recvErr := make(chan error, 1)
+	go func() {
+		nc, aerr := ln.Accept()
+		if aerr != nil {
+			recvErr <- aerr
+			return
+		}
+		recvErr <- recv.ServeConn(recvCtx, nc)
+	}()
+
+	provider, err := NewAE(AETitle("STGCMTSCP"), WithACSETimeout(5*time.Second), WithDIMSETimeout(5*time.Second))
+	if err != nil {
+		t.Fatalf("provider NewAE: %v", err)
+	}
+	dialCtx, dialCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer dialCancel()
+	assoc, err := provider.Associate(dialCtx, ln.Addr().String(), AETitle("STGCMTSCU"), StorageCommitmentContexts(),
+		WithRoleSelection(RoleSelection{SOPClassUID: storageCommitmentPushModelSOPClass, SCPRole: true}))
+	if err != nil {
+		t.Fatalf("provider Associate: %v", err)
+	}
+
+	roles := assoc.NegotiatedRoles()
+	var granted *RoleSelection
+	for i := range roles {
+		if roles[i].SOPClassUID == storageCommitmentPushModelSOPClass {
+			granted = &roles[i]
+			break
+		}
+	}
+	if granted == nil {
+		t.Fatalf("no role-selection grant for the Storage Commitment Push Model SOP Class; got %+v", roles)
+	}
+	if !granted.SCPRole {
+		t.Errorf("provider was not granted the SCP role for the report association; grant = %+v", *granted)
+	}
+
+	pcID, ts, ok := assoc.contextForQuery(storageCommitmentPushModelSOPClass)
+	if !ok {
+		t.Fatal("provider could not find an accepted Storage Commitment context")
+	}
+	rq := CommandSet{
+		CommandField:           CommandNEventReportRQ,
+		MessageID:              1,
+		AffectedSOPClassUID:    dicom.UID(storageCommitmentPushModelSOPClass),
+		AffectedSOPInstanceUID: dicom.UID(storageCommitmentPushModelInstance),
+		HasEventTypeID:         true,
+		EventTypeID:            uint16(StorageCommitmentEventComplete),
+		CommandDataSetType:     CommandDataSetPresent,
+	}
+	conn := assoc.requestor.Conn()
+	m := assoc.requestor.Machine()
+	ds := buildCommitmentResult(transactionUID, committedRefs(), nil)
+	if err := sendMessage(dialCtx, conn, m, pcID, rq, ds, ts, MaxPDULength(16382)); err != nil {
+		t.Fatalf("provider send N-EVENT-REPORT-RQ: %v", err)
+	}
+	rsp, _, _, err := receiveMessage(dialCtx, conn, m, newMessageReassembler(ts))
+	if err != nil {
+		t.Fatalf("provider receive N-EVENT-REPORT-RSP: %v", err)
+	}
+	if !rsp.HasStatus || rsp.Status != StatusSuccess.Code {
+		t.Errorf("N-EVENT-REPORT-RSP status = %#04x (present=%v), want Success", rsp.Status, rsp.HasStatus)
+	}
+	_ = assoc.Release(dialCtx)
+
+	if err := <-recvErr; err != nil {
+		t.Fatalf("CommitmentReceiver.ServeConn: %v", err)
+	}
+}
+
+// TestReceiveRejectsMissingEventType is the event-type honesty gate: an N-EVENT-REPORT-RQ that omits
+// the mandatory Event Type ID (PS3.4 J.3.3) must NOT be acknowledged as a clean success — a missing
+// type leaves the command's Event Type ID zero, which would otherwise parse as a success with no
+// failed items. The receiver must answer a failure status and surface a protocol error, and must not
+// invoke the result handler.
+func TestReceiveRejectsMissingEventType(t *testing.T) {
+	const transactionUID = "1.2.826.0.1.3680043.8.498.49000400"
+
+	var handlerCalled bool
+	var mu sync.Mutex
+	ae, err := NewAE(AETitle("STGCMTSCU"), WithACSETimeout(5*time.Second), WithDIMSETimeout(5*time.Second))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	recv := NewCommitmentReceiver(ae, WithCommitmentHandler(func(_ context.Context, _ OpInfo, _ StorageCommitmentResult) error {
+		mu.Lock()
+		defer mu.Unlock()
+		handlerCalled = true
+		return nil
+	}))
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+
+	recvCtx, recvCancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer recvCancel()
+	recvErr := make(chan error, 1)
+	go func() {
+		nc, aerr := ln.Accept()
+		if aerr != nil {
+			recvErr <- aerr
+			return
+		}
+		recvErr <- recv.ServeConn(recvCtx, nc)
+	}()
+
+	ds := buildCommitmentResult(transactionUID, committedRefs(), nil)
+	status := reportWithoutEventType(t, ln.Addr().String(), ds)
+
+	// 0x0113 is "No Such Event Type" (PS3.7 §10.3.5): a clear failure category, never Success.
+	if NewStatus(status, ServiceClassStorageCommitment).IsSuccess() {
+		t.Errorf("N-EVENT-REPORT-RSP status = %#04x, want a failure for a missing Event Type ID", status)
+	}
+	if status != 0x0113 {
+		t.Errorf("N-EVENT-REPORT-RSP status = %#04x, want 0x0113 (No Such Event Type)", status)
+	}
+
+	if err := <-recvErr; err == nil {
+		t.Error("ServeConn should surface a protocol error for an N-EVENT-REPORT with no Event Type ID")
+	}
+	_ = ln.Close()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if handlerCalled {
+		t.Error("the result handler must not be invoked for a report with no valid Event Type ID")
+	}
+}
+
+// reportWithoutEventType dials the receiver as a provider would, sends one N-EVENT-REPORT-RQ that
+// omits the mandatory Event Type ID, and returns the N-EVENT-REPORT-RSP status the receiver answered.
+func reportWithoutEventType(t *testing.T, addr string, ds *dicom.DataSet) uint16 {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	ae, err := NewAE(AETitle("STGCMTSCP"), WithDIMSETimeout(3*time.Second))
+	if err != nil {
+		t.Fatalf("reporter NewAE: %v", err)
+	}
+	assoc, err := ae.Associate(ctx, addr, AETitle("STGCMTSCU"), StorageCommitmentContexts())
+	if err != nil {
+		t.Fatalf("reporter Associate: %v", err)
+	}
+
+	pcID, ts, ok := assoc.contextForQuery(storageCommitmentPushModelSOPClass)
+	if !ok {
+		t.Fatal("reporter could not find an accepted Storage Commitment context")
+	}
+
+	rq := CommandSet{
+		CommandField:           CommandNEventReportRQ,
+		MessageID:              1,
+		AffectedSOPClassUID:    dicom.UID(storageCommitmentPushModelSOPClass),
+		AffectedSOPInstanceUID: dicom.UID(storageCommitmentPushModelInstance),
+		HasEventTypeID:         false, // the fault under test: the mandatory Event Type ID is absent
+		CommandDataSetType:     CommandDataSetPresent,
+	}
+	conn := assoc.requestor.Conn()
+	m := assoc.requestor.Machine()
+	if err := sendMessage(ctx, conn, m, pcID, rq, ds, ts, MaxPDULength(16382)); err != nil {
+		t.Fatalf("reporter send N-EVENT-REPORT-RQ: %v", err)
+	}
+	rsp, _, _, err := receiveMessage(ctx, conn, m, newMessageReassembler(ts))
+	if err != nil {
+		t.Fatalf("reporter receive N-EVENT-REPORT-RSP: %v", err)
+	}
+	_ = assoc.Release(ctx)
+	if !rsp.HasStatus {
+		t.Fatal("N-EVENT-REPORT-RSP carried no status")
+	}
+	return rsp.Status
+}
+
 // TestStorageCommitmentEventTypeString pins the human labels each event type renders to, so a log or
 // error never shows a bare integer.
 func TestStorageCommitmentEventTypeString(t *testing.T) {
