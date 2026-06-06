@@ -78,13 +78,13 @@ func TestAccessorStringCanonical(t *testing.T) {
 		key  string
 		want string
 	}{
-		{"PID", "PID-1"},
+		{"PID", "PID"},
 		{"PID-5", "PID-5"},
 		{"PID-5-1-2", "PID-5-1-2"},
 		{"PID.F5.R1.C2", "PID-5-1-2"},
 		{"PID.F5.R1.C2.S3", "PID-5-1-2-3"},
 		{"OBR2-4", "OBR2-4"},
-		{"PID2", "PID2-1"},
+		{"PID2", "PID2"},
 	}
 	for _, tc := range tests {
 		a, err := ParseAccessor(tc.key)

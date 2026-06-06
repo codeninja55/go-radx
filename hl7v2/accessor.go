@@ -45,9 +45,18 @@ func ParseAccessor(key string) (Accessor, error) {
 	levels := []*int{&a.Field, &a.Repetition, &a.Component, &a.Subcomponent}
 	prefixes := []byte{'F', 'R', 'C', 'S'}
 	pos := 0
+	styleSet := false
+	stylePrefixed := false
 
 	for _, p := range parts[1:] {
 		prefixed := len(p) > 0 && p[0] >= 'A' && p[0] <= 'Z'
+		// The numeric and prefixed styles must not mix within one key: the style is
+		// fixed by the first level token and every later level must match it.
+		if !styleSet {
+			stylePrefixed, styleSet = prefixed, true
+		} else if prefixed != stylePrefixed {
+			return Accessor{}, &AccessorError{Key: key, Reason: "accessor key mixes numeric and prefixed level styles"}
+		}
 		if prefixed {
 			idx := indexOfPrefix(prefixes, p[0])
 			if idx < 0 {
@@ -123,20 +132,20 @@ func indexOfPrefix(prefixes []byte, b byte) int {
 
 // String renders the accessor in its canonical numeric form, e.g. "PID-5-1-2".
 // A non-default segment instance is written inline as "PID2-5". Trailing levels
-// that were never set are omitted, so a segment-only path renders as "PID-1"
-// because the segment instance is always significant.
+// that were never set are omitted; a segment-only path (no field) renders as just
+// the segment — "PID" or "PID2" — so the value round-trips through ParseAccessor
+// and addresses the segment, not field 1.
 func (a Accessor) String() string {
 	var b strings.Builder
 	b.WriteString(a.Segment)
 	if a.SegmentNum > 1 {
 		b.WriteString(strconv.Itoa(a.SegmentNum))
 	}
-	b.WriteByte('-')
-	field := a.Field
-	if field == 0 {
-		field = 1
+	if a.Field == 0 {
+		return b.String()
 	}
-	b.WriteString(strconv.Itoa(field))
+	b.WriteByte('-')
+	b.WriteString(strconv.Itoa(a.Field))
 	for _, n := range []int{a.Repetition, a.Component, a.Subcomponent} {
 		if n == 0 {
 			break
