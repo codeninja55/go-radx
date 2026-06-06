@@ -82,7 +82,9 @@ func DiagnosticReportToSR(dr *r5.DiagnosticReport, observations []*r5.Observatio
 
 	ds.SetString(dicom.TagSOPClassUID, comprehensiveSRSOPClass)
 	ds.SetString(dicom.TagModality, "SR")
-	mintSRIdentity(ds, cfg, dr, report)
+	if err := mintSRIdentity(ds, cfg, dr, report); err != nil {
+		return nil, nil, err
+	}
 	writeSRStatus(ds, dr)
 	writeSRContentDateTime(ds, dr)
 	writeSRPatientID(ds, dr, report)
@@ -94,12 +96,23 @@ func DiagnosticReportToSR(dr *r5.DiagnosticReport, observations []*r5.Observatio
 // mintSRIdentity mints the Study, Series, and SOP Instance UIDs under the configured
 // organisation root, deriving each deterministically from the report's identity so the
 // same report yields byte-identical UIDs. Absent a configured root, no UID is minted
-// (go-radx ships no default registered root) and the absence is recorded.
-func mintSRIdentity(ds *dicom.DataSet, cfg config, dr *r5.DiagnosticReport, report *Report) {
+// (go-radx ships no default registered root) and the absence is recorded. An over-long
+// or otherwise invalid root is rejected fail-closed: silently truncating a conformant
+// root could drop the role-specific suffix and mint identical or malformed UIDs, so the
+// caller is told its root cannot mint a 64-character UID rather than receiving corrupted
+// identity data.
+func mintSRIdentity(ds *dicom.DataSet, cfg config, dr *r5.DiagnosticReport, report *Report) error {
 	if cfg.uidRoot == "" {
 		report.defaulted("SOPInstanceUID (0008,0018)", "",
 			"no WithUIDRoot was supplied and go-radx ships no default registered root; the SR document carries no minted UIDs")
-		return
+		return nil
+	}
+	// Reuse the dicom UID generator's safe-prefix-length and validity check (root must be
+	// a valid UID prefix that leaves room for a suffix within the 64-character field).
+	// This rejects an over-long root with the same bound the generator enforces rather
+	// than truncating it here.
+	if _, err := dicom.NewUIDGenerator(cfg.uidRoot); err != nil {
+		return fmt.Errorf("%w: WithUIDRoot cannot mint a conformant SR UID: %v", ErrMalformedSource, err)
 	}
 	seed := drIdentitySeed(dr)
 	ds.SetString(dicom.TagStudyInstanceUID, string(mintUID(cfg.uidRoot, seed, "study")))
@@ -107,6 +120,7 @@ func mintSRIdentity(ds *dicom.DataSet, cfg config, dr *r5.DiagnosticReport, repo
 	ds.SetString(dicom.TagSOPInstanceUID, string(mintUID(cfg.uidRoot, seed, "instance")))
 	ds.SetString(dicom.TagSeriesNumber, "1")
 	ds.SetString(dicom.TagInstanceNumber, "1")
+	return nil
 }
 
 // drIdentitySeed returns a stable seed string for UID minting. The report's DICOM UID
@@ -142,6 +156,12 @@ func drIdentitySeed(dr *r5.DiagnosticReport) string {
 // (study/series/instance), then rendering the hash as a decimal suffix. The derivation
 // uses no randomness and no wall clock, so the same (root, seed) always mints the same
 // triple; the role label keeps the three UIDs of one document distinct.
+//
+// The root is validated for length by the caller (mintSRIdentity), so after the
+// separating dot the 64-character field always leaves room for a suffix. When the full
+// decimal suffix would overflow the field, only the suffix is trimmed — never the root
+// or the dot — so the UID can never end in a dot and the role-specific leading digits
+// that keep the three UIDs distinct are preserved.
 func mintUID(root dicom.UID, seed, role string) dicom.UID {
 	h := sha1.New()
 	h.Write([]byte(seed))
@@ -154,11 +174,10 @@ func mintUID(root dicom.UID, seed, role string) dicom.UID {
 		prefix += "."
 	}
 	suffix := new(big.Int).SetBytes(sum).String()
-	uid := prefix + suffix
-	if len(uid) > maxUIDLen {
-		uid = uid[:maxUIDLen]
+	if budget := maxUIDLen - len(prefix); len(suffix) > budget {
+		suffix = suffix[:budget]
 	}
-	return dicom.UID(uid)
+	return dicom.UID(prefix + suffix)
 }
 
 // maxUIDLen is the PS3.5 UID character cap, mirrored here so a minted UID never exceeds

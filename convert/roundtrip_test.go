@@ -396,6 +396,69 @@ func TestSRRoundTripStringObservationStaysObservation(t *testing.T) {
 	}
 }
 
+// TestSRReverseRejectsOverlongUIDRoot confirms an over-long WithUIDRoot is rejected
+// rather than silently truncated. Truncating a long root could drop the role-specific
+// suffix and mint identical or malformed UIDs, so the reverse path fails closed.
+func TestSRReverseRejectsOverlongUIDRoot(t *testing.T) {
+	dr, observations, _, err := SRToDiagnosticReportR5(measurementSR(t))
+	if err != nil {
+		t.Fatalf("forward: %v", err)
+	}
+
+	// A root longer than the safe-prefix bound the dicom UID generator enforces (54).
+	overlong := dicom.UID("2.25." + repeatDigit('1', 60))
+	if _, _, err := DiagnosticReportToSR(dr, observations, WithUIDRoot(overlong)); err == nil {
+		t.Fatal("DiagnosticReportToSR with an over-long UID root returned nil error, want a fail-closed error")
+	}
+}
+
+// TestSRReverseMintsDistinctValidUIDs confirms a normal root mints a Study, Series, and
+// SOP Instance UID that are pairwise distinct, at most 64 characters, and never end in a
+// dot.
+func TestSRReverseMintsDistinctValidUIDs(t *testing.T) {
+	dr, observations, _, err := SRToDiagnosticReportR5(measurementSR(t))
+	if err != nil {
+		t.Fatalf("forward: %v", err)
+	}
+	ds, _, err := DiagnosticReportToSR(dr, observations, WithUIDRoot(roundTripUIDRoot))
+	if err != nil {
+		t.Fatalf("reverse: %v", err)
+	}
+
+	study, _ := ds.GetString(dicom.TagStudyInstanceUID)
+	series, _ := ds.GetString(dicom.TagSeriesInstanceUID)
+	instance, _ := ds.GetString(dicom.TagSOPInstanceUID)
+
+	uids := map[string]string{"study": study, "series": series, "instance": instance}
+	for role, uid := range uids {
+		if uid == "" {
+			t.Fatalf("%s UID was not minted", role)
+		}
+		if len(uid) > 64 {
+			t.Errorf("%s UID exceeds 64 characters: %q (%d)", role, uid, len(uid))
+		}
+		if uid[len(uid)-1] == '.' {
+			t.Errorf("%s UID ends in a dot: %q", role, uid)
+		}
+		if err := dicom.UID(uid).Validate(); err != nil {
+			t.Errorf("%s UID is not a valid UID: %q (%v)", role, uid, err)
+		}
+	}
+	if study == series || study == instance || series == instance {
+		t.Errorf("minted UIDs are not pairwise distinct: study=%q series=%q instance=%q", study, series, instance)
+	}
+}
+
+// repeatDigit returns a string of n copies of the digit d, used to build an over-long
+// UID root for the rejection test.
+func repeatDigit(d byte, n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = d
+	}
+	return string(b)
+}
+
 // renderOBX runs the reverse converter and renders the OBX to its wire line through the
 // hl7v2 message renderer, so the assertion exercises the real serialisation path.
 func renderOBX(t *testing.T, o *r5.Observation) string {
