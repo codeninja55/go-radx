@@ -280,6 +280,28 @@ caches a token until it expires and fetches a fresh one on demand, so a long-liv
 without caller involvement. `WithRoundTripper` is the escape hatch the cloud auth adapters (Google ADC, AWS SigV4)
 build on; a custom transport enforces its own origin scoping and may inject a header or sign the request per-request.
 
+### Cloud-provider adapters
+
+Two cloud archives are reachable over DICOMweb — Google Cloud Healthcare and AWS HealthImaging — and each composes
+through the core seam above without modifying the core client. The provider SDKs live only in the
+`dicomweb/auth/gcp` and `dicomweb/auth/aws` subpackages, so a caller who never touches a cloud adapter never pulls the
+AWS SDK or the Google SDK into their import graph; this isolation is enforced by a guard test
+(`TestCoreImportGraphExcludesCloudSDKs`).
+
+| Provider mode | Adapter | Wires via | Mechanism | Refreshes |
+|---------------|---------|-----------|-----------|-----------|
+| Google Cloud Healthcare (ADC) | `dicomweb/auth/gcp.TokenSource` | `WithTokenSource` | `Authorization: Bearer` from Application Default Credentials, scoped to `cloud-platform` | Yes (on expiry) |
+| AWS HealthImaging (SigV4) | `dicomweb/auth/aws.SigV4RoundTripper` | `WithRoundTripper` | per-request `Authorization: AWS4-HMAC-SHA256` signature for the `medical-imaging` service | Per request |
+| AWS HealthImaging (OIDC) | none (core path) | `WithTokenSource` | `Authorization: Bearer` from any `oauth2.TokenSource` | Yes (on expiry) |
+
+The Google adapter resolves a token from the standard ADC chain (the `GOOGLE_APPLICATION_CREDENTIALS` service account,
+gcloud user credentials, or the GCE/GKE metadata server) scoped to `https://www.googleapis.com/auth/cloud-platform`,
+the scope the Cloud Healthcare DICOMweb endpoint requires. The AWS SigV4 adapter signs each request independently with
+a current timestamp and a payload hash over the request body, drawing credentials from the supplied `aws.Config` on
+every request so a rotating or assumed-role credential is always current; it is not a static header. AWS HealthImaging's
+OIDC access mode needs no adapter because it authenticates with a standard OAuth2 bearer, which the core
+`WithTokenSource` path already covers. See `../user-guide/dicomweb/cloud-auth.md` for worked wiring examples.
+
 ## Out of scope
 
 The full deferral list is still being authored. The deferrals recorded today:
@@ -315,6 +337,14 @@ Reason, the Other-failures path, the q=0 negotiation refusal, and every client a
 OAuth2 token source, mutual TLS, custom RoundTripper) are unit-tested in `dicomweb` (`store_test.go`, `auth_test.go`).
 QIDO parameter parsing is fuzzed (`FuzzParseQueryRequest`). A dcm4chee-arc DICOMweb leg is not yet wired (the
 WADO/STOW interop is Orthanc-only today) and is recorded as a follow-up.
+
+The cloud-provider adapters are unit-tested without any live cloud call. The Google ADC token source is exercised
+against a mock OAuth2 token endpoint that returns a bearer (`dicomweb/auth/gcp`, `gcp_test.go`). The AWS SigV4
+RoundTripper is verified by re-deriving the signature from the documented canonical-request algorithm and matching it
+against the SDK-produced `AWS4-HMAC-SHA256` header, for both empty-body and body-bearing requests
+(`dicomweb/auth/aws`, `aws_test.go`). The dependency-isolation guarantee is checked by
+`TestCoreImportGraphExcludesCloudSDKs`, which shells out to `go list -deps` and fails if either cloud SDK enters the
+core `dicomweb` import graph.
 
 ## References
 
