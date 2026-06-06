@@ -73,9 +73,10 @@ func (f Finding) String() string {
 }
 
 // scaffoldStatements are the conformance statements whose surfaces are not yet implemented or
-// not yet authored; each must carry the NOT YET SHIPPED banner until its surface ships.
+// not yet authored; each must carry the NOT YET SHIPPED banner until its surface ships. A
+// statement leaves this list when its surface is published (the banner is removed and the
+// scope contract is filled), as dicomweb.md did once WADO/QIDO/STOW and client auth shipped.
 var scaffoldStatements = []string{
-	"dicomweb.md",
 	"dimse.md",
 	"convert.md",
 	"cli-server.md",

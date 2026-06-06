@@ -1,0 +1,5 @@
+multipart/related; boundary=abc
+--abc
+Content-Type: application/dicom
+
+partial body that never closes

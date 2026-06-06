@@ -279,6 +279,42 @@ func TestRetrieveBulkDataRoundTrip(t *testing.T) {
 	}
 }
 
+// TestRetrieveBulkDataMalformedUIDIs400 is the named regression for the published WADO-RS
+// guarantee that a malformed UID in the path is rejected with 400 Bad Request: a bulkdata
+// request whose study/series/instance UID does not parse is rejected before the backend
+// lookup, while a well-formed-UID request still reaches the backend.
+func TestRetrieveBulkDataMalformedUIDIs400(t *testing.T) {
+	const sop = "1.2.3.4.5"
+	store := newWADOStore()
+	store.put(RetrievedInstance{DataSet: sampleInstance("1.2.3", "1.2.3.4", sop)})
+	store.bulk[sop] = [][]byte{{0xDE, 0xAD}}
+
+	srv, err := NewServer(WithRetrieveBackend(store))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	get := func(path string) int {
+		req, _ := http.NewRequest(http.MethodGet, hs.URL+path, http.NoBody)
+		req.Header.Set("Accept", `multipart/related; type="application/octet-stream"`)
+		resp, derr := hs.Client().Do(req)
+		if derr != nil {
+			t.Fatalf("GET %s: %v", path, derr)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		return resp.StatusCode
+	}
+
+	if got := get("/studies/not-a-uid/series/bad/instances/bad/bulkdata"); got != http.StatusBadRequest {
+		t.Fatalf("malformed-UID bulkdata status = %d, want 400 (the published guarantee)", got)
+	}
+	if got := get("/studies/1.2.3/series/1.2.3.4/instances/" + sop + "/bulkdata"); got != http.StatusOK {
+		t.Fatalf("well-formed-UID bulkdata status = %d, want 200 (request reaches the backend)", got)
+	}
+}
+
 // TestRetrieveInstanceTransferSyntaxPassthrough asserts an instance stored in Explicit VR LE
 // is served unchanged when the client accepts that syntax (passthrough).
 func TestRetrieveInstanceTransferSyntaxPassthrough(t *testing.T) {

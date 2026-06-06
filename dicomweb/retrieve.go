@@ -324,6 +324,10 @@ func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, 
 			"WADO-RS bulkdata retrieval serves multipart/related application/octet-stream only")
 		return
 	}
+	if _, err := p.Path(); err != nil {
+		s.writeProblem(w, r, http.StatusBadRequest, err, "invalid resource path")
+		return
+	}
 	objs, err := br.RetrieveBulkData(r.Context(), p)
 	if err != nil {
 		s.writeProblem(w, r, http.StatusNotFound, err, "bulkdata not found")
