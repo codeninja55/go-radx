@@ -84,29 +84,36 @@ func selectTransferSyntax(acceptorPreferred, proposed []string) (string, bool) {
 	return "", false
 }
 
-// SupportedRole is the SCP/SCU role the acceptor is willing to play for one SOP Class (PS3.7
-// D.3.3.4). It bounds what NegotiateRoles can grant: the acceptor never grants a role it does
-// not itself support. The acse layer works in plain UID strings so it never imports the root
-// dimse package (acyclic layering).
+// SupportedRole declares, for one SOP Class, which roles the acceptor will grant the
+// association requestor (PS3.7 D.3.3.4). SCURole permits the requestor to act as the SCU and
+// SCPRole permits it to act as the SCP; the acceptor itself takes the complementary role (the
+// requestor acting as SCP means the acceptor acts as the SCU). It bounds what NegotiateRoles
+// grants: a role not permitted here is denied. For same-association C-GET the acceptor permits
+// the requestor the Storage SCP role by setting SCPRole. The acse layer works in plain UID
+// strings so it never imports the root dimse package (acyclic layering).
 type SupportedRole struct {
 	SOPClassUID string
 	SCURole     bool
 	SCPRole     bool
 }
 
-// NegotiateRoles matches each requested SCP/SCU role-selection sub-item against the acceptor's
-// supported roles and returns one A-ASSOCIATE-AC role-selection response per request, in the
+// NegotiateRoles matches each requested SCP/SCU role-selection sub-item against the roles the
+// acceptor permits and returns one A-ASSOCIATE-AC role-selection response per request, in the
 // requestor's order (PS3.7 D.3.3.4). A request for a SOP Class the acceptor declared no role
-// for is granted neither role (both flags 0); otherwise each requested role is granted only
-// when the acceptor also supports it, so the acceptor never commits to a role it cannot play.
-// A SOP Class the acceptor supports but the requestor did not propose a role for yields no
-// response, because role selection is requestor-initiated.
+// for yields no response, so the DICOM default roles apply rather than an explicit denial: an
+// acceptor with no role configuration must not regress a peer that proposed the default SCU
+// role into an explicit refusal. Otherwise each requested role is granted only when the
+// acceptor also permits it for that SOP Class. A SOP Class the acceptor permits but the
+// requestor did not propose a role for yields no response, because role selection is
+// requestor-initiated.
 func NegotiateRoles(requested []pdu.RoleSelection, supported []SupportedRole) []pdu.RoleSelection {
 	results := make([]pdu.RoleSelection, 0, len(requested))
 	for _, rq := range requested {
 		sr, ok := findSupportedRole(supported, rq.SOPClassUID)
 		if !ok {
-			results = append(results, pdu.RoleSelection{SOPClassUID: rq.SOPClassUID})
+			// No declared role for this SOP Class: omit the response so the default roles
+			// apply (PS3.7 D.3.3.4). Emitting a both-roles-denied response here would turn
+			// the default SCU role a peer proposed into an explicit denial.
 			continue
 		}
 		results = append(results, pdu.RoleSelection{

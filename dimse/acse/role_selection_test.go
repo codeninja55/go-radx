@@ -30,9 +30,10 @@ func TestNegotiateRolesGrantsRequestedRoles(t *testing.T) {
 	}
 }
 
-// TestNegotiateRolesClampsToAcceptorCapability verifies the acceptor never grants a role it
-// cannot play: a requestor asking for the acceptor to act as SCP for a SOP Class the acceptor
-// only serves as SCU has the SCP role denied (PS3.7 D.3.3.4).
+// TestNegotiateRolesClampsToAcceptorCapability verifies the acceptor grants only the roles it
+// permits the requestor: when the acceptor permits the requestor the SCU role but not the SCP
+// role for a SOP Class, a requestor proposing both is granted SCU and denied SCP (PS3.7
+// D.3.3.4).
 func TestNegotiateRolesClampsToAcceptorCapability(t *testing.T) {
 	requested := []pdu.RoleSelection{
 		{SOPClassUID: ctImageUID, SCURole: true, SCPRole: true},
@@ -45,10 +46,47 @@ func TestNegotiateRolesClampsToAcceptorCapability(t *testing.T) {
 		t.Fatalf("NegotiateRoles returned %d results, want 1", len(got))
 	}
 	if !got[0].SCURole {
-		t.Error("SCU role denied; the acceptor and requestor both support it")
+		t.Error("SCU role denied; the acceptor permits it and the requestor proposed it")
 	}
 	if got[0].SCPRole {
-		t.Error("SCP role granted; the acceptor does not play SCP for this SOP Class")
+		t.Error("SCP role granted; the acceptor does not permit the requestor the SCP role for this SOP Class")
+	}
+}
+
+// TestNegotiateRolesOmitsResponseWhenUnconfigured verifies that an acceptor with no declared
+// role for a requested SOP Class returns no role-selection response for it, so the DICOM
+// default roles apply rather than an explicit both-roles-denied refusal that would regress a
+// peer proposing the default SCU role (PS3.7 D.3.3.4).
+func TestNegotiateRolesOmitsResponseWhenUnconfigured(t *testing.T) {
+	requested := []pdu.RoleSelection{
+		{SOPClassUID: ctImageUID, SCURole: true, SCPRole: false},
+	}
+	if got := NegotiateRoles(requested, nil); len(got) != 0 {
+		t.Errorf("NegotiateRoles with no supported roles returned %d responses, want 0 (defaults apply)", len(got))
+	}
+	supported := []SupportedRole{{SOPClassUID: verificationUID, SCURole: true, SCPRole: true}}
+	if got := NegotiateRoles(requested, supported); len(got) != 0 {
+		t.Errorf("NegotiateRoles for an unconfigured SOP Class returned %d responses, want 0", len(got))
+	}
+}
+
+// TestNegotiateRolesGrantsRequestorSCPForCGet documents the same-association C-GET arrangement
+// under the grant-the-requestor semantics: the acceptor permits the requestor the Storage SCP
+// role (SCPRole), and a requestor proposing the SCP role is granted it so it can receive the
+// C-STORE sub-operations (PS3.7 D.3.3.4).
+func TestNegotiateRolesGrantsRequestorSCPForCGet(t *testing.T) {
+	requested := []pdu.RoleSelection{
+		{SOPClassUID: ctImageUID, SCURole: false, SCPRole: true},
+	}
+	supported := []SupportedRole{
+		{SOPClassUID: ctImageUID, SCURole: false, SCPRole: true},
+	}
+	got := NegotiateRoles(requested, supported)
+	if len(got) != 1 {
+		t.Fatalf("NegotiateRoles returned %d results, want 1", len(got))
+	}
+	if !got[0].SCPRole {
+		t.Error("requestor SCP role denied; same-association C-GET cannot proceed")
 	}
 }
 
