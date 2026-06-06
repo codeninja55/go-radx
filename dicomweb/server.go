@@ -39,10 +39,12 @@ const defaultServerAddr = "127.0.0.1:0"
 type Server struct {
 	store    StoreBackend
 	retrieve RetrieveBackend
+	query    QueryBackend
 
 	addr            string
 	maxRequestBytes int64
 	maxParts        int
+	maxQueryResults int
 }
 
 // ServerOption configures a Server. There is no global configuration; every knob is an
@@ -57,6 +59,18 @@ func WithStoreBackend(b StoreBackend) ServerOption {
 // WithRetrieveBackend registers the WADO-RS retrieval backend.
 func WithRetrieveBackend(b RetrieveBackend) ServerOption {
 	return func(s *Server) { s.retrieve = b }
+}
+
+// WithQueryBackend registers the QIDO-RS query backend.
+func WithQueryBackend(b QueryBackend) ServerOption {
+	return func(s *Server) { s.query = b }
+}
+
+// WithMaxQueryResults caps the number of results a QIDO-RS search returns (default 5,000).
+// A search whose result set exceeds the cap is truncated and the response carries the
+// Warning: 299 header (PS3.18 §10.6.1.4), so a truncated page is never read as complete.
+func WithMaxQueryResults(n int) ServerOption {
+	return func(s *Server) { s.maxQueryResults = n }
 }
 
 // WithServerAddr sets the listen address. It defaults to a loopback address; passing a
@@ -83,6 +97,7 @@ func NewServer(opts ...ServerOption) (*Server, error) {
 		addr:            defaultServerAddr,
 		maxRequestBytes: defaultMaxResponseBytes,
 		maxParts:        defaultMaxParts,
+		maxQueryResults: defaultMaxQIDOResults,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -102,8 +117,9 @@ func (s *Server) Handler() http.Handler {
 }
 
 // route dispatches a request to the matching DICOMweb service. The router is deliberately
-// small: it recognises the STOW-RS POST to /studies and the WADO-RS instance GET, and
-// answers every other path with a typed 501 rather than a silent 200 (PRD §9.2).
+// small: it recognises the STOW-RS POST to /studies, the WADO-RS instance GET, and the
+// QIDO-RS search GETs, and answers every other path with a typed 501 rather than a silent
+// 200 (PRD §9.2).
 func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	segs := splitPath(r.URL.Path)
 
@@ -113,10 +129,7 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodGet && isInstanceRetrieve(segs):
 		s.handleRetrieveInstance(w, r, segs)
 	case isQIDO(r.Method, segs):
-		// QIDO-RS search is not implemented in this slice: answer 501, never a 200 empty
-		// result that a caller would read as "no matches".
-		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported,
-			"QIDO-RS search is not implemented")
+		s.handleQuery(w, r, segs)
 	default:
 		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported,
 			"the requested DICOMweb service is not implemented")
