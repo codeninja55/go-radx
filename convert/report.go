@@ -36,6 +36,13 @@ type Report struct {
 	// Defaulted lists target elements that required a value the source did not
 	// supply, and the default the converter chose.
 	Defaulted []DefaultedField
+	// Substituted lists target elements the converter populated with an
+	// approximation of a source value it could not map exactly, so a consumer can
+	// distinguish a lossy-but-present mapping from a dropped one: an unknown HL7
+	// gender code rendered as the value-set-safe "unknown", a trigger event with
+	// no exact FHIR status, an unrecognised coding-scheme designator carried under
+	// a synthetic system URI.
+	Substituted []Substitution
 }
 
 // DroppedField is one item of source data with no target home, named by concept.
@@ -59,6 +66,22 @@ type DefaultedField struct {
 	Reason string
 }
 
+// Substitution is one target element the converter populated with an approximation
+// of a source value it could not map exactly, named by concept. It names the FHIR
+// concept and the approximation chosen, never the raw patient value the source
+// carried (PRD §9.1).
+type Substitution struct {
+	// Concept is the FHIR element path the approximation was applied to, e.g.
+	// "Patient.gender" or "Encounter.status".
+	Concept string
+	// Approximation is the value-set-safe value the converter chose, e.g.
+	// "unknown" or "in-progress".
+	Approximation string
+	// Reason explains, in plain language, why the source value could not be mapped
+	// exactly. It names the source concept, never the source value.
+	Reason string
+}
+
 // dropped records a dropped source field on the report.
 func (r *Report) dropped(source, reason string) {
 	r.Dropped = append(r.Dropped, DroppedField{Source: source, Reason: reason})
@@ -67,6 +90,11 @@ func (r *Report) dropped(source, reason string) {
 // defaulted records a defaulted target element on the report.
 func (r *Report) defaulted(target, value, reason string) {
 	r.Defaulted = append(r.Defaulted, DefaultedField{Target: target, Value: value, Reason: reason})
+}
+
+// substituted records an approximate mapping on the report.
+func (r *Report) substituted(concept, approximation, reason string) {
+	r.Substituted = append(r.Substituted, Substitution{Concept: concept, Approximation: approximation, Reason: reason})
 }
 
 // LossError is returned in place of a Report.Dropped entry only when
