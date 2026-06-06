@@ -79,13 +79,19 @@ func newHealthImagingSigV4Client(ctx context.Context, region, endpoint string) (
 		return nil, fmt.Errorf("load AWS config: %w", err)
 	}
 
-	rt := awsauth.SigV4RoundTripper(cfg, region, nil)
+	rt, err := awsauth.SigV4RoundTripper(cfg, region, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build SigV4 transport: %w", err)
+	}
 	return dicomweb.NewClient(endpoint, dicomweb.WithRoundTripper(rt))
 }
 ```
 
 The `nil` base transport uses `http.DefaultTransport`; pass your own base if you need custom TLS or proxy settings.
 The signer reads credentials from `cfg` on every request, so a rotating or assumed-role credential is always current.
+Signing is scoped to the `endpoint` origin: the transport signs only requests whose scheme, host, and port match
+`endpoint` and forwards any other request unsigned, so a cross-origin `BulkDataURI` a metadata response names can
+never make the client attach AWS credentials to a host you did not target.
 
 ## AWS HealthImaging (OIDC)
 
