@@ -34,10 +34,25 @@ of it:
   to the requestor over the same association, so the requestor takes the Storage SCP role to receive the sub-operations.
   A partial failure (one or more sub-operations the destination rejects) surfaces as a Warning or Failure terminal
   status, never laundered into Success.
-- **Modality Worklist** (C-FIND) as SCU, with a reference worklist SCP — implemented.
+- **Modality Worklist** (C-FIND) as SCU — implemented. The `Association.FindWorklist` entry point queries the Modality
+  Worklist Information Model — FIND SOP Class. The worklist is a flat information model with no level hierarchy, so the
+  SCU suppresses Query/Retrieve Level (0008,0052): unlike Patient Root or Study Root C-FIND it is never written into
+  the sent identifier (PS3.4 K.6.1.2.1). Match and return keys live under the Scheduled Procedure Step Sequence
+  (0040,0100) and its nested attributes. This is step 2 of the radiology workflow — the modality queries its worklist.
 - **MPPS** (N-CREATE, N-SET) and **Storage Commitment** (N-ACTION, N-EVENT-REPORT), SCU only, are in the v1 target but
   the N-service operations are **NOT YET SHIPPED**; today only their presentation-context presets and status codes
   exist.
+
+The DIMSE-C service operations and the roles each ships as today:
+
+| Service | Information model | SCU | SCP | Reference |
+|---------|-------------------|-----|-----|-----------|
+| C-ECHO | Verification | Shipped | Shipped | PS3.7 §9.1.5 |
+| C-STORE | Storage (radiology-first set) | Shipped | Shipped | PS3.4 B |
+| C-FIND | Patient Root / Study Root Q/R | Shipped | Shipped | PS3.4 C.4.1 |
+| C-FIND | Modality Worklist (flat, no level) | Shipped | Shipped | PS3.4 K.4.1.2, K.6.1.2.1 |
+| C-MOVE | Patient Root / Study Root Q/R | Shipped | Shipped | PS3.4 C.4.2 |
+| C-GET | Patient Root / Study Root Q/R | Shipped | Shipped | PS3.4 C.4.3 |
 
 ## Association negotiation
 
