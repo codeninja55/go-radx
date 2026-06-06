@@ -425,6 +425,8 @@ func (c *Container) ExportStudy(ctx context.Context, studyInstanceUID, destAET s
 // archive so an MWL C-FIND has a scheduled procedure step to return. The values are synthetic test
 // fixtures supplied by the interop test; this struct carries no real patient data.
 type WorklistItem struct {
+	PatientID                string
+	PatientName              string // DICOM PN Alphabetic group, e.g. "DOE^JANE"
 	StudyInstanceUID         string
 	AccessionNumber          string
 	RequestedProcedureID     string
@@ -451,6 +453,8 @@ type dicomJSONValue struct {
 // a modality matches on. The attribute values are synthetic test fixtures, never real patient data.
 func (c *Container) CreateWorklistItem(ctx context.Context, item WorklistItem) error {
 	doc := map[string]dicomJSONValue{
+		"00100010": {VR: "PN", Value: []any{map[string]string{"Alphabetic": item.PatientName}}},
+		"00100020": {VR: "LO", Value: []any{item.PatientID}},
 		"00080050": {VR: "SH", Value: []any{item.AccessionNumber}},
 		"0020000D": {VR: "UI", Value: []any{item.StudyInstanceUID}},
 		"00401001": {VR: "SH", Value: []any{item.RequestedProcedureID}},

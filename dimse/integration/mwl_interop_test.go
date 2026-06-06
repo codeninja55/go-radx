@@ -37,6 +37,8 @@ func TestInteropDcm4cheeMWLCFind(t *testing.T) {
 
 	// Seed a worklist item so the MWL C-FIND has a scheduled procedure step to match.
 	if err := arc.CreateWorklistItem(ctx, dcm4chee.WorklistItem{
+		PatientID:                "RADX-PID-1",
+		PatientName:              "DOE^JANE",
 		StudyInstanceUID:         seededStudyUID,
 		AccessionNumber:          "RADX-ACC-1",
 		RequestedProcedureID:     "RADX-RP-1",
