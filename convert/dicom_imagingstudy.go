@@ -322,9 +322,10 @@ func appendStudyReason(reasons []r5.CodeableReference, ds *dicom.DataSet, report
 }
 
 // codeSequenceConcepts reads a DICOM code sequence (one or more coded-entry items,
-// each with CodeValue/CodingSchemeDesignator/CodeMeaning) at tag t and renders each
-// item as a CodeableReference whose Concept carries the coded entry. An absent or
-// non-sequence attribute yields nil; an item with no code value is skipped.
+// each carrying a code value plus CodingSchemeDesignator/CodeMeaning) at tag t and
+// renders each item as a CodeableReference whose Concept carries the coded entry.
+// An absent or non-sequence attribute yields nil; an item carrying none of the
+// three standard code-value forms is skipped.
 func codeSequenceConcepts(ds *dicom.DataSet, t dicom.Tag) []r5.CodeableReference {
 	seq, ok := ds.GetSequence(t)
 	if !ok {
@@ -344,11 +345,15 @@ func codeSequenceConcepts(ds *dicom.DataSet, t dicom.Tag) []r5.CodeableReference
 
 // codeItemConcept maps one DICOM coded-entry item to a FHIR CodeableConcept, with
 // the CodingSchemeDesignator resolved to its registered FHIR system URI by the
-// shared schemeDesignatorSystem helper. nil when the item carries no code value,
-// so a malformed item never produces a value-less Coding.
+// shared schemeDesignatorSystem helper. The DICOM Code Sequence Macro (PS3.3
+// Table 8.8-1) admits three standard code-value forms — Code Value (0008,0100),
+// Long Code Value (0008,0119), and URN Code Value (0008,0120) — exactly one of
+// which is present per item; the value carries verbatim into Coding.code. nil when
+// the item carries none of the three, so a malformed item never produces a
+// value-less Coding.
 func codeItemConcept(item *dicom.DataSet) *r5.CodeableConcept {
-	value, has := item.GetString(dicom.TagCodeValue)
-	if !has || value == "" {
+	value, has := codeItemValue(item)
+	if !has {
 		return nil
 	}
 	coding := r5.Coding{}
@@ -367,4 +372,17 @@ func codeItemConcept(item *dicom.DataSet) *r5.CodeableConcept {
 	}
 	cc.Coding = []r5.Coding{coding}
 	return cc
+}
+
+// codeItemValue returns the code value of a DICOM coded-entry item, reading the
+// three standard forms of the Code Sequence Macro in the order the standard lists
+// them: Code Value, then Long Code Value, then URN Code Value. The first non-empty
+// form wins. The boolean is false when the item carries none of them.
+func codeItemValue(item *dicom.DataSet) (string, bool) {
+	for _, t := range []dicom.Tag{dicom.TagCodeValue, dicom.TagLongCodeValue, dicom.TagURNCodeValue} {
+		if v, ok := item.GetString(t); ok && v != "" {
+			return v, true
+		}
+	}
+	return "", false
 }

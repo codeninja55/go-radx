@@ -20,6 +20,17 @@ func codeSeqItem(value, scheme, meaning string) *dicom.DataSet {
 	return item
 }
 
+// codeSeqItemTag builds a single-item code-sequence dataset carrying the chosen
+// code-value form (Code Value, Long Code Value, or URN Code Value), exercising the
+// Code Sequence Macro alternatives the procedure/reason mappings must accept.
+func codeSeqItemTag(valueTag dicom.Tag, value, scheme, meaning string) *dicom.DataSet {
+	item := dicom.NewDataSet()
+	item.SetString(valueTag, value)
+	item.SetString(dicom.TagCodingSchemeDesignator, scheme)
+	item.SetString(dicom.TagCodeMeaning, meaning)
+	return item
+}
+
 // instance builds a minimal DICOM instance with the study/series/SOP identity and
 // modality the ImagingStudy converter reads.
 func instance(study, series, sop, modality string) *dicom.DataSet {
@@ -282,6 +293,46 @@ func TestDICOMToImagingStudyR5ProcedureAndReason(t *testing.T) {
 	// The SCT designator resolves to the SNOMED system URI.
 	if sys := study.Reason[0].Concept.Coding[0].System; sys == nil || *sys != "http://snomed.info/sct" {
 		t.Errorf("Reason coding system = %v, want SNOMED URI", sys)
+	}
+}
+
+// TestDICOMToImagingStudyR5ProcedureAlternateCodeValues confirms a procedure code
+// item carrying only Long Code Value (0008,0119) or only URN Code Value
+// (0008,0120) — the standard alternatives to Code Value in the Code Sequence Macro
+// — maps into ImagingStudy.procedure rather than silently disappearing.
+func TestDICOMToImagingStudyR5ProcedureAlternateCodeValues(t *testing.T) {
+	const longCode = "this.is.a.very.long.procedure.code.value.exceeding.sixteen.chars"
+	const urnCode = "urn:oid:1.2.840.10008.2.16.4"
+	cases := []struct {
+		name     string
+		valueTag dicom.Tag
+		value    string
+		scheme   string
+	}{
+		{"LongCodeValue", dicom.TagLongCodeValue, longCode, "DCM"},
+		{"URNCodeValue", dicom.TagURNCodeValue, urnCode, "DCM"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := instance("1.2.3", "1.2.3.1", "1.2.3.1.1", "MR")
+			ds.Set(dicom.Element{
+				Tag: dicom.TagProcedureCodeSequence,
+				VR:  dicom.VRSQ,
+				Value: dicom.NewSequenceValue(dicom.NewSequence(
+					codeSeqItemTag(tc.valueTag, tc.value, tc.scheme, "Procedure"))),
+			})
+
+			study, _, err := DICOMToImagingStudyR5([]*dicom.DataSet{ds})
+			if err != nil {
+				t.Fatalf("DICOMToImagingStudyR5: %v", err)
+			}
+			if len(study.Procedure) != 1 || study.Procedure[0].Concept == nil ||
+				len(study.Procedure[0].Concept.Coding) == 0 ||
+				study.Procedure[0].Concept.Coding[0].Code == nil ||
+				*study.Procedure[0].Concept.Coding[0].Code != tc.value {
+				t.Errorf("Procedure = %+v, want one concept coded %q", study.Procedure, tc.value)
+			}
+		})
 	}
 }
 
