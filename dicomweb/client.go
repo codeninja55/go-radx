@@ -33,6 +33,15 @@ type Client struct {
 	maxResponseBytes int64
 	transferSyntaxes []dicom.TransferSyntax
 	bulkDataBaseURL  string
+
+	// transport, when set by WithRoundTripper, replaces the client's base transport
+	// wholesale. authLayer, when set by a credential option, wraps the base transport so
+	// every same-origin request carries the scheme's header. clientCert, when set by
+	// WithClientCertificate, is presented during the TLS handshake. Auth is a transport
+	// concern layered through these fields, not a per-request branch (DIP, PRD §8.2).
+	transport  http.RoundTripper
+	authLayer  func(base http.RoundTripper, origin *url.URL) http.RoundTripper
+	clientCert *tls.Certificate
 }
 
 // ClientOption configures a Client. There is no global configuration; every knob is an
@@ -45,8 +54,9 @@ func WithHTTPClient(h *http.Client) ClientOption {
 	return func(c *Client) { c.httpClient = h }
 }
 
-// WithBearerToken sets the Authorization: Bearer token. The token is sent on every
-// request and is never logged or placed in an error message (PRD §9.8).
+// WithBearerToken sets a static Authorization: Bearer token. The token is attached to every
+// request through the client's transport and is never logged or placed in an error message
+// (PRD §9.8). For a token that must refresh during a long-lived session, use WithTokenSource.
 func WithBearerToken(token string) ClientOption {
 	return func(c *Client) { c.bearerToken = token }
 }
@@ -116,7 +126,62 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	if c.httpClient == nil {
 		c.httpClient = defaultHTTPClient()
 	}
+	c.applyAuth()
 	return c, nil
+}
+
+// applyAuth composes the configured authentication into the client's http.Client transport.
+// The base transport is the one WithRoundTripper installed, else the http.Client's own
+// transport (or the TLS-verifying default). A client certificate is folded into that
+// transport's TLS config for mutual TLS, then the credential layer (basic, OAuth2 token
+// source, or the static bearer) wraps the result so every request carries the scheme's
+// header. Layering through the RoundTripper seam keeps the request path branch-free and lets
+// the cloud adapters compose without modifying the client (DIP, PRD §8.2).
+func (c *Client) applyAuth() {
+	base := c.transport
+	if base == nil {
+		base = c.httpClient.Transport
+	}
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	if c.clientCert != nil {
+		base = withClientCertificate(base, *c.clientCert)
+	}
+
+	layer := c.authLayer
+	if layer == nil && c.bearerToken != "" {
+		// WithBearerToken keeps its field-set behaviour; it is expressed as a RoundTripper
+		// here so it composes identically to the other schemes (PRD §9.8).
+		layer = bearerAuthLayer(c.bearerToken)
+	}
+	if layer != nil {
+		// The origin scopes every credential to the configured host; a base URL that does not
+		// parse yields a nil origin, which fails closed (no request is same-origin).
+		origin, _ := url.Parse(c.baseURL)
+		base = layer(base, origin)
+	}
+	c.httpClient.Transport = base
+}
+
+// withClientCertificate returns a transport that presents cert during the TLS handshake. An
+// *http.Transport base is cloned so the certificate is attached without disturbing the
+// caller's transport. A non-*http.Transport base (a custom RoundTripper) carries no TLS
+// config, so a fresh TLS-verifying transport holding the certificate is built rather than
+// silently dropping it.
+func withClientCertificate(base http.RoundTripper, cert tls.Certificate) http.RoundTripper {
+	tr, ok := base.(*http.Transport)
+	if !ok {
+		return &http.Transport{
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{cert}},
+		}
+	}
+	clone := tr.Clone()
+	if clone.TLSClientConfig == nil {
+		clone.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
+	clone.TLSClientConfig.Certificates = append(clone.TLSClientConfig.Certificates, cert)
+	return clone
 }
 
 // Store POSTs one or more instances as a multipart/related body of application/dicom
@@ -242,16 +307,15 @@ func (c *Client) parseStoreResponseBody(resp *http.Response) (*StoreResponse, er
 	return parseStoreResponse(ds), nil
 }
 
-// newRequest builds an authenticated request against the origin. The bearer token, if
-// set, is attached here and never logged.
+// newRequest builds a request against the origin. Authentication is a transport concern: the
+// configured credential scheme attaches its header in the http.Client transport (see
+// applyAuth), so no credential is set on the request here and none can leak into a logged
+// *http.Request (PRD §9.8).
 func (c *Client) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	url := c.baseURL + path
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("dicomweb: build %s request: %w", method, err)
-	}
-	if c.bearerToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
 	}
 	return req, nil
 }

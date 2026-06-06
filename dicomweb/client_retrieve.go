@@ -155,19 +155,17 @@ func (c *Client) RetrieveBulkData(ctx context.Context, p ResourcePath) ([][]byte
 // reference is fetched as given. The reference is never logged, since it carries resource
 // UIDs (PRD §9.1).
 //
-// The client's bearer token is attached only when the resolved URL is same-origin with the
-// configured base URL (matching scheme, host, and port). Server-supplied metadata can carry an
-// absolute BulkDataURI on an arbitrary host; sending the Authorization header there would let a
-// malicious or compromised origin harvest the PACS credential, so a cross-origin reference is
-// fetched without credentials (PRD §9.8).
+// The client's credential is attached only when the resolved URL is same-origin with the
+// configured base URL (matching scheme, host, and port): the credential transport scopes
+// every scheme to the origin. Server-supplied metadata can carry an absolute BulkDataURI on an
+// arbitrary host; sending the Authorization header there would let a malicious or compromised
+// origin harvest the PACS credential, so a cross-origin reference is fetched without
+// credentials (PRD §9.8).
 func (c *Client) ResolveBulkDataURI(ctx context.Context, uri BulkDataURI) ([]byte, error) {
 	target := c.absoluteBulkDataURL(string(uri))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return nil, fmt.Errorf("dicomweb: build bulkdata request: %w", err)
-	}
-	if c.bearerToken != "" && c.sameOriginAsBase(target) {
-		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
 	}
 	req.Header.Set("Accept", acceptOctetStream())
 
@@ -216,23 +214,6 @@ func (c *Client) absoluteBulkDataURL(ref string) string {
 		return base + ref
 	}
 	return base + "/" + ref
-}
-
-// sameOriginAsBase reports whether target shares an origin (scheme, host, and port) with the
-// client's configured base URL. It is the gate for attaching the bearer token to a resolved
-// absolute reference: only a same-origin request carries the credential, so a cross-origin
-// BulkDataURI drawn from server-supplied metadata cannot exfiltrate the PACS token (PRD §9.8).
-// A target or base URL that fails to parse is treated as cross-origin, failing closed.
-func (c *Client) sameOriginAsBase(target string) bool {
-	tu, err := url.Parse(target)
-	if err != nil {
-		return false
-	}
-	bu, err := url.Parse(c.baseURL)
-	if err != nil {
-		return false
-	}
-	return sameOrigin(tu, bu)
 }
 
 // sameOrigin reports whether two URLs share scheme, host, and port. The comparison is
