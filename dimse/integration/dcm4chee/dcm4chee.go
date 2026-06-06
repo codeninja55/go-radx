@@ -445,6 +445,25 @@ type dicomJSONValue struct {
 	Value []any  `json:"Value,omitempty"`
 }
 
+// CreatePatient registers a patient in the archive (POST .../rs/patients, application/dicom+json)
+// so a Modality Worklist item can reference it: dcm4chee-arc rejects an MWL item whose patient does
+// not already exist. The attributes are synthetic test fixtures, never real patient data.
+func (c *Container) CreatePatient(ctx context.Context, patientID, patientName string) error {
+	doc := map[string]dicomJSONValue{
+		"00100010": {VR: "PN", Value: []any{map[string]string{"Alphabetic": patientName}}},
+		"00100020": {VR: "LO", Value: []any{patientID}},
+	}
+	body, err := json.Marshal(doc)
+	if err != nil {
+		return fmt.Errorf("marshal patient: %w", err)
+	}
+	path := fmt.Sprintf("/dcm4chee-arc/aets/%s/rs/patients", AETitle)
+	if err := c.post(ctx, path, "application/dicom+json", body, nil); err != nil {
+		return fmt.Errorf("create patient: %w", err)
+	}
+	return nil
+}
+
 // CreateWorklistItem seeds a single Modality Worklist item into the archive's MWL SCP via its REST
 // API (POST .../rs/mwlitems, application/dicom+json), so a subsequent MWL C-FIND has a scheduled
 // procedure step to match. The item carries a top-level Study Instance UID, Accession Number, and

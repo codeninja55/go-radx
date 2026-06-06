@@ -39,6 +39,9 @@ of it:
   SCU suppresses Query/Retrieve Level (0008,0052): unlike Patient Root or Study Root C-FIND it is never written into
   the sent identifier (PS3.4 K.6.1.2.1). Match and return keys live under the Scheduled Procedure Step Sequence
   (0040,0100) and its nested attributes. This is step 2 of the radiology workflow — the modality queries its worklist.
+  The SCU is verified by unit tests against a mock worklist SCP. The dcm4chee live interop leg is present but **skips**
+  until the archive is configured as a Modality Worklist FIND SCP: dcm4chee-arc's default archive AE rejects the MWL FIND
+  presentation context as abstract-syntax-not-supported, so the dcm4chee MWL interop gate is a documented follow-up.
 - **MPPS** (N-CREATE, N-SET) and **Storage Commitment** (N-ACTION, N-EVENT-REPORT), SCU only, are in the v1 target but
   the N-service operations are **NOT YET SHIPPED**; today only their presentation-context presets and status codes
   exist.
