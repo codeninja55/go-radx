@@ -116,6 +116,21 @@ func QueryRetrieveContexts() []PresentationContext {
 	return contextsFor(queryRetrieveSOPClasses)
 }
 
+// QueryRetrieveWithStorageContexts returns the Query/Retrieve Information Model contexts together
+// with the validated radiology Storage contexts, assigned contiguous non-colliding presentation
+// context IDs in a single pass. It is the preset a same-association C-GET SCU proposes: the GET
+// model context carries the C-GET-RQ, while the Storage contexts give the SCP's sub-operation
+// C-STOREs (which arrive back on the SAME association) an accepted context to use. Combining the two
+// preset slices directly would collide their IDs (each restarts numbering at 1), so this builds the
+// union with one ID sequence. The C-GET SCU pairs it with WithRoleSelection proposing the Storage
+// SCP role for the SOP Classes it expects to receive. A fresh slice is returned each call.
+func QueryRetrieveWithStorageContexts() []PresentationContext {
+	combined := make([]dicom.SOPClassUID, 0, len(queryRetrieveSOPClasses)+len(validatedStorageSOPClasses))
+	combined = append(combined, queryRetrieveSOPClasses...)
+	combined = append(combined, validatedStorageSOPClasses...)
+	return contextsFor(combined)
+}
+
 // BasicWorklistContexts returns the single Modality Worklist Information Model — FIND context, the
 // abstract syntax an MWL C-FIND SCU proposes, proposing the default transfer syntaxes (dimse.md
 // "Presets"). A fresh slice is returned each call.

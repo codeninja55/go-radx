@@ -220,6 +220,12 @@ func dispatchMessage(
 			return refuseUnsupportedMove(ctx, acc, cmd, pcID)
 		}
 		return serveMoveMessage(ctx, acc, mh, move, cmd, ds, pcID, base)
+	case CommandCGetRQ:
+		gh, ok := h.(GetHandler)
+		if !ok {
+			return refuseUnsupportedGet(ctx, acc, cmd, pcID)
+		}
+		return serveGetMessage(ctx, acc, gh, cmd, ds, pcID, base)
 	case CommandCCancelRQ:
 		// A C-CANCEL-RQ that reaches the top-level dispatch refers to no in-flight operation: the
 		// query it would cancel either already terminated, or its terminal RSP raced ahead of the

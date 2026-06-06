@@ -85,6 +85,7 @@ var DefaultTransferSyntaxes = []dicom.TransferSyntax{
 func VerificationContexts() []dimse.PresentationContext      // 1 context  — Verification SOP Class
 func StorageContexts() []dimse.PresentationContext           // radiology-first Storage set (see table below)
 func QueryRetrieveContexts() []dimse.PresentationContext     // Patient Root + Study Root C-FIND/C-GET/C-MOVE
+func QueryRetrieveWithStorageContexts() []dimse.PresentationContext // Q/R + validated Storage, one ID sequence (C-GET SCU)
 func BasicWorklistContexts() []dimse.PresentationContext     // Modality Worklist Information Model — FIND
 func ModalityPerformedContexts() []dimse.PresentationContext // MPPS SOP Class (MPPS SCU)
 func StorageCommitmentContexts() []dimse.PresentationContext // Storage Commitment Push Model SOP Class
@@ -239,6 +240,7 @@ N-EVENT-REPORT result as a `StorageCommitmentResult`. The SCP side is deferred. 
 | `StorageContexts()` | Storage SCU/SCP (validated radiology set) | 36 (table above) |
 | `AllStorageContexts()` | Storage transport-only | NOT YET SHIPPED (would be 170, the registered Storage set) |
 | `QueryRetrieveContexts()` | Patient Root + Study Root Q/R | 6 |
+| `QueryRetrieveWithStorageContexts()` | Q/R + validated Storage under one ID sequence (same-association C-GET) | 42 |
 | `BasicWorklistContexts()` | Modality Worklist FIND | 1 |
 | `ModalityPerformedContexts()` | MPPS SCU | 1 |
 | `StorageCommitmentContexts()` | Storage Commitment SCU | 1 |

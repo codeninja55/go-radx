@@ -79,7 +79,12 @@ func Start(ctx context.Context) (*Container, error) {
 			// unregistered calling AE (it verifies the remote modality). The C-MOVE interop SCU is not a
 			// registered modality, so enable it; the move DESTINATION still must be a registered
 			// modality (ConfigureModality) for Orthanc to resolve its host/port (Orthanc 1.9.7+).
-			"ORTHANC__DICOM_ALWAYS_ALLOW_MOVE":    "true",
+			"ORTHANC__DICOM_ALWAYS_ALLOW_MOVE": "true",
+			// DicomAlwaysAllowGet defaults to false: by default Orthanc blocks a C-GET from an
+			// unregistered calling AE. The C-GET interop SCU is not a registered modality, so enable it
+			// so the same-association C-GET gate can drive C-GET directly. The matched instances are
+			// C-STOREd back on the same association, so no destination modality registration is needed.
+			"ORTHANC__DICOM_ALWAYS_ALLOW_GET":     "true",
 			"ORTHANC__REMOTE_ACCESS_ALLOWED":      "true",
 			"ORTHANC__UNKNOWN_SOP_CLASS_ACCEPTED": "true",
 		},

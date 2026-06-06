@@ -191,6 +191,10 @@ var (
 	// more failures or warnings" (0xB000): the retrieve finished but at least one sub-operation
 	// C-STORE failed. It is a Warning, never laundered to success (PRD §9.2 fail-closed).
 	StatusGetSubOpsCompleteWithFailures = NewStatus(0xB000, ServiceClassGet)
+	// StatusGetCancel is the C-GET terminal Cancel status (0xFE00): the SCU sent a C-CANCEL-RQ
+	// mid-retrieve and the SCP stopped the sub-operation loop, reporting the accumulated counts
+	// (PS3.7 §9.3.2.3). It is a clean cancellation, never a protocol fault.
+	StatusGetCancel = NewStatus(0xFE00, ServiceClassGet)
 
 	// StatusWorklistPending is the Modality Worklist C-FIND Pending status (0xFF00): a worklist
 	// item is supplied and matching continues (PS3.4 K.4.1.1.4).
