@@ -108,18 +108,22 @@ func dicomTagSource(t dicom.Tag) string {
 }
 
 // fractionOf returns the fractional-second suffix (including the leading dot) of a
-// DICOM TM/DT lexical form, or "" when none is present. The fraction is preserved
-// verbatim so a clinically relevant sub-second timestamp is not silently
-// truncated to whole seconds.
+// DICOM TM/DT lexical form, or "" when none is present. Only the run of digits after
+// the dot is taken, so a DT's trailing &ZZXX UTC offset is not folded into the
+// fraction. The fraction is preserved verbatim so a clinically relevant sub-second
+// timestamp is not silently truncated to whole seconds.
 func fractionOf(lexical string) string {
 	for i := 0; i < len(lexical); i++ {
 		if lexical[i] == '.' {
-			frac := lexical[i:]
-			// A trailing bare dot carries no fraction; drop it.
-			if len(frac) == 1 {
+			end := i + 1
+			for end < len(lexical) && lexical[end] >= '0' && lexical[end] <= '9' {
+				end++
+			}
+			// A bare dot with no following digits carries no fraction; drop it.
+			if end == i+1 {
 				return ""
 			}
-			return frac
+			return lexical[i:end]
 		}
 	}
 	return ""

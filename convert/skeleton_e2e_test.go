@@ -206,7 +206,7 @@ func TestSkeletonEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("leg 5b read SR: %v", err)
 	}
-	dr, _, err := SRToDiagnosticReportR5(srFile.DataSet)
+	dr, _, _, err := SRToDiagnosticReportR5(srFile.DataSet)
 	if err != nil {
 		t.Fatalf("leg 5b SRToDiagnosticReportR5: %v", err)
 	}

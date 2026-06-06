@@ -34,6 +34,41 @@ rule `convert.<Source>To<Target><Release>`. The conversions intended to close th
 Each is intended to ship with an `R4` and `R5` twin. The currently implemented set is R5-only and partial; the
 authored statement will declare exactly which `(conversion, release)` pairs are conformance-tested.
 
+### SR to DiagnosticReport (`SRToDiagnosticReportR5`)
+
+`SRToDiagnosticReportR5` reads a DICOM Structured Report document dataset and produces a FHIR R5 `DiagnosticReport`
+together with the set of `Observation`s carrying its measurements. The document-level attributes map to the report; the
+SR content tree is walked depth-first for measurement leaves, and each becomes one `Observation`.
+
+| FHIR `DiagnosticReport` element | DICOM SR source | Notes |
+|---------------------------------|-----------------|-------|
+| `identifier` | SOP Instance UID `(0008,0018)` | logical `urn:dicom:uid` / `urn:oid:` identifier, never a Reference URL |
+| `status` | CompletionFlag `(0040,A491)` + VerificationFlag `(0040,A493)` | `COMPLETE`+`VERIFIED` → `final`, otherwise `preliminary`; absent flag defaulted |
+| `category` | imaging service section | fixed `IMG` coding |
+| `code` | root `CONTAINER` Concept Name Code Sequence `(0040,A043)` | required; the conversion fails closed when absent |
+| `effectiveDateTime` | ContentDate `(0008,0023)` + ContentTime `(0008,0033)` + TimezoneOffsetFromUTC `(0008,0201)` | a timezone-less time is dropped to date-only and recorded |
+| `conclusion` | concatenated `TEXT` content items | narrative items join in document order |
+| `result[]` | each `NUM`/`CODE`/date-time measurement leaf | one `Observation` per leaf, linked by an intra-call `urn:uuid` reference |
+| `subject` | PatientID `(0010,0020)` or `WithSubjectR5` | logical `Reference.identifier`, never a fabricated URL |
+
+The `result[]` links are derived deterministically from the SR SOP Instance UID and each leaf's position (an RFC 4122
+version-5 name-based UUID), so the same SR produces byte-identical output. `TEXT` leaves form the narrative conclusion
+rather than separate observations, so a finding is represented once.
+
+Each measurement leaf maps to an `Observation` through the shared `ContentItemToObservationR5` helper. The leaf's
+Concept Name Code Sequence becomes the required `Observation.code`, the status is `final`, and the value maps by SR
+`ValueType`:
+
+| SR `ValueType` | FHIR `Observation.value[x]` | Notes |
+|----------------|-----------------------------|-------|
+| `NUM` | `valueQuantity` | MeasuredValue `(0040,A30A)` → `Quantity.value`; MeasurementUnits `(0040,08EA)` → `Quantity.code`/`unit`/`system` (UCUM → `http://unitsofmeasure.org`) |
+| `CODE` | `valueCodeableConcept` | Concept Code Sequence `(0040,A168)` triplet → `Coding` |
+| `TEXT` | `valueString` | Text Value `(0040,A160)`; in `SRToDiagnosticReportR5` the report-level walk routes `TEXT` to `conclusion` instead |
+| `DATE` / `TIME` / `DATETIME` | `valueDateTime` | day precision yields `YYYY-MM-DD`; a time is rendered only with a UTC offset, else dropped to date-only |
+
+The DICOM coding-scheme designator maps to its registered FHIR `system` URI (`DCM`, `SCT`, `LN`, `UCUM`); an unknown
+designator is carried verbatim under `urn:dicom:scheme:<designator>` so no value is lost.
+
 ## Loss policy
 
 Not yet authored. This section will declare the strict-versus-lossy contract: which conversions fail closed on

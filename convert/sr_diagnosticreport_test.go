@@ -21,12 +21,21 @@ func srFixture(t *testing.T) *dicom.DataSet {
 func TestSRToDiagnosticReportR5(t *testing.T) {
 	sr := srFixture(t)
 
-	dr, report, err := SRToDiagnosticReportR5(sr)
+	dr, observations, report, err := SRToDiagnosticReportR5(sr)
 	if err != nil {
 		t.Fatalf("SRToDiagnosticReportR5: %v", err)
 	}
 	if dr == nil {
 		t.Fatal("DiagnosticReport is nil")
+	}
+
+	// The Basic Text SR fixture carries two CODE leaves; the measurement walk emits one
+	// Observation per coded/measured leaf and links each from DiagnosticReport.result.
+	if len(observations) != 2 {
+		t.Errorf("len(observations) = %d, want 2 (one per CODE leaf)", len(observations))
+	}
+	if len(dr.Result) != len(observations) {
+		t.Errorf("len(Result) = %d, want %d", len(dr.Result), len(observations))
 	}
 
 	// The SOP Instance UID becomes the identifier via UIDIdentifierR5, never a URL.
@@ -85,7 +94,7 @@ func TestSRToDiagnosticReportR5RejectsNonSR(t *testing.T) {
 	ds.SetString(dicom.TagSOPClassUID, "1.2.840.10008.5.1.4.1.1.4") // MR Image, not an SR
 	ds.SetString(dicom.TagSOPInstanceUID, "1.2.3")
 
-	if _, _, err := SRToDiagnosticReportR5(ds); err == nil {
+	if _, _, _, err := SRToDiagnosticReportR5(ds); err == nil {
 		t.Fatal("SRToDiagnosticReportR5 of a non-SR dataset returned nil error, want a fail-closed error")
 	}
 }

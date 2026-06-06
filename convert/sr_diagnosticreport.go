@@ -17,34 +17,37 @@ const (
 )
 
 // SRToDiagnosticReportR5 converts a DICOM Structured Report document dataset to a
-// FHIR R5 DiagnosticReport. This M2 slice is narrative-only: it maps the document
-// identity, status, code, category, effective date/time, subject, and the
-// concatenated TEXT narrative to DiagnosticReport.conclusion. The full
-// measurement walk that emits []*r5.Observation from the SR content items is
-// deferred to M7 (docs/plans walking-skeleton, Increment 12 reviewer correction).
+// FHIR R5 DiagnosticReport and the set of Observations carrying its measurements. It
+// maps the document identity, status, code, category, effective date/time, subject,
+// and the concatenated TEXT narrative to DiagnosticReport.conclusion, then walks the
+// SR content tree for measurement leaves: each NUM, CODE, and date/time leaf becomes
+// one Observation (via ContentItemToObservationR5), linked from DiagnosticReport.result
+// by an intra-call urn:uuid logical reference. TEXT items remain the narrative
+// conclusion rather than separate observations, so a finding is represented once.
 //
-// The SOP Instance UID becomes the report identifier via UIDIdentifierR5 (never a
-// Reference URL). subject carries the DICOM PatientID logically, or the
-// WithSubjectR5 reference when supplied. Attributes outside the narrow
-// narrative-only mapping are recorded in Report.Dropped.
-func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticReport, *Report, error) {
+// The result links are derived deterministically from the SR SOP Instance UID and each
+// leaf's position, so the same input yields byte-identical output. The SOP Instance UID
+// becomes the report identifier via UIDIdentifierR5 (never a Reference URL). subject
+// carries the DICOM PatientID logically, or the WithSubjectR5 reference when supplied.
+// Attributes outside the supported mapping are recorded in Report.Dropped.
+func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticReport, []*r5.Observation, *Report, error) {
 	cfg := newConfig(opts...)
 	report := &Report{}
 
 	if sr == nil {
-		return nil, nil, fmt.Errorf("%w: SR dataset is nil", ErrMalformedSource)
+		return nil, nil, nil, fmt.Errorf("%w: SR dataset is nil", ErrMalformedSource)
 	}
 
 	root, err := dicom.ParseSR(sr)
 	if err != nil {
 		// ParseSR fails closed on a non-SR IOD or a malformed tree; surface it as
 		// an unsupported source so the caller does not get a partial report.
-		return nil, nil, fmt.Errorf("%w: %v", ErrUnsupportedSource, err)
+		return nil, nil, nil, fmt.Errorf("%w: %v", ErrUnsupportedSource, err)
 	}
 
 	sopInstanceUID, ok := sr.GetUID(dicom.TagSOPInstanceUID)
 	if !ok || sopInstanceUID == "" {
-		return nil, nil, fmt.Errorf("%w: SR has no SOP Instance UID (0008,0018)", ErrMissingIdentifier)
+		return nil, nil, nil, fmt.Errorf("%w: SR has no SOP Instance UID (0008,0018)", ErrMissingIdentifier)
 	}
 
 	dr := &r5.DiagnosticReport{}
@@ -61,7 +64,7 @@ func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticRe
 	// code-less report.
 	code := conceptNameCode(root.ConceptName)
 	if code == nil {
-		return nil, nil, fmt.Errorf("%w: SR root has no Concept Name Code Sequence (0040,A043) for the required DiagnosticReport.code",
+		return nil, nil, nil, fmt.Errorf("%w: SR root has no Concept Name Code Sequence (0040,A043) for the required DiagnosticReport.code",
 			ErrMalformedSource)
 	}
 	dr.Code = code
@@ -78,8 +81,45 @@ func SRToDiagnosticReportR5(sr *dicom.DataSet, opts ...Option) (*r5.DiagnosticRe
 
 	dr.Subject = dicomPatientSubjectR5(cfg, sr, report, "DiagnosticReport.subject")
 
+	observations := measurementObservations(root, sr, string(sopInstanceUID), report)
+	for _, o := range observations {
+		ref := "urn:uuid:" + *o.ID
+		dr.Result = append(dr.Result, r5.Reference{Reference: &ref})
+	}
+
 	rep, ferr := cfg.finalize(report)
-	return dr, rep, ferr
+	return dr, observations, rep, ferr
+}
+
+// measurementObservations walks the SR content tree depth-first in document order and
+// emits one Observation per measurement leaf (NUM, CODE, or date/time), assigning each
+// a deterministic urn:uuid logical id derived from the SR SOP Instance UID and the
+// leaf's position. TEXT leaves are skipped here: they form the narrative conclusion,
+// not separate observations. CONTAINER and coordinate/reference items are structure and
+// produce no observation. The dataset's TimezoneOffsetFromUTC (0008,0201) is resolved
+// once and applied to any DATETIME leaf lacking an inline offset; leaves whose value
+// cannot become a conformant value[x] are recorded on report rather than emitted.
+func measurementObservations(root *dicom.ContentItem, ds *dicom.DataSet, sopInstanceUID string, report *Report) []*r5.Observation {
+	tzOffset, hasTZ := fhirTimezoneOffset(ds)
+	var observations []*r5.Observation
+	index := 0
+	var walk func(items []dicom.ContentItem)
+	walk = func(items []dicom.ContentItem) {
+		for i := range items {
+			it := items[i]
+			if it.ValueType != dicom.ValueTypeText {
+				if o, ok := contentItemToObservationR5(it, tzOffset, hasTZ, report); ok {
+					id := deterministicObservationUUID(sopInstanceUID, index)
+					o.ID = &id
+					observations = append(observations, o)
+					index++
+				}
+			}
+			walk(it.Children)
+		}
+	}
+	walk(root.Children)
+	return observations
 }
 
 // srStatus maps CompletionFlag (0040,A491) and VerificationFlag (0040,A493) to a
