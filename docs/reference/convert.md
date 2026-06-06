@@ -246,8 +246,8 @@ func DiagnosticReportToSRR4(
 | `subject` | PatientID, or `WithSubjectR4`/`R5` | logical reference (see identity) |
 | `effectiveDateTime` | ContentDate/Time `(0008,0023)`/`(0008,0033)` | |
 | `issued` | VerificationDateTime `(0040,A030)` | |
-| `conclusion` | concatenated `TEXT` items under the impression container | FHIR `markdown` |
-| `result[]` | each `NUM`/`CODE`/`TEXT` measurement leaf | one `Observation` per leaf, referenced logically |
+| `conclusion` | concatenated bare (un-coded) `TEXT` items | FHIR `markdown` |
+| `result[]` | each `NUM`/`CODE`/date-time leaf and each concept-named `TEXT` leaf | one `Observation` per leaf, referenced logically |
 | `study` (R5) / `imagingStudy` (R4) | CurrentRequestedProcedureEvidenceSequence | **release-gated field name**; via `UIDIdentifier` references |
 | `presentedForm` | — | not produced; rendered PDF SR is out of scope, recorded in `Report` |
 
@@ -256,9 +256,14 @@ tree's nesting is flattened: a `CONTAINER` with a `ConceptNameCode` of an organi
 `Observation.category` or a grouping `hasMember` relationship, not a separate report.
 
 `DiagnosticReportToSRR5`/`R4` is the reverse. It builds a TID-1500-shaped Comprehensive SR (or a Basic Text SR when the
-report has only narrative): the report `code` becomes the root container concept name, `conclusion` becomes a `TEXT`
-item under an impression container, and each `Observation` becomes a `NUM`, `CODE`, or `TEXT` content item by inspecting
-its `value[x]`. The Study/Series/SOP Instance UIDs of the produced SR are minted under `WithUIDRoot`; the patient and
+report has only narrative): the report `code` becomes the root container concept name, `conclusion` becomes a bare
+(un-coded) `TEXT` item, and each `Observation` becomes a `NUM`, `CODE`, or concept-named `TEXT` content item by
+inspecting its `value[x]`. A `TEXT` leaf is classified by its Concept Name Code Sequence: a concept-named `TEXT` leaf is
+a string-valued `Observation`, while a bare `TEXT` leaf is the report narrative, so a string `Observation` round-trips
+as an `Observation` rather than being merged into the conclusion. The Study/Series/SOP Instance UIDs of the produced SR
+are
+minted under `WithUIDRoot` and the root is rejected fail-closed when it is too long to mint a conformant 64-character
+UID; the patient and
 accession identifiers are written back from the report's `subject.identifier` and `basedOn`. Loss here is the inverse:
 FHIR extensions and `Reference.reference` URLs that have no DICOM home are dropped and reported.
 
@@ -581,8 +586,9 @@ What the `convert` package guarantees, and what it deliberately does not:
   conformance in v1 (deferred, PRD §3.2). A consumer that needs profile conformance validates the output against their
   profile separately.
 - **SR coverage is the measurement/text/code leaf set.** `SRToDiagnosticReportR4`/`R5` maps
-  `NUM`/`CODE`/`TEXT`/date-time leaves to `Observation`s and the document narrative to `conclusion`, reading the
-  `dicom.ContentItem` SR model defined in [`dicom.md`](dicom.md). Spatial and temporal coordinate items
+  `NUM`/`CODE`/date-time leaves and concept-named `TEXT` leaves to `Observation`s, and the bare (un-coded) `TEXT`
+  narrative to `conclusion`, reading the `dicom.ContentItem` SR model defined in [`dicom.md`](dicom.md). Spatial and
+  temporal coordinate items
   (`SCOORD`/`SCOORD3D`/`TCOORD`), waveform and image references become `derivedFrom`/`Identifier` links rather than
   observation values, and rendered presentation forms (PDF SR) are not produced. The limits are recorded per conversion
   in the `Report`.
