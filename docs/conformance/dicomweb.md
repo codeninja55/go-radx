@@ -28,6 +28,7 @@ Not yet authored. This section will enumerate the in-scope services and their ro
 - **WADO-RS** (web access to DICOM objects) — RESTful retrieval of studies, series, instances, frames, metadata, and
   bulk data. **Implemented; client interop-gated against Orthanc** — see [WADO-RS](#wado-rs-implemented) below.
 - **STOW-RS** (store over the web) — RESTful storage via HTTP POST of `multipart/related` payloads.
+  **Implemented; client interop-gated against Orthanc** — see [STOW-RS](#stow-rs-implemented) below.
 - **QIDO-RS** (query based on ID for DICOM objects) — RESTful search over studies, series, and instances.
   **Implemented; client interop-gated against Orthanc** — see [QIDO-RS](#qido-rs-implemented) below.
 
@@ -177,17 +178,130 @@ recorded in an error, since a QIDO query string can carry patient identifiers.
 |---------|--------|--------|
 | QIDO-RS search (study / series / instance) | Implemented (pluggable `QueryBackend`) | Implemented |
 
+## STOW-RS (implemented)
+
+The `dicomweb` package implements STOW-RS storage (PS3.18 §10.5) on both the embeddable server and the client. The
+overall statement above remains a scaffold until the full surface is authored; this section declares the STOW surface
+that is shipped today.
+
+### Store targets and variants
+
+The server accepts a POST to `/studies` (unconstrained) or `/studies/{study}` (constrained to one study). An instance
+whose `StudyInstanceUID` does not match a `/studies/{study}` target is rejected into the Failed SOP Sequence rather
+than stored under an unrelated hierarchy. The `multipart/related` body's `type` parameter selects the variant:
+
+| Variant | Body `type` | Parts |
+|---------|-------------|-------|
+| Whole object | `application/dicom` | one Part 10 object per `application/dicom` part |
+| Metadata + bulk data | `application/dicom+json` | one DICOM-JSON metadata part plus separate bulk-data parts |
+
+In the metadata-plus-bulkdata variant the metadata part is a DICOM-JSON array of instances; each binary value is a
+`BulkDataURI` referencing a separate bulk-data part by its `Content-Location` or `Content-ID`. The server collects the
+bulk-data parts, reassembles each instance by resolving its references, and stores the result. A reference that names
+no part fails that instance closed (the instance is not stored), never stored with a partial value.
+
+### Store response
+
+The store response is an `application/dicom+json` document (PS3.18 §10.5.3) carrying:
+
+- a study-level **Retrieve URL** (0008,1190) once any instance was accepted under a known study;
+- a **Referenced SOP Sequence** (0008,1199) of accepted instances, each with its SOP identity, a per-instance Retrieve
+  URL (0008,1190), and a **Warning Reason** (0008,1196) when the store warned (for example a coerced data element);
+- a **Failed SOP Sequence** (0008,1198) of rejected instances, each with its **Failure Reason** (0008,1197);
+- a top-level **Failure Reason** (0008,1197) for a fault that belongs to no single instance (the "Other failures"
+  path), for example a metadata instance that carries no SOP identity.
+
+The Retrieve URLs are rooted at the configured `WithStoreRetrieveURLBase`, or derived from the request's scheme and
+host when none is set (set the option behind a reverse proxy that rewrites the public origin). A per-instance Retrieve
+URL the response carries resolves to the stored instance through the same origin. The HTTP status follows PS3.18
+§10.5.3: `200 OK` when every instance was accepted, `202 Accepted` for a partial store, and `409 Conflict` when none
+was accepted. The client is fail-closed (PRD §9.2): a `202`/`409`, or a parsed response with any failure, returns a
+`*StoreError` alongside the parsed response so neither the partial success nor the failure is silently dropped.
+
+A backend reports a per-instance Warning Reason through the optional `WarnableStoreBackend`; a backend that implements
+only the base `StoreBackend` reports a clean accept.
+
+### Failure and warning reasons
+
+The Failure Reason (0008,1197) and Warning Reason (0008,1196) codes are rendered by their registered name for
+diagnostics, never by any patient value. The reasons the package names:
+
+| Code | Kind | Meaning |
+|------|------|---------|
+| `0x0110` | Failure | Processing failure (the default for an untyped backend error or an unreferenceable instance) |
+| `0x0122` | Failure | Referenced SOP Class not supported |
+| `0x0119` | Failure | Class-instance conflict |
+| `0x0242` | Failure | SOP Instance access denied |
+| `0xA700` | Failure | Out of resources |
+| `0xA730` | Failure | Intended recipient not supported |
+| `0xA800` / `0xA900` | Failure | Data set does not match SOP Class |
+| `0xC000` | Failure | Cannot understand |
+| `0xC120` | Failure | Referenced SOP Instance is not in the requested Study (the study-mismatch rejection) |
+| `0xC122` | Failure | Transfer syntax not supported |
+
+A code outside this set is rendered with its hex value so an unregistered reason is never silently dropped. A backend
+returns a specific Failure Reason for a rejected instance through `FailureReasonError`; any other error defaults to
+processing failure (`0x0110`).
+
+### Errors and PHI
+
+A store fault that aborts the whole request (a malformed body, a part that is not a valid instance, a part with no SOP
+identity, a malformed target study) is a typed problem document carrying the mapped HTTP status and a PHI-free
+structural detail. A remote error body is never copied into a client error, and a resource UID is never echoed: the
+request path is redacted. The store-response document carries only SOP identity, registered reason codes, and
+origin-rooted Retrieve URLs, never a patient value (PRD §9.1).
+
+### Roles
+
+| Service | Server | Client |
+|---------|--------|--------|
+| STOW-RS store (whole object) | Implemented (`StoreBackend`; `WarnableStoreBackend` for a per-instance warning) | Implemented (`Store`) |
+| STOW-RS store (metadata + bulk data) | Implemented | Deferred — the client posts whole objects today |
+
+## Client authentication
+
+Client authentication is a pluggable transport concern: each scheme is an `http.RoundTripper` layered over the
+client's base transport, so a new scheme adds no branch to the request path and the cloud adapters compose through the
+same seam without modifying the core client. Every credential scheme is **origin-scoped** — it injects its credential
+only when the request targets the client's configured origin (matching scheme, host, and port), so a server-supplied
+absolute `BulkDataURI` on a foreign host can never harvest the credential, whichever scheme is configured (PRD §9.8). A
+credential is never logged or placed in an error message.
+
+| Mode | Option | Header / mechanism | Refreshes | Origin-scoped |
+|------|--------|--------------------|-----------|---------------|
+| Static bearer | `WithBearerToken` | `Authorization: Bearer` | No | Yes |
+| HTTP Basic | `WithBasicAuth` | `Authorization: Basic` | No | Yes |
+| OAuth2 token source | `WithTokenSource` | `Authorization: Bearer` from an `oauth2.TokenSource` | Yes (on expiry) | Yes |
+| Mutual TLS | `WithClientCertificate` | client certificate in the TLS handshake | n/a | n/a (TLS to the configured origin) |
+| Custom | `WithRoundTripper` | caller-supplied `http.RoundTripper` | per the transport | per the transport |
+
+`WithTokenSource` covers static, refresh-token, and client-credentials flows in one abstraction; the token source
+caches a token until it expires and fetches a fresh one on demand, so a long-lived client re-authenticates mid-session
+without caller involvement. `WithRoundTripper` is the escape hatch the cloud auth adapters (Google ADC, AWS SigV4)
+build on; a custom transport enforces its own origin scoping and may inject a header or sign the request per-request.
+
 ## Out of scope
 
-Not yet authored. The explicit deferral list — for example UPS-RS (worklist over the web), capabilities (`/`)
-discovery, rendered retrieval (`/rendered`), and thumbnail endpoints — will be recorded here so the boundary is
-explicit and a consumer is never surprised.
+The full deferral list is still being authored. The deferrals recorded today:
+
+- **`application/dicom+xml` metadata** — the XML representation of DICOM-JSON (PS3.18 Annex A). Metadata and store
+  responses are `application/dicom+json` only; an `Accept` naming only XML is answered `406 Not Acceptable`, and a
+  STOW-RS `type="application/dicom+xml"` body is not parsed. Deferred because DICOM-JSON is the modern, sufficient
+  representation and supporting both doubles the encode/decode surface; XML support would be added behind the same
+  negotiation seam without changing the JSON path.
+- **WADO-URI** (the legacy single-object query-parameter retrieval, PS3.18 §9) — superseded by WADO-RS for the
+  workflows in scope. Retrieval is WADO-RS (`multipart/related`) only; the `?requestType=WADO` query form is not
+  served. Deferred as a legacy surface with no new capability over WADO-RS.
+
+Further deferrals — for example UPS-RS (worklist over the web), capabilities (`/`) discovery, rendered retrieval
+(`/rendered`), and thumbnail endpoints — will be recorded here so the boundary is explicit and a consumer is never
+surprised.
 
 ## Verification
 
-The full statement's gating story (STOW-RS) is still being authored. The shipped WADO-RS and QIDO-RS surfaces are
-interop-gated against a real Orthanc origin in `dicomweb/integration` (behind the `interop` build tag), each STOWing a
-vendored instance before retrieving or searching it back:
+The shipped WADO-RS, QIDO-RS, and STOW-RS surfaces are interop-gated against a real Orthanc origin in
+`dicomweb/integration` (behind the `interop` build tag), each STOWing a vendored instance before retrieving or
+searching it back:
 
 - `TestInteropStowThenWadoOrthanc` — STOW then WADO-RS instance retrieve round-trip.
 - `TestInteropWADOStudySeriesOrthanc` — WADO-RS study and series retrieval through the streaming iterators.
@@ -196,9 +310,11 @@ vendored instance before retrieving or searching it back:
 - `TestInteropWADOFramesOrthanc` — WADO-RS frame retrieval as `application/octet-stream` parts.
 - `TestInteropQIDOOrthanc` — QIDO-RS search at the study, series, and instance levels.
 
-QIDO parameter parsing is fuzzed (`FuzzParseQueryRequest`). A dcm4chee-arc DICOMweb leg is not yet wired (the WADO/STOW
-interop is Orthanc-only today) and is recorded as a follow-up. Until STOW-RS is authored, no STOW-RS verification claim
-is made beyond the existing STOW-then-WADO Orthanc round-trip.
+The STOW-RS store-response completeness, the metadata-plus-bulkdata variant, the per-instance Retrieve URL and Warning
+Reason, the Other-failures path, the q=0 negotiation refusal, and every client authentication mode (bearer, basic,
+OAuth2 token source, mutual TLS, custom RoundTripper) are unit-tested in `dicomweb` (`store_test.go`, `auth_test.go`).
+QIDO parameter parsing is fuzzed (`FuzzParseQueryRequest`). A dcm4chee-arc DICOMweb leg is not yet wired (the
+WADO/STOW interop is Orthanc-only today) and is recorded as a follow-up.
 
 ## References
 
