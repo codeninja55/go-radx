@@ -2,14 +2,15 @@ package convert
 
 import (
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/fhir/r4"
 	"github.com/codeninja55/go-radx/fhir/r5"
 )
 
 // Option configures a conversion. The zero options mean: strict-loss off (drops
 // are recorded on the Report, not escalated to an error) and minted UIDs use no
 // configured org root. The options carry per-call configuration independent of
-// the FHIR release, except WithSubjectR5, which is release-typed because a FHIR
-// Reference is a release sub-package datatype.
+// the FHIR release, except WithSubjectR4 and WithSubjectR5, which are release-typed
+// because a FHIR Reference is a release sub-package datatype.
 type Option func(*config)
 
 // config is the resolved per-call configuration. There is no global mutable
@@ -17,6 +18,7 @@ type Option func(*config)
 type config struct {
 	uidRoot    dicom.UID
 	strictLoss bool
+	subjectR4  *r4.Reference
 	subjectR5  *r5.Reference
 }
 
@@ -52,6 +54,19 @@ func WithSubjectR5(ref r5.Reference) Option {
 	return func(c *config) {
 		clone := ref
 		c.subjectR5 = &clone
+	}
+}
+
+// WithSubjectR4 injects the Patient (or other subject) Reference the source
+// cannot supply, for the R4 converters. It is the R4 twin of WithSubjectR5,
+// release-typed because a FHIR Reference is a release sub-package datatype.
+// Absent it, a converter leaves subject either unset (recording a Defaulted
+// entry) or carrying the source's logical identity as a Reference.identifier —
+// never a fabricated Reference.reference URL (the identity rule).
+func WithSubjectR4(ref r4.Reference) Option {
+	return func(c *config) {
+		clone := ref
+		c.subjectR4 = &clone
 	}
 }
 

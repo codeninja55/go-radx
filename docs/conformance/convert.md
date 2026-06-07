@@ -3,8 +3,10 @@
 > **Implementation status: NOT YET SHIPPED.** This is a scaffold. The conversion conformance statement — the versioned
 > contract for what the `convert` package maps between DICOM, HL7 v2, and FHIR, and what fidelity each conversion
 > guarantees — is not yet authored. Until this banner is removed, **no conversion is conformance-guaranteed**. The
-> `convert` package implements a partial R5-only set of converters; the full release-explicit matrix (R4 twins and the
-> remaining workflow conversions) is not yet present. Do not cite this document as a conformance basis.
+> `convert` package now implements the workflow conversions for both FHIR releases: each forward converter and the
+> SR/OBX reverse converters have an `R4` (4.0.1) and an `R5` (5.0.0) twin, and every twin's output is validated through
+> its release validator. The remaining workflow conversions outside the §5.1 loop are not yet present. Do not cite this
+> document as a conformance basis.
 
 | Field | Value |
 |-------|-------|
@@ -31,8 +33,17 @@ rule `convert.<Source>To<Target><Release>`. The conversions intended to close th
 - `ORUToDiagnosticReport` — HL7 v2 `ORU` result to FHIR `DiagnosticReport`.
 - `ADTToPatient` / `ADTToEncounter` — HL7 v2 `ADT` demographics and visit context to FHIR `Patient` / `Encounter`.
 
-Each is intended to ship with an `R4` and `R5` twin. The currently implemented set is R5-only and partial; the
-authored statement will declare exactly which `(conversion, release)` pairs are conformance-tested.
+Each ships with an `R4` and an `R5` twin. The forward set (`DICOMToImagingStudyR4`/`R5`,
+`ORMToServiceRequestR4`/`R5`, `SRToDiagnosticReportR4`/`R5`, `ORUToDiagnosticReportR4`/`R5`, `ADTToPatientR4`/`R5`,
+`ADTToEncounterR4`/`R5`) and the SR/OBX reverse set (`DiagnosticReportToSR` / `DiagnosticReportToSRR4`,
+`ObservationToContentItem` / `ObservationToContentItemR4`, `ObservationToOBX` / `ObservationToOBXR4`) are present for
+both releases. The authored statement will declare exactly which `(conversion, release)` pairs are conformance-tested;
+the implementation today validates every twin's output through its release validator (`r4.Validate` / `r5.Validate`).
+
+The R5 mapping is documented per converter below. The R4 twin of each converter reads the same DICOM/HL7 source, applies
+the same loss/substitution policy, and produces the equivalent FHIR resource in the `fhir/r4` type space; the
+[R4 twins](#r4-twins) section records only the load-bearing R4/R5 datatype differences each twin reconciles, rather than
+restating every field row.
 
 ### DICOM to ImagingStudy (`DICOMToImagingStudyR5`)
 
@@ -272,6 +283,47 @@ any other code→`unknown` (recording a `Substitution`). The result is always a 
 `Encounter.status` is always a member of the required `EncounterStatus` value set, so the produced `Encounter` validates
 by construction.
 
+### R4 twins
+
+Every converter has an `R4` twin that produces a `fhir/r4` resource instead of a `fhir/r5` one. The twins are not
+type-aliases: the FHIR R4 (4.0.1) and R5 (5.0.0) datatype models differ in ways that change the shape of the output, so
+each twin reads the same source and applies the same loss policy but writes the R4 element structure. The differences
+the twins reconcile are:
+
+- **No `CodeableReference` in R4.** R5 introduced the `CodeableReference` datatype (a concept or a reference in one
+  element). R4 has no such type, so where an R5 converter writes a single `CodeableReference` element, the R4 twin
+  writes the classic split pair:
+  - `ImagingStudyR5.reason` (`CodeableReference[]`) → `ImagingStudyR4.reasonCode` (`CodeableConcept[]`); the coded and
+    free-text DICOM reasons land on `reasonCode`, and `reasonReference` is reserved for a resolvable reason the source
+    does not carry.
+  - `ImagingStudyR5.procedure` (`CodeableReference[]`) → `ImagingStudyR4.procedureCode` (`CodeableConcept[]`).
+  - `ServiceRequestR5.code` (`CodeableReference`) → `ServiceRequestR4.code` (`CodeableConcept`).
+  - `ServiceRequestR5.reason` (`CodeableReference[]`) → `ServiceRequestR4.reasonCode` (`CodeableConcept[]`); the
+    OBR-31 reason for study lands on `reasonCode`.
+- **`ImagingStudy.modality` is a `Coding` in R4.** R5 widened study-level and series-level `modality` to
+  `CodeableConcept`. The R4 twin writes a single `Coding` under the DICOM `DCM` system for both
+  `ImagingStudyR4.modality` and `series.modality`. Likewise `series.bodySite` and `series.laterality` are `Coding` in
+  R4 (R5 carries `series.bodySite` as a `CodeableReference` and `series.laterality` as a `CodeableConcept`).
+- **`Encounter.class` is a single `Coding` in R4.** R5 changed `Encounter.class` to a `CodeableConcept[]`. The R4 twin
+  writes one `Coding` under the `v3-ActCode` system. (R4 `Encounter.period` corresponds to the R5 `actualPeriod` rename;
+  the v1 ADT mapping populates neither.)
+- **`EncounterStatus` value-set rename.** The R4 completed-encounter state is named `finished`; R5 renamed it
+  `completed`. The R4 trigger-event mapping is therefore `A01`→`in-progress`, `A03`→`finished`, `A11`→`cancelled`,
+  with the same `Substitution` recording, so the value is always a member of the R4 `EncounterStatus` binding.
+
+The release-agnostic machinery is shared, not duplicated: the DICOM and HL7 source reading, the date/time precision
+handling, the deterministic `urn:uuid` result-link and minted-UID derivation, the `Report` (`Dropped`, `Defaulted`,
+`Substituted`) recording, and the loss/strict-loss policy are the same code for both releases. Only the FHIR-typed
+builders are twinned, because the FHIR `Identifier`, `Coding`, `CodeableConcept`, `Reference`, `Quantity`, `HumanName`,
+and `Address` types live in the distinct `fhir/r4` and `fhir/r5` sub-packages even when their field shape is identical.
+The shared identity rule holds in both releases: a DICOM UID becomes an `Identifier` (`urn:dicom:uid` / `urn:oid:`),
+never a `Reference.reference` URL, and a person name becomes `Reference.display` only.
+
+The `R4` reverse twins (`DiagnosticReportToSRR4`, `ObservationToContentItemR4`, `ObservationToOBXR4`) are the inverses
+of `SRToDiagnosticReportR4`, `ContentItemToObservationR4`, and `OBXToObservationR4` respectively, with the same loss
+model, the same minted-UID derivation, and the same one recorded reverse-direction loss (`Observation.valueTime`, no
+DICOM SR `TIME` content-item form the `convert` package can carry).
+
 ### The Substituted channel
 
 Alongside `Report.Dropped` (source data with no target home) and `Report.Defaulted` (a target the source did not
@@ -303,9 +355,13 @@ to a returned `*LossError` for consumers that cannot accept loss.
 
 ## Verification
 
-Not yet authored. This section will state how each conversion is validated: golden round-trip fixtures, the HL7 FHIR
-validator on produced resources, and the end-to-end walking-skeleton interop suite, plus the CI job that invokes them.
-Until then, no conversion conformance claim is made.
+Not yet authored as a complete conformance contract. The implementation today verifies each twin's output through its
+release validator: the `convert` test suite validates every produced R4 resource through `r4.Validate` and every R5
+resource through `r5.Validate`, the same release-scoped descriptor registries the merge-blocking FHIR validator gate
+uses (the R4 path validates against 4.0.1). The forward twins have golden/round-trip tests that assert the load-bearing
+R4/R5 differences and validate the output; the SR reverse twins have round-trip tests that re-parse the rebuilt SR and
+re-validate the re-forwarded resources. The authored statement will additionally state the end-to-end walking-skeleton
+interop coverage and the CI job that invokes the full set. Until then, no conversion conformance claim is made.
 
 ## References
 
