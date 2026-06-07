@@ -260,3 +260,184 @@ func TestTLSFloorDefaultsToTLS12(t *testing.T) {
 		t.Errorf("resolved MinVersion = %#04x, want the caller-pinned TLS 1.3 (%#04x)", got, tls.VersionTLS13)
 	}
 }
+
+// TestTLSSCUDialBoundsStalledHandshake proves the outbound TLS handshake is bounded by the
+// negotiation deadline even when the caller supplies neither a ctx deadline nor a connection
+// timeout. The peer accepts TCP but never sends a ServerHello, so the handshake would block forever;
+// a short WithACSETimeout must make Associate return a timeout error promptly. The dial is run on a
+// background context (no deadline of its own) so the AE's negotiation bound is what does the work.
+func TestTLSSCUDialBoundsStalledHandshake(t *testing.T) {
+	// A plain TCP listener that accepts the connection and then holds it open without ever speaking
+	// TLS: it completes the TCP connect but stalls the handshake (no ServerHello).
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	defer func() { _ = ln.Close() }()
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		c, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			return
+		}
+		accepted <- c // keep the conn referenced (and open) for the duration of the test
+	}()
+
+	_, pool := selfSignedCert(t)
+	clientTLS := &tls.Config{RootCAs: pool, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS12}
+	scu, err := NewAE(AETitle("RADX-SCU"), WithTLS(clientTLS), WithACSETimeout(250*time.Millisecond))
+	if err != nil {
+		t.Fatalf("NewAE (SCU): %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		// context.Background has no deadline, so the AE's ACSE timeout is the only bound on the
+		// handshake. A regression (unbounded handshake) would block here past the outer guard.
+		_, assocErr := scu.Associate(context.Background(), ln.Addr().String(), AETitle("RADX-SCP"), VerificationContexts())
+		done <- assocErr
+	}()
+
+	select {
+	case assocErr := <-done:
+		if assocErr == nil {
+			t.Fatal("Associate against a stalled TLS handshake = nil error, want a timeout error")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Associate did not return within 5s: the TLS handshake was not bounded by the ACSE timeout")
+	}
+
+	select {
+	case c := <-accepted:
+		_ = c.Close()
+	default:
+	}
+}
+
+// TestTLSSCPAcceptBoundsStalledHandshake proves a stalled accept-side TLS handshake releases its
+// association slot end to end. A raw TCP client connects to the TLS SCP but never completes the
+// handshake; with WithMaxAssociations(1) it would hold the single slot forever if the accept-side
+// handshake were never bounded. A short WithACSETimeout times out the stalled handshake, frees the
+// slot, and lets a legitimate TLS client associate after. TestTLSHandshakeAcceptedBoundsStall
+// isolates the same bound at the unit level, including the full-handshake (both-direction) coverage
+// the explicit HandshakeContext adds over the read deadline the PDU path sets.
+func TestTLSSCPAcceptBoundsStalledHandshake(t *testing.T) {
+	cert, pool := selfSignedCert(t)
+	serverTLS := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+
+	ae, err := NewAE(AETitle("RADX-SCP"), WithTLS(serverTLS), WithACSETimeout(250*time.Millisecond))
+	if err != nil {
+		t.Fatalf("NewAE (SCP): %v", err)
+	}
+	srv := NewServer(ae, echoAndStorageContexts(), &serverTestHandler{echoStatus: StatusEchoSuccess}, WithMaxAssociations(1))
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		select {
+		case <-served:
+		case <-time.After(5 * time.Second):
+			t.Error("ListenAndServe did not return after Shutdown")
+		}
+	})
+	addr := srv.Addr().String()
+
+	// A raw TCP client that completes the TCP connect but never starts the TLS handshake, occupying
+	// the single association slot until the accept-side handshake times out.
+	staller, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial (staller): %v", err)
+	}
+	defer func() { _ = staller.Close() }()
+
+	// Give the server time to time out the stalled handshake and release the slot. With the slot
+	// freed, a legitimate TLS SCU must be able to associate and run a C-ECHO.
+	clientTLS := &tls.Config{RootCAs: pool, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS12}
+	scu, err := NewAE(AETitle("RADX-SCU"), WithTLS(clientTLS), WithACSETimeout(2*time.Second))
+	if err != nil {
+		t.Fatalf("NewAE (SCU): %v", err)
+	}
+
+	var assoc *Association
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		assoc, err = scu.Associate(ctx, addr, AETitle("RADX-SCP"), VerificationContexts())
+		cancel()
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Associate never succeeded after the stalled handshake should have freed the slot: %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = assoc.Release(ctx)
+	}()
+
+	echoCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	status, err := assoc.Echo(echoCtx)
+	if err != nil {
+		t.Fatalf("Echo after the slot was freed: %v", err)
+	}
+	if !status.IsSuccess() {
+		t.Errorf("Echo status = %s, want success", status)
+	}
+}
+
+// TestTLSHandshakeAcceptedBoundsStall isolates the accept-side handshake bound at the unit level: a
+// peer that opens the transport but never drives the handshake must not block handshakeAccepted past
+// the negotiation deadline. Over a synchronous net.Pipe the server's handshake stalls (the peer
+// never speaks TLS); the explicit HandshakeContext, bounded by the AE's negotiation deadline, must
+// return a deadline error within the bound rather than hanging. Unlike the read deadline the PDU
+// path sets, HandshakeContext covers the whole handshake (both directions) for its duration.
+func TestTLSHandshakeAcceptedBoundsStall(t *testing.T) {
+	cert, _ := selfSignedCert(t)
+	serverTLS := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+
+	// net.Pipe is fully synchronous and unbuffered. The peer (clientSide) never speaks TLS, so the
+	// server's handshake blocks; the bound must release it.
+	serverSide, clientSide := net.Pipe()
+	defer func() { _ = clientSide.Close() }()
+	tc := tls.Server(serverSide, serverTLS)
+
+	ae, err := NewAE(AETitle("RADX-SCP"), WithTLS(serverTLS), WithACSETimeout(250*time.Millisecond))
+	if err != nil {
+		t.Fatalf("NewAE (SCP): %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- ae.handshakeAccepted(context.Background(), tc) }()
+
+	select {
+	case hsErr := <-done:
+		if hsErr == nil {
+			t.Fatal("handshakeAccepted over a stalled handshake = nil error, want a deadline error")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("handshakeAccepted did not return within 5s: the stalled handshake was not bounded")
+	}
+	_ = serverSide.Close()
+}
+
+// TestTLSHandshakeAcceptedPlaintextNoOp confirms handshakeAccepted leaves a plaintext (non-TLS)
+// connection untouched: it is a no-op returning nil, so the plaintext accept path is unchanged.
+func TestTLSHandshakeAcceptedPlaintextNoOp(t *testing.T) {
+	ae, err := NewAE(AETitle("RADX-SCP"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	a, b := net.Pipe()
+	defer func() { _ = a.Close() }()
+	defer func() { _ = b.Close() }()
+	if err := ae.handshakeAccepted(context.Background(), a); err != nil {
+		t.Fatalf("handshakeAccepted on a plaintext conn = %v, want nil (no-op)", err)
+	}
+}
