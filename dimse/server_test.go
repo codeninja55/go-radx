@@ -373,9 +373,14 @@ func TestServerShutdownClosesConnectionsWhileHandlerBlocked(t *testing.T) {
 	}
 
 	// Shutdown cancels the handler context, waking the parked handler cooperatively, and must
-	// return PROMPTLY — not wait out its (generous) deadline. A 5s deadline with a sub-1s assertion
-	// makes the deadline path unmistakable: only the cancel/wake path returns this fast.
-	const shutdownDeadline = 5 * time.Second
+	// return PROMPTLY — not wait out its (generous) deadline. The assertion bound is sized for the
+	// race detector: a cooperative cancel/wake returns in milliseconds, so a 3s bound (well under the
+	// 8s deadline) still makes the deadline path unmistakable while leaving headroom for scheduler
+	// jitter on a cold -race run, where a tight sub-1s bound trips spuriously.
+	const (
+		shutdownDeadline = 8 * time.Second
+		promptReturn     = 3 * time.Second // cooperative wake returns in ms; bound padded for -race jitter
+	)
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownDeadline)
 	defer shutdownCancel()
 	done := make(chan error, 1)
@@ -388,8 +393,8 @@ func TestServerShutdownClosesConnectionsWhileHandlerBlocked(t *testing.T) {
 		if serr != nil {
 			t.Fatalf("Shutdown returned %v (deadline path); want a prompt cooperative return", serr)
 		}
-		if elapsed >= time.Second {
-			t.Fatalf("Shutdown took %s (>= 1s); it returned via the deadline, not by cancelling the handler context (DIMSE-014)", elapsed)
+		if elapsed >= promptReturn {
+			t.Fatalf("Shutdown took %s (>= %s); it returned via the deadline, not by cancelling the handler context (DIMSE-014)", elapsed, promptReturn)
 		}
 		t.Logf("Shutdown returned promptly in %s (cooperative cancel, deadline %s)", elapsed, shutdownDeadline)
 	case <-time.After(shutdownDeadline + time.Second):
