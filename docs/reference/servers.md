@@ -1,5 +1,11 @@
 # Embeddable servers and reference daemons
 
+!!! warning "Planned design — not yet implemented"
+
+    This document describes the planned `server` package. The package is not yet implemented: `server/` currently
+    contains only a package doc. The composition layer, pluggable backends, and reference daemons below are the
+    contract the implementation will conform to as the package is built.
+
 The `server` package is go-radx's composition layer for the receiving side of the radiology workflow. The four
 server roles — the DIMSE SCP (including a Modality Worklist SCP), the DICOMweb server, the FHIR REST server, and the
 HL7 v2 MLLP server — already expose their own embeddable handlers in their respective packages (`dimse`, `dicomweb`,
@@ -10,7 +16,7 @@ should own: a set of small pluggable backends (object store, catalogue, authenti
 of those primitives it ships **thin reference daemons** that wire sane defaults — a filesystem object store and a
 SQLite catalogue — so the `radx` CLI and a first-time user get something runnable immediately.
 
-This document is the public-API contract for the `server` package. The implementation conforms to it. Where the product
+This document is the public-API contract for the `server` package. The implementation will conform to it. Where the product
 requirements document (`docs/prd/go-radx-prd.md`) committed a behaviour in §7.2 (servers), §9.1 (PHI and bind
 defaults), §9.2 (honest failure), §9.4 (concurrency), §9.7 (transport security), and §9.10 (observability), this
 document honours it. Terminology follows the project glossary (`UBIQUITOUS_LANGUAGE.md`); in particular the package

@@ -46,6 +46,17 @@ var presetTableRow = regexp.MustCompile(`^\|\s*` + "`" + `([A-Za-z]+)\(\)` + "`"
 // leadingIntRE pulls the first integer out of a preset count cell (e.g. "36 (table above)" -> 36).
 var leadingIntRE = regexp.MustCompile(`^(\d+)`)
 
+// negotiationTableRow matches a row of the "Association negotiation" feature table in
+// docs/conformance/dicom.md: the feature name in the first cell and the support marker in the
+// second. The third (notes) cell is captured separately so the option functions a row names can
+// be extracted from it.
+var negotiationTableRow = regexp.MustCompile(`^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|`)
+
+// optionFuncRE extracts the option-function names a negotiation row names — code spans of the
+// form `WithSomething(`. A supported row that names a function the dimse package does not export
+// is an over-claim: the statement promises a negotiation knob the API does not provide.
+var optionFuncRE = regexp.MustCompile("`(With[A-Za-z0-9]+)\\(")
+
 // PresetClaim is a single countable claim from the dicom.md preset-count table: a preset
 // helper and the number of presentation contexts the statement says it returns. NotYetShipped
 // records a preset the statement names but does not claim as shipped; for those the code-side
@@ -61,10 +72,21 @@ type PresetClaim struct {
 // is not implemented in code.
 type PresetCounter func() int
 
+// NegotiationClaim is a single row of the dicom.md association-negotiation table: the feature
+// name, whether the statement marks it as shipped, and the option functions the row names.
+// Supported records whether the support cell claims the feature ships today; OptionFuncs are the
+// `With...(` code spans the row references. A supported row whose option functions are absent from
+// the dimse package is an over-claim.
+type NegotiationClaim struct {
+	Feature     string
+	Supported   bool
+	OptionFuncs []string
+}
+
 // Finding is a single detected drift. The check fails when any finding is produced.
 type Finding struct {
-	Class   string // "preset-count", "preset-missing", "preset-unexpected", "banner", "stability"
-	Subject string // the preset, doc, or package the finding concerns
+	Class   string // "preset-count", "preset-missing", "preset-unexpected", "negotiation-missing", "banner", "stability"
+	Subject string // the preset, feature, doc, or package the finding concerns
 	Detail  string
 }
 
@@ -106,6 +128,12 @@ func Check(root string, codeCounts map[string]PresetCounter) ([]Finding, error) 
 		return nil, err
 	}
 	findings = append(findings, presetFindings...)
+
+	negotiationFindings, err := checkNegotiationFeatures(root)
+	if err != nil {
+		return nil, err
+	}
+	findings = append(findings, negotiationFindings...)
 
 	bannerFindings, err := checkBanners(root)
 	if err != nil {
@@ -208,6 +236,140 @@ func checkPresetCounts(root string, codeCounts map[string]PresetCounter) ([]Find
 	}
 
 	return findings, nil
+}
+
+// checkNegotiationFeatures reconciles the association-negotiation table in dicom.md with the
+// option functions the dimse package actually exports. For every feature the table marks as
+// shipped and that names a `With...(` option function, that function must exist as an exported
+// dimse function; a named-but-absent function is a negotiation-missing finding. This converts the
+// "documented as supported but the knob does not exist" class of over-claim — a safety-grade
+// honesty defect in a conformance statement — into a build failure. Rows marked not-yet-shipped
+// (or otherwise not claiming support) are exempt: their functions are expected to be absent.
+func checkNegotiationFeatures(root string) ([]Finding, error) {
+	claims, err := ParseNegotiationClaims(filepath.Join(root, "docs", "conformance", "dicom.md"))
+	if err != nil {
+		return nil, err
+	}
+	if len(claims) == 0 {
+		return nil, fmt.Errorf("no negotiation claims parsed from dicom.md: the association-negotiation table is missing or its format changed")
+	}
+
+	dimseFuncs, err := DiscoverDimseFuncs(filepath.Join(root, "dimse"))
+	if err != nil {
+		return nil, err
+	}
+
+	var findings []Finding
+	for _, claim := range claims {
+		if !claim.Supported {
+			continue
+		}
+		for _, fn := range claim.OptionFuncs {
+			if !dimseFuncs[fn] {
+				findings = append(findings, Finding{
+					Class:   "negotiation-missing",
+					Subject: claim.Feature,
+					Detail:  fmt.Sprintf("dicom.md marks this feature as supported and names %s, but the dimse package exports no such function", fn),
+				})
+			}
+		}
+	}
+	return findings, nil
+}
+
+// DiscoverDimseFuncs parses the Go source in dimseDir and returns the set of exported,
+// non-method functions it declares. The negotiation check uses this to assert that an option
+// function a supported negotiation row names is actually part of the dimse public API. It reads
+// the source rather than a hand-maintained list so the check reflects the code itself; test files
+// are skipped.
+func DiscoverDimseFuncs(dimseDir string) (map[string]bool, error) {
+	entries, err := os.ReadDir(dimseDir)
+	if err != nil {
+		return nil, err
+	}
+
+	fset := token.NewFileSet()
+	funcs := make(map[string]bool)
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, filepath.Join(dimseDir, e.Name()), nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Recv != nil || !fn.Name.IsExported() {
+				continue
+			}
+			funcs[fn.Name.Name] = true
+		}
+	}
+	return funcs, nil
+}
+
+// negotiationHeadingRE matches the "## Association negotiation" section heading that introduces
+// the feature table; parsing is scoped to this section so rows of unrelated tables in dicom.md are
+// never mistaken for negotiation claims.
+var negotiationHeadingRE = regexp.MustCompile(`(?m)^##\s+Association negotiation\s*$`)
+
+// sectionHeadingRE matches any Markdown heading line, used to bound the negotiation section to the
+// rows that fall before the next heading.
+var sectionHeadingRE = regexp.MustCompile(`^#{1,6}\s`)
+
+// ParseNegotiationClaims reads the association-negotiation feature table out of the conformance
+// statement at path. Parsing is scoped to the "## Association negotiation" section so rows of
+// other tables in the document are ignored. It returns one claim per table row, skipping the
+// header and separator rows. A row claims support when its support cell begins with "Yes"; the
+// option functions a row names are pulled from the support and notes cells.
+func ParseNegotiationClaims(path string) ([]NegotiationClaim, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+
+	var claims []NegotiationClaim
+	inSection := false
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if negotiationHeadingRE.MatchString(line) {
+			inSection = true
+			continue
+		}
+		if !inSection {
+			continue
+		}
+		// A new heading (other than the negotiation heading itself) ends the section. Sub-headings
+		// like "### DUL state machine" fall after the table, so stopping at the first heading keeps
+		// parsing to the negotiation table.
+		if sectionHeadingRE.MatchString(line) {
+			break
+		}
+		m := negotiationTableRow.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		feature, support, notes := strings.TrimSpace(m[1]), strings.TrimSpace(m[2]), m[3]
+		// Skip the header row ("Feature") and the separator row ("---").
+		if feature == "Feature" || strings.HasPrefix(feature, "-") {
+			continue
+		}
+		// A row only counts toward the negotiation check when it claims support. Support cells in
+		// this table read "Yes", "Yes (negotiated)", etc.; "Not yet shipped" and "No" do not.
+		supported := strings.HasPrefix(support, "Yes")
+		var funcs []string
+		for _, fm := range optionFuncRE.FindAllStringSubmatch(support+" "+notes, -1) {
+			funcs = append(funcs, fm[1])
+		}
+		claims = append(claims, NegotiationClaim{Feature: feature, Supported: supported, OptionFuncs: funcs})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return claims, nil
 }
 
 // presetReturnType is the slice element type a presentation-context preset returns; an exported

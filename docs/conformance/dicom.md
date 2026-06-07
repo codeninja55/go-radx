@@ -40,8 +40,9 @@ In scope for v1:
 - **Storage Commitment Push Model** as SCU only (N-ACTION, N-EVENT-REPORT).
 - Uncompressed transfer syntaxes for read and write; compressed transfer syntaxes for transport always, and for pixel
   decode/encode only where a pure-Go or optional-CGo codec is built in.
-- Association negotiation: presentation-context negotiation, maximum PDU length, SCP/SCU role selection, asynchronous
-  operations window, user identity (types 1–5), SOP Class extended and common extended negotiation, and DIMSE-TLS.
+- Association negotiation: presentation-context negotiation, maximum PDU length, and SCP/SCU role selection. The
+  asynchronous operations window, user identity (types 1–5), SOP Class extended and common extended negotiation, and
+  DIMSE-TLS are designed-for but not yet shipped (see the negotiation table below).
 
 Out of scope for v1 (deferred, designed-for but not implemented — PRD §3.2, §5.1):
 
@@ -354,19 +355,20 @@ Regenerate a baseline with the command recorded in each file's header, and compa
 
 ## Association negotiation
 
-go-radx negotiates associations through `dimse.AE`, `AE.Associate(...)`, and `dimse.NewServer(...)`. The negotiation
-features below match the `pynetdicom` floor (PRD §6.2), with the documented async-ops caveat.
+go-radx negotiates associations through `dimse.AE`, `AE.Associate(...)`, and `dimse.NewServer(...)`. Presentation-context
+negotiation, maximum PDU length, and SCP/SCU role selection ship today; the remaining features in the table are
+designed-for against the `pynetdicom` floor (PRD §6.2) but not yet shipped.
 
 | Feature | Support | Notes |
 |---------|---------|-------|
 | Presentation-context negotiation | Yes | Odd-ID-keyed; per-context accepted transfer syntax; rejection reason codes |
 | Maximum PDU length | Yes | `WithMaxPDULength(n)`; default `dimse.MaxPDULength` (16382); 0 = "no maximum specified" |
 | SCP/SCU role selection | Yes | `WithRoleSelection(...)`; required for C-GET (requestor accepts the Storage SCP role) |
-| Asynchronous operations window | Yes (negotiated) | `WithAsyncOps(...)`; acceptor windows to (1,1), synchronous |
-| User identity negotiation | Yes (types 1–5) | `WithUserIdentity(...)`: username, passcode, Kerberos, SAML, JWT |
-| SOP Class extended negotiation | Yes | `WithExtendedNegotiation(...)`: per-SOP-class service-class application info |
-| SOP Class common extended negotiation | Yes | `WithCommonExtendedNegotiation(...)` |
-| DIMSE-TLS | Yes | TLS 1.2+ (prefer 1.3), peer verification on by default; mutual-TLS optional (PRD §9.7) |
+| Asynchronous operations window | Not yet shipped | Designed-for `WithAsyncOps(...)`; acceptor would window to (1,1), synchronous |
+| User identity negotiation | Not yet shipped | Designed-for `WithUserIdentity(...)`: username, passcode, Kerberos, SAML, JWT (types 1–5) |
+| SOP Class extended negotiation | Not yet shipped | Designed-for `WithExtendedNegotiation(...)`: per-SOP-class service-class application info |
+| SOP Class common extended negotiation | Not yet shipped | Designed-for `WithCommonExtendedNegotiation(...)` |
+| DIMSE-TLS | Not yet shipped | Designed-for TLS 1.2+ (prefer 1.3), peer verification, optional mutual-TLS (PRD §9.7) |
 
 ### DUL state machine
 
