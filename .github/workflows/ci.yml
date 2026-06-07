@@ -109,7 +109,7 @@ jobs:
         run: mise run dicom:pydicom
 
   fhir-conformance:
-    name: FHIR R5 conformance (HL7 validator, merge-blocking)
+    name: FHIR R4 + R5 conformance (HL7 validator, merge-blocking)
     runs-on: ubuntu-latest
     env:
       CI: "true" # flips tools/fhir-conformance/validate.sh from skip-locally to fail-if-absent
@@ -128,7 +128,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: FHIR R5 conformance gate (workflow set + negative fixture)
+      - name: FHIR R4 + R5 conformance gate (workflow set + negative fixture)
         # Marshals the go-radx-generated workflow set, validates it against R5 5.0.0 with the
         # pinned validator (zero errors required), and asserts the deliberately-invalid
         # negative fixture is REJECTED so the gate is proven to bite.
