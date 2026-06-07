@@ -88,7 +88,16 @@ func WithImplementationVersionName(name string) AEOption {
 // plaintext TCP (the default). Certificates and keys come from environment or files, never
 // hard-coded, and are never logged (PRD §9.7, §9.8).
 func WithTLS(cfg *tls.Config) AEOption {
-	return func(c *aeConfig) { c.tlsConfig = cfg }
+	return func(c *aeConfig) {
+		// Clone on apply so a caller that mutates or reuses cfg after NewAE cannot change this AE's
+		// trust roots, certificates, or verification settings: the per-AE config is immutable and
+		// concurrent Associate calls must not race a caller-side mutation.
+		if cfg == nil {
+			c.tlsConfig = nil
+			return
+		}
+		c.tlsConfig = cfg.Clone()
+	}
 }
 
 // AE is a local DICOM Application Entity: the factory for outbound associations (SCU) and

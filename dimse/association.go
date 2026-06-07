@@ -311,15 +311,15 @@ func (ae *AE) dial(ctx context.Context, addr string) (net.Conn, error) {
 	return nc, nil
 }
 
-// handshakeContext derives the deadline that bounds a TLS handshake (SCU dial or SCP accept). When
-// ctx already carries a deadline it is honoured unchanged. Otherwise a deadline is derived from the
-// AE's negotiation bound, preferring an explicit WithConnectionTimeout and falling back to the ACSE
-// timeout, so the same precedence governs the TLS handshake that governs the rest of negotiation. A
-// zero bound (both knobs disabled) leaves the handshake bounded only by ctx.
+// handshakeContext derives the deadline that bounds a TLS handshake (SCU dial or SCP accept). The
+// bound comes from the AE's negotiation knobs, preferring an explicit WithConnectionTimeout and
+// falling back to the ACSE timeout, so the same precedence governs the TLS handshake that governs
+// the rest of negotiation. It is applied even when ctx already carries a (possibly longer) deadline:
+// context.WithTimeout keeps whichever deadline is earlier, mirroring acseContext, so a peer that
+// finishes TCP and then stalls the handshake cannot hold the outbound call or an inbound association
+// slot past the configured bound. A zero bound (both knobs disabled) leaves the handshake bounded
+// only by ctx.
 func (ae *AE) handshakeContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	if _, ok := ctx.Deadline(); ok {
-		return ctx, func() {}
-	}
 	bound := ae.cfg.connectionTimeout
 	if bound <= 0 {
 		bound = ae.cfg.acseTimeout

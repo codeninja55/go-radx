@@ -358,6 +358,57 @@ func TestTLSSCUDialBoundsStalledHandshake(t *testing.T) {
 	}
 }
 
+// TestTLSSCUDialBoundsStalledHandshakeUnderLongDeadline confirms the configured handshake bound
+// applies even when the caller's context already carries a much longer deadline: a stalled TLS
+// handshake must not hold the outbound call until that long deadline, only until the ACSE bound.
+func TestTLSSCUDialBoundsStalledHandshakeUnderLongDeadline(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	defer func() { _ = ln.Close() }()
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		c, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			return
+		}
+		accepted <- c
+	}()
+
+	_, pool := selfSignedCert(t)
+	clientTLS := &tls.Config{RootCAs: pool, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS12}
+	scu, err := NewAE(AETitle("RADX-SCU"), WithTLS(clientTLS), WithACSETimeout(250*time.Millisecond))
+	if err != nil {
+		t.Fatalf("NewAE (SCU): %v", err)
+	}
+
+	// A parent deadline far longer than the ACSE bound: the handshake must still be capped at the
+	// configured bound, not held for the full hour.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, assocErr := scu.Associate(ctx, ln.Addr().String(), AETitle("RADX-SCP"), VerificationContexts())
+		done <- assocErr
+	}()
+
+	select {
+	case assocErr := <-done:
+		if assocErr == nil {
+			t.Fatal("Associate against a stalled TLS handshake = nil error, want a timeout error")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Associate did not return within 5s: the handshake ignored the configured bound under a long parent deadline")
+	}
+
+	select {
+	case c := <-accepted:
+		_ = c.Close()
+	default:
+	}
+}
+
 // TestTLSSCPAcceptBoundsStalledHandshake proves a stalled accept-side TLS handshake releases its
 // association slot end to end. A raw TCP client connects to the TLS SCP but never completes the
 // handshake; with WithMaxAssociations(1) it would hold the single slot forever if the accept-side
