@@ -111,6 +111,17 @@ func TestCheckDetectsDrift(t *testing.T) {
 			wantSubj:  "StorageContexts",
 		},
 		{
+			// Reproduces the audit's dicom.md over-claim: a negotiation row is flipped to "Yes" while
+			// still naming an option function the dimse package does not export. The check must bite.
+			name: "negotiation feature claimed as supported but the option function is absent",
+			mutate: func(t *testing.T, root string) {
+				claimNegotiationSupported(t, root, "Asynchronous operations window")
+			},
+			counts:    codePresetCounts,
+			wantClass: "negotiation-missing",
+			wantSubj:  "Asynchronous operations window",
+		},
+		{
 			name: "missing not-yet-shipped banner",
 			mutate: func(t *testing.T, root string) {
 				stripBanner(t, root, "dimse.md")
@@ -191,9 +202,12 @@ func copyTreeForCheck(t *testing.T) string {
 		copyFile(t, markerFile, filepath.Join(dstPkg, filepath.Base(markerFile)))
 	}
 
-	// DiscoverCodePresets parses the dimse package source, so the fixture carries the real
-	// presets file (alongside the dimse stability marker copied above) for the existence checks.
-	copyFile(t, filepath.Join(src, "dimse", "presets.go"), filepath.Join(dst, "dimse", "presets.go"))
+	// DiscoverCodePresets and DiscoverDimseFuncs parse the dimse package source, so the fixture
+	// carries the real presets file (preset existence) and the option-function sources the
+	// negotiation table names (negotiation existence) alongside the dimse stability marker above.
+	for _, name := range []string{"presets.go", "ae.go", "association.go"} {
+		copyFile(t, filepath.Join(src, "dimse", name), filepath.Join(dst, "dimse", name))
+	}
 	return dst
 }
 
@@ -265,6 +279,31 @@ func markPresetNotYetShipped(t *testing.T, root, preset string) {
 		}
 	}
 	t.Fatalf("preset row for %q not found in dicom.md", preset)
+}
+
+// claimNegotiationSupported flips the support cell of a negotiation row to "Yes" while leaving the
+// notes cell (which names the option function) intact, reproducing an over-claim: a feature marked
+// supported whose option function the dimse package does not export.
+func claimNegotiationSupported(t *testing.T, root, feature string) {
+	t.Helper()
+	path := filepath.Join(root, "docs", "conformance", "dicom.md")
+	lines := strings.Split(readFile(t, path), "\n")
+	for i, line := range lines {
+		if !strings.HasPrefix(strings.TrimSpace(line), "|") || !strings.Contains(line, feature) {
+			continue
+		}
+		cells := strings.Split(line, "|")
+		// cells[0] is the empty prefix before the first pipe; cells[1] is the feature, cells[2] the
+		// support marker. Flip support to "Yes" and keep the notes cell so the named function stays.
+		if len(cells) < 4 {
+			continue
+		}
+		cells[2] = " Yes "
+		lines[i] = strings.Join(cells, "|")
+		writeFile(t, path, strings.Join(lines, "\n"))
+		return
+	}
+	t.Fatalf("negotiation row for %q not found in dicom.md", feature)
 }
 
 // stripBanner removes only the leading blockquote scaffold banner line, leaving any other
