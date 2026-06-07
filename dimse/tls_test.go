@@ -250,6 +250,20 @@ func TestTLSFloorDefaultsToTLS12(t *testing.T) {
 		t.Errorf("caller config was mutated: MinVersion = %#04x, want it left at 0 (clone expected)", caller.MinVersion)
 	}
 
+	// A caller-pinned floor BELOW 1.2 (here TLS 1.0) is clamped up to the 1.2 floor, not left as the
+	// caller supplied it — the "TLS 1.2+" contract holds even when the caller pinned a weaker floor.
+	below := &tls.Config{MinVersion: tls.VersionTLS10}
+	aeBelow, err := NewAE(AETitle("RADX-SCU"), WithTLS(below))
+	if err != nil {
+		t.Fatalf("NewAE (below floor): %v", err)
+	}
+	if got := aeBelow.config().tlsConfigWithFloor().MinVersion; got != tls.VersionTLS12 {
+		t.Errorf("resolved MinVersion = %#04x, want the TLS 1.2 floor (%#04x) clamping the pinned 1.0", got, tls.VersionTLS12)
+	}
+	if below.MinVersion != tls.VersionTLS10 {
+		t.Errorf("caller config was mutated: MinVersion = %#04x, want it left at the pinned 1.0 (clone expected)", below.MinVersion)
+	}
+
 	// A caller-pinned higher floor is preserved, not lowered.
 	pinned := &tls.Config{MinVersion: tls.VersionTLS13}
 	aePinned, err := NewAE(AETitle("RADX-SCU"), WithTLS(pinned))
@@ -258,6 +272,36 @@ func TestTLSFloorDefaultsToTLS12(t *testing.T) {
 	}
 	if got := aePinned.config().tlsConfigWithFloor().MinVersion; got != tls.VersionTLS13 {
 		t.Errorf("resolved MinVersion = %#04x, want the caller-pinned TLS 1.3 (%#04x)", got, tls.VersionTLS13)
+	}
+}
+
+// TestTLSClampsCallerFloorBelowTLS12 is the live-handshake counterpart to the unit clamp check: an
+// SCP whose caller config pins MinVersion = TLS 1.0 still rejects a TLS-1.0-only peer, because the
+// library clamps the supplied floor up to TLS 1.2 before terminating TLS. Without the clamp the
+// pinned 1.0 floor would let a 1.0 peer negotiate, violating the "TLS 1.2+" contract.
+func TestTLSClampsCallerFloorBelowTLS12(t *testing.T) {
+	cert, pool := selfSignedCert(t)
+	// Caller PINS a weak floor (TLS 1.0); the library must clamp it up to 1.2 on the listener.
+	serverTLS := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS10}
+	addr := startTLSServer(t, serverTLS, &serverTestHandler{echoStatus: StatusEchoSuccess})
+
+	// The SCU offers ONLY TLS 1.0, which the clamped 1.2 server floor must reject.
+	clientTLS := &tls.Config{
+		RootCAs:    pool,
+		ServerName: "127.0.0.1",
+		MinVersion: tls.VersionTLS10,
+		MaxVersion: tls.VersionTLS10,
+	}
+	scu, err := NewAE(AETitle("RADX-SCU"), WithTLS(clientTLS))
+	if err != nil {
+		t.Fatalf("NewAE (SCU): %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if _, err := scu.Associate(ctx, addr, AETitle("RADX-SCP"), VerificationContexts()); err == nil {
+		t.Fatal("Associate with a TLS 1.0-only SCU against a caller-pinned 1.0 server = nil error, " +
+			"want the clamped 1.2 floor to reject it")
 	}
 }
 
