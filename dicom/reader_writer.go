@@ -42,10 +42,13 @@ func Read(r io.Reader, opts ...ReadOption) (*File, error) {
 
 	main := br
 	if ts.IsDeflated() {
-		// The main dataset follows the file-meta group as a raw DEFLATE stream.
+		// The main dataset follows the file-meta group as a raw DEFLATE stream. The
+		// flate reader does not expose Len(), so the boundedReader's remaining-byte
+		// guard cannot fire on this path; bound the total inflated bytes so a tiny
+		// crafted stream cannot inflate without end (a decompression bomb).
 		fr := flate.NewReader(br.r)
 		defer func() { _ = fr.Close() }()
-		main = newBoundedReader(fr, cfg.maxElementLen)
+		main = newBoundedReader(newInflateLimitReader(fr, cfg.maxInflatedBytes), cfg.maxElementLen)
 	}
 
 	ds, err := readDataSet(main, ts, cfg)

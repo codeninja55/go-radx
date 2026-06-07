@@ -24,6 +24,7 @@ type FileMeta struct {
 // every knob is a functional option (PRD §9.4).
 type readConfig struct {
 	maxElementLen    uint32
+	maxInflatedBytes int64
 	maxSequenceDepth int
 	stopAtPixelData  bool
 	// defaultCharSet is the fallback Specific Character Set defined terms applied to
@@ -47,10 +48,23 @@ type ReadOption func(*readConfig)
 // guards against a maliciously deep sequence (Increment 3 enforces it).
 const defaultMaxSequenceDepth = 64
 
+// defaultMaxInflatedBytes caps the total bytes inflated from a Deflated Explicit VR
+// LE main dataset when the caller does not override it with WithMaxInflatedBytes. A
+// DEFLATE stream lets a tiny input expand into a long run of small valid elements,
+// so without a total bound the deflated read path can be driven to spin (a
+// decompression bomb). The budget is generous: DICOM deflate ratios are modest (the
+// metadata is mostly short text and small binary fields, well under an order of
+// magnitude), so 4 GiB comfortably holds a legitimate deflated study's inflated main
+// dataset — far larger than the 256 MiB per-element cap that bounds any single value
+// — while still being finite, so a hostile stream fails fast instead of running
+// without end.
+const defaultMaxInflatedBytes int64 = 4 << 30 // 4 GiB
+
 // newReadConfig resolves opts over the safe defaults.
 func newReadConfig(opts ...ReadOption) readConfig {
 	cfg := readConfig{
 		maxElementLen:    defaultMaxElementLen,
+		maxInflatedBytes: defaultMaxInflatedBytes,
 		maxSequenceDepth: defaultMaxSequenceDepth,
 	}
 	for _, opt := range opts {
@@ -63,6 +77,16 @@ func newReadConfig(opts ...ReadOption) readConfig {
 // rejected before allocation (Codex DCM-004).
 func WithMaxElementLen(n uint32) ReadOption {
 	return func(c *readConfig) { c.maxElementLen = n }
+}
+
+// WithMaxInflatedBytes caps the total bytes inflated from a Deflated Explicit VR LE
+// main dataset (default 4 GiB). A stream that inflates past n is rejected with a
+// *LimitExceededError rather than allowed to spin the element loop, which is how a
+// tiny crafted DEFLATE stream would otherwise mount a decompression-bomb denial of
+// service. A non-positive n disables the bound. It has no effect on the four
+// uncompressed transfer syntaxes, which carry no DEFLATE stream.
+func WithMaxInflatedBytes(n int64) ReadOption {
+	return func(c *readConfig) { c.maxInflatedBytes = n }
 }
 
 // WithMaxSequenceDepth caps SQ nesting (default 64).

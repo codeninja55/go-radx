@@ -46,9 +46,12 @@ func DecodeDataSet(r io.Reader, ts TransferSyntax, opts ...ReadOption) (*DataSet
 	}
 	cfg := newReadConfig(opts...)
 	if ts.IsDeflated() {
+		// The flate reader does not expose Len(), so the boundedReader's remaining-byte
+		// guard cannot fire on this path; bound the total inflated bytes so a tiny
+		// crafted stream cannot inflate without end (a decompression bomb).
 		fr := flate.NewReader(bufio.NewReader(r))
 		defer func() { _ = fr.Close() }()
-		r = fr
+		r = newInflateLimitReader(fr, cfg.maxInflatedBytes)
 	}
 	br := newBoundedReader(r, cfg.maxElementLen)
 	return readDataSet(br, ts, cfg)

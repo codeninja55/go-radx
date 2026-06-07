@@ -2,6 +2,7 @@ package dicom
 
 import (
 	"bytes"
+	"compress/flate"
 	"encoding/binary"
 	"testing"
 )
@@ -98,6 +99,34 @@ func seedSequenceDelimiter() []byte {
 	return b
 }
 
+// seedDeflateBomb returns a Part 10 stream whose Deflated Explicit VR LE main dataset is
+// a tiny raw DEFLATE stream that inflates into a long run of small valid elements. It
+// seeds the corpus with a decompression bomb so the fuzzer exercises the total-inflated-
+// bytes guard rather than spinning the element loop. Identifiers are synthetic, never PHI.
+func seedDeflateBomb() []byte {
+	ds := NewDataSet()
+	for i := 0; i < 4000; i++ {
+		ds.Set(Element{Tag: NewTag(0x0009, uint16(i)), VR: VRLO, Value: NewStrings(VRLO, "ZZZSENTINEL")})
+	}
+	var raw bytes.Buffer
+	_ = writeDataSet(&raw, ds, ExplicitVRLittleEndian)
+
+	var deflated bytes.Buffer
+	fw, _ := flate.NewWriter(&deflated, flate.BestCompression)
+	_, _ = fw.Write(raw.Bytes())
+	_ = fw.Close()
+
+	meta := &FileMeta{
+		MediaStorageSOPClassUID:    "1.2.840.10008.5.1.4.1.1.7",
+		MediaStorageSOPInstanceUID: "1.2.3.4.5.6.7.8.9",
+		TransferSyntaxUID:          DeflatedExplicitVRLittleEndian,
+	}
+	var out bytes.Buffer
+	_ = writeFileMeta(&out, [128]byte{}, meta)
+	out.Write(deflated.Bytes())
+	return out.Bytes()
+}
+
 // FuzzRead drives the Part 10 / dataset reader with arbitrary bytes. A malformed or
 // truncated object must surface a typed error, never panic or over-allocate: every
 // value length is bounds-checked against the bytes remaining before any make([]byte, n)
@@ -107,12 +136,15 @@ func FuzzRead(f *testing.F) {
 	f.Add(seedPart10(ImplicitVRLittleEndian))
 	f.Add(seedPart10(ExplicitVRBigEndian))
 	f.Add(seedPart10(DeflatedExplicitVRLittleEndian))
+	f.Add(seedDeflateBomb())                    // tiny DEFLATE stream that inflates into a long run
 	f.Add([]byte{})                             // empty stream: short preamble
 	f.Add(append(make([]byte, 128), "DICM"...)) // preamble + magic, no file-meta group
 	f.Add([]byte("DICM"))                       // magic without the 128-byte preamble
 	f.Fuzz(func(t *testing.T, data []byte) {
-		// Must never panic; an error is the acceptable outcome for malformed input.
-		_, _ = Read(bytes.NewReader(data))
+		// Must never panic; an error is the acceptable outcome for malformed input. A
+		// tight inflated-bytes budget keeps a mutated DEFLATE bomb from spinning the
+		// element loop, so the fuzz run stays bounded instead of hanging.
+		_, _ = Read(bytes.NewReader(data), WithMaxInflatedBytes(1<<20))
 	})
 }
 
