@@ -3,9 +3,12 @@
 The `dimse` package implements the DICOM Message Service Element and its transport layer — the
 [DICOM Upper Layer protocol](https://dicom.nema.org/medical/dicom/current/output/chtml/part08/PS3.8.html) (DUL, PS3.8)
 and the DIMSE-C / DIMSE-N services (PS3.7). It is the network plane of go-radx: it carries DICOM datasets, defined by
-the `dicom` package, between Application Entities over TCP, with optional TLS.
+the `dicom` package, between Application Entities over TCP. (TLS transport is committed v1 surface but is **planned,
+not yet implemented** — see [Transport security](#transport-security-tls).)
 
-This document is the normative public API contract for `dimse`. The implementation conforms to it. It commits the type
+This document is the normative public API contract for `dimse` — the surface the package is being built toward for v1.
+The implementation conforms to it except where a section is explicitly marked **planned (not yet implemented)**. It
+commits the type
 surface, the negotiation model, the PS3.8 DUL state machine, the service-class operations, the streaming query contract,
 the typed status model, and the conformance scope and limits. Behaviour is grounded in `pynetdicom` as the parity
 reference (PRD §6.2) and in the Codex audit of the prototype (`docs/prd/go-radx-prd.md` §2.2, §12), whose defects
@@ -17,8 +20,9 @@ In scope for v1:
 
 - Application Entity and `AETitle` value type.
 - Association lifecycle: A-ASSOCIATE negotiation, A-RELEASE, A-ABORT, A-P-ABORT, with `context.Context` cancellation.
-- Presentation-context negotiation: max PDU length, SCP/SCU role selection, asynchronous-operations window, user
-  identity (types 1–5), SOP-class extended and common-extended negotiation, presentation-context presets.
+- Presentation-context negotiation: max PDU length and SCP/SCU role selection, with presentation-context presets
+  (implemented). Asynchronous-operations window, user identity (types 1–5), and SOP-class extended and common-extended
+  negotiation are committed v1 surface but **planned, not yet implemented**.
 - The PS3.8 Table 9-10 DUL finite state machine: 13 states (including release-collision Sta9–Sta12), 19 events, 28
   actions.
 - PDU and PDV encode/decode with hostile-input hardening.
@@ -26,7 +30,8 @@ In scope for v1:
 - DIMSE-N **SCU only** in v1: MPPS (N-CREATE / N-SET) and Storage Commitment (N-ACTION / N-EVENT-REPORT).
 - The streaming multi-response query/retrieve contract as `iter.Seq2[Status, *dicom.DataSet]`.
 - Typed `Status`, `Priority`, and `QueryLevel`.
-- TLS 1.2+ (preferring 1.3) with peer-certificate verification and a documented mutual-TLS option.
+- TLS 1.2+ (preferring 1.3) with peer-certificate verification and a documented mutual-TLS option — **planned, not yet
+  implemented**.
 
 Out of scope for v1 (architected-for, deferred — PRD §3.2, §5.1):
 
@@ -256,6 +261,7 @@ func (ae *AE) Associate(
 type AssociateOption func(*associateConfig)
 
 func WithRoleSelection(sel ...RoleSelection) AssociateOption
+// The four options below are committed v1 surface but planned, not yet implemented:
 func WithAsyncOps(invoked, performed uint16) AssociateOption // window negotiation
 func WithUserIdentity(id UserIdentity) AssociateOption
 func WithExtendedNegotiation(items ...SOPClassExtendedNegotiation) AssociateOption
@@ -805,6 +811,10 @@ short reads mid-PDU surface as `ProtocolError` wrapping `io.ErrUnexpectedEOF`, n
 No operation panics on malformed network input; all length and dimension math is checked before allocation (PRD §9.3).
 
 ## Transport security (TLS)
+
+> **Planned, not yet implemented.** TLS transport is committed v1 surface, but the `dimse` package does not yet
+> implement it — DIMSE associations currently run over plaintext TCP. Until it lands, restrict DIMSE to trusted
+> networks; the SCP binds loopback by default. The API below is the contract the implementation will satisfy.
 
 DIMSE-TLS is configured per `AE` and applies to both SCU connections and the SCP listener.
 
