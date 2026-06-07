@@ -147,9 +147,9 @@ non-standard delimiters round-trips correctly.
 
 ### Typed message types in scope
 
-> **Implementation status: PARTIAL.** Only the typed `ORM` view (with `OrderGroup` and `Orders()`) ships today. The
-> `ADT`, `OMG`, `ORU`, and `ACK` typed views and their `As*` constructors described below are NOT YET SHIPPED; until
-> they land, those message types parse into the generic six-level tree but have no dedicated typed view.
+> **Implementation status: PARTIAL.** The typed `ORM`, `ADT`, `ORU`, and `ACK` views and their `As*` constructors ship
+> today. The `OMG` typed view and its `AsOMG` constructor are NOT YET SHIPPED; until it lands, `OMG` messages parse into
+> the generic six-level tree but have no dedicated typed view.
 
 `MessageType` is the `MSH-9` composite `code^trigger^structure` (e.g. `ORU^R01^ORU_R01`). The trigger event is only
 `MSH-9.2` (glossary). The in-scope message views are `ADT`, `ORM`, `OMG`, `ORU`, and `ACK`, each obtained from a parsed

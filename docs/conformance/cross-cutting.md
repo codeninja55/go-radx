@@ -370,7 +370,9 @@ The core build and test jobs are:
 `lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, the `pin-drift` check, and
 the standing [`-race` gate](#concurrency-and-race-posture) step that also enforces the
 [coverage floor](#coverage-targets-and-critical-path-enumeration)),
-`conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`), `interop` (the testcontainers matrix over the DIMSE,
+`conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`),
+`fhir-conformance` (the FHIR R4 + R5 conformance gate that marshals the go-radx workflow set and validates it with the
+pinned HL7 validator), `interop` (the testcontainers matrix over the DIMSE,
 DICOMweb, and convert legs), `govulncheck` (the vulnerability scan of the root module), `cmd-radx` (build, vet, lint,
 and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed pixel codecs built from source).
 

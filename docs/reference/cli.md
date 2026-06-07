@@ -1,5 +1,11 @@
 # radx CLI
 
+!!! warning "Planned design — not yet implemented"
+
+    This document describes the planned `radx` command-line interface. The CLI is not yet implemented: `cmd/radx`
+    currently builds to a stub that prints a not-yet-implemented notice. The command surface below is the contract the
+    implementation will conform to as commands land.
+
 The `radx` command-line interface is go-radx's flagship first-party consumer. It is the tool that proves the library
 API is usable, and it serves practitioners and operators who want dcmtk-class breadth from a single binary. It lives in
 a separate Go module (`github.com/codeninja55/go-radx/cmd/radx`, `docs/prd/go-radx-prd.md` §7.4) so that library

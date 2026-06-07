@@ -315,7 +315,7 @@ answers an unservable request with an honest status (`406`, `501`) rather than a
 - **Pixel-data transcoding** — the WADO-RS transfer-syntax policy answers `406 Not Acceptable` for a syntax the origin
   cannot serve; the shipped server registers no transcoders (see [Transfer-syntax policy](#transfer-syntax-policy)).
 - **STOW-RS metadata + bulk-data client** — the server accepts both store variants, but the client posts whole objects
-  only (see the [STOW-RS roles](#roles-2)).
+  only (see the [STOW-RS roles](#roles_2)).
 
 ## Verification
 
