@@ -34,6 +34,13 @@ type Client struct {
 	transferSyntaxes []dicom.TransferSyntax
 	bulkDataBaseURL  string
 
+	// allowCrossOriginBulkData lifts the same-origin restriction on an absolute BulkDataURI;
+	// bulkDataHostAllowlist names hosts that may be fetched cross-origin even without that
+	// blanket opt-in. Both are off by default so a server-supplied absolute reference cannot
+	// steer the client at an internal address (SSRF, PRD §9.8).
+	allowCrossOriginBulkData bool
+	bulkDataHostAllowlist    map[string]struct{}
+
 	// transport, when set by WithRoundTripper, replaces the client's base transport
 	// wholesale. authLayer, when set by a credential option, wraps the base transport so
 	// every same-origin request carries the scheme's header. clientCert, when set by
@@ -80,6 +87,33 @@ func WithTransferSyntaxes(ts ...dicom.TransferSyntax) ClientOption {
 // given, regardless of this option.
 func WithClientBulkDataBaseURL(base string) ClientOption {
 	return func(c *Client) { c.bulkDataBaseURL = strings.TrimRight(base, "/") }
+}
+
+// WithAllowCrossOriginBulkData permits ResolveBulkDataURI to fetch an absolute BulkDataURI
+// whose origin differs from the client's configured origin. The safe default refuses such a
+// reference, because a hostile or compromised origin could emit metadata steering the client
+// at an internal address (169.254.169.254, an internal service). Enable this only when the
+// origin is trusted to reference arbitrary hosts; prefer WithBulkDataHostAllowlist to permit a
+// known set of hosts instead (PRD §9.8).
+func WithAllowCrossOriginBulkData() ClientOption {
+	return func(c *Client) { c.allowCrossOriginBulkData = true }
+}
+
+// WithBulkDataHostAllowlist permits ResolveBulkDataURI to fetch an absolute BulkDataURI whose
+// host is in the given set, even when it is cross-origin. Each entry is a host, optionally with
+// a port (for example "images.example.org" or "images.example.org:8443"); the match is
+// case-insensitive on host. It is the narrow alternative to WithAllowCrossOriginBulkData: a
+// caller whose metadata legitimately references a fixed second host opens only that host
+// rather than every host (PRD §9.8).
+func WithBulkDataHostAllowlist(hosts ...string) ClientOption {
+	return func(c *Client) {
+		if c.bulkDataHostAllowlist == nil {
+			c.bulkDataHostAllowlist = make(map[string]struct{}, len(hosts))
+		}
+		for _, h := range hosts {
+			c.bulkDataHostAllowlist[strings.ToLower(strings.TrimSpace(h))] = struct{}{}
+		}
+	}
 }
 
 // WithInsecureSkipVerify disables TLS peer verification. It is reachable only through

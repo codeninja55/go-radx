@@ -3,16 +3,23 @@
 package phisweep
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 
 	"go.uber.org/zap"
 
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/dicomweb"
 	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r5"
 	"github.com/codeninja55/go-radx/hl7v2"
@@ -189,14 +196,27 @@ func exerciseHL7(ctx context.Context) []error {
 
 // exerciseFHIR drives the FHIR structural validator over resources seeded with PHI
 // sentinels in their value fields, then surfaces the resulting OperationOutcome as both a
-// returned error string and a logged message. r5.Validate builds its issue diagnostics
-// and element paths from element names and codes, never field values, so a sentinel
-// planted in a patient's name, identifier, or a free-text field must not appear in the
-// outcome error string or the log. This is the FHIR half of the no-PHI guarantee, swept
+// returned error string and a logged message. It also drives the JSON unmarshal-of-bad-code
+// path, where a required-binding code field carries a sentinel: that is the path a hostile
+// or malformed upstream uses to stuff a patient value into a code field, and the strict
+// decoder must reject it without echoing the offending token. r5.Validate builds its issue
+// diagnostics and element paths from element names and codes, never field values, so a
+// sentinel planted in a patient's name, identifier, or a free-text field must not appear in
+// the outcome error string or the log. This is the FHIR half of the no-PHI guarantee, swept
 // through the same machinery as the DICOM and HL7 paths.
 func exerciseFHIR(ctx context.Context) []error {
 	log := logging.FromContext(ctx)
 	var errs []error
+
+	// A FHIR JSON payload whose required-binding gender code carries a sentinel. The strict
+	// decoder rejects an out-of-set code; before the no-PHI fix it embedded the offending
+	// token verbatim, so a sentinel here would surface in the returned decode error. The
+	// errors are collected so the error-sink scan judges them.
+	badCodeJSON := []byte(`{"resourceType":"Patient","gender":"` + sentinelPatientName + `"}`)
+	if _, err := r5.UnmarshalResource(badCodeJSON); err != nil {
+		errs = append(errs, fmt.Errorf("unmarshal patient with bad gender code: %w", err))
+		log.Info("rejected out-of-set fhir code", zap.String("binding", "AdministrativeGender"))
+	}
 
 	// A Patient whose human-readable fields carry sentinels, plus an out-of-set gender
 	// (a binding violation) and a direct two-branch choice write (a mutual-exclusion
@@ -237,6 +257,106 @@ func exerciseFHIR(ctx context.Context) []error {
 	return errs
 }
 
+// exerciseDICOMweb drives representative DICOMweb entry points over sentinel-bearing input:
+// the DICOM-JSON decoder, the multipart/related reader, and the server's RFC 9457 problem
+// document. Each is a boundary that parses untrusted bytes and reports failure to a caller;
+// none may echo a value into a returned error, a response body, or the log. The metadata
+// part fed to the server carries a sentinel in a code-like value and is deliberately
+// malformed, so the decode fails and the server must answer with a structural problem
+// document that names the fault, never the offending bytes.
+func exerciseDICOMweb(ctx context.Context) []error {
+	var errs []error
+
+	// A DICOM-JSON document whose IS (integer-string) value carries a sentinel rather than an
+	// integer. The strict decoder rejects it; the typed DecodeError must name the tag and VR,
+	// never the offending value.
+	badJSON := []byte(`{"00200013":{"vr":"IS","Value":["` + sentinelAccession + `"]}}`)
+	if _, err := dicomweb.UnmarshalJSON(badJSON); err != nil {
+		errs = append(errs, fmt.Errorf("decode dicom-json with bad IS value: %w", err))
+	}
+
+	// A multipart/related body whose boundary is never closed, with a sentinel in the part
+	// payload. The reader reports a framing fault that must not carry the raw part bytes.
+	const boundary = "ZZZSWEEPBOUNDARY"
+	malformed := "--" + boundary + "\r\n" +
+		"Content-Type: application/octet-stream\r\n\r\n" +
+		sentinelPatientName + "\r\n" // no closing --boundary-- delimiter
+	mr, err := dicomweb.NewMultipartReader(
+		strings.NewReader(malformed),
+		`multipart/related; type="application/octet-stream"; boundary=`+boundary,
+	)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("open malformed multipart: %w", err))
+	} else {
+		for {
+			_, body, perr := mr.NextPart()
+			if perr != nil {
+				if !errors.Is(perr, io.EOF) {
+					errs = append(errs, fmt.Errorf("read malformed multipart part: %w", perr))
+				}
+				break
+			}
+			_, _ = io.Copy(io.Discard, body)
+		}
+	}
+
+	// The server's problem-document path: a STOW-RS metadata+bulkdata request whose metadata
+	// part is invalid DICOM JSON carrying a sentinel. The server must answer with a structural
+	// problem document; the response body is collected so the sweep judges it for a leak.
+	if body := exerciseDICOMwebServerProblem(ctx); body != "" {
+		errs = append(errs, fmt.Errorf("dicomweb server problem document: %s", body))
+	}
+
+	return errs
+}
+
+// nopStoreBackend is a no-op StoreBackend that lets the server reach its parse and
+// problem-document paths; it is never asked to store a parsed instance in this sweep.
+type nopStoreBackend struct{}
+
+func (nopStoreBackend) Store(context.Context, *dicom.DataSet) error { return nil }
+
+// exerciseDICOMwebServerProblem POSTs a STOW-RS metadata+bulkdata body whose metadata part is
+// invalid DICOM JSON carrying a sentinel, then returns the server's problem-document response
+// body so the sweep can scan it. The body is returned verbatim: if the server echoed the
+// offending bytes it would appear here and the error-sink scan would catch it.
+func exerciseDICOMwebServerProblem(_ context.Context) string {
+	srv, err := dicomweb.NewServer(dicomweb.WithStoreBackend(nopStoreBackend{}))
+	if err != nil {
+		return fmt.Sprintf("new dicomweb server: %v", err)
+	}
+	hs := httptest.NewServer(srv.Handler())
+	defer hs.Close()
+
+	var bodyBuf bytes.Buffer
+	mw := dicomweb.NewMultipartWriter(&bodyBuf, "application/dicom+json")
+	// Invalid DICOM JSON (a bare string, not the required object) carrying the sentinel.
+	invalidMetadata := `"` + sentinelPatientName + ` is not a dicom-json instance"`
+	if err := mw.AddPart("application/dicom+json", strings.NewReader(invalidMetadata)); err != nil {
+		return fmt.Sprintf("add metadata part: %v", err)
+	}
+	if _, err := mw.Close(); err != nil {
+		return fmt.Sprintf("close multipart: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, hs.URL+"/studies", &bodyBuf)
+	if err != nil {
+		return fmt.Sprintf("build request: %v", err)
+	}
+	req.Header.Set("Content-Type", mw.ContentType())
+
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		return fmt.Sprintf("post stow: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Sprintf("read response: %v", err)
+	}
+	return string(respBody)
+}
+
 // stringPtr boxes a string for an optional FHIR field in the sweep fixtures.
 func stringPtr(s string) *string { return &s }
 
@@ -260,6 +380,7 @@ func TestPHISanitySweep(t *testing.T) {
 		{"dicom", func(ctx context.Context) []error { return exerciseDICOM(ctx, sentinelPath) }},
 		{"hl7v2", exerciseHL7},
 		{"fhir", exerciseFHIR},
+		{"dicomweb", exerciseDICOMweb},
 	}
 
 	sentinels := allSentinels()

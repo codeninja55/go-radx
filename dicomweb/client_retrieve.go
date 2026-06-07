@@ -155,14 +155,21 @@ func (c *Client) RetrieveBulkData(ctx context.Context, p ResourcePath) ([][]byte
 // reference is fetched as given. The reference is never logged, since it carries resource
 // UIDs (PRD §9.1).
 //
+// An absolute BulkDataURI on an origin other than the configured one is refused by default
+// with ErrCrossOriginBulkData, because server-supplied metadata could steer the client at an
+// internal address (169.254.169.254, an internal service) — an SSRF. WithAllowCrossOriginBulkData
+// or WithBulkDataHostAllowlist opts a trusting caller back in (PRD §9.8).
+//
 // The client's credential is attached only when the resolved URL is same-origin with the
 // configured base URL (matching scheme, host, and port): the credential transport scopes
-// every scheme to the origin. Server-supplied metadata can carry an absolute BulkDataURI on an
-// arbitrary host; sending the Authorization header there would let a malicious or compromised
-// origin harvest the PACS credential, so a cross-origin reference is fetched without
-// credentials (PRD §9.8).
+// every scheme to the origin. Even under the cross-origin opt-in, sending the Authorization
+// header to another host would let a malicious or compromised origin harvest the PACS
+// credential, so a cross-origin reference is fetched without credentials (PRD §9.8).
 func (c *Client) ResolveBulkDataURI(ctx context.Context, uri BulkDataURI) ([]byte, error) {
 	target := c.absoluteBulkDataURL(string(uri))
+	if err := c.checkBulkDataOrigin(target); err != nil {
+		return nil, err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return nil, fmt.Errorf("dicomweb: build bulkdata request: %w", err)
@@ -214,6 +221,40 @@ func (c *Client) absoluteBulkDataURL(ref string) string {
 		return base + ref
 	}
 	return base + "/" + ref
+}
+
+// checkBulkDataOrigin enforces the same-origin default on a resolved BulkDataURI. A target that
+// is same-origin with the configured base URL always passes; a relative reference resolves
+// against that base and so is same-origin by construction. A cross-origin target is refused with
+// a CrossOriginBulkDataError unless cross-origin fetching is enabled wholesale or the target's
+// host is on the allowlist. The error names only the host, never the UID-bearing path
+// (PRD §9.1, §9.8). A target or base that does not parse fails closed: an unparseable target is
+// refused, and an unparseable base means no target can be proven same-origin.
+func (c *Client) checkBulkDataOrigin(target string) error {
+	targetURL, err := url.Parse(target)
+	if err != nil {
+		return fmt.Errorf("dicomweb: %w: bulk-data reference is not a valid URL", ErrInvalidResource)
+	}
+	base := c.bulkDataBaseURL
+	if base == "" {
+		base = c.baseURL
+	}
+	baseURL, baseErr := url.Parse(base)
+	if baseErr == nil && sameOrigin(targetURL, baseURL) {
+		return nil
+	}
+	if c.allowCrossOriginBulkData {
+		return nil
+	}
+	// Match the allowlist on the full host (with port, e.g. "host:8443") and on the bare
+	// hostname, so an entry given without a port still admits the default-port form.
+	if _, ok := c.bulkDataHostAllowlist[strings.ToLower(targetURL.Host)]; ok {
+		return nil
+	}
+	if _, ok := c.bulkDataHostAllowlist[strings.ToLower(targetURL.Hostname())]; ok {
+		return nil
+	}
+	return &CrossOriginBulkDataError{Host: targetURL.Host}
 }
 
 // sameOrigin reports whether two URLs share scheme, host, and port. The comparison is

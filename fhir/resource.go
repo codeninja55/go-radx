@@ -80,8 +80,8 @@ func Unmarshal[T Resource](data []byte) (T, error) {
 	}
 	wantType := target.ResourceType()
 	if payloadType != wantType {
-		return zero, fmt.Errorf("fhir: %w: payload %q, want %q",
-			ErrResourceTypeMismatch, payloadType, wantType)
+		return zero, fmt.Errorf("fhir: %w: want %q",
+			ErrResourceTypeMismatch, wantType)
 	}
 
 	if err := json.Unmarshal(data, target); err != nil {
@@ -122,7 +122,7 @@ func (reg *Registry) UnmarshalResource(data []byte) (Resource, error) {
 
 	factory, ok := reg.lookupFactory(resourceType)
 	if !ok {
-		return nil, fmt.Errorf("fhir: %w: %q", ErrUnknownResourceType, resourceType)
+		return nil, fmt.Errorf("fhir: %w", ErrUnknownResourceType)
 	}
 
 	r := factory()
