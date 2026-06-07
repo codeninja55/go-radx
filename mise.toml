@@ -119,29 +119,44 @@ description = "Run the PHI-default log sweep: fail if a patient identifier reach
 run = "GOWORK=off go test ./internal/phisweep/..."
 
 [tasks."fuzz"]
-description = "Bounded fuzz smoke over every target (one target per invocation, anchored regex, hang = failure)"
-# A go-test fuzz run takes ONE target per invocation, so each target is listed with an anchored
-# ^Name$ regex to run exactly that target. Each is wrapped in coreutils `timeout` at a wall-clock
-# budget above -fuzztime, so a target that wedges exits non-zero — a hang is a FAILURE, never a skip.
-# Requires `timeout` on PATH (present on Linux runners; macOS provides it as `gtimeout` via
-# coreutils). FUZZTIME overrides the per-target budget locally (e.g. FUZZTIME=5s mise run fuzz).
+description = "Bounded fuzz smoke over every target (discovered from go test -list, hang = failure)"
+# The target list is DISCOVERED from `go test -list`, not hand-maintained, so it cannot drift out of
+# step with the tree (a previously hand-kept list silently missed targets). Each discovered Fuzz
+# function is bound to its package, then run with an anchored ^Name$ regex so a go-test fuzz run
+# exercises exactly that one target (a fuzz run takes ONE target per invocation). Each invocation is
+# wrapped in coreutils `timeout` at a wall-clock budget above -fuzztime, so a target that wedges
+# exits non-zero — a hang is a FAILURE, never a skip. Requires `timeout` on PATH (present on Linux
+# runners; macOS provides it as `gtimeout` via coreutils). FUZZTIME overrides the per-target budget
+# locally (e.g. FUZZTIME=5s mise run fuzz).
 # bash -c, not the default sh: on Ubuntu /bin/sh is dash, which rejects `set -o pipefail`.
 shell = "bash -c"
 run = """
 set -euo pipefail
 fuzztime="${FUZZTIME:-30s}"
+
 run_one() {
   echo "fuzz: $2 ($1) for $fuzztime"
   timeout 120s go test -run='^$' -fuzz="$2" -fuzztime="$fuzztime" "$1"
 }
-run_one ./dicom '^FuzzRead$'
-run_one ./dicom '^FuzzReadPixelDataFrom$'
-run_one ./dimse/pdu '^FuzzReadPDU$'
-run_one ./dimse/pdu '^FuzzDecodeAssociateAC$'
-run_one ./dimse/pdu '^FuzzDecodePDV$'
-run_one ./fhir/r5 '^FuzzUnmarshalResource$'
-run_one ./fhir/r5 '^FuzzValidate$'
-run_one ./fhir/r5 '^FuzzValidateTypedResource$'
+
+# Enumerate every Fuzz target and bind it to its package. Listed per-package so the package binding
+# is unambiguous and the output cannot interleave across concurrently-listed packages. A compile
+# failure surfaces because `go test -list` exits non-zero under `set -e` / `pipefail`.
+count=0
+while IFS= read -r pkg; do
+  names="$(go test -list '^Fuzz' "$pkg" 2>/dev/null | grep '^Fuzz' || true)"
+  [ -z "$names" ] && continue
+  while IFS= read -r fn; do
+    run_one "$pkg" "^${fn}\\$"
+    count=$((count + 1))
+  done <<< "$names"
+done < <(go list ./...)
+
+if [ "$count" -eq 0 ]; then
+  echo "fuzz: no Fuzz targets discovered — the discovery step is broken" >&2
+  exit 1
+fi
+echo "fuzz: ran $count target(s)"
 """
 
 [tasks."bench"]

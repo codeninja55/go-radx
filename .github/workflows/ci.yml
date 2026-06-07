@@ -427,9 +427,10 @@ jobs:
   fuzz:
     # Bounded fuzz smoke run over every committed fuzz target. This is a regression gate, not a fuzz
     # campaign: each target runs for a fixed -fuzztime against its committed seed corpus so a parser
-    # crash, panic, or hang on malformed input fails the build. A go-test fuzz run takes ONE target
-    # per invocation, so every target is listed explicitly with an anchored -fuzz regex (^Name$) to
-    # run exactly that target and nothing else. Each invocation is wrapped in coreutils `timeout`
+    # crash, panic, or hang on malformed input fails the build. The target list is DISCOVERED from
+    # `go test -list` (see the mise `fuzz` task) so it cannot drift out of step with the tree; a
+    # go-test fuzz run takes ONE target per invocation, so each is run with an anchored -fuzz regex
+    # (^Name$) to exercise exactly that target. Each invocation is wrapped in coreutils `timeout`
     # (present on the runner) at a wall-clock budget above -fuzztime, so a target that wedges instead
     # of finishing exits non-zero and the gate bites — a hang is a FAILURE, never a skip.
     name: Bounded fuzz smoke (all targets)
