@@ -43,7 +43,7 @@ func ParseDecimalLexical(s string) (Decimal, error) {
 	// big.Float parses the standard decimal/exponent forms; reject anything it cannot.
 	bf, _, err := big.ParseFloat(s, 10, 256, big.ToNearestEven)
 	if err != nil {
-		return Decimal{}, &ValueError{VR: VRDS, Msg: fmt.Sprintf("not a decimal: %q", s)}
+		return Decimal{}, &ValueError{VR: VRDS, Msg: fmt.Sprintf("not a decimal (%d bytes)", len(s))}
 	}
 	return Decimal{lexical: s, val: bf}, nil
 }
