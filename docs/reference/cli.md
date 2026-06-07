@@ -1,10 +1,15 @@
 # radx CLI
 
-!!! warning "Planned design — not yet implemented"
+!!! warning "Partially implemented — foundation landed, command tree in progress"
 
-    This document describes the planned `radx` command-line interface. The CLI is not yet implemented: `cmd/radx`
-    currently builds to a stub that prints a not-yet-implemented notice. The command surface below is the contract the
-    implementation will conform to as commands land.
+    This document describes the `radx` command-line interface. The foundation is implemented: the Kong scaffold, the
+    global output contract, the `RADX_*` environment configuration, the exit-code taxonomy, and the honest-failure
+    rules are in place, and two commands are wired end to end against the library — `echo` (C-ECHO SCU) and `dump`
+    (Part-10 inspection). The remaining commands (`store`, `find`/`get`/`move`, `scp`, `modify`, `organize`,
+    `lookup`, `catalogue`, and the `hl7`, `dicomweb`, `convert`, and `serve` groups) are registered as committed
+    surface so the command tree is stable, but they fail closed — each returns a typed "not implemented" error and
+    exits `1` until its implementation lands. The command surface below is the contract every command conforms to as
+    it ships.
 
 The `radx` command-line interface is go-radx's flagship first-party consumer. It is the tool that proves the library
 API is usable, and it serves practitioners and operators who want dcmtk-class breadth from a single binary. It lives in
