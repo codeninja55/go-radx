@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
@@ -190,6 +191,12 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 	if err != nil {
 		return fmt.Errorf("dimse: listen on %q: %w", addr, err)
 	}
+	// With WithTLS the listener terminates TLS: every accepted connection completes a TLS handshake
+	// (and, with cfg.ClientAuth = RequireAndVerifyClientCert, client-certificate verification)
+	// before any PDU is read. Without TLS the plain listener is used unchanged.
+	if tlsCfg := s.ae.config().tlsConfigWithFloor(); tlsCfg != nil {
+		ln = tls.NewListener(ln, tlsCfg)
+	}
 
 	handlerCtx, cancelHandlers := context.WithCancel(ctx)
 	defer cancelHandlers()
@@ -267,9 +274,36 @@ func (s *Server) acceptLoop(ctx context.Context, ln net.Listener) error {
 			defer s.wg.Done()
 			defer func() { <-s.sem }()
 			defer s.untrackConn(conn)
+			// Complete a TLS handshake (when this is a TLS listener) before any PDU is read. The
+			// handshake runs in this per-association goroutine, not the accept loop, so a slow peer
+			// cannot stall the listener; it is bounded explicitly because the read-deadline the PDU
+			// path sets does not cover the writes a handshake also performs (see handshakeAccepted).
+			if err := s.ae.handshakeAccepted(ctx, nc); err != nil {
+				// A failed or stalled handshake releases the slot (deferred) and closes the
+				// connection here, so a peer that opens TCP but never completes the handshake cannot
+				// hold a max-association slot past the negotiation bound.
+				_ = conn.Close()
+				return
+			}
 			s.serveConn(ctx, conn)
 		}()
 	}
+}
+
+// handshakeAccepted completes the TLS handshake on an accepted connection before it reaches the
+// negotiation phase, bounded by the AE's negotiation deadline. A plaintext connection (no *tls.Conn)
+// is a no-op, so the plaintext accept path is unchanged. The PDU read path sets only a read
+// deadline, which does not bound the writes a TLS handshake also performs; running and bounding the
+// handshake here guarantees a peer stalling mid-handshake releases its capacity slot within the
+// negotiation bound rather than holding it until Shutdown.
+func (ae *AE) handshakeAccepted(ctx context.Context, nc net.Conn) error {
+	tc, ok := nc.(*tls.Conn)
+	if !ok {
+		return nil
+	}
+	hsCtx, cancel := ae.handshakeContext(ctx)
+	defer cancel()
+	return tc.HandshakeContext(hsCtx)
 }
 
 // serveConn runs one association to completion (negotiate, dispatch, release/abort/close), closing

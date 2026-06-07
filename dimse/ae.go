@@ -1,6 +1,7 @@
 package dimse
 
 import (
+	"crypto/tls"
 	"time"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -26,6 +27,12 @@ type aeConfig struct {
 
 	implementationClassUID dicom.UID
 	implementationVersion  string
+
+	// tlsConfig, when non-nil, secures every transport this AE opens: an outbound SCU connection
+	// dials over TLS and an inbound SCP listener terminates TLS. It is nil by default, so an AE
+	// with no WithTLS runs over plaintext TCP, unchanged. The config is never mutated in place;
+	// each transport clones it before adjusting per-connection fields.
+	tlsConfig *tls.Config
 }
 
 // AEOption configures an AE at construction.
@@ -69,6 +76,30 @@ func WithImplementationVersionName(name string) AEOption {
 	return func(c *aeConfig) { c.implementationVersion = name }
 }
 
+// WithTLS secures the AE's transport with cfg, applied to BOTH outbound SCU connections (which
+// dial over TLS) and the inbound SCP listener (which terminates TLS). Peer-certificate
+// verification is on by default: the library never sets InsecureSkipVerify, so a caller who needs
+// it must set it explicitly on cfg (the deliberate, auditable escape hatch). The library enforces a
+// TLS 1.2 floor: any cfg.MinVersion below 1.2 (unset, or a pinned 1.0/1.1) is raised to 1.2,
+// preferring 1.3 where the peer supports it (automatic once the floor is 1.2); a caller-pinned
+// higher floor is preserved. Mutual TLS is configured through
+// cfg: the SCU supplies client certificates in cfg.Certificates, and the SCP requires them with
+// cfg.ClientAuth = tls.RequireAndVerifyClientCert plus cfg.ClientCAs. A nil cfg leaves the AE on
+// plaintext TCP (the default). Certificates and keys come from environment or files, never
+// hard-coded, and are never logged (PRD §9.7, §9.8).
+func WithTLS(cfg *tls.Config) AEOption {
+	return func(c *aeConfig) {
+		// Clone on apply so a caller that mutates or reuses cfg after NewAE cannot change this AE's
+		// trust roots, certificates, or verification settings: the per-AE config is immutable and
+		// concurrent Associate calls must not race a caller-side mutation.
+		if cfg == nil {
+			c.tlsConfig = nil
+			return
+		}
+		c.tlsConfig = cfg.Clone()
+	}
+}
+
 // AE is a local DICOM Application Entity: the factory for outbound associations (SCU) and
 // inbound listeners (SCP). It carries no global mutable state; every knob is per-AE and set
 // with functional options. Safe for concurrent use (the config is immutable after NewAE).
@@ -101,3 +132,21 @@ func (ae *AE) Title() AETitle { return ae.title }
 
 // config returns the resolved configuration (internal; used by Associate and Server).
 func (ae *AE) config() aeConfig { return ae.cfg }
+
+// tlsConfigWithFloor returns a clone of the AE's TLS config with the minimum protocol version
+// clamped up to TLS 1.2, or nil when the AE has no TLS config. Cloning keeps the caller's config
+// immutable and gives each transport its own copy to adjust per-connection (e.g. the SCU sets
+// ServerName). Any MinVersion below 1.2 — unset (0) or a pinned 1.0/1.1 — is raised to 1.2 so the
+// public "TLS 1.2+" contract holds regardless of what the caller supplied; a caller-pinned HIGHER
+// floor (e.g. 1.3) is preserved. The 1.2 floor still prefers 1.3 automatically: Go negotiates the
+// highest version both sides support.
+func (c aeConfig) tlsConfigWithFloor() *tls.Config {
+	if c.tlsConfig == nil {
+		return nil
+	}
+	cfg := c.tlsConfig.Clone()
+	if cfg.MinVersion < tls.VersionTLS12 {
+		cfg.MinVersion = tls.VersionTLS12
+	}
+	return cfg
+}

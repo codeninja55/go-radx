@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net"
 	"sync"
@@ -267,15 +268,66 @@ func (a *Association) dimseContext(ctx context.Context) (context.Context, contex
 	return context.WithTimeout(ctx, a.dimseTimeout)
 }
 
-// dial opens the TCP connection to addr, honouring the AE's connection timeout (when set)
-// and ctx cancellation.
+// dial opens the connection to addr, honouring the AE's connection timeout (when set) and ctx
+// cancellation. With no TLS config it is a plain TCP connection; with WithTLS it dials over TLS
+// and completes the handshake (including peer-certificate verification) before returning, so a
+// certificate or handshake failure surfaces here rather than on the first PDU. The TLS handshake is
+// bounded by the negotiation deadline: a peer that completes the TCP connect but then stalls the
+// handshake cannot block the dial indefinitely (the dialer's Timeout covers only the TCP connect,
+// not the handshake that follows). When the caller's ctx already carries a deadline the handshake
+// honours it; otherwise a deadline is derived from the AE's negotiation bound so a default-timeout
+// SCU is still protected.
 func (ae *AE) dial(ctx context.Context, addr string) (net.Conn, error) {
 	d := net.Dialer{Timeout: ae.cfg.connectionTimeout}
-	nc, err := d.DialContext(ctx, "tcp", addr)
+	tlsCfg := ae.cfg.tlsConfigWithFloor()
+	if tlsCfg == nil {
+		nc, err := d.DialContext(ctx, "tcp", addr)
+		if err != nil {
+			return nil, &AssociationError{Kind: AssociationNotEstablished, Detail: "dial: " + err.Error()}
+		}
+		return nc, nil
+	}
+
+	// Default ServerName to the dialled host so certificate verification has a name to check when
+	// the caller did not pin one, mirroring crypto/tls's own behaviour for tls.Dial.
+	if tlsCfg.ServerName == "" {
+		if host, _, splitErr := net.SplitHostPort(addr); splitErr == nil {
+			tlsCfg.ServerName = host
+		}
+	}
+
+	// Bound the TLS handshake when the caller supplied no deadline of its own, matching the
+	// plaintext path's negotiation precedence (caller ctx deadline > WithConnectionTimeout > ACSE
+	// timeout default). Without this a peer that finishes the TCP connect but stalls the TLS
+	// handshake would block DialContext forever for a default-configured SCU.
+	dialCtx, cancel := ae.handshakeContext(ctx)
+	defer cancel()
+
+	td := tls.Dialer{NetDialer: &d, Config: tlsCfg}
+	nc, err := td.DialContext(dialCtx, "tcp", addr)
 	if err != nil {
-		return nil, &AssociationError{Kind: AssociationNotEstablished, Detail: "dial: " + err.Error()}
+		return nil, &AssociationError{Kind: AssociationNotEstablished, Detail: "tls dial: " + err.Error()}
 	}
 	return nc, nil
+}
+
+// handshakeContext derives the deadline that bounds a TLS handshake (SCU dial or SCP accept). The
+// bound comes from the AE's negotiation knobs, preferring an explicit WithConnectionTimeout and
+// falling back to the ACSE timeout, so the same precedence governs the TLS handshake that governs
+// the rest of negotiation. It is applied even when ctx already carries a (possibly longer) deadline:
+// context.WithTimeout keeps whichever deadline is earlier, mirroring acseContext, so a peer that
+// finishes TCP and then stalls the handshake cannot hold the outbound call or an inbound association
+// slot past the configured bound. A zero bound (both knobs disabled) leaves the handshake bounded
+// only by ctx.
+func (ae *AE) handshakeContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	bound := ae.cfg.connectionTimeout
+	if bound <= 0 {
+		bound = ae.cfg.acseTimeout
+	}
+	if bound <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, bound)
 }
 
 // acseContext derives the negotiation context, applying the AE's ACSE timeout when the

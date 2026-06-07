@@ -40,9 +40,10 @@ In scope for v1:
 - **Storage Commitment Push Model** as SCU only (N-ACTION, N-EVENT-REPORT).
 - Uncompressed transfer syntaxes for read and write; compressed transfer syntaxes for transport always, and for pixel
   decode/encode only where a pure-Go or optional-CGo codec is built in.
-- Association negotiation: presentation-context negotiation, maximum PDU length, and SCP/SCU role selection. The
-  asynchronous operations window, user identity (types 1–5), SOP Class extended and common extended negotiation, and
-  DIMSE-TLS are designed-for but not yet shipped (see the negotiation table below).
+- Association negotiation: presentation-context negotiation, maximum PDU length, SCP/SCU role selection, and DIMSE-TLS
+  (TLS 1.2+ with peer verification and optional mutual-TLS). The asynchronous operations window, user identity
+  (types 1–5), and SOP Class extended and common extended negotiation are designed-for but not yet shipped (see the
+  negotiation table below).
 
 Out of scope for v1 (deferred, designed-for but not implemented — PRD §3.2, §5.1):
 
@@ -356,8 +357,8 @@ Regenerate a baseline with the command recorded in each file's header, and compa
 ## Association negotiation
 
 go-radx negotiates associations through `dimse.AE`, `AE.Associate(...)`, and `dimse.NewServer(...)`. Presentation-context
-negotiation, maximum PDU length, and SCP/SCU role selection ship today; the remaining features in the table are
-designed-for against the `pynetdicom` floor (PRD §6.2) but not yet shipped.
+negotiation, maximum PDU length, SCP/SCU role selection, and DIMSE-TLS ship today; the remaining features in the table
+are designed-for against the `pynetdicom` floor (PRD §6.2) but not yet shipped.
 
 | Feature | Support | Notes |
 |---------|---------|-------|
@@ -368,7 +369,7 @@ designed-for against the `pynetdicom` floor (PRD §6.2) but not yet shipped.
 | User identity negotiation | Not yet shipped | Designed-for `WithUserIdentity(...)`: username, passcode, Kerberos, SAML, JWT (types 1–5) |
 | SOP Class extended negotiation | Not yet shipped | Designed-for `WithExtendedNegotiation(...)`: per-SOP-class service-class application info |
 | SOP Class common extended negotiation | Not yet shipped | Designed-for `WithCommonExtendedNegotiation(...)` |
-| DIMSE-TLS | Not yet shipped | Designed-for TLS 1.2+ (prefer 1.3), peer verification, optional mutual-TLS (PRD §9.7) |
+| DIMSE-TLS | Yes | `WithTLS(cfg)`; TLS 1.2+ (prefer 1.3), peer verification on by default, optional mutual-TLS (PRD §9.7) |
 
 ### DUL state machine
 

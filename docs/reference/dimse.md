@@ -3,8 +3,8 @@
 The `dimse` package implements the DICOM Message Service Element and its transport layer — the
 [DICOM Upper Layer protocol](https://dicom.nema.org/medical/dicom/current/output/chtml/part08/PS3.8.html) (DUL, PS3.8)
 and the DIMSE-C / DIMSE-N services (PS3.7). It is the network plane of go-radx: it carries DICOM datasets, defined by
-the `dicom` package, between Application Entities over TCP. (TLS transport is committed v1 surface but is **planned,
-not yet implemented** — see [Transport security](#transport-security-tls).)
+the `dicom` package, between Application Entities over TCP, optionally secured with TLS — see
+[Transport security](#transport-security-tls).
 
 This document is the normative public API contract for `dimse` — the surface the package is being built toward for v1.
 The implementation conforms to it except where a section is explicitly marked **planned (not yet implemented)**. It
@@ -30,8 +30,7 @@ In scope for v1:
 - DIMSE-N **SCU only** in v1: MPPS (N-CREATE / N-SET) and Storage Commitment (N-ACTION / N-EVENT-REPORT).
 - The streaming multi-response query/retrieve contract as `iter.Seq2[Status, *dicom.DataSet]`.
 - Typed `Status`, `Priority`, and `QueryLevel`.
-- TLS 1.2+ (preferring 1.3) with peer-certificate verification and a documented mutual-TLS option — **planned, not yet
-  implemented**.
+- TLS 1.2+ (preferring 1.3) with peer-certificate verification and a documented mutual-TLS option.
 
 Out of scope for v1 (architected-for, deferred — PRD §3.2, §5.1):
 
@@ -811,10 +810,6 @@ short reads mid-PDU surface as `ProtocolError` wrapping `io.ErrUnexpectedEOF`, n
 No operation panics on malformed network input; all length and dimension math is checked before allocation (PRD §9.3).
 
 ## Transport security (TLS)
-
-> **Planned, not yet implemented.** TLS transport is committed v1 surface, but the `dimse` package does not yet
-> implement it — DIMSE associations currently run over plaintext TCP. Until it lands, restrict DIMSE to trusted
-> networks; the SCP binds loopback by default. The API below is the contract the implementation will satisfy.
 
 DIMSE-TLS is configured per `AE` and applies to both SCU connections and the SCP listener.
 
