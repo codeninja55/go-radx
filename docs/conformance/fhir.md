@@ -120,13 +120,16 @@ Two tiers of guarantee apply, and the distinction is load-bearing for what a con
 
 The conformance-tested set is the radiology and clinical workflow resources required to close the PRD §5.1 loop:
 
-> **Implementation status: R4 and R5 resources shipped; R4 converter twins pending.** The whole workflow set below
-> ships in both releases, each generated from its `StructureDefinition` bundle: `ServiceRequest`, `ImagingStudy`,
+> **Implementation status: R4 and R5 resources shipped; converters shipped for both releases.** The whole workflow set
+> below ships in both releases, each generated from its `StructureDefinition` bundle: `ServiceRequest`, `ImagingStudy`,
 > `DiagnosticReport`, `Observation`, `Patient`, `Encounter`, `Bundle`, and `OperationOutcome`, conformance-validated by
-> the HL7 validator against 4.0.1 and 5.0.0. The converters that exist are still R5-only:
-> `convert.DICOMToImagingStudyR5`, `convert.SRToDiagnosticReportR5`, and `convert.ORMToServiceRequestR5`. The remaining
-> converters named below (the `…R4` twins, `DiagnosticReportToSR`, `ORUToDiagnosticReport`, `ADTToPatient`,
-> `ADTToEncounter`) are not yet implemented.
+> the HL7 validator against 4.0.1 and 5.0.0. The workflow converters now exist for both releases: each forward converter
+> (`convert.DICOMToImagingStudy…`, `convert.ORMToServiceRequest…`, `convert.SRToDiagnosticReport…`,
+> `convert.ORUToDiagnosticReport…`, `convert.ADTToPatient…`, `convert.ADTToEncounter…`) and the SR/OBX reverse
+> converters (`convert.DiagnosticReportToSR` / `…R4`, `convert.ObservationToContentItem` / `…R4`,
+> `convert.ObservationToOBX` / `…R4`) have an `R4` and an `R5` form, and each twin's output is validated through its
+> release validator (`r4.Validate` / `r5.Validate`). See [`./convert.md`](./convert.md) for the R4/R5 datatype
+> differences each twin reconciles.
 
 | Resource | Role in the workflow | Releases |
 |----------|----------------------|----------|
@@ -141,10 +144,12 @@ The conformance-tested set is the radiology and clinical workflow resources requ
 
 These are the resources the cross-standard conversions target. Every resource-producing converter is release-explicit,
 so each name carries an `R4` or `R5` suffix and returns the matching release sub-package type (the `R5` forms shown):
-`convert.DICOMToImagingStudyR5`, `convert.SRToDiagnosticReportR5` / `convert.DiagnosticReportToSRR5`,
-`convert.ORUToDiagnosticReportR5`, `convert.ORMToServiceRequestR5`, `convert.ADTToPatientR5`, and
-`convert.ADTToEncounterR5` (glossary naming rule 3), each with an `…R4` twin. Each conversion produces resources from
-this set, and each is validated against the FHIR validator.
+`convert.DICOMToImagingStudyR5`, `convert.SRToDiagnosticReportR5`, `convert.ORUToDiagnosticReportR5`,
+`convert.ORMToServiceRequestR5`, `convert.ADTToPatientR5`, and `convert.ADTToEncounterR5` (glossary naming rule 3), each
+with an `…R4` twin. The SR/OBX reverse converters keep the R5 form unsuffixed (`convert.DiagnosticReportToSR`,
+`convert.ObservationToContentItem`, `convert.ObservationToOBX`) and add an `…R4`-suffixed R4 form
+(`convert.DiagnosticReportToSRR4`, `convert.ObservationToContentItemR4`, `convert.ObservationToOBXR4`). Each conversion
+produces resources from this set, and each is validated against the FHIR validator.
 
 A resource moving from "generated" to "conformance-tested" is a reviewed change to this statement, not a silent code
 change.
