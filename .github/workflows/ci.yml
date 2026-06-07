@@ -29,8 +29,8 @@ jobs:
     # Pin the Go module and build caches to fixed in-workspace paths so the cache step below restores
     # to known locations regardless of how Go was installed (mise here, setup-go elsewhere).
     env:
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
@@ -44,8 +44,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-root-
@@ -98,8 +98,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: "true" # flips tools/dicom-conformance/*.sh from skip-locally to fail-if-tool-absent
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
@@ -109,8 +109,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-root-
@@ -142,8 +142,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: "true" # flips tools/fhir-conformance/validate.sh from skip-locally to fail-if-absent
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3 # installs Go 1.26 per mise.toml [tools]; the gate runs `go run` for the fixtures
@@ -153,8 +153,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-root-
@@ -178,8 +178,8 @@ jobs:
     name: Interop gate (${{ matrix.leg }} — testcontainers)
     runs-on: ubuntu-latest
     env:
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     strategy:
       # Run each interop leg on its own runner rather than serially on one. The legs all
       # drive containers; isolating them keeps the memory-heavy DIMSE dcm4chee-arc stack
@@ -204,8 +204,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-interop-${{ matrix.leg }}-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-interop-${{ matrix.leg }}-
@@ -250,8 +250,8 @@ jobs:
     env:
       GOWORK: "off"
       # Absolute paths so the caches resolve identically regardless of the cmd/radx working-directory.
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     defaults:
       run:
         working-directory: cmd/radx
@@ -266,8 +266,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-cmd-radx-${{ hashFiles('cmd/radx/go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-cmd-radx-
@@ -292,8 +292,8 @@ jobs:
     name: CGo pixel codecs (native libs from source)
     runs-on: ubuntu-latest
     env:
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
@@ -305,8 +305,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-codecs-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-codecs-
@@ -405,8 +405,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
@@ -416,8 +416,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-root-
@@ -437,8 +437,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
@@ -448,8 +448,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-root-
@@ -466,8 +466,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
@@ -477,8 +477,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-root-
@@ -493,8 +493,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
-      GOCACHE: ${{ github.workspace }}/.gocache/build
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
@@ -504,8 +504,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/.gocache/mod
-            ${{ github.workspace }}/.gocache/build
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
           key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-1.26.4-${{ runner.os }}-root-
