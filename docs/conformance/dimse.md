@@ -121,7 +121,7 @@ against the v1 target declared in [`./dicom.md`](./dicom.md); a feature is shipp
 | Asynchronous-operations window | PS3.7 D.3.3.3 | Not yet shipped |
 | User identity | PS3.7 D.3.3.7 | Not yet shipped |
 | SOP Class extended and common extended negotiation | PS3.7 D.3.3.5, D.3.3.6 | Not yet shipped |
-| DIMSE-TLS | PS3.15 §B.1 | Not yet shipped |
+| DIMSE-TLS | PS3.15 §B.1 | Shipped (`WithTLS`) |
 
 SCP/SCU role selection lets the requestor propose, per SOP Class, which of the SCU and SCP roles each peer plays; the
 acceptor responds with the roles it grants, never granting a role it does not itself support. The negotiated SCP role
