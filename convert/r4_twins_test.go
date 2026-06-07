@@ -278,6 +278,39 @@ func TestADTToEncounterR4DischargeStatus(t *testing.T) {
 	}
 }
 
+// TestADTToEncounterR4DefaultsRequiredClass confirms the R4-only required-field handling:
+// R4 makes Encounter.class mandatory, so an ADT with no PV1 (hence no patient class) must
+// still yield a valid R4 Encounter — class defaulted to the v3 NullFlavor "unknown" with a
+// recorded Substitution — rather than an Encounter that fails R4 validation.
+func TestADTToEncounterR4DefaultsRequiredClass(t *testing.T) {
+	const noPV1ADT = "MSH|^~\\&|ADT1|HOSP|EMR|HOSP|202605311230-0500||ADT^A01|MSGADT4|P|2.4\r" +
+		"EVN|A01|202605311230-0500\r" +
+		"PID|||555-44-4444^^^HOSP^MR||EVERYWOMAN^EVE^E^^^^L||19620320|F\r"
+	msg, err := hl7v2.Parse([]byte(noPV1ADT))
+	if err != nil {
+		t.Fatalf("parse ADT: %v", err)
+	}
+	enc, report, err := ADTToEncounterR4(msg)
+	if err != nil {
+		t.Fatalf("ADTToEncounterR4: %v", err)
+	}
+	if enc.Class == nil || enc.Class.Code == nil || *enc.Class.Code != "UNK" {
+		t.Errorf("Encounter.class = %v, want a defaulted v3 NullFlavor UNK Coding", enc.Class)
+	}
+	if oo := r4.Validate(enc); oo.HasErrors() {
+		t.Errorf("Encounter with no PV1 fails R4 validation (R4 requires class): %s", oo.Error())
+	}
+	found := false
+	for _, s := range report.Substituted {
+		if s.Concept == "Encounter.class" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected a Substitution naming Encounter.class for the defaulted required field")
+	}
+}
+
 // TestSRToDiagnosticReportR4 exercises the R4 SR forward twin against the shared
 // measurement SR fixture and asserts the produced report and every Observation validate
 // against the R4 binding set, mirroring how the R5 golden test validates through

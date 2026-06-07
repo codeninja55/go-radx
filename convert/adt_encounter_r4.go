@@ -47,6 +47,13 @@ func ADTToEncounterR4(msg *hl7v2.Message, opts ...Option) (*r4.Encounter, *Repor
 		}
 	}
 
+	// R4 makes Encounter.class mandatory (1..1) where R5 does not, so an ADT with no PV1
+	// or an empty PV1-2 still needs a class. Default to the v3 NullFlavor "unknown" and
+	// record a Substitution rather than emit an R4 Encounter that fails validation.
+	if enc.Class == nil {
+		enc.Class = unknownEncounterClassR4(report)
+	}
+
 	if subject := patientSubjectR4(cfg, msg, report, "Encounter.subject"); subject != nil {
 		enc.Subject = subject
 	}
@@ -103,4 +110,21 @@ func encounterClassR4(class string, report *Report) *r4.Coding {
 		coding.Display = &d
 	}
 	return coding
+}
+
+// nullFlavorSystem is the v3 NullFlavor code system, used for the R4 Encounter.class
+// fallback when an ADT supplies no PV1-2 patient class.
+const nullFlavorSystem = "http://terminology.hl7.org/CodeSystem/v3-NullFlavor"
+
+// unknownEncounterClassR4 returns the v3 NullFlavor "UNK" Coding for an R4
+// Encounter.class the source did not supply, recording a Substitution. R4 requires
+// Encounter.class (1..1), so a missing PV1-2 patient class is defaulted to unknown
+// rather than left absent, which would fail r4.Validate.
+func unknownEncounterClassR4(report *Report) *r4.Coding {
+	report.substituted("Encounter.class", "UNK",
+		"the ADT supplied no PV1-2 patient class; R4 requires Encounter.class, defaulted to v3 NullFlavor unknown")
+	system := nullFlavorSystem
+	code := "UNK"
+	display := "unknown"
+	return &r4.Coding{System: &system, Code: &code, Display: &display}
 }
