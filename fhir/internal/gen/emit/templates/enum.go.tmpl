@@ -44,8 +44,9 @@ func valid{{ .GoName }}(s string) bool {
 
 // Parse{{ .GoName }} validates s against the {{ .GoName }} required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func Parse{{ .GoName }}(s string) ({{ .GoName }}, error) {
 	v, err := fhir.ParseCode(s, valid{{ .GoName }}, "{{ .GoName }}")
 	return {{ .GoName }}(v), err

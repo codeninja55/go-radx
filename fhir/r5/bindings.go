@@ -32,8 +32,9 @@ func validAccountStatus(s string) bool {
 
 // ParseAccountStatus validates s against the AccountStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAccountStatus(s string) (AccountStatus, error) {
 	v, err := fhir.ParseCode(s, validAccountStatus, "AccountStatus")
 	return AccountStatus(v), err
@@ -76,8 +77,9 @@ func validActionCardinalityBehavior(s string) bool {
 
 // ParseActionCardinalityBehavior validates s against the ActionCardinalityBehavior required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseActionCardinalityBehavior(s string) (ActionCardinalityBehavior, error) {
 	v, err := fhir.ParseCode(s, validActionCardinalityBehavior, "ActionCardinalityBehavior")
 	return ActionCardinalityBehavior(v), err
@@ -121,8 +123,9 @@ func validActionConditionKind(s string) bool {
 
 // ParseActionConditionKind validates s against the ActionConditionKind required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseActionConditionKind(s string) (ActionConditionKind, error) {
 	v, err := fhir.ParseCode(s, validActionConditionKind, "ActionConditionKind")
 	return ActionConditionKind(v), err
@@ -166,8 +169,9 @@ func validActionGroupingBehavior(s string) bool {
 
 // ParseActionGroupingBehavior validates s against the ActionGroupingBehavior required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseActionGroupingBehavior(s string) (ActionGroupingBehavior, error) {
 	v, err := fhir.ParseCode(s, validActionGroupingBehavior, "ActionGroupingBehavior")
 	return ActionGroupingBehavior(v), err
@@ -218,8 +222,9 @@ func validActionParticipantType(s string) bool {
 
 // ParseActionParticipantType validates s against the ActionParticipantType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseActionParticipantType(s string) (ActionParticipantType, error) {
 	v, err := fhir.ParseCode(s, validActionParticipantType, "ActionParticipantType")
 	return ActionParticipantType(v), err
@@ -262,8 +267,9 @@ func validActionPrecheckBehavior(s string) bool {
 
 // ParseActionPrecheckBehavior validates s against the ActionPrecheckBehavior required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseActionPrecheckBehavior(s string) (ActionPrecheckBehavior, error) {
 	v, err := fhir.ParseCode(s, validActionPrecheckBehavior, "ActionPrecheckBehavior")
 	return ActionPrecheckBehavior(v), err
@@ -313,8 +319,9 @@ func validActionRelationshipType(s string) bool {
 
 // ParseActionRelationshipType validates s against the ActionRelationshipType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseActionRelationshipType(s string) (ActionRelationshipType, error) {
 	v, err := fhir.ParseCode(s, validActionRelationshipType, "ActionRelationshipType")
 	return ActionRelationshipType(v), err
@@ -358,8 +365,9 @@ func validActionRequiredBehavior(s string) bool {
 
 // ParseActionRequiredBehavior validates s against the ActionRequiredBehavior required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseActionRequiredBehavior(s string) (ActionRequiredBehavior, error) {
 	v, err := fhir.ParseCode(s, validActionRequiredBehavior, "ActionRequiredBehavior")
 	return ActionRequiredBehavior(v), err
@@ -406,8 +414,9 @@ func validActionSelectionBehavior(s string) bool {
 
 // ParseActionSelectionBehavior validates s against the ActionSelectionBehavior required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseActionSelectionBehavior(s string) (ActionSelectionBehavior, error) {
 	v, err := fhir.ParseCode(s, validActionSelectionBehavior, "ActionSelectionBehavior")
 	return ActionSelectionBehavior(v), err
@@ -458,8 +467,9 @@ func validAdditionalBindingPurposeVS(s string) bool {
 
 // ParseAdditionalBindingPurposeVS validates s against the AdditionalBindingPurposeVS required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAdditionalBindingPurposeVS(s string) (AdditionalBindingPurposeVS, error) {
 	v, err := fhir.ParseCode(s, validAdditionalBindingPurposeVS, "AdditionalBindingPurposeVS")
 	return AdditionalBindingPurposeVS(v), err
@@ -503,8 +513,9 @@ func validAddressType(s string) bool {
 
 // ParseAddressType validates s against the AddressType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAddressType(s string) (AddressType, error) {
 	v, err := fhir.ParseCode(s, validAddressType, "AddressType")
 	return AddressType(v), err
@@ -550,8 +561,9 @@ func validAddressUse(s string) bool {
 
 // ParseAddressUse validates s against the AddressUse required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAddressUse(s string) (AddressUse, error) {
 	v, err := fhir.ParseCode(s, validAddressUse, "AddressUse")
 	return AddressUse(v), err
@@ -596,8 +608,9 @@ func validAdministrativeGender(s string) bool {
 
 // ParseAdministrativeGender validates s against the AdministrativeGender required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAdministrativeGender(s string) (AdministrativeGender, error) {
 	v, err := fhir.ParseCode(s, validAdministrativeGender, "AdministrativeGender")
 	return AdministrativeGender(v), err
@@ -640,8 +653,9 @@ func validAdverseEventActuality(s string) bool {
 
 // ParseAdverseEventActuality validates s against the AdverseEventActuality required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAdverseEventActuality(s string) (AdverseEventActuality, error) {
 	v, err := fhir.ParseCode(s, validAdverseEventActuality, "AdverseEventActuality")
 	return AdverseEventActuality(v), err
@@ -686,8 +700,9 @@ func validAdverseEventStatus(s string) bool {
 
 // ParseAdverseEventStatus validates s against the AdverseEventStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAdverseEventStatus(s string) (AdverseEventStatus, error) {
 	v, err := fhir.ParseCode(s, validAdverseEventStatus, "AdverseEventStatus")
 	return AdverseEventStatus(v), err
@@ -731,8 +746,9 @@ func validAggregationMode(s string) bool {
 
 // ParseAggregationMode validates s against the AggregationMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAggregationMode(s string) (AggregationMode, error) {
 	v, err := fhir.ParseCode(s, validAggregationMode, "AggregationMode")
 	return AggregationMode(v), err
@@ -786,8 +802,9 @@ func validAllergyIntoleranceCategory(s string) bool {
 
 // ParseAllergyIntoleranceCategory validates s against the AllergyIntoleranceCategory required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAllergyIntoleranceCategory(s string) (AllergyIntoleranceCategory, error) {
 	v, err := fhir.ParseCode(s, validAllergyIntoleranceCategory, "AllergyIntoleranceCategory")
 	return AllergyIntoleranceCategory(v), err
@@ -831,8 +848,9 @@ func validAllergyIntoleranceCriticality(s string) bool {
 
 // ParseAllergyIntoleranceCriticality validates s against the AllergyIntoleranceCriticality required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAllergyIntoleranceCriticality(s string) (AllergyIntoleranceCriticality, error) {
 	v, err := fhir.ParseCode(s, validAllergyIntoleranceCriticality, "AllergyIntoleranceCriticality")
 	return AllergyIntoleranceCriticality(v), err
@@ -876,8 +894,9 @@ func validAllergyIntoleranceSeverity(s string) bool {
 
 // ParseAllergyIntoleranceSeverity validates s against the AllergyIntoleranceSeverity required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAllergyIntoleranceSeverity(s string) (AllergyIntoleranceSeverity, error) {
 	v, err := fhir.ParseCode(s, validAllergyIntoleranceSeverity, "AllergyIntoleranceSeverity")
 	return AllergyIntoleranceSeverity(v), err
@@ -923,8 +942,9 @@ func validAppointmentResponseStatus(s string) bool {
 
 // ParseAppointmentResponseStatus validates s against the AppointmentResponseStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAppointmentResponseStatus(s string) (AppointmentResponseStatus, error) {
 	v, err := fhir.ParseCode(s, validAppointmentResponseStatus, "AppointmentResponseStatus")
 	return AppointmentResponseStatus(v), err
@@ -975,8 +995,9 @@ func validAppointmentStatus(s string) bool {
 
 // ParseAppointmentStatus validates s against the AppointmentStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAppointmentStatus(s string) (AppointmentStatus, error) {
 	v, err := fhir.ParseCode(s, validAppointmentStatus, "AppointmentStatus")
 	return AppointmentStatus(v), err
@@ -1022,8 +1043,9 @@ func validArtifactAssessmentDisposition(s string) bool {
 
 // ParseArtifactAssessmentDisposition validates s against the ArtifactAssessmentDisposition required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseArtifactAssessmentDisposition(s string) (ArtifactAssessmentDisposition, error) {
 	v, err := fhir.ParseCode(s, validArtifactAssessmentDisposition, "ArtifactAssessmentDisposition")
 	return ArtifactAssessmentDisposition(v), err
@@ -1070,8 +1092,9 @@ func validArtifactAssessmentInformationType(s string) bool {
 
 // ParseArtifactAssessmentInformationType validates s against the ArtifactAssessmentInformationType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseArtifactAssessmentInformationType(s string) (ArtifactAssessmentInformationType, error) {
 	v, err := fhir.ParseCode(s, validArtifactAssessmentInformationType, "ArtifactAssessmentInformationType")
 	return ArtifactAssessmentInformationType(v), err
@@ -1122,8 +1145,9 @@ func validArtifactAssessmentWorkflowStatus(s string) bool {
 
 // ParseArtifactAssessmentWorkflowStatus validates s against the ArtifactAssessmentWorkflowStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseArtifactAssessmentWorkflowStatus(s string) (ArtifactAssessmentWorkflowStatus, error) {
 	v, err := fhir.ParseCode(s, validArtifactAssessmentWorkflowStatus, "ArtifactAssessmentWorkflowStatus")
 	return ArtifactAssessmentWorkflowStatus(v), err
@@ -1166,8 +1190,9 @@ func validAssertionDirectionType(s string) bool {
 
 // ParseAssertionDirectionType validates s against the AssertionDirectionType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAssertionDirectionType(s string) (AssertionDirectionType, error) {
 	v, err := fhir.ParseCode(s, validAssertionDirectionType, "AssertionDirectionType")
 	return AssertionDirectionType(v), err
@@ -1212,8 +1237,9 @@ func validAssertionManualCompletionType(s string) bool {
 
 // ParseAssertionManualCompletionType validates s against the AssertionManualCompletionType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAssertionManualCompletionType(s string) (AssertionManualCompletionType, error) {
 	v, err := fhir.ParseCode(s, validAssertionManualCompletionType, "AssertionManualCompletionType")
 	return AssertionManualCompletionType(v), err
@@ -1266,8 +1292,9 @@ func validAssertionOperatorType(s string) bool {
 
 // ParseAssertionOperatorType validates s against the AssertionOperatorType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAssertionOperatorType(s string) (AssertionOperatorType, error) {
 	v, err := fhir.ParseCode(s, validAssertionOperatorType, "AssertionOperatorType")
 	return AssertionOperatorType(v), err
@@ -1352,8 +1379,9 @@ func validAssertionResponseTypes(s string) bool {
 
 // ParseAssertionResponseTypes validates s against the AssertionResponseTypes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAssertionResponseTypes(s string) (AssertionResponseTypes, error) {
 	v, err := fhir.ParseCode(s, validAssertionResponseTypes, "AssertionResponseTypes")
 	return AssertionResponseTypes(v), err
@@ -1399,8 +1427,9 @@ func validAuditEventAction(s string) bool {
 
 // ParseAuditEventAction validates s against the AuditEventAction required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAuditEventAction(s string) (AuditEventAction, error) {
 	v, err := fhir.ParseCode(s, validAuditEventAction, "AuditEventAction")
 	return AuditEventAction(v), err
@@ -1449,8 +1478,9 @@ func validAuditEventSeverity(s string) bool {
 
 // ParseAuditEventSeverity validates s against the AuditEventSeverity required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAuditEventSeverity(s string) (AuditEventSeverity, error) {
 	v, err := fhir.ParseCode(s, validAuditEventSeverity, "AuditEventSeverity")
 	return AuditEventSeverity(v), err
@@ -1495,8 +1525,9 @@ func validBindingStrength(s string) bool {
 
 // ParseBindingStrength validates s against the BindingStrength required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseBindingStrength(s string) (BindingStrength, error) {
 	v, err := fhir.ParseCode(s, validBindingStrength, "BindingStrength")
 	return BindingStrength(v), err
@@ -1545,8 +1576,9 @@ func validBiologicallyDerivedProductDispenseCodes(s string) bool {
 
 // ParseBiologicallyDerivedProductDispenseCodes validates s against the BiologicallyDerivedProductDispenseCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseBiologicallyDerivedProductDispenseCodes(s string) (BiologicallyDerivedProductDispenseCodes, error) {
 	v, err := fhir.ParseCode(s, validBiologicallyDerivedProductDispenseCodes, "BiologicallyDerivedProductDispenseCodes")
 	return BiologicallyDerivedProductDispenseCodes(v), err
@@ -1597,8 +1629,9 @@ func validBundleType(s string) bool {
 
 // ParseBundleType validates s against the BundleType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseBundleType(s string) (BundleType, error) {
 	v, err := fhir.ParseCode(s, validBundleType, "BundleType")
 	return BundleType(v), err
@@ -1642,8 +1675,9 @@ func validCapabilityStatementKind(s string) bool {
 
 // ParseCapabilityStatementKind validates s against the CapabilityStatementKind required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCapabilityStatementKind(s string) (CapabilityStatementKind, error) {
 	v, err := fhir.ParseCode(s, validCapabilityStatementKind, "CapabilityStatementKind")
 	return CapabilityStatementKind(v), err
@@ -1689,8 +1723,9 @@ func validCarePlanIntent(s string) bool {
 
 // ParseCarePlanIntent validates s against the CarePlanIntent required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCarePlanIntent(s string) (CarePlanIntent, error) {
 	v, err := fhir.ParseCode(s, validCarePlanIntent, "CarePlanIntent")
 	return CarePlanIntent(v), err
@@ -1736,8 +1771,9 @@ func validCareTeamStatus(s string) bool {
 
 // ParseCareTeamStatus validates s against the CareTeamStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCareTeamStatus(s string) (CareTeamStatus, error) {
 	v, err := fhir.ParseCode(s, validCareTeamStatus, "CareTeamStatus")
 	return CareTeamStatus(v), err
@@ -1785,8 +1821,9 @@ func validCharacteristicCombination(s string) bool {
 
 // ParseCharacteristicCombination validates s against the CharacteristicCombination required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCharacteristicCombination(s string) (CharacteristicCombination, error) {
 	v, err := fhir.ParseCode(s, validCharacteristicCombination, "CharacteristicCombination")
 	return CharacteristicCombination(v), err
@@ -1834,8 +1871,9 @@ func validChargeItemStatus(s string) bool {
 
 // ParseChargeItemStatus validates s against the ChargeItemStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseChargeItemStatus(s string) (ChargeItemStatus, error) {
 	v, err := fhir.ParseCode(s, validChargeItemStatus, "ChargeItemStatus")
 	return ChargeItemStatus(v), err
@@ -1880,8 +1918,9 @@ func validClaimProcessingCodes(s string) bool {
 
 // ParseClaimProcessingCodes validates s against the ClaimProcessingCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseClaimProcessingCodes(s string) (ClaimProcessingCodes, error) {
 	v, err := fhir.ParseCode(s, validClaimProcessingCodes, "ClaimProcessingCodes")
 	return ClaimProcessingCodes(v), err
@@ -1927,8 +1966,9 @@ func validClinicalUseDefinitionType(s string) bool {
 
 // ParseClinicalUseDefinitionType validates s against the ClinicalUseDefinitionType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseClinicalUseDefinitionType(s string) (ClinicalUseDefinitionType, error) {
 	v, err := fhir.ParseCode(s, validClinicalUseDefinitionType, "ClinicalUseDefinitionType")
 	return ClinicalUseDefinitionType(v), err
@@ -1972,8 +2012,9 @@ func validCodeSearchSupport(s string) bool {
 
 // ParseCodeSearchSupport validates s against the CodeSearchSupport required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCodeSearchSupport(s string) (CodeSearchSupport, error) {
 	v, err := fhir.ParseCode(s, validCodeSearchSupport, "CodeSearchSupport")
 	return CodeSearchSupport(v), err
@@ -2019,8 +2060,9 @@ func validCodeSystemContentMode(s string) bool {
 
 // ParseCodeSystemContentMode validates s against the CodeSystemContentMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCodeSystemContentMode(s string) (CodeSystemContentMode, error) {
 	v, err := fhir.ParseCode(s, validCodeSystemContentMode, "CodeSystemContentMode")
 	return CodeSystemContentMode(v), err
@@ -2065,8 +2107,9 @@ func validCodeSystemHierarchyMeaning(s string) bool {
 
 // ParseCodeSystemHierarchyMeaning validates s against the CodeSystemHierarchyMeaning required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCodeSystemHierarchyMeaning(s string) (CodeSystemHierarchyMeaning, error) {
 	v, err := fhir.ParseCode(s, validCodeSystemHierarchyMeaning, "CodeSystemHierarchyMeaning")
 	return CodeSystemHierarchyMeaning(v), err
@@ -2198,8 +2241,9 @@ func validCommonLanguages(s string) bool {
 
 // ParseCommonLanguages validates s against the CommonLanguages required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCommonLanguages(s string) (CommonLanguages, error) {
 	v, err := fhir.ParseCode(s, validCommonLanguages, "CommonLanguages")
 	return CommonLanguages(v), err
@@ -2246,8 +2290,9 @@ func validCompartmentType(s string) bool {
 
 // ParseCompartmentType validates s against the CompartmentType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCompartmentType(s string) (CompartmentType, error) {
 	v, err := fhir.ParseCode(s, validCompartmentType, "CompartmentType")
 	return CompartmentType(v), err
@@ -2299,8 +2344,9 @@ func validCompositionStatus(s string) bool {
 
 // ParseCompositionStatus validates s against the CompositionStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCompositionStatus(s string) (CompositionStatus, error) {
 	v, err := fhir.ParseCode(s, validCompositionStatus, "CompositionStatus")
 	return CompositionStatus(v), err
@@ -2346,8 +2392,9 @@ func validConceptMapAttributeType(s string) bool {
 
 // ParseConceptMapAttributeType validates s against the ConceptMapAttributeType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConceptMapAttributeType(s string) (ConceptMapAttributeType, error) {
 	v, err := fhir.ParseCode(s, validConceptMapAttributeType, "ConceptMapAttributeType")
 	return ConceptMapAttributeType(v), err
@@ -2391,8 +2438,9 @@ func validConceptMapGroupUnmappedMode(s string) bool {
 
 // ParseConceptMapGroupUnmappedMode validates s against the ConceptMapGroupUnmappedMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConceptMapGroupUnmappedMode(s string) (ConceptMapGroupUnmappedMode, error) {
 	v, err := fhir.ParseCode(s, validConceptMapGroupUnmappedMode, "ConceptMapGroupUnmappedMode")
 	return ConceptMapGroupUnmappedMode(v), err
@@ -2440,8 +2488,9 @@ func validConceptMapPropertyType(s string) bool {
 
 // ParseConceptMapPropertyType validates s against the ConceptMapPropertyType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConceptMapPropertyType(s string) (ConceptMapPropertyType, error) {
 	v, err := fhir.ParseCode(s, validConceptMapPropertyType, "ConceptMapPropertyType")
 	return ConceptMapPropertyType(v), err
@@ -2487,8 +2536,9 @@ func validConceptMapRelationship(s string) bool {
 
 // ParseConceptMapRelationship validates s against the ConceptMapRelationship required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConceptMapRelationship(s string) (ConceptMapRelationship, error) {
 	v, err := fhir.ParseCode(s, validConceptMapRelationship, "ConceptMapRelationship")
 	return ConceptMapRelationship(v), err
@@ -2531,8 +2581,9 @@ func validConditionPreconditionType(s string) bool {
 
 // ParseConditionPreconditionType validates s against the ConditionPreconditionType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConditionPreconditionType(s string) (ConditionPreconditionType, error) {
 	v, err := fhir.ParseCode(s, validConditionPreconditionType, "ConditionPreconditionType")
 	return ConditionPreconditionType(v), err
@@ -2576,8 +2627,9 @@ func validConditionQuestionnairePurpose(s string) bool {
 
 // ParseConditionQuestionnairePurpose validates s against the ConditionQuestionnairePurpose required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConditionQuestionnairePurpose(s string) (ConditionQuestionnairePurpose, error) {
 	v, err := fhir.ParseCode(s, validConditionQuestionnairePurpose, "ConditionQuestionnairePurpose")
 	return ConditionQuestionnairePurpose(v), err
@@ -2621,8 +2673,9 @@ func validConditionalDeleteStatus(s string) bool {
 
 // ParseConditionalDeleteStatus validates s against the ConditionalDeleteStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConditionalDeleteStatus(s string) (ConditionalDeleteStatus, error) {
 	v, err := fhir.ParseCode(s, validConditionalDeleteStatus, "ConditionalDeleteStatus")
 	return ConditionalDeleteStatus(v), err
@@ -2667,8 +2720,9 @@ func validConditionalReadStatus(s string) bool {
 
 // ParseConditionalReadStatus validates s against the ConditionalReadStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConditionalReadStatus(s string) (ConditionalReadStatus, error) {
 	v, err := fhir.ParseCode(s, validConditionalReadStatus, "ConditionalReadStatus")
 	return ConditionalReadStatus(v), err
@@ -2713,8 +2767,9 @@ func validConformanceExpectation(s string) bool {
 
 // ParseConformanceExpectation validates s against the ConformanceExpectation required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConformanceExpectation(s string) (ConformanceExpectation, error) {
 	v, err := fhir.ParseCode(s, validConformanceExpectation, "ConformanceExpectation")
 	return ConformanceExpectation(v), err
@@ -2759,8 +2814,9 @@ func validConsentDataMeaning(s string) bool {
 
 // ParseConsentDataMeaning validates s against the ConsentDataMeaning required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConsentDataMeaning(s string) (ConsentDataMeaning, error) {
 	v, err := fhir.ParseCode(s, validConsentDataMeaning, "ConsentDataMeaning")
 	return ConsentDataMeaning(v), err
@@ -2803,8 +2859,9 @@ func validConsentProvisionType(s string) bool {
 
 // ParseConsentProvisionType validates s against the ConsentProvisionType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConsentProvisionType(s string) (ConsentProvisionType, error) {
 	v, err := fhir.ParseCode(s, validConsentProvisionType, "ConsentProvisionType")
 	return ConsentProvisionType(v), err
@@ -2851,8 +2908,9 @@ func validConsentState(s string) bool {
 
 // ParseConsentState validates s against the ConsentState required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConsentState(s string) (ConsentState, error) {
 	v, err := fhir.ParseCode(s, validConsentState, "ConsentState")
 	return ConsentState(v), err
@@ -2895,8 +2953,9 @@ func validConstraintSeverity(s string) bool {
 
 // ParseConstraintSeverity validates s against the ConstraintSeverity required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseConstraintSeverity(s string) (ConstraintSeverity, error) {
 	v, err := fhir.ParseCode(s, validConstraintSeverity, "ConstraintSeverity")
 	return ConstraintSeverity(v), err
@@ -2944,8 +3003,9 @@ func validContactPointSystem(s string) bool {
 
 // ParseContactPointSystem validates s against the ContactPointSystem required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseContactPointSystem(s string) (ContactPointSystem, error) {
 	v, err := fhir.ParseCode(s, validContactPointSystem, "ContactPointSystem")
 	return ContactPointSystem(v), err
@@ -2991,8 +3051,9 @@ func validContactPointUse(s string) bool {
 
 // ParseContactPointUse validates s against the ContactPointUse required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseContactPointUse(s string) (ContactPointUse, error) {
 	v, err := fhir.ParseCode(s, validContactPointUse, "ContactPointUse")
 	return ContactPointUse(v), err
@@ -3048,8 +3109,9 @@ func validContractResourcePublicationStatusCodes(s string) bool {
 
 // ParseContractResourcePublicationStatusCodes validates s against the ContractResourcePublicationStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseContractResourcePublicationStatusCodes(s string) (ContractResourcePublicationStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validContractResourcePublicationStatusCodes, "ContractResourcePublicationStatusCodes")
 	return ContractResourcePublicationStatusCodes(v), err
@@ -3105,8 +3167,9 @@ func validContractResourceStatusCodes(s string) bool {
 
 // ParseContractResourceStatusCodes validates s against the ContractResourceStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseContractResourceStatusCodes(s string) (ContractResourceStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validContractResourceStatusCodes, "ContractResourceStatusCodes")
 	return ContractResourceStatusCodes(v), err
@@ -3151,8 +3214,9 @@ func validContributorType(s string) bool {
 
 // ParseContributorType validates s against the ContributorType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseContributorType(s string) (ContributorType, error) {
 	v, err := fhir.ParseCode(s, validContributorType, "ContributorType")
 	return ContributorType(v), err
@@ -3195,8 +3259,9 @@ func validCriteriaNotExistsBehavior(s string) bool {
 
 // ParseCriteriaNotExistsBehavior validates s against the CriteriaNotExistsBehavior required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseCriteriaNotExistsBehavior(s string) (CriteriaNotExistsBehavior, error) {
 	v, err := fhir.ParseCode(s, validCriteriaNotExistsBehavior, "CriteriaNotExistsBehavior")
 	return CriteriaNotExistsBehavior(v), err
@@ -3253,8 +3318,9 @@ func validDaysOfWeek(s string) bool {
 
 // ParseDaysOfWeek validates s against the DaysOfWeek required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDaysOfWeek(s string) (DaysOfWeek, error) {
 	v, err := fhir.ParseCode(s, validDaysOfWeek, "DaysOfWeek")
 	return DaysOfWeek(v), err
@@ -3298,8 +3364,9 @@ func validDetectedIssueSeverity(s string) bool {
 
 // ParseDetectedIssueSeverity validates s against the DetectedIssueSeverity required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDetectedIssueSeverity(s string) (DetectedIssueSeverity, error) {
 	v, err := fhir.ParseCode(s, validDetectedIssueSeverity, "DetectedIssueSeverity")
 	return DetectedIssueSeverity(v), err
@@ -3344,8 +3411,9 @@ func validDetectedIssueStatus(s string) bool {
 
 // ParseDetectedIssueStatus validates s against the DetectedIssueStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDetectedIssueStatus(s string) (DetectedIssueStatus, error) {
 	v, err := fhir.ParseCode(s, validDetectedIssueStatus, "DetectedIssueStatus")
 	return DetectedIssueStatus(v), err
@@ -3389,8 +3457,9 @@ func validDeviceCorrectiveActionScope(s string) bool {
 
 // ParseDeviceCorrectiveActionScope validates s against the DeviceCorrectiveActionScope required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceCorrectiveActionScope(s string) (DeviceCorrectiveActionScope, error) {
 	v, err := fhir.ParseCode(s, validDeviceCorrectiveActionScope, "DeviceCorrectiveActionScope")
 	return DeviceCorrectiveActionScope(v), err
@@ -3434,8 +3503,9 @@ func validDeviceDefinitionRegulatoryIdentifierType(s string) bool {
 
 // ParseDeviceDefinitionRegulatoryIdentifierType validates s against the DeviceDefinitionRegulatoryIdentifierType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceDefinitionRegulatoryIdentifierType(s string) (DeviceDefinitionRegulatoryIdentifierType, error) {
 	v, err := fhir.ParseCode(s, validDeviceDefinitionRegulatoryIdentifierType, "DeviceDefinitionRegulatoryIdentifierType")
 	return DeviceDefinitionRegulatoryIdentifierType(v), err
@@ -3485,8 +3555,9 @@ func validDeviceDispenseStatusCodes(s string) bool {
 
 // ParseDeviceDispenseStatusCodes validates s against the DeviceDispenseStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceDispenseStatusCodes(s string) (DeviceDispenseStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validDeviceDispenseStatusCodes, "DeviceDispenseStatusCodes")
 	return DeviceDispenseStatusCodes(v), err
@@ -3531,8 +3602,9 @@ func validDeviceMetricCalibrationState(s string) bool {
 
 // ParseDeviceMetricCalibrationState validates s against the DeviceMetricCalibrationState required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceMetricCalibrationState(s string) (DeviceMetricCalibrationState, error) {
 	v, err := fhir.ParseCode(s, validDeviceMetricCalibrationState, "DeviceMetricCalibrationState")
 	return DeviceMetricCalibrationState(v), err
@@ -3577,8 +3649,9 @@ func validDeviceMetricCalibrationType(s string) bool {
 
 // ParseDeviceMetricCalibrationType validates s against the DeviceMetricCalibrationType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceMetricCalibrationType(s string) (DeviceMetricCalibrationType, error) {
 	v, err := fhir.ParseCode(s, validDeviceMetricCalibrationType, "DeviceMetricCalibrationType")
 	return DeviceMetricCalibrationType(v), err
@@ -3623,8 +3696,9 @@ func validDeviceMetricCategory(s string) bool {
 
 // ParseDeviceMetricCategory validates s against the DeviceMetricCategory required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceMetricCategory(s string) (DeviceMetricCategory, error) {
 	v, err := fhir.ParseCode(s, validDeviceMetricCategory, "DeviceMetricCategory")
 	return DeviceMetricCategory(v), err
@@ -3669,8 +3743,9 @@ func validDeviceMetricOperationalStatus(s string) bool {
 
 // ParseDeviceMetricOperationalStatus validates s against the DeviceMetricOperationalStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceMetricOperationalStatus(s string) (DeviceMetricOperationalStatus, error) {
 	v, err := fhir.ParseCode(s, validDeviceMetricOperationalStatus, "DeviceMetricOperationalStatus")
 	return DeviceMetricOperationalStatus(v), err
@@ -3714,8 +3789,9 @@ func validDeviceNameType(s string) bool {
 
 // ParseDeviceNameType validates s against the DeviceNameType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceNameType(s string) (DeviceNameType, error) {
 	v, err := fhir.ParseCode(s, validDeviceNameType, "DeviceNameType")
 	return DeviceNameType(v), err
@@ -3762,8 +3838,9 @@ func validDeviceProductionIdentifierInUDI(s string) bool {
 
 // ParseDeviceProductionIdentifierInUDI validates s against the DeviceProductionIdentifierInUDI required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceProductionIdentifierInUDI(s string) (DeviceProductionIdentifierInUDI, error) {
 	v, err := fhir.ParseCode(s, validDeviceProductionIdentifierInUDI, "DeviceProductionIdentifierInUDI")
 	return DeviceProductionIdentifierInUDI(v), err
@@ -3811,8 +3888,9 @@ func validDeviceUsageStatus(s string) bool {
 
 // ParseDeviceUsageStatus validates s against the DeviceUsageStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDeviceUsageStatus(s string) (DeviceUsageStatus, error) {
 	v, err := fhir.ParseCode(s, validDeviceUsageStatus, "DeviceUsageStatus")
 	return DeviceUsageStatus(v), err
@@ -3864,8 +3942,9 @@ func validDiagnosticReportStatus(s string) bool {
 
 // ParseDiagnosticReportStatus validates s against the DiagnosticReportStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDiagnosticReportStatus(s string) (DiagnosticReportStatus, error) {
 	v, err := fhir.ParseCode(s, validDiagnosticReportStatus, "DiagnosticReportStatus")
 	return DiagnosticReportStatus(v), err
@@ -3912,8 +3991,9 @@ func validDiscriminatorType(s string) bool {
 
 // ParseDiscriminatorType validates s against the DiscriminatorType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDiscriminatorType(s string) (DiscriminatorType, error) {
 	v, err := fhir.ParseCode(s, validDiscriminatorType, "DiscriminatorType")
 	return DiscriminatorType(v), err
@@ -3956,8 +4036,9 @@ func validDocumentMode(s string) bool {
 
 // ParseDocumentMode validates s against the DocumentMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDocumentMode(s string) (DocumentMode, error) {
 	v, err := fhir.ParseCode(s, validDocumentMode, "DocumentMode")
 	return DocumentMode(v), err
@@ -4001,8 +4082,9 @@ func validDocumentReferenceStatus(s string) bool {
 
 // ParseDocumentReferenceStatus validates s against the DocumentReferenceStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseDocumentReferenceStatus(s string) (DocumentReferenceStatus, error) {
 	v, err := fhir.ParseCode(s, validDocumentReferenceStatus, "DocumentReferenceStatus")
 	return DocumentReferenceStatus(v), err
@@ -4047,8 +4129,9 @@ func validEligibilityOutcome(s string) bool {
 
 // ParseEligibilityOutcome validates s against the EligibilityOutcome required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEligibilityOutcome(s string) (EligibilityOutcome, error) {
 	v, err := fhir.ParseCode(s, validEligibilityOutcome, "EligibilityOutcome")
 	return EligibilityOutcome(v), err
@@ -4093,8 +4176,9 @@ func validEligibilityRequestPurpose(s string) bool {
 
 // ParseEligibilityRequestPurpose validates s against the EligibilityRequestPurpose required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEligibilityRequestPurpose(s string) (EligibilityRequestPurpose, error) {
 	v, err := fhir.ParseCode(s, validEligibilityRequestPurpose, "EligibilityRequestPurpose")
 	return EligibilityRequestPurpose(v), err
@@ -4139,8 +4223,9 @@ func validEligibilityResponsePurpose(s string) bool {
 
 // ParseEligibilityResponsePurpose validates s against the EligibilityResponsePurpose required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEligibilityResponsePurpose(s string) (EligibilityResponsePurpose, error) {
 	v, err := fhir.ParseCode(s, validEligibilityResponsePurpose, "EligibilityResponsePurpose")
 	return EligibilityResponsePurpose(v), err
@@ -4183,8 +4268,9 @@ func validEnableWhenBehavior(s string) bool {
 
 // ParseEnableWhenBehavior validates s against the EnableWhenBehavior required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEnableWhenBehavior(s string) (EnableWhenBehavior, error) {
 	v, err := fhir.ParseCode(s, validEnableWhenBehavior, "EnableWhenBehavior")
 	return EnableWhenBehavior(v), err
@@ -4229,8 +4315,9 @@ func validEncounterLocationStatus(s string) bool {
 
 // ParseEncounterLocationStatus validates s against the EncounterLocationStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEncounterLocationStatus(s string) (EncounterLocationStatus, error) {
 	v, err := fhir.ParseCode(s, validEncounterLocationStatus, "EncounterLocationStatus")
 	return EncounterLocationStatus(v), err
@@ -4280,8 +4367,9 @@ func validEncounterStatus(s string) bool {
 
 // ParseEncounterStatus validates s against the EncounterStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEncounterStatus(s string) (EncounterStatus, error) {
 	v, err := fhir.ParseCode(s, validEncounterStatus, "EncounterStatus")
 	return EncounterStatus(v), err
@@ -4327,8 +4415,9 @@ func validEndpointStatus(s string) bool {
 
 // ParseEndpointStatus validates s against the EndpointStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEndpointStatus(s string) (EndpointStatus, error) {
 	v, err := fhir.ParseCode(s, validEndpointStatus, "EndpointStatus")
 	return EndpointStatus(v), err
@@ -4373,8 +4462,9 @@ func validEnrollmentOutcome(s string) bool {
 
 // ParseEnrollmentOutcome validates s against the EnrollmentOutcome required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEnrollmentOutcome(s string) (EnrollmentOutcome, error) {
 	v, err := fhir.ParseCode(s, validEnrollmentOutcome, "EnrollmentOutcome")
 	return EnrollmentOutcome(v), err
@@ -4422,8 +4512,9 @@ func validEpisodeOfCareStatus(s string) bool {
 
 // ParseEpisodeOfCareStatus validates s against the EpisodeOfCareStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEpisodeOfCareStatus(s string) (EpisodeOfCareStatus, error) {
 	v, err := fhir.ParseCode(s, validEpisodeOfCareStatus, "EpisodeOfCareStatus")
 	return EpisodeOfCareStatus(v), err
@@ -4466,8 +4557,9 @@ func validEventCapabilityMode(s string) bool {
 
 // ParseEventCapabilityMode validates s against the EventCapabilityMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEventCapabilityMode(s string) (EventCapabilityMode, error) {
 	v, err := fhir.ParseCode(s, validEventCapabilityMode, "EventCapabilityMode")
 	return EventCapabilityMode(v), err
@@ -4516,8 +4608,9 @@ func validEventStatus(s string) bool {
 
 // ParseEventStatus validates s against the EventStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEventStatus(s string) (EventStatus, error) {
 	v, err := fhir.ParseCode(s, validEventStatus, "EventStatus")
 	return EventStatus(v), err
@@ -4585,8 +4678,9 @@ func validEventTiming(s string) bool {
 
 // ParseEventTiming validates s against the EventTiming required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEventTiming(s string) (EventTiming, error) {
 	v, err := fhir.ParseCode(s, validEventTiming, "EventTiming")
 	return EventTiming(v), err
@@ -4631,8 +4725,9 @@ func validEvidenceVariableHandling(s string) bool {
 
 // ParseEvidenceVariableHandling validates s against the EvidenceVariableHandling required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseEvidenceVariableHandling(s string) (EvidenceVariableHandling, error) {
 	v, err := fhir.ParseCode(s, validEvidenceVariableHandling, "EvidenceVariableHandling")
 	return EvidenceVariableHandling(v), err
@@ -4675,8 +4770,9 @@ func validExampleScenarioActorType(s string) bool {
 
 // ParseExampleScenarioActorType validates s against the ExampleScenarioActorType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseExampleScenarioActorType(s string) (ExampleScenarioActorType, error) {
 	v, err := fhir.ParseCode(s, validExampleScenarioActorType, "ExampleScenarioActorType")
 	return ExampleScenarioActorType(v), err
@@ -4721,8 +4817,9 @@ func validExplanationOfBenefitStatus(s string) bool {
 
 // ParseExplanationOfBenefitStatus validates s against the ExplanationOfBenefitStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseExplanationOfBenefitStatus(s string) (ExplanationOfBenefitStatus, error) {
 	v, err := fhir.ParseCode(s, validExplanationOfBenefitStatus, "ExplanationOfBenefitStatus")
 	return ExplanationOfBenefitStatus(v), err
@@ -4766,8 +4863,9 @@ func validExtensionContextType(s string) bool {
 
 // ParseExtensionContextType validates s against the ExtensionContextType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseExtensionContextType(s string) (ExtensionContextType, error) {
 	v, err := fhir.ParseCode(s, validExtensionContextType, "ExtensionContextType")
 	return ExtensionContextType(v), err
@@ -4811,8 +4909,9 @@ func validFHIRDeviceStatus(s string) bool {
 
 // ParseFHIRDeviceStatus validates s against the FHIRDeviceStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseFHIRDeviceStatus(s string) (FHIRDeviceStatus, error) {
 	v, err := fhir.ParseCode(s, validFHIRDeviceStatus, "FHIRDeviceStatus")
 	return FHIRDeviceStatus(v), err
@@ -4856,8 +4955,9 @@ func validFHIRSubstanceStatus(s string) bool {
 
 // ParseFHIRSubstanceStatus validates s against the FHIRSubstanceStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseFHIRSubstanceStatus(s string) (FHIRSubstanceStatus, error) {
 	v, err := fhir.ParseCode(s, validFHIRSubstanceStatus, "FHIRSubstanceStatus")
 	return FHIRSubstanceStatus(v), err
@@ -5129,8 +5229,9 @@ func validFHIRTypes(s string) bool {
 
 // ParseFHIRTypes validates s against the FHIRTypes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseFHIRTypes(s string) (FHIRTypes, error) {
 	v, err := fhir.ParseCode(s, validFHIRTypes, "FHIRTypes")
 	return FHIRTypes(v), err
@@ -5228,8 +5329,9 @@ func validFHIRVersion(s string) bool {
 
 // ParseFHIRVersion validates s against the FHIRVersion required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseFHIRVersion(s string) (FHIRVersion, error) {
 	v, err := fhir.ParseCode(s, validFHIRVersion, "FHIRVersion")
 	return FHIRVersion(v), err
@@ -5274,8 +5376,9 @@ func validFamilyHistoryStatus(s string) bool {
 
 // ParseFamilyHistoryStatus validates s against the FamilyHistoryStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseFamilyHistoryStatus(s string) (FamilyHistoryStatus, error) {
 	v, err := fhir.ParseCode(s, validFamilyHistoryStatus, "FamilyHistoryStatus")
 	return FamilyHistoryStatus(v), err
@@ -5327,8 +5430,9 @@ func validFilterOperator(s string) bool {
 
 // ParseFilterOperator validates s against the FilterOperator required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseFilterOperator(s string) (FilterOperator, error) {
 	v, err := fhir.ParseCode(s, validFilterOperator, "FilterOperator")
 	return FilterOperator(v), err
@@ -5373,8 +5477,9 @@ func validFinancialResourceStatusCodes(s string) bool {
 
 // ParseFinancialResourceStatusCodes validates s against the FinancialResourceStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseFinancialResourceStatusCodes(s string) (FinancialResourceStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validFinancialResourceStatusCodes, "FinancialResourceStatusCodes")
 	return FinancialResourceStatusCodes(v), err
@@ -5418,8 +5523,9 @@ func validFlagStatus(s string) bool {
 
 // ParseFlagStatus validates s against the FlagStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseFlagStatus(s string) (FlagStatus, error) {
 	v, err := fhir.ParseCode(s, validFlagStatus, "FlagStatus")
 	return FlagStatus(v), err
@@ -5463,8 +5569,9 @@ func validFormularyItemStatusCodes(s string) bool {
 
 // ParseFormularyItemStatusCodes validates s against the FormularyItemStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseFormularyItemStatusCodes(s string) (FormularyItemStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validFormularyItemStatusCodes, "FormularyItemStatusCodes")
 	return FormularyItemStatusCodes(v), err
@@ -5510,8 +5617,9 @@ func validGenomicStudyStatus(s string) bool {
 
 // ParseGenomicStudyStatus validates s against the GenomicStudyStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseGenomicStudyStatus(s string) (GenomicStudyStatus, error) {
 	v, err := fhir.ParseCode(s, validGenomicStudyStatus, "GenomicStudyStatus")
 	return GenomicStudyStatus(v), err
@@ -5561,8 +5669,9 @@ func validGoalLifecycleStatus(s string) bool {
 
 // ParseGoalLifecycleStatus validates s against the GoalLifecycleStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseGoalLifecycleStatus(s string) (GoalLifecycleStatus, error) {
 	v, err := fhir.ParseCode(s, validGoalLifecycleStatus, "GoalLifecycleStatus")
 	return GoalLifecycleStatus(v), err
@@ -5607,8 +5716,9 @@ func validGraphCompartmentRule(s string) bool {
 
 // ParseGraphCompartmentRule validates s against the GraphCompartmentRule required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseGraphCompartmentRule(s string) (GraphCompartmentRule, error) {
 	v, err := fhir.ParseCode(s, validGraphCompartmentRule, "GraphCompartmentRule")
 	return GraphCompartmentRule(v), err
@@ -5651,8 +5761,9 @@ func validGraphCompartmentUse(s string) bool {
 
 // ParseGraphCompartmentUse validates s against the GraphCompartmentUse required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseGraphCompartmentUse(s string) (GraphCompartmentUse, error) {
 	v, err := fhir.ParseCode(s, validGraphCompartmentUse, "GraphCompartmentUse")
 	return GraphCompartmentUse(v), err
@@ -5695,8 +5806,9 @@ func validGroupMembershipBasis(s string) bool {
 
 // ParseGroupMembershipBasis validates s against the GroupMembershipBasis required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseGroupMembershipBasis(s string) (GroupMembershipBasis, error) {
 	v, err := fhir.ParseCode(s, validGroupMembershipBasis, "GroupMembershipBasis")
 	return GroupMembershipBasis(v), err
@@ -5747,8 +5859,9 @@ func validGroupType(s string) bool {
 
 // ParseGroupType validates s against the GroupType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseGroupType(s string) (GroupType, error) {
 	v, err := fhir.ParseCode(s, validGroupType, "GroupType")
 	return GroupType(v), err
@@ -5795,8 +5908,9 @@ func validGuidanceResponseStatus(s string) bool {
 
 // ParseGuidanceResponseStatus validates s against the GuidanceResponseStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseGuidanceResponseStatus(s string) (GuidanceResponseStatus, error) {
 	v, err := fhir.ParseCode(s, validGuidanceResponseStatus, "GuidanceResponseStatus")
 	return GuidanceResponseStatus(v), err
@@ -5841,8 +5955,9 @@ func validGuidePageGeneration(s string) bool {
 
 // ParseGuidePageGeneration validates s against the GuidePageGeneration required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseGuidePageGeneration(s string) (GuidePageGeneration, error) {
 	v, err := fhir.ParseCode(s, validGuidePageGeneration, "GuidePageGeneration")
 	return GuidePageGeneration(v), err
@@ -5889,8 +6004,9 @@ func validHTTPVerb(s string) bool {
 
 // ParseHTTPVerb validates s against the HTTPVerb required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseHTTPVerb(s string) (HTTPVerb, error) {
 	v, err := fhir.ParseCode(s, validHTTPVerb, "HTTPVerb")
 	return HTTPVerb(v), err
@@ -5936,8 +6052,9 @@ func validIdentifierUse(s string) bool {
 
 // ParseIdentifierUse validates s against the IdentifierUse required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseIdentifierUse(s string) (IdentifierUse, error) {
 	v, err := fhir.ParseCode(s, validIdentifierUse, "IdentifierUse")
 	return IdentifierUse(v), err
@@ -5982,8 +6099,9 @@ func validIdentityAssuranceLevel(s string) bool {
 
 // ParseIdentityAssuranceLevel validates s against the IdentityAssuranceLevel required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseIdentityAssuranceLevel(s string) (IdentityAssuranceLevel, error) {
 	v, err := fhir.ParseCode(s, validIdentityAssuranceLevel, "IdentityAssuranceLevel")
 	return IdentityAssuranceLevel(v), err
@@ -6029,8 +6147,9 @@ func validImagingSelection2DGraphicType(s string) bool {
 
 // ParseImagingSelection2DGraphicType validates s against the ImagingSelection2DGraphicType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseImagingSelection2DGraphicType(s string) (ImagingSelection2DGraphicType, error) {
 	v, err := fhir.ParseCode(s, validImagingSelection2DGraphicType, "ImagingSelection2DGraphicType")
 	return ImagingSelection2DGraphicType(v), err
@@ -6077,8 +6196,9 @@ func validImagingSelection3DGraphicType(s string) bool {
 
 // ParseImagingSelection3DGraphicType validates s against the ImagingSelection3DGraphicType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseImagingSelection3DGraphicType(s string) (ImagingSelection3DGraphicType, error) {
 	v, err := fhir.ParseCode(s, validImagingSelection3DGraphicType, "ImagingSelection3DGraphicType")
 	return ImagingSelection3DGraphicType(v), err
@@ -6122,8 +6242,9 @@ func validImagingSelectionStatus(s string) bool {
 
 // ParseImagingSelectionStatus validates s against the ImagingSelectionStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseImagingSelectionStatus(s string) (ImagingSelectionStatus, error) {
 	v, err := fhir.ParseCode(s, validImagingSelectionStatus, "ImagingSelectionStatus")
 	return ImagingSelectionStatus(v), err
@@ -6169,8 +6290,9 @@ func validImagingStudyStatus(s string) bool {
 
 // ParseImagingStudyStatus validates s against the ImagingStudyStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseImagingStudyStatus(s string) (ImagingStudyStatus, error) {
 	v, err := fhir.ParseCode(s, validImagingStudyStatus, "ImagingStudyStatus")
 	return ImagingStudyStatus(v), err
@@ -6213,8 +6335,9 @@ func validImmunizationEvaluationStatusCodes(s string) bool {
 
 // ParseImmunizationEvaluationStatusCodes validates s against the ImmunizationEvaluationStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseImmunizationEvaluationStatusCodes(s string) (ImmunizationEvaluationStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validImmunizationEvaluationStatusCodes, "ImmunizationEvaluationStatusCodes")
 	return ImmunizationEvaluationStatusCodes(v), err
@@ -6258,8 +6381,9 @@ func validImmunizationStatusCodes(s string) bool {
 
 // ParseImmunizationStatusCodes validates s against the ImmunizationStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseImmunizationStatusCodes(s string) (ImmunizationStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validImmunizationStatusCodes, "ImmunizationStatusCodes")
 	return ImmunizationStatusCodes(v), err
@@ -6303,8 +6427,9 @@ func validIngredientManufacturerRole(s string) bool {
 
 // ParseIngredientManufacturerRole validates s against the IngredientManufacturerRole required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseIngredientManufacturerRole(s string) (IngredientManufacturerRole, error) {
 	v, err := fhir.ParseCode(s, validIngredientManufacturerRole, "IngredientManufacturerRole")
 	return IngredientManufacturerRole(v), err
@@ -6348,8 +6473,9 @@ func validInteractionTrigger(s string) bool {
 
 // ParseInteractionTrigger validates s against the InteractionTrigger required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseInteractionTrigger(s string) (InteractionTrigger, error) {
 	v, err := fhir.ParseCode(s, validInteractionTrigger, "InteractionTrigger")
 	return InteractionTrigger(v), err
@@ -6392,8 +6518,9 @@ func validInventoryCountType(s string) bool {
 
 // ParseInventoryCountType validates s against the InventoryCountType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseInventoryCountType(s string) (InventoryCountType, error) {
 	v, err := fhir.ParseCode(s, validInventoryCountType, "InventoryCountType")
 	return InventoryCountType(v), err
@@ -6438,8 +6565,9 @@ func validInventoryItemStatusCodes(s string) bool {
 
 // ParseInventoryItemStatusCodes validates s against the InventoryItemStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseInventoryItemStatusCodes(s string) (InventoryItemStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validInventoryItemStatusCodes, "InventoryItemStatusCodes")
 	return InventoryItemStatusCodes(v), err
@@ -6484,8 +6612,9 @@ func validInventoryReportStatus(s string) bool {
 
 // ParseInventoryReportStatus validates s against the InventoryReportStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseInventoryReportStatus(s string) (InventoryReportStatus, error) {
 	v, err := fhir.ParseCode(s, validInventoryReportStatus, "InventoryReportStatus")
 	return InventoryReportStatus(v), err
@@ -6531,8 +6660,9 @@ func validInvoiceStatus(s string) bool {
 
 // ParseInvoiceStatus validates s against the InvoiceStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseInvoiceStatus(s string) (InvoiceStatus, error) {
 	v, err := fhir.ParseCode(s, validInvoiceStatus, "InvoiceStatus")
 	return InvoiceStatus(v), err
@@ -6578,8 +6708,9 @@ func validIssueSeverity(s string) bool {
 
 // ParseIssueSeverity validates s against the IssueSeverity required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseIssueSeverity(s string) (IssueSeverity, error) {
 	v, err := fhir.ParseCode(s, validIssueSeverity, "IssueSeverity")
 	return IssueSeverity(v), err
@@ -6653,8 +6784,9 @@ func validIssueType(s string) bool {
 
 // ParseIssueType validates s against the IssueType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseIssueType(s string) (IssueType, error) {
 	v, err := fhir.ParseCode(s, validIssueType, "IssueType")
 	return IssueType(v), err
@@ -6698,8 +6830,9 @@ func validKind(s string) bool {
 
 // ParseKind validates s against the Kind required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseKind(s string) (Kind, error) {
 	v, err := fhir.ParseCode(s, validKind, "Kind")
 	return Kind(v), err
@@ -6860,8 +6993,9 @@ func validLinkRelationTypes(s string) bool {
 
 // ParseLinkRelationTypes validates s against the LinkRelationTypes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseLinkRelationTypes(s string) (LinkRelationTypes, error) {
 	v, err := fhir.ParseCode(s, validLinkRelationTypes, "LinkRelationTypes")
 	return LinkRelationTypes(v), err
@@ -6906,8 +7040,9 @@ func validLinkType(s string) bool {
 
 // ParseLinkType validates s against the LinkType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseLinkType(s string) (LinkType, error) {
 	v, err := fhir.ParseCode(s, validLinkType, "LinkType")
 	return LinkType(v), err
@@ -6951,8 +7086,9 @@ func validLinkageType(s string) bool {
 
 // ParseLinkageType validates s against the LinkageType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseLinkageType(s string) (LinkageType, error) {
 	v, err := fhir.ParseCode(s, validLinkageType, "LinkageType")
 	return LinkageType(v), err
@@ -6996,8 +7132,9 @@ func validListMode(s string) bool {
 
 // ParseListMode validates s against the ListMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseListMode(s string) (ListMode, error) {
 	v, err := fhir.ParseCode(s, validListMode, "ListMode")
 	return ListMode(v), err
@@ -7041,8 +7178,9 @@ func validListStatus(s string) bool {
 
 // ParseListStatus validates s against the ListStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseListStatus(s string) (ListStatus, error) {
 	v, err := fhir.ParseCode(s, validListStatus, "ListStatus")
 	return ListStatus(v), err
@@ -7085,8 +7223,9 @@ func validLocationMode(s string) bool {
 
 // ParseLocationMode validates s against the LocationMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseLocationMode(s string) (LocationMode, error) {
 	v, err := fhir.ParseCode(s, validLocationMode, "LocationMode")
 	return LocationMode(v), err
@@ -7130,8 +7269,9 @@ func validLocationStatus(s string) bool {
 
 // ParseLocationStatus validates s against the LocationStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseLocationStatus(s string) (LocationStatus, error) {
 	v, err := fhir.ParseCode(s, validLocationStatus, "LocationStatus")
 	return LocationStatus(v), err
@@ -7175,8 +7315,9 @@ func validMeasureReportStatus(s string) bool {
 
 // ParseMeasureReportStatus validates s against the MeasureReportStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMeasureReportStatus(s string) (MeasureReportStatus, error) {
 	v, err := fhir.ParseCode(s, validMeasureReportStatus, "MeasureReportStatus")
 	return MeasureReportStatus(v), err
@@ -7221,8 +7362,9 @@ func validMeasureReportType(s string) bool {
 
 // ParseMeasureReportType validates s against the MeasureReportType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMeasureReportType(s string) (MeasureReportType, error) {
 	v, err := fhir.ParseCode(s, validMeasureReportType, "MeasureReportType")
 	return MeasureReportType(v), err
@@ -7270,8 +7412,9 @@ func validMedicationAdministrationStatusCodes(s string) bool {
 
 // ParseMedicationAdministrationStatusCodes validates s against the MedicationAdministrationStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMedicationAdministrationStatusCodes(s string) (MedicationAdministrationStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validMedicationAdministrationStatusCodes, "MedicationAdministrationStatusCodes")
 	return MedicationAdministrationStatusCodes(v), err
@@ -7321,8 +7464,9 @@ func validMedicationDispenseStatusCodes(s string) bool {
 
 // ParseMedicationDispenseStatusCodes validates s against the MedicationDispenseStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMedicationDispenseStatusCodes(s string) (MedicationDispenseStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validMedicationDispenseStatusCodes, "MedicationDispenseStatusCodes")
 	return MedicationDispenseStatusCodes(v), err
@@ -7366,8 +7510,9 @@ func validMedicationKnowledgeStatusCodes(s string) bool {
 
 // ParseMedicationKnowledgeStatusCodes validates s against the MedicationKnowledgeStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMedicationKnowledgeStatusCodes(s string) (MedicationKnowledgeStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validMedicationKnowledgeStatusCodes, "MedicationKnowledgeStatusCodes")
 	return MedicationKnowledgeStatusCodes(v), err
@@ -7416,8 +7561,9 @@ func validMedicationRequestIntent(s string) bool {
 
 // ParseMedicationRequestIntent validates s against the MedicationRequestIntent required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMedicationRequestIntent(s string) (MedicationRequestIntent, error) {
 	v, err := fhir.ParseCode(s, validMedicationRequestIntent, "MedicationRequestIntent")
 	return MedicationRequestIntent(v), err
@@ -7461,8 +7607,9 @@ func validMedicationStatementStatusCodes(s string) bool {
 
 // ParseMedicationStatementStatusCodes validates s against the MedicationStatementStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMedicationStatementStatusCodes(s string) (MedicationStatementStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validMedicationStatementStatusCodes, "MedicationStatementStatusCodes")
 	return MedicationStatementStatusCodes(v), err
@@ -7506,8 +7653,9 @@ func validMedicationStatusCodes(s string) bool {
 
 // ParseMedicationStatusCodes validates s against the MedicationStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMedicationStatusCodes(s string) (MedicationStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validMedicationStatusCodes, "MedicationStatusCodes")
 	return MedicationStatusCodes(v), err
@@ -7557,8 +7705,9 @@ func validMedicationrequestStatus(s string) bool {
 
 // ParseMedicationrequestStatus validates s against the MedicationrequestStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMedicationrequestStatus(s string) (MedicationrequestStatus, error) {
 	v, err := fhir.ParseCode(s, validMedicationrequestStatus, "MedicationrequestStatus")
 	return MedicationrequestStatus(v), err
@@ -7602,8 +7751,9 @@ func validMessageSignificanceCategory(s string) bool {
 
 // ParseMessageSignificanceCategory validates s against the MessageSignificanceCategory required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMessageSignificanceCategory(s string) (MessageSignificanceCategory, error) {
 	v, err := fhir.ParseCode(s, validMessageSignificanceCategory, "MessageSignificanceCategory")
 	return MessageSignificanceCategory(v), err
@@ -7648,8 +7798,9 @@ func validMessageheaderResponseRequest(s string) bool {
 
 // ParseMessageheaderResponseRequest validates s against the MessageheaderResponseRequest required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseMessageheaderResponseRequest(s string) (MessageheaderResponseRequest, error) {
 	v, err := fhir.ParseCode(s, validMessageheaderResponseRequest, "MessageheaderResponseRequest")
 	return MessageheaderResponseRequest(v), err
@@ -7706,8 +7857,9 @@ func validNameUse(s string) bool {
 
 // ParseNameUse validates s against the NameUse required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseNameUse(s string) (NameUse, error) {
 	v, err := fhir.ParseCode(s, validNameUse, "NameUse")
 	return NameUse(v), err
@@ -7754,8 +7906,9 @@ func validNamingSystemIdentifierType(s string) bool {
 
 // ParseNamingSystemIdentifierType validates s against the NamingSystemIdentifierType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseNamingSystemIdentifierType(s string) (NamingSystemIdentifierType, error) {
 	v, err := fhir.ParseCode(s, validNamingSystemIdentifierType, "NamingSystemIdentifierType")
 	return NamingSystemIdentifierType(v), err
@@ -7799,8 +7952,9 @@ func validNamingSystemType(s string) bool {
 
 // ParseNamingSystemType validates s against the NamingSystemType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseNamingSystemType(s string) (NamingSystemType, error) {
 	v, err := fhir.ParseCode(s, validNamingSystemType, "NamingSystemType")
 	return NamingSystemType(v), err
@@ -7845,8 +7999,9 @@ func validNarrativeStatus(s string) bool {
 
 // ParseNarrativeStatus validates s against the NarrativeStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseNarrativeStatus(s string) (NarrativeStatus, error) {
 	v, err := fhir.ParseCode(s, validNarrativeStatus, "NarrativeStatus")
 	return NarrativeStatus(v), err
@@ -7890,8 +8045,9 @@ func validNoteType(s string) bool {
 
 // ParseNoteType validates s against the NoteType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseNoteType(s string) (NoteType, error) {
 	v, err := fhir.ParseCode(s, validNoteType, "NoteType")
 	return NoteType(v), err
@@ -7935,8 +8091,9 @@ func validNutritionProductStatus(s string) bool {
 
 // ParseNutritionProductStatus validates s against the NutritionProductStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseNutritionProductStatus(s string) (NutritionProductStatus, error) {
 	v, err := fhir.ParseCode(s, validNutritionProductStatus, "NutritionProductStatus")
 	return NutritionProductStatus(v), err
@@ -7988,8 +8145,9 @@ func validObservationDataType(s string) bool {
 
 // ParseObservationDataType validates s against the ObservationDataType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseObservationDataType(s string) (ObservationDataType, error) {
 	v, err := fhir.ParseCode(s, validObservationDataType, "ObservationDataType")
 	return ObservationDataType(v), err
@@ -8033,8 +8191,9 @@ func validObservationRangeCategory(s string) bool {
 
 // ParseObservationRangeCategory validates s against the ObservationRangeCategory required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseObservationRangeCategory(s string) (ObservationRangeCategory, error) {
 	v, err := fhir.ParseCode(s, validObservationRangeCategory, "ObservationRangeCategory")
 	return ObservationRangeCategory(v), err
@@ -8083,8 +8242,9 @@ func validObservationStatus(s string) bool {
 
 // ParseObservationStatus validates s against the ObservationStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseObservationStatus(s string) (ObservationStatus, error) {
 	v, err := fhir.ParseCode(s, validObservationStatus, "ObservationStatus")
 	return ObservationStatus(v), err
@@ -8127,8 +8287,9 @@ func validOperationKind(s string) bool {
 
 // ParseOperationKind validates s against the OperationKind required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseOperationKind(s string) (OperationKind, error) {
 	v, err := fhir.ParseCode(s, validOperationKind, "OperationKind")
 	return OperationKind(v), err
@@ -8172,8 +8333,9 @@ func validOperationParameterScope(s string) bool {
 
 // ParseOperationParameterScope validates s against the OperationParameterScope required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseOperationParameterScope(s string) (OperationParameterScope, error) {
 	v, err := fhir.ParseCode(s, validOperationParameterScope, "OperationParameterScope")
 	return OperationParameterScope(v), err
@@ -8216,8 +8378,9 @@ func validOperationParameterUse(s string) bool {
 
 // ParseOperationParameterUse validates s against the OperationParameterUse required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseOperationParameterUse(s string) (OperationParameterUse, error) {
 	v, err := fhir.ParseCode(s, validOperationParameterUse, "OperationParameterUse")
 	return OperationParameterUse(v), err
@@ -8260,8 +8423,9 @@ func validOrientationType(s string) bool {
 
 // ParseOrientationType validates s against the OrientationType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseOrientationType(s string) (OrientationType, error) {
 	v, err := fhir.ParseCode(s, validOrientationType, "OrientationType")
 	return OrientationType(v), err
@@ -8306,8 +8470,9 @@ func validParticipationStatus(s string) bool {
 
 // ParseParticipationStatus validates s against the ParticipationStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseParticipationStatus(s string) (ParticipationStatus, error) {
 	v, err := fhir.ParseCode(s, validParticipationStatus, "ParticipationStatus")
 	return ParticipationStatus(v), err
@@ -8352,8 +8517,9 @@ func validPaymentOutcome(s string) bool {
 
 // ParsePaymentOutcome validates s against the PaymentOutcome required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParsePaymentOutcome(s string) (PaymentOutcome, error) {
 	v, err := fhir.ParseCode(s, validPaymentOutcome, "PaymentOutcome")
 	return PaymentOutcome(v), err
@@ -8400,8 +8566,9 @@ func validPermissionRuleCombining(s string) bool {
 
 // ParsePermissionRuleCombining validates s against the PermissionRuleCombining required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParsePermissionRuleCombining(s string) (PermissionRuleCombining, error) {
 	v, err := fhir.ParseCode(s, validPermissionRuleCombining, "PermissionRuleCombining")
 	return PermissionRuleCombining(v), err
@@ -8446,8 +8613,9 @@ func validPermissionStatus(s string) bool {
 
 // ParsePermissionStatus validates s against the PermissionStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParsePermissionStatus(s string) (PermissionStatus, error) {
 	v, err := fhir.ParseCode(s, validPermissionStatus, "PermissionStatus")
 	return PermissionStatus(v), err
@@ -8494,8 +8662,9 @@ func validPriceComponentType(s string) bool {
 
 // ParsePriceComponentType validates s against the PriceComponentType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParsePriceComponentType(s string) (PriceComponentType, error) {
 	v, err := fhir.ParseCode(s, validPriceComponentType, "PriceComponentType")
 	return PriceComponentType(v), err
@@ -8541,8 +8710,9 @@ func validPropertyRepresentation(s string) bool {
 
 // ParsePropertyRepresentation validates s against the PropertyRepresentation required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParsePropertyRepresentation(s string) (PropertyRepresentation, error) {
 	v, err := fhir.ParseCode(s, validPropertyRepresentation, "PropertyRepresentation")
 	return PropertyRepresentation(v), err
@@ -8590,8 +8760,9 @@ func validPropertyType(s string) bool {
 
 // ParsePropertyType validates s against the PropertyType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParsePropertyType(s string) (PropertyType, error) {
 	v, err := fhir.ParseCode(s, validPropertyType, "PropertyType")
 	return PropertyType(v), err
@@ -8637,8 +8808,9 @@ func validProvenanceEntityRole(s string) bool {
 
 // ParseProvenanceEntityRole validates s against the ProvenanceEntityRole required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseProvenanceEntityRole(s string) (ProvenanceEntityRole, error) {
 	v, err := fhir.ParseCode(s, validProvenanceEntityRole, "ProvenanceEntityRole")
 	return ProvenanceEntityRole(v), err
@@ -8683,8 +8855,9 @@ func validPublicationStatus(s string) bool {
 
 // ParsePublicationStatus validates s against the PublicationStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParsePublicationStatus(s string) (PublicationStatus, error) {
 	v, err := fhir.ParseCode(s, validPublicationStatus, "PublicationStatus")
 	return PublicationStatus(v), err
@@ -8730,8 +8903,9 @@ func validQuantityComparator(s string) bool {
 
 // ParseQuantityComparator validates s against the QuantityComparator required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseQuantityComparator(s string) (QuantityComparator, error) {
 	v, err := fhir.ParseCode(s, validQuantityComparator, "QuantityComparator")
 	return QuantityComparator(v), err
@@ -8775,8 +8949,9 @@ func validQuestionnaireAnswerConstraint(s string) bool {
 
 // ParseQuestionnaireAnswerConstraint validates s against the QuestionnaireAnswerConstraint required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseQuestionnaireAnswerConstraint(s string) (QuestionnaireAnswerConstraint, error) {
 	v, err := fhir.ParseCode(s, validQuestionnaireAnswerConstraint, "QuestionnaireAnswerConstraint")
 	return QuestionnaireAnswerConstraint(v), err
@@ -8819,8 +8994,9 @@ func validQuestionnaireItemDisabledDisplay(s string) bool {
 
 // ParseQuestionnaireItemDisabledDisplay validates s against the QuestionnaireItemDisabledDisplay required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseQuestionnaireItemDisabledDisplay(s string) (QuestionnaireItemDisabledDisplay, error) {
 	v, err := fhir.ParseCode(s, validQuestionnaireItemDisabledDisplay, "QuestionnaireItemDisabledDisplay")
 	return QuestionnaireItemDisabledDisplay(v), err
@@ -8868,8 +9044,9 @@ func validQuestionnaireItemOperator(s string) bool {
 
 // ParseQuestionnaireItemOperator validates s against the QuestionnaireItemOperator required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseQuestionnaireItemOperator(s string) (QuestionnaireItemOperator, error) {
 	v, err := fhir.ParseCode(s, validQuestionnaireItemOperator, "QuestionnaireItemOperator")
 	return QuestionnaireItemOperator(v), err
@@ -8926,8 +9103,9 @@ func validQuestionnaireItemType(s string) bool {
 
 // ParseQuestionnaireItemType validates s against the QuestionnaireItemType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseQuestionnaireItemType(s string) (QuestionnaireItemType, error) {
 	v, err := fhir.ParseCode(s, validQuestionnaireItemType, "QuestionnaireItemType")
 	return QuestionnaireItemType(v), err
@@ -8973,8 +9151,9 @@ func validQuestionnaireResponseStatus(s string) bool {
 
 // ParseQuestionnaireResponseStatus validates s against the QuestionnaireResponseStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseQuestionnaireResponseStatus(s string) (QuestionnaireResponseStatus, error) {
 	v, err := fhir.ParseCode(s, validQuestionnaireResponseStatus, "QuestionnaireResponseStatus")
 	return QuestionnaireResponseStatus(v), err
@@ -9020,8 +9199,9 @@ func validReferenceHandlingPolicy(s string) bool {
 
 // ParseReferenceHandlingPolicy validates s against the ReferenceHandlingPolicy required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseReferenceHandlingPolicy(s string) (ReferenceHandlingPolicy, error) {
 	v, err := fhir.ParseCode(s, validReferenceHandlingPolicy, "ReferenceHandlingPolicy")
 	return ReferenceHandlingPolicy(v), err
@@ -9065,8 +9245,9 @@ func validReferenceVersionRules(s string) bool {
 
 // ParseReferenceVersionRules validates s against the ReferenceVersionRules required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseReferenceVersionRules(s string) (ReferenceVersionRules, error) {
 	v, err := fhir.ParseCode(s, validReferenceVersionRules, "ReferenceVersionRules")
 	return ReferenceVersionRules(v), err
@@ -9143,8 +9324,9 @@ func validRelatedArtifactType(s string) bool {
 
 // ParseRelatedArtifactType validates s against the RelatedArtifactType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseRelatedArtifactType(s string) (RelatedArtifactType, error) {
 	v, err := fhir.ParseCode(s, validRelatedArtifactType, "RelatedArtifactType")
 	return RelatedArtifactType(v), err
@@ -9223,8 +9405,9 @@ func validRelatedArtifactTypeExpanded(s string) bool {
 
 // ParseRelatedArtifactTypeExpanded validates s against the RelatedArtifactTypeExpanded required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseRelatedArtifactTypeExpanded(s string) (RelatedArtifactTypeExpanded, error) {
 	v, err := fhir.ParseCode(s, validRelatedArtifactTypeExpanded, "RelatedArtifactTypeExpanded")
 	return RelatedArtifactTypeExpanded(v), err
@@ -9273,8 +9456,9 @@ func validReportRelationshipType(s string) bool {
 
 // ParseReportRelationshipType validates s against the ReportRelationshipType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseReportRelationshipType(s string) (ReportRelationshipType, error) {
 	v, err := fhir.ParseCode(s, validReportRelationshipType, "ReportRelationshipType")
 	return ReportRelationshipType(v), err
@@ -9324,8 +9508,9 @@ func validRequestIntent(s string) bool {
 
 // ParseRequestIntent validates s against the RequestIntent required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseRequestIntent(s string) (RequestIntent, error) {
 	v, err := fhir.ParseCode(s, validRequestIntent, "RequestIntent")
 	return RequestIntent(v), err
@@ -9370,8 +9555,9 @@ func validRequestPriority(s string) bool {
 
 // ParseRequestPriority validates s against the RequestPriority required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseRequestPriority(s string) (RequestPriority, error) {
 	v, err := fhir.ParseCode(s, validRequestPriority, "RequestPriority")
 	return RequestPriority(v), err
@@ -9429,8 +9615,9 @@ func validRequestResourceTypes(s string) bool {
 
 // ParseRequestResourceTypes validates s against the RequestResourceTypes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseRequestResourceTypes(s string) (RequestResourceTypes, error) {
 	v, err := fhir.ParseCode(s, validRequestResourceTypes, "RequestResourceTypes")
 	return RequestResourceTypes(v), err
@@ -9478,8 +9665,9 @@ func validRequestStatus(s string) bool {
 
 // ParseRequestStatus validates s against the RequestStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseRequestStatus(s string) (RequestStatus, error) {
 	v, err := fhir.ParseCode(s, validRequestStatus, "RequestStatus")
 	return RequestStatus(v), err
@@ -9678,8 +9866,9 @@ func validResourceType(s string) bool {
 
 // ParseResourceType validates s against the ResourceType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseResourceType(s string) (ResourceType, error) {
 	v, err := fhir.ParseCode(s, validResourceType, "ResourceType")
 	return ResourceType(v), err
@@ -9723,8 +9912,9 @@ func validResourceVersionPolicy(s string) bool {
 
 // ParseResourceVersionPolicy validates s against the ResourceVersionPolicy required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseResourceVersionPolicy(s string) (ResourceVersionPolicy, error) {
 	v, err := fhir.ParseCode(s, validResourceVersionPolicy, "ResourceVersionPolicy")
 	return ResourceVersionPolicy(v), err
@@ -9768,8 +9958,9 @@ func validResponseType(s string) bool {
 
 // ParseResponseType validates s against the ResponseType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseResponseType(s string) (ResponseType, error) {
 	v, err := fhir.ParseCode(s, validResponseType, "ResponseType")
 	return ResponseType(v), err
@@ -9812,8 +10003,9 @@ func validRestfulCapabilityMode(s string) bool {
 
 // ParseRestfulCapabilityMode validates s against the RestfulCapabilityMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseRestfulCapabilityMode(s string) (RestfulCapabilityMode, error) {
 	v, err := fhir.ParseCode(s, validRestfulCapabilityMode, "RestfulCapabilityMode")
 	return RestfulCapabilityMode(v), err
@@ -10200,8 +10392,9 @@ func validSPDXLicense(s string) bool {
 
 // ParseSPDXLicense validates s against the SPDXLicense required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSPDXLicense(s string) (SPDXLicense, error) {
 	v, err := fhir.ParseCode(s, validSPDXLicense, "SPDXLicense")
 	return SPDXLicense(v), err
@@ -10251,8 +10444,9 @@ func validSearchComparator(s string) bool {
 
 // ParseSearchComparator validates s against the SearchComparator required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSearchComparator(s string) (SearchComparator, error) {
 	v, err := fhir.ParseCode(s, validSearchComparator, "SearchComparator")
 	return SearchComparator(v), err
@@ -10296,8 +10490,9 @@ func validSearchEntryMode(s string) bool {
 
 // ParseSearchEntryMode validates s against the SearchEntryMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSearchEntryMode(s string) (SearchEntryMode, error) {
 	v, err := fhir.ParseCode(s, validSearchEntryMode, "SearchEntryMode")
 	return SearchEntryMode(v), err
@@ -10353,8 +10548,9 @@ func validSearchModifierCode(s string) bool {
 
 // ParseSearchModifierCode validates s against the SearchModifierCode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSearchModifierCode(s string) (SearchModifierCode, error) {
 	v, err := fhir.ParseCode(s, validSearchModifierCode, "SearchModifierCode")
 	return SearchModifierCode(v), err
@@ -10404,8 +10600,9 @@ func validSearchParamType(s string) bool {
 
 // ParseSearchParamType validates s against the SearchParamType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSearchParamType(s string) (SearchParamType, error) {
 	v, err := fhir.ParseCode(s, validSearchParamType, "SearchParamType")
 	return SearchParamType(v), err
@@ -10449,8 +10646,9 @@ func validSearchProcessingModeType(s string) bool {
 
 // ParseSearchProcessingModeType validates s against the SearchProcessingModeType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSearchProcessingModeType(s string) (SearchProcessingModeType, error) {
 	v, err := fhir.ParseCode(s, validSearchProcessingModeType, "SearchProcessingModeType")
 	return SearchProcessingModeType(v), err
@@ -10494,8 +10692,9 @@ func validSequenceType(s string) bool {
 
 // ParseSequenceType validates s against the SequenceType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSequenceType(s string) (SequenceType, error) {
 	v, err := fhir.ParseCode(s, validSequenceType, "SequenceType")
 	return SequenceType(v), err
@@ -10539,8 +10738,9 @@ func validSlicingRules(s string) bool {
 
 // ParseSlicingRules validates s against the SlicingRules required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSlicingRules(s string) (SlicingRules, error) {
 	v, err := fhir.ParseCode(s, validSlicingRules, "SlicingRules")
 	return SlicingRules(v), err
@@ -10586,8 +10786,9 @@ func validSlotStatus(s string) bool {
 
 // ParseSlotStatus validates s against the SlotStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSlotStatus(s string) (SlotStatus, error) {
 	v, err := fhir.ParseCode(s, validSlotStatus, "SlotStatus")
 	return SlotStatus(v), err
@@ -10630,8 +10831,9 @@ func validSortDirection(s string) bool {
 
 // ParseSortDirection validates s against the SortDirection required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSortDirection(s string) (SortDirection, error) {
 	v, err := fhir.ParseCode(s, validSortDirection, "SortDirection")
 	return SortDirection(v), err
@@ -10674,8 +10876,9 @@ func validSpecimenCombined(s string) bool {
 
 // ParseSpecimenCombined validates s against the SpecimenCombined required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSpecimenCombined(s string) (SpecimenCombined, error) {
 	v, err := fhir.ParseCode(s, validSpecimenCombined, "SpecimenCombined")
 	return SpecimenCombined(v), err
@@ -10718,8 +10921,9 @@ func validSpecimenContainedPreference(s string) bool {
 
 // ParseSpecimenContainedPreference validates s against the SpecimenContainedPreference required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSpecimenContainedPreference(s string) (SpecimenContainedPreference, error) {
 	v, err := fhir.ParseCode(s, validSpecimenContainedPreference, "SpecimenContainedPreference")
 	return SpecimenContainedPreference(v), err
@@ -10764,8 +10968,9 @@ func validSpecimenStatus(s string) bool {
 
 // ParseSpecimenStatus validates s against the SpecimenStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSpecimenStatus(s string) (SpecimenStatus, error) {
 	v, err := fhir.ParseCode(s, validSpecimenStatus, "SpecimenStatus")
 	return SpecimenStatus(v), err
@@ -10808,8 +11013,9 @@ func validStrandType(s string) bool {
 
 // ParseStrandType validates s against the StrandType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseStrandType(s string) (StrandType, error) {
 	v, err := fhir.ParseCode(s, validStrandType, "StrandType")
 	return StrandType(v), err
@@ -10854,8 +11060,9 @@ func validStructureDefinitionKind(s string) bool {
 
 // ParseStructureDefinitionKind validates s against the StructureDefinitionKind required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseStructureDefinitionKind(s string) (StructureDefinitionKind, error) {
 	v, err := fhir.ParseCode(s, validStructureDefinitionKind, "StructureDefinitionKind")
 	return StructureDefinitionKind(v), err
@@ -10898,8 +11105,9 @@ func validStructureMapGroupTypeMode(s string) bool {
 
 // ParseStructureMapGroupTypeMode validates s against the StructureMapGroupTypeMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseStructureMapGroupTypeMode(s string) (StructureMapGroupTypeMode, error) {
 	v, err := fhir.ParseCode(s, validStructureMapGroupTypeMode, "StructureMapGroupTypeMode")
 	return StructureMapGroupTypeMode(v), err
@@ -10942,8 +11150,9 @@ func validStructureMapInputMode(s string) bool {
 
 // ParseStructureMapInputMode validates s against the StructureMapInputMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseStructureMapInputMode(s string) (StructureMapInputMode, error) {
 	v, err := fhir.ParseCode(s, validStructureMapInputMode, "StructureMapInputMode")
 	return StructureMapInputMode(v), err
@@ -10988,8 +11197,9 @@ func validStructureMapModelMode(s string) bool {
 
 // ParseStructureMapModelMode validates s against the StructureMapModelMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseStructureMapModelMode(s string) (StructureMapModelMode, error) {
 	v, err := fhir.ParseCode(s, validStructureMapModelMode, "StructureMapModelMode")
 	return StructureMapModelMode(v), err
@@ -11035,8 +11245,9 @@ func validStructureMapSourceListMode(s string) bool {
 
 // ParseStructureMapSourceListMode validates s against the StructureMapSourceListMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseStructureMapSourceListMode(s string) (StructureMapSourceListMode, error) {
 	v, err := fhir.ParseCode(s, validStructureMapSourceListMode, "StructureMapSourceListMode")
 	return StructureMapSourceListMode(v), err
@@ -11081,8 +11292,9 @@ func validStructureMapTargetListMode(s string) bool {
 
 // ParseStructureMapTargetListMode validates s against the StructureMapTargetListMode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseStructureMapTargetListMode(s string) (StructureMapTargetListMode, error) {
 	v, err := fhir.ParseCode(s, validStructureMapTargetListMode, "StructureMapTargetListMode")
 	return StructureMapTargetListMode(v), err
@@ -11140,8 +11352,9 @@ func validStructureMapTransform(s string) bool {
 
 // ParseStructureMapTransform validates s against the StructureMapTransform required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseStructureMapTransform(s string) (StructureMapTransform, error) {
 	v, err := fhir.ParseCode(s, validStructureMapTransform, "StructureMapTransform")
 	return StructureMapTransform(v), err
@@ -11184,8 +11397,9 @@ func validSubmitDataUpdateType(s string) bool {
 
 // ParseSubmitDataUpdateType validates s against the SubmitDataUpdateType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSubmitDataUpdateType(s string) (SubmitDataUpdateType, error) {
 	v, err := fhir.ParseCode(s, validSubmitDataUpdateType, "SubmitDataUpdateType")
 	return SubmitDataUpdateType(v), err
@@ -11231,8 +11445,9 @@ func validSubscriptionNotificationType(s string) bool {
 
 // ParseSubscriptionNotificationType validates s against the SubscriptionNotificationType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSubscriptionNotificationType(s string) (SubscriptionNotificationType, error) {
 	v, err := fhir.ParseCode(s, validSubscriptionNotificationType, "SubscriptionNotificationType")
 	return SubscriptionNotificationType(v), err
@@ -11276,8 +11491,9 @@ func validSubscriptionPayloadContent(s string) bool {
 
 // ParseSubscriptionPayloadContent validates s against the SubscriptionPayloadContent required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSubscriptionPayloadContent(s string) (SubscriptionPayloadContent, error) {
 	v, err := fhir.ParseCode(s, validSubscriptionPayloadContent, "SubscriptionPayloadContent")
 	return SubscriptionPayloadContent(v), err
@@ -11323,8 +11539,9 @@ func validSubscriptionStatusCodes(s string) bool {
 
 // ParseSubscriptionStatusCodes validates s against the SubscriptionStatusCodes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSubscriptionStatusCodes(s string) (SubscriptionStatusCodes, error) {
 	v, err := fhir.ParseCode(s, validSubscriptionStatusCodes, "SubscriptionStatusCodes")
 	return SubscriptionStatusCodes(v), err
@@ -11369,8 +11586,9 @@ func validSupplyDeliveryStatus(s string) bool {
 
 // ParseSupplyDeliveryStatus validates s against the SupplyDeliveryStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSupplyDeliveryStatus(s string) (SupplyDeliveryStatus, error) {
 	v, err := fhir.ParseCode(s, validSupplyDeliveryStatus, "SupplyDeliveryStatus")
 	return SupplyDeliveryStatus(v), err
@@ -11418,8 +11636,9 @@ func validSupplyRequestStatus(s string) bool {
 
 // ParseSupplyRequestStatus validates s against the SupplyRequestStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSupplyRequestStatus(s string) (SupplyRequestStatus, error) {
 	v, err := fhir.ParseCode(s, validSupplyRequestStatus, "SupplyRequestStatus")
 	return SupplyRequestStatus(v), err
@@ -11464,8 +11683,9 @@ func validSystemRestfulInteraction(s string) bool {
 
 // ParseSystemRestfulInteraction validates s against the SystemRestfulInteraction required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseSystemRestfulInteraction(s string) (SystemRestfulInteraction, error) {
 	v, err := fhir.ParseCode(s, validSystemRestfulInteraction, "SystemRestfulInteraction")
 	return SystemRestfulInteraction(v), err
@@ -11515,8 +11735,9 @@ func validTaskIntent(s string) bool {
 
 // ParseTaskIntent validates s against the TaskIntent required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTaskIntent(s string) (TaskIntent, error) {
 	v, err := fhir.ParseCode(s, validTaskIntent, "TaskIntent")
 	return TaskIntent(v), err
@@ -11569,8 +11790,9 @@ func validTaskStatus(s string) bool {
 
 // ParseTaskStatus validates s against the TaskStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTaskStatus(s string) (TaskStatus, error) {
 	v, err := fhir.ParseCode(s, validTaskStatus, "TaskStatus")
 	return TaskStatus(v), err
@@ -11616,8 +11838,9 @@ func validTestReportActionResult(s string) bool {
 
 // ParseTestReportActionResult validates s against the TestReportActionResult required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTestReportActionResult(s string) (TestReportActionResult, error) {
 	v, err := fhir.ParseCode(s, validTestReportActionResult, "TestReportActionResult")
 	return TestReportActionResult(v), err
@@ -11661,8 +11884,9 @@ func validTestReportParticipantType(s string) bool {
 
 // ParseTestReportParticipantType validates s against the TestReportParticipantType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTestReportParticipantType(s string) (TestReportParticipantType, error) {
 	v, err := fhir.ParseCode(s, validTestReportParticipantType, "TestReportParticipantType")
 	return TestReportParticipantType(v), err
@@ -11706,8 +11930,9 @@ func validTestReportResult(s string) bool {
 
 // ParseTestReportResult validates s against the TestReportResult required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTestReportResult(s string) (TestReportResult, error) {
 	v, err := fhir.ParseCode(s, validTestReportResult, "TestReportResult")
 	return TestReportResult(v), err
@@ -11753,8 +11978,9 @@ func validTestReportStatus(s string) bool {
 
 // ParseTestReportStatus validates s against the TestReportStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTestReportStatus(s string) (TestReportStatus, error) {
 	v, err := fhir.ParseCode(s, validTestReportStatus, "TestReportStatus")
 	return TestReportStatus(v), err
@@ -11802,8 +12028,9 @@ func validTestScriptRequestMethodCode(s string) bool {
 
 // ParseTestScriptRequestMethodCode validates s against the TestScriptRequestMethodCode required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTestScriptRequestMethodCode(s string) (TestScriptRequestMethodCode, error) {
 	v, err := fhir.ParseCode(s, validTestScriptRequestMethodCode, "TestScriptRequestMethodCode")
 	return TestScriptRequestMethodCode(v), err
@@ -11853,8 +12080,9 @@ func validTransportIntent(s string) bool {
 
 // ParseTransportIntent validates s against the TransportIntent required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTransportIntent(s string) (TransportIntent, error) {
 	v, err := fhir.ParseCode(s, validTransportIntent, "TransportIntent")
 	return TransportIntent(v), err
@@ -11901,8 +12129,9 @@ func validTransportStatus(s string) bool {
 
 // ParseTransportStatus validates s against the TransportStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTransportStatus(s string) (TransportStatus, error) {
 	v, err := fhir.ParseCode(s, validTransportStatus, "TransportStatus")
 	return TransportStatus(v), err
@@ -11951,8 +12180,9 @@ func validTriggerType(s string) bool {
 
 // ParseTriggerType validates s against the TriggerType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTriggerType(s string) (TriggerType, error) {
 	v, err := fhir.ParseCode(s, validTriggerType, "TriggerType")
 	return TriggerType(v), err
@@ -11996,8 +12226,9 @@ func validTriggeredBytype(s string) bool {
 
 // ParseTriggeredBytype validates s against the TriggeredBytype required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTriggeredBytype(s string) (TriggeredBytype, error) {
 	v, err := fhir.ParseCode(s, validTriggeredBytype, "TriggeredBytype")
 	return TriggeredBytype(v), err
@@ -12040,8 +12271,9 @@ func validTypeDerivationRule(s string) bool {
 
 // ParseTypeDerivationRule validates s against the TypeDerivationRule required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTypeDerivationRule(s string) (TypeDerivationRule, error) {
 	v, err := fhir.ParseCode(s, validTypeDerivationRule, "TypeDerivationRule")
 	return TypeDerivationRule(v), err
@@ -12091,8 +12323,9 @@ func validTypeRestfulInteraction(s string) bool {
 
 // ParseTypeRestfulInteraction validates s against the TypeRestfulInteraction required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseTypeRestfulInteraction(s string) (TypeRestfulInteraction, error) {
 	v, err := fhir.ParseCode(s, validTypeRestfulInteraction, "TypeRestfulInteraction")
 	return TypeRestfulInteraction(v), err
@@ -12149,8 +12382,9 @@ func validUDIEntryType(s string) bool {
 
 // ParseUDIEntryType validates s against the UDIEntryType required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseUDIEntryType(s string) (UDIEntryType, error) {
 	v, err := fhir.ParseCode(s, validUDIEntryType, "UDIEntryType")
 	return UDIEntryType(v), err
@@ -12198,8 +12432,9 @@ func validUnitsOfTime(s string) bool {
 
 // ParseUnitsOfTime validates s against the UnitsOfTime required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseUnitsOfTime(s string) (UnitsOfTime, error) {
 	v, err := fhir.ParseCode(s, validUnitsOfTime, "UnitsOfTime")
 	return UnitsOfTime(v), err
@@ -12243,8 +12478,9 @@ func validUse(s string) bool {
 
 // ParseUse validates s against the Use required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseUse(s string) (Use, error) {
 	v, err := fhir.ParseCode(s, validUse, "Use")
 	return Use(v), err
@@ -12292,8 +12528,9 @@ func validValueFilterComparator(s string) bool {
 
 // ParseValueFilterComparator validates s against the ValueFilterComparator required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseValueFilterComparator(s string) (ValueFilterComparator, error) {
 	v, err := fhir.ParseCode(s, validValueFilterComparator, "ValueFilterComparator")
 	return ValueFilterComparator(v), err
@@ -12341,8 +12578,9 @@ func validVerificationResultStatus(s string) bool {
 
 // ParseVerificationResultStatus validates s against the VerificationResultStatus required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseVerificationResultStatus(s string) (VerificationResultStatus, error) {
 	v, err := fhir.ParseCode(s, validVerificationResultStatus, "VerificationResultStatus")
 	return VerificationResultStatus(v), err
@@ -12396,8 +12634,9 @@ func validVisionBase(s string) bool {
 
 // ParseVisionBase validates s against the VisionBase required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseVisionBase(s string) (VisionBase, error) {
 	v, err := fhir.ParseCode(s, validVisionBase, "VisionBase")
 	return VisionBase(v), err
@@ -12440,8 +12679,9 @@ func validVisionEyes(s string) bool {
 
 // ParseVisionEyes validates s against the VisionEyes required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseVisionEyes(s string) (VisionEyes, error) {
 	v, err := fhir.ParseCode(s, validVisionEyes, "VisionEyes")
 	return VisionEyes(v), err

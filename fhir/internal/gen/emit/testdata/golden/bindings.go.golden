@@ -31,8 +31,9 @@ func validAdministrativeGender(s string) bool {
 
 // ParseAdministrativeGender validates s against the AdministrativeGender required binding and returns
 // the typed value. An out-of-set code returns fhir.ErrUnknownCode wrapped with the
-// binding name and the offending token (no PHI). Parse always applies the strict rule,
-// regardless of any decode mode.
+// binding name only; the offending token is never echoed, since a required-binding field
+// can carry attacker-controlled or patient data (no PHI). Parse always applies the strict
+// rule, regardless of any decode mode.
 func ParseAdministrativeGender(s string) (AdministrativeGender, error) {
 	v, err := fhir.ParseCode(s, validAdministrativeGender, "AdministrativeGender")
 	return AdministrativeGender(v), err
