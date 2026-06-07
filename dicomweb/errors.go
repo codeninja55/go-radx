@@ -19,7 +19,34 @@ var (
 	ErrUnsupported = errors.New("dicomweb: service or media type not supported in v1")
 	// ErrInvalidResource is returned for an invalid resource path or UID.
 	ErrInvalidResource = errors.New("dicomweb: invalid resource path or UID")
+	// ErrCrossOriginBulkData is returned when an absolute BulkDataURI from server metadata
+	// points at an origin other than the configured one and cross-origin fetching is not
+	// opted in. Refusing by default prevents an SSRF where a hostile or compromised origin
+	// redirects the client to an internal address (PRD §9.8).
+	ErrCrossOriginBulkData = errors.New("dicomweb: cross-origin bulk-data reference refused")
 )
+
+// CrossOriginBulkDataError reports an absolute BulkDataURI whose origin differs from the
+// client's configured origin, refused because cross-origin fetching was not enabled. It
+// unwraps to ErrCrossOriginBulkData so callers can check with errors.Is. Error() is a fixed
+// structural message: the host comes from attacker-controlled server metadata, so it is
+// exposed only through the Host field for callers that choose to act on it, never embedded in
+// the error string (PRD §9.1).
+type CrossOriginBulkDataError struct {
+	// Host is the rejected reference's host (and port, when present), taken from untrusted
+	// server metadata. A hostile origin can place a patient identifier in it, so it is never
+	// included in Error(); a caller that surfaces it must treat it as untrusted. The
+	// UID-bearing path is omitted entirely.
+	Host string
+}
+
+func (e *CrossOriginBulkDataError) Error() string {
+	return "dicomweb: bulk-data reference to a cross-origin host refused; " +
+		"enable WithAllowCrossOriginBulkData or add the host to WithBulkDataHostAllowlist"
+}
+
+// Unwrap ties the typed error to the ErrCrossOriginBulkData sentinel.
+func (e *CrossOriginBulkDataError) Unwrap() error { return ErrCrossOriginBulkData }
 
 // LimitExceededError reports a count, size, or depth cap hit before any allocation
 // (PRD §9.3). It unwraps to ErrLimitExceeded so callers can check with errors.Is, and

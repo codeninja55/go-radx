@@ -12,8 +12,9 @@ import (
 
 // TestParseRequiredBindingRejectsUnknown is the FHIR-013 regression against a real
 // generated enum: a known code parses to the typed value, and an out-of-set code
-// returns fhir.ErrUnknownCode wrapped with the binding name and the offending token —
-// never silently coerced and never carrying a patient value.
+// returns fhir.ErrUnknownCode wrapped with the binding name — never silently coerced and
+// never echoing the offending token, which on a required-binding field could be a patient
+// value (PRD §9.1).
 func TestParseRequiredBindingRejectsUnknown(t *testing.T) {
 	g, err := r5.ParseAdministrativeGender("female")
 	if err != nil {
@@ -23,12 +24,18 @@ func TestParseRequiredBindingRejectsUnknown(t *testing.T) {
 		t.Errorf("parsed gender = %q, want female", g)
 	}
 
-	_, err = r5.ParseAdministrativeGender("banana")
+	// A distinctive token stands in for a value a hostile upstream could stuff into a code
+	// field; the error must name the binding but must not echo the token.
+	const offending = "ZZZ-PHI-SENTINEL-banana"
+	_, err = r5.ParseAdministrativeGender(offending)
 	if !errors.Is(err, fhir.ErrUnknownCode) {
-		t.Fatalf("ParseAdministrativeGender(\"banana\"): err = %v, want ErrUnknownCode", err)
+		t.Fatalf("ParseAdministrativeGender(%q): err = %v, want ErrUnknownCode", offending, err)
 	}
-	if !strings.Contains(err.Error(), "AdministrativeGender") || !strings.Contains(err.Error(), "banana") {
-		t.Errorf("error %q should name the binding and the offending token", err.Error())
+	if !strings.Contains(err.Error(), "AdministrativeGender") {
+		t.Errorf("error %q should name the binding", err.Error())
+	}
+	if strings.Contains(err.Error(), offending) {
+		t.Errorf("error %q must not echo the offending token (potential PHI)", err.Error())
 	}
 }
 

@@ -137,3 +137,62 @@ func (br *boundedReader) readTag(bo binary.ByteOrder) (Tag, error) {
 
 // binaryLittleEndian is a small helper so tests and call sites read clearly.
 func binaryLittleEndian() binary.ByteOrder { return binary.LittleEndian }
+
+// inflateLimitReader bounds the total number of bytes that may be inflated from a
+// DEFLATE stream. The Deflated Explicit VR LE main dataset arrives through
+// flate.NewReader, whose reader does not expose Len(), so the boundedReader's
+// remaining-byte guard cannot fire on that path; the only other bound is the
+// per-element cap, which a tiny crafted stream that inflates into a long run of
+// small valid elements never trips. This reader is the total-inflated-bytes guard
+// for the deflated path: once the budget is exhausted it returns a typed
+// *LimitExceededError instead of letting the element loop spin (a decompression
+// bomb). It reads at most budget+1 bytes from the source, so a hostile stream
+// cannot drive an unbounded allocation before the bound fires.
+type inflateLimitReader struct {
+	r      io.Reader
+	budget int64 // total inflated bytes still permitted
+	read   int64 // total inflated bytes delivered so far
+}
+
+// newInflateLimitReader bounds r to at most budget inflated bytes. A budget of zero
+// or less means unbounded, but callers thread a positive budget so the guard
+// applies.
+func newInflateLimitReader(r io.Reader, budget int64) *inflateLimitReader {
+	return &inflateLimitReader{r: r, budget: budget}
+}
+
+// Read delivers inflated bytes up to the budget. When the source would exceed the
+// budget it fills the remaining allowance, then on the next read (or immediately if
+// the allowance is already zero) returns *LimitExceededError so an over-large
+// inflated stream fails promptly rather than spinning the element loop.
+func (lr *inflateLimitReader) Read(p []byte) (int, error) {
+	if lr.budget <= 0 {
+		return lr.r.Read(p) // unbounded
+	}
+	if len(p) == 0 {
+		return 0, nil
+	}
+	if lr.read >= lr.budget {
+		// The budget is fully delivered. The dataset parser still issues one more read to
+		// observe EOF, so probe a single byte: a clean EOF exactly at the budget must pass
+		// through (a valid stream whose inflated size equals the cap), while a real byte
+		// beyond the budget is the decompression bomb this guard exists to stop.
+		var probe [1]byte
+		n, err := lr.r.Read(probe[:])
+		if n > 0 {
+			return 0, &LimitExceededError{
+				Limit:  uint64(lr.budget),
+				Actual: uint64(lr.budget) + 1,
+				Kind:   "inflated-bytes",
+			}
+		}
+		return 0, err
+	}
+	remaining := lr.budget - lr.read
+	if int64(len(p)) > remaining {
+		p = p[:remaining]
+	}
+	n, err := lr.r.Read(p)
+	lr.read += int64(n)
+	return n, err
+}

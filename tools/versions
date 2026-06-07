@@ -45,6 +45,24 @@ dcm4chee.postgres.digest=sha256:728c3055b894127c661a1645ffd0ccc2ad6461b86e957e24
 dcm4chee.arc.image=dcm4che/dcm4chee-arc-psql:5.34.2
 dcm4chee.arc.digest=sha256:316eba283d3c8538e4c3b954edcdd59572f76aa7271ca6336ddf771703082f8c
 
+# --- CGo pixel codec sources (live pins in .github/workflows/ci.yml, codecs job) ---
+# The C-backed pixel codecs are built from source in CI (Ubuntu apt ships older releases — notably
+# libjpeg-turbo 2.x, which lacks the TJPARAM_LOSSLESS API codec_libjpeg.go uses). Each source tarball
+# is downloaded to a file and verified against the SHA-256 below (fail-closed) before extraction, so
+# the codecs result is reproducible and a tampered or truncated mirror response cannot reach the
+# build. The pinned versions match what the local build links via Homebrew. Bumping any pin is a
+# deliberate, reviewed change: re-download the tarball, recompute the SHA-256, and update the version
+# and sha256 keys here together with the install site in ci.yml.
+# OpenJPEG: GitHub source archive (archive/refs/tags/v<version>.tar.gz).
+codec.openjpeg.version=2.5.4
+codec.openjpeg.sha256=a695fbe19c0165f295a8531b1e4e855cd94d0875d2f88ec4b61080677e27188a
+# libjpeg-turbo: GitHub release asset (releases/download/<version>/libjpeg-turbo-<version>.tar.gz).
+codec.libjpeg-turbo.version=3.1.4
+codec.libjpeg-turbo.sha256=e23d3ebb2c6ee4d0e2a5823dbb55b614845df5ea3435c956fed5cf04041a87ad
+# CharLS: GitHub source archive (archive/refs/tags/<version>.tar.gz).
+codec.charls.version=2.4.3
+codec.charls.sha256=bbf67d51446a98eb8fc98c9c6de49a2605c709d3a14ba39f09a09f8e57527099
+
 # --- FHIR validator (live pin in .github/workflows/ci.yml fhir-conformance job + tools/fhir-conformance/validate.sh) ---
 # Mechanism decision: the official HL7 validator_cli.jar (hapifhir/org.hl7.fhir.core releases), NOT a
 # container. Rationale: the jar is the canonical reference, runs on the JDK every runner can install,

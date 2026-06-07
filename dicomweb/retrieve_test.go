@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -579,9 +581,10 @@ func TestResolveBulkDataURISameOriginSendsToken(t *testing.T) {
 	}
 }
 
-// TestResolveBulkDataURICrossOriginOmitsToken is the credential-leak regression: a
-// server-supplied absolute BulkDataURI on a different host must be fetched WITHOUT the bearer
-// token, so a malicious or compromised origin cannot harvest the PACS credential.
+// TestResolveBulkDataURICrossOriginOmitsToken is the credential-leak regression: when
+// cross-origin bulk-data fetching is explicitly opted in, a server-supplied absolute
+// BulkDataURI on a different host must still be fetched WITHOUT the bearer token, so a
+// malicious or compromised origin cannot harvest the PACS credential.
 func TestResolveBulkDataURICrossOriginOmitsToken(t *testing.T) {
 	const token = "s3cr3t-pacs-token"
 	payload := bytes.Repeat([]byte{0xCD}, 16)
@@ -591,7 +594,8 @@ func TestResolveBulkDataURICrossOriginOmitsToken(t *testing.T) {
 	// A different host: a distinct httptest server gets its own port, so it is cross-origin.
 	evil, evilAuth := bulkDataEchoServer(t, payload)
 
-	c, err := NewClient(base.URL, WithHTTPClient(base.Client()), WithBearerToken(token))
+	c, err := NewClient(base.URL, WithHTTPClient(base.Client()), WithBearerToken(token),
+		WithAllowCrossOriginBulkData())
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -609,4 +613,101 @@ func TestResolveBulkDataURICrossOriginOmitsToken(t *testing.T) {
 	if *baseAuth != "" {
 		t.Fatalf("base origin saw Authorization = %q, but the cross-origin reference should never reach it", *baseAuth)
 	}
+}
+
+// TestResolveBulkDataURICrossOriginRefusedByDefault is the SSRF regression: a server-supplied
+// absolute BulkDataURI on a host other than the configured origin must be refused before any
+// request leaves the process, so a hostile or compromised origin cannot steer the client at an
+// internal address. The opt-in (a blanket allow or a host allowlist) re-enables the fetch; a
+// same-origin and a relative reference always resolve.
+func TestResolveBulkDataURICrossOriginRefusedByDefault(t *testing.T) {
+	payload := bytes.Repeat([]byte{0xEF}, 16)
+
+	base, _ := bulkDataEchoServer(t, payload)
+	other, _ := bulkDataEchoServer(t, payload)
+
+	// The reference's host carries no UID, so naming it in the error leaks no PHI; the
+	// UID-bearing path must never appear.
+	crossRef := BulkDataURI(other.URL + "/studies/1.2.3/series/4.5.6/instances/7.8.9/bulkdata/0")
+
+	t.Run("refused by default", func(t *testing.T) {
+		c, err := NewClient(base.URL, WithHTTPClient(base.Client()))
+		if err != nil {
+			t.Fatalf("NewClient: %v", err)
+		}
+		_, err = c.ResolveBulkDataURI(context.Background(), crossRef)
+		if !errors.Is(err, ErrCrossOriginBulkData) {
+			t.Fatalf("cross-origin ResolveBulkDataURI: err = %v, want ErrCrossOriginBulkData", err)
+		}
+		var coe *CrossOriginBulkDataError
+		if !errors.As(err, &coe) {
+			t.Fatalf("err = %v, want a *CrossOriginBulkDataError", err)
+		}
+		otherURL, _ := url.Parse(other.URL)
+		if coe.Host != otherURL.Host {
+			t.Fatalf("error host = %q, want the rejected host %q", coe.Host, otherURL.Host)
+		}
+		if strings.Contains(err.Error(), "1.2.3") || strings.Contains(err.Error(), "bulkdata") {
+			t.Fatalf("error message leaked the UID-bearing path: %q", err.Error())
+		}
+	})
+
+	t.Run("allowed under blanket opt-in", func(t *testing.T) {
+		c, err := NewClient(base.URL, WithHTTPClient(base.Client()), WithAllowCrossOriginBulkData())
+		if err != nil {
+			t.Fatalf("NewClient: %v", err)
+		}
+		got, err := c.ResolveBulkDataURI(context.Background(), crossRef)
+		if err != nil {
+			t.Fatalf("ResolveBulkDataURI under opt-in: %v", err)
+		}
+		if !bytes.Equal(got, payload) {
+			t.Fatalf("resolved bulk data does not match the payload")
+		}
+	})
+
+	t.Run("allowed for an allowlisted host", func(t *testing.T) {
+		otherURL, _ := url.Parse(other.URL)
+		c, err := NewClient(base.URL, WithHTTPClient(base.Client()),
+			WithBulkDataHostAllowlist(otherURL.Host))
+		if err != nil {
+			t.Fatalf("NewClient: %v", err)
+		}
+		got, err := c.ResolveBulkDataURI(context.Background(), crossRef)
+		if err != nil {
+			t.Fatalf("ResolveBulkDataURI for allowlisted host: %v", err)
+		}
+		if !bytes.Equal(got, payload) {
+			t.Fatalf("resolved bulk data does not match the payload")
+		}
+	})
+
+	t.Run("same-origin still resolves", func(t *testing.T) {
+		c, err := NewClient(base.URL, WithHTTPClient(base.Client()))
+		if err != nil {
+			t.Fatalf("NewClient: %v", err)
+		}
+		sameRef := BulkDataURI(base.URL + "/studies/1.2.3/series/4.5.6/instances/7.8.9/bulkdata/0")
+		got, err := c.ResolveBulkDataURI(context.Background(), sameRef)
+		if err != nil {
+			t.Fatalf("same-origin ResolveBulkDataURI: %v", err)
+		}
+		if !bytes.Equal(got, payload) {
+			t.Fatalf("resolved bulk data does not match the payload")
+		}
+	})
+
+	t.Run("relative reference still resolves", func(t *testing.T) {
+		c, err := NewClient(base.URL, WithHTTPClient(base.Client()))
+		if err != nil {
+			t.Fatalf("NewClient: %v", err)
+		}
+		got, err := c.ResolveBulkDataURI(context.Background(), BulkDataURI("studies/1.2.3/bulkdata/0"))
+		if err != nil {
+			t.Fatalf("relative ResolveBulkDataURI: %v", err)
+		}
+		if !bytes.Equal(got, payload) {
+			t.Fatalf("resolved bulk data does not match the payload")
+		}
+	})
 }

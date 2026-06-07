@@ -26,11 +26,29 @@ jobs:
   lint-test:
     name: Lint, vet, build, race tests (pure-Go default build)
     runs-on: ubuntu-latest
+    # Pin the Go module and build caches to fixed in-workspace paths so the cache step below restores
+    # to known locations regardless of how Go was installed (mise here, setup-go elsewhere).
+    env:
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Cache the Go module downloads (GOMODCACHE) and compiled build output (GOCACHE). The key
+      # embeds the Go version (a toolchain bump must not reuse objects built by the old compiler) and
+      # go.sum (a dependency change re-resolves the module cache); restore-keys lets an unchanged Go
+      # version reuse a near-match cache and top it up. Scoped to the root module's go.sum.
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: pin-drift (reference tools + interop images pinned)
         # Fails if a reference tool or interop image floated back to an unpinned reference (a
         # `:latest` image tag, an `@latest` install, or an unpinned pip/apt install). Pins of record
@@ -80,11 +98,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: "true" # flips tools/dicom-conformance/*.sh from skip-locally to fail-if-tool-absent
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Install dicom3tools (provides dciodvfy) + pydicom
         run: |
           # dciodvfy is a David Clunie dicom3tools program (Ubuntu universe), NOT a dcmtk tool —
@@ -113,11 +142,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: "true" # flips tools/fhir-conformance/validate.sh from skip-locally to fail-if-absent
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3 # installs Go 1.26 per mise.toml [tools]; the gate runs `go run` for the fixtures
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Install JDK 17 (the HL7 validator_cli.jar runs on the JDK)
         # The validator is the official HL7 validator_cli.jar (NOT a container) — the M6a
         # mechanism decision recorded in tools/versions. It is pinned by version AND SHA-256
@@ -137,6 +177,9 @@ jobs:
   interop:
     name: Interop gate (${{ matrix.leg }} — testcontainers)
     runs-on: ubuntu-latest
+    env:
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     strategy:
       # Run each interop leg on its own runner rather than serially on one. The legs all
       # drive containers; isolating them keeps the memory-heavy DIMSE dcm4chee-arc stack
@@ -154,6 +197,18 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Per-leg cache scope: the legs run concurrently, so a shared key would race on the cache write.
+      # The `interop` build-tag objects differ from the default build, so this scope is kept distinct
+      # from the root cache rather than competing with it.
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-interop-${{ matrix.leg }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-interop-${{ matrix.leg }}-
       - name: ${{ matrix.leg }} interop tests
         # GitHub-hosted ubuntu runners ship Docker; testcontainers manages the Orthanc and
         # dcm4chee-arc stacks behind the pinned image digests. The dcm4chee-arc stack the dimse
@@ -171,6 +226,10 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: "1.26.4"
+          # setup-go caches GOMODCACHE + GOCACHE keyed on the Go version and the named go.sum; scope
+          # it to the root module so the scan of ./... reuses the module download and build objects.
+          cache: true
+          cache-dependency-path: go.sum
       - name: Install govulncheck
         # Pin the scanner to a released version so its analysis behaviour is fixed; @latest would
         # let the scanner float between runs. The vulnerability database stays live (vuln.go.dev),
@@ -190,6 +249,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      # Absolute paths so the caches resolve identically regardless of the cmd/radx working-directory.
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     defaults:
       run:
         working-directory: cmd/radx
@@ -198,6 +260,17 @@ jobs:
       - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Scoped to cmd/radx's own go.sum (the module is gated as a downstream consumer would build it).
+      # hashFiles and the cache path are workspace-relative, unaffected by the working-directory above.
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-cmd-radx-${{ hashFiles('cmd/radx/go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-cmd-radx-
       - name: build
         run: go build ./...
       - name: go vet
@@ -218,22 +291,69 @@ jobs:
     # libraries are built from source here.
     name: CGo pixel codecs (native libs from source)
     runs-on: ubuntu-latest
+    env:
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # The codec build/test compiles cgo-tagged objects distinct from the default build, so this is a
+      # separate cache scope from the root job rather than competing with it.
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-codecs-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-codecs-
       - name: Install build tooling
         run: sudo apt-get update && sudo apt-get install -y cmake build-essential pkg-config nasm curl
+      # Cache the downloaded codec source tarballs keyed on the pinned versions (tools/versions). The
+      # download steps below restore from this cache on a hit and skip the network entirely, so a
+      # mirror 502/504 hiccup is retryable across runs instead of failing the job — and the checksum
+      # verification still runs against the restored bytes, so a poisoned cache cannot reach the build.
+      # The key embeds every pinned version so a version bump misses the old cache and re-downloads.
+      - name: Cache codec source tarballs
+        uses: actions/cache@v4
+        with:
+          path: codec-src
+          key: codec-src-openjpeg-2.5.4-libjpeg-turbo-3.1.4-charls-2.4.3
       - name: Build & install OpenJPEG 2.5.4
+        env:
+          # SHA-256 of the GitHub source archive, pinned in tools/versions (codec.openjpeg.sha256).
+          OPENJPEG_SHA256: a695fbe19c0165f295a8531b1e4e855cd94d0875d2f88ec4b61080677e27188a
         run: |
-          curl -fsSL https://github.com/uclouvain/openjpeg/archive/refs/tags/v2.5.4.tar.gz | tar -xz
+          mkdir -p codec-src
+          tarball=codec-src/openjpeg-2.5.4.tar.gz
+          # Download only on a cache miss; --retry rides out a transient mirror 5xx. Verify the
+          # SHA-256 fail-closed BEFORE extraction — a checksum mismatch (tamper or truncation) aborts
+          # the job rather than feeding unverified bytes to the build.
+          if [ ! -f "$tarball" ]; then
+            curl -fsSL --retry 3 --retry-delay 5 -o "$tarball" \
+              https://github.com/uclouvain/openjpeg/archive/refs/tags/v2.5.4.tar.gz
+          fi
+          echo "${OPENJPEG_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball"
           cmake -S openjpeg-2.5.4 -B openjpeg-2.5.4/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
           cmake --build openjpeg-2.5.4/build -j"$(nproc)"
           sudo cmake --install openjpeg-2.5.4/build
       - name: Build & install libjpeg-turbo 3.1.4
+        env:
+          # SHA-256 of the GitHub release asset, pinned in tools/versions (codec.libjpeg-turbo.sha256).
+          LIBJPEG_TURBO_SHA256: e23d3ebb2c6ee4d0e2a5823dbb55b614845df5ea3435c956fed5cf04041a87ad
         run: |
-          curl -fsSL https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.1.4/libjpeg-turbo-3.1.4.tar.gz | tar -xz
+          mkdir -p codec-src
+          tarball=codec-src/libjpeg-turbo-3.1.4.tar.gz
+          if [ ! -f "$tarball" ]; then
+            curl -fsSL --retry 3 --retry-delay 5 -o "$tarball" \
+              https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.1.4/libjpeg-turbo-3.1.4.tar.gz
+          fi
+          echo "${LIBJPEG_TURBO_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball"
           # libjpeg-turbo's cmake defaults CMAKE_INSTALL_PREFIX to /opt/libjpeg-turbo (unlike OpenJPEG
           # and CharLS, which default to /usr/local) — pin it so libturbojpeg.pc lands where the
           # others do and pkg-config discovery finds it.
@@ -241,8 +361,18 @@ jobs:
           cmake --build libjpeg-turbo-3.1.4/build -j"$(nproc)"
           sudo cmake --install libjpeg-turbo-3.1.4/build
       - name: Build & install CharLS 2.4.3
+        env:
+          # SHA-256 of the GitHub source archive, pinned in tools/versions (codec.charls.sha256).
+          CHARLS_SHA256: bbf67d51446a98eb8fc98c9c6de49a2605c709d3a14ba39f09a09f8e57527099
         run: |
-          curl -fsSL https://github.com/team-charls/charls/archive/refs/tags/2.4.3.tar.gz | tar -xz
+          mkdir -p codec-src
+          tarball=codec-src/charls-2.4.3.tar.gz
+          if [ ! -f "$tarball" ]; then
+            curl -fsSL --retry 3 --retry-delay 5 -o "$tarball" \
+              https://github.com/team-charls/charls/archive/refs/tags/2.4.3.tar.gz
+          fi
+          echo "${CHARLS_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball"
           cmake -S charls-2.4.3 -B charls-2.4.3/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
           cmake --build charls-2.4.3/build -j"$(nproc)"
           sudo cmake --install charls-2.4.3/build
@@ -275,31 +405,54 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: PHI sweep
         run: mise run phi-sweep
 
   fuzz:
     # Bounded fuzz smoke run over every committed fuzz target. This is a regression gate, not a fuzz
     # campaign: each target runs for a fixed -fuzztime against its committed seed corpus so a parser
-    # crash, panic, or hang on malformed input fails the build. A go-test fuzz run takes ONE target
-    # per invocation, so every target is listed explicitly with an anchored -fuzz regex (^Name$) to
-    # run exactly that target and nothing else. Each invocation is wrapped in coreutils `timeout`
+    # crash, panic, or hang on malformed input fails the build. The target list is DISCOVERED from
+    # `go test -list` (see the mise `fuzz` task) so it cannot drift out of step with the tree; a
+    # go-test fuzz run takes ONE target per invocation, so each is run with an anchored -fuzz regex
+    # (^Name$) to exercise exactly that target. Each invocation is wrapped in coreutils `timeout`
     # (present on the runner) at a wall-clock budget above -fuzztime, so a target that wedges instead
     # of finishing exits non-zero and the gate bites — a hang is a FAILURE, never a skip.
     name: Bounded fuzz smoke (all targets)
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Fuzz targets (bounded, hang = failure)
         run: mise run fuzz
 
@@ -313,11 +466,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Run dicom + fhir benchmarks once
         run: mise run bench
 
@@ -329,11 +493,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Conformance-drift
         run: mise run conformance-drift
 
