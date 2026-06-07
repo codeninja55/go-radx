@@ -148,6 +148,36 @@ func TestInflateLimitReaderStopsAtBudget(t *testing.T) {
 	}
 }
 
+// TestInflateLimitReaderAcceptsExactBudget confirms a stream whose inflated size equals the
+// budget exactly ends with a clean io.EOF, not a LimitExceededError. The dataset parser
+// issues one more read after the last element to observe EOF; that probe must not be misread
+// as a byte beyond the budget, which would reject a valid object sized exactly at the cap.
+func TestInflateLimitReaderAcceptsExactBudget(t *testing.T) {
+	const budget = 64
+	src := &countingReader{data: bytes.Repeat([]byte{0xAB}, budget)}
+	lr := newInflateLimitReader(src, budget)
+
+	var total int
+	buf := make([]byte, 32)
+	for {
+		n, err := lr.Read(buf)
+		total += n
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			var lim *LimitExceededError
+			if errors.As(err, &lim) {
+				t.Fatalf("exact-budget stream wrongly rejected as over-limit: %v", err)
+			}
+			t.Fatalf("inflateLimitReader: got %v, want io.EOF", err)
+		}
+	}
+	if total != budget {
+		t.Errorf("delivered %d inflated bytes, want exactly the budget %d", total, budget)
+	}
+}
+
 // countingReader records how many bytes were read from it.
 type countingReader struct {
 	data []byte
