@@ -38,13 +38,33 @@ func (defaultHandler) Handle(_ context.Context, m *Message) (*Message, error) {
 	return m.BuildACK(AckAccept)
 }
 
+// defaultMaxConnections bounds concurrently served inbound connections when
+// WithMaxConnections is not set. An MLLP listener exposed to a hospital network is
+// a realistic DoS target: a peer that opens connections without sending pins a
+// goroutine and a file descriptor each. The cap keeps that growth finite — high
+// enough for an interface engine multiplexing many feeds, yet far below the point
+// where accept fails for legitimate peers (PRD §9.4). It mirrors dimse's
+// WithMaxAssociations bound, scaled up because an MLLP connection is far lighter
+// than a DICOM association.
+const defaultMaxConnections = 128
+
+// defaultReadTimeout is the per-frame read deadline applied when WithReadTimeout
+// is not set. Without it a peer that opens a connection but sends nothing parks a
+// goroutine forever, so a flood of idle half-open connections exhausts the
+// connection cap and starves legitimate peers. It is deliberately generous — an
+// MLLP frame arrives in seconds, never minutes — so it reaps stuck connections
+// without cutting off a slow but live sender. An operator who wants no deadline
+// passes WithReadTimeout(0) to clear it.
+const defaultReadTimeout = 5 * time.Minute
+
 // serverConfig holds the resolved Server options. There is no global mutable
 // state (PRD §9.4); every Server carries its own configuration, immutable after
 // NewServer.
 type serverConfig struct {
-	readTimeout  time.Duration
-	maxFrameSize int
-	tlsConfig    *tls.Config
+	readTimeout    time.Duration
+	maxFrameSize   int
+	maxConnections int
+	tlsConfig      *tls.Config
 }
 
 // MLLPServerOption configures a Server at construction. It is named to avoid
@@ -52,9 +72,12 @@ type serverConfig struct {
 // as a variadic.
 type MLLPServerOption func(*serverConfig)
 
-// WithReadTimeout sets the deadline applied to each inbound frame read (default
-// none). It bounds how long a connection goroutine blocks on a peer that opens a
-// connection but sends nothing further. A non-positive value clears the deadline.
+// WithReadTimeout sets the deadline applied to each inbound frame read,
+// overriding defaultReadTimeout. It bounds how long a connection goroutine blocks
+// on a peer that opens a connection but sends nothing further, so an idle
+// half-open connection is reaped rather than parking a goroutine indefinitely. A
+// non-positive value clears the deadline (the connection may block until the peer
+// sends or disconnects).
 func WithReadTimeout(d time.Duration) MLLPServerOption {
 	return func(c *serverConfig) { c.readTimeout = d }
 }
@@ -67,6 +90,21 @@ func WithMaxFrameSize(n int) MLLPServerOption {
 		if n > 0 {
 			c.maxFrameSize = n
 		}
+	}
+}
+
+// WithMaxConnections bounds the number of concurrently served inbound
+// connections. A further inbound connection is refused (its transport closed)
+// before any handler goroutine is spawned for it, so capacity is enforced ahead of
+// work, never after N+1 goroutines already exist. This bounds the goroutine and
+// file-descriptor growth a connection flood can cause (PRD §9.4), mirroring
+// dimse's WithMaxAssociations. A value <= 0 restores defaultMaxConnections.
+func WithMaxConnections(n int) MLLPServerOption {
+	return func(c *serverConfig) {
+		if n <= 0 {
+			n = defaultMaxConnections
+		}
+		c.maxConnections = n
 	}
 }
 
@@ -86,12 +124,24 @@ func WithServerTLS(cfg *tls.Config) MLLPServerOption {
 // per-connection handler — is tracked and joined by Shutdown; there are no
 // fire-and-forget goroutines (PRD §9.4). It is safe for concurrent use.
 //
+// The number of concurrently served connections is capped (WithMaxConnections,
+// default defaultMaxConnections): a connection accepted while every slot is in use
+// is refused before any goroutine is spawned, so a connection flood cannot exhaust
+// goroutines or file descriptors. Each per-frame read carries a deadline
+// (WithReadTimeout, default defaultReadTimeout) so an idle half-open connection is
+// reaped rather than parking a goroutine indefinitely.
+//
 // Shutdown cancels the context passed to every in-flight Handler and closes the
 // active connections, so a long-running handler that observes its context
 // returns promptly on Shutdown.
 type Server struct {
 	handler Handler
 	cfg     serverConfig
+
+	// sem is the capacity semaphore: a slot is acquired before a per-connection
+	// goroutine is spawned and released when it returns, so WithMaxConnections
+	// bounds concurrency ahead of work rather than after N+1 goroutines exist.
+	sem chan struct{}
 
 	mu       sync.Mutex
 	listener net.Listener
@@ -116,7 +166,11 @@ type Server struct {
 // the turnkey accept-everything receiver. Options configure read timeouts, the
 // maximum frame length, and TLS.
 func NewServer(h Handler, opts ...MLLPServerOption) *Server {
-	cfg := serverConfig{maxFrameSize: DefaultMaxFrameSize}
+	cfg := serverConfig{
+		readTimeout:    defaultReadTimeout,
+		maxFrameSize:   DefaultMaxFrameSize,
+		maxConnections: defaultMaxConnections,
+	}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -126,6 +180,7 @@ func NewServer(h Handler, opts ...MLLPServerOption) *Server {
 	return &Server{
 		handler: h,
 		cfg:     cfg,
+		sem:     make(chan struct{}, cfg.maxConnections),
 		conns:   make(map[net.Conn]struct{}),
 		joined:  make(chan struct{}),
 	}
@@ -169,10 +224,13 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 }
 
 // acceptLoop accepts connections until the listener is closed (Shutdown) or ctx
-// is cancelled. Each accepted connection is tracked and served on its own
-// tracked goroutine so Shutdown joins it. A tracked watcher closes the listener
-// on ctx cancellation so the "serves until ctx is cancelled" contract is honoured
-// promptly, not only on the next accept.
+// is cancelled. For each accepted connection it acquires a capacity slot BEFORE
+// spawning the per-connection goroutine: if no slot is available the connection is
+// refused (closed) without a goroutine ever being created for it, so a connection
+// flood cannot spawn unbounded goroutines. Each served connection is tracked on
+// its own tracked goroutine so Shutdown joins it. A tracked watcher closes the
+// listener on ctx cancellation so the "serves until ctx is cancelled" contract is
+// honoured promptly, not only on the next accept.
 func (s *Server) acceptLoop(ctx context.Context, ln net.Listener) error {
 	watchDone := make(chan struct{})
 	s.wg.Add(1)
@@ -197,15 +255,27 @@ func (s *Server) acceptLoop(ctx context.Context, ln net.Listener) error {
 			continue
 		}
 
+		// Acquire capacity before spawning. A full semaphore means every slot is in
+		// use, so the connection is refused (closed) here — no per-connection
+		// goroutine is created for it.
+		select {
+		case s.sem <- struct{}{}:
+		default:
+			_ = conn.Close()
+			continue
+		}
+
 		if !s.trackConn(conn) {
 			// Shutdown happened between Accept and tracking; refuse this connection.
 			_ = conn.Close()
+			<-s.sem
 			continue
 		}
 
 		// trackConn already did wg.Add(1) under s.mu; this goroutine pairs it.
 		go func() {
 			defer s.wg.Done()
+			defer func() { <-s.sem }()
 			defer s.untrackConn(conn)
 			s.serveConn(ctx, conn)
 		}()
