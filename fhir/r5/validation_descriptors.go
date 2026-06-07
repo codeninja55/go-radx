@@ -5,13 +5,13 @@ package r5
 import "github.com/codeninja55/go-radx/fhir"
 
 // init registers a structural validation descriptor for every r5 resource with
-// the release-agnostic engine in the root fhir package, so fhir.Validate can check a
-// resource's required-element presence, choice-group mutual exclusion, and required-binding
-// codes from generated metadata without reflecting over the resource at call time. Each
-// descriptor's closures type-assert the fhir.Resource to the concrete type once and read
-// exactly the fields the generator resolved as required, polymorphic, or bound.
+// the release-local Registry, so r5.Validate can check a resource's
+// required-element presence, choice-group mutual exclusion, and required-binding codes from
+// generated metadata without reflecting over the resource at call time. Each descriptor's
+// closures type-assert the fhir.Resource to the concrete type once and read exactly the
+// fields the generator resolved as required, polymorphic, or bound.
 func init() {
-	fhir.RegisterValidationDescriptor(AccountResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(AccountResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Account)
 			if !ok {
@@ -38,7 +38,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ActivityDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ActivityDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ActivityDefinition)
 			if !ok {
@@ -106,7 +106,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ActorDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ActorDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ActorDefinition)
 			if !ok {
@@ -153,7 +153,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(AdministrableProductDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(AdministrableProductDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*AdministrableProductDefinition)
 			if !ok {
@@ -183,7 +183,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(AdverseEventResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(AdverseEventResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*AdverseEvent)
 			if !ok {
@@ -233,7 +233,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(AllergyIntoleranceResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(AllergyIntoleranceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*AllergyIntolerance)
 			if !ok {
@@ -279,7 +279,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(AppointmentResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(AppointmentResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Appointment)
 			if !ok {
@@ -309,7 +309,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(AppointmentResponseResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(AppointmentResponseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*AppointmentResponse)
 			if !ok {
@@ -339,7 +339,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ArtifactAssessmentResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ArtifactAssessmentResourceType, fhir.ValidationDescriptor{
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*ArtifactAssessment)
 			if !ok {
@@ -375,7 +375,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(AuditEventResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(AuditEventResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*AuditEvent)
 			if !ok {
@@ -428,7 +428,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(BasicResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(BasicResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Basic)
 			if !ok {
@@ -441,7 +441,7 @@ func init() {
 			return missing
 		},
 	})
-	fhir.RegisterValidationDescriptor(BinaryResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(BinaryResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Binary)
 			if !ok {
@@ -454,8 +454,8 @@ func init() {
 			return missing
 		},
 	})
-	fhir.RegisterValidationDescriptor(BiologicallyDerivedProductResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(BiologicallyDerivedProductDispenseResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(BiologicallyDerivedProductResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(BiologicallyDerivedProductDispenseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*BiologicallyDerivedProductDispense)
 			if !ok {
@@ -488,7 +488,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(BodyStructureResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(BodyStructureResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*BodyStructure)
 			if !ok {
@@ -504,7 +504,7 @@ func init() {
 			return missing
 		},
 	})
-	fhir.RegisterValidationDescriptor(BundleResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(BundleResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Bundle)
 			if !ok {
@@ -532,7 +532,7 @@ func init() {
 		},
 		Extra: BundleValidateExtra,
 	})
-	fhir.RegisterValidationDescriptor(CapabilityStatementResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CapabilityStatementResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*CapabilityStatement)
 			if !ok {
@@ -594,7 +594,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CarePlanResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CarePlanResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*CarePlan)
 			if !ok {
@@ -633,7 +633,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CareTeamResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CareTeamResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*CareTeam)
 			if !ok {
@@ -649,7 +649,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ChargeItemResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ChargeItemResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ChargeItem)
 			if !ok {
@@ -693,7 +693,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ChargeItemDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ChargeItemDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ChargeItemDefinition)
 			if !ok {
@@ -731,7 +731,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CitationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CitationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Citation)
 			if !ok {
@@ -769,7 +769,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ClaimResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ClaimResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Claim)
 			if !ok {
@@ -814,7 +814,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ClaimResponseResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ClaimResponseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ClaimResponse)
 			if !ok {
@@ -868,7 +868,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ClinicalImpressionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ClinicalImpressionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ClinicalImpression)
 			if !ok {
@@ -909,7 +909,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ClinicalUseDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ClinicalUseDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ClinicalUseDefinition)
 			if !ok {
@@ -936,7 +936,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CodeSystemResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CodeSystemResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*CodeSystem)
 			if !ok {
@@ -989,7 +989,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CommunicationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CommunicationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Communication)
 			if !ok {
@@ -1022,7 +1022,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CommunicationRequestResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CommunicationRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*CommunicationRequest)
 			if !ok {
@@ -1075,7 +1075,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CompartmentDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CompartmentDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*CompartmentDefinition)
 			if !ok {
@@ -1131,7 +1131,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CompositionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CompositionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Composition)
 			if !ok {
@@ -1170,7 +1170,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ConceptMapResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ConceptMapResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ConceptMap)
 			if !ok {
@@ -1214,7 +1214,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ConditionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ConditionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Condition)
 			if !ok {
@@ -1244,7 +1244,7 @@ func init() {
 			return violations
 		},
 	})
-	fhir.RegisterValidationDescriptor(ConditionDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ConditionDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ConditionDefinition)
 			if !ok {
@@ -1285,7 +1285,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ConsentResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ConsentResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Consent)
 			if !ok {
@@ -1318,7 +1318,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ContractResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ContractResourceType, fhir.ValidationDescriptor{
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*Contract)
 			if !ok {
@@ -1348,7 +1348,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CoverageResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CoverageResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Coverage)
 			if !ok {
@@ -1387,7 +1387,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CoverageEligibilityRequestResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CoverageEligibilityRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*CoverageEligibilityRequest)
 			if !ok {
@@ -1445,7 +1445,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(CoverageEligibilityResponseResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(CoverageEligibilityResponseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*CoverageEligibilityResponse)
 			if !ok {
@@ -1515,7 +1515,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(DetectedIssueResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DetectedIssueResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*DetectedIssue)
 			if !ok {
@@ -1559,7 +1559,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(DeviceResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DeviceResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*Device)
 			if !ok {
@@ -1575,7 +1575,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(DeviceAssociationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DeviceAssociationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*DeviceAssociation)
 			if !ok {
@@ -1591,7 +1591,7 @@ func init() {
 			return missing
 		},
 	})
-	fhir.RegisterValidationDescriptor(DeviceDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DeviceDefinitionResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*DeviceDefinition)
 			if !ok {
@@ -1609,7 +1609,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(DeviceDispenseResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DeviceDispenseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*DeviceDispense)
 			if !ok {
@@ -1642,7 +1642,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(DeviceMetricResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DeviceMetricResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*DeviceMetric)
 			if !ok {
@@ -1681,7 +1681,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(DeviceRequestResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DeviceRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*DeviceRequest)
 			if !ok {
@@ -1737,7 +1737,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(DeviceUsageResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DeviceUsageResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*DeviceUsage)
 			if !ok {
@@ -1781,7 +1781,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(DiagnosticReportResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DiagnosticReportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*DiagnosticReport)
 			if !ok {
@@ -1822,7 +1822,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(DocumentReferenceResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(DocumentReferenceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*DocumentReference)
 			if !ok {
@@ -1858,7 +1858,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EncounterResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EncounterResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Encounter)
 			if !ok {
@@ -1885,7 +1885,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EncounterHistoryResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EncounterHistoryResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*EncounterHistory)
 			if !ok {
@@ -1915,7 +1915,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EndpointResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EndpointResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Endpoint)
 			if !ok {
@@ -1948,7 +1948,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EnrollmentRequestResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EnrollmentRequestResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*EnrollmentRequest)
 			if !ok {
@@ -1964,7 +1964,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EnrollmentResponseResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EnrollmentResponseResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*EnrollmentResponse)
 			if !ok {
@@ -1986,7 +1986,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EpisodeOfCareResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EpisodeOfCareResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*EpisodeOfCare)
 			if !ok {
@@ -2016,7 +2016,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EventDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EventDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*EventDefinition)
 			if !ok {
@@ -2060,7 +2060,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EvidenceResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EvidenceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Evidence)
 			if !ok {
@@ -2104,7 +2104,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EvidenceReportResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EvidenceReportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*EvidenceReport)
 			if !ok {
@@ -2145,7 +2145,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(EvidenceVariableResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(EvidenceVariableResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*EvidenceVariable)
 			if !ok {
@@ -2189,7 +2189,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ExampleScenarioResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ExampleScenarioResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ExampleScenario)
 			if !ok {
@@ -2227,7 +2227,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ExplanationOfBenefitResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ExplanationOfBenefitResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ExplanationOfBenefit)
 			if !ok {
@@ -2281,7 +2281,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(FamilyMemberHistoryResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(FamilyMemberHistoryResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*FamilyMemberHistory)
 			if !ok {
@@ -2331,7 +2331,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(FlagResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(FlagResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Flag)
 			if !ok {
@@ -2364,7 +2364,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(FormularyItemResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(FormularyItemResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*FormularyItem)
 			if !ok {
@@ -2380,7 +2380,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(GenomicStudyResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(GenomicStudyResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*GenomicStudy)
 			if !ok {
@@ -2410,7 +2410,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(GoalResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(GoalResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Goal)
 			if !ok {
@@ -2454,7 +2454,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(GraphDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(GraphDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*GraphDefinition)
 			if !ok {
@@ -2495,7 +2495,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(GroupResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(GroupResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Group)
 			if !ok {
@@ -2531,7 +2531,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(GuidanceResponseResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(GuidanceResponseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*GuidanceResponse)
 			if !ok {
@@ -2569,8 +2569,8 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(HealthcareServiceResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(ImagingSelectionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(HealthcareServiceResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(ImagingSelectionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ImagingSelection)
 			if !ok {
@@ -2600,7 +2600,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ImagingStudyResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ImagingStudyResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ImagingStudy)
 			if !ok {
@@ -2630,7 +2630,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ImmunizationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ImmunizationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Immunization)
 			if !ok {
@@ -2674,7 +2674,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ImmunizationEvaluationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ImmunizationEvaluationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ImmunizationEvaluation)
 			if !ok {
@@ -2713,7 +2713,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ImmunizationRecommendationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ImmunizationRecommendationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ImmunizationRecommendation)
 			if !ok {
@@ -2732,7 +2732,7 @@ func init() {
 			return missing
 		},
 	})
-	fhir.RegisterValidationDescriptor(ImplementationGuideResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ImplementationGuideResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ImplementationGuide)
 			if !ok {
@@ -2796,7 +2796,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(IngredientResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(IngredientResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Ingredient)
 			if !ok {
@@ -2829,7 +2829,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(InsurancePlanResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(InsurancePlanResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*InsurancePlan)
 			if !ok {
@@ -2845,7 +2845,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(InventoryItemResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(InventoryItemResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*InventoryItem)
 			if !ok {
@@ -2872,7 +2872,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(InventoryReportResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(InventoryReportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*InventoryReport)
 			if !ok {
@@ -2911,7 +2911,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(InvoiceResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(InvoiceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Invoice)
 			if !ok {
@@ -2949,7 +2949,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(LibraryResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(LibraryResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Library)
 			if !ok {
@@ -2993,7 +2993,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(LinkageResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(LinkageResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Linkage)
 			if !ok {
@@ -3006,7 +3006,7 @@ func init() {
 			return missing
 		},
 	})
-	fhir.RegisterValidationDescriptor(ListResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ListResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*List)
 			if !ok {
@@ -3042,7 +3042,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(LocationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(LocationResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*Location)
 			if !ok {
@@ -3064,7 +3064,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ManufacturedItemDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ManufacturedItemDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ManufacturedItemDefinition)
 			if !ok {
@@ -3094,7 +3094,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MeasureResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MeasureResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Measure)
 			if !ok {
@@ -3141,7 +3141,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MeasureReportResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MeasureReportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*MeasureReport)
 			if !ok {
@@ -3186,7 +3186,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MedicationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MedicationResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*Medication)
 			if !ok {
@@ -3202,7 +3202,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MedicationAdministrationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MedicationAdministrationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*MedicationAdministration)
 			if !ok {
@@ -3246,7 +3246,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MedicationDispenseResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MedicationDispenseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*MedicationDispense)
 			if !ok {
@@ -3279,7 +3279,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MedicationKnowledgeResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MedicationKnowledgeResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*MedicationKnowledge)
 			if !ok {
@@ -3295,7 +3295,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MedicationRequestResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MedicationRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*MedicationRequest)
 			if !ok {
@@ -3343,7 +3343,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MedicationStatementResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MedicationStatementResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*MedicationStatement)
 			if !ok {
@@ -3387,7 +3387,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MedicinalProductDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MedicinalProductDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*MedicinalProductDefinition)
 			if !ok {
@@ -3400,7 +3400,7 @@ func init() {
 			return missing
 		},
 	})
-	fhir.RegisterValidationDescriptor(MessageDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MessageDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*MessageDefinition)
 			if !ok {
@@ -3456,7 +3456,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(MessageHeaderResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MessageHeaderResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*MessageHeader)
 			if !ok {
@@ -3480,7 +3480,7 @@ func init() {
 			return violations
 		},
 	})
-	fhir.RegisterValidationDescriptor(MolecularSequenceResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(MolecularSequenceResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*MolecularSequence)
 			if !ok {
@@ -3496,7 +3496,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(NamingSystemResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(NamingSystemResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*NamingSystem)
 			if !ok {
@@ -3552,7 +3552,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(NutritionIntakeResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(NutritionIntakeResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*NutritionIntake)
 			if !ok {
@@ -3599,7 +3599,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(NutritionOrderResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(NutritionOrderResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*NutritionOrder)
 			if !ok {
@@ -3647,7 +3647,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(NutritionProductResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(NutritionProductResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*NutritionProduct)
 			if !ok {
@@ -3674,7 +3674,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ObservationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ObservationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Observation)
 			if !ok {
@@ -3721,7 +3721,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ObservationDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ObservationDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ObservationDefinition)
 			if !ok {
@@ -3770,7 +3770,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(OperationDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(OperationDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*OperationDefinition)
 			if !ok {
@@ -3832,7 +3832,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(OperationOutcomeResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(OperationOutcomeResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*OperationOutcome)
 			if !ok {
@@ -3845,11 +3845,11 @@ func init() {
 			return missing
 		},
 	})
-	fhir.RegisterValidationDescriptor(OrganizationResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(OrganizationAffiliationResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(PackagedProductDefinitionResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(ParametersResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(PatientResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(OrganizationResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(OrganizationAffiliationResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(PackagedProductDefinitionResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(ParametersResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(PatientResourceType, fhir.ValidationDescriptor{
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*Patient)
 			if !ok {
@@ -3879,7 +3879,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(PaymentNoticeResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(PaymentNoticeResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*PaymentNotice)
 			if !ok {
@@ -3915,7 +3915,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(PaymentReconciliationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(PaymentReconciliationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*PaymentReconciliation)
 			if !ok {
@@ -3960,7 +3960,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(PermissionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(PermissionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Permission)
 			if !ok {
@@ -3996,7 +3996,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(PersonResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(PersonResourceType, fhir.ValidationDescriptor{
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*Person)
 			if !ok {
@@ -4023,7 +4023,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(PlanDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(PlanDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*PlanDefinition)
 			if !ok {
@@ -4067,7 +4067,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(PractitionerResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(PractitionerResourceType, fhir.ValidationDescriptor{
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*Practitioner)
 			if !ok {
@@ -4094,8 +4094,8 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(PractitionerRoleResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(ProcedureResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(PractitionerRoleResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(ProcedureResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Procedure)
 			if !ok {
@@ -4139,7 +4139,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ProvenanceResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ProvenanceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Provenance)
 			if !ok {
@@ -4166,7 +4166,7 @@ func init() {
 			return violations
 		},
 	})
-	fhir.RegisterValidationDescriptor(QuestionnaireResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(QuestionnaireResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Questionnaire)
 			if !ok {
@@ -4212,7 +4212,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(QuestionnaireResponseResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(QuestionnaireResponseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*QuestionnaireResponse)
 			if !ok {
@@ -4242,8 +4242,8 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(RegulatedAuthorizationResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(RelatedPersonResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(RegulatedAuthorizationResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(RelatedPersonResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*RelatedPerson)
 			if !ok {
@@ -4270,7 +4270,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(RequestOrchestrationResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(RequestOrchestrationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*RequestOrchestration)
 			if !ok {
@@ -4312,7 +4312,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(RequirementsResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(RequirementsResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Requirements)
 			if !ok {
@@ -4350,7 +4350,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ResearchStudyResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ResearchStudyResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ResearchStudy)
 			if !ok {
@@ -4377,7 +4377,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ResearchSubjectResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ResearchSubjectResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ResearchSubject)
 			if !ok {
@@ -4410,7 +4410,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(RiskAssessmentResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(RiskAssessmentResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*RiskAssessment)
 			if !ok {
@@ -4451,7 +4451,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ScheduleResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ScheduleResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Schedule)
 			if !ok {
@@ -4464,7 +4464,7 @@ func init() {
 			return missing
 		},
 	})
-	fhir.RegisterValidationDescriptor(SearchParameterResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SearchParameterResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*SearchParameter)
 			if !ok {
@@ -4548,7 +4548,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ServiceRequestResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ServiceRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ServiceRequest)
 			if !ok {
@@ -4610,7 +4610,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(SlotResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SlotResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Slot)
 			if !ok {
@@ -4646,7 +4646,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(SpecimenResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SpecimenResourceType, fhir.ValidationDescriptor{
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*Specimen)
 			if !ok {
@@ -4668,7 +4668,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(SpecimenDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SpecimenDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*SpecimenDefinition)
 			if !ok {
@@ -4709,7 +4709,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(StructureDefinitionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(StructureDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*StructureDefinition)
 			if !ok {
@@ -4780,7 +4780,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(StructureMapResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(StructureMapResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*StructureMap)
 			if !ok {
@@ -4827,7 +4827,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(SubscriptionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SubscriptionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Subscription)
 			if !ok {
@@ -4866,7 +4866,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(SubscriptionStatusResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SubscriptionStatusResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*SubscriptionStatus)
 			if !ok {
@@ -4902,7 +4902,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(SubscriptionTopicResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SubscriptionTopicResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*SubscriptionTopic)
 			if !ok {
@@ -4943,7 +4943,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(SubstanceResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SubstanceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Substance)
 			if !ok {
@@ -4973,13 +4973,13 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(SubstanceDefinitionResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(SubstanceNucleicAcidResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(SubstancePolymerResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(SubstanceProteinResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(SubstanceReferenceInformationResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(SubstanceSourceMaterialResourceType, fhir.ValidationDescriptor{})
-	fhir.RegisterValidationDescriptor(SupplyDeliveryResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SubstanceDefinitionResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(SubstanceNucleicAcidResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(SubstancePolymerResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(SubstanceProteinResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(SubstanceReferenceInformationResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(SubstanceSourceMaterialResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(SupplyDeliveryResourceType, fhir.ValidationDescriptor{
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*SupplyDelivery)
 			if !ok {
@@ -5006,7 +5006,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(SupplyRequestResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(SupplyRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*SupplyRequest)
 			if !ok {
@@ -5053,7 +5053,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(TaskResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(TaskResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Task)
 			if !ok {
@@ -5095,7 +5095,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(TerminologyCapabilitiesResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(TerminologyCapabilitiesResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*TerminologyCapabilities)
 			if !ok {
@@ -5151,7 +5151,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(TestPlanResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(TestPlanResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*TestPlan)
 			if !ok {
@@ -5189,7 +5189,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(TestReportResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(TestReportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*TestReport)
 			if !ok {
@@ -5228,7 +5228,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(TestScriptResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(TestScriptResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*TestScript)
 			if !ok {
@@ -5269,7 +5269,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(TransportResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(TransportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Transport)
 			if !ok {
@@ -5314,7 +5314,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(ValueSetResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(ValueSetResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ValueSet)
 			if !ok {
@@ -5352,7 +5352,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(VerificationResultResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(VerificationResultResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*VerificationResult)
 			if !ok {
@@ -5379,7 +5379,7 @@ func init() {
 			return issues
 		},
 	})
-	fhir.RegisterValidationDescriptor(VisionPrescriptionResourceType, fhir.ValidationDescriptor{
+	Registry.RegisterValidationDescriptor(VisionPrescriptionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*VisionPrescription)
 			if !ok {
@@ -5424,13 +5424,13 @@ func init() {
 }
 
 // init registers a summary descriptor for every r5 resource with the
-// release-agnostic serialiser in the root fhir package, so fhir.MarshalSummary can filter
-// a resource's top-level elements per _summary mode from generated metadata without
-// reflecting over the resource at call time. Each descriptor lists every top-level wire
-// key with the isSummary, mandatory, modifier, narrative, and count flags the five modes
-// test; a choice ([x]) group contributes one entry per suffixed branch key.
+// release-local Registry, so r5.MarshalSummary can filter a resource's
+// top-level elements per _summary mode from generated metadata without reflecting over the
+// resource at call time. Each descriptor lists every top-level wire key with the isSummary,
+// mandatory, modifier, narrative, and count flags the five modes test; a choice ([x]) group
+// contributes one entry per suffixed branch key.
 func init() {
-	fhir.RegisterSummaryDescriptor(AccountResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(AccountResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5459,7 +5459,7 @@ func init() {
 			{JSONName: "calculatedAt"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ActivityDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ActivityDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5528,7 +5528,7 @@ func init() {
 			{JSONName: "dynamicValue"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ActorDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ActorDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5563,7 +5563,7 @@ func init() {
 			{JSONName: "derivedFrom"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(AdministrableProductDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(AdministrableProductDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5586,7 +5586,7 @@ func init() {
 			{JSONName: "routeOfAdministration", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(AdverseEventResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(AdverseEventResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5624,7 +5624,7 @@ func init() {
 			{JSONName: "note", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(AllergyIntoleranceResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(AllergyIntoleranceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5655,7 +5655,7 @@ func init() {
 			{JSONName: "reaction"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(AppointmentResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(AppointmentResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5699,7 +5699,7 @@ func init() {
 			{JSONName: "recurrenceTemplate"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(AppointmentResponseResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(AppointmentResponseResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5723,7 +5723,7 @@ func init() {
 			{JSONName: "recurrenceId"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ArtifactAssessmentResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ArtifactAssessmentResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5749,7 +5749,7 @@ func init() {
 			{JSONName: "disposition", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(AuditEventResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(AuditEventResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5776,7 +5776,7 @@ func init() {
 			{JSONName: "entity", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(BasicResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(BasicResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5793,7 +5793,7 @@ func init() {
 			{JSONName: "author", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(BinaryResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(BinaryResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5804,7 +5804,7 @@ func init() {
 			{JSONName: "data"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(BiologicallyDerivedProductResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(BiologicallyDerivedProductResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5829,7 +5829,7 @@ func init() {
 			{JSONName: "property"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(BiologicallyDerivedProductDispenseResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(BiologicallyDerivedProductDispenseResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5857,7 +5857,7 @@ func init() {
 			{JSONName: "usageInstruction", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(BodyStructureResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(BodyStructureResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5877,7 +5877,7 @@ func init() {
 			{JSONName: "patient", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(BundleResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(BundleResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5893,7 +5893,7 @@ func init() {
 			{JSONName: "issues", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CapabilityStatementResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CapabilityStatementResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5936,7 +5936,7 @@ func init() {
 			{JSONName: "document", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CarePlanResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CarePlanResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5971,7 +5971,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CareTeamResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CareTeamResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -5994,7 +5994,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ChargeItemResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ChargeItemResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6034,7 +6034,7 @@ func init() {
 			{JSONName: "supportingInformation"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ChargeItemDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ChargeItemDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6073,7 +6073,7 @@ func init() {
 			{JSONName: "propertyGroup"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CitationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CitationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6117,7 +6117,7 @@ func init() {
 			{JSONName: "citedArtifact"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ClaimResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ClaimResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6161,7 +6161,7 @@ func init() {
 			{JSONName: "total", IsCount: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ClaimResponseResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ClaimResponseResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6205,7 +6205,7 @@ func init() {
 			{JSONName: "error"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ClinicalImpressionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ClinicalImpressionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6237,7 +6237,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ClinicalUseDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ClinicalUseDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6261,7 +6261,7 @@ func init() {
 			{JSONName: "warning", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CodeSystemResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CodeSystemResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6311,7 +6311,7 @@ func init() {
 			{JSONName: "concept"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CommunicationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CommunicationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6345,7 +6345,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CommunicationRequestResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CommunicationRequestResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6380,7 +6380,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CompartmentDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CompartmentDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6409,7 +6409,7 @@ func init() {
 			{JSONName: "resource", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CompositionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CompositionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6440,7 +6440,7 @@ func init() {
 			{JSONName: "section"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ConceptMapResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ConceptMapResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6486,7 +6486,7 @@ func init() {
 			{JSONName: "group"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ConditionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ConditionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6522,7 +6522,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ConditionDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ConditionDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6564,7 +6564,7 @@ func init() {
 			{JSONName: "plan"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ConsentResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ConsentResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6594,7 +6594,7 @@ func init() {
 			{JSONName: "provision", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ContractResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ContractResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6641,7 +6641,7 @@ func init() {
 			{JSONName: "legallyBindingReference"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CoverageResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CoverageResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6673,7 +6673,7 @@ func init() {
 			{JSONName: "insurancePlan"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CoverageEligibilityRequestResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CoverageEligibilityRequestResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6701,7 +6701,7 @@ func init() {
 			{JSONName: "item"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(CoverageEligibilityResponseResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(CoverageEligibilityResponseResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6730,7 +6730,7 @@ func init() {
 			{JSONName: "error"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DetectedIssueResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DetectedIssueResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6757,7 +6757,7 @@ func init() {
 			{JSONName: "mitigation"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DeviceResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DeviceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6801,7 +6801,7 @@ func init() {
 			{JSONName: "parent"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DeviceAssociationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DeviceAssociationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6822,7 +6822,7 @@ func init() {
 			{JSONName: "operation", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DeviceDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DeviceDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6860,7 +6860,7 @@ func init() {
 			{JSONName: "chargeItem"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DeviceDispenseResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DeviceDispenseResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6893,7 +6893,7 @@ func init() {
 			{JSONName: "eventHistory"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DeviceMetricResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DeviceMetricResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6914,7 +6914,7 @@ func init() {
 			{JSONName: "calibration"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DeviceRequestResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DeviceRequestResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6954,7 +6954,7 @@ func init() {
 			{JSONName: "relevantHistory"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DeviceUsageResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DeviceUsageResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -6985,7 +6985,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DiagnosticReportResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DiagnosticReportResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7019,7 +7019,7 @@ func init() {
 			{JSONName: "presentedForm"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(DocumentReferenceResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(DocumentReferenceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7054,7 +7054,7 @@ func init() {
 			{JSONName: "content", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EncounterResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EncounterResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7094,7 +7094,7 @@ func init() {
 			{JSONName: "location"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EncounterHistoryResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EncounterHistoryResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7119,7 +7119,7 @@ func init() {
 			{JSONName: "location"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EndpointResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EndpointResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7143,7 +7143,7 @@ func init() {
 			{JSONName: "header"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EnrollmentRequestResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EnrollmentRequestResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7162,7 +7162,7 @@ func init() {
 			{JSONName: "coverage"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EnrollmentResponseResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EnrollmentResponseResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7182,7 +7182,7 @@ func init() {
 			{JSONName: "requestProvider"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EpisodeOfCareResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EpisodeOfCareResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7207,7 +7207,7 @@ func init() {
 			{JSONName: "account"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EventDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EventDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7251,7 +7251,7 @@ func init() {
 			{JSONName: "trigger", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EvidenceResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EvidenceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7296,7 +7296,7 @@ func init() {
 			{JSONName: "certainty"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EvidenceReportResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EvidenceReportResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7327,7 +7327,7 @@ func init() {
 			{JSONName: "section"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(EvidenceVariableResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(EvidenceVariableResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7370,7 +7370,7 @@ func init() {
 			{JSONName: "category"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ExampleScenarioResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ExampleScenarioResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7403,7 +7403,7 @@ func init() {
 			{JSONName: "process"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ExplanationOfBenefitResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ExplanationOfBenefitResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7464,7 +7464,7 @@ func init() {
 			{JSONName: "benefitBalance"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(FamilyMemberHistoryResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(FamilyMemberHistoryResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7503,7 +7503,7 @@ func init() {
 			{JSONName: "procedure"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(FlagResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(FlagResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7523,7 +7523,7 @@ func init() {
 			{JSONName: "author", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(FormularyItemResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(FormularyItemResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7538,7 +7538,7 @@ func init() {
 			{JSONName: "status", IsSummary: true, IsModifier: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(GenomicStudyResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(GenomicStudyResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7565,7 +7565,7 @@ func init() {
 			{JSONName: "analysis"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(GoalResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(GoalResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7594,7 +7594,7 @@ func init() {
 			{JSONName: "outcome"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(GraphDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(GraphDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7627,7 +7627,7 @@ func init() {
 			{JSONName: "link"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(GroupResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(GroupResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7650,7 +7650,7 @@ func init() {
 			{JSONName: "member"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(GuidanceResponseResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(GuidanceResponseResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7678,7 +7678,7 @@ func init() {
 			{JSONName: "dataRequirement"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(HealthcareServiceResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(HealthcareServiceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7713,7 +7713,7 @@ func init() {
 			{JSONName: "endpoint"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ImagingSelectionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ImagingSelectionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7742,7 +7742,7 @@ func init() {
 			{JSONName: "instance", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ImagingStudyResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ImagingStudyResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7772,7 +7772,7 @@ func init() {
 			{JSONName: "series", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ImmunizationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ImmunizationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7813,7 +7813,7 @@ func init() {
 			{JSONName: "protocolApplied"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ImmunizationEvaluationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ImmunizationEvaluationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7838,7 +7838,7 @@ func init() {
 			{JSONName: "seriesDoses"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ImmunizationRecommendationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ImmunizationRecommendationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7855,7 +7855,7 @@ func init() {
 			{JSONName: "recommendation", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ImplementationGuideResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ImplementationGuideResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7892,7 +7892,7 @@ func init() {
 			{JSONName: "manifest"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(IngredientResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(IngredientResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7914,7 +7914,7 @@ func init() {
 			{JSONName: "substance", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(InsurancePlanResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(InsurancePlanResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7940,7 +7940,7 @@ func init() {
 			{JSONName: "plan"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(InventoryItemResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(InventoryItemResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7966,7 +7966,7 @@ func init() {
 			{JSONName: "productReference"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(InventoryReportResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(InventoryReportResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -7988,7 +7988,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(InvoiceResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(InvoiceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8019,7 +8019,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(LibraryResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(LibraryResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8066,7 +8066,7 @@ func init() {
 			{JSONName: "content", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(LinkageResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(LinkageResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8081,7 +8081,7 @@ func init() {
 			{JSONName: "item", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ListResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ListResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8106,7 +8106,7 @@ func init() {
 			{JSONName: "emptyReason"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(LocationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(LocationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8136,7 +8136,7 @@ func init() {
 			{JSONName: "endpoint"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ManufacturedItemDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ManufacturedItemDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8158,7 +8158,7 @@ func init() {
 			{JSONName: "component", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MeasureResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MeasureResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8217,7 +8217,7 @@ func init() {
 			{JSONName: "supplementalData"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MeasureReportResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MeasureReportResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8246,7 +8246,7 @@ func init() {
 			{JSONName: "evaluatedResource"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MedicationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MedicationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8267,7 +8267,7 @@ func init() {
 			{JSONName: "definition"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MedicationAdministrationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MedicationAdministrationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8302,7 +8302,7 @@ func init() {
 			{JSONName: "eventHistory"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MedicationDispenseResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MedicationDispenseResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8341,7 +8341,7 @@ func init() {
 			{JSONName: "eventHistory"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MedicationKnowledgeResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MedicationKnowledgeResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8373,7 +8373,7 @@ func init() {
 			{JSONName: "definitional"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MedicationRequestResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MedicationRequestResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8418,7 +8418,7 @@ func init() {
 			{JSONName: "eventHistory"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MedicationStatementResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MedicationStatementResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8449,7 +8449,7 @@ func init() {
 			{JSONName: "adherence", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MedicinalProductDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MedicinalProductDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8490,7 +8490,7 @@ func init() {
 			{JSONName: "characteristic", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MessageDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MessageDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8530,7 +8530,7 @@ func init() {
 			{JSONName: "graph"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MessageHeaderResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MessageHeaderResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8553,7 +8553,7 @@ func init() {
 			{JSONName: "definition", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(MolecularSequenceResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(MolecularSequenceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8575,7 +8575,7 @@ func init() {
 			{JSONName: "relative", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(NamingSystemResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(NamingSystemResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8619,7 +8619,7 @@ func init() {
 			{JSONName: "uniqueId", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(NutritionIntakeResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(NutritionIntakeResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8653,7 +8653,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(NutritionOrderResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(NutritionOrderResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8688,7 +8688,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(NutritionProductResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(NutritionProductResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8710,7 +8710,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ObservationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ObservationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8765,7 +8765,7 @@ func init() {
 			{JSONName: "component", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ObservationDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ObservationDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8815,7 +8815,7 @@ func init() {
 			{JSONName: "component"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(OperationDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(OperationDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8858,7 +8858,7 @@ func init() {
 			{JSONName: "overload"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(OperationOutcomeResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(OperationOutcomeResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8871,7 +8871,7 @@ func init() {
 			{JSONName: "issue", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(OrganizationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(OrganizationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8893,7 +8893,7 @@ func init() {
 			{JSONName: "qualification"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(OrganizationAffiliationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(OrganizationAffiliationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8917,7 +8917,7 @@ func init() {
 			{JSONName: "endpoint"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(PackagedProductDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(PackagedProductDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8944,7 +8944,7 @@ func init() {
 			{JSONName: "characteristic", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ParametersResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ParametersResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8953,7 +8953,7 @@ func init() {
 			{JSONName: "parameter", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(PatientResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(PatientResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -8983,7 +8983,7 @@ func init() {
 			{JSONName: "link", IsSummary: true, IsModifier: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(PaymentNoticeResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(PaymentNoticeResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9007,7 +9007,7 @@ func init() {
 			{JSONName: "paymentStatus"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(PaymentReconciliationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(PaymentReconciliationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9048,7 +9048,7 @@ func init() {
 			{JSONName: "processNote"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(PermissionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(PermissionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9067,7 +9067,7 @@ func init() {
 			{JSONName: "rule", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(PersonResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(PersonResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9093,7 +9093,7 @@ func init() {
 			{JSONName: "link"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(PlanDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(PlanDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9144,7 +9144,7 @@ func init() {
 			{JSONName: "asNeededCodeableConcept", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(PractitionerResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(PractitionerResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9168,7 +9168,7 @@ func init() {
 			{JSONName: "communication"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(PractitionerRoleResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(PractitionerRoleResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9194,7 +9194,7 @@ func init() {
 			{JSONName: "endpoint"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ProcedureResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ProcedureResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9240,7 +9240,7 @@ func init() {
 			{JSONName: "supportingInfo"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ProvenanceResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ProvenanceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9266,7 +9266,7 @@ func init() {
 			{JSONName: "signature"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(QuestionnaireResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(QuestionnaireResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9303,7 +9303,7 @@ func init() {
 			{JSONName: "item"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(QuestionnaireResponseResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(QuestionnaireResponseResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9326,7 +9326,7 @@ func init() {
 			{JSONName: "item"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(RegulatedAuthorizationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(RegulatedAuthorizationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9353,7 +9353,7 @@ func init() {
 			{JSONName: "case", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(RelatedPersonResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(RelatedPersonResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9377,7 +9377,7 @@ func init() {
 			{JSONName: "communication"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(RequestOrchestrationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(RequestOrchestrationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9407,7 +9407,7 @@ func init() {
 			{JSONName: "action"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(RequirementsResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(RequirementsResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9441,7 +9441,7 @@ func init() {
 			{JSONName: "statement"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ResearchStudyResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ResearchStudyResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9485,7 +9485,7 @@ func init() {
 			{JSONName: "result", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ResearchSubjectResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ResearchSubjectResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9506,7 +9506,7 @@ func init() {
 			{JSONName: "consent"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(RiskAssessmentResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(RiskAssessmentResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9535,7 +9535,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ScheduleResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ScheduleResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9556,7 +9556,7 @@ func init() {
 			{JSONName: "comment"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SearchParameterResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SearchParameterResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9600,7 +9600,7 @@ func init() {
 			{JSONName: "component"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ServiceRequestResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ServiceRequestResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9650,7 +9650,7 @@ func init() {
 			{JSONName: "relevantHistory"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SlotResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SlotResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9673,7 +9673,7 @@ func init() {
 			{JSONName: "comment"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SpecimenResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SpecimenResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9701,7 +9701,7 @@ func init() {
 			{JSONName: "note"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SpecimenDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SpecimenDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9743,7 +9743,7 @@ func init() {
 			{JSONName: "typeTested"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(StructureDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(StructureDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9785,7 +9785,7 @@ func init() {
 			{JSONName: "differential"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(StructureMapResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(StructureMapResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9819,7 +9819,7 @@ func init() {
 			{JSONName: "group", IsSummary: true, IsMandatory: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubscriptionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubscriptionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9848,7 +9848,7 @@ func init() {
 			{JSONName: "maxCount", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubscriptionStatusResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubscriptionStatusResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9867,7 +9867,7 @@ func init() {
 			{JSONName: "error", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubscriptionTopicResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubscriptionTopicResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9905,7 +9905,7 @@ func init() {
 			{JSONName: "notificationShape", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubstanceResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubstanceResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9926,7 +9926,7 @@ func init() {
 			{JSONName: "ingredient", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubstanceDefinitionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubstanceDefinitionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9962,7 +9962,7 @@ func init() {
 			{JSONName: "sourceMaterial", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubstanceNucleicAcidResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubstanceNucleicAcidResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9979,7 +9979,7 @@ func init() {
 			{JSONName: "subunit", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubstancePolymerResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubstancePolymerResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -9998,7 +9998,7 @@ func init() {
 			{JSONName: "repeat", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubstanceProteinResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubstanceProteinResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10014,7 +10014,7 @@ func init() {
 			{JSONName: "subunit", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubstanceReferenceInformationResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubstanceReferenceInformationResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10030,7 +10030,7 @@ func init() {
 			{JSONName: "target", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SubstanceSourceMaterialResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SubstanceSourceMaterialResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10055,7 +10055,7 @@ func init() {
 			{JSONName: "partDescription", IsSummary: true},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SupplyDeliveryResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SupplyDeliveryResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10080,7 +10080,7 @@ func init() {
 			{JSONName: "receiver"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(SupplyRequestResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(SupplyRequestResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10110,7 +10110,7 @@ func init() {
 			{JSONName: "deliverTo"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(TaskResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(TaskResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10155,7 +10155,7 @@ func init() {
 			{JSONName: "output"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(TerminologyCapabilitiesResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(TerminologyCapabilitiesResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10195,7 +10195,7 @@ func init() {
 			{JSONName: "closure"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(TestPlanResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(TestPlanResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10231,7 +10231,7 @@ func init() {
 			{JSONName: "testCase"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(TestReportResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(TestReportResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10255,7 +10255,7 @@ func init() {
 			{JSONName: "teardown"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(TestScriptResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(TestScriptResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10295,7 +10295,7 @@ func init() {
 			{JSONName: "teardown"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(TransportResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(TransportResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10339,7 +10339,7 @@ func init() {
 			{JSONName: "history"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(ValueSetResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(ValueSetResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10382,7 +10382,7 @@ func init() {
 			{JSONName: "scope"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(VerificationResultResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(VerificationResultResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},
@@ -10408,7 +10408,7 @@ func init() {
 			{JSONName: "validator"},
 		},
 	})
-	fhir.RegisterSummaryDescriptor(VisionPrescriptionResourceType, fhir.SummaryDescriptor{
+	Registry.RegisterSummaryDescriptor(VisionPrescriptionResourceType, fhir.SummaryDescriptor{
 		Elements: []fhir.SummaryElement{
 			{JSONName: "id", IsSummary: true},
 			{JSONName: "meta", IsSummary: true},

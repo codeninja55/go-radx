@@ -189,7 +189,7 @@ func exerciseHL7(ctx context.Context) []error {
 
 // exerciseFHIR drives the FHIR structural validator over resources seeded with PHI
 // sentinels in their value fields, then surfaces the resulting OperationOutcome as both a
-// returned error string and a logged message. fhir.Validate builds its issue diagnostics
+// returned error string and a logged message. r5.Validate builds its issue diagnostics
 // and element paths from element names and codes, never field values, so a sentinel
 // planted in a patient's name, identifier, or a free-text field must not appear in the
 // outcome error string or the log. This is the FHIR half of the no-PHI guarantee, swept
@@ -210,7 +210,7 @@ func exerciseFHIR(ctx context.Context) []error {
 		DeceasedDateTime: &deceasedTime,
 	}
 
-	oo := fhir.Validate(patient)
+	oo := r5.Validate(patient)
 	if err := oo.Error(); err != nil {
 		// The outcome error string is scanned for any sentinel; a leak would surface here.
 		errs = append(errs, fmt.Errorf("validate patient: %w", err))
@@ -231,7 +231,7 @@ func exerciseFHIR(ctx context.Context) []error {
 		Type:  &bt,
 		Entry: []r5.BundleEntry{{Resource: resourceRef(obs)}},
 	}
-	if err := fhir.Validate(bundle).Error(); err != nil {
+	if err := r5.Validate(bundle).Error(); err != nil {
 		errs = append(errs, fmt.Errorf("validate bundle: %w", err))
 	}
 	return errs

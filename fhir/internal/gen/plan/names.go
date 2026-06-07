@@ -65,16 +65,17 @@ func GoBackboneTypeName(ownerType string, pathSegments []string) string {
 
 // exportIdentifier title-cases a possibly multi-word FHIR name into a single
 // exported Go identifier, upper-casing any word that is a known initialism. A name
-// is split on hyphens and underscores (FHIR uses neither inside element names today,
-// but value-set code tokens do, and the enum stage will reuse this); a name already
-// in camelCase is treated as one word and only its first rune is upper-cased so the
+// is split on hyphens, underscores, and whitespace (FHIR element names use none of
+// these today, but value-set code tokens carry hyphens and underscores, and some R4
+// value-set names carry spaces such as "Medication Status Codes"); a name already in
+// camelCase is treated as one word and only its first rune is upper-cased so the
 // internal casing ("implicitRules" -> "ImplicitRules") is preserved.
 func exportIdentifier(name string) string {
 	if name == "" {
 		return ""
 	}
 	words := strings.FieldsFunc(name, func(r rune) bool {
-		return r == '-' || r == '_'
+		return r == '-' || r == '_' || unicode.IsSpace(r)
 	})
 	var b strings.Builder
 	for _, w := range words {

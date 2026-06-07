@@ -43,10 +43,15 @@ run = "go test -race -cover ./convert/..."
 description = "Run the FHIR generator (fhir/internal) test suite (race)"
 run = "go test -race ./fhir/internal/..."
 
+[tasks."gen:fhir-r4"]
+description = "Regenerate the FHIR R4 (4.0.1) release package from the pinned definition bundle"
+dir = "fhir"
+run = "go run ./internal/gen/cmd/fhir-gen -release r4"
+
 [tasks."gen:fhir-r5"]
 description = "Regenerate the FHIR R5 release package from the pinned definition bundle (functional from M6 Increment 1)"
 dir = "fhir"
-run = "go generate ./gen.go"
+run = "go run ./internal/gen/cmd/fhir-gen -release r5"
 
 [tasks."gen:fhir"]
 description = "Regenerate every FHIR release package from the pinned definition bundles (functional from M6 Increment 1)"
@@ -93,7 +98,7 @@ description = "Round-trip vendored fixtures through pydicom (skips if absent)"
 run = "python3 tools/dicom-conformance/pydicom_roundtrip.py testdata/dicom"
 
 [tasks."conformance:fhir"]
-description = "Validate the go-radx FHIR R5 workflow set with the pinned HL7 FHIR validator (skips if Java/jar absent; the negative fixture must be rejected)"
+description = "Validate the go-radx FHIR R4 + R5 workflow sets with the pinned HL7 FHIR validator (skips if Java/jar absent; the negative fixture must be rejected at each version)"
 run = "tools/fhir-conformance/validate.sh"
 
 [tasks."lint"]

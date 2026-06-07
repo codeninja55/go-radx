@@ -8,4 +8,5 @@ package fhir
 // regeneration gate (TestRegenerationByteForByte / the gen:verify task) fails if
 // one is. The generator is never part of the runtime dependency graph.
 
+//go:generate go run ./internal/gen/cmd/fhir-gen -release r4
 //go:generate go run ./internal/gen/cmd/fhir-gen -release r5

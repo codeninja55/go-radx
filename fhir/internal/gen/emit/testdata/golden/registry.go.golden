@@ -5,9 +5,11 @@ package r5
 import "github.com/codeninja55/go-radx/fhir"
 
 // init registers every r5 resource's resourceType discriminator with the
-// release-agnostic factory registry in the root fhir package, so fhir.UnmarshalResource
-// can dispatch a payload's "resourceType" to the concrete r5 type. The map is
-// written only here, during package init, and is read-only thereafter.
+// release-local Registry, so r5.UnmarshalResource can dispatch a payload's
+// "resourceType" to the concrete r5 type. The map is written only here,
+// during package init, and is read-only thereafter. The Registry is release-scoped so
+// the r5 keys never collide with another release's identically-named
+// resourceTypes.
 func init() {
-	fhir.RegisterFactory(FlagResourceType, func() fhir.Resource { return &Flag{} })
+	Registry.RegisterFactory(FlagResourceType, func() fhir.Resource { return &Flag{} })
 }

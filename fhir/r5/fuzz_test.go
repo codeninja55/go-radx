@@ -76,10 +76,10 @@ func deeplyNestedJSON(depth int) []byte {
 	return buf
 }
 
-// FuzzUnmarshalResource drives the registry-dispatched decode (fhir.UnmarshalResource)
+// FuzzUnmarshalResource drives the registry-dispatched decode (r5.UnmarshalResource)
 // with arbitrary, truncated, and deeply-nested bytes. The contracts under fuzz: it must
 // never panic (PRD §9.3 — malformed external input yields a typed error, never a crash);
-// a successful decode must round-trip back through fhir.UnmarshalResource without panicking
+// a successful decode must round-trip back through r5.UnmarshalResource without panicking
 // (the polymorphic Bundle/contained decode is the one re-entrant path); and a decode that
 // fails because the input ran out must report io.ErrUnexpectedEOF rather than an opaque
 // syntax error (the truncation contract). It seeds from the synthetic corpus and the
@@ -89,7 +89,7 @@ func FuzzUnmarshalResource(f *testing.F) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		resource, err := fhir.UnmarshalResource(data)
+		resource, err := r5.UnmarshalResource(data)
 		if err != nil {
 			// A failure on truncated input must be matchable as io.ErrUnexpectedEOF; the
 			// truncation map runs at every decode boundary, so any "ran out of bytes" error
@@ -111,13 +111,13 @@ func FuzzUnmarshalResource(f *testing.F) {
 		if err != nil {
 			return
 		}
-		if _, err := fhir.UnmarshalResource(reencoded); err != nil {
+		if _, err := r5.UnmarshalResource(reencoded); err != nil {
 			t.Fatalf("re-decode of a successfully decoded resource failed: %v", err)
 		}
 	})
 }
 
-// FuzzValidate drives the in-process structural gate (fhir.Validate) over decode-then-
+// FuzzValidate drives the in-process structural gate (r5.Validate) over decode-then-
 // validate: it decodes the fuzzed bytes and, on success, validates the resource. Validate
 // must never panic on any decoded resource — nil, partial, structurally broken — and must
 // never leak a patient value into an issue diagnostic or expression (PRD §9.1, §9.3).
@@ -128,11 +128,11 @@ func FuzzValidate(f *testing.F) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		resource, err := fhir.UnmarshalResource(data)
+		resource, err := r5.UnmarshalResource(data)
 		if err != nil {
 			return
 		}
-		outcome := fhir.Validate(resource)
+		outcome := r5.Validate(resource)
 		if outcome == nil {
 			t.Fatal("Validate returned a nil outcome")
 		}
@@ -176,7 +176,7 @@ func FuzzValidateTypedResource(f *testing.F) {
 		}
 		patient.Active = &active
 
-		if outcome := fhir.Validate(patient); outcome == nil {
+		if outcome := r5.Validate(patient); outcome == nil {
 			t.Fatal("Validate(*Patient) returned a nil outcome")
 		}
 	})
@@ -187,11 +187,11 @@ func FuzzValidateTypedResource(f *testing.F) {
 // properties, so they live in a plain test rather than being re-asserted on every fuzz
 // iteration (PRD §9.3 — never panic on malformed or partial input).
 func TestValidateNilGuards(t *testing.T) {
-	if outcome := fhir.Validate(nil); outcome == nil || !outcome.HasErrors() {
+	if outcome := r5.Validate(nil); outcome == nil || !outcome.HasErrors() {
 		t.Error("Validate(nil) should report an error, not panic")
 	}
 	var typedNil *r5.Patient
-	if outcome := fhir.Validate(typedNil); outcome == nil || !outcome.HasErrors() {
+	if outcome := r5.Validate(typedNil); outcome == nil || !outcome.HasErrors() {
 		t.Error("Validate(typed-nil *Patient) should report an error, not panic")
 	}
 }
@@ -222,7 +222,7 @@ func TestCorpusTruncationMapsToUnexpectedEOF(t *testing.T) {
 			continue
 		}
 		truncated := trimmed[:len(trimmed)-1]
-		if _, err := fhir.UnmarshalResource(truncated); !errors.Is(err, io.ErrUnexpectedEOF) {
+		if _, err := r5.UnmarshalResource(truncated); !errors.Is(err, io.ErrUnexpectedEOF) {
 			t.Errorf("UnmarshalResource(truncated %s): err = %v, want io.ErrUnexpectedEOF", name, err)
 		}
 	}
@@ -238,7 +238,7 @@ func marshalNoPanic(r fhir.Resource) (out []byte, err error) {
 			err = errPanic
 		}
 	}()
-	return fhir.MarshalSummary(r, fhir.SummaryFull)
+	return r5.MarshalSummary(r, fhir.SummaryFull)
 }
 
 // errPanic is the sentinel marshalNoPanic returns when a marshal panics, so the fuzz target

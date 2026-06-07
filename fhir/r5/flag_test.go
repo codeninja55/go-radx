@@ -48,10 +48,10 @@ func TestFlagUnmarshalCheckedIdentity(t *testing.T) {
 }
 
 // TestFlagRegistryDispatch proves the generated registry init() registered Flag so
-// fhir.UnmarshalResource dispatches a "Flag" payload to the concrete *r5.Flag type,
+// r5.UnmarshalResource dispatches a "Flag" payload to the concrete *r5.Flag type,
 // and that As[T] downcasts the returned interface.
 func TestFlagRegistryDispatch(t *testing.T) {
-	r, err := fhir.UnmarshalResource([]byte(`{"resourceType":"Flag","status":"inactive"}`))
+	r, err := r5.UnmarshalResource([]byte(`{"resourceType":"Flag","status":"inactive"}`))
 	if err != nil {
 		t.Fatalf("UnmarshalResource(Flag): %v", err)
 	}

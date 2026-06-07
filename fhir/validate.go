@@ -1,7 +1,5 @@
 package fhir
 
-import "sync"
-
 // Validate runs go-radx's structural and binding-level validation over a resource of
 // any release and returns the issues it finds as an *OperationOutcome. It is the fast
 // in-process gate (the HL7 FHIR validator is the authoritative external check): it
@@ -25,7 +23,7 @@ import "sync"
 // the concrete resource. A resource whose type has no registered descriptor (a
 // hand-written type not yet covered) is reported as a single unvalidated-type issue
 // rather than silently passing, so the gap is visible instead of a false "valid".
-func Validate(r Resource) *OperationOutcome {
+func (reg *Registry) Validate(r Resource) *OperationOutcome {
 	outcome := &OperationOutcome{}
 	if r == nil || isNilResource(r) {
 		outcome.add(OutcomeIssue{
@@ -46,7 +44,7 @@ func Validate(r Resource) *OperationOutcome {
 		return outcome
 	}
 
-	descriptor, ok := lookupValidationDescriptor(resourceType)
+	descriptor, ok := reg.lookupValidationDescriptor(resourceType)
 	if !ok {
 		outcome.add(OutcomeIssue{
 			Severity:    SeverityWarning,
@@ -59,6 +57,14 @@ func Validate(r Resource) *OperationOutcome {
 
 	descriptor.validate(r, resourceType, outcome)
 	return outcome
+}
+
+// Validate runs go-radx's structural and binding-level validation through the root
+// package's default registry. It is the release-agnostic counterpart to
+// (*Registry).Validate; a consumer validates a specific release's resource through
+// that release's r4.Validate or r5.Validate so the descriptor lookup is unambiguous.
+func Validate(r Resource) *OperationOutcome {
+	return defaultRegistry.Validate(r)
 }
 
 // ValidationDescriptor is the generated, per-resource validation metadata the engine
@@ -156,46 +162,43 @@ func (d ValidationDescriptor) validate(r Resource, resourceType string, outcome 
 	}
 }
 
-// validationRegistry maps a resourceType discriminator to its generated validation
-// descriptor. Like the factory registry it is the package's only mutable state for
-// validation: the generated per-release init() functions are its only writers,
-// populating it before main runs, and it is read-only in practice thereafter. The
-// RWMutex guards it so a stray late registration can never race a concurrent Validate,
-// keeping the "no state a caller can race on" guarantee (PRD §9.4).
-var (
-	validationRegistryMu sync.RWMutex
-	validationRegistry   = map[string]ValidationDescriptor{}
-)
-
-// RegisterValidationDescriptor records the validation descriptor for a resourceType.
-// It exists for the generated per-release validation init() to call; a consumer never
-// calls it directly. It is exported only because the generated release package and
-// this root package are distinct packages, so the registration hook must cross the
-// package boundary.
+// RegisterValidationDescriptor records the validation descriptor for a resourceType in
+// this registry. It exists for the generated per-release validation init() to call; a
+// consumer never calls it directly. It is a method on Registry because the generated
+// release package and this root package are distinct packages, so the registration
+// hook must cross the package boundary.
 //
-// It panics on an empty resourceType or a duplicate registration: a duplicate means
-// the generator emitted conflicting descriptors (or two releases collided before that
-// collision was resolved), a build-time defect that must fail loudly rather than let
-// one descriptor silently shadow the other.
-func RegisterValidationDescriptor(resourceType string, d ValidationDescriptor) {
+// It panics on an empty resourceType or a duplicate registration: a duplicate within
+// one release means the generator emitted conflicting descriptors, a build-time defect
+// that must fail loudly rather than let one descriptor silently shadow the other. Two
+// releases no longer collide here because each owns its own Registry.
+func (reg *Registry) RegisterValidationDescriptor(resourceType string, d ValidationDescriptor) {
 	if resourceType == "" {
 		panic("fhir: RegisterValidationDescriptor: empty resourceType")
 	}
-	validationRegistryMu.Lock()
-	defer validationRegistryMu.Unlock()
-	if _, exists := validationRegistry[resourceType]; exists {
+	reg.validationMu.Lock()
+	defer reg.validationMu.Unlock()
+	if _, exists := reg.validation[resourceType]; exists {
 		panic("fhir: RegisterValidationDescriptor: duplicate descriptor for resourceType " + resourceType)
 	}
-	validationRegistry[resourceType] = d
+	reg.validation[resourceType] = d
 }
 
 // lookupValidationDescriptor returns the descriptor for a resourceType and whether one
 // is registered, under the registry read lock so it never races a registration.
-func lookupValidationDescriptor(resourceType string) (ValidationDescriptor, bool) {
-	validationRegistryMu.RLock()
-	defer validationRegistryMu.RUnlock()
-	d, ok := validationRegistry[resourceType]
+func (reg *Registry) lookupValidationDescriptor(resourceType string) (ValidationDescriptor, bool) {
+	reg.validationMu.RLock()
+	defer reg.validationMu.RUnlock()
+	d, ok := reg.validation[resourceType]
 	return d, ok
+}
+
+// RegisterValidationDescriptor records a validation descriptor in the root package's
+// default registry. It is the release-agnostic counterpart to
+// (*Registry).RegisterValidationDescriptor; a release package registers into its own
+// Registry instead.
+func RegisterValidationDescriptor(resourceType string, d ValidationDescriptor) {
+	defaultRegistry.RegisterValidationDescriptor(resourceType, d)
 }
 
 // CountSet returns how many of the given presence flags are true. The generated

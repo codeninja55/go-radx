@@ -30,7 +30,7 @@ func assertNoPHI(t *testing.T, oo *fhir.OperationOutcome) {
 // elements by element path, with no value in the message. Observation requires status
 // and code; an empty Observation reports both.
 func TestValidateRequiredAbsentRealResource(t *testing.T) {
-	oo := fhir.Validate(&r5.Observation{})
+	oo := r5.Validate(&r5.Observation{})
 	paths := map[string]bool{}
 	for _, issue := range oo.Issue {
 		if issue.Code == fhir.IssueTypeRequired {
@@ -50,7 +50,7 @@ func TestValidateRequiredFalseIsPresentRealResource(t *testing.T) {
 		Instance: boolPtr(false), // present and false — presence is the pointer, not the value
 		Code:     &r5.CodeableReference{},
 	}
-	oo := fhir.Validate(s)
+	oo := r5.Validate(s)
 	for _, issue := range oo.Issue {
 		if issue.Expression == "Substance.instance" {
 			t.Errorf("a present required false was reported missing (FHIR-007 regression): %+v", issue)
@@ -69,7 +69,7 @@ func TestValidateChoiceMutualExclusionDirectWrite(t *testing.T) {
 		DeceasedBoolean:  func() *r5.FHIRBoolean { v := r5.FHIRBoolean(true); return &v }(),
 		DeceasedDateTime: func() *r5.FHIRDateTime { v := r5.FHIRDateTime("2020-01-01"); return &v }(),
 	}
-	oo := fhir.Validate(p)
+	oo := r5.Validate(p)
 	choiceIssues := 0
 	for _, issue := range oo.Issue {
 		if issue.Expression == "Patient.deceased[x]" {
@@ -91,7 +91,7 @@ func TestValidateChoiceMutualExclusionDirectWrite(t *testing.T) {
 func TestValidateBindingCodeRealResource(t *testing.T) {
 	bad := r5.AdministrativeGender(phiSentinel) // an out-of-set value seeded with the sentinel
 	p := &r5.Patient{Gender: &bad}
-	oo := fhir.Validate(p)
+	oo := r5.Validate(p)
 	found := false
 	for _, issue := range oo.Issue {
 		if issue.Expression == "Patient.gender" && issue.Code == fhir.IssueTypeValue {
@@ -109,7 +109,7 @@ func TestValidateBindingCodeRealResource(t *testing.T) {
 func TestValidateValidPatientIsClean(t *testing.T) {
 	gender := r5.AdministrativeGenderFemale
 	p := &r5.Patient{Gender: &gender, Active: boolPtr(true)}
-	if oo := fhir.Validate(p); oo.HasErrors() {
+	if oo := r5.Validate(p); oo.HasErrors() {
 		t.Fatalf("a valid Patient should have no error issues, got %+v", oo.Issue)
 	}
 }
@@ -128,7 +128,7 @@ func TestValidateBundleInvariants(t *testing.T) {
 			{Resource: func() *fhir.Resource { var r fhir.Resource = patient; return &r }()}, // first entry is not a Composition (bdl-3)
 		},
 	}
-	oo := fhir.Validate(b)
+	oo := r5.Validate(b)
 	var sawTotal, sawFirstEntry bool
 	for _, issue := range oo.Issue {
 		if issue.Expression == "Bundle.total" {
@@ -168,7 +168,7 @@ func TestValidateBundleFullURLUniqueness(t *testing.T) {
 		entryAt("urn:uuid:1", makePatient("")),
 		entryAt("urn:uuid:1", makePatient("")),
 	}}
-	if !hasIssue(fhir.Validate(bDup), "Bundle.entry[1].fullUrl", fhir.IssueTypeInvalid) {
+	if !hasIssue(r5.Validate(bDup), "Bundle.entry[1].fullUrl", fhir.IssueTypeInvalid) {
 		t.Error("expected a bdl-7 duplicate-fullUrl issue for an exact duplicate")
 	}
 
@@ -178,7 +178,7 @@ func TestValidateBundleFullURLUniqueness(t *testing.T) {
 		entryAt("urn:uuid:1", makePatient("1")),
 		entryAt("urn:uuid:1", makePatient("2")),
 	}}
-	for _, issue := range fhir.Validate(bVersioned).Issue {
+	for _, issue := range r5.Validate(bVersioned).Issue {
 		if issue.Expression == "Bundle.entry[1].fullUrl" {
 			t.Errorf("two distinct versions sharing a fullUrl should be allowed (bdl-7), got %+v", issue)
 		}
@@ -190,7 +190,7 @@ func TestValidateBundleFullURLUniqueness(t *testing.T) {
 		entryAt("urn:uuid:1", makePatient("")),
 		entryAt("urn:uuid:1", makePatient("")),
 	}}
-	for _, issue := range fhir.Validate(bHist).Issue {
+	for _, issue := range r5.Validate(bHist).Issue {
 		if issue.Expression == "Bundle.entry[1].fullUrl" {
 			t.Errorf("a history bundle should be exempt from fullUrl uniqueness (bdl-8), got %+v", issue)
 		}
@@ -210,7 +210,7 @@ func TestValidateBundleReferenceIntegrity(t *testing.T) {
 		Type:  &bt,
 		Entry: []r5.BundleEntry{{Resource: func() *fhir.Resource { var r fhir.Resource = obs; return &r }()}},
 	}
-	oo := fhir.Validate(b)
+	oo := r5.Validate(b)
 	found := false
 	for _, issue := range oo.Issue {
 		if issue.Code == fhir.IssueTypeNotFound {
@@ -242,7 +242,7 @@ func TestValidateBundleNilEntryResourceNoPanic(t *testing.T) {
 					t.Fatalf("Validate panicked on a nil-interface entry resource: %v", p)
 				}
 			}()
-			oo := fhir.Validate(b)
+			oo := r5.Validate(b)
 			if !hasIssue(oo, "Bundle.entry[0]", fhir.IssueTypeInvalid) {
 				t.Errorf("expected a bdl-3 first-entry issue for a nil entry resource, got %+v", oo.Issue)
 			}
@@ -263,7 +263,7 @@ func TestValidateNeverLeaksPHIAcrossResources(t *testing.T) {
 		&r5.Bundle{},
 	}
 	for _, r := range resources {
-		assertNoPHI(t, fhir.Validate(r))
+		assertNoPHI(t, r5.Validate(r))
 	}
 }
 
@@ -275,7 +275,7 @@ func TestValidateNeverLeaksPHIAcrossResources(t *testing.T) {
 // faithful FHIR one (for example R5 also requires ServiceRequest.subject).
 func TestValidateWorkflowResourcesHaveDescriptors(t *testing.T) {
 	// An empty ServiceRequest reports its required code elements.
-	oo := fhir.Validate(&r5.ServiceRequest{})
+	oo := r5.Validate(&r5.ServiceRequest{})
 	required := map[string]bool{}
 	for _, issue := range oo.Issue {
 		if issue.Code == fhir.IssueTypeRequired {
@@ -287,17 +287,17 @@ func TestValidateWorkflowResourcesHaveDescriptors(t *testing.T) {
 	}
 
 	// An empty DiagnosticReport and ImagingStudy each report their required status.
-	if oo := fhir.Validate(&r5.DiagnosticReport{}); !hasRequired(oo, "DiagnosticReport.status") {
+	if oo := r5.Validate(&r5.DiagnosticReport{}); !hasRequired(oo, "DiagnosticReport.status") {
 		t.Errorf("expected a required issue for DiagnosticReport.status, got %+v", oo.Issue)
 	}
-	if oo := fhir.Validate(&r5.ImagingStudy{}); !hasRequired(oo, "ImagingStudy.status") {
+	if oo := r5.Validate(&r5.ImagingStudy{}); !hasRequired(oo, "ImagingStudy.status") {
 		t.Errorf("expected a required issue for ImagingStudy.status, got %+v", oo.Issue)
 	}
 
 	// An out-of-set ServiceRequest status is a binding value issue.
 	badStatus := r5.RequestStatus("banana")
 	badIntent := r5.RequestIntentOrder
-	bad := fhir.Validate(&r5.ServiceRequest{Status: &badStatus, Intent: &badIntent})
+	bad := r5.Validate(&r5.ServiceRequest{Status: &badStatus, Intent: &badIntent})
 	if !hasIssue(bad, "ServiceRequest.status", fhir.IssueTypeValue) {
 		t.Errorf("expected a binding value issue for an out-of-set ServiceRequest.status, got %+v", bad.Issue)
 	}
@@ -306,7 +306,7 @@ func TestValidateWorkflowResourcesHaveDescriptors(t *testing.T) {
 	// so a clean instance carries all three.
 	goodStatus := r5.RequestStatusActive
 	goodIntent := r5.RequestIntentOrder
-	good := fhir.Validate(&r5.ServiceRequest{
+	good := r5.Validate(&r5.ServiceRequest{
 		Status:  &goodStatus,
 		Intent:  &goodIntent,
 		Subject: &r5.Reference{Reference: strPtr("Patient/pat-1")},
@@ -351,11 +351,11 @@ func FuzzValidateNeverPanics(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		// UnmarshalResource may fail (unknown type, malformed JSON); when it returns a
 		// resource, Validate must handle whatever shape decoded without panicking.
-		r, err := fhir.UnmarshalResource(data)
+		r, err := r5.UnmarshalResource(data)
 		if err != nil {
 			return
 		}
-		oo := fhir.Validate(r)
+		oo := r5.Validate(r)
 		// The outcome must never leak a value into a message even from a fuzzed input;
 		// issue messages are paths and codes by construction.
 		_ = oo
@@ -384,6 +384,6 @@ func FuzzValidateTypedNeverPanics(f *testing.F) {
 			dt := r5.FHIRDateTime(deceasedTime)
 			p.DeceasedDateTime = &dt
 		}
-		_ = fhir.Validate(p)
+		_ = r5.Validate(p)
 	})
 }

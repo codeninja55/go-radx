@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r5"
 	"github.com/codeninja55/go-radx/hl7v2"
 )
@@ -236,7 +235,7 @@ func TestORMToServiceRequestR5BroadenedMapping(t *testing.T) {
 		t.Errorf("occurrenceDateTime = %v, want 2026-05-31T12:31:00-05:00", occ)
 	}
 
-	if oo := fhir.Validate(sr); oo.HasErrors() {
+	if oo := r5.Validate(sr); oo.HasErrors() {
 		t.Errorf("ServiceRequest fails validation: %+v", oo.Issue)
 	}
 }

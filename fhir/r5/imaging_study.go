@@ -99,8 +99,9 @@ func marshalImagingStudySiblings(v *ImagingStudy, encoded []byte) ([]byte, error
 // UnmarshalJSON lifts each primitive "_field" sibling and resource-typed field out of
 // the object, decodes each into its companion field, then decodes the remaining keys
 // into the value struct. A resource-typed field (the fhir.Resource interface) is decoded
-// through fhir.UnmarshalResource so the concrete type behind the interface is recovered;
-// the standard codec cannot decode a resource object into an interface.
+// through the release-local UnmarshalResource so the concrete type behind the interface
+// is recovered as a resource of this release; the standard codec cannot decode a resource
+// object into an interface.
 func (v *ImagingStudy) UnmarshalJSON(data []byte) error {
 	obj, err := fhir.SplitRawObject(data)
 	if err != nil {
@@ -142,7 +143,7 @@ func (v *ImagingStudy) UnmarshalJSON(data []byte) error {
 		v.DescriptionElement = &element
 	}
 	if raw, ok := fhir.TakeRawField(obj, "contained"); ok {
-		resources, err := fhir.UnmarshalResourceSlice(raw)
+		resources, err := UnmarshalResourceSlice(raw)
 		if err != nil {
 			return err
 		}

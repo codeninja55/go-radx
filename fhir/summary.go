@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 )
 
 // ErrNilResource is returned by MarshalSummary when the resource is nil (a nil
@@ -77,7 +76,7 @@ var summaryAlwaysKeep = map[string]struct{}{
 // It returns ErrNilResource for a nil resource (a nil interface or a typed-nil pointer)
 // rather than panicking (Codex FHIR-012). It never leaks PHI: the only metadata it adds
 // is the SUBSETTED coding, and an error names a mode or a type, never a patient value.
-func MarshalSummary(r Resource, mode SummaryMode) ([]byte, error) {
+func (reg *Registry) MarshalSummary(r Resource, mode SummaryMode) ([]byte, error) {
 	if r == nil || isNilResource(r) {
 		return nil, ErrNilResource
 	}
@@ -90,7 +89,7 @@ func MarshalSummary(r Resource, mode SummaryMode) ([]byte, error) {
 		return encoded, nil
 	}
 
-	descriptor, ok := lookupSummaryDescriptor(r.ResourceType())
+	descriptor, ok := reg.lookupSummaryDescriptor(r.ResourceType())
 	if !ok {
 		// No descriptor means the element-level summary flags are unknown for this type,
 		// so filtering would have to guess which elements to drop. Returning the full
@@ -108,6 +107,15 @@ func MarshalSummary(r Resource, mode SummaryMode) ([]byte, error) {
 		return filtered, nil
 	}
 	return tagSubsetted(filtered)
+}
+
+// MarshalSummary serializes a resource under the given summary mode through the root
+// package's default registry. It is the release-agnostic counterpart to
+// (*Registry).MarshalSummary; a consumer filters a specific release's resource through
+// that release's r4.MarshalSummary or r5.MarshalSummary so the summary-descriptor
+// lookup is unambiguous.
+func MarshalSummary(r Resource, mode SummaryMode) ([]byte, error) {
+	return defaultRegistry.MarshalSummary(r, mode)
 }
 
 // SummaryDescriptor is the generated, per-resource summary metadata MarshalSummary
@@ -452,43 +460,41 @@ func writeMember(buf *bytes.Buffer, first *bool, key string, value json.RawMessa
 // a constant payload with no patient data.
 const subsettedCoding = `{"system":"http://terminology.hl7.org/CodeSystem/v3-ObservationValue","code":"SUBSETTED","display":"subsetted"}`
 
-// summaryRegistry maps a resourceType discriminator to its generated summary descriptor.
-// Like the factory and validation registries it is the package's only mutable state for
-// summary serialization: the generated per-release init() functions are its only writers,
-// populating it before main runs, and it is read-only in practice thereafter. The RWMutex
-// guards it so a stray late registration can never race a concurrent MarshalSummary,
-// keeping the "no state a caller can race on" guarantee.
-var (
-	summaryRegistryMu sync.RWMutex
-	summaryRegistry   = map[string]SummaryDescriptor{}
-)
-
-// RegisterSummaryDescriptor records the summary descriptor for a resourceType. It exists
-// for the generated per-release summary init() to call; a consumer never calls it
-// directly. It is exported only because the generated release package and this root
-// package are distinct packages, so the registration hook must cross the package boundary.
+// RegisterSummaryDescriptor records the summary descriptor for a resourceType in this
+// registry. It exists for the generated per-release summary init() to call; a consumer
+// never calls it directly. It is a method on Registry because the generated release
+// package and this root package are distinct packages, so the registration hook must
+// cross the package boundary.
 //
-// It panics on an empty resourceType or a duplicate registration: a duplicate means the
-// generator emitted conflicting descriptors (or two releases collided before that
-// collision was resolved), a build-time defect that must fail loudly rather than let one
-// descriptor silently shadow the other.
-func RegisterSummaryDescriptor(resourceType string, d SummaryDescriptor) {
+// It panics on an empty resourceType or a duplicate registration: a duplicate within
+// one release means the generator emitted conflicting descriptors, a build-time defect
+// that must fail loudly rather than let one descriptor silently shadow the other. Two
+// releases no longer collide here because each owns its own Registry.
+func (reg *Registry) RegisterSummaryDescriptor(resourceType string, d SummaryDescriptor) {
 	if resourceType == "" {
 		panic("fhir: RegisterSummaryDescriptor: empty resourceType")
 	}
-	summaryRegistryMu.Lock()
-	defer summaryRegistryMu.Unlock()
-	if _, exists := summaryRegistry[resourceType]; exists {
+	reg.summaryMu.Lock()
+	defer reg.summaryMu.Unlock()
+	if _, exists := reg.summary[resourceType]; exists {
 		panic("fhir: RegisterSummaryDescriptor: duplicate descriptor for resourceType " + resourceType)
 	}
-	summaryRegistry[resourceType] = d
+	reg.summary[resourceType] = d
 }
 
 // lookupSummaryDescriptor returns the descriptor for a resourceType and whether one is
 // registered, under the registry read lock so it never races a registration.
-func lookupSummaryDescriptor(resourceType string) (SummaryDescriptor, bool) {
-	summaryRegistryMu.RLock()
-	defer summaryRegistryMu.RUnlock()
-	d, ok := summaryRegistry[resourceType]
+func (reg *Registry) lookupSummaryDescriptor(resourceType string) (SummaryDescriptor, bool) {
+	reg.summaryMu.RLock()
+	defer reg.summaryMu.RUnlock()
+	d, ok := reg.summary[resourceType]
 	return d, ok
+}
+
+// RegisterSummaryDescriptor records a summary descriptor in the root package's default
+// registry. It is the release-agnostic counterpart to
+// (*Registry).RegisterSummaryDescriptor; a release package registers into its own
+// Registry instead.
+func RegisterSummaryDescriptor(resourceType string, d SummaryDescriptor) {
+	defaultRegistry.RegisterSummaryDescriptor(resourceType, d)
 }

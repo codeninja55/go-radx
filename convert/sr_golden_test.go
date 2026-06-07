@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/codeninja55/go-radx/dicom"
-	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r5"
 )
 
@@ -126,11 +125,11 @@ func TestSRToDiagnosticReportR5Golden(t *testing.T) {
 
 	// Every produced resource must pass the in-process structural gate, which mirrors
 	// the merge-blocking HL7 validator gate that runs over convert output in CI.
-	if outcome := fhir.Validate(dr); outcome.HasErrors() {
+	if outcome := r5.Validate(dr); outcome.HasErrors() {
 		t.Errorf("DiagnosticReport is not structurally valid: %s", outcome.Error())
 	}
 	for i, o := range observations {
-		if outcome := fhir.Validate(o); outcome.HasErrors() {
+		if outcome := r5.Validate(o); outcome.HasErrors() {
 			t.Errorf("Observation[%d] is not structurally valid: %s", i, outcome.Error())
 		}
 	}

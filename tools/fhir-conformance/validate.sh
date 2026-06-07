@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 #
-# Conformance gate: validate go-radx's FHIR R5 marshalling with the official HL7 FHIR
-# validator (validator_cli.jar from hapifhir/org.hl7.fhir.core). It does NOT validate a
-# borrowed example corpus: it marshals go-radx-generated instances of the radiology +
-# clinical workflow set (Patient, Encounter, ServiceRequest, ImagingStudy, Observation,
-# DiagnosticReport, OperationOutcome, CapabilityStatement, and a Bundle that references
-# them) and validates that JSON, so a validator error reflects a real conformance defect
-# in the generated code (PRD §11.1, M6a acceptance gate).
+# Conformance gate: validate go-radx's FHIR R4 (4.0.1) and R5 (5.0.0) marshalling with
+# the official HL7 FHIR validator (validator_cli.jar from hapifhir/org.hl7.fhir.core). It
+# does NOT validate a borrowed example corpus: per release it marshals go-radx-generated
+# instances of the radiology + clinical workflow set (Patient, Encounter, ServiceRequest,
+# ImagingStudy, Observation, DiagnosticReport, OperationOutcome, CapabilityStatement, and
+# a Bundle that references them) and validates that JSON against the matching FHIR version,
+# so a validator error reflects a real conformance defect in the generated code (PRD §11.1,
+# M6a acceptance gate). The R4 and R5 fixtures are distinct because the release type spaces
+# never mix and several resources differ on the wire (no CodeableReference in R4, R4
+# ImagingStudy.modality is a Coding, R4 Encounter.class is a single Coding).
 #
-# The gate also validates a DELIBERATELY-INVALID negative fixture and requires the
-# validator to REJECT it. That proves the gate actually bites: a validator that silently
-# passed everything would still fail here.
+# The gate also validates a DELIBERATELY-INVALID negative fixture against each release and
+# requires the validator to REJECT it. That proves the gate actually bites: a validator that
+# silently passed everything would still fail here.
 #
 # Reproducibility: the validator is pinned. The jar version and its SHA-256 are recorded
 # in tools/versions (fhir-validator.* keys); this script verifies the jar's checksum
@@ -30,7 +33,6 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-FHIR_VERSION="5.0.0"
 VERSIONS_FILE="tools/versions"
 NEGATIVE_FIXTURE="tools/fhir-conformance/negative/invalid-observation.json"
 
@@ -107,38 +109,49 @@ if [ "$got_sha" != "$VALIDATOR_SHA256" ]; then
 fi
 echo "Verified validator_cli.jar ${VALIDATOR_VERSION} (sha256 ${got_sha})."
 
-# Marshal the go-radx-generated workflow set into JSON the validator then checks.
-fixtures_dir="${work_dir}/fixtures"
-echo "Marshalling go-radx workflow-set instances ..."
-go run ./tools/fhir-conformance/fixtures "$fixtures_dir"
-
-# run_validator runs the validator over a path; it returns the validator's exit code
-# (0 = no errors, non-zero = validation errors found). `-tx n/a` disables the external
-# terminology server (tx.fhir.org) so the gate is deterministic and needs no network at
-# validation time: the structural, cardinality, and invariant checks the workflow set and
-# the negative fixture rely on do not require terminology expansion.
+# run_validator runs the validator over a path at a given FHIR version; it returns the
+# validator's exit code (0 = no errors, non-zero = validation errors found). `-tx n/a`
+# disables the external terminology server (tx.fhir.org) so the gate is deterministic and
+# needs no network at validation time: the structural, cardinality, and invariant checks
+# the workflow set and the negative fixture rely on do not require terminology expansion.
 run_validator() {
-  java -jar "$jar" "$1" -version "$FHIR_VERSION" -level errors -tx n/a
+  local path="$1" version="$2"
+  java -jar "$jar" "$path" -version "$version" -level errors -tx n/a
 }
 
-echo "Validating the workflow set against FHIR R5 ${FHIR_VERSION} ..."
-status=0
-if ! run_validator "$fixtures_dir"; then
-  echo "FAIL: the HL7 FHIR validator reported errors on the go-radx workflow set." >&2
-  status=1
-fi
+# validate_release marshals one release's go-radx workflow set and validates it against the
+# matching FHIR version, then asserts the negative fixture is REJECTED at that version. It
+# sets the shared `status` to 1 on any failure rather than exiting, so both releases are
+# always reported in one run.
+validate_release() {
+  local release="$1" version="$2" fixtures_pkg="$3"
+  local fixtures_dir="${work_dir}/fixtures-${release}"
 
-# The negative fixture MUST be rejected. If the validator passes it, the gate is not
-# actually validating and is therefore worthless — fail loudly.
-echo "Validating the negative fixture (must be REJECTED) ..."
-if run_validator "$NEGATIVE_FIXTURE" >/dev/null 2>&1; then
-  echo "FAIL: the negative fixture $NEGATIVE_FIXTURE passed validation; the gate is not biting." >&2
-  status=1
-else
-  echo "OK: the validator rejected the negative fixture as expected (the gate bites)."
-fi
+  echo "Marshalling go-radx ${release} workflow-set instances ..."
+  go run "$fixtures_pkg" "$fixtures_dir"
+
+  echo "Validating the ${release} workflow set against FHIR ${version} ..."
+  if ! run_validator "$fixtures_dir" "$version"; then
+    echo "FAIL: the HL7 FHIR validator reported errors on the go-radx ${release} workflow set." >&2
+    status=1
+  fi
+
+  # The negative fixture MUST be rejected. If the validator passes it, the gate is not
+  # actually validating and is therefore worthless — fail loudly.
+  echo "Validating the negative fixture against ${version} (must be REJECTED) ..."
+  if run_validator "$NEGATIVE_FIXTURE" "$version" >/dev/null 2>&1; then
+    echo "FAIL: the negative fixture $NEGATIVE_FIXTURE passed ${release} validation; the gate is not biting." >&2
+    status=1
+  else
+    echo "OK: the validator rejected the negative fixture at ${version} as expected (the gate bites)."
+  fi
+}
+
+status=0
+validate_release "r4" "4.0.1" "./tools/fhir-conformance/fixtures-r4"
+validate_release "r5" "5.0.0" "./tools/fhir-conformance/fixtures"
 
 if [ "$status" -ne 0 ]; then
   exit "$status"
 fi
-echo "conformance: the FHIR R5 workflow set validated cleanly and the negative fixture was rejected."
+echo "conformance: the FHIR R4 and R5 workflow sets validated cleanly and the negative fixture was rejected at each version."

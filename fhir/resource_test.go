@@ -252,8 +252,8 @@ func withTestFactory(t *testing.T, resourceType string, f Factory) {
 	}
 	RegisterFactory(resourceType, f)
 	t.Cleanup(func() {
-		registryMu.Lock()
-		delete(registry, resourceType)
-		registryMu.Unlock()
+		defaultRegistry.factoryMu.Lock()
+		delete(defaultRegistry.factory, resourceType)
+		defaultRegistry.factoryMu.Unlock()
 	})
 }
