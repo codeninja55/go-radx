@@ -26,11 +26,29 @@ jobs:
   lint-test:
     name: Lint, vet, build, race tests (pure-Go default build)
     runs-on: ubuntu-latest
+    # Pin the Go module and build caches to fixed in-workspace paths so the cache step below restores
+    # to known locations regardless of how Go was installed (mise here, setup-go elsewhere).
+    env:
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Cache the Go module downloads (GOMODCACHE) and compiled build output (GOCACHE). The key
+      # embeds the Go version (a toolchain bump must not reuse objects built by the old compiler) and
+      # go.sum (a dependency change re-resolves the module cache); restore-keys lets an unchanged Go
+      # version reuse a near-match cache and top it up. Scoped to the root module's go.sum.
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: pin-drift (reference tools + interop images pinned)
         # Fails if a reference tool or interop image floated back to an unpinned reference (a
         # `:latest` image tag, an `@latest` install, or an unpinned pip/apt install). Pins of record
@@ -80,11 +98,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: "true" # flips tools/dicom-conformance/*.sh from skip-locally to fail-if-tool-absent
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Install dicom3tools (provides dciodvfy) + pydicom
         run: |
           # dciodvfy is a David Clunie dicom3tools program (Ubuntu universe), NOT a dcmtk tool —
@@ -113,11 +142,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: "true" # flips tools/fhir-conformance/validate.sh from skip-locally to fail-if-absent
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3 # installs Go 1.26 per mise.toml [tools]; the gate runs `go run` for the fixtures
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Install JDK 17 (the HL7 validator_cli.jar runs on the JDK)
         # The validator is the official HL7 validator_cli.jar (NOT a container) — the M6a
         # mechanism decision recorded in tools/versions. It is pinned by version AND SHA-256
@@ -137,6 +177,9 @@ jobs:
   interop:
     name: Interop gate (${{ matrix.leg }} — testcontainers)
     runs-on: ubuntu-latest
+    env:
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     strategy:
       # Run each interop leg on its own runner rather than serially on one. The legs all
       # drive containers; isolating them keeps the memory-heavy DIMSE dcm4chee-arc stack
@@ -154,6 +197,18 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Per-leg cache scope: the legs run concurrently, so a shared key would race on the cache write.
+      # The `interop` build-tag objects differ from the default build, so this scope is kept distinct
+      # from the root cache rather than competing with it.
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-interop-${{ matrix.leg }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-interop-${{ matrix.leg }}-
       - name: ${{ matrix.leg }} interop tests
         # GitHub-hosted ubuntu runners ship Docker; testcontainers manages the Orthanc and
         # dcm4chee-arc stacks behind the pinned image digests. The dcm4chee-arc stack the dimse
@@ -171,6 +226,10 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: "1.26.4"
+          # setup-go caches GOMODCACHE + GOCACHE keyed on the Go version and the named go.sum; scope
+          # it to the root module so the scan of ./... reuses the module download and build objects.
+          cache: true
+          cache-dependency-path: go.sum
       - name: Install govulncheck
         # Pin the scanner to a released version so its analysis behaviour is fixed; @latest would
         # let the scanner float between runs. The vulnerability database stays live (vuln.go.dev),
@@ -190,6 +249,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      # Absolute paths so the caches resolve identically regardless of the cmd/radx working-directory.
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     defaults:
       run:
         working-directory: cmd/radx
@@ -198,6 +260,17 @@ jobs:
       - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Scoped to cmd/radx's own go.sum (the module is gated as a downstream consumer would build it).
+      # hashFiles and the cache path are workspace-relative, unaffected by the working-directory above.
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-cmd-radx-${{ hashFiles('cmd/radx/go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-cmd-radx-
       - name: build
         run: go build ./...
       - name: go vet
@@ -218,11 +291,25 @@ jobs:
     # libraries are built from source here.
     name: CGo pixel codecs (native libs from source)
     runs-on: ubuntu-latest
+    env:
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # The codec build/test compiles cgo-tagged objects distinct from the default build, so this is a
+      # separate cache scope from the root job rather than competing with it.
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-codecs-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-codecs-
       - name: Install build tooling
         run: sudo apt-get update && sudo apt-get install -y cmake build-essential pkg-config nasm curl
       # Cache the downloaded codec source tarballs keyed on the pinned versions (tools/versions). The
@@ -318,11 +405,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: PHI sweep
         run: mise run phi-sweep
 
@@ -338,11 +436,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Fuzz targets (bounded, hang = failure)
         run: mise run fuzz
 
@@ -356,11 +465,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Run dicom + fhir benchmarks once
         run: mise run bench
 
@@ -372,11 +492,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
+      GOMODCACHE: ${{ github.workspace }}/.gocache/mod
+      GOCACHE: ${{ github.workspace }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.gocache/mod
+            ${{ github.workspace }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
       - name: Conformance-drift
         run: mise run conformance-drift
 
