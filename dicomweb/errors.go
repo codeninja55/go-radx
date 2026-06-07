@@ -28,17 +28,21 @@ var (
 
 // CrossOriginBulkDataError reports an absolute BulkDataURI whose origin differs from the
 // client's configured origin, refused because cross-origin fetching was not enabled. It
-// unwraps to ErrCrossOriginBulkData so callers can check with errors.Is, and names only the
-// rejected host (never the reference path, which carries resource UIDs — PRD §9.1).
+// unwraps to ErrCrossOriginBulkData so callers can check with errors.Is. Error() is a fixed
+// structural message: the host comes from attacker-controlled server metadata, so it is
+// exposed only through the Host field for callers that choose to act on it, never embedded in
+// the error string (PRD §9.1).
 type CrossOriginBulkDataError struct {
-	// Host is the rejected reference's host (and port, when present). It carries no patient
-	// value; the UID-bearing path is deliberately omitted.
+	// Host is the rejected reference's host (and port, when present), taken from untrusted
+	// server metadata. A hostile origin can place a patient identifier in it, so it is never
+	// included in Error(); a caller that surfaces it must treat it as untrusted. The
+	// UID-bearing path is omitted entirely.
 	Host string
 }
 
 func (e *CrossOriginBulkDataError) Error() string {
-	return fmt.Sprintf("dicomweb: bulk-data reference to cross-origin host %q refused; "+
-		"enable WithAllowCrossOriginBulkData or add the host to WithBulkDataHostAllowlist", e.Host)
+	return "dicomweb: bulk-data reference to a cross-origin host refused; " +
+		"enable WithAllowCrossOriginBulkData or add the host to WithBulkDataHostAllowlist"
 }
 
 // Unwrap ties the typed error to the ErrCrossOriginBulkData sentinel.
