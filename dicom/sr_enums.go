@@ -60,7 +60,7 @@ func parseValueType(s string) (ValueType, error) {
 			return ValueType(vt), nil
 		}
 	}
-	return 0, &ValueError{Tag: TagValueType, VR: VRCS, Msg: fmt.Sprintf("unknown SR value type %q", s)}
+	return 0, &ValueError{Tag: TagValueType, VR: VRCS, Msg: fmt.Sprintf("unknown SR value type (%d bytes)", len(s))}
 }
 
 // RelationshipType is the SR parent-child relationship from PS3.3 C.17.3.2.4 (the VR
@@ -104,5 +104,5 @@ func parseRelationshipType(s string) (RelationshipType, error) {
 			return RelationshipType(rt), nil
 		}
 	}
-	return 0, &ValueError{Tag: TagRelationshipType, VR: VRCS, Msg: fmt.Sprintf("unknown SR relationship type %q", s)}
+	return 0, &ValueError{Tag: TagRelationshipType, VR: VRCS, Msg: fmt.Sprintf("unknown SR relationship type (%d bytes)", len(s))}
 }

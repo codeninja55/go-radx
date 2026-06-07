@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -335,6 +336,103 @@ func TestClientTLSRejectsUntrustedServer(t *testing.T) {
 	clientTLS := &tls.Config{RootCAs: x509.NewCertPool(), ServerName: "127.0.0.1", MinVersion: tls.VersionTLS12}
 	if _, err := NewClient(srv.Addr().String(), WithClientTLS(clientTLS)); err == nil {
 		t.Fatal("NewClient succeeded against an untrusted server certificate, want a TLS error")
+	}
+}
+
+func TestServerBoundsConcurrentConnections(t *testing.T) {
+	// The connection cap must bound how many handlers run concurrently: with a cap
+	// of N, opening N+extra connections serves at most N at once and refuses the
+	// rest before any handler goroutine is spawned for them. This is the DoS bound —
+	// a flood of connections cannot grow goroutines or file descriptors past N.
+	const cap = 2
+	const extra = 3
+
+	var active, maxActive atomic.Int32
+	entered := make(chan struct{}, cap+extra)
+	release := make(chan struct{})
+
+	h := HandlerFunc(func(_ context.Context, m *Message) (*Message, error) {
+		n := active.Add(1)
+		for {
+			old := maxActive.Load()
+			if n <= old || maxActive.CompareAndSwap(old, n) {
+				break
+			}
+		}
+		entered <- struct{}{}
+		<-release // park the handler so its slot stays occupied
+		active.Add(-1)
+		return m.BuildACK(AckAccept)
+	})
+
+	srv := NewServer(h, WithMaxConnections(cap))
+	go func() { _ = srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	defer func() {
+		close(release) // let every parked handler finish before joining
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}()
+
+	raw, err := sampleMessage(t).MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText: %v", err)
+	}
+
+	// Fill every slot: open cap connections and send a frame on each so cap handlers
+	// enter and park, holding all the slots.
+	held := make([]net.Conn, 0, cap)
+	for i := 0; i < cap; i++ {
+		conn, err := net.Dial("tcp", srv.Addr().String())
+		if err != nil {
+			t.Fatalf("Dial held %d: %v", i, err)
+		}
+		held = append(held, conn)
+		if err := WriteFrame(conn, raw); err != nil {
+			t.Fatalf("WriteFrame held %d: %v", i, err)
+		}
+	}
+	for i := 0; i < cap; i++ {
+		select {
+		case <-entered:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("only %d of %d handlers entered within the deadline", i, cap)
+		}
+	}
+	defer func() {
+		for _, c := range held {
+			_ = c.Close()
+		}
+	}()
+
+	// With every slot held, extra connections must be refused: the server closes
+	// each before spawning a handler, so a read returns EOF/an error rather than an
+	// ACK frame, and no extra handler ever enters.
+	for i := 0; i < extra; i++ {
+		conn, err := net.Dial("tcp", srv.Addr().String())
+		if err != nil {
+			t.Fatalf("Dial extra %d: %v", i, err)
+		}
+		_ = WriteFrame(conn, raw)
+		_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+		buf := make([]byte, 1)
+		if n, _ := conn.Read(buf); n > 0 && buf[0] == StartBlock {
+			_ = conn.Close()
+			t.Fatalf("extra connection %d was served (got an ACK frame), want it refused", i)
+		}
+		_ = conn.Close()
+	}
+
+	// No extra handler should have run: an entry beyond cap would mean the cap was
+	// breached.
+	select {
+	case <-entered:
+		t.Fatal("a handler entered beyond the connection cap")
+	default:
+	}
+	if got := maxActive.Load(); got > cap {
+		t.Fatalf("max concurrent handlers = %d, want at most %d", got, cap)
 	}
 }
 

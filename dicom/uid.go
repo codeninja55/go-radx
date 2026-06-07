@@ -27,6 +27,7 @@ func (u UID) Validate() error {
 		return &ValueError{VR: VRUI, Msg: fmt.Sprintf("UID exceeds 64 characters (%d)", len(s))}
 	}
 	start := 0
+	component := 1
 	for i := 0; i <= len(s); i++ {
 		if i == len(s) || s[i] == '.' {
 			comp := s[start:i]
@@ -34,14 +35,15 @@ func (u UID) Validate() error {
 				return &ValueError{VR: VRUI, Msg: "UID has an empty component"}
 			}
 			if len(comp) > 1 && comp[0] == '0' {
-				return &ValueError{VR: VRUI, Msg: fmt.Sprintf("UID component %q has a leading zero", comp)}
+				return &ValueError{VR: VRUI, Msg: fmt.Sprintf("UID component %d has a leading zero", component)}
 			}
 			for j := 0; j < len(comp); j++ {
 				if comp[j] < '0' || comp[j] > '9' {
-					return &ValueError{VR: VRUI, Msg: fmt.Sprintf("UID component %q is not numeric", comp)}
+					return &ValueError{VR: VRUI, Msg: fmt.Sprintf("UID component %d is not numeric", component)}
 				}
 			}
 			start = i + 1
+			component++
 		}
 	}
 	return nil
