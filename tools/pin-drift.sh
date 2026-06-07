@@ -6,7 +6,8 @@
 # an unpinned `pip`/`apt-get` install of a reference tool cannot slip back in unnoticed.
 #
 # It scans the files that actually pull external tools and images:
-#   - .github/workflows/ci.yml      (apt/pip/go installs)
+#   - .github/workflows/*.yml       (apt/pip/go installs — every workflow, not just ci.yml, so a pin
+#                                     added in a future workflow file is scanned too)
 #   - mise.toml                     (the [tools] pins)
 #   - the testcontainers helpers    (interop image references)
 # and flags:
@@ -24,7 +25,7 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-CI_YML=".github/workflows/ci.yml"
+WORKFLOWS_GLOB=".github/workflows/*.yml"
 MISE_TOML="mise.toml"
 # Testcontainers helpers that reference interop images.
 HELPER_GLOBS=(
@@ -158,10 +159,17 @@ for helper in "${HELPER_GLOBS[@]}"; do
   scan_latest_tag "$helper"
 done
 
-scan_latest_tag "$CI_YML"
-scan_at_latest "$CI_YML"
-scan_unpinned_pip "$CI_YML"
-scan_unpinned_apt "$CI_YML"
+# Scan every workflow file (not just ci.yml) so a pin added in a future workflow is covered too. The
+# glob is unquoted so the shell expands it; `nullglob` makes a no-match expand to nothing rather than
+# the literal pattern, and the scanners' own `[ -f "$file" ]` guard skips a non-file in any case.
+shopt -s nullglob
+for workflow in $WORKFLOWS_GLOB; do
+  scan_latest_tag "$workflow"
+  scan_at_latest "$workflow"
+  scan_unpinned_pip "$workflow"
+  scan_unpinned_apt "$workflow"
+done
+shopt -u nullglob
 
 scan_latest_tag "$MISE_TOML"
 scan_at_latest "$MISE_TOML"
