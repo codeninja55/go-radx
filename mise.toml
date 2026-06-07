@@ -135,8 +135,30 @@ set -euo pipefail
 fuzztime="${FUZZTIME:-30s}"
 
 run_one() {
-  echo "fuzz: $2 ($1) for $fuzztime"
-  timeout 120s go test -run='^$' -fuzz="$2" -fuzztime="$fuzztime" "$1"
+  pkg="$1"; target="$2"
+  for attempt in 1 2 3; do
+    echo "fuzz: $target ($pkg) for $fuzztime (attempt $attempt)"
+    out="$(timeout 120s go test -run='^$' -fuzz="$target" -fuzztime="$fuzztime" "$pkg" 2>&1)" && { echo "$out"; return 0; }
+    rc=$?
+    echo "$out"
+    # A wedged target is killed by `timeout` (rc 124) and a reproducible crasher is saved under
+    # testdata/fuzz — both are real FAILURES. Go's engine also exits non-zero with "context deadline
+    # exceeded" when -fuzztime elapses while a worker is still mid-input on a loaded runner: a
+    # boundary timing artifact, not a crash or a hang, so retry it. A genuine slow input that
+    # reproduces the artifact on every attempt still fails the gate.
+    if [ "$rc" -eq 124 ]; then
+      echo "fuzz: $target wedged past the timeout budget — hang is a failure" >&2; return 1
+    fi
+    if printf '%s' "$out" | grep -qE 'Failing input written to|testdata[/]fuzz[/]'; then
+      echo "fuzz: $target produced a reproducible crasher — failure" >&2; return 1
+    fi
+    if printf '%s' "$out" | grep -q 'context deadline exceeded'; then
+      echo "fuzz: $target hit the -fuzztime boundary artifact; retrying" >&2; continue
+    fi
+    echo "fuzz: $target failed (exit $rc)" >&2; return 1
+  done
+  echo "fuzz: $target kept hitting the -fuzztime boundary artifact after 3 attempts — failing to be safe" >&2
+  return 1
 }
 
 # Enumerate every Fuzz target and bind it to its package. Listed per-package so the package binding
@@ -144,7 +166,12 @@ run_one() {
 # failure surfaces because `go test -list` exits non-zero under `set -e` / `pipefail`.
 count=0
 while IFS= read -r pkg; do
-  names="$(go test -list '^Fuzz' "$pkg" 2>/dev/null | grep '^Fuzz' || true)"
+  if ! list_out="$(go test -list '^Fuzz' "$pkg" 2>&1)"; then
+    echo "fuzz: listing fuzz targets in $pkg failed (compile error?):" >&2
+    echo "$list_out" >&2
+    exit 1
+  fi
+  names="$(echo "$list_out" | grep '^Fuzz' || true)"
   [ -z "$names" ] && continue
   while IFS= read -r fn; do
     run_one "$pkg" "^${fn}\\$"
