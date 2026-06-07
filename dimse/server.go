@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
@@ -189,6 +190,12 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 	ln, err := net.Listen("tcp", loopbackAddr(addr))
 	if err != nil {
 		return fmt.Errorf("dimse: listen on %q: %w", addr, err)
+	}
+	// With WithTLS the listener terminates TLS: every accepted connection completes a TLS handshake
+	// (and, with cfg.ClientAuth = RequireAndVerifyClientCert, client-certificate verification)
+	// before any PDU is read. Without TLS the plain listener is used unchanged.
+	if tlsCfg := s.ae.config().tlsConfigWithFloor(); tlsCfg != nil {
+		ln = tls.NewListener(ln, tlsCfg)
 	}
 
 	handlerCtx, cancelHandlers := context.WithCancel(ctx)

@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net"
 	"sync"
@@ -267,13 +268,34 @@ func (a *Association) dimseContext(ctx context.Context) (context.Context, contex
 	return context.WithTimeout(ctx, a.dimseTimeout)
 }
 
-// dial opens the TCP connection to addr, honouring the AE's connection timeout (when set)
-// and ctx cancellation.
+// dial opens the connection to addr, honouring the AE's connection timeout (when set) and ctx
+// cancellation. With no TLS config it is a plain TCP connection; with WithTLS it dials over TLS
+// and completes the handshake (including peer-certificate verification) before returning, so a
+// certificate or handshake failure surfaces here rather than on the first PDU. The TLS handshake
+// is bound by both the connection timeout and ctx: tls.Dialer.DialContext fails the handshake when
+// ctx is done.
 func (ae *AE) dial(ctx context.Context, addr string) (net.Conn, error) {
 	d := net.Dialer{Timeout: ae.cfg.connectionTimeout}
-	nc, err := d.DialContext(ctx, "tcp", addr)
+	tlsCfg := ae.cfg.tlsConfigWithFloor()
+	if tlsCfg == nil {
+		nc, err := d.DialContext(ctx, "tcp", addr)
+		if err != nil {
+			return nil, &AssociationError{Kind: AssociationNotEstablished, Detail: "dial: " + err.Error()}
+		}
+		return nc, nil
+	}
+
+	// Default ServerName to the dialled host so certificate verification has a name to check when
+	// the caller did not pin one, mirroring crypto/tls's own behaviour for tls.Dial.
+	if tlsCfg.ServerName == "" {
+		if host, _, splitErr := net.SplitHostPort(addr); splitErr == nil {
+			tlsCfg.ServerName = host
+		}
+	}
+	td := tls.Dialer{NetDialer: &d, Config: tlsCfg}
+	nc, err := td.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return nil, &AssociationError{Kind: AssociationNotEstablished, Detail: "dial: " + err.Error()}
+		return nil, &AssociationError{Kind: AssociationNotEstablished, Detail: "tls dial: " + err.Error()}
 	}
 	return nc, nil
 }
