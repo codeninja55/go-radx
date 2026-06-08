@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -130,5 +131,61 @@ func TestModifyRequiresOutputMode(t *testing.T) {
 	_, _, code := runRadx(t, "modify", "--insert", "PatientID=X", src)
 	if code != exitcode.UsageError {
 		t.Fatalf("modify with no output mode exit = %d, want %d (usage error)", code, exitcode.UsageError)
+	}
+}
+
+// TestModifyInPlaceWriteFailureLeavesOriginalIntact is the clinical-data-safety regression: when an
+// --in-place write cannot complete (here the source's directory is read-only, so no sibling temp can
+// be created), the command exits non-zero AND leaves the original file byte-for-byte unchanged — it
+// never truncates or partially overwrites the source. The prior path called dicom.WriteFile, which
+// truncates the destination with os.Create before writing, so a mid-write failure would have left
+// the original DICOM partially overwritten.
+func TestModifyInPlaceWriteFailureLeavesOriginalIntact(t *testing.T) {
+	dir := t.TempDir()
+	src := writeStorableDICOM(t, dir, "1.2.3.4.600.50")
+
+	before, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatalf("read original before: %v", err)
+	}
+
+	// Make the source's directory read-only so the atomic writer cannot create its sibling temp
+	// file. The file itself stays readable (the dir keeps r-x), so the read succeeds and only the
+	// write fails — exactly the disk-full / NFS-error shape the fix guards against.
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatalf("chmod read-only dir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+	stdout, _, code := runRadx(t, "modify", "--format", "json",
+		"--in-place", "--insert", "PatientID=ANON-050", src)
+	if code == exitcode.Success {
+		t.Fatalf("in-place modify into a read-only dir exited 0; want non-zero\nstdout=%q", stdout)
+	}
+
+	// Restore write so we can read the file back and compare bytes.
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatalf("restore dir perms: %v", err)
+	}
+	after, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatalf("read original after: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("the original was modified despite the write failure: %d bytes before, %d after",
+			len(before), len(after))
+	}
+
+	// No stray temp file may be left beside the original.
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read dir: %v", err)
+	}
+	if len(entries) != 1 {
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Errorf("a stray temp file was left behind: dir entries = %v, want only the original", names)
 	}
 }

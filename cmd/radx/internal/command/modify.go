@@ -1,7 +1,9 @@
 package command
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"go.uber.org/zap"
@@ -95,9 +97,10 @@ func (c *ModifyCmd) Run(rc *RunContext) error {
 	log := logging.FromContext(rc.Ctx)
 	gen := dicom.NewRandomUIDGenerator()
 
+	written := make(map[string]string, len(files))
 	var firstErr error
 	for _, path := range files {
-		result, modifyErr := c.modifyOne(path, plan, gen)
+		result, modifyErr := c.modifyOne(path, plan, gen, written)
 		// Diagnostics name structure only — the edit COUNT and tag identities, never the values.
 		log.Debug("modify: processed file",
 			zap.String("file", path),
@@ -117,8 +120,12 @@ func (c *ModifyCmd) Run(rc *RunContext) error {
 // modifyOne reads one file, applies the plan to its dataset, and writes the result. Read failures
 // and write failures are fail-closed: the returned result carries a failure status AND the
 // underlying error, and on a write failure NO partial output file is left for that input (the
-// dataset is fully re-encoded to the destination only after every edit applied cleanly).
-func (c *ModifyCmd) modifyOne(path string, plan modifyPlan, gen *dicom.UIDGenerator) (modifyResult, error) {
+// dataset is fully re-encoded to a sibling temp file and only renamed over the destination once it
+// is complete on disk). The written map records each destination already produced in this run so a
+// later input that would clobber an earlier output is refused rather than silently overwriting it.
+func (c *ModifyCmd) modifyOne(path string, plan modifyPlan, gen *dicom.UIDGenerator, written map[string]string) (modifyResult, error) {
+	dest := c.destinationFor(path)
+
 	f, err := dicom.ReadFile(path)
 	if err != nil {
 		return modifyResult{File: path, Status: "failure", Error: structuralError(err)}, err
@@ -144,21 +151,95 @@ func (c *ModifyCmd) modifyOne(path string, plan modifyPlan, gen *dicom.UIDGenera
 		regenerated = true
 	}
 
-	dest := c.destinationFor(path)
 	ts := f.Meta.TransferSyntaxUID
-	if err := f.DataSet.WriteFile(dest, ts); err != nil {
-		// A write failure (an unwritable target, a malformed dataset) leaves no output: WriteFile
-		// writes to a temp file and renames, so a failure removes the temp rather than leaving a
-		// truncated file readable as complete. Report the failure and the error; write nothing.
+	if err := writeDataSetAtomic(dest, f.DataSet, ts); err != nil {
+		// A write failure (an unwritable target, a malformed dataset) leaves no output: the encode
+		// goes to a sibling temp file that is removed on any error, so the destination — the source
+		// itself under --in-place — is never truncated or left partially overwritten. Report the
+		// failure and the error; write nothing.
 		return modifyResult{File: path, Status: "failure", Error: structuralError(err)}, err
 	}
 
+	written[dest] = path
 	return modifyResult{
 		File:    path,
 		Output:  dest,
 		Status:  "success",
 		Edits:   edits,
 		NewUIDs: regenerated,
+	}, nil
+}
+
+// writeDataSetAtomic re-encodes ds in ts to dest with successful-or-nothing semantics: it writes a
+// Part 10 file to a temp file in dest's directory, fsyncs and closes it, and only renames it over
+// dest once the whole file is durable. On any failure it removes the temp file and leaves dest (the
+// source file itself under --in-place) byte-for-byte untouched. dicom.WriteFile truncates its target
+// with os.Create before writing, so a failed write there would partially overwrite the original — a
+// clinical-data-safety defect; the temp-and-rename here makes the replacement atomic on the same
+// filesystem (a rename within one directory does not cross device boundaries). The File Meta is
+// derived from the dataset's SOP Class/Instance UIDs, mirroring dicom.DataSet.WriteFile.
+func writeDataSetAtomic(dest string, ds *dicom.DataSet, ts dicom.TransferSyntax) error {
+	f, err := fileFromDataSet(ds, ts)
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Dir(dest)
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(dest)+".radx-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	// Any path out of this function that has not renamed the temp into place removes it, so a failure
+	// never leaves a stray partial file beside the original.
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tmp.Close()
+			_ = os.Remove(tmpName)
+		}
+	}()
+
+	bw := bufio.NewWriter(tmp)
+	if err := dicom.Write(bw, f); err != nil {
+		return err
+	}
+	if err := bw.Flush(); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpName, dest); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
+// fileFromDataSet wraps ds in a Part 10 File whose meta is derived from the dataset's SOP Class
+// (0008,0016) and SOP Instance (0008,0018) UIDs, the same derivation dicom.DataSet.WriteFile
+// performs, so the atomic writer produces an identical header. A dataset missing either UID, or an
+// unwritable transfer syntax, is rejected before any temp file is created.
+func fileFromDataSet(ds *dicom.DataSet, ts dicom.TransferSyntax) (*dicom.File, error) {
+	sopClass, ok := ds.GetString(dicom.TagSOPClassUID)
+	if !ok || sopClass == "" {
+		return nil, &dicom.ValueError{Tag: dicom.TagSOPClassUID, VR: dicom.VRUI, Msg: "dataset has no SOP Class UID to derive file meta from"}
+	}
+	sopInstance, ok := ds.GetString(dicom.TagSOPInstanceUID)
+	if !ok || sopInstance == "" {
+		return nil, &dicom.ValueError{Tag: dicom.TagSOPInstanceUID, VR: dicom.VRUI, Msg: "dataset has no SOP Instance UID to derive file meta from"}
+	}
+	return &dicom.File{
+		Meta: &dicom.FileMeta{
+			MediaStorageSOPClassUID:    dicom.SOPClassUID(sopClass),
+			MediaStorageSOPInstanceUID: dicom.SOPInstanceUID(sopInstance),
+			TransferSyntaxUID:          ts,
+		},
+		DataSet: ds,
 	}, nil
 }
 
