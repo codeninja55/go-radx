@@ -512,6 +512,92 @@ func TestSearchFollowsBundleLinkPaging(t *testing.T) {
 	}
 }
 
+// TestFollowNextResolvesLinkForms proves the paging loop resolves a Bundle "next" link by its URL
+// type against a base URL that carries a path prefix ("/fhir"): an absolute link is used verbatim, an
+// origin-relative (leading-slash) link resolves against the scheme and host only — it must not double
+// the "/fhir" prefix — and a relative link joins to the base path. The server is mounted under
+// "/fhir" so the path-doubling bug (http://host/fhir/fhir/Patient) is observable: the test asserts the
+// exact path the second request hits.
+func TestFollowNextResolvesLinkForms(t *testing.T) {
+	const basePath = "/fhir"
+	cases := []struct {
+		name     string
+		nextLink func(host string) string // built from the server host so an absolute link is well-formed
+		wantPath string                   // the path the FollowNext request must hit
+	}{
+		{
+			name:     "absolute",
+			nextLink: func(host string) string { return "http://" + host + "/fhir/Patient?page=2" },
+			wantPath: "/fhir/Patient",
+		},
+		{
+			name:     "origin-relative leading slash",
+			nextLink: func(string) string { return "/fhir/Patient?page=2" },
+			wantPath: "/fhir/Patient",
+		},
+		{
+			name:     "relative",
+			nextLink: func(string) string { return "Patient?page=2" },
+			wantPath: "/fhir/Patient",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotSecondPath, gotSecondQuery string
+			nextLink := tc.nextLink
+			mux := http.NewServeMux()
+			mux.HandleFunc(basePath+"/Patient", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", mediaTypeFHIRJSON)
+				switch r.URL.Query().Get("page") {
+				case "2":
+					// The second page: record where the client landed and return a terminal page.
+					gotSecondPath = r.URL.Path
+					gotSecondQuery = r.URL.RawQuery
+					_, _ = w.Write([]byte(
+						`{"resourceType":"Bundle","type":"searchset","total":2,"link":[],"entry":[{"resource":{"resourceType":"Patient"},"search":{"mode":"match"}}]}`))
+				default:
+					// The first page: one match plus a "next" link in the form under test.
+					body := fmt.Sprintf(
+						`{"resourceType":"Bundle","type":"searchset","total":2,"link":[{"relation":"next","url":%q}],"entry":[{"resource":{"resourceType":"Patient"},"search":{"mode":"match"}}]}`,
+						nextLink(r.Host))
+					_, _ = w.Write([]byte(body))
+				}
+			})
+			srv := httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+
+			// The client base URL carries the "/fhir" path prefix, the non-root deployment shape that
+			// triggers the path-doubling bug.
+			c, err := rest.NewClient(fhir.R5, srv.URL+basePath)
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+			ctx := context.Background()
+
+			page, err := c.Search(ctx, "Patient", rest.NewSearchParams())
+			if err != nil {
+				t.Fatalf("Search: %v", err)
+			}
+			if !page.HasNext() {
+				t.Fatal("first page: expected a next link")
+			}
+			next, err := c.FollowNext(ctx, page)
+			if err != nil {
+				t.Fatalf("FollowNext (%s link): %v", tc.name, err)
+			}
+			if len(next.Resources) != 1 {
+				t.Errorf("second page: got %d resources, want 1", len(next.Resources))
+			}
+			if gotSecondPath != tc.wantPath {
+				t.Errorf("FollowNext hit path %q, want %q (path must not double the base prefix)", gotSecondPath, tc.wantPath)
+			}
+			if gotSecondQuery != "page=2" {
+				t.Errorf("FollowNext hit query %q, want page=2", gotSecondQuery)
+			}
+		})
+	}
+}
+
 func TestSearchParamsEncoding(t *testing.T) {
 	p := rest.NewSearchParams().
 		Add("name", "Smith").

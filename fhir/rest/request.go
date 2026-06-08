@@ -66,10 +66,15 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	return req, nil
 }
 
-// resolveURL turns a path into an absolute request URL. A path that is already absolute (a
-// Bundle.link.url the client follows for paging, which a server returns as an absolute URL) is used
-// as-is; a relative path is joined to the service base. This is what lets the paging loop follow
-// the server's own next/previous links whatever form they take.
+// resolveURL turns a path into an absolute request URL by RFC 3986 reference resolution, the rule a
+// Bundle.link.url the client follows for paging must obey. An absolute link (http/https) is used
+// verbatim; an origin-relative link (a leading slash, for example "/fhir/Patient?page=2") resolves
+// against the base URL's scheme and host only, never against the base path, so it does not double
+// the path prefix when the base already carries one (a non-root deployment under "/fhir"); a
+// relative link (no leading slash) joins to the service base path; an empty path is the base itself
+// (the system-root transaction POST). net/url.ResolveReference implements exactly these semantics
+// against the parsed base, so a server's own next/previous links resolve correctly whatever form
+// they take.
 func (c *Client) resolveURL(path string) string {
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		return path
@@ -78,7 +83,11 @@ func (c *Client) resolveURL(path string) string {
 		return c.baseURL
 	}
 	if strings.HasPrefix(path, "/") {
-		return c.baseURL + path
+		ref, err := url.Parse(path)
+		if err != nil {
+			return c.baseURL + path
+		}
+		return c.origin.ResolveReference(ref).String()
 	}
 	return c.baseURL + "/" + path
 }
