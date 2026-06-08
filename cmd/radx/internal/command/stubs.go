@@ -14,24 +14,6 @@ func notImplemented(capability string) error {
 	return &exitcode.NotImplementedError{Capability: capability}
 }
 
-// HL7Cmd is the HL7 v2 over MLLP group. Not implemented in this increment.
-type HL7Cmd struct {
-	Send   HL7SendCmd   `cmd:"" help:"Send a message and read the ACK."`
-	Listen HL7ListenCmd `cmd:"" help:"Receive messages and reply with ACK/NAK."`
-}
-
-// HL7SendCmd sends an HL7 v2 message. Not implemented in this increment.
-type HL7SendCmd struct{}
-
-// Run fails closed.
-func (c *HL7SendCmd) Run(*RunContext) error { return notImplemented("hl7 send") }
-
-// HL7ListenCmd receives HL7 v2 messages. Not implemented in this increment.
-type HL7ListenCmd struct{}
-
-// Run fails closed.
-func (c *HL7ListenCmd) Run(*RunContext) error { return notImplemented("hl7 listen") }
-
 // DICOMwebCmd is the DICOMweb client group. Not implemented in this increment.
 type DICOMwebCmd struct {
 	Wado DICOMwebWadoCmd `cmd:"" help:"Retrieve via WADO-RS."`
