@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -183,8 +184,38 @@ type dicomwebRetrieve struct {
 	store ObjectStore
 }
 
+// RetrieveInstance fetches the stored object by SOP Instance UID and verifies it lives under the
+// study and series the request path names. The object store keys only on SOP Instance UID, so a
+// fetch alone would return the instance regardless of the path's parent UIDs; a request for a valid
+// SOP UID under the WRONG study/series must answer not-found, not return the instance under a path it
+// does not belong to. A parent-UID mismatch is therefore mapped to ErrNotFound (the server answers
+// 404), preserving the resource hierarchy WADO-RS addresses by.
 func (b *dicomwebRetrieve) RetrieveInstance(ctx context.Context, p dicomweb.ResourcePath) (*dicom.DataSet, error) {
-	return b.store.Get(ctx, dicom.SOPInstanceUID(p.Instance))
+	ds, err := b.store.Get(ctx, dicom.SOPInstanceUID(p.Instance))
+	if err != nil {
+		return nil, err
+	}
+	if !datasetUnderPath(ds, p) {
+		return nil, fmt.Errorf("%w: instance not under the requested study/series", ErrNotFound)
+	}
+	return ds, nil
+}
+
+// datasetUnderPath reports whether ds's StudyInstanceUID and SeriesInstanceUID match the parent UIDs
+// the request path scopes. An empty path UID does not constrain (it was not supplied), so only a
+// supplied, mismatching parent fails the check.
+func datasetUnderPath(ds *dicom.DataSet, p dicomweb.ResourcePath) bool {
+	if p.Study != "" {
+		if v, _ := ds.GetString(dicom.TagStudyInstanceUID); v != string(p.Study) {
+			return false
+		}
+	}
+	if p.Series != "" {
+		if v, _ := ds.GetString(dicom.TagSeriesInstanceUID); v != string(p.Series) {
+			return false
+		}
+	}
+	return true
 }
 
 // dicomwebQuery adapts the Catalogue to the DICOMweb QueryBackend: a QIDO-RS search is forwarded to
@@ -198,7 +229,18 @@ func (b *dicomwebQuery) Query(ctx context.Context, q dicomweb.QueryRequest) ([]*
 	cq := CatalogueQuery{
 		Level: dimseLevelFromQIDO(q.Level),
 		Match: matchKeysFromQIDO(q),
-		Limit: q.Limit,
+	}
+	// The limit may only be pushed into the catalogue when EVERY match key is catalogue-indexed, so
+	// the SQLite WHERE filters completely. The DICOMweb server applies matchDataSet over ALL match
+	// keys (including ones the catalogue does not index) AFTER this backend returns, then pages with
+	// offset/limit. If the limit were pushed down with an unindexed match key present, SQLite could
+	// return the first N rows that satisfy only the indexed subset, discard later rows the unindexed
+	// key would have matched, and the page would be falsely empty or incomplete. When all keys are
+	// indexed the catalogue's filtering is complete, so the candidate set the server needs is the first
+	// offset+limit matching rows: push that many as the LIMIT (the server re-applies offset/limit to
+	// page), never a SQLite OFFSET, which would skip rows the server then expects to page itself.
+	if q.Limit > 0 && allMatchKeysIndexed(q) {
+		cq.Limit = q.Offset + q.Limit
 	}
 	var out []*dicom.DataSet
 	for ds, err := range b.cat.Query(ctx, cq) {
@@ -208,4 +250,18 @@ func (b *dicomwebQuery) Query(ctx context.Context, q dicomweb.QueryRequest) ([]*
 		out = append(out, ds)
 	}
 	return out, nil
+}
+
+// allMatchKeysIndexed reports whether every attribute-matching key in the request is a column the
+// catalogue indexes (the path-scoping StudyUID/SeriesUID are always indexed). Only then does the
+// catalogue's WHERE clause filter the candidate set completely, making it safe to push the QIDO
+// limit/offset down to SQLite rather than letting the DICOMweb server apply them after matchDataSet.
+func allMatchKeysIndexed(q dicomweb.QueryRequest) bool {
+	indexed := columnByTag()
+	for _, mk := range q.Match {
+		if _, ok := indexed[mk.Tag]; !ok {
+			return false
+		}
+	}
+	return true
 }
