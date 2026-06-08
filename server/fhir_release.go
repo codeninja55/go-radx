@@ -249,6 +249,7 @@ func (a r5Adapter) capabilityStatement(basePath string) fhir.Resource {
 	cs := &r5.CapabilityStatement{
 		StatusElement: nil,
 		Status:        &status,
+		Date:          strptr(capabilityStatementDate),
 		Kind:          &kind,
 		FhirVersion:   &version,
 		Format:        []string{jsonFmt},
@@ -401,6 +402,7 @@ func (a r4Adapter) capabilityStatement(basePath string) fhir.Resource {
 
 	cs := &r4.CapabilityStatement{
 		Status:      &status,
+		Date:        strptr(capabilityStatementDate),
 		Kind:        &kind,
 		FhirVersion: &version,
 		Format:      []string{jsonFmt},
@@ -462,6 +464,13 @@ func applyTransactionEntryR4(ctx context.Context, entry *r4.BundleEntry, repo Re
 // capabilitySoftwareName is the software name the served CapabilityStatement advertises. It names the
 // library, not a deployment, and carries no PHI.
 const capabilitySoftwareName = "go-radx"
+
+// capabilityStatementDate is the publication date the served CapabilityStatement carries.
+// CapabilityStatement.date is a required (1..1) element, so it must be present for the statement to
+// validate. It is a fixed value rather than the current time so the served metadata is deterministic
+// and golden-testable (the role serves the same statement every run); it advances when the served
+// capability surface changes.
+const capabilityStatementDate = "2026-06-08"
 
 // strptr returns a pointer to s, the local helper for the non-empty optional string fields the
 // release Bundle and OperationOutcome builders take.

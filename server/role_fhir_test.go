@@ -850,6 +850,27 @@ func TestFHIRRoleCapabilityStatement(t *testing.T) {
 			if cs.ResourceType != "CapabilityStatement" {
 				t.Fatalf("metadata resourceType = %q, want CapabilityStatement", cs.ResourceType)
 			}
+			// The served metadata must be a VALID CapabilityStatement for its release: a client or
+			// conformance test that validates /metadata will reject the role otherwise (this caught a
+			// missing required CapabilityStatement.date). Decode and validate through the release.
+			switch release {
+			case fhir.R4:
+				res, err := r4.UnmarshalResource(body)
+				if err != nil {
+					t.Fatalf("metadata is not a decodable R4 resource: %v", err)
+				}
+				if oo := r4.Validate(res); oo.HasErrors() {
+					t.Errorf("served CapabilityStatement fails R4 validation: %s", oo.Error())
+				}
+			case fhir.R5:
+				res, err := r5.UnmarshalResource(body)
+				if err != nil {
+					t.Fatalf("metadata is not a decodable R5 resource: %v", err)
+				}
+				if oo := r5.Validate(res); oo.HasErrors() {
+					t.Errorf("served CapabilityStatement fails R5 validation: %s", oo.Error())
+				}
+			}
 			if cs.FhirVersion != string(release) {
 				t.Errorf("fhirVersion = %q, want %q", cs.FhirVersion, string(release))
 			}
