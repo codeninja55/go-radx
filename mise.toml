@@ -15,6 +15,14 @@ description = "Fail if aggregate coverage is below the PRD floor (§11.4); write
 depends = ["cover"]
 run = "tools/cover-check.sh coverage.out"
 
+[tasks."cover:critical"]
+description = "Fail if a critical-path package is below the 90% target (or a ratchet package regressed); reuses coverage.out"
+# Depends on `cover` so the merged race profile exists, then enforces the per-package 90%
+# critical-path target on top of the module-wide 80% floor cover:check enforces. It reads the SAME
+# coverage.out cover wrote, so the two gates share one expensive race run rather than two.
+depends = ["cover"]
+run = "tools/cover-critical.sh coverage.out"
+
 [tasks."test:dicom"]
 description = "Run the dicom package test suite (race + coverage)"
 run = "go test -race -cover ./dicom/..."
@@ -184,6 +192,61 @@ if [ "$count" -eq 0 ]; then
   exit 1
 fi
 echo "fuzz: ran $count target(s)"
+"""
+
+[tasks."hostile:corpus"]
+description = "Replay the malformed-input corpus through its parsers under an enforced memory cap (GOMEMLIMIT) + timeout; OOM/panic/hang = failure"
+# Two passes, both under one GOMEMLIMIT soft cap and a coreutils `timeout` wall-clock bound, so a
+# parser that over-allocates is taken into a hard OOM abort (non-zero exit) and one that wedges is
+# killed by `timeout` — both FAILURES, never skips:
+#   1. the hostilecorpus harness, which feeds the RAW malformed corpus
+#      (dicomweb/testdata/malformed) to the dicomweb JSON + multipart parsers; and
+#   2. a replay of every committed Go-fuzz SEED corpus (a plain `go test -run '^Fuzz'` runs each
+#      seed once as a subtest, no -fuzz), so the dicom, dimse/pdu, hl7v2, and fhir/r5 parser seeds
+#      cross their parsers under the same cap.
+# GOMEMLIMIT is a soft limit the GC works to honour; with the cap well above the corpus's tiny peak
+# heap (logged by the harness), an over-allocation past it forces a hard out-of-memory abort. Tune
+# the cap with HOSTILE_MEMLIMIT and the wall budget with HOSTILE_TIMEOUT. Requires `timeout` on PATH
+# (present on Linux runners; macOS provides it as `gtimeout` via coreutils — the task picks whichever
+# exists). GOWORK=off scopes the run to the root module.
+# bash -c, not the default sh: on Ubuntu /bin/sh is dash, which rejects `set -o pipefail`.
+shell = "bash -c"
+env = { GOWORK = "off" }
+run = """
+set -euo pipefail
+memlimit="${HOSTILE_MEMLIMIT:-512MiB}"
+wall="${HOSTILE_TIMEOUT:-300}"
+
+timeout_bin=timeout
+if ! command -v timeout >/dev/null 2>&1; then
+  if command -v gtimeout >/dev/null 2>&1; then
+    timeout_bin=gtimeout
+  else
+    echo "hostile:corpus: no 'timeout' (or 'gtimeout') on PATH — install coreutils; a hang must be killable" >&2
+    exit 1
+  fi
+fi
+
+run_capped() {
+  echo "hostile:corpus: $* (GOMEMLIMIT=$memlimit, timeout=${wall}s)"
+  if GOMEMLIMIT="$memlimit" "$timeout_bin" "$wall" "$@"; then
+    return 0
+  fi
+  rc=$?
+  if [ "$rc" -eq 124 ]; then
+    echo "hostile:corpus: command wedged past the ${wall}s budget — hang is a failure" >&2
+  else
+    echo "hostile:corpus: command failed (exit $rc) — a panic or out-of-memory abort under the cap is a failure" >&2
+  fi
+  return 1
+}
+
+# 1. The raw malformed corpus through the dicomweb parsers.
+run_capped go test -count=1 ./internal/hostilecorpus/...
+# 2. Every committed fuzz SEED corpus, replayed once each under the same cap (no -fuzz).
+run_capped go test -count=1 -run '^Fuzz' ./dicom/... ./dimse/pdu/... ./hl7v2/... ./fhir/r5/... ./dicomweb/...
+
+echo "hostile:corpus: malformed corpus + fuzz seeds replayed under the memory cap with no OOM/panic/hang"
 """
 
 [tasks."bench"]

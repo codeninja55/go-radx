@@ -97,6 +97,16 @@ jobs:
         # it to speed the step up. The codecs and interop jobs intentionally run without -race — see
         # the cross-cutting posture for why the race gate is the pure-Go unit-test gate.
         run: mise run cover:check
+      - name: critical-path coverage gate (90% on the untrusted-input + conversion core)
+        # On top of the module-wide 80% floor, enforce a per-package 90% target on the critical
+        # paths — the parsers, codecs, transport, and conversion core (docs/conformance/cross-cutting.md
+        # "Coverage targets and critical-path enumeration"). cover-check.sh above already ran `cover`,
+        # which wrote coverage.out; this step reuses that same merged race profile rather than running
+        # a second race suite. It FAILS if an ENFORCED critical-path package drops below 90% or a
+        # RATCHET (TODO-toward-90%) package regresses below its recorded baseline. The set that
+        # enforces 90% today vs. the documented TODO is recorded in tools/cover-critical.sh and
+        # cross-cutting.md.
+        run: tools/cover-critical.sh coverage.out
 
   conformance:
     name: DICOM conformance (dciodvfy + pydicom, enforced)
@@ -439,6 +449,96 @@ jobs:
         run: go test -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
       - name: Lint with codec tags
         run: mise exec -- golangci-lint run --build-tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./...
+      # Race pass over the codec entry points, using the clean Release-built libs above (BEFORE the
+      # ASAN rebuild — the race runtime and the ASAN runtime both intercept allocation, so they are
+      # never combined in one binary). The codec transcoders are synchronous per-call functions today,
+      # so this is a guard that a future concurrent codec path (a worker pool, shared mutable state)
+      # cannot land a Go data race unnoticed; the hostile-input subprocess harness also exercises the
+      # decode path under it. This is the codec-scoped complement to the pure-Go standing race gate.
+      - name: Race pass over codec packages
+        run: go test -race -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
+      # Clang is the compiler for the whole ASAN/UBSan pass (the rebuild below and the `go test -asan`
+      # step). ubuntu-latest defaults cgo/cmake to GCC, and GCC rejects `-shared-libasan` (it links
+      # libasan statically and has no such flag), so a GCC configure fails before any sanitizer runs.
+      # Clang accepts `-shared-libasan`, which lets the instrumented C libraries and `go test -asan`
+      # (which preloads its own ASAN runtime) share ONE shared ASAN runtime instead of fighting two
+      # static copies. clang/clang++ are preinstalled on ubuntu-latest; install fail-safe in case the
+      # image drops them.
+      - name: Install clang for the ASAN pass
+        run: sudo apt-get install -y clang
+      # Rebuild the three codec libraries from the cached, already-verified source with AddressSanitizer
+      # + UndefinedBehaviorSanitizer instrumentation, installed over the Release libs (this runs after
+      # the Release build/test/lint and the race pass, which used the clean libs). CC/CXX force clang so
+      # -shared-libasan is accepted (see the install step). -shared-libasan links the shared ASAN runtime
+      # so `go test -asan` and the instrumented C libraries agree on one runtime. -fno-omit-frame-pointer
+      # keeps the C stack legible in any report. The source is already extracted and SHA-256-verified by
+      # the build steps above, so this only recompiles.
+      #
+      # -fsanitize-ignorelist=tools/ubsan-ignorelist.txt excludes the vendored codec source trees
+      # (OpenJPEG/CharLS/libjpeg-turbo) from UBSan instrumentation. Strict UBSan's -fsanitize=function
+      # fires on upstream C function-pointer casts inside those libraries (e.g. openjpeg.c:434 calling
+      # opj_j2k_setup_decoder through a generic pointer type) that are legitimate by C convention and
+      # not go-radx code. AddressSanitizer is unaffected by the ignorelist, so memory-safety
+      # instrumentation of the codec internals stays fully on -- the point of the pass.
+      - name: Rebuild codec libs with ASAN + UBSan
+        env:
+          CC: clang
+          CXX: clang++
+          SAN_FLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -shared-libasan -fsanitize-ignorelist=${{ github.workspace }}/tools/ubsan-ignorelist.txt"
+        run: |
+          set -e
+          for d in openjpeg-2.5.4 libjpeg-turbo-3.1.4 charls-2.4.3; do
+            extra=""
+            # libjpeg-turbo uses ENABLE_SHARED rather than BUILD_SHARED_LIBS and a non-default prefix.
+            case "$d" in
+              libjpeg-turbo-*) extra="-DENABLE_SHARED=ON -DCMAKE_INSTALL_PREFIX=/usr/local" ;;
+              *)               extra="-DBUILD_SHARED_LIBS=ON" ;;
+            esac
+            cmake -S "$d" -B "$d/build-asan" -DCMAKE_BUILD_TYPE=RelWithDebInfo $extra \
+              -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+              -DCMAKE_C_FLAGS="$SAN_FLAGS" -DCMAKE_CXX_FLAGS="$SAN_FLAGS"
+            cmake --build "$d/build-asan" -j"$(nproc)"
+            sudo cmake --install "$d/build-asan"
+          done
+          sudo ldconfig
+      # ASAN + UBSan pass over the codec tests, including the hostile-pixel-data corpora
+      # (codec_*_hostile_test.go). `go test -asan` instruments the Go heap and the cgo boundary; the
+      # ASAN-rebuilt C libraries above add the codec internals, so a heap-buffer-overflow,
+      # use-after-free, or undefined-behaviour fault on a malformed JPEG/JPEG2000/JPEG-LS/HTJ2K
+      # codestream aborts the test instead of silently corrupting memory. halt_on_error=1 and
+      # abort_on_error=1 make the FIRST fault fail the job; print_stacktrace=1 names the offending
+      # frame. -asan is supported on linux/amd64 (this runner) but NOT darwin/arm64, so this pass is
+      # CI-only — it does not run on a macOS dev box. If a sanitizer flags a real fault, fix it; do
+      # not suppress it.
+      - name: ASAN + UBSan pass over codec tests (hostile pixel data)
+        env:
+          # cgo must compile the C boundary with clang too, so it links the SAME clang shared ASAN
+          # runtime the codec libs were rebuilt against above; a GCC-compiled cgo boundary would pull in
+          # GCC's static libasan and the two runtimes would clash at load.
+          CC: clang
+          CXX: clang++
+          CGO_CFLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -shared-libasan -fsanitize-ignorelist=${{ github.workspace }}/tools/ubsan-ignorelist.txt"
+          CGO_LDFLAGS: "-fsanitize=address,undefined -shared-libasan"
+          ASAN_OPTIONS: "halt_on_error=1:abort_on_error=1:detect_leaks=0:print_stacktrace=1"
+          UBSAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+          # The hostile-input subprocess harness bounds each decode with a per-input deadline so a hang
+          # fails the test (DCM-015). ASAN instrumentation slows a terminating decode by 2-20x, which can
+          # push a legitimately-terminating case past the tight normal-run deadline; RADX_ASAN=1 tells the
+          # harness to use the generous sanitizer-mode budget instead of globally weakening the fast guard.
+          RADX_ASAN: "1"
+        run: |
+          # -shared-libasan links the test binary against libclang_rt.asan-x86_64.so, which lives in
+          # clang's resource dir (lib/linux) — NOT on the default loader path, so without this the
+          # binary fails at startup with "libclang_rt.asan-x86_64.so: cannot open shared object file".
+          # Derive the dir from the clang in use (version-agnostic) and fall back to a find if the
+          # canonical lib/linux layout differs on this clang build.
+          asan_dir="$(clang -print-resource-dir)/lib/linux"
+          if [ ! -e "$asan_dir/libclang_rt.asan-x86_64.so" ]; then
+            found="$(find "$(clang -print-resource-dir)" -name 'libclang_rt.asan-x86_64.so' -print -quit 2>/dev/null || true)"
+            [ -n "$found" ] && asan_dir="$(dirname "$found")"
+          fi
+          export LD_LIBRARY_PATH="${asan_dir}:${LD_LIBRARY_PATH:-}"
+          go test -asan -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
 
   phi-sanity:
     # The PHI-default sweep (internal/phisweep) asserts the project's "no PHI in logs unless the
@@ -505,6 +605,43 @@ jobs:
             go-1.26.4-${{ runner.os }}-root-
       - name: Fuzz targets (bounded, hang = failure)
         run: mise run fuzz
+
+  hostile-corpus:
+    # Hostile-input memory-capped corpus gate. Replays the committed malformed-input corpus
+    # (dicomweb/testdata/malformed plus every Go-fuzz seed corpus) through its parsers under an
+    # ENFORCED memory ceiling (GOMEMLIMIT) and a wall-clock timeout, asserting no parser OOMs, panics,
+    # or hangs on hostile bytes. This is distinct from the `fuzz` job (which mutates outward from the
+    # seeds for a fixed budget): this gate proves the FIXED, committed corpus survives a tight memory
+    # cap on every run — the in-process trust-boundary defence of PRD §9.3. GOWORK=off scopes it to the
+    # root module; the harness lives at internal/hostilecorpus and the run is driven by the
+    # `hostile:corpus` mise task so CI and `mise run hostile:corpus` stay in agreement.
+    name: Hostile-input corpus (memory-capped, OOM/panic/hang = failure)
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Point the Go caches outside the checkout via a step: $RUNNER_TEMP is a shell variable here,
+      # whereas ${{ runner.temp }} in a job-level env block is an invalid context that fails the
+      # workflow at parse time (a startup failure with zero jobs).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
+      - name: Replay malformed corpus under the memory cap
+        run: mise run hostile:corpus
 
   benchmark-baseline:
     # Run every dicom and fhir benchmark once (-benchtime=1x, -run='^$' so no unit tests run) so the

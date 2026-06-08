@@ -1,0 +1,22 @@
+# UBSan ignorelist for the codecs ASAN + UBSan pass (.github/workflows/ci.yml).
+#
+# Scope decision: the sanitizer gate exists to catch memory-safety and undefined-behaviour
+# faults in go-radx's own code -- the cgo glue, our codec usage, and the Go heap across the
+# cgo boundary. It must NOT gate on style/UB inside the third-party C pixel codecs we vendor
+# and build from source. Those libraries are upstream code we do not own; their internal
+# function-pointer casts (e.g. OpenJPEG calling opj_j2k_setup_decoder through a generic
+# function-pointer type, openjpeg.c:434) are legitimate by C convention but trip strict
+# UBSan's -fsanitize=function check. We exclude the vendored codec source trees from UBSan
+# instrumentation so the gate stays focused on go-radx.
+#
+# AddressSanitizer (address) is unaffected by this file -- only UBSan reads the ignorelist,
+# so memory-safety instrumentation of the vendored codecs stays fully on.
+#
+# Format: clang SanitizerSpecialCaseList (https://clang.llvm.org/docs/SanitizerSpecialCaseList.html).
+# src: globs match the source file path at compile time; the codecs are built from extracted
+# tarballs whose top-level dirs are openjpeg-2.5.4 / libjpeg-turbo-3.1.4 / charls-2.4.3.
+
+[undefined]
+src:*/openjpeg-*/*
+src:*/charls-*/*
+src:*/libjpeg-turbo-*/*

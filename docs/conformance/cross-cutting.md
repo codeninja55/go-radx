@@ -179,9 +179,13 @@ floor are enforced by one run rather than two.
 
 The 80% aggregate is a floor on the whole module, not a guarantee on the paths that carry patient data. The critical
 paths below carry a higher **90%** target so coverage is a guarantee where a defect is most consequential. This target
-is enumerated here as the standing contract; it is **not yet a separate enforced gate** — only the 80% aggregate is
-merge-blocking today, and raising the critical-path packages to a per-path 90% check is tracked Phase-1 work. The
-critical paths, with the primary files each comprises, are:
+is **enforced as a separate gate** by [`tools/cover-critical.sh`](../../tools/cover-critical.sh), run in the
+`lint-test` job's "critical-path coverage gate" step directly after the 80%-floor step (and locally via
+`mise run cover:critical`). It reuses the *same* merged race profile the 80% floor reads — the single
+`go test -race -covermode=atomic -coverpkg=./... ./...` the `cover` task already wrote — so the two gates share one
+race run rather than two, and it computes per-package *union* coverage (every test binary's contribution to a package's
+own statements, generated files excluded) the same way the floor does. The critical paths, with the primary files each
+comprises, are:
 
 - **Part 10 reader / writer** (`dicom`): `file.go`, `file_meta.go`, `file_meta_write.go`, `dataset.go`,
   `dataset_codec.go`, `dataset_stream.go`, `dataset_writefile.go`, `element_header.go`, `reader_writer.go`,
@@ -199,7 +203,36 @@ critical paths, with the primary files each comprises, are:
 
 The file lists name the units the 90% target protects; they track the source tree and are re-checked when the tree
 moves. A new critical path (a new standard subsystem, or a new server entry point on an existing one) is added to this
-enumeration as it ships, so it stays the authoritative map of what the coverage contract is meant to guarantee.
+enumeration as it ships, so it stays the authoritative map of what the coverage contract is meant to guarantee. The set
+deliberately **excludes** the generated FHIR R4/R5 trees (`fhir/r4`, `fhir/r5`), which are gated by the byte-for-byte
+regeneration test rather than unit coverage, and the pure-glue packages (`dicomweb/auth/*`, `server`, `logging`); the
+`fhir` entry above is the hand-written validate/decode core (`validate.go`, `resource.go`, `primitive.go`,
+`binding.go`), not the generated tree.
+
+Honesty over a green dashboard: raising every critical-path package to 90% is a larger test effort than one increment,
+so rather than lower the 90% bar or silently exclude the packages still short of it, the gate splits the set in two and
+the short packages are a documented TODO carried in [`tools/cover-critical.sh`](../../tools/cover-critical.sh):
+
+- **Enforced at 90% today.** `dimse/dul` (94.5%). The gate FAILS if it drops below 90%. This is the live, biting 90%
+  contract.
+- **Ratchet (TODO toward 90%).** The remaining critical-path packages are below 90% on union coverage today and are
+  being brought up: `hl7v2` (89.9%), `dimse/pdu` (89.7%), `fhir` (88.7%), `dicom` (85.8%), `dimse` (83.8%),
+  `dimse/acse` (83.4%), `convert` (81.8%), and `dicomweb` (80.1%). Each carries a recorded baseline in the gate; the
+  gate FAILS if any regresses more than **0.5 percentage points** below its baseline, so a TODO package can only move
+  toward 90%, never meaningfully backslide. The 0.5pp tolerance is deliberate, not a hidden weakening: union coverage
+  from the `-race -coverpkg=./...` run is not bit-stable run-to-run (which tests exercise cross-package code shifts
+  slightly under `-race` timing), so a baseline pinned to the exact measured value false-fails on sub-1% noise. The
+  tolerance absorbs that jitter while still catching a real regression (a drop of more than 0.5pp). It applies only to
+  the per-package no-regression baseline; the 90% target itself carries **no** tolerance — it is a fixed bar, and an
+  enforced package must be at or above 90.0%. When a ratchet package reaches 90% the gate prints an **advisory**
+  `PROMOTE` notice — it *suggests* moving the package into the enforced set and updating this list, but it does **not**
+  fail the gate. A gate must fail on a regression, never on an improvement: a ratchet package jittering up to or over
+  90% is the build working, not breaking, so failing on it would block the very progress the ratchet exists to
+  encourage. Some ratchet packages oscillate around the 90.0 boundary (`hl7v2`, for example, wobbles ~89.9-90.1%
+  run-to-run), so they are left in the ratchet rather than auto-promoted: the 0.5pp baseline tolerance plus the advisory
+  promote handle both directions, whereas the hard 90.0% enforced bar would false-fail on a downward jitter. The
+  percentages above are the union-coverage numbers measured at the time of writing; re-run
+  `tools/cover-critical.sh <profile>` to print the current figures.
 
 ## Concurrency and race posture
 
@@ -223,20 +256,56 @@ coverage did not weaken the race gate; the two are coupled by construction. The 
 it is not opt-in per package and a new package inherits it the moment it has a test binary, because `./...` enumerates
 the whole module.
 
-The standing race gate is the **pure-Go default unit-test build** gate. Two test surfaces sit outside it by deliberate
-scope decision, not omission. The `codecs` job builds the C-backed pixel codecs (`OpenJPEG`, `libjpeg-turbo`,
-`CharLS`) under cgo with the `dicom_openjpeg dicom_libjpeg dicom_charls` build tags; its `go test -tags "…" ./dicom/...`
-step runs **without** `-race`. The race detector instruments Go memory access, not the C libraries the codecs link, so
-a `-race` run there would slow the from-source codec build without exercising a new concurrent Go surface — the codec
-entry points are synchronous, per-call transcoders with no goroutines of their own. The `interop` matrix legs
-(`mise run interop:<leg>`) also run without `-race`: they are `go test -tags interop -count=1` runs that drive real
+The standing race gate is the **pure-Go default unit-test build** gate, but it is no longer the *only* race surface. The
+`codecs` job builds the C-backed pixel codecs (`OpenJPEG`, `libjpeg-turbo`, `CharLS`) under cgo with the
+`dicom_openjpeg dicom_libjpeg dicom_charls` build tags, and after its Release `go test -tags "…" ./dicom/...` step it
+runs two sanitiser passes over the codec packages:
+
+- **A `-race` pass** (`go test -race -tags "…" ./dicom/...`) against the clean Release-built libraries. The codec
+  transcoders are synchronous per-call functions today with no goroutines of their own, so this is a guard that a
+  future concurrent codec path (a worker pool, shared mutable state) cannot land a Go data race unnoticed; it also runs
+  the hostile-input subprocess harness under `-race`.
+- **An ASAN + UBSan pass** (`go test -asan -tags "…" ./dicom/...`) against the codec libraries *rebuilt from the
+  cached, SHA-256-verified source with `-fsanitize=address,undefined -shared-libasan`*. Go's `-asan` instruments the Go
+  heap and the cgo boundary; the ASAN-rebuilt C libraries add the codec internals, so a heap-buffer-overflow,
+  use-after-free, or undefined-behaviour fault on a malformed JPEG/JPEG2000/JPEG-LS/HTJ2K codestream
+  (`codec_*_hostile_test.go`) aborts the job (`ASAN_OPTIONS`/`UBSAN_OPTIONS` set `halt_on_error=1`) rather than silently
+  corrupting memory. `-race` and `-asan` are never combined in one binary (both runtimes intercept allocation), so they
+  run as two passes; `-asan` is supported on the linux/amd64 runner but **not** darwin/arm64, so the ASAN pass is
+  CI-only and does not run on a macOS dev box. If a sanitiser flags a real fault it is fixed, not suppressed.
+
+  **Scope of the sanitiser gate.** AddressSanitizer (memory safety) runs in full across everything — go-radx's cgo
+  glue, the cgo boundary, the Go heap, and the vendored codec internals — and is never narrowed. UBSan, by contrast,
+  does **not** gate on style or function-pointer undefined behaviour *inside* the vendored upstream codecs
+  (OpenJPEG 2.5.4, CharLS 2.4.3, libjpeg-turbo 3.1.4). Strict UBSan's `-fsanitize=function` fires on those libraries'
+  own function-pointer casts — for example OpenJPEG calling `opj_j2k_setup_decoder` through a generic function-pointer
+  type at `openjpeg.c:434` — which are legitimate by C convention but are third-party code go-radx neither owns nor
+  can fix upstream. The codec source trees are therefore excluded from UBSan instrumentation via a committed
+  ignorelist ([`tools/ubsan-ignorelist.txt`](../../tools/ubsan-ignorelist.txt), wired into `-fsanitize-ignorelist` for
+  both the codec rebuild and the test step). UBSan still fully checks go-radx's own code and the cgo glue; the
+  ignorelist only suppresses UBSan, not ASAN, so memory-safety coverage of the codec internals is untouched. In short:
+  the gate covers go-radx memory safety, the cgo boundary, and our codec usage; it does not police upstream OpenJPEG /
+  CharLS / libjpeg-turbo for style-level UB.
+
+  **One quarantined HTJ2K seed under ASAN.** The ASAN gate keeps memory-safety instrumentation on across everything,
+  including the vendored codec internals (it is never broadly narrowed). One hostile seed is the single exception: the
+  `zero_filled` case in `TestHTJ2KHostileInputs` (`codec_htj2k_hostile_test.go`) is skipped *only* when the ASAN step
+  exports `RADX_ASAN=1`. That input triggers a latent out-of-bounds read inside OpenJPEG 2.5.4's HT (HTJ2K) decoder; in
+  the normal build the codec rejects it cleanly with a typed `*jpeg2000Error`, but ASAN converts the upstream OOB into a
+  hard SIGSEGV. This is a known upstream OpenJPEG memory-safety bug, tracked in
+  [#107](https://github.com/codeninja55/go-radx/issues/107), not a go-radx defect. The seed still runs and passes in
+  every non-ASAN pass (the standard build, the `-race` pass, and the non-sanitizer codecs run), so the input is still
+  exercised; only the ASAN pass quarantines it, and only that one subcase — the rest of the HTJ2K hostile corpus, and
+  all other codecs, run under ASAN unchanged.
+
+One test surface still sits outside the race detector by deliberate scope decision: the `interop` matrix legs
+(`mise run interop:<leg>`) run without `-race`. They are `go test -tags interop -count=1` runs that drive real
 containerised origin servers (Orthanc, dcm4chee-arc), where the failure modes that matter are wire-protocol and
 round-trip correctness against an external server, not in-process Go data races, and a `-race` build would add
 instrumentation overhead to an already container-bound, resource-heavy leg. The concurrency that matters in-process
-lives in the pure-Go servers, which the `lint-test` race gate covers in full. If a future codec path spawns goroutines
-or shares mutable state across calls, or an interop test grows an in-process concurrent client harness worth racing,
-that decision is revisited and a `-race` run is added at that point; until then the codec and interop gates stay
-correctness gates, and the race gate stays the pure-Go unit-test gate.
+lives in the pure-Go servers, which the `lint-test` race gate covers in full. If an interop test grows an in-process
+concurrent client harness worth racing, that decision is revisited and a `-race` run is added at that point; until then
+the interop gate stays a correctness gate.
 
 ### Per-server race checklist
 
@@ -298,6 +367,43 @@ surface produced it, nor to assert it is a test-harness artefact rather than a r
 loop (`go test -race -count=N -run …`), localise it, and either fix the underlying race or prove the flake is in test
 setup. Until then the standing-race-gate claim is accurate but not absolute: the gate runs on every change and the
 current concurrent code passes it, yet one historical intermittent remains open and unexplained.
+
+## Hostile-input robustness
+
+go-radx parses untrusted bytes on every trust boundary — a DICOM Part 10 stream, a DIMSE PDU, an HL7 v2 frame, a
+DICOMweb JSON or multipart body, a FHIR resource, and a compressed pixel codestream. The robustness contract (PRD §9.3)
+is that a malformed, truncated, oversized, or adversarial input must surface a *typed error* rather than panic, hang, or
+exhaust memory. Two CI gates hold that contract.
+
+### Bounded fuzz smoke
+
+The `fuzz` job runs a bounded smoke pass over every committed fuzz target. The target list is *discovered* from
+`go test -list '^Fuzz'` (the `fuzz` mise task), not hand-maintained, so it cannot drift out of step with the tree; each
+target runs for a fixed `-fuzztime` against its seed corpus, wrapped in coreutils `timeout` so a wedged target is killed
+and the gate bites — a hang is a FAILURE, never a skip. This is a regression gate that mutates outward from the seeds,
+not a fuzzing campaign.
+
+### Hostile-input memory-capped corpus
+
+The `hostile-corpus` job (`mise run hostile:corpus`) replays the *fixed, committed* malformed-input corpus through its
+parsers under an **enforced memory ceiling** and a wall-clock timeout, asserting no parser OOMs, panics, or hangs on
+hostile bytes. Where the `fuzz` job explores outward from the seeds, this gate proves the committed corpus survives a
+tight memory cap on every run. It is two passes, both run as `GOMEMLIMIT=<cap> timeout <wall> go test …`:
+
+- **The raw malformed corpus.** The harness at [`internal/hostilecorpus`](../../internal/hostilecorpus) walks the
+  on-disk corpus under [`dicomweb/testdata/malformed`](../../dicomweb/testdata/malformed) — the DICOM-JSON and
+  multipart/related files that are byte-for-byte the parser inputs — and feeds each to the exported `dicomweb`
+  parsers (`UnmarshalJSON`; `NewMultipartReader` + a `NextPart` drain), mirroring the consumption convention the
+  package fuzz targets use. It recovers any panic into a named failure and logs the peak heap each file drove so a
+  creep toward the cap is visible before it becomes an OOM.
+- **The Go-fuzz seed corpora.** A plain `go test -run '^Fuzz'` of the `dicom`, `dimse/pdu`, `hl7v2`, `fhir/r5`, and
+  `dicomweb` packages replays every committed seed once as a subtest (no `-fuzz`), so each parser's seeds cross it under
+  the same cap.
+
+The enforcement is the process, not the test code: `GOMEMLIMIT` is a soft limit the GC works to honour, set well above
+the corpus's tiny logged peak heap, so a parser that over-allocates past it is taken into a hard out-of-memory abort (a
+non-zero exit, a FAILURE), and a parser that wedges is killed by `timeout` (exit 124, also a FAILURE). The cap and wall
+budget are tunable via `HOSTILE_MEMLIMIT` and `HOSTILE_TIMEOUT`; the defaults are a 512 MiB cap and a 300 s wall.
 
 ## Conformance-drift methodology
 
@@ -365,26 +471,32 @@ release is tagged.
 
 ## Gate enforcement status
 
-The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines thirteen jobs.
+The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines fourteen jobs.
 The core build and test jobs are:
-`lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, the `pin-drift` check, and
-the standing [`-race` gate](#concurrency-and-race-posture) step that also enforces the
-[coverage floor](#coverage-targets-and-critical-path-enumeration)),
+`lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, the `pin-drift` check, the
+standing [`-race` gate](#concurrency-and-race-posture) step that also enforces the
+[80% coverage floor](#coverage-targets-and-critical-path-enumeration), and the
+[critical-path coverage gate](#coverage-targets-and-critical-path-enumeration) step that enforces the per-package 90%
+target on the untrusted-input and conversion core),
 `conformance` (the `dciodvfy` and `pydicom` gates with `CI=true`),
 `fhir-conformance` (the FHIR R4 + R5 conformance gate that marshals the go-radx workflow set and validates it with the
 pinned HL7 validator), `interop` (the testcontainers matrix over the DIMSE,
 DICOMweb, and convert legs), `govulncheck` (the vulnerability scan of the root module), `cmd-radx` (build, vet, lint,
-and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed pixel codecs built from source).
+and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed pixel codecs built from source, then a
+[`-race` pass and an ASAN + UBSan pass](#concurrency-and-race-posture) over the codec tests including the hostile
+pixel-data corpora).
 
-The Phase 0 Lane-A artifacts are wired as their own jobs so each runs on every push and pull request:
-`phi-sanity` (the PHI-default log sweep, `internal/phisweep`), `fuzz` (a bounded smoke run over all five fuzz
-targets — `FuzzRead` and `FuzzReadPixelDataFrom` in `dicom`, `FuzzReadPDU`, `FuzzDecodeAssociateAC`, and
-`FuzzDecodePDV` in `dimse/pdu` — each wrapped in `timeout` so a hang is a failure, never a skip),
+The Phase 0 Lane-A artifacts and the hostile-input gates are wired as their own jobs so each runs on every push and pull
+request: `phi-sanity` (the PHI-default log sweep, `internal/phisweep`), `fuzz` (a bounded smoke run over every committed
+fuzz target — the list is discovered from `go test -list '^Fuzz'` rather than hand-maintained, each target wrapped in
+`timeout` so a hang is a failure, never a skip; see [Bounded fuzz smoke](#bounded-fuzz-smoke)),
+`hostile-corpus` (the [hostile-input memory-capped corpus gate](#hostile-input-memory-capped-corpus) that replays the
+malformed corpus and the fuzz seed corpora under `GOMEMLIMIT` + `timeout`, so an OOM, panic, or hang is a failure),
 `benchmark-baseline` (a run-once pass
 over the `dicom` benchmarks so the benchmark code and the committed baselines under `docs/conformance/benchmarks/`
 cannot rot), `conformance-drift` (the drift check at `tools/conformance-drift`), `docs` (the strict
 `mkdocs build --strict` site build on a pinned `mkdocs` toolchain), and `tracked-binary-hygiene` (fails if a compiled
-binary is tracked under `cmd/`, which is committed as source only). All thirteen jobs report status on every pull
+binary is tracked under `cmd/`, which is committed as source only). All fourteen jobs report status on every pull
 request.
 
 They are **currently advisory, not merge-blocking.** The `main` branch ruleset exists but its enforcement is set to
