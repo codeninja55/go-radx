@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 
 	"github.com/alecthomas/kong"
@@ -158,7 +159,11 @@ func isFileIOError(err error) bool {
 // types and their internal acse/dul/pdu causes (a public *dimse error usually wraps one), a
 // non-success DIMSE terminal status promoted to a *StatusError, an application-level protocol
 // rejection promoted to a *ProtocolErr (an HL7 v2 AE/AR ack), the Storage Commitment failure,
-// and the DICOMweb HTTP/store transport failures.
+// the DICOMweb HTTP/store transport failures, and the raw transport errors the standard library
+// raises before any typed wrapper is built: a refused connection, a reset, or a timeout dialling
+// the DICOMweb or HL7 v2 endpoint surfaces as a wrapped *net.OpError or as a value satisfying the
+// net.Error interface, which would otherwise fall through to the general floor (exit 1) rather than
+// the network class (exit 4) the taxonomy assigns to a broken conversation.
 func isNetworkError(err error) bool {
 	var (
 		statusErr     *StatusError
@@ -176,6 +181,8 @@ func isNetworkError(err error) bool {
 		storeErr      *dicomweb.StoreError
 		failReasonErr *dicomweb.FailureReasonError
 		crossOrigin   *dicomweb.CrossOriginBulkDataError
+		opErr         *net.OpError
+		netErr        net.Error
 	)
 	switch {
 	case errors.As(err, &statusErr),
@@ -192,7 +199,9 @@ func isNetworkError(err error) bool {
 		errors.As(err, &httpErr),
 		errors.As(err, &storeErr),
 		errors.As(err, &failReasonErr),
-		errors.As(err, &crossOrigin):
+		errors.As(err, &crossOrigin),
+		errors.As(err, &opErr),
+		errors.As(err, &netErr):
 		return true
 	}
 	return errors.Is(err, dicomweb.ErrCrossOriginBulkData)
