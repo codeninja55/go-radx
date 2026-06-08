@@ -129,7 +129,15 @@ func (r *FHIRRole) start(_ context.Context, host string, env roleEnv) error {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle(r.cfg.basePath+"/", http.StripPrefix(r.cfg.basePath, handler))
+	stripped := http.StripPrefix(r.cfg.basePath, handler)
+	// Register both the exact base path and its subtree. The subtree pattern ("/fhir/") drives the
+	// typed routes ("/fhir/Patient", "/fhir/metadata"), but net/http's ServeMux answers a request for
+	// the exact base with no trailing slash ("/fhir") with a 301 subtree redirect, which turns a POST
+	// into a 405 and never reaches the transaction handler. The transaction interaction is the system
+	// root POST, and the client's Transaction posts to exactly the base, so the exact pattern must
+	// route too — otherwise the client cannot run a transaction against this very server.
+	mux.Handle(r.cfg.basePath, stripped)
+	mux.Handle(r.cfg.basePath+"/", stripped)
 	wrapped := authMiddleware(env.auth, env.logger, mux)
 
 	addr := joinHostPort(host, r.cfg.port)

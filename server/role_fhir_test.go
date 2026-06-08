@@ -14,6 +14,7 @@ import (
 	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r4"
 	"github.com/codeninja55/go-radx/fhir/r5"
+	"github.com/codeninja55/go-radx/fhir/rest"
 )
 
 // startFHIRDaemon mounts a FHIR role over an in-memory repository of the given release on a loopback
@@ -240,6 +241,74 @@ func TestFHIRRoleTransaction(t *testing.T) {
 	}
 }
 
+// TestFHIRRoleClientTransactionAtBase drives the real fhir/rest client's Transaction against the
+// in-process role, proving the client and the server agree on the transaction endpoint: the client
+// POSTs to the exact base path (no trailing slash), and the role must route that to the transaction
+// handler rather than answering a subtree-redirect 405. This is the end-to-end guard for the base
+// path registration — a client cannot run a transaction against its own server unless the exact base
+// is served.
+func TestFHIRRoleClientTransactionAtBase(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			// A raw POST to the exact base (no trailing slash, no redirect-following) must reach the
+			// transaction handler directly: a 200 with a transaction-response, never a 3xx subtree
+			// redirect. Redirect-following clients would mask the registration gap, so this asserts the
+			// exact-base pattern serves the POST without a bounce.
+			noRedirect := &http.Client{
+				CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+			}
+			req, err := http.NewRequest(http.MethodPost, base, bytes.NewReader(transactionRequestBundle(t, release)))
+			if err != nil {
+				t.Fatalf("NewRequest: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/fhir+json")
+			rawResp, err := noRedirect.Do(req)
+			if err != nil {
+				t.Fatalf("raw POST to exact base: %v", err)
+			}
+			_ = rawResp.Body.Close()
+			if rawResp.StatusCode != http.StatusOK {
+				t.Fatalf("raw POST to exact base status = %d, want 200 (a 3xx means the exact base redirects instead of serving the transaction)", rawResp.StatusCode)
+			}
+
+			client, err := rest.NewClient(release, base)
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+			bundle := transactionBundleResource(t, release)
+
+			resp, err := client.Transaction(context.Background(), bundle)
+			if err != nil {
+				t.Fatalf("client.Transaction against the in-process role: %v", err)
+			}
+			if resp.ResourceType() != "Bundle" {
+				t.Fatalf("transaction response resourceType = %q, want Bundle", resp.ResourceType())
+			}
+			out, _ := json.Marshal(resp)
+			var decoded struct {
+				Type  string `json:"type"`
+				Entry []struct {
+					Response struct {
+						Status string `json:"status"`
+					} `json:"response"`
+				} `json:"entry"`
+			}
+			if err := json.Unmarshal(out, &decoded); err != nil {
+				t.Fatalf("transaction response decode: %v", err)
+			}
+			if decoded.Type != "transaction-response" {
+				t.Errorf("transaction response type = %q, want transaction-response", decoded.Type)
+			}
+			if len(decoded.Entry) != 1 || !strings.HasPrefix(decoded.Entry[0].Response.Status, "201") {
+				t.Errorf("transaction response entries = %+v, want one 201 response", decoded.Entry)
+			}
+		})
+	}
+}
+
 func TestFHIRRoleCapabilityStatement(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -385,6 +454,36 @@ func advertisesResourceInteraction(resources []struct {
 		}
 	}
 	return false
+}
+
+// transactionBundleResource builds a single-entry transaction Bundle (one Patient create) as a
+// fhir.Resource, for the client Transaction and the repository rollback tests.
+func transactionBundleResource(t *testing.T, release fhir.Release) fhir.Resource {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		g := r4.AdministrativeGender("female")
+		b, err := r4.NewTransaction(r4.TransactionEntry{
+			Resource: &r4.Patient{Gender: &g},
+			Method:   r4.HTTPVerbPOST,
+			URL:      "Patient",
+		})
+		if err != nil {
+			t.Fatalf("r4 NewTransaction: %v", err)
+		}
+		return b
+	default:
+		g := r5.AdministrativeGender("female")
+		b, err := r5.NewTransaction(r5.TransactionEntry{
+			Resource: &r5.Patient{Gender: &g},
+			Method:   r5.HTTPVerbPOST,
+			URL:      "Patient",
+		})
+		if err != nil {
+			t.Fatalf("r5 NewTransaction: %v", err)
+		}
+		return b
+	}
 }
 
 func transactionRequestBundle(t *testing.T, release fhir.Release) []byte {
