@@ -2,11 +2,13 @@ package command
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -198,6 +200,44 @@ func TestDICOMwebStowWithoutStudyTargetsRoot(t *testing.T) {
 	}
 	if gotPath != "/studies" {
 		t.Errorf("STOW-RS request path = %q, want /studies (no --study posts to the root target)", gotPath)
+	}
+}
+
+// TestDICOMwebQidoCSVRendersMatchedValues is the load-bearing regression for the QIDO CSV emitter: a
+// --match key=value must render the matched column populated, not an empty cell from parsing the tag
+// out of the unstripped "key=value" string. PatientID here is a synthetic sentinel, never real PHI.
+func TestDICOMwebQidoCSVRendersMatchedValues(t *testing.T) {
+	const sentinel = "QIDO-SENTINEL-001"
+	url, backend := startDICOMwebServer(t)
+	ds := webInstance("1.2.902.1", "1.2.902.2", "1.2.902.3")
+	ds.SetString(dicom.TagPatientID, sentinel)
+	_ = backend.Store(context.Background(), ds)
+
+	stdout, stderr, code := runRadx(t, "dicomweb", "qido", "--format", "csv", "--url", url,
+		"--level", "studies", "--match", "PatientID="+sentinel)
+	if code != exitcode.Success {
+		t.Fatalf("qido exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+
+	records, err := csv.NewReader(strings.NewReader(stdout)).ReadAll()
+	if err != nil {
+		t.Fatalf("qido csv is not parseable: %v\nstdout=%q", err, stdout)
+	}
+	if len(records) < 2 {
+		t.Fatalf("want a header and at least one match row, got %d records:\n%s", len(records), stdout)
+	}
+	header := records[0]
+	col := -1
+	for i, name := range header {
+		if name == "PatientID" {
+			col = i
+		}
+	}
+	if col < 0 {
+		t.Fatalf("PatientID column missing from header %v", header)
+	}
+	if got := records[1][col]; got != sentinel {
+		t.Errorf("PatientID cell = %q, want %q (CSV emitter dropped the matched value)", got, sentinel)
 	}
 }
 

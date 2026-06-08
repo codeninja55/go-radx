@@ -281,7 +281,10 @@ func (c *DICOMwebQidoCmd) Run(rc *RunContext) error {
 		return searchErr
 	}
 
-	em := &matchEmitter{out: rc.Out, columns: c.Match}
+	// The CSV columns are the match keys only: pass the tag/keyword without its "=value" suffix so
+	// the emitter resolves each column tag (an unstripped "PatientID=123" would parse to tag
+	// 0000,0000 and render an empty cell).
+	em := &matchEmitter{out: rc.Out, columns: csvColumnsFor(c.Match)}
 	if startErr := em.start(); startErr != nil {
 		return startErr
 	}
