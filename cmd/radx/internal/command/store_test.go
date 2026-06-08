@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -63,6 +64,57 @@ func startStorageServer(t *testing.T, failInstance string) (host string, port in
 	return "127.0.0.1", tcp.Port
 }
 
+// countingStoreHandler is a Storage SCP that counts every C-STORE it answers (always success), so a
+// test can assert all assigned objects were sent over the held worker associations.
+type countingStoreHandler struct {
+	stored atomic.Int64
+}
+
+func (h *countingStoreHandler) Store(_ context.Context, _ *dicom.DataSet, _ dimse.OpInfo) dimse.Status {
+	h.stored.Add(1)
+	return dimse.StatusStoreSuccess
+}
+
+// startCountingStorageServer runs a Storage SCP on loopback that counts both the associations it
+// negotiates (via the association authorizer, which fires once per inbound association) and the
+// C-STORE operations it answers. It returns the host, port, and the two counters so a test can assert
+// associations track the worker count rather than the file count.
+func startCountingStorageServer(t *testing.T) (host string, port int, associations, stored *atomic.Int64) {
+	t.Helper()
+	ae, err := dimse.NewAE(dimse.AETitle("RADX-SCP"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	handler := &countingStoreHandler{}
+	var assocCount atomic.Int64
+	srv := dimse.NewServer(ae, dimse.StorageContexts(), handler,
+		dimse.WithAssociationAuthorizer(func(string, net.Addr) error {
+			assocCount.Add(1)
+			return nil
+		}),
+	)
+
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) && srv.Addr() == nil {
+		time.Sleep(time.Millisecond)
+	}
+	if srv.Addr() == nil {
+		t.Fatal("storage SCP did not bind within the deadline")
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		<-served
+	})
+
+	tcp := srv.Addr().(*net.TCPAddr)
+	return "127.0.0.1", tcp.Port, &assocCount, &handler.stored
+}
+
 // writeStorableDICOM writes a synthetic CT-class Part-10 file carrying the Study/Series/SOP UIDs a
 // Storage SCP needs, with a caller-chosen SOP Instance UID so a test can target it for failure.
 func writeStorableDICOM(t *testing.T, dir, sopInstanceUID string) string {
@@ -114,6 +166,103 @@ func TestStoreSuccessGolden(t *testing.T) {
 	}
 	if summary.Status != "success" || summary.Succeeded != 2 || summary.Failed != 0 {
 		t.Errorf("summary = %+v, want success 2/2", summary)
+	}
+}
+
+// TestStoreReusesOneAssociationPerWorker is the association-amortisation regression: storing many
+// objects with a small worker pool must negotiate roughly one association per worker, NOT one per
+// object. Re-associating per file is heavy ACSE overhead and risks a PACS's association-rate limits,
+// so each worker holds one association for its whole slice of work. With 12 objects over 3 workers the
+// SCP must see exactly 3 associations (each worker opens one and keeps it) and all 12 C-STOREs.
+func TestStoreReusesOneAssociationPerWorker(t *testing.T) {
+	host, port, associations, stored := startCountingStorageServer(t)
+	dir := t.TempDir()
+	const fileCount = 12
+	const workers = 3
+	files := make([]string, 0, fileCount)
+	for i := 0; i < fileCount; i++ {
+		files = append(files, writeStorableDICOM(t, dir, "1.2.3.4.6."+strconv.Itoa(i)))
+	}
+
+	args := append([]string{"store", "--format", "json",
+		"--host", host, "--port", strconv.Itoa(port),
+		"--called-ae", "RADX-SCP", "--workers", strconv.Itoa(workers)}, files...)
+	stdout, stderr, code := runRadx(t, args...)
+	if code != exitcode.Success {
+		t.Fatalf("store exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+
+	if got := stored.Load(); got != fileCount {
+		t.Errorf("C-STOREs answered = %d, want %d (every object must be sent)", got, fileCount)
+	}
+	// The load-bearing assertion: associations track the worker count, not the file count. A regression
+	// to per-file association would make this equal fileCount (12).
+	if got := associations.Load(); got != workers {
+		t.Errorf("associations negotiated = %d, want %d (one per worker, not one per object)", got, workers)
+	}
+}
+
+// TestStoreParseErrorKeepsWorkerAssociation confirms a per-file parse error is recorded without
+// tearing down the worker's held association: a single malformed object must not cost a re-association
+// nor abort the worker's remaining good files. With one worker and a truncated file among good ones,
+// the SCP must see exactly one association (the parse error skipped a file, never the connection), the
+// good files still succeed, and the run exits non-zero for the recorded parse failure.
+func TestStoreParseErrorKeepsWorkerAssociation(t *testing.T) {
+	host, port, associations, stored := startCountingStorageServer(t)
+	dir := t.TempDir()
+	good1 := writeStorableDICOM(t, dir, "1.2.3.4.7.1")
+	good2 := writeStorableDICOM(t, dir, "1.2.3.4.7.2")
+
+	full, err := os.ReadFile(good1)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	truncPath := filepath.Join(dir, "truncated.dcm")
+	if err := os.WriteFile(truncPath, full[:len(full)-8], 0o600); err != nil {
+		t.Fatalf("write truncated fixture: %v", err)
+	}
+
+	// One worker so all three files share a single association; the truncated file is in the middle so a
+	// torn-down association would also lose the trailing good file. --continue-on-error keeps the batch
+	// going past the recorded parse failure.
+	stdout, _, code := runRadx(t, "store", "--format", "json",
+		"--host", host, "--port", strconv.Itoa(port), "--called-ae", "RADX-SCP",
+		"--workers", "1", "--continue-on-error", good1, truncPath, good2)
+	if code == exitcode.Success {
+		t.Fatalf("store with a truncated file exited 0; want non-zero\nstdout=%q", stdout)
+	}
+
+	if got := associations.Load(); got != 1 {
+		t.Errorf("associations negotiated = %d, want 1 (a parse error must not tear down the worker's association)", got)
+	}
+	if got := stored.Load(); got != 2 {
+		t.Errorf("C-STOREs answered = %d, want 2 (both good files sent over the surviving association)", got)
+	}
+
+	// Both good files succeed; the truncated file is recorded as a failure. The trailing summary line
+	// has no "file" field, so it is skipped when tallying the per-file results.
+	var succeeded, failed int
+	for _, line := range nonEmptyLines(stdout) {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(line), &fields); err != nil {
+			t.Fatalf("output line is not valid JSON: %v\nline=%q", err, line)
+		}
+		if _, isResult := fields["file"]; !isResult {
+			continue // the trailing summary line
+		}
+		var r storeResult
+		if err := json.Unmarshal([]byte(line), &r); err != nil {
+			t.Fatalf("result line is not a storeResult: %v\nline=%q", err, line)
+		}
+		switch r.Status {
+		case "success":
+			succeeded++
+		case "failure":
+			failed++
+		}
+	}
+	if succeeded != 2 || failed != 1 {
+		t.Errorf("results = %d succeeded, %d failed; want 2 succeeded 1 failed", succeeded, failed)
 	}
 }
 

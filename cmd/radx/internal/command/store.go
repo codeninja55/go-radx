@@ -51,6 +51,13 @@ type storeResult struct {
 	Error          string `json:"error,omitempty"`
 }
 
+// storeJob is one unit of work in the store pool: a file and its index in the input order, so a
+// worker can record its result index-aligned for deterministic per-file output.
+type storeJob struct {
+	idx  int
+	path string
+}
+
 // storeSummary is the trailing JSON Line of a store run: the per-outcome tally so a consumer can
 // branch on the batch result without re-counting the per-file lines.
 type storeSummary struct {
@@ -142,27 +149,35 @@ func (c *StoreCmd) Run(rc *RunContext) error {
 	return nil
 }
 
-// transferAll fans the files across the worker pool. Each worker owns its own association for its
-// whole slice of work, so a reconnect replaces only that worker's client (RADX-009). Order of the
-// returned results follows input order so the per-file output is deterministic for golden tests. It
-// also returns the underlying typed error of the first failed file in input order (or nil when every
-// transfer succeeded), so Run can surface the real failure class through exitcode.Classify rather
-// than a flattened usage error. Per-file errors are stored index-aligned and selected after the pool
-// drains, keeping the choice deterministic regardless of which worker finished first.
+// transferAll fans the files across the worker pool. Each worker opens ONE Storage association and
+// sends all of its assigned objects over that held association, releasing it only when its queue
+// drains. A study sent with --workers=N therefore negotiates ~N associations, not one per object:
+// re-associating per file is heavy ACSE overhead and risks a PACS's association-rate/negotiation
+// limits, so the association is amortised across the worker's whole slice of work (RADX-009). A
+// reconnect replaces only that worker's association. Order of the returned results follows input
+// order so the per-file output is deterministic for golden tests. It also returns the underlying
+// typed error of the first failed file in input order (or nil when every transfer succeeded), so Run
+// can surface the real failure class through exitcode.Classify rather than a flattened usage error.
+// Per-file errors are stored index-aligned and selected after the pool drains, keeping the choice
+// deterministic regardless of which worker finished first.
 func (c *StoreCmd) transferAll(ctx context.Context, files []string, calling, called dimse.AETitle) ([]storeResult, error) {
 	results := make([]storeResult, len(files))
 	errs := make([]error, len(files))
 
-	type job struct {
-		idx  int
-		path string
-	}
-	jobs := make(chan job)
+	jobs := make(chan storeJob)
 
 	// stopAll is closed when a worker hits a failure under the default (fail-fast on the batch
 	// continuing) policy, so the remaining files are reported as skipped rather than sent.
 	var stopOnce sync.Once
 	stopAll := make(chan struct{})
+
+	record := func(idx int, r storeResult, err error) {
+		results[idx] = r
+		errs[idx] = err
+		if r.Status != "success" && !c.ContinueOnError {
+			stopOnce.Do(func() { close(stopAll) })
+		}
+	}
 
 	var wg sync.WaitGroup
 	workers := c.Workers
@@ -173,25 +188,12 @@ func (c *StoreCmd) transferAll(ctx context.Context, files []string, calling, cal
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for j := range jobs {
-				select {
-				case <-stopAll:
-					results[j.idx] = storeResult{File: j.path, Status: "skipped", Error: "skipped after an earlier failure"}
-					continue
-				default:
-				}
-				r, err := c.transferOne(ctx, j.path, calling, called)
-				results[j.idx] = r
-				errs[j.idx] = err
-				if r.Status != "success" && !c.ContinueOnError {
-					stopOnce.Do(func() { close(stopAll) })
-				}
-			}
+			c.runWorker(ctx, calling, called, jobs, stopAll, func(int, int) {}, record)
 		}()
 	}
 
 	for i, path := range files {
-		jobs <- job{idx: i, path: path}
+		jobs <- storeJob{idx: i, path: path}
 	}
 	close(jobs)
 	wg.Wait()
@@ -206,21 +208,101 @@ func (c *StoreCmd) transferAll(ctx context.Context, files []string, calling, cal
 	return results, firstErr
 }
 
-// transferOne reads one file, opens a Storage association, and sends the object. A read or parse
-// failure is reported per-file; an association or transport fault is a network failure; a
-// non-success C-STORE status is promoted to a failure outcome so the batch never reads a peer's
-// "no" as a success (PRD §9.2). The association is released cleanly on every path. Alongside the
-// per-file result it returns the underlying typed error (the os/fs error, the dicom parse error,
-// the dimse association/abort error, or a *exitcode.StatusError for a non-success terminal status)
-// so the caller can classify the failure by its real class — the typed error is preserved, never
-// flattened to a string-only outcome.
-func (c *StoreCmd) transferOne(ctx context.Context, path string, calling, called dimse.AETitle) (storeResult, error) {
-	f, err := dicom.ReadFile(path)
-	if err != nil {
-		return storeResult{File: path, Status: "failure", Error: structuralError(err)}, err
+// runWorker drives one worker: it lazily opens a single Storage association on its first sendable
+// job and sends every subsequent job over that same held association, releasing it when the worker's
+// queue drains or its association fails. A file read or parse error is recorded per-file and does NOT
+// tear down the association — the worker skips that file and continues with the next, so a single
+// bad object never costs a re-association. Only a transport/association fault (a failed Associate or a
+// C-STORE error from the held association) ends the association: its remaining queued jobs are then
+// recorded as failures rather than silently dropped, and a fresh association is opened for the next
+// job if the batch is still running. The typed error of every failure is preserved through record so
+// exitcode.Classify routes the run to its real class.
+//
+// onSend is invoked with (jobIndex, associationGeneration) immediately before each C-STORE over a
+// live association, so a test can observe how many distinct associations a worker opened; production
+// passes a no-op.
+func (c *StoreCmd) runWorker(
+	ctx context.Context,
+	calling, called dimse.AETitle,
+	jobs <-chan storeJob,
+	stopAll <-chan struct{},
+	onSend func(idx, generation int),
+	record func(idx int, r storeResult, err error),
+) {
+	var assoc *dimse.Association
+	generation := 0
+	releaseAssoc := func() {
+		if assoc != nil {
+			_ = assoc.Release(ctx)
+			assoc = nil
+		}
 	}
-	sopInstance, _ := f.DataSet.GetString(dicom.TagSOPInstanceUID)
+	defer releaseAssoc()
 
+	for j := range jobs {
+		select {
+		case <-stopAll:
+			record(j.idx, storeResult{File: j.path, Status: "skipped", Error: "skipped after an earlier failure"}, nil)
+			continue
+		default:
+		}
+
+		// Read and parse before touching the association: a structural fault is a per-file failure that
+		// must not tear down the worker's association (RADX-012/013). Skip the file, record its typed
+		// error, keep the held association for the next job.
+		f, err := dicom.ReadFile(j.path)
+		if err != nil {
+			record(j.idx, storeResult{File: j.path, Status: "failure", Error: structuralError(err)}, err)
+			continue
+		}
+		sopInstance, _ := f.DataSet.GetString(dicom.TagSOPInstanceUID)
+
+		if assoc == nil {
+			a, aerr := c.associate(ctx, calling, called)
+			if aerr != nil {
+				// The association could not be opened. This file fails on the transport, and because there
+				// is no live association the next job will attempt a fresh one.
+				record(j.idx, storeResult{File: j.path, SOPInstanceUID: sopInstance, Status: "failure", Error: aerr.Error()}, aerr)
+				continue
+			}
+			assoc = a
+			generation++
+		}
+
+		onSend(j.idx, generation)
+		status, serr := assoc.Store(ctx, f.DataSet)
+		if serr != nil {
+			// A transport/association fault on the held association: this file fails and the association is
+			// no longer usable, so release it and let the next job re-associate.
+			record(j.idx, storeResult{File: j.path, SOPInstanceUID: sopInstance, Status: "failure", Error: structuralError(serr)}, serr)
+			releaseAssoc()
+			continue
+		}
+		if !status.IsSuccess() {
+			// The conversation reached the peer and the peer answered with a non-success terminal status.
+			// Promote it to a *exitcode.StatusError so Classify routes the run to NetworkError (exit 4),
+			// the class for "the peer reported it could not perform the work" (PRD §9.2). The association
+			// itself is intact, so it is kept for the next job.
+			record(j.idx, storeResult{
+				File:           j.path,
+				SOPInstanceUID: sopInstance,
+				Status:         "failure",
+				DIMSEStatus:    status.String(),
+			}, &exitcode.StatusError{Status: status})
+			continue
+		}
+		record(j.idx, storeResult{
+			File:           j.path,
+			SOPInstanceUID: sopInstance,
+			Status:         "success",
+			DIMSEStatus:    status.String(),
+		}, nil)
+	}
+}
+
+// associate opens one Storage association for a worker. The AE is built per association so each
+// worker's client is independent and a reconnect replaces only that worker's association.
+func (c *StoreCmd) associate(ctx context.Context, calling, called dimse.AETitle) (*dimse.Association, error) {
 	ae, err := dimse.NewAE(calling,
 		dimse.WithMaxPDULength(dimse.MaxPDULength(c.MaxPDU)),
 		dimse.WithACSETimeout(c.Timeout),
@@ -228,36 +310,9 @@ func (c *StoreCmd) transferOne(ctx context.Context, path string, calling, called
 		dimse.WithConnectionTimeout(c.Timeout),
 	)
 	if err != nil {
-		return storeResult{File: path, SOPInstanceUID: sopInstance, Status: "failure", Error: err.Error()}, err
+		return nil, err
 	}
-
-	assoc, err := ae.Associate(ctx, hostPort(c.Host, c.Port), called, dimse.StorageContexts())
-	if err != nil {
-		return storeResult{File: path, SOPInstanceUID: sopInstance, Status: "failure", Error: err.Error()}, err
-	}
-	defer func() { _ = assoc.Release(ctx) }()
-
-	status, err := assoc.Store(ctx, f.DataSet)
-	if err != nil {
-		return storeResult{File: path, SOPInstanceUID: sopInstance, Status: "failure", Error: structuralError(err)}, err
-	}
-	if !status.IsSuccess() {
-		// The conversation reached the peer and the peer answered with a non-success terminal status.
-		// Promote it to a *exitcode.StatusError so Classify routes the run to NetworkError (exit 4),
-		// the class for "the peer reported it could not perform the work" (PRD §9.2).
-		return storeResult{
-			File:           path,
-			SOPInstanceUID: sopInstance,
-			Status:         "failure",
-			DIMSEStatus:    status.String(),
-		}, &exitcode.StatusError{Status: status}
-	}
-	return storeResult{
-		File:           path,
-		SOPInstanceUID: sopInstance,
-		Status:         "success",
-		DIMSEStatus:    status.String(),
-	}, nil
+	return ae.Associate(ctx, hostPort(c.Host, c.Port), called, dimse.StorageContexts())
 }
 
 // emit renders one per-file result: a JSON Line in json format, or a human progress line on the
