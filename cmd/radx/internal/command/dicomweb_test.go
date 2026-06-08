@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -238,6 +239,60 @@ func TestDICOMwebQidoCSVRendersMatchedValues(t *testing.T) {
 	}
 	if got := records[1][col]; got != sentinel {
 		t.Errorf("PatientID cell = %q, want %q (CSV emitter dropped the matched value)", got, sentinel)
+	}
+}
+
+// TestDICOMwebQidoNormalizesParenthesizedTag is the load-bearing regression for finding 4: a
+// validated --match key in the parenthesised "(GGGG,EEEE)" form must reach the origin as the
+// eight-hex GGGGEEEE tag the QIDO-RS wire parser accepts — identical to what the keyword form
+// produces — not the parenthesised text the parser rejects. It captures the request query against a
+// raw httptest origin and asserts the normalised parameter name.
+func TestDICOMwebQidoNormalizesParenthesizedTag(t *testing.T) {
+	var gotQuery url.Values
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.Query()
+		w.Header().Set("Content-Type", "application/dicom+json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]")) // empty result set
+	}))
+	t.Cleanup(ts.Close)
+
+	// PatientID is (0010,0020) -> 00100020; Modality is (0008,0060) -> 00080060. The keyword form
+	// resolves to the same eight-hex tag, so the match key and includefield must equal these.
+	stdout, stderr, code := runRadx(t, "dicomweb", "qido", "--format", "json", "--url", ts.URL,
+		"--level", "studies", "--match", "(0010,0020)=SENTINEL", "--include", "(0008,0060)")
+	if code != exitcode.Success {
+		t.Fatalf("qido exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+
+	if got := gotQuery.Get("00100020"); got != "SENTINEL" {
+		t.Errorf("match param 00100020 = %q, want SENTINEL; full query = %v", got, gotQuery)
+	}
+	if _, ok := gotQuery["(0010,0020)"]; ok {
+		t.Errorf("the un-normalized parenthesized match key reached the wire: %v", gotQuery)
+	}
+	inc := gotQuery["includefield"]
+	if len(inc) != 1 || inc[0] != "00080060" {
+		t.Errorf("includefield = %v, want [00080060] (normalized eight-hex tag)", inc)
+	}
+}
+
+// TestDICOMwebQidoParenthesizedTagAcceptedByOrigin proves end-to-end that the normalised request is
+// one the real QIDO-RS parser accepts: a parenthesised --match key against the in-process dicomweb
+// server returns a clean success (exit 0), where the un-normalized form would be rejected as an
+// unknown attribute (HTTP 400, exit 4).
+func TestDICOMwebQidoParenthesizedTagAcceptedByOrigin(t *testing.T) {
+	const sentinel = "QIDO-PAREN-001"
+	url, backend := startDICOMwebServer(t)
+	ds := webInstance("1.2.903.1", "1.2.903.2", "1.2.903.3")
+	ds.SetString(dicom.TagPatientID, sentinel)
+	_ = backend.Store(context.Background(), ds)
+
+	stdout, stderr, code := runRadx(t, "dicomweb", "qido", "--format", "json", "--url", url,
+		"--level", "studies", "--match", "(0010,0020)="+sentinel)
+	if code != exitcode.Success {
+		t.Fatalf("qido with a parenthesized --match exit = %d, want %d (origin accepted the request)\nstdout=%q\nstderr=%q",
+			code, exitcode.Success, stdout, stderr)
 	}
 }
 

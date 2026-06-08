@@ -258,8 +258,8 @@ type DICOMwebQidoCmd struct {
 	Level   string   `name:"level" enum:"studies,series,instances" default:"studies" help:"Search level."`
 	Study   string   `name:"study" help:"Scope a series/instance search to this study."`
 	Series  string   `name:"series" help:"Scope an instance search to this series."`
-	Match   []string `name:"match" help:"Attribute match (key=value); repeat to add keys."`
-	Include []string `name:"include" help:"Additional return attributes (keyword or GGGGEEEE)."`
+	Match   []string `name:"match" sep:"none" help:"Attribute match (key=value); repeat to add keys."`
+	Include []string `name:"include" sep:"none" help:"Additional return attributes (keyword or GGGGEEEE)."`
 	Limit   int      `name:"limit" default:"0" help:"Maximum matches (0 = server default)."`
 
 	Bearer string `name:"bearer-token" env:"RADX_BEARER_TOKEN" hidden:"" help:"Bearer token (prefer the env var)."`
@@ -309,7 +309,11 @@ func (c *DICOMwebQidoCmd) search(ctx context.Context, client *dicomweb.Client, q
 }
 
 // buildSearchQuery turns the --match, --include, and --limit flags into a SearchQuery, validating
-// each match/include key against the dictionary so a malformed key is a usage error.
+// each match/include key against the dictionary so a malformed key is a usage error. A key that is
+// not a dictionary keyword is normalised to the eight-hex GGGGEEEE form the QIDO-RS query/
+// includefield parser accepts: parseTagSpec also accepts the parenthesised "(GGGG,EEEE)" form, but
+// the wire parser does not, so passing the raw input through would let a key this command validated
+// still produce a request the origin rejects. Keywords pass through unchanged.
 func (c *DICOMwebQidoCmd) buildSearchQuery() (dicomweb.SearchQuery, error) {
 	q := dicomweb.SearchQuery{Limit: c.Limit}
 	if len(c.Match) > 0 {
@@ -320,16 +324,35 @@ func (c *DICOMwebQidoCmd) buildSearchQuery() (dicomweb.SearchQuery, error) {
 		if !ok {
 			return dicomweb.SearchQuery{}, &exitcode.UsageErr{Message: fmt.Sprintf("invalid --match %q (use key=value)", raw)}
 		}
-		if _, resolvable := parseTagSpec(key); !resolvable {
+		wireKey, resolvable := qidoAttributeKey(key)
+		if !resolvable {
 			return dicomweb.SearchQuery{}, &exitcode.UsageErr{Message: fmt.Sprintf("invalid --match key %q", key)}
 		}
-		q.Match[key] = value
+		q.Match[wireKey] = value
 	}
 	for _, inc := range c.Include {
-		if _, resolvable := parseTagSpec(inc); !resolvable {
+		wireKey, resolvable := qidoAttributeKey(inc)
+		if !resolvable {
 			return dicomweb.SearchQuery{}, &exitcode.UsageErr{Message: fmt.Sprintf("invalid --include key %q", inc)}
 		}
-		q.IncludeFields = append(q.IncludeFields, inc)
+		q.IncludeFields = append(q.IncludeFields, wireKey)
 	}
 	return q, nil
+}
+
+// qidoAttributeKey resolves a --match/--include attribute reference to the form the QIDO-RS wire
+// parser accepts. A dictionary keyword is passed through verbatim (the parser resolves keywords);
+// any other accepted spec (the parenthesised "(GGGG,EEEE)" or bare "GGGGEEEE" tag) is normalised to
+// the eight-hex GGGGEEEE tag the parser expects, since it does not accept the parenthesised form. It
+// returns ok == false for a reference parseTagSpec cannot resolve, which the caller reports as a
+// usage error.
+func qidoAttributeKey(ref string) (string, bool) {
+	if _, ok := dicom.LookupKeyword(ref); ok {
+		return ref, true
+	}
+	t, ok := parseTagSpec(ref)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("%04X%04X", t.Group(), t.Element()), true
 }
