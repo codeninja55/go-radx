@@ -127,3 +127,15 @@ func TestEchoRejectsCSVFormat(t *testing.T) {
 		t.Fatalf("echo --format csv exit = %d, want %d (usage error)", code, exitcode.UsageError)
 	}
 }
+
+// TestEchoOverLongCalledAEIsUsageError confirms a --called-ae over the 16-character DICOM limit
+// is a usage-class fault (exit 2), not a parse error (3): the fault is in the invocation, not in
+// any DICOM input. The over-long title is rejected before any dial, so no server is needed.
+func TestEchoOverLongCalledAEIsUsageError(t *testing.T) {
+	_, _, code := runRadx(t, "echo", "--format", "json",
+		"--called-ae", "THIS-AE-TITLE-IS-WAY-TOO-LONG",
+		"127.0.0.1", "104")
+	if code != exitcode.UsageError {
+		t.Fatalf("echo with an over-long --called-ae exit = %d, want %d (usage error)", code, exitcode.UsageError)
+	}
+}

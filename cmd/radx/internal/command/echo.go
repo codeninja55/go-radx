@@ -54,11 +54,11 @@ func (c *EchoCmd) Run(rc *RunContext) error {
 
 	calling, err := dimse.ParseAETitle(c.CallingAE)
 	if err != nil {
-		return err
+		return &exitcode.UsageErr{Message: fmt.Sprintf("invalid --calling-ae: %v", err)}
 	}
 	called, err := dimse.ParseAETitle(c.CalledAE)
 	if err != nil {
-		return err
+		return &exitcode.UsageErr{Message: fmt.Sprintf("invalid --called-ae: %v", err)}
 	}
 
 	log := logging.FromContext(rc.Ctx)
