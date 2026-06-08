@@ -5,6 +5,7 @@ import (
 	"errors"
 	"mime"
 	"net/http"
+	"path"
 	"strings"
 
 	"go.uber.org/zap"
@@ -170,8 +171,18 @@ func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resou
 		return
 	}
 	h.logger.Info("fhir create", zap.String("type", resourceType), zap.String("interaction", "create"))
-	location := h.basePath + "/" + created.ResourceType() + "/" + h.adapter.resourceID(created)
+	location := h.resourceLocation(created.ResourceType(), h.adapter.resourceID(created))
 	h.writeResource(w, r, http.StatusCreated, created, location)
+}
+
+// resourceLocation builds the Location header for a created resource by joining the role's base path
+// with the resource's type and id under exactly one slash each. path.Join is used rather than string
+// concatenation so a root-mounted role (basePath "/") yields "/Patient/1" rather than "//Patient/1":
+// the latter parses as a network-path reference (host "Patient") and is not a valid relative
+// Location. A "/fhir"-mounted role yields "/fhir/Patient/1" unchanged. path.Join drops a leading
+// slash, so it is re-prefixed to keep the Location an absolute-path reference.
+func (h *fhirHandler) resourceLocation(resourceType, id string) string {
+	return "/" + path.Join(strings.Trim(h.basePath, "/"), resourceType, id)
 }
 
 // validateCreate is the one create-validation gate both write paths share: the type-level create POST

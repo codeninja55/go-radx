@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -221,6 +222,90 @@ func TestFHIRRoleTransactionRejectsInstanceURLCreate(t *testing.T) {
 				t.Fatalf("type-endpoint create transaction status = %d, want 200; body=%s", status, body)
 			}
 			assertWorkflowCount(t, base, "Patient", 1)
+		})
+	}
+}
+
+// startFHIRDaemonAt mounts a FHIR role on the given base path and returns the daemon's bound HTTP
+// address (host:port, with no base path appended) and a cleanup, so a test can build URLs against an
+// arbitrary mount point including the root ("/"). It is the base-path-aware twin of startFHIRDaemon.
+func startFHIRDaemonAt(t *testing.T, release fhir.Release, basePath string) (string, func()) {
+	t.Helper()
+	repo, err := NewMemoryRepository(release)
+	if err != nil {
+		t.Fatalf("NewMemoryRepository: %v", err)
+	}
+	role, err := NewFHIRRole(repo, WithFHIRPort(0), WithFHIRRelease(release), WithFHIRBasePath(basePath))
+	if err != nil {
+		t.Fatalf("NewFHIRRole: %v", err)
+	}
+	d, err := New(WithFHIR(role))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(runCtx) }()
+	roleName := role.name()
+	waitForAddrs(t, d, roleName)
+	host := "http://" + d.Addrs()[roleName].String()
+	cleanup := func() {
+		cancelRun()
+		select {
+		case <-runErr:
+		case <-time.After(5 * time.Second):
+			t.Error("daemon did not stop within 5s")
+		}
+	}
+	return host, cleanup
+}
+
+// TestFHIRRoleRootMountLocationIsSingleSlash proves a create against a root-mounted ("/") FHIR role
+// returns a Location with a single leading slash ("/Patient/{id}"), not "//Patient/{id}". The
+// double-slash form parses as a network-path reference (host "Patient"), so it is not a valid
+// relative Location; the single-slash form parses as an absolute-path reference with an empty host.
+// A "/fhir"-mounted role keeps its "/fhir/Patient/{id}" Location, so the join is correct at both
+// mount points.
+func TestFHIRRoleRootMountLocationIsSingleSlash(t *testing.T) {
+	cases := []struct {
+		name     string
+		basePath string
+		wantBase string // the Location prefix before "/Patient/"
+	}{
+		{"root mount", "/", ""},
+		{"fhir mount", "/fhir", "/fhir"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host, cleanup := startFHIRDaemonAt(t, fhir.R5, tc.basePath)
+			defer cleanup()
+
+			createURL := host + tc.wantBase + "/Patient"
+			status, body, header := httpDo(t, http.MethodPost, createURL, "application/fhir+json",
+				patientJSON(fhir.R5, "female"))
+			if status != http.StatusCreated {
+				t.Fatalf("create status = %d, want 201; body=%s", status, body)
+			}
+			var created struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(body, &created); err != nil {
+				t.Fatalf("create body decode: %v", err)
+			}
+			loc := header.Get("Location")
+			want := tc.wantBase + "/Patient/" + created.ID
+			if loc != want {
+				t.Fatalf("Location = %q, want %q", loc, want)
+			}
+			// The Location parses as an absolute-path reference with an empty host: a leading "//" would
+			// instead parse as a network-path reference whose host is the resource type.
+			u, err := url.Parse(loc)
+			if err != nil {
+				t.Fatalf("Location %q does not parse: %v", loc, err)
+			}
+			if u.Host != "" {
+				t.Fatalf("Location %q parsed with host %q; a valid relative Location has an empty host", loc, u.Host)
+			}
 		})
 	}
 }
