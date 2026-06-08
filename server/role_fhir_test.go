@@ -42,9 +42,9 @@ func startFHIRDaemon(t *testing.T, release fhir.Release) (string, func()) {
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	runErr := make(chan error, 1)
 	go func() { runErr <- d.Run(runCtx) }()
-	waitForAddrs(t, d, "fhir")
+	waitForAddrs(t, d, "fhir@/fhir")
 
-	base := "http://" + d.Addrs()["fhir"].String() + "/fhir"
+	base := "http://" + d.Addrs()["fhir@/fhir"].String() + "/fhir"
 	cleanup := func() {
 		cancelRun()
 		select {
@@ -307,6 +307,63 @@ func TestFHIRRoleRootMountLocationIsSingleSlash(t *testing.T) {
 				t.Fatalf("Location %q parsed with host %q; a valid relative Location has an empty host", loc, u.Host)
 			}
 		})
+	}
+}
+
+// TestDaemonExposesTwoFHIRRolesDistinctly proves the documented dual-release setup works: mounting
+// two FHIRRoles (R4 and R5) on different base paths exposes BOTH bound addresses through
+// Daemon.Addrs(), under two distinct keys, neither overwritten. Before the role names incorporated
+// the base path, both roles reported "fhir" and Addrs() (a map keyed by role name) dropped one.
+func TestDaemonExposesTwoFHIRRolesDistinctly(t *testing.T) {
+	r4Repo, err := NewMemoryRepository(fhir.R4)
+	if err != nil {
+		t.Fatalf("NewMemoryRepository R4: %v", err)
+	}
+	r5Repo, err := NewMemoryRepository(fhir.R5)
+	if err != nil {
+		t.Fatalf("NewMemoryRepository R5: %v", err)
+	}
+	r4Role, err := NewFHIRRole(r4Repo, WithFHIRPort(0), WithFHIRRelease(fhir.R4), WithFHIRBasePath("/fhir/r4"))
+	if err != nil {
+		t.Fatalf("NewFHIRRole R4: %v", err)
+	}
+	r5Role, err := NewFHIRRole(r5Repo, WithFHIRPort(0), WithFHIRRelease(fhir.R5), WithFHIRBasePath("/fhir/r5"))
+	if err != nil {
+		t.Fatalf("NewFHIRRole R5: %v", err)
+	}
+	d, err := New(WithFHIR(r4Role), WithFHIR(r5Role))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(runCtx) }()
+	defer func() {
+		cancelRun()
+		select {
+		case <-runErr:
+		case <-time.After(5 * time.Second):
+			t.Error("daemon did not stop within 5s")
+		}
+	}()
+
+	r4Name, r5Name := r4Role.name(), r5Role.name()
+	if r4Name == r5Name {
+		t.Fatalf("two FHIR roles share the name %q; Addrs() would overwrite one", r4Name)
+	}
+	waitForAddrs(t, d, r4Name)
+	waitForAddrs(t, d, r5Name)
+
+	addrs := d.Addrs()
+	a4, a5 := addrs[r4Name], addrs[r5Name]
+	if a4 == nil {
+		t.Fatalf("Addrs() missing the R4 role under key %q: %v", r4Name, addrs)
+	}
+	if a5 == nil {
+		t.Fatalf("Addrs() missing the R5 role under key %q: %v", r5Name, addrs)
+	}
+	if a4.String() == a5.String() {
+		t.Fatalf("both FHIR roles bound to the same address %q; the two roles collapsed", a4)
 	}
 }
 
@@ -912,7 +969,7 @@ func TestFHIRRoleAuthRejectionIsOperationOutcome(t *testing.T) {
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	runErr := make(chan error, 1)
 	go func() { runErr <- d.Run(runCtx) }()
-	waitForAddrs(t, d, "fhir")
+	waitForAddrs(t, d, "fhir@/fhir")
 	defer func() {
 		cancelRun()
 		select {
@@ -922,7 +979,7 @@ func TestFHIRRoleAuthRejectionIsOperationOutcome(t *testing.T) {
 		}
 	}()
 
-	bound := d.Addrs()["fhir"]
+	bound := d.Addrs()["fhir@/fhir"]
 	if bound == nil {
 		t.Fatal("daemon reported no FHIR address after start")
 	}

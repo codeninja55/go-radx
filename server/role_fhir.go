@@ -118,7 +118,13 @@ func NewFHIRRole(repo Repository, opts ...FHIRRoleOption) (*FHIRRole, error) {
 	return &FHIRRole{cfg: cfg, repo: repo, adapter: adapter}, nil
 }
 
-func (r *FHIRRole) name() string { return "fhir" }
+// name is the role's identity in Daemon.Addrs(), startup error messages, and logs. It incorporates
+// the configured base path so two FHIRRoles mounted on different base paths (the documented R4 + R5
+// dual-mount, for example "/fhir/r4" and "/fhir/r5") report distinct keys and Daemon.Addrs() exposes
+// both addresses rather than one overwriting the other under a shared "fhir" key. Two roles that
+// share a base path would share routes and are a misconfiguration regardless, so the base path is a
+// sufficient discriminator.
+func (r *FHIRRole) name() string { return "fhir@" + r.cfg.basePath }
 
 // start binds the HTTP listener and serves the FHIR REST handler under the configured base path,
 // behind the daemon's authentication middleware and TLS. The listener is bound synchronously so the

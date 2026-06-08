@@ -102,7 +102,7 @@ func exerciseFHIRRole(ctx context.Context) []error {
 	runErr := make(chan error, 1)
 	go func() { runErr <- d.Run(runCtx) }()
 
-	addr := waitDaemonAddr(d, "fhir")
+	addr := waitDaemonAddr(d, "fhir@/fhir")
 	if addr == nil {
 		cancelRun()
 		<-runErr
