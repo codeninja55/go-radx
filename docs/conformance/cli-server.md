@@ -3,13 +3,13 @@
 > **Implementation status: NOT YET SHIPPED.** This is a scaffold. The `radx` command-line interface is not yet
 > implemented: `cmd/radx` is a placeholder that prints a not-implemented notice, so none of the command groups below
 > exist yet. The embeddable library server layer now ships in part — the `server` package composition root
-> (`server.Daemon`), the pluggable backends (`ObjectStore`, `Catalogue`, `WorklistSource`, `Authenticator`), the
-> DIMSE SCP / DICOMweb / MLLP roles, and the default filesystem object store plus SQLite catalogue all exist (see
-> [Embeddable server composition layer](#embeddable-server-composition-layer) below) — but the CLI wiring, the
-> operator-facing command guarantees described here, and the FHIR REST role do not. Until this banner is removed, **no
-> CLI behaviour is conformance-guaranteed**, and the command surface, flag contract, exit-code policy, logging
-> behaviour, and PHI policy below are the planned design, not shipped behaviour. Do not cite this document as a
-> conformance basis.
+> (`server.Daemon`), the pluggable backends (`ObjectStore`, `Catalogue`, `WorklistSource`, `Authenticator`,
+> `Repository`), the DIMSE SCP / DICOMweb / MLLP / FHIR REST roles, the default filesystem object store plus SQLite
+> catalogue, and the FHIR REST client (`fhir/rest`) all exist (see
+> [Embeddable server composition layer](#embeddable-server-composition-layer) below) — but the CLI wiring and the
+> operator-facing command guarantees described here do not. Until this banner is removed, **no CLI behaviour is
+> conformance-guaranteed**, and the command surface, flag contract, exit-code policy, logging behaviour, and PHI policy
+> below are the planned design, not shipped behaviour. Do not cite this document as a conformance basis.
 
 | Field | Value |
 |-------|-------|
@@ -45,10 +45,12 @@ library surface; its full public-API contract is `docs/reference/servers.md`. Wh
 - **Four pluggable backends.** `ObjectStore` (the binary object plane behind C-STORE/C-GET/C-MOVE and STOW-RS/WADO-RS),
   `Catalogue` (the queryable metadata plane behind C-FIND and QIDO-RS), `WorklistSource` (the Modality Worklist plane),
   and `Authenticator` (the identity plane), each segregated so a deployment implements only what it serves.
-- **Three server roles.** A DIMSE SCP role (`NewDIMSERole`, wrapping `dimse.Server`, storing via `ObjectStore` and
+- **Four server roles.** A DIMSE SCP role (`NewDIMSERole`, wrapping `dimse.Server`, storing via `ObjectStore` and
   indexing via `Catalogue`, with an optional Modality Worklist SCP fed by a `WorklistSource`), a DICOMweb role
-  (`NewDICOMwebRole`, wrapping `dicomweb.Server` over the same backends), and an HL7 v2 MLLP role (`NewMLLPRole`,
-  wrapping `hl7v2.Server`). Each applies the daemon's shared bind, TLS, and observability policy uniformly.
+  (`NewDICOMwebRole`, wrapping `dicomweb.Server` over the same backends), an HL7 v2 MLLP role (`NewMLLPRole`, wrapping
+  `hl7v2.Server`), and a FHIR REST role (`NewFHIRRole`, over a `Repository` bound to one FHIR release; see
+  [FHIR REST client and server role](#fhir-rest-client-and-server-role) below). Each applies the daemon's shared bind,
+  TLS, and observability policy uniformly.
 - **Default backends.** `server.FileStore(root)` persists each object as a Part 10 file in a study/series/instance
   layout, treating UIDs as untrusted input (every path component is validated as a conformant DICOM UID, so a
   traversal-style identifier is rejected before any path is built). `server.SQLiteCatalogue(ctx, dbPath, ...)` indexes
@@ -66,13 +68,37 @@ test-enforced by a server-package PHI sweep that mirrors the `internal/phisweep`
 over a sentinel-bearing object at default verbosity through a real C-STORE and asserts no sentinel surfaces in stdout,
 stderr, returned errors, or the structured log.
 
-### Deferred: the FHIR REST role
+### FHIR REST client and server role
 
-The FHIR REST client and the FHIR REST server role are a **separate later increment** and are not yet implemented. The
-`server.Repository` seam, the `FHIRRole`, and the conformance-subset interactions (`read`, `create`, `search-type`,
-`transaction` over the workflow resource set) described in `docs/reference/servers.md` are the planned design; the
-`Daemon` already accepts a fourth role uniformly, so mounting the FHIR role is additive when it lands. Until then the
-daemon serves the DIMSE, DICOMweb, and MLLP roles only.
+The FHIR REST client and the FHIR REST server role now ship as library surfaces. Both are fixed to one FHIR release per
+instance, because an R4 resource and the corresponding R5 resource are distinct Go types in distinct packages
+(`r4.Patient` vs `r5.Patient`); a client targets one release at construction and a role serves one release at mount.
+
+The **client** (`fhir/rest`) is a type-safe FHIR RESTful API client over the generated models, constructed with
+`rest.NewClient(release, baseURL, ...)`. It implements `read`, `vread`, `create`, `update`, `patch`, `delete`,
+`history`, type-level `search` (with typed parameters, modifiers, single-level chaining, `_include`/`_revinclude`, and
+`Bundle.link` `next`/`previous` paging), `transaction`/`batch` submission, conditional create/update
+(`If-None-Exist`/`If-Match`) with ETag concurrency, and `CapabilityStatement` negotiation. It sends and accepts
+`application/fhir+json` only. A non-2xx FHIR response whose body is an `OperationOutcome` is surfaced as a typed
+`*rest.OperationOutcomeError` the caller classifies by issue severity and by an `errors.Is`-comparable sentinel
+(`ErrNotFound`, `ErrConflict`, `ErrUnprocessable`, `ErrUnauthorized`, `ErrUnsupported`), aligning with the `fhir`
+package's `OperationOutcome` error model and `exitcode.FromOperationOutcome`. Authentication is a pluggable transport
+concern (a bearer token via `WithBearerToken`, or any scheme via `WithRoundTripper`), origin-scoped so a credential is
+never sent cross-origin, mirroring the DICOMweb client's auth seam. **SMART on FHIR is deferred**: a SMART access token
+is supplied through the bearer/round-tripper seam, but the SMART authorization flow itself is not implemented.
+
+The **server role** (`server.NewFHIRRole`, mounted with `server.WithFHIR`) serves the conformance subset over a
+pluggable `server.Repository`: `read`, `create`, `search-type`, and `transaction` over the workflow resource set
+(`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`, `DiagnosticReport`, `Observation`), as
+`application/fhir+json`. It validates inbound resources with the release validator (a resource with error-severity
+issues is rejected `422`), returns a release `OperationOutcome` for every error (a `404` read miss, a `400` malformed
+body, a `405`/`501` deferred interaction — `update`/`delete`/`vread`/`history`/`patch` are answered with a `501`
+`OperationOutcome`, never a silent no-op), and serves a `CapabilityStatement` at `[base]/metadata` advertising the
+supported interactions. The release is fixed with `WithFHIRRelease` (default R5); to serve both releases from one
+process, mount two roles on different base paths (for example `/fhir/r4` and `/fhir/r5`). A default in-memory
+`server.MemoryRepository` makes the role runnable out of the box; a production deployment supplies its own `Repository`.
+The role plugs into the `Daemon` exactly like the others: it honours the loopback-default bind, and a non-loopback FHIR
+bind without an `Authenticator` fails closed with `ErrInsecureBind`.
 
 ## Structured logging and PHI policy
 

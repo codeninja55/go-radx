@@ -2,6 +2,7 @@ package fhir
 
 import (
 	"errors"
+	"reflect"
 	"sync"
 )
 
@@ -93,6 +94,36 @@ func (reg *Registry) lookupFactory(resourceType string) (Factory, bool) {
 	defer reg.factoryMu.RUnlock()
 	f, ok := reg.factory[resourceType]
 	return f, ok
+}
+
+// Contains reports whether r's concrete Go type is one this registry owns. A FHIR
+// JSON resource carries only its resourceType, but a release's Go types are a closed
+// set: each release package (fhir/r4, fhir/r5) registers a factory that constructs
+// its own concrete type for each resourceType, so the type the registry's factory
+// produces for r.ResourceType() is the canonical type of this release. Comparing r's
+// dynamic type against that factory's output therefore tells the two releases apart
+// even though both declare a "Patient": an *r5.Patient is not the *r4.Patient an R4
+// registry's factory yields, so Contains is false for it on the R4 registry and true
+// on the R5 one. A nil resource, or a resourceType this registry does not register,
+// is not a member.
+//
+// It is the membership test a release-fixed consumer (the rest.Client) uses to reject
+// an out-of-release resource before it is marshalled and sent, turning a
+// cross-release mix-up into a clear client-side error rather than a wrong-shape
+// payload on the wire.
+func (reg *Registry) Contains(r Resource) bool {
+	if r == nil {
+		return false
+	}
+	rv := reflect.ValueOf(r)
+	if rv.Kind() == reflect.Pointer && rv.IsNil() {
+		return false
+	}
+	f, ok := reg.lookupFactory(r.ResourceType())
+	if !ok {
+		return false
+	}
+	return reflect.TypeOf(r) == reflect.TypeOf(f())
 }
 
 // defaultRegistry backs the release-agnostic package-level RegisterFactory,
