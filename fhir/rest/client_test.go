@@ -205,7 +205,12 @@ func (s *fakeServer) handleForcedError(w http.ResponseWriter, path string) {
 	case "409":
 		s.writeOutcome(w, http.StatusConflict, "conflict", "version conflict")
 	case "422":
-		s.writeOutcome(w, http.StatusUnprocessableEntity, "required", "Patient.gender is required")
+		// The diagnostics carries a synthetic patient-name sentinel a real server might echo back
+		// from the submitted resource; the expression carries the structural FHIRPath locator. The
+		// client error must surface the locator but never the diagnostics (the PHI-free error
+		// contract), so the test can assert the locator is present and the sentinel is absent.
+		s.writeOutcomeWithExpression(w, http.StatusUnprocessableEntity, "required",
+			"rejected value for patient SENTINEL-DETliff-PHI", "Patient.gender")
 	default:
 		s.writeOutcome(w, http.StatusInternalServerError, "exception", "server error")
 	}
@@ -216,6 +221,18 @@ func (s *fakeServer) handleForcedError(w http.ResponseWriter, path string) {
 func (s *fakeServer) writeOutcome(w http.ResponseWriter, status int, code, diagnostics string) {
 	body := fmt.Sprintf(`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":%q,"diagnostics":%q}]}`,
 		code, diagnostics)
+	w.Header().Set("Content-Type", mediaTypeFHIRJSON)
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body))
+}
+
+// writeOutcomeWithExpression writes a one-issue OperationOutcome carrying both a free-text diagnostics
+// and a structural expression locator, so a test can assert the client error surfaces the locator but
+// not the diagnostics.
+func (s *fakeServer) writeOutcomeWithExpression(w http.ResponseWriter, status int, code, diagnostics, expression string) {
+	body := fmt.Sprintf(
+		`{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":%q,"diagnostics":%q,"expression":[%q]}]}`,
+		code, diagnostics, expression)
 	w.Header().Set("Content-Type", mediaTypeFHIRJSON)
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(body))
@@ -554,9 +571,20 @@ func TestOperationOutcomeErrorMapping(t *testing.T) {
 			if ooErr.Outcome == nil || !ooErr.Outcome.HasErrors() {
 				t.Errorf("422: expected an OperationOutcome with errors")
 			}
-			// The diagnostic names a structural locator, not a patient value.
+			// The error string names the structural FHIRPath locator (expression), which is safe to log.
 			if !strings.Contains(ooErr.Error(), "Patient.gender") {
-				t.Errorf("422: error message %q does not name the locator", ooErr.Error())
+				t.Errorf("422: error message %q does not name the structural locator", ooErr.Error())
+			}
+			// The error string must NOT carry the server's free-text diagnostics: it can echo a
+			// submitted patient value, so leaking it into the error would leak PHI into logs.
+			const diagnosticsSentinel = "SENTINEL-DETliff-PHI"
+			if strings.Contains(ooErr.Error(), diagnosticsSentinel) {
+				t.Errorf("422: error message %q leaks the server diagnostics (PHI); it must stay off the string", ooErr.Error())
+			}
+			// The diagnostics is still reachable on the structured Outcome for a caller that explicitly
+			// chooses to inspect it.
+			if len(ooErr.Outcome.Issue) == 0 || !strings.Contains(ooErr.Outcome.Issue[0].Diagnostics, diagnosticsSentinel) {
+				t.Errorf("422: expected the diagnostics to remain on the structured Outcome field")
 			}
 
 			// 409 maps to ErrConflict.

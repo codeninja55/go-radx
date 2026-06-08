@@ -51,11 +51,16 @@ var (
 // sentinels above), so a caller can branch on errors.Is(err, rest.ErrConflict) regardless of which
 // release produced the outcome.
 //
-// The error message names the status, the issue codes, and the issue diagnostics, all of which are
-// element paths, resource types, and rule names, never patient values (PRD §9.1). The wrapped
-// Sentinel is unwrapped by errors.Is, and the outcome is reachable with errors.As for callers that
-// want the structured issues. This aligns with how exitcode.FromOperationOutcome classifies a
-// validation result: an error-severity outcome is a parse/validation failure.
+// The error message names the status, the interaction, the issue severity and code, and the issue
+// expression (the FHIRPath locator), all of which are structural — status codes, rule names, and
+// element paths, never patient values (PRD §9.1). The issue diagnostics is deliberately excluded
+// from the message: it is free text a peer server controls and can echo back a submitted patient
+// name, identifier, or value, so letting it into the error string would leak PHI into any log that
+// records the error (the dump/log PHI rule, mirroring the dicomweb CrossOriginBulkDataError fix). A
+// caller that explicitly chooses to inspect diagnostics reaches them through the structured Outcome
+// field with errors.As. The wrapped Sentinel is unwrapped by errors.Is. This aligns with how
+// exitcode.FromOperationOutcome classifies a validation result: an error-severity outcome is a
+// parse/validation failure.
 type OperationOutcomeError struct {
 	// StatusCode is the HTTP status the server returned (for example 404, 409, 422).
 	StatusCode int
@@ -65,8 +70,10 @@ type OperationOutcomeError struct {
 	Sentinel error
 
 	// Outcome holds the issues parsed from the response body when it was a FHIR OperationOutcome,
-	// or nil when the body was absent or not an OperationOutcome. Issue diagnostics name structural
-	// locators, never patient values.
+	// or nil when the body was absent or not an OperationOutcome. Unlike the structural fields the
+	// Error string exposes, an issue's Diagnostics is free text the peer server controls and may
+	// carry PHI, so it lives only here and never enters the error message; a caller that handles
+	// diagnostics opts into that exposure by reading this field.
 	Outcome *fhir.OperationOutcome
 
 	// Method and URL name the failed interaction without its query string, so a logged error reveals
@@ -75,8 +82,11 @@ type OperationOutcomeError struct {
 	URL    string
 }
 
-// Error renders the failure with the status, the interaction, and the issue diagnostics, all
-// PHI-free.
+// Error renders the failure with the status, the interaction, and each issue's severity, code, and
+// expression locator. It deliberately omits the issue diagnostics: that field is free text the peer
+// server controls and may echo back a submitted patient value, so keeping it out of the string keeps
+// the error PHI-free for logging. The diagnostics stay reachable on the Outcome field for a caller
+// that explicitly chooses to inspect them.
 func (e *OperationOutcomeError) Error() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "fhir/rest: %s %s: HTTP %d", e.Method, e.URL, e.StatusCode)
@@ -92,10 +102,6 @@ func (e *OperationOutcomeError) Error() string {
 			if issue.Expression != "" {
 				b.WriteString(" at ")
 				b.WriteString(issue.Expression)
-			}
-			if issue.Diagnostics != "" {
-				b.WriteString(": ")
-				b.WriteString(issue.Diagnostics)
 			}
 		}
 	}
