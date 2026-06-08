@@ -514,7 +514,19 @@ jobs:
           CGO_LDFLAGS: "-fsanitize=address,undefined -shared-libasan"
           ASAN_OPTIONS: "halt_on_error=1:abort_on_error=1:detect_leaks=0:print_stacktrace=1"
           UBSAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
-        run: go test -asan -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
+        run: |
+          # -shared-libasan links the test binary against libclang_rt.asan-x86_64.so, which lives in
+          # clang's resource dir (lib/linux) — NOT on the default loader path, so without this the
+          # binary fails at startup with "libclang_rt.asan-x86_64.so: cannot open shared object file".
+          # Derive the dir from the clang in use (version-agnostic) and fall back to a find if the
+          # canonical lib/linux layout differs on this clang build.
+          asan_dir="$(clang -print-resource-dir)/lib/linux"
+          if [ ! -e "$asan_dir/libclang_rt.asan-x86_64.so" ]; then
+            found="$(find "$(clang -print-resource-dir)" -name 'libclang_rt.asan-x86_64.so' -print -quit 2>/dev/null || true)"
+            [ -n "$found" ] && asan_dir="$(dirname "$found")"
+          fi
+          export LD_LIBRARY_PATH="${asan_dir}:${LD_LIBRARY_PATH:-}"
+          go test -asan -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
 
   phi-sanity:
     # The PHI-default sweep (internal/phisweep) asserts the project's "no PHI in logs unless the
