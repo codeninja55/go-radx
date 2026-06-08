@@ -521,6 +521,11 @@ jobs:
           CGO_LDFLAGS: "-fsanitize=address,undefined -shared-libasan"
           ASAN_OPTIONS: "halt_on_error=1:abort_on_error=1:detect_leaks=0:print_stacktrace=1"
           UBSAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+          # The hostile-input subprocess harness bounds each decode with a per-input deadline so a hang
+          # fails the test (DCM-015). ASAN instrumentation slows a terminating decode by 2-20x, which can
+          # push a legitimately-terminating case past the tight normal-run deadline; RADX_ASAN=1 tells the
+          # harness to use the generous sanitizer-mode budget instead of globally weakening the fast guard.
+          RADX_ASAN: "1"
         run: |
           # -shared-libasan links the test binary against libclang_rt.asan-x86_64.so, which lives in
           # clang's resource dir (lib/linux) — NOT on the default loader path, so without this the
