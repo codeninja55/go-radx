@@ -518,8 +518,10 @@ func encodeUserInformation(out *bytes.Buffer, ui UserInformation) error {
 			return err
 		}
 	}
-	encodeItem(out, ItemTypeUserInformation, buf.Bytes())
-	return nil
+	// Guard the enclosing User-Information item too: individually-valid sub-items can together exceed
+	// 65535 bytes (e.g. several large extended-negotiation items), which would wrap the 0x50 item's
+	// uint16 length and emit a corrupt A-ASSOCIATE PDU. Same checked encoding as the nested sub-items.
+	return encodeItemChecked(out, "user-information", ItemTypeUserInformation, buf.Bytes())
 }
 
 func decodeUserInformation(data []byte) (UserInformation, error) {

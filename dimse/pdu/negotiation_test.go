@@ -302,6 +302,22 @@ func TestEncodeRejectsOversizedNegotiationFields(t *testing.T) {
 		})
 		assertEncodeError(t, err)
 	})
+	t.Run("enclosing user-information item overflows on aggregate sub-items", func(t *testing.T) {
+		// Each extended-negotiation sub-item is individually well under 65535, but three ~30 KiB
+		// items together push the enclosing User-Information (0x50) item body past the uint16 limit,
+		// which must be refused rather than wrapping the outer length into a corrupt PDU.
+		big := make([]byte, 30000)
+		var buf bytes.Buffer
+		err := encodeUserInformation(&buf, UserInformation{
+			MaxPDULength: 16382,
+			ExtendedNegotiations: []ExtendedNegotiation{
+				{SOPClassUID: negFindSOPUID, ServiceClassAppInfo: big},
+				{SOPClassUID: negCTImageUID, ServiceClassAppInfo: big},
+				{SOPClassUID: negStorageSC, ServiceClassAppInfo: big},
+			},
+		})
+		assertEncodeError(t, err)
+	})
 }
 
 // TestEncodeOversizedFieldCorruptsAssociatePDU verifies an A-ASSOCIATE-AC carrying an over-length
