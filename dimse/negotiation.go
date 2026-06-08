@@ -126,9 +126,12 @@ func (a *Association) NegotiatedAsyncOps() *AsyncOps {
 }
 
 // UserIdentityResponse returns the user-identity server response the acceptor returned (PS3.7
-// D.3.3.7), or nil when the requestor asked for no positive response, presented no identity, or the
-// association is unestablished. The bytes are opaque (a Kerberos server ticket or SAML response) and
-// are never logged (PRD §9.8).
+// D.3.3.7). It returns nil only when no user-identity AC sub-item was present — the requestor asked
+// for no positive response, presented no identity, the acceptor honoured none, or the association is
+// unestablished. When the acceptor honoured a positive-response request with an empty body it returns
+// a non-nil empty slice, so a caller can distinguish "positive response honoured, empty body" from "no
+// positive response at all". The bytes are opaque (a Kerberos server ticket or SAML response) and are
+// never logged (PRD §9.8).
 func (a *Association) UserIdentityResponse() []byte {
 	if a == nil || a.requestor == nil {
 		return nil
@@ -206,10 +209,18 @@ func fromPDUAsyncOps(ao *pdu.AsyncOperations) *AsyncOps {
 }
 
 // fromPDUUserIdentityAC extracts the opaque server-response bytes from the pdu-level user-identity AC
-// sub-item, returning nil when the acceptor returned none.
+// sub-item, preserving the sub-item's presence. It returns nil only when no user-identity AC sub-item
+// was present (the acceptor honoured no positive response); when the sub-item is present its
+// server-response bytes are returned, and a non-nil empty slice when those bytes are empty. The empty
+// non-nil case must stay distinguishable from the absent case: a positive response honoured with an
+// empty body (a username/passcode acceptance) is a different outcome from no positive response at all,
+// and a caller reading UserIdentityResponse needs to tell them apart.
 func fromPDUUserIdentityAC(ac *pdu.UserIdentityAC) []byte {
 	if ac == nil {
 		return nil
+	}
+	if ac.ServerResponse == nil {
+		return []byte{}
 	}
 	return ac.ServerResponse
 }

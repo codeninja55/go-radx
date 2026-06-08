@@ -249,3 +249,69 @@ func TestAssociateOmitsExtendedNegotiationResponseWhenNoneEchoed(t *testing.T) {
 		t.Errorf("NegotiatedCommonExtendedNegotiations = %+v, want nil", got)
 	}
 }
+
+// TestUserIdentityResponsePreservesPresence verifies fromPDUUserIdentityAC keeps the sub-item's
+// presence distinguishable: an absent sub-item is nil, a present sub-item with an empty body is a
+// non-nil empty slice (a positive response honoured with no body), and a present sub-item with bytes
+// returns those bytes. Collapsing the empty case to nil would make "positive response honoured" look
+// like "no positive response at all" (PS3.7 D.3.3.7).
+func TestUserIdentityResponsePreservesPresence(t *testing.T) {
+	if got := fromPDUUserIdentityAC(nil); got != nil {
+		t.Errorf("fromPDUUserIdentityAC(nil) = %v, want nil (no sub-item present)", got)
+	}
+
+	empty := fromPDUUserIdentityAC(&pdu.UserIdentityAC{})
+	if empty == nil {
+		t.Fatal("fromPDUUserIdentityAC(empty) = nil, want a non-nil empty slice (presence honoured)")
+	}
+	if len(empty) != 0 {
+		t.Errorf("fromPDUUserIdentityAC(empty) = %v, want an empty slice", empty)
+	}
+
+	if got := fromPDUUserIdentityAC(&pdu.UserIdentityAC{ServerResponse: []byte("token")}); !bytes.Equal(got, []byte("token")) {
+		t.Errorf("fromPDUUserIdentityAC(token) = %q, want token", got)
+	}
+}
+
+// TestAuthenticatorAcceptsEmptyPositiveResponse drives an empty positive response end to end: the SCU
+// asks for a positive response, the authenticator accepts and returns an empty body, and the
+// association reports a non-nil empty response so the requestor can tell its positive-response request
+// was honoured (PS3.7 D.3.3.7). This is the username/passcode acceptance case where the acceptor
+// carries no server ticket.
+func TestAuthenticatorAcceptsEmptyPositiveResponse(t *testing.T) {
+	authenticate := func(id *UserIdentity, _ net.Addr) ([]byte, error) {
+		if id == nil {
+			return nil, errors.New("identity required")
+		}
+		return nil, nil // accepted, empty positive-response body
+	}
+	h := &serverTestHandler{echoStatus: StatusEchoSuccess}
+	srv, _ := startServer(t, h, WithAuthenticator(authenticate))
+
+	assoc := associateForNegotiation(t, srv, WithUserIdentity(UserIdentity{
+		Type:                      UserIdentityUsernamePasscode,
+		PrimaryField:              []byte("alice"),
+		SecondaryField:            []byte("s3cret"),
+		PositiveResponseRequested: true,
+	}))
+
+	resp := assoc.UserIdentityResponse()
+	if resp == nil {
+		t.Fatal("UserIdentityResponse = nil; want a non-nil empty slice (positive response honoured, empty body)")
+	}
+	if len(resp) != 0 {
+		t.Errorf("UserIdentityResponse = %q, want an empty slice", resp)
+	}
+}
+
+// TestUserIdentityResponseNilWhenNoSubItem verifies an association that presents no identity reports a
+// nil user-identity response, so the absent case stays distinguishable from an honoured empty response.
+func TestUserIdentityResponseNilWhenNoSubItem(t *testing.T) {
+	h := &serverTestHandler{echoStatus: StatusEchoSuccess}
+	srv, _ := startServer(t, h)
+
+	assoc := associateForNegotiation(t, srv)
+	if got := assoc.UserIdentityResponse(); got != nil {
+		t.Errorf("UserIdentityResponse = %v, want nil (no user-identity sub-item presented)", got)
+	}
+}
