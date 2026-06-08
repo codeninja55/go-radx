@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 
@@ -68,7 +70,18 @@ func (r *MLLPRole) name() string { return "mllp" }
 // start binds the MLLP listener and serves inbound connections in the background. The daemon's shared
 // TLS config terminates TLS on the listener (PRD §9.7); the listener is bound synchronously so the
 // daemon's fail-closed startup aborts on a bind failure.
+//
+// MLLP carries no application-level identity, so a generic Authenticator cannot gate it the way the
+// HTTP and DIMSE roles gate their callers. The fail-closed bind policy is therefore stronger for
+// MLLP: a non-loopback bind MUST terminate mutual TLS (a TLS config that requires and verifies a
+// client certificate), so the transport, not the message, authenticates the peer. A non-loopback
+// MLLP bind without client-certificate-verifying TLS is refused with ErrInsecureBind rather than
+// silently serving every TCP peer that can reach the port.
 func (r *MLLPRole) start(ctx context.Context, host string, env roleEnv) error {
+	if err := requireMLLPTransportAuth(host, env.tlsConfig); err != nil {
+		return err
+	}
+
 	var opts []hl7v2.MLLPServerOption
 	if r.cfg.maxFrameSize > 0 {
 		opts = append(opts, hl7v2.WithMaxFrameSize(r.cfg.maxFrameSize))
@@ -107,4 +120,21 @@ func (r *MLLPRole) shutdown(ctx context.Context) error {
 		return nil
 	}
 	return r.srv.Shutdown(ctx)
+}
+
+// requireMLLPTransportAuth enforces the MLLP-specific bind policy: a loopback bind is unconstrained
+// (reachable only from localhost), but a non-loopback bind must terminate mutual TLS — a TLS config
+// whose ClientAuth requires and verifies a client certificate — because MLLP has no message-level
+// identity for an Authenticator to check. A non-loopback bind with no TLS, or with TLS that does not
+// verify a client certificate, is refused with ErrInsecureBind.
+func requireMLLPTransportAuth(host string, cfg *tls.Config) error {
+	if isLoopbackHost(host) {
+		return nil
+	}
+	if cfg == nil || cfg.ClientAuth != tls.RequireAndVerifyClientCert {
+		return fmt.Errorf("%w: MLLP network exposure (bind host %q) requires mutual TLS "+
+			"(tls.RequireAndVerifyClientCert), as MLLP has no application-level identity to authenticate",
+			ErrInsecureBind, host)
+	}
+	return nil
 }

@@ -2,6 +2,15 @@ package server
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"errors"
+	"math/big"
+	"net"
 	"net/http"
 	"testing"
 	"time"
@@ -57,6 +66,84 @@ func TestDaemonMLLPRoundTrip(t *testing.T) {
 	cancelRun()
 	if err := <-runErr; err != nil {
 		t.Fatalf("Run returned %v on clean shutdown, want nil", err)
+	}
+}
+
+// TestMLLPNonLoopbackRequiresMTLS asserts the MLLP transport-auth fix: a non-loopback MLLP bind
+// WITHOUT client-certificate-verifying TLS fails to start with ErrInsecureBind, while the same bind
+// WITH mutual TLS starts cleanly (Finding 2). MLLP carries no application-level identity, so a
+// generic Authenticator cannot gate it; the bind policy requires mTLS for network exposure.
+func TestMLLPNonLoopbackRequiresMTLS(t *testing.T) {
+	t.Parallel()
+	handler := hl7v2.HandlerFunc(func(_ context.Context, m *hl7v2.Message) (*hl7v2.Message, error) {
+		return m.BuildACK(hl7v2.AckAccept)
+	})
+
+	// Non-loopback MLLP bind with an Authenticator but NO mTLS: refused with ErrInsecureBind.
+	noTLSRole, err := NewMLLPRole(handler, WithMLLPPort(0))
+	if err != nil {
+		t.Fatalf("NewMLLPRole: %v", err)
+	}
+	dNoTLS, err := New(WithMLLP(noTLSRole), WithBind("0.0.0.0"), WithAuthenticator(AllowAll()))
+	if err != nil {
+		t.Fatalf("New (no mTLS): %v", err)
+	}
+	if err := dNoTLS.Run(context.Background()); !errors.Is(err, ErrInsecureBind) {
+		t.Fatalf("Run on a non-loopback MLLP bind without mTLS = %v, want ErrInsecureBind", err)
+	}
+
+	// Non-loopback MLLP bind WITH client-certificate-verifying TLS: starts cleanly.
+	mtlsRole, err := NewMLLPRole(handler, WithMLLPPort(0))
+	if err != nil {
+		t.Fatalf("NewMLLPRole (mTLS): %v", err)
+	}
+	dMTLS, err := New(WithMLLP(mtlsRole), WithBind("0.0.0.0"),
+		WithAuthenticator(AllowAll()), WithTLS(mutualTLSConfig(t)))
+	if err != nil {
+		t.Fatalf("New (mTLS): %v", err)
+	}
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+	go func() { runErr <- dMTLS.Run(runCtx) }()
+	waitForAddrs(t, dMTLS, "mllp")
+	cancelRun()
+	if err := <-runErr; err != nil {
+		t.Fatalf("Run on a non-loopback MLLP bind with mTLS = %v, want a clean start/stop", err)
+	}
+}
+
+// mutualTLSConfig builds a server TLS config that requires and verifies a client certificate
+// (mTLS), so a non-loopback MLLP bind authenticates the peer at the transport. The CA pool trusts
+// the same self-signed certificate the server presents, which is sufficient for the bind-policy
+// check (the test does not complete a handshake).
+func mutualTLSConfig(t *testing.T) *tls.Config {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "go-radx-test"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1)},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("CreateCertificate: %v", err)
+	}
+	leaf, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("ParseCertificate: %v", err)
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(leaf)
+	return &tls.Config{
+		Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key, Leaf: leaf}},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    pool,
+		MinVersion:   tls.VersionTLS12,
 	}
 }
 
