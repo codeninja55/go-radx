@@ -25,9 +25,13 @@ const (
 	defaultFHIRMaxRequestBytes int64 = 8 << 20
 )
 
-// mediaTypeFHIRJSON is the only content type the FHIR role serves and accepts, matching the fhir
-// package's JSON-only v1 scope.
+// mediaTypeFHIRJSON is the content type the FHIR role serves and the canonical content type a write
+// declares, matching the fhir package's JSON-only v1 scope.
 const mediaTypeFHIRJSON = "application/fhir+json"
+
+// mediaTypeJSON is the generic JSON content type FHIR also permits on a request body, so a write that
+// declares application/json (rather than the FHIR-specific application/fhir+json) is accepted.
+const mediaTypeJSON = "application/json"
 
 // fhirRoleConfig holds the resolved FHIRRole options.
 type fhirRoleConfig struct {

@@ -477,6 +477,51 @@ func TestMemoryRepositoryTransactionPreservesConcurrentCreates(t *testing.T) {
 	}
 }
 
+// TestFHIRRoleWriteRequiresFHIRMediaType proves a write must declare the FHIR JSON content type before
+// the body is decoded. A create sent as text/plain is a 415 OperationOutcome and does not mutate the
+// store; application/fhir+json and the generic application/json both succeed.
+func TestFHIRRoleWriteRequiresFHIRMediaType(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			// text/plain is unsupported on a write: 415 with an OperationOutcome, before any decode/store.
+			status, body, _ := httpDo(t, http.MethodPost, base+"/Patient", "text/plain",
+				patientJSON(release, "female"))
+			if status != http.StatusUnsupportedMediaType {
+				t.Fatalf("create with text/plain status = %d, want 415; body=%s", status, body)
+			}
+			assertOperationOutcome(t, body, "error")
+			// No mutation: the store still holds no Patient.
+			assertWorkflowCount(t, base, "Patient", 0)
+
+			// A missing Content-Type is likewise unsupported on a write.
+			status, body, _ = httpDo(t, http.MethodPost, base+"/Patient", "", patientJSON(release, "female"))
+			if status != http.StatusUnsupportedMediaType {
+				t.Fatalf("create with no Content-Type status = %d, want 415; body=%s", status, body)
+			}
+			assertWorkflowCount(t, base, "Patient", 0)
+
+			// application/fhir+json succeeds.
+			status, body, _ = httpDo(t, http.MethodPost, base+"/Patient", "application/fhir+json",
+				patientJSON(release, "female"))
+			if status != http.StatusCreated {
+				t.Fatalf("create with application/fhir+json status = %d, want 201; body=%s", status, body)
+			}
+
+			// The generic application/json (with a charset parameter) also succeeds, as FHIR permits.
+			status, body, _ = httpDo(t, http.MethodPost, base+"/Patient", "application/json; charset=utf-8",
+				patientJSON(release, "male"))
+			if status != http.StatusCreated {
+				t.Fatalf("create with application/json status = %d, want 201; body=%s", status, body)
+			}
+
+			assertWorkflowCount(t, base, "Patient", 2)
+		})
+	}
+}
+
 // TestFHIRRoleTransactionValidatesEntries proves a transaction's POST entries go through the same
 // create-validation gate a direct create POST does, so a transaction cannot commit a resource the
 // direct path would reject. An Encounter missing its required status is a 422 OperationOutcome via

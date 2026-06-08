@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -129,6 +130,9 @@ func (h *fhirHandler) handleRead(w http.ResponseWriter, r *http.Request, resourc
 // 422 for an unprocessable but well-formed resource). On success it answers 201 with a Location
 // header naming the created resource.
 func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resourceType string) {
+	if !h.requireFHIRWriteMedia(w, r) {
+		return
+	}
 	body, err := h.readBody(r)
 	if err != nil {
 		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body could not be read or exceeds the size limit")
@@ -206,6 +210,9 @@ func (h *fhirHandler) handleSearch(w http.ResponseWriter, r *http.Request, resou
 // is not a Bundle is a 400 OperationOutcome; a repository failure (an unsupported entry verb, a
 // missing referenced resource) is mapped to an OperationOutcome rather than a silent partial success.
 func (h *fhirHandler) handleTransaction(w http.ResponseWriter, r *http.Request) {
+	if !h.requireFHIRWriteMedia(w, r) {
+		return
+	}
 	body, err := h.readBody(r)
 	if err != nil {
 		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body could not be read or exceeds the size limit")
@@ -314,6 +321,41 @@ func (h *fhirHandler) writeOutcome(w http.ResponseWriter, _ *http.Request, statu
 // channel (servers.md: never a silent no-op).
 func (h *fhirHandler) writeUnsupported(w http.ResponseWriter, r *http.Request, diagnostics string) {
 	h.writeError(w, r, http.StatusMethodNotAllowed, issueTypeNotSupported, diagnostics)
+}
+
+// requireFHIRWriteMedia enforces the FHIR write content type before a write body is read or decoded.
+// A write (create, transaction) carries an application/fhir+json body; FHIR also permits the generic
+// application/json. An unsupported or absent Content-Type is a 415 OperationOutcome written before the
+// body is touched, so a body sent as text/plain or with no Content-Type never mutates the repository.
+// It reports true to proceed, false when it has already written the 415 response.
+func (h *fhirHandler) requireFHIRWriteMedia(w http.ResponseWriter, r *http.Request) bool {
+	if isFHIRWriteMediaType(r.Header.Get("Content-Type")) {
+		return true
+	}
+	h.writeError(w, r, http.StatusUnsupportedMediaType, issueTypeNotSupported,
+		"a FHIR write requires Content-Type "+mediaTypeFHIRJSON+" (application/json is also accepted)")
+	return false
+}
+
+// isFHIRWriteMediaType reports whether a Content-Type header names a media type a FHIR write accepts:
+// application/fhir+json (the FHIR JSON media type) or the generic application/json FHIR also permits, a
+// charset parameter allowed on either. The header is parsed with mime.ParseMediaType so a parameter or
+// casing does not defeat the check; an absent or unparseable Content-Type is not accepted, matching the
+// server contract that a write declares its FHIR JSON body.
+func isFHIRWriteMediaType(contentType string) bool {
+	if contentType == "" {
+		return false
+	}
+	mt, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(mt) {
+	case mediaTypeFHIRJSON, mediaTypeJSON:
+		return true
+	default:
+		return false
+	}
 }
 
 // writeRepoError maps a repository error to an OperationOutcome: ErrNotFound to a 404, any other to
