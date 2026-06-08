@@ -2,10 +2,14 @@
 
 > **Implementation status: NOT YET SHIPPED.** This is a scaffold. The `radx` command-line interface is not yet
 > implemented: `cmd/radx` is a placeholder that prints a not-implemented notice, so none of the command groups below
-> exist yet. The embeddable library server types (`dimse.Server`, `dicomweb.Server`) do exist, but their CLI wiring and
-> the operator-facing guarantees described here do not. Until this banner is removed, **no CLI behaviour is
-> conformance-guaranteed**, and the command surface, flag contract, exit-code policy, logging behaviour, and PHI policy
-> below are the planned design, not shipped behaviour. Do not cite this document as a conformance basis.
+> exist yet. The embeddable library server layer now ships in part — the `server` package composition root
+> (`server.Daemon`), the pluggable backends (`ObjectStore`, `Catalogue`, `WorklistSource`, `Authenticator`), the
+> DIMSE SCP / DICOMweb / MLLP roles, and the default filesystem object store plus SQLite catalogue all exist (see
+> [Embeddable server composition layer](#embeddable-server-composition-layer) below) — but the CLI wiring, the
+> operator-facing command guarantees described here, and the FHIR REST role do not. Until this banner is removed, **no
+> CLI behaviour is conformance-guaranteed**, and the command surface, flag contract, exit-code policy, logging
+> behaviour, and PHI policy below are the planned design, not shipped behaviour. Do not cite this document as a
+> conformance basis.
 
 | Field | Value |
 |-------|-------|
@@ -25,6 +29,50 @@ the scope and the operational guarantees once the implementation exists.
 Not yet authored. This section will enumerate the in-scope command groups (the planned set includes `echo`, `store`,
 `scp`, `dump`, `modify`, `organize`, `lookup`, `catalogue`, and the `hl7`, `dicomweb`, and `convert` groups), each with
 its flag contract and documented exit codes. The design is in `docs/reference/cli.md`.
+
+## Embeddable server composition layer
+
+The `server` package is the embeddable composition layer the CLI will eventually wrap. It ships ahead of the CLI as a
+library surface; its full public-API contract is `docs/reference/servers.md`. What ships today:
+
+- **`server.Daemon` composition root.** Constructed with `server.New(opts ...Option)`, it owns the shared logger
+  (`WithLogger`, default no-op), the OpenTelemetry tracer and meter providers (`WithTracerProvider`,
+  `WithMeterProvider`, both defaulting to the no-op providers that export nowhere until an operator wires an exporter),
+  the listener policy, and the graceful-shutdown lifecycle. `Run(ctx)` starts every mounted role and blocks until the
+  context is cancelled (the `SIGINT`/`SIGTERM` path the CLI will wire) or `Shutdown(ctx)` is called, then drains every
+  role within `WithShutdownTimeout` (default 30 seconds). A role that does not drain in time yields a role-naming
+  `ErrShutdownTimeout` from `Run`, an honest report that the stop was not clean — never a silent success.
+- **Four pluggable backends.** `ObjectStore` (the binary object plane behind C-STORE/C-GET/C-MOVE and STOW-RS/WADO-RS),
+  `Catalogue` (the queryable metadata plane behind C-FIND and QIDO-RS), `WorklistSource` (the Modality Worklist plane),
+  and `Authenticator` (the identity plane), each segregated so a deployment implements only what it serves.
+- **Three server roles.** A DIMSE SCP role (`NewDIMSERole`, wrapping `dimse.Server`, storing via `ObjectStore` and
+  indexing via `Catalogue`, with an optional Modality Worklist SCP fed by a `WorklistSource`), a DICOMweb role
+  (`NewDICOMwebRole`, wrapping `dicomweb.Server` over the same backends), and an HL7 v2 MLLP role (`NewMLLPRole`,
+  wrapping `hl7v2.Server`). Each applies the daemon's shared bind, TLS, and observability policy uniformly.
+- **Default backends.** `server.FileStore(root)` persists each object as a Part 10 file in a study/series/instance
+  layout, treating UIDs as untrusted input (every path component is validated as a conformant DICOM UID, so a
+  traversal-style identifier is rejected before any path is built). `server.SQLiteCatalogue(ctx, dbPath, ...)` indexes
+  the queryable attributes in a SQLite database via the pure-Go `modernc.org/sqlite` driver, so the default build stays
+  cgo-free. The catalogue path is **required and never defaulted**, because the catalogue holds PHI; a redacted mode
+  (`WithRedaction`) hashes direct identifiers for non-clinical use.
+
+### Bind policy and the PHI default
+
+Every role binds to **loopback only** (`127.0.0.1`) unless the operator passes `WithBind` (the CLI's future `--bind`).
+A non-loopback bind without an explicit `Authenticator` fails closed: `server.New` returns `ErrInsecureBind` rather than
+silently exposing an unauthenticated server. Binding wide open with no authentication is reachable only by passing
+`WithAuthenticator(server.AllowAll())` explicitly — a visible, reviewable choice. The no-PHI-by-default behaviour is
+test-enforced by a server-package PHI sweep that mirrors the `internal/phisweep` harness: it drives a runnable daemon
+over a sentinel-bearing object at default verbosity through a real C-STORE and asserts no sentinel surfaces in stdout,
+stderr, returned errors, or the structured log.
+
+### Deferred: the FHIR REST role
+
+The FHIR REST client and the FHIR REST server role are a **separate later increment** and are not yet implemented. The
+`server.Repository` seam, the `FHIRRole`, and the conformance-subset interactions (`read`, `create`, `search-type`,
+`transaction` over the workflow resource set) described in `docs/reference/servers.md` are the planned design; the
+`Daemon` already accepts a fourth role uniformly, so mounting the FHIR role is additive when it lands. Until then the
+daemon serves the DIMSE, DICOMweb, and MLLP roles only.
 
 ## Structured logging and PHI policy
 
