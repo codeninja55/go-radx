@@ -136,6 +136,66 @@ func (a *Association) UserIdentityResponse() []byte {
 	return a.userIdentityResponse
 }
 
+// NegotiatedExtendedNegotiations returns the SOP-class extended-negotiation response sub-items the
+// acceptor returned in its A-ASSOCIATE-AC (PS3.7 D.3.3.5), one per SOP Class the acceptor accepted
+// extended negotiation for. It is nil for an unestablished association or one the acceptor returned
+// none for. A requestor that proposed extended negotiation via WithExtendedNegotiation reads the
+// acceptor's negotiated service-class application information here.
+func (a *Association) NegotiatedExtendedNegotiations() []ExtendedNegotiation {
+	if a == nil || a.requestor == nil {
+		return nil
+	}
+	return a.extendedNegotiations
+}
+
+// NegotiatedCommonExtendedNegotiations returns the SOP-class common-extended-negotiation response
+// sub-items the acceptor returned in its A-ASSOCIATE-AC (PS3.7 D.3.3.6). It is nil for an
+// unestablished association or one the acceptor returned none for.
+func (a *Association) NegotiatedCommonExtendedNegotiations() []CommonExtendedNegotiation {
+	if a == nil || a.requestor == nil {
+		return nil
+	}
+	return a.commonExtendedNegotiations
+}
+
+// fromPDUExtendedNegotiations translates the acceptor's pdu-level extended-negotiation responses back
+// to public ExtendedNegotiation values, returning nil for an empty input so an association that
+// negotiated none reports nil rather than a non-nil empty slice.
+func fromPDUExtendedNegotiations(items []pdu.ExtendedNegotiation) []ExtendedNegotiation {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]ExtendedNegotiation, 0, len(items))
+	for _, it := range items {
+		out = append(out, ExtendedNegotiation{
+			SOPClassUID:         dicom.SOPClassUID(it.SOPClassUID),
+			ServiceClassAppInfo: it.ServiceClassAppInfo,
+		})
+	}
+	return out
+}
+
+// fromPDUCommonExtendedNegotiations translates the acceptor's pdu-level common-extended-negotiation
+// responses back to public CommonExtendedNegotiation values, returning nil for an empty input.
+func fromPDUCommonExtendedNegotiations(items []pdu.CommonExtendedNegotiation) []CommonExtendedNegotiation {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]CommonExtendedNegotiation, 0, len(items))
+	for _, it := range items {
+		related := make([]dicom.SOPClassUID, 0, len(it.RelatedGeneralSOPClasses))
+		for _, uid := range it.RelatedGeneralSOPClasses {
+			related = append(related, dicom.SOPClassUID(uid))
+		}
+		out = append(out, CommonExtendedNegotiation{
+			SOPClassUID:              dicom.SOPClassUID(it.SOPClassUID),
+			ServiceClassUID:          dicom.UID(it.ServiceClassUID),
+			RelatedGeneralSOPClasses: related,
+		})
+	}
+	return out
+}
+
 // fromPDUAsyncOps translates the pdu-level async-ops echo to the public AsyncOps, returning nil for a
 // nil input so an association that negotiated no async-ops window reports nil.
 func fromPDUAsyncOps(ao *pdu.AsyncOperations) *AsyncOps {

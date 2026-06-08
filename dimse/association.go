@@ -34,7 +34,13 @@ type Association struct {
 	// D.3.3.7), or nil when the requestor asked for no positive response. The bytes are opaque and
 	// never logged.
 	userIdentityResponse []byte
-	dimseTimeout         time.Duration
+	// extendedNegotiations and commonExtendedNegotiations hold the SOP-class extended- and
+	// common-extended-negotiation response sub-items the acceptor returned in its A-ASSOCIATE-AC
+	// (PS3.7 D.3.3.5, D.3.3.6), or nil when the acceptor accepted none. A requestor that proposed
+	// extended negotiation reads the acceptor's negotiated service-class application information here.
+	extendedNegotiations       []ExtendedNegotiation
+	commonExtendedNegotiations []CommonExtendedNegotiation
+	dimseTimeout               time.Duration
 	// localMaxPDULength is the maximum PDU length this AE advertised; peerMaxPDULength is the one
 	// the peer advertised in its A-ASSOCIATE-AC. A C-STORE is fragmented so every P-DATA-TF stays
 	// within both limits (MaxPDULength.SendCap), and an unlimited peer max (0) resolves to the
@@ -266,14 +272,16 @@ func (ae *AE) Associate(
 		return nil, translateAssociateError(err)
 	}
 	return &Association{
-		requestor:            requestor,
-		accepted:             fromPDUContextsAC(contexts, requestor.AcceptedContexts()),
-		negotiatedRoles:      fromPDURoles(requestor.NegotiatedRoles()),
-		negotiatedAsyncOps:   fromPDUAsyncOps(requestor.NegotiatedAsyncOps()),
-		userIdentityResponse: fromPDUUserIdentityAC(requestor.UserIdentityResponse()),
-		dimseTimeout:         ae.cfg.dimseTimeout,
-		localMaxPDULength:    ae.cfg.maxPDULength,
-		peerMaxPDULength:     MaxPDULength(requestor.PeerMaxPDULength()),
+		requestor:                  requestor,
+		accepted:                   fromPDUContextsAC(contexts, requestor.AcceptedContexts()),
+		negotiatedRoles:            fromPDURoles(requestor.NegotiatedRoles()),
+		negotiatedAsyncOps:         fromPDUAsyncOps(requestor.NegotiatedAsyncOps()),
+		userIdentityResponse:       fromPDUUserIdentityAC(requestor.UserIdentityResponse()),
+		extendedNegotiations:       fromPDUExtendedNegotiations(requestor.NegotiatedExtendedNegotiations()),
+		commonExtendedNegotiations: fromPDUCommonExtendedNegotiations(requestor.NegotiatedCommonExtendedNegotiations()),
+		dimseTimeout:               ae.cfg.dimseTimeout,
+		localMaxPDULength:          ae.cfg.maxPDULength,
+		peerMaxPDULength:           MaxPDULength(requestor.PeerMaxPDULength()),
 	}, nil
 }
 

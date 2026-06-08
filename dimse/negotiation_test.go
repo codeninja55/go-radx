@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/dimse/pdu"
 )
 
 // associateForNegotiation opens an association from a fresh SCU to srv with the given options and the
@@ -183,5 +184,68 @@ func TestAssociateCarriesExtendedNegotiation(t *testing.T) {
 	)
 	if len(assoc.AcceptedContexts()) == 0 {
 		t.Error("association accepted no contexts; the extended-negotiation sub-items may have broken negotiation")
+	}
+}
+
+// TestExtendedNegotiationResponseConverters verifies the pdu-to-public converters that surface an
+// acceptor's extended- and common-extended-negotiation AC responses on the established association
+// (PS3.7 D.3.3.5, D.3.3.6). The stock acceptor echoes no extended-negotiation response, so the
+// requestor-side observability of an AC that does carry one is covered end to end by the acse package;
+// this exercises the conversion boundary the root accessors delegate to, including the nil-for-empty
+// contract and UID-typing.
+func TestExtendedNegotiationResponseConverters(t *testing.T) {
+	if got := fromPDUExtendedNegotiations(nil); got != nil {
+		t.Errorf("fromPDUExtendedNegotiations(nil) = %v, want nil", got)
+	}
+	if got := fromPDUCommonExtendedNegotiations(nil); got != nil {
+		t.Errorf("fromPDUCommonExtendedNegotiations(nil) = %v, want nil", got)
+	}
+
+	en := fromPDUExtendedNegotiations([]pdu.ExtendedNegotiation{
+		{SOPClassUID: "1.2.840.10008.1.1", ServiceClassAppInfo: []byte{0x01, 0x02}},
+	})
+	if len(en) != 1 || en[0].SOPClassUID != dicom.SOPClassUID("1.2.840.10008.1.1") {
+		t.Fatalf("extended negotiation = %+v", en)
+	}
+	if !bytes.Equal(en[0].ServiceClassAppInfo, []byte{0x01, 0x02}) {
+		t.Errorf("service-class app info = %v, want [1 2]", en[0].ServiceClassAppInfo)
+	}
+
+	cen := fromPDUCommonExtendedNegotiations([]pdu.CommonExtendedNegotiation{
+		{
+			SOPClassUID:              "1.2.840.10008.5.1.4.1.1.2",
+			ServiceClassUID:          "1.2.840.10008.4.2",
+			RelatedGeneralSOPClasses: []string{"1.2.840.10008.5.1.4.1.1.4"},
+		},
+	})
+	if len(cen) != 1 || cen[0].SOPClassUID != dicom.SOPClassUID("1.2.840.10008.5.1.4.1.1.2") {
+		t.Fatalf("common extended negotiation = %+v", cen)
+	}
+	if cen[0].ServiceClassUID != dicom.UID("1.2.840.10008.4.2") {
+		t.Errorf("service class UID = %q, want 1.2.840.10008.4.2", cen[0].ServiceClassUID)
+	}
+	if len(cen[0].RelatedGeneralSOPClasses) != 1 || cen[0].RelatedGeneralSOPClasses[0] != dicom.SOPClassUID("1.2.840.10008.5.1.4.1.1.4") {
+		t.Errorf("related general SOP classes = %v", cen[0].RelatedGeneralSOPClasses)
+	}
+}
+
+// TestAssociateOmitsExtendedNegotiationResponseWhenNoneEchoed verifies an established association
+// whose acceptor echoed no extended-negotiation response reports nil from both accessors, so the
+// negotiated-or-not distinction is observable (PS3.7 D.3.3.5, D.3.3.6).
+func TestAssociateOmitsExtendedNegotiationResponseWhenNoneEchoed(t *testing.T) {
+	h := &serverTestHandler{echoStatus: StatusEchoSuccess}
+	srv, _ := startServer(t, h)
+
+	assoc := associateForNegotiation(t, srv,
+		WithExtendedNegotiation(ExtendedNegotiation{
+			SOPClassUID:         dicom.SOPClassUID("1.2.840.10008.1.1"),
+			ServiceClassAppInfo: []byte{0x01},
+		}),
+	)
+	if got := assoc.NegotiatedExtendedNegotiations(); got != nil {
+		t.Errorf("NegotiatedExtendedNegotiations = %+v, want nil (stock acceptor echoes none)", got)
+	}
+	if got := assoc.NegotiatedCommonExtendedNegotiations(); got != nil {
+		t.Errorf("NegotiatedCommonExtendedNegotiations = %+v, want nil", got)
 	}
 }

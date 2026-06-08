@@ -146,6 +146,13 @@ type Requestor struct {
 	negotiatedRoles            []pdu.RoleSelection
 	negotiatedAsyncOps         *pdu.AsyncOperations
 	userIdentityResponse       *pdu.UserIdentityAC
+	// extendedNegotiations and commonExtendedNegotiations hold the SOP-class extended- and
+	// common-extended-negotiation response sub-items the acceptor returned in its A-ASSOCIATE-AC
+	// (PS3.7 D.3.3.5, D.3.3.6). They are nil when the acceptor accepted none, and let a requestor that
+	// proposed extended negotiation observe the acceptor's negotiated service-class application
+	// information rather than discarding it.
+	extendedNegotiations       []pdu.ExtendedNegotiation
+	commonExtendedNegotiations []pdu.CommonExtendedNegotiation
 }
 
 // Acceptor is an established inbound association from the acceptor's perspective.
@@ -202,6 +209,8 @@ func Associate(ctx context.Context, conn *dul.Conn, req Request) (*Requestor, er
 			negotiatedRoles:            p.UserInfo.RoleSelections,
 			negotiatedAsyncOps:         p.UserInfo.AsyncOps,
 			userIdentityResponse:       p.UserInfo.UserIdentityAC,
+			extendedNegotiations:       p.UserInfo.ExtendedNegotiations,
+			commonExtendedNegotiations: p.UserInfo.CommonExtendedNegotiations,
 		}, nil
 	case *pdu.AssociateRJ:
 		return nil, &RejectedError{Result: p.Result, Source: p.Source, Reason: p.Reason}
@@ -565,6 +574,21 @@ func (a *Acceptor) NegotiatedAsyncOps() *pdu.AsyncOperations { return a.negotiat
 // presented no identity. The bytes are opaque (a Kerberos server ticket or a SAML response) and are
 // never logged (PRD §9.8).
 func (r *Requestor) UserIdentityResponse() *pdu.UserIdentityAC { return r.userIdentityResponse }
+
+// NegotiatedExtendedNegotiations returns the SOP-class extended-negotiation response sub-items the
+// acceptor returned in its A-ASSOCIATE-AC (PS3.7 D.3.3.5), or nil when the acceptor accepted none.
+// A requestor that proposed extended negotiation reads back the acceptor's negotiated service-class
+// application information here; without it the AC response would be decoded and dropped.
+func (r *Requestor) NegotiatedExtendedNegotiations() []pdu.ExtendedNegotiation {
+	return r.extendedNegotiations
+}
+
+// NegotiatedCommonExtendedNegotiations returns the SOP-class common-extended-negotiation response
+// sub-items the acceptor returned in its A-ASSOCIATE-AC (PS3.7 D.3.3.6), or nil when the acceptor
+// returned none.
+func (r *Requestor) NegotiatedCommonExtendedNegotiations() []pdu.CommonExtendedNegotiation {
+	return r.commonExtendedNegotiations
+}
 
 // UserIdentity returns the user-identity request the requestor presented in its A-ASSOCIATE-RQ
 // (PS3.7 D.3.3.7, acceptor side), or nil when none was presented. Its fields are opaque secrets that

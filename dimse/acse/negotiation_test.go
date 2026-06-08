@@ -146,6 +146,81 @@ func TestAcceptCarriesExtendedNegotiation(t *testing.T) {
 	}
 }
 
+// TestRequestorObservesExtendedNegotiationResponse verifies the requestor reads back the SOP-class
+// extended- and common-extended-negotiation response sub-items the acceptor returns in its
+// A-ASSOCIATE-AC (PS3.7 D.3.3.5, D.3.3.6). The stock Accept does not echo these, so the acceptor side
+// is hand-driven to write an AC that carries them; without the requestor-side accessors the AC
+// response would be decoded and dropped.
+func TestRequestorObservesExtendedNegotiationResponse(t *testing.T) {
+	rqConn, acConn := loopback(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
+	req := echoRequest()
+	req.ExtendedNegotiations = []pdu.ExtendedNegotiation{{SOPClassUID: verificationUID, ServiceClassAppInfo: []byte{0x01}}}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- acceptWithExtendedNegotiationAC(ctx, acConn)
+	}()
+
+	requestor, err := Associate(ctx, rqConn, req)
+	if accErr := <-done; accErr != nil {
+		t.Fatalf("acceptor: %v", accErr)
+	}
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+
+	en := requestor.NegotiatedExtendedNegotiations()
+	if len(en) != 1 || en[0].SOPClassUID != verificationUID {
+		t.Fatalf("negotiated extended negotiations = %+v, want one for %s", en, verificationUID)
+	}
+	if want := []byte{0x02}; len(en[0].ServiceClassAppInfo) != 1 || en[0].ServiceClassAppInfo[0] != want[0] {
+		t.Errorf("service-class app info = %v, want %v", en[0].ServiceClassAppInfo, want)
+	}
+
+	cen := requestor.NegotiatedCommonExtendedNegotiations()
+	if len(cen) != 1 || cen[0].SOPClassUID != ctImageUID {
+		t.Errorf("negotiated common extended negotiations = %+v, want one for %s", cen, ctImageUID)
+	}
+}
+
+// acceptWithExtendedNegotiationAC hand-drives the acceptor side of a handshake: it reads the
+// A-ASSOCIATE-RQ and replies with an A-ASSOCIATE-AC that carries SOP-class extended- and
+// common-extended-negotiation response sub-items, which the stock Accept never echoes. It mirrors the
+// state-machine transitions Accept uses (Evt5 -> Sta2, read RQ -> Sta3, Evt7 -> send AC -> Sta6).
+func acceptWithExtendedNegotiationAC(ctx context.Context, conn *dul.Conn) error {
+	m := dul.NewStateMachine()
+	if _, _, err := m.Apply(dul.Evt5); err != nil {
+		return err
+	}
+	resp, _, err := dul.DriveInbound(ctx, conn, m)
+	if err != nil {
+		return err
+	}
+	rq, ok := resp.(*pdu.AssociateRQ)
+	if !ok {
+		return errors.New("acceptor expected an A-ASSOCIATE-RQ")
+	}
+	ac := &pdu.AssociateAC{
+		ProtocolVersion:      protocolVersion,
+		CalledAETitle:        rq.CalledAETitle,
+		CallingAETitle:       rq.CallingAETitle,
+		ApplicationContext:   applicationContextUID,
+		PresentationContexts: []pdu.PresentationContextAC{{ID: 1, Result: pdu.PresentationContextAcceptance, TransferSyntax: explicitVRLE}},
+		UserInfo: pdu.UserInformation{
+			MaxPDULength:               16382,
+			ExtendedNegotiations:       []pdu.ExtendedNegotiation{{SOPClassUID: verificationUID, ServiceClassAppInfo: []byte{0x02}}},
+			CommonExtendedNegotiations: []pdu.CommonExtendedNegotiation{{SOPClassUID: ctImageUID, ServiceClassUID: "1.2.840.10008.4.2"}},
+		},
+	}
+	if _, _, serr := m.Apply(dul.Evt7); serr != nil {
+		return serr
+	}
+	return conn.WritePDU(ctx, ac)
+}
+
 // TestAuthenticateAcceptsAndEchoesResponse drives the user-identity authentication seam: the acceptor
 // accepts the presented identity and, since a positive response was requested, echoes the server
 // response back to the requestor (PS3.7 D.3.3.7).
