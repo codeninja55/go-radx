@@ -79,8 +79,15 @@ func writeSyntheticDICOMWithPixelData(t *testing.T, dir string) string {
 // stderr separately so a test can assert the clean-stdout contract.
 func runRadx(t *testing.T, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
+	return runRadxStdin(t, "", args...)
+}
+
+// runRadxStdin runs the radx entry point in-process with the given stdin payload and args, for the
+// commands that read a message from stdin (hl7 send, the convert HL7 mappers).
+func runRadxStdin(t *testing.T, stdin string, args ...string) (stdout, stderr string, code int) {
+	t.Helper()
 	var out, errBuf bytes.Buffer
-	code = Main(args, strings.NewReader(""), &out, &errBuf)
+	code = Main(args, strings.NewReader(stdin), &out, &errBuf)
 	return out.String(), errBuf.String(), code
 }
 

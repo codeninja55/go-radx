@@ -232,11 +232,34 @@ func withClientCertificate(base http.RoundTripper, cert tls.Certificate) http.Ro
 }
 
 // Store POSTs one or more instances as a multipart/related body of application/dicom
-// parts to /studies and parses the application/dicom+json store response. It is
-// fail-closed (PRD §9.2): when any instance failed it returns the parsed StoreResponse
-// together with a non-nil *StoreError, so the caller sees both the partial success and
-// the failure. A transport error returns a nil response and the transport error.
+// parts to the unconstrained /studies target and parses the application/dicom+json store
+// response. It is fail-closed (PRD §9.2): when any instance failed it returns the parsed
+// StoreResponse together with a non-nil *StoreError, so the caller sees both the partial
+// success and the failure. A transport error returns a nil response and the transport
+// error. To target a specific study so the origin rejects instances from a different
+// StudyInstanceUID, use StoreToStudy.
 func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*StoreResponse, error) {
+	return c.store(ctx, "/studies", instances...)
+}
+
+// StoreToStudy POSTs one or more instances to the study-scoped /studies/{study} target so
+// the origin constrains the request to that StudyInstanceUID (PS3.18 §10.5): an instance
+// whose StudyInstanceUID differs is rejected rather than silently accepted under the root
+// target. The study UID is validated as a conformant DICOM UID before it is interpolated,
+// so a malformed identifier can never inject path segments. The fail-closed semantics
+// match Store.
+func (c *Client) StoreToStudy(ctx context.Context, study dicom.UID, instances ...*dicom.DataSet) (*StoreResponse, error) {
+	path, err := NewStudy(study).Path()
+	if err != nil {
+		return nil, err
+	}
+	return c.store(ctx, path, instances...)
+}
+
+// store builds the multipart/related STOW-RS body and POSTs it to path (either the root
+// /studies target or a study-scoped /studies/{study} target), then parses and fail-closes
+// on the application/dicom+json store response.
+func (c *Client) store(ctx context.Context, path string, instances ...*dicom.DataSet) (*StoreResponse, error) {
 	if len(instances) == 0 {
 		return nil, fmt.Errorf("dicomweb: Store requires at least one instance")
 	}
@@ -256,7 +279,7 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 		return nil, err
 	}
 
-	req, err := c.newRequest(ctx, http.MethodPost, "/studies", &body)
+	req, err := c.newRequest(ctx, http.MethodPost, path, &body)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +288,7 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, c.transportError(http.MethodPost, "/studies", err)
+		return nil, c.transportError(http.MethodPost, path, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -275,7 +298,7 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusAccepted, http.StatusConflict:
 	default:
-		return nil, c.httpError(http.MethodPost, "/studies", resp)
+		return nil, c.httpError(http.MethodPost, path, resp)
 	}
 
 	store, err := c.parseStoreResponseBody(resp)
@@ -283,7 +306,7 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 		return nil, err
 	}
 	// Fail closed on the HTTP status, not only on the parsed body: a 202/409 means the
-	// origin reported a partial or total failure, so Store must return a *StoreError even
+	// origin reported a partial or total failure, so store must return a *StoreError even
 	// when the response body omits or under-reports the Failed SOP Sequence (a sparse or
 	// malformed store response must never read as a clean success, PRD §9.2).
 	if resp.StatusCode != http.StatusOK || !store.IsComplete() {
@@ -297,47 +320,73 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 }
 
 // RetrieveInstance fetches a single instance, issuing a multipart/related GET and
-// parsing the application/dicom part into a *dicom.DataSet. A response that is not
+// parsing the application/dicom part into a *dicom.DataSet. Only the decoded dataset is returned,
+// so the part is streamed straight into the decoder without capturing its raw bytes — use
+// RetrieveInstanceObject when the byte-exact Part 10 representation is needed. A response that is not
 // multipart/related, or that carries no application/dicom part, is a typed error.
 func (c *Client) RetrieveInstance(ctx context.Context, p ResourcePath) (*dicom.DataSet, error) {
-	path, err := p.Path()
+	si, err := c.retrieveSingleInstance(ctx, p, false)
 	if err != nil {
 		return nil, err
 	}
+	return si.DataSet, nil
+}
+
+// RetrieveInstanceObject fetches a single instance, preserving its transfer syntax and byte-exact
+// Part 10 representation. Unlike RetrieveInstance, which returns only the decoded dataset and so
+// discards the transfer syntax, this returns a RetrievedInstance whose TransferSyntax and Encoded
+// fields let the caller write the object back in the syntax the origin returned rather than
+// transcoding it, which matters for an encapsulated (compressed) syntax go-radx cannot re-encode
+// from a dataset. A response that is not multipart/related, or that carries no application/dicom
+// part, is a typed error.
+func (c *Client) RetrieveInstanceObject(ctx context.Context, p ResourcePath) (RetrievedInstance, error) {
+	return c.retrieveSingleInstance(ctx, p, true)
+}
+
+// retrieveSingleInstance issues a multipart/related WADO-RS GET for one instance and decodes the
+// single application/dicom part. captureBytes selects the decode path: the object-returning caller
+// captures the byte-exact Part 10 representation, while the dataset-only caller streams the part
+// without allocating an encoded buffer it would only discard. A response that is not
+// multipart/related, or that carries no application/dicom part, is a typed error.
+func (c *Client) retrieveSingleInstance(ctx context.Context, p ResourcePath, captureBytes bool) (RetrievedInstance, error) {
+	path, err := p.Path()
+	if err != nil {
+		return RetrievedInstance{}, err
+	}
 	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return nil, err
+		return RetrievedInstance{}, err
 	}
 	req.Header.Set("Accept", acceptInstances(c.transferSyntaxes...))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, c.transportError(http.MethodGet, path, err)
+		return RetrievedInstance{}, c.transportError(http.MethodGet, path, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, c.httpError(http.MethodGet, path, resp)
+		return RetrievedInstance{}, c.httpError(http.MethodGet, path, resp)
 	}
 	if !isMultipartRelated(resp.Header.Get("Content-Type")) {
-		return nil, fmt.Errorf("%w: WADO-RS response is not multipart/related", ErrNotAcceptable)
+		return RetrievedInstance{}, fmt.Errorf("%w: WADO-RS response is not multipart/related", ErrNotAcceptable)
 	}
 
 	body := c.boundedBody(resp)
 	mr, err := NewMultipartReader(body, resp.Header.Get("Content-Type"))
 	if err != nil {
-		return nil, err
+		return RetrievedInstance{}, err
 	}
 	ct, part, err := mr.NextPart()
 	if errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("%w: WADO-RS response carried no instance part", ErrNotAcceptable)
+		return RetrievedInstance{}, fmt.Errorf("%w: WADO-RS response carried no instance part", ErrNotAcceptable)
 	}
 	if err != nil {
-		return nil, err
+		return RetrievedInstance{}, err
 	}
 	if mt := mediaTypeOf(ct); mt != mediaTypeDICOM {
-		return nil, fmt.Errorf("%w: WADO-RS part media type %q is not application/dicom", ErrNotAcceptable, mt)
+		return RetrievedInstance{}, fmt.Errorf("%w: WADO-RS part media type %q is not application/dicom", ErrNotAcceptable, mt)
 	}
-	return decodeInstance(part)
+	return decodeRetrievedInstance(part, captureBytes)
 }
 
 // parseStoreResponseBody reads and decodes the application/dicom+json store-response body

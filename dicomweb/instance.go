@@ -93,3 +93,40 @@ func decodeInstance(r io.Reader) (*dicom.DataSet, error) {
 	}
 	return f.DataSet, nil
 }
+
+// decodeRetrievedInstance parses a Part 10 application/dicom object into a RetrievedInstance.
+//
+// captureBytes selects between the two retrieve paths and their memory profiles. When true (the
+// object-returning variants — RetrieveInstanceObject, RetrieveSeriesObjects, RetrieveStudyObjects),
+// the reader is teed into a buffer so Encoded holds the byte-exact Part 10 object and TransferSyntax
+// reports the origin's syntax: the caller can write the object back unchanged rather than re-encoding
+// (which would silently transcode), which matters for an encapsulated syntax go-radx cannot re-encode
+// from a dataset. When false (the dataset-only variants — RetrieveInstance, RetrieveSeries,
+// RetrieveStudy), no buffer is allocated and Encoded stays nil: the common path streams the part
+// straight into the decoder, so a large study does not pay the doubled per-instance memory of teeing
+// bytes the caller is about to discard.
+//
+// An encapsulated (compressed) transfer syntax is a fail-closed parse error on either path: go-radx
+// reads only the four uncompressed syntaxes, so a compressed object cannot be decoded faithfully —
+// the honest outcome is the reader's error, never a corrupted uncompressed file. A body that ends
+// mid-object surfaces the same way (the multipart layer has already typed a short part as a
+// TruncatedError).
+func decodeRetrievedInstance(r io.Reader, captureBytes bool) (RetrievedInstance, error) {
+	src := r
+	var raw bytes.Buffer
+	if captureBytes {
+		src = io.TeeReader(r, &raw)
+	}
+	f, err := dicom.Read(src)
+	if err != nil {
+		return RetrievedInstance{}, fmt.Errorf("dicomweb: decode application/dicom part: %w", err)
+	}
+	si := RetrievedInstance{DataSet: f.DataSet}
+	if captureBytes {
+		si.Encoded = raw.Bytes()
+	}
+	if f.Meta != nil {
+		si.TransferSyntax = f.Meta.TransferSyntaxUID
+	}
+	return si, nil
+}

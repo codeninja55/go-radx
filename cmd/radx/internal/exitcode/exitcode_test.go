@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/alecthomas/kong"
 
@@ -82,6 +84,7 @@ func TestClassifyTotality(t *testing.T) {
 		{"dimse ProtocolError", &dimse.ProtocolError{Detail: "bad pdu"}, NetworkError},
 		{"dimse CommitmentFailureError", &dimse.CommitmentFailureError{FailedCount: 1}, NetworkError},
 		{"dimse non-success Status", &StatusError{Status: dimse.NewStatus(0xC000, dimse.ServiceClassVerification)}, NetworkError},
+		{"command protocol error (HL7 AE/AR ack)", &ProtocolErr{Message: "peer returned a non-accept acknowledgement: AR"}, NetworkError},
 		{"acse RejectedError", &acse.RejectedError{Result: 1, Source: 1, Reason: 1}, NetworkError},
 		{"acse AbortedError", &acse.AbortedError{Source: 1, Reason: 1}, NetworkError},
 		{"acse ProtocolError", &acse.ProtocolError{Detail: "bad state", State: dul.State(0)}, NetworkError},
@@ -92,6 +95,15 @@ func TestClassifyTotality(t *testing.T) {
 		{"dicomweb HTTPError", &dicomweb.HTTPError{StatusCode: 503, Method: "GET", URL: "x"}, NetworkError},
 		{"dicomweb StoreError", &dicomweb.StoreError{Status: 409}, NetworkError},
 		{"dicomweb FailureReasonError", &dicomweb.FailureReasonError{Reason: 0xA700}, NetworkError},
+
+		// Network (exit 4): raw transport errors the standard library raises before any typed
+		// wrapper — a refused connection (dicomweb/hl7 dialling a closed port) and a net timeout.
+		// These arrive as a wrapped *net.OpError / net.Error, not a library type, so the classifier
+		// must match them or they fall through to the general floor.
+		{"refused connection (*net.OpError)", refusedConnectionFixture(t), NetworkError},
+		{"refused connection wrapped", fmt.Errorf("hl7 send: %w", refusedConnectionFixture(t)), NetworkError},
+		{"net timeout (net.Error interface)", timeoutErr{}, NetworkError},
+		{"net timeout wrapped", fmt.Errorf("dicomweb GET: %w", timeoutErr{}), NetworkError},
 
 		// File I/O (exit 5).
 		{"os.PathError", &os.PathError{Op: "open", Path: "x", Err: errors.New("boom")}, FileIOError},
@@ -162,6 +174,39 @@ func parseErrorFixture(t *testing.T) error {
 	}
 	return parseErr
 }
+
+// refusedConnectionFixture produces a genuine refused-connection error by dialling a port no
+// listener holds, so the totality table tests the real *net.OpError the standard library raises
+// (the shape a dicomweb or hl7 send sees against a closed endpoint) rather than a hand-rolled
+// stand-in. It binds and immediately closes a listener to obtain a definitely-free port.
+func refusedConnectionFixture(t *testing.T) error {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve a port: %v", err)
+	}
+	addr := ln.Addr().String()
+	_ = ln.Close()
+
+	conn, dialErr := net.DialTimeout("tcp", addr, 2*time.Second)
+	if dialErr == nil {
+		_ = conn.Close()
+		t.Fatalf("dial of a closed port unexpectedly succeeded")
+	}
+	var opErr *net.OpError
+	if !errors.As(dialErr, &opErr) {
+		t.Fatalf("refused-connection error = %T, want a *net.OpError", dialErr)
+	}
+	return dialErr
+}
+
+// timeoutErr is a minimal net.Error reporting a timeout, so the totality table can exercise the
+// classifier's net.Error-interface match without depending on a real deadline expiring.
+type timeoutErr struct{}
+
+func (timeoutErr) Error() string   { return "i/o timeout" }
+func (timeoutErr) Timeout() bool   { return true }
+func (timeoutErr) Temporary() bool { return true }
 
 // validateInvalidResource builds a FHIR OperationOutcome carrying an error-severity issue
 // without depending on a release type, so the helper test exercises a real outcome.

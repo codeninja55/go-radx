@@ -89,8 +89,10 @@ func TestSQLiteCatalogueRequiresExplicitPath(t *testing.T) {
 	}
 }
 
-// TestSQLiteCatalogueRedaction asserts WithRedaction hashes the direct identifiers so the catalogue
-// never stores cleartext PatientID/PatientName; equality matching still works against the hash.
+// TestSQLiteCatalogueRedaction asserts WithRedaction hashes every direct identifier so the catalogue
+// never stores cleartext PatientID/PatientName/AccessionNumber; equality matching still works against
+// the hash. AccessionNumber is a direct identifier (an order/visit record locator), so a redacted
+// catalogue must carry no cleartext for it any more than for the patient name or ID.
 func TestSQLiteCatalogueRedaction(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -99,7 +101,10 @@ func TestSQLiteCatalogueRedaction(t *testing.T) {
 		t.Fatalf("SQLiteCatalogue: %v", err)
 	}
 	const mrn = "MRN-SECRET-123"
-	if err := cat.Index(ctx, indexed("1.3.1", "1.3.1.1", "1.3.1.1.1", mrn, "CT")); err != nil {
+	const accession = "ACC-SECRET-456"
+	ds := indexed("1.3.1", "1.3.1.1", "1.3.1.1.1", mrn, "CT")
+	ds.SetString(dicom.TagAccessionNumber, accession)
+	if err := cat.Index(ctx, ds); err != nil {
 		t.Fatalf("Index: %v", err)
 	}
 
@@ -113,6 +118,55 @@ func TestSQLiteCatalogueRedaction(t *testing.T) {
 	}
 	if stored != hashIdentifier(mrn) {
 		t.Errorf("stored PatientID = %q, want the hash of the cleartext", stored)
+	}
+	acc, _ := rows[0].GetString(dicom.TagAccessionNumber)
+	if acc == accession {
+		t.Fatal("redacted catalogue stored the cleartext AccessionNumber, want a hash")
+	}
+	if acc != hashIdentifier(accession) {
+		t.Errorf("stored AccessionNumber = %q, want the hash of the cleartext", acc)
+	}
+}
+
+// TestSQLiteCatalogueRedactionPersistsNoCleartextIdentifier asserts a redacted catalogue persists no
+// cleartext for ANY direct identifier it stores: a raw scan of the backing table must not contain the
+// PatientID, PatientName, or AccessionNumber sentinel. This is the load-bearing privacy guarantee that
+// lets the CLI's --redact bypass the PHI acknowledgement honestly: a redacted catalogue carries no
+// reversible PHI. The sentinels are synthetic, never real PHI.
+func TestSQLiteCatalogueRedactionPersistsNoCleartextIdentifier(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	const dbPath = ":memory:"
+	cat, err := SQLiteCatalogue(ctx, dbPath, WithRedaction(true))
+	if err != nil {
+		t.Fatalf("SQLiteCatalogue: %v", err)
+	}
+	const (
+		patientID   = "MRN-NO-CLEARTEXT"
+		patientName = "DOE^NO-CLEARTEXT"
+		accession   = "ACC-NO-CLEARTEXT"
+	)
+	ds := indexed("1.4.1", "1.4.1.1", "1.4.1.1.1", patientID, "CT")
+	ds.SetString(dicom.TagPatientName, patientName)
+	ds.SetString(dicom.TagAccessionNumber, accession)
+	if err := cat.Index(ctx, ds); err != nil {
+		t.Fatalf("Index: %v", err)
+	}
+
+	sc, ok := cat.(*sqliteCatalogue)
+	if !ok {
+		t.Fatalf("catalogue is %T, want *sqliteCatalogue", cat)
+	}
+	for _, sentinel := range []string{patientID, patientName, accession} {
+		var n int
+		if err := sc.db.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM instances WHERE patient_id = ? OR patient_name = ? OR accession_number = ?",
+			sentinel, sentinel, sentinel).Scan(&n); err != nil {
+			t.Fatalf("scan for cleartext %q: %v", sentinel, err)
+		}
+		if n != 0 {
+			t.Errorf("redacted catalogue persists cleartext for %q (found %d rows); want none", sentinel, n)
+		}
 	}
 }
 

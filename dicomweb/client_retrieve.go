@@ -32,41 +32,95 @@ func (c *Client) RetrieveSeries(ctx context.Context, study, series dicom.UID) it
 }
 
 // retrieveInstances issues a multipart/related WADO-RS GET against path and returns an
-// iterator that decodes each application/dicom part into a dataset. pathErr carries a
-// path-construction error so the caller can build the path inline; when set, the iterator
-// yields that single error. The bounded response body and the multipart reader cap the
-// transfer against a hostile origin (PRD §9.3).
+// iterator that decodes each application/dicom part into a dataset. Only the decoded dataset is
+// yielded, so each part is streamed straight into the decoder without capturing its raw bytes — the
+// common, memory-frugal path for a large study, in contrast to retrieveInstanceObjects which tees
+// each part to preserve the byte-exact representation. pathErr carries a path-construction error so
+// the caller can build the path inline; when set, the iterator yields that single error. The bounded
+// response body and the multipart reader cap the transfer against a hostile origin (PRD §9.3).
 func (c *Client) retrieveInstances(ctx context.Context, path string, pathErr error) iter.Seq2[*dicom.DataSet, error] {
+	objects := c.retrieveInstanceStream(ctx, path, pathErr, false)
 	return func(yield func(*dicom.DataSet, error) bool) {
+		for si, err := range objects {
+			if err != nil {
+				if !yield(nil, err) {
+					return
+				}
+				continue
+			}
+			if !yield(si.DataSet, nil) {
+				return
+			}
+		}
+	}
+}
+
+// RetrieveStudyObjects retrieves every instance of a study, preserving each instance's transfer
+// syntax and byte-exact Part 10 representation. Unlike RetrieveStudy, which yields only the decoded
+// dataset and so discards the transfer syntax, this yields a RetrievedInstance whose TransferSyntax
+// and Encoded fields let the caller write the object back in the syntax the origin returned rather
+// than transcoding it. It shares the streaming, bounding, and stop-at-first-error semantics of
+// RetrieveStudy.
+func (c *Client) RetrieveStudyObjects(ctx context.Context, study dicom.UID) iter.Seq2[RetrievedInstance, error] {
+	path, err := NewStudy(study).Path()
+	return c.retrieveInstanceObjects(ctx, path, err)
+}
+
+// RetrieveSeriesObjects retrieves every instance of a series, preserving each instance's transfer
+// syntax and byte-exact Part 10 representation, with the same semantics as RetrieveStudyObjects.
+func (c *Client) RetrieveSeriesObjects(ctx context.Context, study, series dicom.UID) iter.Seq2[RetrievedInstance, error] {
+	path, err := NewSeries(study, series).Path()
+	return c.retrieveInstanceObjects(ctx, path, err)
+}
+
+// retrieveInstanceObjects issues a multipart/related WADO-RS GET against path and returns an
+// iterator that decodes each application/dicom part into a RetrievedInstance, capturing the
+// instance's transfer syntax and byte-exact Part 10 bytes so a retrieval preserves the origin's
+// representation. pathErr carries a path-construction error so the caller can build the path inline;
+// when set, the iterator yields that single error. The bounded response body and the multipart
+// reader cap the transfer against a hostile origin (PRD §9.3).
+func (c *Client) retrieveInstanceObjects(ctx context.Context, path string, pathErr error) iter.Seq2[RetrievedInstance, error] {
+	return c.retrieveInstanceStream(ctx, path, pathErr, true)
+}
+
+// retrieveInstanceStream is the shared streaming retrieve over a multipart/related WADO-RS body.
+// captureBytes selects the decode path: the object-returning caller (retrieveInstanceObjects)
+// captures each part's byte-exact Part 10 representation, while the dataset-only caller
+// (retrieveInstances) decodes without teeing, so a large study does not pay the doubled per-instance
+// memory of buffering bytes it would only discard. pathErr carries a path-construction error so the
+// caller can build the path inline; when set, the iterator yields that single error. The bounded
+// response body and the multipart reader cap the transfer against a hostile origin (PRD §9.3).
+func (c *Client) retrieveInstanceStream(ctx context.Context, path string, pathErr error, captureBytes bool) iter.Seq2[RetrievedInstance, error] {
+	return func(yield func(RetrievedInstance, error) bool) {
 		if pathErr != nil {
-			yield(nil, pathErr)
+			yield(RetrievedInstance{}, pathErr)
 			return
 		}
 		req, err := c.newRequest(ctx, http.MethodGet, path, nil)
 		if err != nil {
-			yield(nil, err)
+			yield(RetrievedInstance{}, err)
 			return
 		}
 		req.Header.Set("Accept", acceptInstances(c.transferSyntaxes...))
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			yield(nil, c.transportError(http.MethodGet, path, err))
+			yield(RetrievedInstance{}, c.transportError(http.MethodGet, path, err))
 			return
 		}
 		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != http.StatusOK {
-			yield(nil, c.httpError(http.MethodGet, path, resp))
+			yield(RetrievedInstance{}, c.httpError(http.MethodGet, path, resp))
 			return
 		}
 		if !isMultipartRelated(resp.Header.Get("Content-Type")) {
-			yield(nil, fmt.Errorf("%w: WADO-RS response is not multipart/related", ErrNotAcceptable))
+			yield(RetrievedInstance{}, fmt.Errorf("%w: WADO-RS response is not multipart/related", ErrNotAcceptable))
 			return
 		}
 
 		mr, err := NewMultipartReader(c.boundedBody(resp), resp.Header.Get("Content-Type"))
 		if err != nil {
-			yield(nil, err)
+			yield(RetrievedInstance{}, err)
 			return
 		}
 		for {
@@ -75,19 +129,19 @@ func (c *Client) retrieveInstances(ctx context.Context, path string, pathErr err
 				return
 			}
 			if err != nil {
-				yield(nil, err)
+				yield(RetrievedInstance{}, err)
 				return
 			}
 			if mt := mediaTypeOf(ct); mt != mediaTypeDICOM {
-				yield(nil, fmt.Errorf("%w: WADO-RS part media type %q is not application/dicom", ErrNotAcceptable, mt))
+				yield(RetrievedInstance{}, fmt.Errorf("%w: WADO-RS part media type %q is not application/dicom", ErrNotAcceptable, mt))
 				return
 			}
-			ds, err := decodeInstance(part)
+			si, err := decodeRetrievedInstance(part, captureBytes)
 			if err != nil {
-				yield(nil, err)
+				yield(RetrievedInstance{}, err)
 				return
 			}
-			if !yield(ds, nil) {
+			if !yield(si, nil) {
 				return
 			}
 		}

@@ -22,23 +22,21 @@ import (
 const banner = "radx — go-radx command-line interface"
 
 // CLI is the root Kong grammar: the shared global flags, the --version flag, and the command
-// tree. Only the two proof commands (echo, dump) are wired end to end in this increment; the
-// rest of the tree is registered as fail-closed stubs that return a typed not-implemented
-// error and exit 1 (docs/reference/cli.md "Honest-failure rules").
+// tree. Every command is wired end to end against the library except `serve fhir`, which fails
+// closed (a typed not-implemented error, exit 1) until the FHIR server role lands (see stubs.go;
+// docs/reference/cli.md "Honest-failure rules").
 type CLI struct {
 	cli.Globals
 
 	Version kong.VersionFlag `short:"V" name:"version" help:"Print build information and exit."`
 
-	// Wired commands.
 	Echo EchoCmd `cmd:"" help:"Verify DICOM connectivity (C-ECHO)."`
 	Dump DumpCmd `cmd:"" help:"Inspect DICOM file contents."`
 
-	// Committed surface, fail-closed until built (see stubs.go).
 	Store     StoreCmd     `cmd:"" help:"Send DICOM objects (C-STORE SCU)."`
-	Find      FindCmd      `cmd:"" help:"Query a remote AE (C-FIND SCU) [M3]."`
-	Get       GetCmd       `cmd:"" help:"Retrieve over the same association (C-GET) [M3]."`
-	Move      MoveCmd      `cmd:"" help:"Retrieve to a destination AE (C-MOVE) [M3]."`
+	Find      FindCmd      `cmd:"" help:"Query a remote AE (C-FIND SCU)."`
+	Get       GetCmd       `cmd:"" help:"Retrieve over the same association (C-GET)."`
+	Move      MoveCmd      `cmd:"" help:"Retrieve to a destination AE (C-MOVE)."`
 	Scp       ScpCmd       `cmd:"" help:"Run a Storage/Verification SCP."`
 	Modify    ModifyCmd    `cmd:"" help:"Edit DICOM tags and regenerate UIDs."`
 	Organize  OrganizeCmd  `cmd:"" help:"Reorganise files by Study/Series/SOP UID."`
@@ -62,6 +60,9 @@ type RunContext struct {
 	Out *cli.Output
 	// Build is the resolved build stamp, for commands that report it.
 	Build cli.BuildInfo
+	// Stdin is the process input stream, read by the commands that accept a message on stdin
+	// (hl7 send, the convert HL7 mappers) when their path argument is "-" or absent.
+	Stdin io.Reader
 }
 
 // Main parses args and runs the selected command, returning the process exit code. It is the
@@ -127,8 +128,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	out.Banner(banner)
 
-	rctx := &RunContext{Ctx: loggerCtx, Out: out, Build: cli.ResolveBuildInfo()}
-	_ = stdin // reserved for commands that read a message from stdin (hl7 send, convert)
+	rctx := &RunContext{Ctx: loggerCtx, Out: out, Build: cli.ResolveBuildInfo(), Stdin: stdin}
 
 	if runErr := kctx.Run(rctx); runErr != nil {
 		// The command already wrote any partial machine output it chose to. Report the error
