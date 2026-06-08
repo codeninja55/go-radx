@@ -175,6 +175,47 @@ func TestRetrieveSeriesStreamsInstances(t *testing.T) {
 	}
 }
 
+// TestDecodeRetrievedInstanceCaptureBytes asserts the two decode paths the dataset-only and
+// object-returning retrieves use: with captureBytes false (the dataset-only path) the decoder streams
+// the part and allocates NO encoded buffer (Encoded stays nil), so a large study does not pay the
+// doubled per-instance memory of buffering bytes the caller discards; with captureBytes true (the
+// object-returning path) Encoded holds the byte-exact Part 10 object and TransferSyntax reports the
+// origin's syntax. Both yield the same decoded dataset.
+func TestDecodeRetrievedInstanceCaptureBytes(t *testing.T) {
+	const sop = "1.2.3.4.5"
+	raw, err := encodeInstance(sampleInstance("1.2.3", "1.2.3.4", sop), dicom.ExplicitVRLittleEndian)
+	if err != nil {
+		t.Fatalf("encodeInstance: %v", err)
+	}
+
+	// Dataset-only path: no encoded bytes captured.
+	plain, err := decodeRetrievedInstance(bytes.NewReader(raw), false)
+	if err != nil {
+		t.Fatalf("decodeRetrievedInstance(captureBytes=false): %v", err)
+	}
+	if plain.Encoded != nil {
+		t.Errorf("dataset-only decode captured %d encoded bytes; want nil (no buffer allocated)", len(plain.Encoded))
+	}
+	if uid, _ := plain.DataSet.GetString(dicom.TagSOPInstanceUID); uid != sop {
+		t.Errorf("dataset-only decode SOPInstanceUID = %q, want %q", uid, sop)
+	}
+
+	// Object-returning path: byte-exact representation and transfer syntax preserved.
+	obj, err := decodeRetrievedInstance(bytes.NewReader(raw), true)
+	if err != nil {
+		t.Fatalf("decodeRetrievedInstance(captureBytes=true): %v", err)
+	}
+	if !bytes.Equal(obj.Encoded, raw) {
+		t.Errorf("object decode captured %d encoded bytes, want the %d-byte source", len(obj.Encoded), len(raw))
+	}
+	if obj.TransferSyntax != dicom.ExplicitVRLittleEndian {
+		t.Errorf("object decode transfer syntax = %q, want %q", obj.TransferSyntax, dicom.ExplicitVRLittleEndian)
+	}
+	if uid, _ := obj.DataSet.GetString(dicom.TagSOPInstanceUID); uid != sop {
+		t.Errorf("object decode SOPInstanceUID = %q, want %q", uid, sop)
+	}
+}
+
 // TestRetrieveInstanceObjectPreservesTransferSyntax asserts the client's object-retrieve path keeps
 // the instance's transfer syntax (and exact bytes) rather than discarding them, so a caller can write
 // the object back in the origin's syntax instead of transcoding. The instance is stored in Implicit

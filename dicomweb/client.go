@@ -320,10 +320,12 @@ func (c *Client) store(ctx context.Context, path string, instances ...*dicom.Dat
 }
 
 // RetrieveInstance fetches a single instance, issuing a multipart/related GET and
-// parsing the application/dicom part into a *dicom.DataSet. A response that is not
+// parsing the application/dicom part into a *dicom.DataSet. Only the decoded dataset is returned,
+// so the part is streamed straight into the decoder without capturing its raw bytes — use
+// RetrieveInstanceObject when the byte-exact Part 10 representation is needed. A response that is not
 // multipart/related, or that carries no application/dicom part, is a typed error.
 func (c *Client) RetrieveInstance(ctx context.Context, p ResourcePath) (*dicom.DataSet, error) {
-	si, err := c.RetrieveInstanceObject(ctx, p)
+	si, err := c.retrieveSingleInstance(ctx, p, false)
 	if err != nil {
 		return nil, err
 	}
@@ -338,6 +340,15 @@ func (c *Client) RetrieveInstance(ctx context.Context, p ResourcePath) (*dicom.D
 // from a dataset. A response that is not multipart/related, or that carries no application/dicom
 // part, is a typed error.
 func (c *Client) RetrieveInstanceObject(ctx context.Context, p ResourcePath) (RetrievedInstance, error) {
+	return c.retrieveSingleInstance(ctx, p, true)
+}
+
+// retrieveSingleInstance issues a multipart/related WADO-RS GET for one instance and decodes the
+// single application/dicom part. captureBytes selects the decode path: the object-returning caller
+// captures the byte-exact Part 10 representation, while the dataset-only caller streams the part
+// without allocating an encoded buffer it would only discard. A response that is not
+// multipart/related, or that carries no application/dicom part, is a typed error.
+func (c *Client) retrieveSingleInstance(ctx context.Context, p ResourcePath, captureBytes bool) (RetrievedInstance, error) {
 	path, err := p.Path()
 	if err != nil {
 		return RetrievedInstance{}, err
@@ -375,7 +386,7 @@ func (c *Client) RetrieveInstanceObject(ctx context.Context, p ResourcePath) (Re
 	if mt := mediaTypeOf(ct); mt != mediaTypeDICOM {
 		return RetrievedInstance{}, fmt.Errorf("%w: WADO-RS part media type %q is not application/dicom", ErrNotAcceptable, mt)
 	}
-	return decodeRetrievedInstance(part)
+	return decodeRetrievedInstance(part, captureBytes)
 }
 
 // parseStoreResponseBody reads and decodes the application/dicom+json store-response body

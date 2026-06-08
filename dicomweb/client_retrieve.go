@@ -32,12 +32,14 @@ func (c *Client) RetrieveSeries(ctx context.Context, study, series dicom.UID) it
 }
 
 // retrieveInstances issues a multipart/related WADO-RS GET against path and returns an
-// iterator that decodes each application/dicom part into a dataset. pathErr carries a
-// path-construction error so the caller can build the path inline; when set, the iterator
-// yields that single error. The bounded response body and the multipart reader cap the
-// transfer against a hostile origin (PRD §9.3).
+// iterator that decodes each application/dicom part into a dataset. Only the decoded dataset is
+// yielded, so each part is streamed straight into the decoder without capturing its raw bytes — the
+// common, memory-frugal path for a large study, in contrast to retrieveInstanceObjects which tees
+// each part to preserve the byte-exact representation. pathErr carries a path-construction error so
+// the caller can build the path inline; when set, the iterator yields that single error. The bounded
+// response body and the multipart reader cap the transfer against a hostile origin (PRD §9.3).
 func (c *Client) retrieveInstances(ctx context.Context, path string, pathErr error) iter.Seq2[*dicom.DataSet, error] {
-	objects := c.retrieveInstanceObjects(ctx, path, pathErr)
+	objects := c.retrieveInstanceStream(ctx, path, pathErr, false)
 	return func(yield func(*dicom.DataSet, error) bool) {
 		for si, err := range objects {
 			if err != nil {
@@ -78,6 +80,17 @@ func (c *Client) RetrieveSeriesObjects(ctx context.Context, study, series dicom.
 // when set, the iterator yields that single error. The bounded response body and the multipart
 // reader cap the transfer against a hostile origin (PRD §9.3).
 func (c *Client) retrieveInstanceObjects(ctx context.Context, path string, pathErr error) iter.Seq2[RetrievedInstance, error] {
+	return c.retrieveInstanceStream(ctx, path, pathErr, true)
+}
+
+// retrieveInstanceStream is the shared streaming retrieve over a multipart/related WADO-RS body.
+// captureBytes selects the decode path: the object-returning caller (retrieveInstanceObjects)
+// captures each part's byte-exact Part 10 representation, while the dataset-only caller
+// (retrieveInstances) decodes without teeing, so a large study does not pay the doubled per-instance
+// memory of buffering bytes it would only discard. pathErr carries a path-construction error so the
+// caller can build the path inline; when set, the iterator yields that single error. The bounded
+// response body and the multipart reader cap the transfer against a hostile origin (PRD §9.3).
+func (c *Client) retrieveInstanceStream(ctx context.Context, path string, pathErr error, captureBytes bool) iter.Seq2[RetrievedInstance, error] {
 	return func(yield func(RetrievedInstance, error) bool) {
 		if pathErr != nil {
 			yield(RetrievedInstance{}, pathErr)
@@ -123,7 +136,7 @@ func (c *Client) retrieveInstanceObjects(ctx context.Context, path string, pathE
 				yield(RetrievedInstance{}, fmt.Errorf("%w: WADO-RS part media type %q is not application/dicom", ErrNotAcceptable, mt))
 				return
 			}
-			si, err := decodeRetrievedInstance(part)
+			si, err := decodeRetrievedInstance(part, captureBytes)
 			if err != nil {
 				yield(RetrievedInstance{}, err)
 				return
