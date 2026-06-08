@@ -143,6 +143,51 @@ func TestCatalogueRedactedQueryHonoursRedactFlag(t *testing.T) {
 	}
 }
 
+// TestCatalogueRedactStoresNoCleartextIdentifier is the P1 privacy regression: `catalogue --redact`
+// WITHOUT --confirm-phi is allowed precisely because a redacted catalogue persists no cleartext for
+// any direct identifier — patient name/ID AND accession number. A read-only SQL scan of the redacted
+// catalogue must return zero rows for any of the cleartext sentinels, proving the bypass of the PHI
+// acknowledgement is honest. The sentinels are synthetic, never real PHI.
+func TestCatalogueRedactStoresNoCleartextIdentifier(t *testing.T) {
+	const (
+		patientID = "CAT-REDACT-PID-1"
+		accession = "CAT-REDACT-ACC-1"
+	)
+	srcDir := t.TempDir()
+	ds := dicom.NewDataSet()
+	ds.SetString(dicom.TagSOPClassUID, "1.2.840.10008.5.1.4.1.1.2") // CT Image Storage
+	ds.SetString(dicom.TagSOPInstanceUID, "1.2.807.1")
+	ds.SetString(dicom.TagStudyInstanceUID, "1.2.807")
+	ds.SetString(dicom.TagSeriesInstanceUID, "1.2.807.0")
+	ds.SetString(dicom.TagModality, "CT")
+	ds.SetString(dicom.TagPatientID, patientID)
+	ds.SetString(dicom.TagAccessionNumber, accession)
+	path := filepath.Join(srcDir, "redact_accession.dcm")
+	if err := ds.WriteFile(path, dicom.ExplicitVRLittleEndian); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	db := filepath.Join(t.TempDir(), "catalogue.db")
+
+	// --redact WITHOUT --confirm-phi indexes successfully (the acknowledgement is not required).
+	if _, _, code := runRadx(t, "catalogue", "--format", "json", "--database", db, "--redact", srcDir); code != exitcode.Success {
+		t.Fatalf("catalogue --redact (no --confirm-phi) exit = %d, want %d", code, exitcode.Success)
+	}
+
+	// A read-only SQL scan must find no cleartext for any direct identifier. A row would prove the
+	// redacted catalogue still persists reversible PHI, contradicting the --confirm-phi bypass.
+	for _, sentinel := range []string{patientID, accession} {
+		stdout, _, code := runRadx(t, "catalogue", "--database", db, "--mode", "list",
+			"--sql", "SELECT sop_instance_uid FROM instances WHERE patient_id = '"+sentinel+
+				"' OR accession_number = '"+sentinel+"'")
+		if code != exitcode.Success {
+			t.Fatalf("scan for %q exit = %d, want %d\nstdout=%q", sentinel, code, exitcode.Success, stdout)
+		}
+		if len(nonEmptyLines(stdout)) != 0 {
+			t.Errorf("redacted catalogue persists cleartext for %q:\n%s", sentinel, stdout)
+		}
+	}
+}
+
 // TestCatalogueSQLReadOnlyGate confirms --sql rejects empty SQL and a non-SELECT statement as a
 // clean usage error rather than a panic (RADX-014), and that a valid SELECT runs.
 func TestCatalogueSQLReadOnlyGate(t *testing.T) {

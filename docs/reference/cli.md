@@ -412,7 +412,7 @@ radx catalogue [<dir>] [flags]
   -m, --mode=table           SQL result rendering: table|csv|json|jsonl|list|markdown
       --schema               Print the catalogue schema and exit
       --confirm-phi          Acknowledge that the catalogue stores PHI
-      --redact               Index structural fields only; omit PHI columns
+      --redact               Hash direct identifiers (patient name/ID, accession) so no cleartext PHI is stored
       --ignore-errors        Exit 0 even if some files failed to index
 ```
 
@@ -421,18 +421,19 @@ schema.
 
 The catalogue stores patient identifiers, so it is a **PHI-bearing convenience store and is opt-in** (PRD §9.1). The
 prototype created a PHI database by default with no warning, no file-permission hardening, and logged raw SQL and query
-filters (RADX-007, RADX-008). In v1: creating a catalogue with PHI columns requires `--confirm-phi`; `--redact` indexes
-only structural fields (UIDs, modality, transfer syntax, counts) and omits names, IDs, birth dates, and accession
-numbers; the database file is created with restrictive permissions (`0600`); and neither SQL text nor filter values
-are logged at default verbosity. The `--sql` input is validated to be a non-empty `SELECT` before execution — empty or
-whitespace SQL is a clean usage error, not a panic (RADX-014) — and every row-iteration loop checks its error before
-reporting success (RADX-015). Indexing that fails on some files exits non-zero unless `--ignore-errors` is set
-(RADX-013).
+filters (RADX-007, RADX-008). In v1: creating a catalogue with cleartext PHI requires `--confirm-phi`; `--redact` stores
+every direct identifier (patient name, patient ID, accession number) as a one-way hash, so a redacted catalogue persists
+no cleartext PHI and needs no acknowledgement; the database file is created with restrictive permissions (`0600`); and
+neither SQL text nor filter values are logged at default verbosity. The `--sql` input is validated to be a non-empty
+`SELECT` before execution — empty or whitespace SQL is a clean usage error, not a panic (RADX-014) — and every
+row-iteration loop checks its error before reporting success (RADX-015). Indexing that fails on some files exits
+non-zero unless `--ignore-errors` is set (RADX-013).
 
-A redacted catalogue stores PHI columns as one-way hashes, so querying one with a cleartext filter (for example
-`--query PatientID=...`) requires `--redact` on the query too: the backend hashes the filter value the same way before
-comparison, and the redaction state is not recorded in the database, so it must be re-specified. Querying a redacted
-catalogue without `--redact` compares cleartext against stored hashes and returns nothing.
+A redacted catalogue stores its direct-identifier columns as one-way hashes, so querying one with a cleartext filter
+(for example `--query PatientID=...` or `--query AccessionNumber=...`) requires `--redact` on the query too: the backend
+hashes the filter value the same way before comparison, and the redaction state is not recorded in the database, so it
+must be re-specified. Querying a redacted catalogue without `--redact` compares cleartext against stored hashes and
+returns nothing.
 
 ## hl7 — HL7 v2 over MLLP
 
@@ -652,8 +653,9 @@ Details this document committed that the PRD left open, for review:
   machine format — was rejected because the primary interactive user is a practitioner.
 - **`store --transcode-to` semantics.** Transcoding is off by default (matching `storescu`); `--transcode-to` takes an
   explicit `TransferSyntax`. The prototype's boolean default-on `--transcode` is not carried forward.
-- **Catalogue PHI gate.** Indexing PHI columns requires `--confirm-phi` and a `--redact` structural-only mode is
-  offered; the database is `0600`. The PRD requires the store be opt-in with a redacted mode but names no flags.
+- **Catalogue PHI gate.** Indexing cleartext PHI requires `--confirm-phi`; `--redact` hashes every direct identifier
+  (patient name/ID, accession) so a redacted catalogue carries no cleartext PHI and needs no acknowledgement; the
+  database is `0600`. The PRD requires the store be opt-in with a redacted mode but names no flags.
 - **`convert` default release.** `--release` defaults to `R5`, matching the PRD's R5-first sequencing (§5.3, M6a); R4 is
   available via `--release R4`.
 

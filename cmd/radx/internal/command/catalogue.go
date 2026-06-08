@@ -23,7 +23,8 @@ import (
 
 // catalogueColumns is the catalogue's column set, mirroring the server package's index schema, used
 // to render --schema and to drive the tag-filter query. It is the conformance subset the C-FIND and
-// QIDO-RS models query, with patient_id and patient_name flagged as the PHI columns.
+// QIDO-RS models query, with patient_id, patient_name, and accession_number flagged as the direct-
+// identifier (PHI) columns the redaction option hashes.
 var catalogueColumns = []struct {
 	column string
 	tag    dicom.Tag
@@ -35,7 +36,7 @@ var catalogueColumns = []struct {
 	{"sop_class_uid", dicom.TagSOPClassUID, false},
 	{"modality", dicom.TagModality, false},
 	{"study_date", dicom.TagStudyDate, false},
-	{"accession_number", dicom.TagAccessionNumber, false},
+	{"accession_number", dicom.TagAccessionNumber, true},
 	{"series_number", dicom.TagSeriesNumber, false},
 	{"instance_number", dicom.TagInstanceNumber, false},
 	{"patient_id", dicom.TagPatientID, true},
@@ -44,10 +45,11 @@ var catalogueColumns = []struct {
 
 // CatalogueCmd indexes a directory of DICOM files into a local SQLite catalogue and queries it by
 // tag filters or read-only SQL. The catalogue stores patient identifiers, so it is a PHI-bearing
-// convenience store and is opt-in (RADX-007/008): creating a catalogue with PHI columns requires
-// --confirm-phi, --redact indexes only structural fields, the database file is created 0600, and
-// neither SQL text nor filter values are logged at default verbosity. Indexing that fails on some
-// files exits non-zero unless --ignore-errors (RADX-013).
+// convenience store and is opt-in (RADX-007/008): creating a catalogue with cleartext PHI requires
+// --confirm-phi; --redact hashes every direct identifier (PatientID, PatientName, AccessionNumber)
+// so a redacted catalogue persists no cleartext PHI and therefore needs no acknowledgement. The
+// database file is created 0600, and neither SQL text nor filter values are logged at default
+// verbosity. Indexing that fails on some files exits non-zero unless --ignore-errors (RADX-013).
 type CatalogueCmd struct {
 	Dir string `arg:"" optional:"" name:"dir" help:"Directory to index (omit to query an existing catalogue)."`
 
@@ -59,7 +61,7 @@ type CatalogueCmd struct {
 	Mode         string   `short:"m" name:"mode" enum:"table,csv,json,jsonl,list,markdown" default:"table" help:"SQL result rendering."`
 	Schema       bool     `name:"schema" help:"Print the catalogue schema and exit."`
 	ConfirmPHI   bool     `name:"confirm-phi" help:"Acknowledge that the catalogue stores PHI."`
-	Redact       bool     `name:"redact" help:"Index structural fields only; omit PHI columns."`
+	Redact       bool     `name:"redact" help:"Hash direct identifiers (patient name/ID, accession) so no cleartext PHI is stored."`
 	IgnoreErrors bool     `name:"ignore-errors" help:"Exit 0 even if some files failed to index."`
 }
 
@@ -92,13 +94,15 @@ func (c *CatalogueCmd) Run(rc *RunContext) error {
 
 // runIndex indexes the source directory into the catalogue. It enforces the PHI gate, opens the
 // catalogue (creating the file 0600), indexes each file, and tallies failures. A failed file makes
-// the run exit non-zero unless --ignore-errors (RADX-013).
+// the run exit non-zero unless --ignore-errors (RADX-013). Indexing cleartext direct identifiers
+// requires --confirm-phi; --redact hashes every direct identifier so a redacted catalogue carries no
+// cleartext PHI and is allowed without the acknowledgement.
 func (c *CatalogueCmd) runIndex(rc *RunContext) error {
 	if rc.Out.Format == cli.FormatCSV {
 		return &exitcode.UsageErr{Message: "catalogue index does not support --format csv; use human or json"}
 	}
 	if !c.Redact && !c.ConfirmPHI {
-		return &exitcode.UsageErr{Message: "indexing PHI columns requires --confirm-phi (or use --redact for a structural-only index)"}
+		return &exitcode.UsageErr{Message: "indexing cleartext PHI requires --confirm-phi (or use --redact to hash every direct identifier)"}
 	}
 
 	info, err := os.Stat(c.Dir)

@@ -32,18 +32,19 @@ type catalogueConfig struct {
 // CatalogueOption configures a SQLiteCatalogue at construction.
 type CatalogueOption func(*catalogueConfig)
 
-// WithRedaction stores one-way hashes of direct identifiers (PatientName, PatientID) instead of
-// cleartext, for a non-clinical or shared-development catalogue. Off by default; redaction is a
-// deliberate choice, not a hidden default (PRD §9.1).
+// WithRedaction stores one-way hashes of the direct identifiers (PatientName, PatientID,
+// AccessionNumber) instead of cleartext, for a non-clinical or shared-development catalogue. A
+// redacted catalogue persists no cleartext for any direct identifier it stores, so it carries no
+// reversible PHI. Off by default; redaction is a deliberate choice, not a hidden default (PRD §9.1).
 func WithRedaction(enabled bool) CatalogueOption {
 	return func(c *catalogueConfig) { c.redact = enabled }
 }
 
 // sqliteCatalogue is the default Catalogue: a SQLite database indexing the queryable attributes of
 // stored objects. It indexes one row per instance, carrying the study/series/instance hierarchy and
-// the queryable attributes the C-FIND and QIDO-RS models need. PHI columns (PatientName, PatientID)
-// are stored cleartext by default and hashed under WithRedaction (PRD §9.1). The pure-Go modernc
-// driver keeps the default build cgo-free.
+// the queryable attributes the C-FIND and QIDO-RS models need. The direct-identifier columns
+// (PatientName, PatientID, AccessionNumber) are stored cleartext by default and hashed under
+// WithRedaction (PRD §9.1). The pure-Go modernc driver keeps the default build cgo-free.
 type sqliteCatalogue struct {
 	db     *sql.DB
 	redact bool
@@ -51,7 +52,10 @@ type sqliteCatalogue struct {
 
 // indexedColumns is the queryable attribute set the catalogue extracts and the column each maps to.
 // It is the conformance subset the C-FIND and QIDO-RS models query at the study/series/instance
-// levels. The PatientName and PatientID columns hold PHI and are governed by the redaction option.
+// levels. The PatientName, PatientID, and AccessionNumber columns hold direct identifiers (PHI) and
+// are governed by the redaction option: AccessionNumber is an order/visit record locator that maps
+// back to a patient (PS3.15 Annex E lists it among the identity attributes to remove), so a redacted
+// catalogue must carry no cleartext for it any more than for the patient name or ID.
 var indexedColumns = []indexedColumn{
 	{"sop_instance_uid", dicom.TagSOPInstanceUID, false},
 	{"series_instance_uid", dicom.TagSeriesInstanceUID, false},
@@ -59,7 +63,7 @@ var indexedColumns = []indexedColumn{
 	{"sop_class_uid", dicom.TagSOPClassUID, false},
 	{"modality", dicom.TagModality, false},
 	{"study_date", dicom.TagStudyDate, false},
-	{"accession_number", dicom.TagAccessionNumber, false},
+	{"accession_number", dicom.TagAccessionNumber, true},
 	{"series_number", dicom.TagSeriesNumber, false},
 	{"instance_number", dicom.TagInstanceNumber, false},
 	{"patient_id", dicom.TagPatientID, true},
