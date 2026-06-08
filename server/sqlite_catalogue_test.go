@@ -38,7 +38,8 @@ func TestSQLiteCatalogueIndexAndQuery(t *testing.T) {
 		t.Fatalf("universal query returned %d rows, want 2", len(all))
 	}
 
-	// A constrained query matches exactly one instance by PatientID.
+	// A constrained study-level query matches exactly one study by PatientID and returns the
+	// study-level identity (Modality is a series-level attribute, so a study-level row omits it).
 	matched := collect(t, cat.Query(ctx, CatalogueQuery{
 		Level: dimse.QueryLevelStudy,
 		Match: map[dicom.Tag]string{dicom.TagPatientID: "MRN-A"},
@@ -46,8 +47,8 @@ func TestSQLiteCatalogueIndexAndQuery(t *testing.T) {
 	if len(matched) != 1 {
 		t.Fatalf("PatientID=MRN-A query returned %d rows, want 1", len(matched))
 	}
-	if v, _ := matched[0].GetString(dicom.TagModality); v != "CT" {
-		t.Errorf("matched modality = %q, want CT", v)
+	if v, _ := matched[0].GetString(dicom.TagStudyInstanceUID); v != "1.2.1" {
+		t.Errorf("matched StudyInstanceUID = %q, want 1.2.1", v)
 	}
 
 	// A wildcard match on StudyInstanceUID returns both studies under the prefix.
@@ -110,6 +111,78 @@ func TestSQLiteCatalogueRedaction(t *testing.T) {
 	}
 	if stored != hashIdentifier(mrn) {
 		t.Errorf("stored PatientID = %q, want the hash of the cleartext", stored)
+	}
+}
+
+// TestSQLiteCatalogueRedactedSearchMatchesCleartext asserts the redacted-search fix: with redaction
+// on, a query by the cleartext PatientID matches the stored hash. Without hashing the incoming match
+// value, the WHERE would compare cleartext against the stored hash and never match (Finding 3).
+func TestSQLiteCatalogueRedactedSearchMatchesCleartext(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	cat, err := SQLiteCatalogue(ctx, ":memory:", WithRedaction(true))
+	if err != nil {
+		t.Fatalf("SQLiteCatalogue: %v", err)
+	}
+	const mrn = "MRN-REDACT-SEARCH"
+	if err := cat.Index(ctx, indexed("9.1.1", "9.1.1.1", "9.1.1.1.1", mrn, "CT")); err != nil {
+		t.Fatalf("Index: %v", err)
+	}
+
+	rows := collect(t, cat.Query(ctx, CatalogueQuery{
+		Level: dimse.QueryLevelStudy,
+		Match: map[dicom.Tag]string{dicom.TagPatientID: mrn},
+	}))
+	if len(rows) != 1 {
+		t.Fatalf("query by cleartext PatientID against a redacted catalogue returned %d rows, want 1", len(rows))
+	}
+	if v, _ := rows[0].GetString(dicom.TagStudyInstanceUID); v != "9.1.1" {
+		t.Errorf("matched StudyInstanceUID = %q, want 9.1.1", v)
+	}
+}
+
+// TestSQLiteCatalogueStudyLevelDistinct asserts the query-level fix: a study with multiple instances
+// returns ONE row for a study-level query (distinct study), not one row per instance (Finding 4).
+func TestSQLiteCatalogueStudyLevelDistinct(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	cat, err := SQLiteCatalogue(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("SQLiteCatalogue: %v", err)
+	}
+	const study = "7.1.1"
+	const series = "7.1.1.1"
+	// Three instances in one study/series.
+	for _, inst := range []string{"7.1.1.1.1", "7.1.1.1.2", "7.1.1.1.3"} {
+		if err := cat.Index(ctx, indexed(study, series, inst, "MRN-MULTI", "CT")); err != nil {
+			t.Fatalf("Index %s: %v", inst, err)
+		}
+	}
+
+	studyRows := collect(t, cat.Query(ctx, CatalogueQuery{
+		Level: dimse.QueryLevelStudy,
+		Match: map[dicom.Tag]string{dicom.TagStudyInstanceUID: study},
+	}))
+	if len(studyRows) != 1 {
+		t.Fatalf("study-level query over a 3-instance study returned %d rows, want 1", len(studyRows))
+	}
+
+	// A series-level query likewise collapses the three instances to one series row.
+	seriesRows := collect(t, cat.Query(ctx, CatalogueQuery{
+		Level: dimse.QueryLevelSeries,
+		Match: map[dicom.Tag]string{dicom.TagStudyInstanceUID: study},
+	}))
+	if len(seriesRows) != 1 {
+		t.Fatalf("series-level query returned %d rows, want 1", len(seriesRows))
+	}
+
+	// An instance-level query still returns every instance.
+	instanceRows := collect(t, cat.Query(ctx, CatalogueQuery{
+		Level: dimse.QueryLevelImage,
+		Match: map[dicom.Tag]string{dicom.TagStudyInstanceUID: study},
+	}))
+	if len(instanceRows) != 3 {
+		t.Fatalf("instance-level query returned %d rows, want 3", len(instanceRows))
 	}
 }
 

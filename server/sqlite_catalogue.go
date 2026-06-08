@@ -13,7 +13,15 @@ import (
 	_ "modernc.org/sqlite" // pure-Go SQLite driver; keeps the default build cgo-free.
 
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/dimse"
 )
+
+// indexedColumn is one queryable attribute the catalogue extracts and the column it maps to.
+type indexedColumn struct {
+	column string
+	tag    dicom.Tag
+	phi    bool
+}
 
 // catalogueConfig holds the resolved SQLiteCatalogue options.
 type catalogueConfig struct {
@@ -40,14 +48,10 @@ type sqliteCatalogue struct {
 	redact bool
 }
 
-// indexedTags is the queryable attribute set the catalogue extracts and the column each maps to. It
-// is the conformance subset the C-FIND and QIDO-RS models query at the study/series/instance levels.
-// The PatientName and PatientID columns hold PHI and are governed by the redaction option.
-var indexedColumns = []struct {
-	column string
-	tag    dicom.Tag
-	phi    bool
-}{
+// indexedColumns is the queryable attribute set the catalogue extracts and the column each maps to.
+// It is the conformance subset the C-FIND and QIDO-RS models query at the study/series/instance
+// levels. The PatientName and PatientID columns hold PHI and are governed by the redaction option.
+var indexedColumns = []indexedColumn{
 	{"sop_instance_uid", dicom.TagSOPInstanceUID, false},
 	{"series_instance_uid", dicom.TagSeriesInstanceUID, false},
 	{"study_instance_uid", dicom.TagStudyInstanceUID, false},
@@ -59,6 +63,42 @@ var indexedColumns = []struct {
 	{"instance_number", dicom.TagInstanceNumber, false},
 	{"patient_id", dicom.TagPatientID, true},
 	{"patient_name", dicom.TagPatientName, true},
+}
+
+// levelColumns projects the indexed columns onto the attributes a query at level identifies and
+// returns, so the SELECT can distinct-collapse to one row per resource at that hierarchy level. A
+// study-level query identifies a study (and its study-level attributes), a series-level query a
+// study+series, and an instance-level query (the default) the full per-instance row. The order
+// follows indexedColumns so the column list and scanRow stay aligned. A patient-level query has no
+// catalogue patient table, so it is served at the study granularity, the coarsest the index keys.
+func levelColumns(level dimse.QueryLevel) []indexedColumn {
+	switch level {
+	case dimse.QueryLevelPatient:
+		return columnsByName("patient_id", "patient_name")
+	case dimse.QueryLevelStudy:
+		return columnsByName("study_instance_uid", "study_date", "accession_number", "patient_id", "patient_name")
+	case dimse.QueryLevelSeries:
+		return columnsByName("study_instance_uid", "series_instance_uid", "modality", "series_number",
+			"accession_number", "patient_id", "patient_name")
+	default:
+		return indexedColumns
+	}
+}
+
+// columnsByName selects the named indexed columns in indexedColumns order, so the projected SELECT
+// column list and scanRow agree on column positions.
+func columnsByName(names ...string) []indexedColumn {
+	want := make(map[string]struct{}, len(names))
+	for _, n := range names {
+		want[n] = struct{}{}
+	}
+	out := make([]indexedColumn, 0, len(names))
+	for _, ic := range indexedColumns {
+		if _, ok := want[ic.column]; ok {
+			out = append(out, ic)
+		}
+	}
+	return out
 }
 
 // SQLiteCatalogue is the default Catalogue: a SQLite database at dbPath indexing the queryable
@@ -148,8 +188,11 @@ func (c *sqliteCatalogue) Index(ctx context.Context, ds *dicom.DataSet) error {
 // hold.
 func (c *sqliteCatalogue) Query(ctx context.Context, q CatalogueQuery) iter.Seq2[*dicom.DataSet, error] {
 	return func(yield func(*dicom.DataSet, error) bool) {
+		// Project to the columns the requested hierarchy level identifies and DISTINCT-collapse, so a
+		// study- or series-level query returns one row per study/series rather than one per instance.
+		cols := levelColumns(q.Level)
 		where, args := c.buildWhere(q.Match)
-		stmt := c.buildSelect() + where
+		stmt := c.buildSelect(cols) + where
 		if q.Limit > 0 {
 			stmt += fmt.Sprintf(" LIMIT %d", q.Limit)
 		}
@@ -165,7 +208,7 @@ func (c *sqliteCatalogue) Query(ctx context.Context, q CatalogueQuery) iter.Seq2
 		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
-			ds, scanErr := c.scanRow(rows)
+			ds, scanErr := scanRow(rows, cols)
 			if scanErr != nil {
 				yield(nil, scanErr)
 				return
@@ -200,35 +243,52 @@ func (c *sqliteCatalogue) Remove(ctx context.Context, instance dicom.SOPInstance
 // Close releases the database handle.
 func (c *sqliteCatalogue) Close() error { return c.db.Close() }
 
-// buildSelect lists every indexed column in a stable order so scanRow maps the result columns back to
-// their tags deterministically.
-func (c *sqliteCatalogue) buildSelect() string {
-	cols := make([]string, 0, len(indexedColumns))
-	for _, ic := range indexedColumns {
-		cols = append(cols, ic.column)
+// buildSelect lists the projected columns in a stable order so scanRow maps the result columns back
+// to their tags deterministically. It uses SELECT DISTINCT so a study- or series-level projection
+// collapses the per-instance rows to one row per identified resource (PS3.4 hierarchical query),
+// rather than streaming a duplicate study/series record per stored instance.
+func (c *sqliteCatalogue) buildSelect(cols []indexedColumn) string {
+	names := make([]string, 0, len(cols))
+	for _, ic := range cols {
+		names = append(names, ic.column)
 	}
-	return "SELECT " + strings.Join(cols, ", ") + " FROM instances"
+	return "SELECT DISTINCT " + strings.Join(names, ", ") + " FROM instances"
 }
 
 // buildWhere builds a parameterised WHERE clause from the match keys: only tags the catalogue indexes
 // constrain the query, and each value is bound as a parameter so a hostile match value can never
 // inject SQL (PRD §9.1 input validation). A universal match (empty value) is a return key, not a
 // constraint, so it is skipped. A "*" wildcard becomes a LIKE so a QIDO-RS wildcard match works.
+//
+// Under redaction the PHI columns store a one-way hash of the identifier, never its cleartext, so a
+// query by the cleartext identifier is hashed the same way before comparison — otherwise a C-FIND or
+// QIDO by PatientID/PatientName would compare cleartext against a stored hash and never match. A
+// hashed column cannot honour a wildcard (the hash destroys the structure a "*" would match), so a
+// wildcard against a redacted PHI column is treated as a universal (unconstrained) match rather than
+// silently returning nothing.
 func (c *sqliteCatalogue) buildWhere(match map[dicom.Tag]string) (string, []any) {
 	column := columnByTag()
 	var clauses []string
 	var args []any
 	for tag, value := range match {
-		col, ok := column[tag]
+		ic, ok := column[tag]
 		if !ok || value == "" {
 			continue
 		}
+		redacted := ic.phi && c.redact
 		if strings.ContainsAny(value, "*?") {
-			clauses = append(clauses, col+" LIKE ?")
+			if redacted {
+				// A hash cannot be wildcard-matched; do not constrain on it rather than match nothing.
+				continue
+			}
+			clauses = append(clauses, ic.column+" LIKE ?")
 			args = append(args, wildcardToLike(value))
 			continue
 		}
-		clauses = append(clauses, col+" = ?")
+		if redacted {
+			value = hashIdentifier(value)
+		}
+		clauses = append(clauses, ic.column+" = ?")
 		args = append(args, value)
 	}
 	if len(clauses) == 0 {
@@ -237,12 +297,13 @@ func (c *sqliteCatalogue) buildWhere(match map[dicom.Tag]string) (string, []any)
 	return " WHERE " + strings.Join(clauses, " AND "), args
 }
 
-// scanRow reconstructs a DataSet from one result row, writing each non-empty column back under its
-// DICOM tag. A NULL/empty column is omitted so the returned identifier carries only present
-// attributes.
-func (c *sqliteCatalogue) scanRow(rows *sql.Rows) (*dicom.DataSet, error) {
-	dest := make([]sql.NullString, len(indexedColumns))
-	ptrs := make([]any, len(indexedColumns))
+// scanRow reconstructs a DataSet from one result row over the projected columns, writing each
+// non-empty column back under its DICOM tag. A NULL/empty column is omitted so the returned
+// identifier carries only present attributes. The column slice MUST match the SELECT projection so
+// the scan destinations and result columns align.
+func scanRow(rows *sql.Rows, cols []indexedColumn) (*dicom.DataSet, error) {
+	dest := make([]sql.NullString, len(cols))
+	ptrs := make([]any, len(cols))
 	for i := range dest {
 		ptrs[i] = &dest[i]
 	}
@@ -250,7 +311,7 @@ func (c *sqliteCatalogue) scanRow(rows *sql.Rows) (*dicom.DataSet, error) {
 		return nil, fmt.Errorf("server: scan catalogue row: %w", err)
 	}
 	ds := dicom.NewDataSet()
-	for i, ic := range indexedColumns {
+	for i, ic := range cols {
 		if dest[i].Valid && dest[i].String != "" {
 			ds.SetString(ic.tag, dest[i].String)
 		}
@@ -258,11 +319,12 @@ func (c *sqliteCatalogue) scanRow(rows *sql.Rows) (*dicom.DataSet, error) {
 	return ds, nil
 }
 
-// columnByTag maps each indexed DICOM tag to its column name for WHERE-clause construction.
-func columnByTag() map[dicom.Tag]string {
-	m := make(map[dicom.Tag]string, len(indexedColumns))
+// columnByTag maps each indexed DICOM tag to its column metadata for WHERE-clause construction, so
+// buildWhere reads both the column name and whether it is a redaction-governed PHI column.
+func columnByTag() map[dicom.Tag]indexedColumn {
+	m := make(map[dicom.Tag]indexedColumn, len(indexedColumns))
 	for _, ic := range indexedColumns {
-		m[ic.tag] = ic.column
+		m[ic.tag] = ic
 	}
 	return m
 }
