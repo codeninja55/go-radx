@@ -843,6 +843,27 @@ func withID(t *testing.T, release fhir.Release, r fhir.Resource, id string) fhir
 	return res
 }
 
+// transactionBundleNoResources builds a transaction Bundle whose only entry is a GET (no resource
+// payload). A cross-release Bundle of this shape has an empty resource view, so it exercises the
+// release check on the Bundle resource itself rather than on entry resources.
+func transactionBundleNoResources(t *testing.T, release fhir.Release) fhir.Resource {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		b, err := r4.NewTransaction(r4.TransactionEntry{Method: r4.HTTPVerbGET, URL: "Patient/1"})
+		if err != nil {
+			t.Fatalf("r4 NewTransaction: %v", err)
+		}
+		return b
+	default:
+		b, err := r5.NewTransaction(r5.TransactionEntry{Method: r5.HTTPVerbGET, URL: "Patient/1"})
+		if err != nil {
+			t.Fatalf("r5 NewTransaction: %v", err)
+		}
+		return b
+	}
+}
+
 func transactionBundle(t *testing.T, release fhir.Release) fhir.Resource {
 	t.Helper()
 	switch release {
@@ -964,6 +985,12 @@ func TestWriteRejectsCrossReleaseResource(t *testing.T) {
 			crossBundle := transactionBundle(t, otherRelease(release))
 			if _, err := c.Transaction(ctx, crossBundle); !errors.Is(err, rest.ErrReleaseMismatch) {
 				t.Errorf("Transaction cross-release: got %v, want ErrReleaseMismatch", err)
+			}
+			// A cross-release Bundle with no resource entries (GET-only) must also be rejected via the
+			// Bundle's own release, not slip through an empty entry-resource view.
+			crossEmpty := transactionBundleNoResources(t, otherRelease(release))
+			if _, err := c.Transaction(ctx, crossEmpty); !errors.Is(err, rest.ErrReleaseMismatch) {
+				t.Errorf("Transaction cross-release (no resources): got %v, want ErrReleaseMismatch", err)
 			}
 			if n := tr.requests(); n != 0 {
 				t.Errorf("cross-release writes issued %d HTTP requests, want 0", n)

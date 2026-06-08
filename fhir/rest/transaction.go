@@ -59,6 +59,12 @@ func (c *Client) Transaction(ctx context.Context, bundle fhir.Resource) (fhir.Re
 // per-resource release check a direct create enforces, so the two write paths cannot diverge. The
 // error names the release, never a patient value (PRD §9.1).
 func (c *Client) checkTransactionRelease(bundle fhir.Resource) error {
+	// Check the Bundle resource itself against the client's release first: a wrong-release Bundle with
+	// only non-resource entries (e.g. an R5 Bundle of GET entries passed to an R4 client) would have an
+	// empty resource view and otherwise slip through the per-entry loop below.
+	if err := c.checkRelease(bundle); err != nil {
+		return err
+	}
 	view, ok := asBundleView(bundle)
 	if !ok {
 		return fmt.Errorf("fhir/rest: transaction Bundle is not an %s Bundle: %w", c.release, ErrReleaseMismatch)
