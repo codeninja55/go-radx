@@ -14,47 +14,6 @@ func notImplemented(capability string) error {
 	return &exitcode.NotImplementedError{Capability: capability}
 }
 
-// ConvertCmd is the cross-standard conversion group. Not implemented in this increment.
-type ConvertCmd struct {
-	DICOMToFHIR ConvertDICOMToFHIRCmd `cmd:"" name:"dicom-to-fhir" help:"Build a FHIR ImagingStudy from DICOM."`
-	SRToFHIR    ConvertSRToFHIRCmd    `cmd:"" name:"sr-to-fhir" help:"Map a DICOM SR to a DiagnosticReport."`
-	ORUToFHIR   ConvertORUToFHIRCmd   `cmd:"" name:"oru-to-fhir" help:"Map an HL7 v2 ORU to a DiagnosticReport."`
-	ORMToFHIR   ConvertORMToFHIRCmd   `cmd:"" name:"orm-to-fhir" help:"Map an HL7 v2 ORM to a ServiceRequest."`
-	ADTToFHIR   ConvertADTToFHIRCmd   `cmd:"" name:"adt-to-fhir" help:"Map an HL7 v2 ADT to a Patient / Encounter."`
-}
-
-// ConvertDICOMToFHIRCmd builds a FHIR ImagingStudy. Not implemented in this increment.
-type ConvertDICOMToFHIRCmd struct{}
-
-// Run fails closed.
-func (c *ConvertDICOMToFHIRCmd) Run(*RunContext) error {
-	return notImplemented("convert dicom-to-fhir")
-}
-
-// ConvertSRToFHIRCmd maps a DICOM SR. Not implemented in this increment.
-type ConvertSRToFHIRCmd struct{}
-
-// Run fails closed.
-func (c *ConvertSRToFHIRCmd) Run(*RunContext) error { return notImplemented("convert sr-to-fhir") }
-
-// ConvertORUToFHIRCmd maps an HL7 v2 ORU. Not implemented in this increment.
-type ConvertORUToFHIRCmd struct{}
-
-// Run fails closed.
-func (c *ConvertORUToFHIRCmd) Run(*RunContext) error { return notImplemented("convert oru-to-fhir") }
-
-// ConvertORMToFHIRCmd maps an HL7 v2 ORM. Not implemented in this increment.
-type ConvertORMToFHIRCmd struct{}
-
-// Run fails closed.
-func (c *ConvertORMToFHIRCmd) Run(*RunContext) error { return notImplemented("convert orm-to-fhir") }
-
-// ConvertADTToFHIRCmd maps an HL7 v2 ADT. Not implemented in this increment.
-type ConvertADTToFHIRCmd struct{}
-
-// Run fails closed.
-func (c *ConvertADTToFHIRCmd) Run(*RunContext) error { return notImplemented("convert adt-to-fhir") }
-
 // ServeCmd is the reference-daemon group. Not implemented in this increment.
 type ServeCmd struct {
 	DICOMweb ServeDICOMwebCmd `cmd:"" name:"dicomweb" help:"Serve WADO-RS / STOW-RS / QIDO-RS."`
