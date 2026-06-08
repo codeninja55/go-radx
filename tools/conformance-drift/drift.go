@@ -85,7 +85,7 @@ type NegotiationClaim struct {
 
 // Finding is a single detected drift. The check fails when any finding is produced.
 type Finding struct {
-	Class   string // "preset-count", "preset-missing", "preset-unexpected", "negotiation-missing", "banner", "stability"
+	Class   string // "preset-count", "preset-missing", "preset-unexpected", "negotiation-missing", "banner", "shipped-banner", "stability"
 	Subject string // the preset, feature, doc, or package the finding concerns
 	Detail  string
 }
@@ -97,12 +97,26 @@ func (f Finding) String() string {
 // scaffoldStatements are the conformance statements whose surfaces are not yet implemented or
 // not yet authored; each must carry the NOT YET SHIPPED banner until its surface ships. A
 // statement leaves this list when its surface is published (the banner is removed and the
-// scope contract is filled), as dicomweb.md did once WADO/QIDO/STOW and client auth shipped.
+// scope contract is filled), as dicomweb.md did once WADO/QIDO/STOW and client auth shipped, and
+// as cross-cutting.md, cli-server.md, and convert.md did once their gates, CLI/server roles, and
+// the §5.1 conversion loop shipped. dimse.md remains a scaffold only because its standalone
+// statement is not yet authored as a document; the DIMSE scope it tracks lives in dicom.md.
 var scaffoldStatements = []string{
 	"dimse.md",
-	"convert.md",
-	"cli-server.md",
+}
+
+// shippedStatements are conformance statements that were once scaffolds and have since been
+// published. The check asserts the opposite of the scaffold banner check for these: a shipped
+// statement must NOT re-introduce the NOT YET SHIPPED scaffold banner, so a regression that
+// silently relabels a published statement as a scaffold (and thereby disclaims a guarantee that
+// in fact holds, or hides a surface that in fact shipped) is caught. This is the shipped
+// counterpart to the scaffold-banner check, not a loosening of it: between the two lists, every
+// statement is asserted to carry exactly the banner its real status warrants. A statement moves
+// from scaffoldStatements to this list when its surface is published.
+var shippedStatements = []string{
 	"cross-cutting.md",
+	"cli-server.md",
+	"convert.md",
 }
 
 // stabilityPackages are the top-level public packages that must each carry a one-line
@@ -140,6 +154,12 @@ func Check(root string, codeCounts map[string]PresetCounter) ([]Finding, error) 
 		return nil, err
 	}
 	findings = append(findings, bannerFindings...)
+
+	shippedBannerFindings, err := checkShippedBannersAbsent(root)
+	if err != nil {
+		return nil, err
+	}
+	findings = append(findings, shippedBannerFindings...)
 
 	stabilityFindings, err := checkStabilityMarkers(root)
 	if err != nil {
@@ -479,6 +499,29 @@ func checkBanners(root string) ([]Finding, error) {
 				Class:   "banner",
 				Subject: name,
 				Detail:  fmt.Sprintf("scaffold statement is missing the %q scaffold banner", notYetShippedBanner),
+			})
+		}
+	}
+	return findings, nil
+}
+
+// checkShippedBannersAbsent verifies every published statement does NOT carry the NOT YET SHIPPED
+// scaffold banner, so a regression cannot silently relabel a shipped statement as a scaffold and
+// thereby disclaim a guarantee that in fact holds. It is the shipped counterpart to checkBanners:
+// together they assert each statement carries exactly the banner its real status warrants.
+func checkShippedBannersAbsent(root string) ([]Finding, error) {
+	var findings []Finding
+	for _, name := range shippedStatements {
+		path := filepath.Join(root, "docs", "conformance", name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		if scaffoldBannerRE.Match(data) {
+			findings = append(findings, Finding{
+				Class:   "shipped-banner",
+				Subject: name,
+				Detail:  fmt.Sprintf("published statement carries the %q scaffold banner; a shipped surface must not be relabelled a scaffold", notYetShippedBanner),
 			})
 		}
 	}

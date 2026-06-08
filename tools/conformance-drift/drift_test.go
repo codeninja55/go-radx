@@ -122,7 +122,9 @@ func TestCheckDetectsDrift(t *testing.T) {
 			wantSubj:  "Fictional negotiation",
 		},
 		{
-			name: "missing not-yet-shipped banner",
+			// dimse.md repeats NOT YET SHIPPED in its status-table row, so a whole-file phrase search
+			// would miss the removed header banner; the header-specific check catches it regardless.
+			name: "missing scaffold banner despite the phrase appearing elsewhere",
 			mutate: func(t *testing.T, root string) {
 				stripBanner(t, root, "dimse.md")
 			},
@@ -131,14 +133,15 @@ func TestCheckDetectsDrift(t *testing.T) {
 			wantSubj:  "dimse.md",
 		},
 		{
-			// cross-cutting.md mentions NOT YET SHIPPED in its methodology prose, so a whole-file
-			// phrase search would miss the removed header banner; the header-specific check catches it.
-			name: "missing header banner despite the phrase appearing elsewhere",
+			// A published statement that re-introduces the scaffold banner silently disclaims a
+			// guarantee that holds; the shipped-banner check must bite the opposite direction of the
+			// scaffold-banner check.
+			name: "published statement relabelled as a scaffold",
 			mutate: func(t *testing.T, root string) {
-				stripBanner(t, root, "cross-cutting.md")
+				reintroduceBanner(t, root, "cross-cutting.md")
 			},
 			counts:    codePresetCounts,
-			wantClass: "banner",
+			wantClass: "shipped-banner",
 			wantSubj:  "cross-cutting.md",
 		},
 		{
@@ -191,6 +194,7 @@ func copyTreeForCheck(t *testing.T) string {
 	confDir := filepath.Join(dst, "docs", "conformance")
 	mkdirAll(t, confDir)
 	confFiles := append([]string{"dicom.md"}, scaffoldStatements...)
+	confFiles = append(confFiles, shippedStatements...)
 	for _, name := range confFiles {
 		copyFile(t, filepath.Join(src, "docs", "conformance", name), filepath.Join(confDir, name))
 	}
@@ -326,6 +330,17 @@ func stripBanner(t *testing.T, root, doc string) {
 		}
 	}
 	t.Fatalf("no scaffold banner line found in %s", doc)
+}
+
+// reintroduceBanner prepends the scaffold banner to a published statement, simulating a
+// regression that silently relabels a shipped statement as a scaffold. The shipped-banner check
+// must bite.
+func reintroduceBanner(t *testing.T, root, doc string) {
+	t.Helper()
+	path := filepath.Join(root, "docs", "conformance", doc)
+	data := readFile(t, path)
+	banner := "> **Implementation status: " + notYetShippedBanner + ".** Relabelled scaffold (regression).\n\n"
+	writeFile(t, path, banner+data)
 }
 
 func stripStabilityMarker(t *testing.T, root, pkg string) {
