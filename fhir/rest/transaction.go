@@ -32,6 +32,9 @@ func (c *Client) Transaction(ctx context.Context, bundle fhir.Resource) (fhir.Re
 	if bundle.ResourceType() != "Bundle" {
 		return nil, fmt.Errorf("fhir/rest: Transaction requires a Bundle, got %s", bundle.ResourceType())
 	}
+	if err := c.checkTransactionRelease(bundle); err != nil {
+		return nil, err
+	}
 	body, err := json.Marshal(bundle)
 	if err != nil {
 		return nil, fmt.Errorf("fhir/rest: encode transaction bundle: %w", err)
@@ -45,4 +48,25 @@ func (c *Client) Transaction(ctx context.Context, bundle fhir.Resource) (fhir.Re
 		return nil, c.errorForResponse(http.MethodPost, "/", resp)
 	}
 	return c.decodeResource(resp)
+}
+
+// checkTransactionRelease verifies the bundle and every resource its entries carry belong to the
+// client's fixed release before the bundle is marshalled and sent. The client is release-fixed, so a
+// bundle of the other release — or one mixing in an out-of-release entry resource — would serialise
+// the wrong release's shape to this client's endpoint; rejecting it client-side surfaces the
+// mistake without a wrong-shape round trip. The bundle must be the client's release Bundle (so its
+// entries can be read through the release-neutral view), and each entry resource must pass the same
+// per-resource release check a direct create enforces, so the two write paths cannot diverge. The
+// error names the release, never a patient value (PRD §9.1).
+func (c *Client) checkTransactionRelease(bundle fhir.Resource) error {
+	view, ok := asBundleView(bundle)
+	if !ok {
+		return fmt.Errorf("fhir/rest: transaction Bundle is not an %s Bundle: %w", c.release, ErrReleaseMismatch)
+	}
+	for _, r := range view.resources {
+		if err := c.checkRelease(r); err != nil {
+			return err
+		}
+	}
+	return nil
 }

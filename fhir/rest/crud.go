@@ -353,10 +353,16 @@ func versionFromETag(etag string) string {
 // encodeResource marshals a resource to FHIR JSON and returns its resourceType (the endpoint path
 // segment) and the encoded bytes. A nil resource (a nil interface or a typed-nil pointer) is a
 // usage error rather than a marshalled "null", so a misuse fails fast and never POSTs an empty body
-// the server would reject obscurely.
+// the server would reject obscurely. The resource must also belong to the client's fixed release: a
+// release-fixed client trusts the endpoint it derives from r.ResourceType(), so an out-of-release
+// resource (an *r5.Patient on an R4 client) would marshal the wrong release's shape to the wrong
+// release's endpoint; checkRelease rejects that before any bytes are written.
 func (c *Client) encodeResource(r fhir.Resource) (string, []byte, error) {
 	if _, ok := fhir.As[fhir.Resource](r); !ok {
 		return "", nil, fmt.Errorf("fhir/rest: resource is nil")
+	}
+	if err := c.checkRelease(r); err != nil {
+		return "", nil, err
 	}
 	rt := r.ResourceType()
 	body, err := json.Marshal(r)
@@ -364,6 +370,18 @@ func (c *Client) encodeResource(r fhir.Resource) (string, []byte, error) {
 		return "", nil, fmt.Errorf("fhir/rest: encode %s: %w", rt, err)
 	}
 	return rt, body, nil
+}
+
+// checkRelease verifies r belongs to the client's fixed release, returning ErrReleaseMismatch when
+// it does not. Membership is decided by the release registry: the registry the client decodes
+// through owns exactly its release's concrete types, so a resource whose dynamic type the registry
+// does not own is a resource of the other release (or an unregistered type). The error names the
+// resource type and the client release, never a patient value (PRD §9.1).
+func (c *Client) checkRelease(r fhir.Resource) error {
+	if c.registry.Contains(r) {
+		return nil
+	}
+	return fmt.Errorf("fhir/rest: %s resource is not an %s type: %w", r.ResourceType(), c.release, ErrReleaseMismatch)
 }
 
 // validateTypeID rejects an empty resource type or id before a request is built, so a malformed

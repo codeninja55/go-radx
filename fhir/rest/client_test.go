@@ -120,15 +120,6 @@ func (s *fakeServer) handleInstance(w http.ResponseWriter, r *http.Request, rt, 
 }
 
 func (s *fakeServer) handleCreate(t *testing.T, w http.ResponseWriter, r *http.Request, rt string) {
-	// "_minimal" models a server honouring Prefer: return=minimal: a 201 with Location and ETag and
-	// no body. The client must read this as a success and recover the id and version from the
-	// headers, not fail with "no resource body".
-	if rt == "_minimal" {
-		w.Header().Set("ETag", `W/"7"`)
-		w.Header().Set("Location", "Patient/min-42/_history/7")
-		w.WriteHeader(http.StatusCreated)
-		return
-	}
 	body, _ := readAll(r)
 	// The client asks for the stored resource back with Prefer: return=representation on every write.
 	if pref := r.Header.Get("Prefer"); pref != "return=representation" {
@@ -393,26 +384,28 @@ func TestCRUDRoundTrip(t *testing.T) {
 	}
 }
 
-// minimalResource is a test-only resource whose ResourceType routes a Create to the fake server's
-// "_minimal" path, which answers a bodyless 201 (the return=minimal shape). It marshals to an empty
-// FHIR object so the client encodes a valid body for the POST.
-type minimalResource struct{}
-
-func (minimalResource) ResourceType() string { return "_minimal" }
-
-func (minimalResource) MarshalJSON() ([]byte, error) {
-	return []byte(`{"resourceType":"_minimal"}`), nil
-}
-
 // TestCreateBodylessSuccess proves a compliant server honouring return=minimal — a 2xx with no body,
 // carrying Location and ETag — is read as a success, not the old "no resource body" failure. The
 // client recovers the assigned id and version from the headers; the resource is absent because the
-// server returned none.
+// server returned none. A real release Patient is posted so the request passes the client's
+// release check, and a dedicated mux answers the create with a bodyless 201.
 func TestCreateBodylessSuccess(t *testing.T) {
 	for _, release := range releases() {
 		t.Run(string(release), func(t *testing.T) {
-			c, _ := startClient(t, release)
-			res, err := c.Create(context.Background(), minimalResource{}, "")
+			mux := http.NewServeMux()
+			mux.HandleFunc("/Patient", func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("ETag", `W/"7"`)
+				w.Header().Set("Location", "Patient/min-42/_history/7")
+				w.WriteHeader(http.StatusCreated)
+			})
+			srv := httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+			c, err := rest.NewClient(release, srv.URL)
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+
+			res, err := c.Create(context.Background(), newPatient(release, "female"), "")
 			if err != nil {
 				t.Fatalf("Create with a bodyless 201: %v", err)
 			}
@@ -913,6 +906,81 @@ func TestWriteBodylessSuccessStatuses(t *testing.T) {
 			}
 			if _, err := c.Patch(ctx, "Patient", "1", jsonPatch, ""); err != nil {
 				t.Errorf("Patch with %s reported a failure: %v", tc.name, err)
+			}
+		})
+	}
+}
+
+// countingTransport records how many requests reached the transport, so a test can assert a write
+// was rejected client-side without ever issuing an HTTP request.
+type countingTransport struct {
+	mu    sync.Mutex
+	count int
+}
+
+func (t *countingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	t.mu.Lock()
+	t.count++
+	t.mu.Unlock()
+	return nil, fmt.Errorf("countingTransport: request should not have been issued (%s %s)", req.Method, req.URL.Path)
+}
+
+func (t *countingTransport) requests() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.count
+}
+
+// otherRelease returns the v1 release that is not r.
+func otherRelease(r fhir.Release) fhir.Release {
+	if r == fhir.R4 {
+		return fhir.R5
+	}
+	return fhir.R4
+}
+
+// TestWriteRejectsCrossReleaseResource confirms a release-fixed client rejects a resource of the
+// other release on create, update, and a transaction entry, returning ErrReleaseMismatch without
+// ever issuing an HTTP request — a cross-release mix-up is a client-side error, not a wrong-shape
+// payload on the wire. A matching-release resource still reaches the transport.
+func TestWriteRejectsCrossReleaseResource(t *testing.T) {
+	for _, release := range releases() {
+		t.Run(string(release), func(t *testing.T) {
+			ctx := context.Background()
+			wrong := newPatient(otherRelease(release), "female")
+
+			tr := &countingTransport{}
+			c, err := rest.NewClient(release, "https://example.org/fhir", rest.WithRoundTripper(tr))
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+
+			if _, err := c.Create(ctx, wrong, ""); !errors.Is(err, rest.ErrReleaseMismatch) {
+				t.Errorf("Create cross-release: got %v, want ErrReleaseMismatch", err)
+			}
+			if _, err := c.Update(ctx, "1", wrong, ""); !errors.Is(err, rest.ErrReleaseMismatch) {
+				t.Errorf("Update cross-release: got %v, want ErrReleaseMismatch", err)
+			}
+			crossBundle := transactionBundle(t, otherRelease(release))
+			if _, err := c.Transaction(ctx, crossBundle); !errors.Is(err, rest.ErrReleaseMismatch) {
+				t.Errorf("Transaction cross-release: got %v, want ErrReleaseMismatch", err)
+			}
+			if n := tr.requests(); n != 0 {
+				t.Errorf("cross-release writes issued %d HTTP requests, want 0", n)
+			}
+		})
+	}
+}
+
+// TestWriteAcceptsMatchingReleaseResource confirms the release check does not break the normal path:
+// a resource of the client's own release still creates successfully against a matching-release
+// server.
+func TestWriteAcceptsMatchingReleaseResource(t *testing.T) {
+	for _, release := range releases() {
+		t.Run(string(release), func(t *testing.T) {
+			c, _ := startClient(t, release)
+			if _, err := c.Create(context.Background(), newPatient(release, "female"), ""); err != nil {
+				t.Errorf("Create matching-release: %v", err)
 			}
 		})
 	}

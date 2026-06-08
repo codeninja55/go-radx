@@ -42,6 +42,14 @@ var (
 	// a paging loop terminates cleanly with errors.Is(err, rest.ErrNoNextPage) rather than a generic
 	// error.
 	ErrNoNextPage = errors.New("fhir/rest: no further page link")
+
+	// ErrReleaseMismatch is returned by a write (create, update, or any transaction POST entry) whose
+	// resource does not belong to the release the client was constructed for: for example an
+	// *r5.Patient passed to a client built with fhir.R4. The client is release-fixed, so a
+	// cross-release resource would marshal its own release's shape and be sent to the other release's
+	// endpoint; rejecting it client-side surfaces the mistake without a wrong-shape round trip to the
+	// server. The error names both releases (the resource's and the client's), never a patient value.
+	ErrReleaseMismatch = errors.New("fhir/rest: resource release does not match the client release")
 )
 
 // OperationOutcomeError is the typed error a non-2xx FHIR response maps to. The server's response
