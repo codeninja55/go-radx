@@ -73,11 +73,14 @@ jobs:
       - name: Attest build provenance for the release artifacts
         uses: actions/attest-build-provenance@v2
         with:
-          # Provenance over every archive and the checksums file GoReleaser wrote under cmd/radx/dist.
+          # Provenance over every archive, the checksums file, and the per-archive SBOMs GoReleaser
+          # wrote under cmd/radx/dist. The sboms block names documents `${artifact}.cyclonedx.sbom.json`
+          # and `${artifact}.spdx.sbom.json`, so `*.sbom.json` attests both renderings.
           subject-path: |
             cmd/radx/dist/*.tar.gz
             cmd/radx/dist/*.zip
             cmd/radx/dist/*_checksums.txt
+            cmd/radx/dist/*.sbom.json
 
   validate:
     name: Validate the release config (goreleaser check + snapshot, no publish)
