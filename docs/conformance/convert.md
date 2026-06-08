@@ -1,31 +1,32 @@
 # Cross-standard conversion conformance statement
 
-> **Implementation status: NOT YET SHIPPED.** This is a scaffold. The conversion conformance statement — the versioned
-> contract for what the `convert` package maps between DICOM, HL7 v2, and FHIR, and what fidelity each conversion
-> guarantees — is not yet authored. Until this banner is removed, **no conversion is conformance-guaranteed**. The
-> `convert` package now implements the workflow conversions for both FHIR releases: each forward converter and the
-> SR/OBX reverse converters have an `R4` (4.0.1) and an `R5` (5.0.0) twin, and every twin's output is validated through
-> its release validator. The remaining workflow conversions outside the §5.1 loop are not yet present. Do not cite this
-> document as a conformance basis.
+> **Implementation status: SHIPPED for the PRD §5.1 workflow loop.** The `convert` package implements the radiology
+> workflow conversions between DICOM, HL7 v2, and FHIR for both FHIR releases: each forward converter and the SR/OBX
+> reverse converters have an `R4` (4.0.1) and an `R5` (5.0.0) twin, and every twin's output is validated through its
+> release validator (`r4.Validate` / `r5.Validate`). Conversions *outside* the §5.1 loop are not present and are out of
+> scope for v0.x. The conformance basis is per-twin release-validator verification plus the end-to-end interop leg, not
+> the HL7 FHIR validator directly; the loss policy and the per-twin fidelity contract are scoped here to the §5.1 loop.
 
 | Field | Value |
 |-------|-------|
 | Standards bridged | DICOM (NEMA PS3), HL7 v2.x, HL7 FHIR (R4 4.0.1, R5 5.0.0) |
 | Library | `github.com/codeninja55/go-radx` |
-| Conformance version | unassigned (statement not yet authored) |
-| Status | **NOT YET SHIPPED** — scaffold only |
-| Scope authority | This document will become the single source of truth for conversion scope (PRD §6.1) |
+| Conformance version | 1 (scoped to the PRD §5.1 workflow loop) |
+| Status | Published (§5.1 loop) |
+| Scope authority | This document is the single source of truth for conversion scope (PRD §6.1) |
 
-This document will be the conversion conformance statement: it will declare which cross-standard mappings the `convert`
-package supports, the release suffix on each FHIR-producing converter, the loss policy (strict versus lossy), and how
-each mapping is validated against the FHIR validator and the workflow fixtures. The per-standard scope contracts are
-the DICOM ([`./dicom.md`](./dicom.md)), HL7 v2 ([`./hl7v2.md`](./hl7v2.md)), and FHIR ([`./fhir.md`](./fhir.md))
-conformance statements; this statement bridges them and does not restate their scope.
+This document is the conversion conformance statement: it declares which cross-standard mappings the `convert` package
+supports, the release suffix on each FHIR-producing converter, the loss policy (strict versus lossy), and how each
+mapping is validated against its release validator and the workflow fixtures. Its scope is the PRD §5.1 radiology
+workflow loop; a conversion outside that loop is not implemented and is a deliberate, reviewed addition when it lands,
+never a silent capability change. The per-standard scope contracts are the DICOM ([`./dicom.md`](./dicom.md)), HL7 v2
+([`./hl7v2.md`](./hl7v2.md)), and FHIR ([`./fhir.md`](./fhir.md)) conformance statements; this statement bridges them
+and does not restate their scope.
 
 ## Scope summary
 
-Not yet authored. This section will enumerate the in-scope conversions, each release-explicit per the glossary naming
-rule `convert.<Source>To<Target><Release>`. The conversions intended to close the PRD §5.1 workflow loop are:
+The in-scope conversions are release-explicit per the glossary naming rule `convert.<Source>To<Target><Release>`. The
+conversions that close the PRD §5.1 workflow loop, all shipped, are:
 
 - `DICOMToImagingStudy` — DICOM study/series/instance grouping to FHIR `ImagingStudy`.
 - `ORMToServiceRequest` — HL7 v2 `ORM`/`OMG` imaging order to FHIR `ServiceRequest`.
@@ -342,10 +343,11 @@ no target home (recorded as a `Dropped`) and from a target the source never supp
 
 ## Loss policy
 
-Not yet authored as a complete strict-versus-lossy contract across every conversion. The reverse converters
-(`DiagnosticReportToSR`, `ObservationToContentItem`, `ObservationToOBX`) follow the same loss model as the forward
-ones: a clean conversion records optional, unmappable data on the `*Report` (`Dropped`, `Defaulted`, `Substituted`) and
-returns a `nil` error, while a genuinely unconstructible target fails closed. `DiagnosticReportToSR` fails closed
+The loss policy is fixed for every §5.1 conversion (it is not extended to conversions outside the loop, which do not
+exist). The reverse converters (`DiagnosticReportToSR`, `ObservationToContentItem`, `ObservationToOBX`) follow the same
+loss model as the forward ones: a clean conversion records optional, unmappable data on the `*Report` (`Dropped`,
+`Defaulted`, `Substituted`) and returns a `nil` error, while a genuinely unconstructible target fails closed.
+`DiagnosticReportToSR` fails closed
 (`ErrMalformedSource`) when the report's code maps to no Concept Name Code Sequence, because the SR document root
 requires one; the leaf converters return `(_, false)` and record the FHIR element by path when an Observation has no
 code or no re-encodable `value[x]`. The reverse-direction losses recorded today are an `Observation.valueTime` (no DICOM
@@ -355,13 +357,16 @@ to a returned `*LossError` for consumers that cannot accept loss.
 
 ## Verification
 
-Not yet authored as a complete conformance contract. The implementation today verifies each twin's output through its
-release validator: the `convert` test suite validates every produced R4 resource through `r4.Validate` and every R5
-resource through `r5.Validate`, the same release-scoped descriptor registries the merge-blocking FHIR validator gate
-uses (the R4 path validates against 4.0.1). The forward twins have golden/round-trip tests that assert the load-bearing
-R4/R5 differences and validate the output; the SR reverse twins have round-trip tests that re-parse the rebuilt SR and
-re-validate the re-forwarded resources. The authored statement will additionally state the end-to-end walking-skeleton
-interop coverage and the CI job that invokes the full set. Until then, no conversion conformance claim is made.
+Conformance to the §5.1 loop is verified two ways. First, each twin's output is validated through its release
+validator: the `convert` test suite validates every produced R4 resource through `r4.Validate` and every R5 through
+`r5.Validate`, the same release-scoped descriptor registries the merge-blocking FHIR validator gate uses (the R4 path
+validates against 4.0.1). The forward twins have golden/round-trip tests that assert the load-bearing R4/R5 differences
+and validate the output; the SR reverse twins have round-trip tests that re-parse the rebuilt SR and re-validate the
+re-forwarded resources. Second, the conversions run in the end-to-end walking skeleton: the `interop` job's `convert`
+leg drives the HL7 ORM to ServiceRequest, DICOM SR to DiagnosticReport, and DICOM instance to ImagingStudy conversions
+in-process after a real Orthanc C-STORE and STOW/WADO round-trip (see
+[Interop-matrix coverage](./cross-cutting.md#interop-matrix-coverage)). The conformance basis is per-twin release-
+validator verification plus this end-to-end leg, not a direct HL7 FHIR validator pass over the converter output.
 
 ## References
 

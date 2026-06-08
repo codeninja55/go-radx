@@ -1,34 +1,36 @@
 # CLI and server conformance statement
 
-> **Implementation status: NOT YET SHIPPED.** This is a scaffold. The `radx` command-line interface is not yet
-> implemented: `cmd/radx` is a placeholder that prints a not-implemented notice, so none of the command groups below
-> exist yet. The embeddable library server layer now ships in part — the `server` package composition root
-> (`server.Daemon`), the pluggable backends (`ObjectStore`, `Catalogue`, `WorklistSource`, `Authenticator`,
-> `Repository`), the DIMSE SCP / DICOMweb / MLLP / FHIR REST roles, the default filesystem object store plus SQLite
-> catalogue, and the FHIR REST client (`fhir/rest`) all exist (see
-> [Embeddable server composition layer](#embeddable-server-composition-layer) below) — but the CLI wiring and the
-> operator-facing command guarantees described here do not. Until this banner is removed, **no CLI behaviour is
-> conformance-guaranteed**, and the command surface, flag contract, exit-code policy, logging behaviour, and PHI policy
-> below are the planned design, not shipped behaviour. Do not cite this document as a conformance basis.
-
 | Field | Value |
 |-------|-------|
 | Surface | `radx` CLI (`cmd/radx`) and the embeddable server entry points |
 | Library | `github.com/codeninja55/go-radx` |
-| Conformance version | unassigned (statement not yet authored) |
-| Status | **NOT YET SHIPPED** — scaffold only; `cmd/radx` prints a not-implemented notice |
-| Scope authority | This document will become the single source of truth for CLI/server scope (PRD §6.1) |
+| Conformance version | 1 |
+| Status | Published |
+| Scope authority | This document is the single source of truth for CLI/server scope (PRD §6.1) |
 
-This document will declare the conformance scope of the operator-facing surface: the `radx` command groups, their
-flags and exit codes, and the behaviour of the DICOM/DICOMweb servers when invoked through the CLI. The planned command
-design lives in `docs/reference/cli.md` and the server design in `docs/reference/servers.md`; this statement will fix
-the scope and the operational guarantees once the implementation exists.
+This document declares the conformance scope of the operator-facing surface: the `radx` command groups, their flags
+and exit codes, and the behaviour of the DICOM, DICOMweb, MLLP, and FHIR servers when invoked through the CLI. The
+command reference is `docs/reference/cli.md` and the server design is `docs/reference/servers.md`; where this statement
+and the reference docs disagree on scope, this statement wins. The behaviour below is shipped, not planned; one
+subcommand remains a documented fail-closed stub, called out where it applies.
 
 ## Command surface
 
-Not yet authored. This section will enumerate the in-scope command groups (the planned set includes `echo`, `store`,
-`scp`, `dump`, `modify`, `organize`, `lookup`, `catalogue`, and the `hl7`, `dicomweb`, and `convert` groups), each with
-its flag contract and documented exit codes. The design is in `docs/reference/cli.md`.
+The `radx` command tree ships today, parsed by Kong, with every command group registered so `radx --help` lists the
+full surface. The DICOM command groups are `echo` (C-ECHO), `store` (C-STORE SCU), `find` (C-FIND SCU), `get` (C-GET),
+`move` (C-MOVE), `scp` (Storage/Verification SCP), `dump` (inspect a Part 10 file), `modify` (edit tags, regenerate
+UIDs), `organize` (reorganise files by Study/Series/SOP UID), `lookup` (resolve tag dictionary information), and
+`catalogue` (index and query a local DICOM catalogue). The cross-standard groups are `hl7` (HL7 v2 over MLLP),
+`dicomweb` (DICOMweb clients), `convert` (cross-standard conversion), and `serve` (run a reference daemon over the
+`server` package). The flag contract and per-command exit codes are documented in `docs/reference/cli.md`.
+
+Every command fails closed and never reports a false success: a command that cannot perform its requested operation
+returns a typed error that classifies to a non-zero exit code and writes nothing to stdout, rather than no-opping and
+exiting 0 (the prototype defect the honest-failure rules — RADX-001/002 — exist to prevent). One subcommand is a
+deliberate, registered fail-closed stub today: `radx serve fhir` returns a typed not-implemented error (exit 1) because
+the CLI wiring for the FHIR server role is a separate increment. The FHIR server *role* itself ships in the `server`
+package (`server.NewFHIRRole`, mounted with `server.WithFHIR`); only its dedicated `serve fhir` subcommand is deferred.
+The DICOMweb serve daemon is wired (`radx serve dicomweb`), and the DIMSE SCP serves through `radx scp`.
 
 ## Embeddable server composition layer
 
@@ -175,8 +177,14 @@ workspace leaves the library jobs' root-only scope intact, is fixed in the cross
 The `cmd/radx` module is gated in CI by the `cmd-radx` job, which runs `go build ./...`, `go vet ./...`,
 `golangci-lint run ./...`, and a pinned `govulncheck ./...` against the module. That closes the window where the
 separate CLI module was uncompiled and unvetted in CI. The server interop suites are declared in the DICOM and DICOMweb
-statements. Command-level smoke tests are not yet authored — the CLI command surface is not implemented — so no CLI
-*behaviour* conformance claim is made yet; the gate today proves the module builds, vets, lints, and scans clean.
+statements. Command-level tests ship alongside the commands: the `command` package's contract tests assert the
+operator-facing invariants the CLI conformance rests on — machine stdout stays clean of diagnostics
+(`TestMachineStdoutIsClean`), debug logging goes to stderr not stdout (`TestDebugLogsGoToStderrNotStdout`), the version
+flag is coherent (`TestVersionFlagCoherent`), and a not-yet-implemented command fails closed rather than no-opping to
+success (`TestStubFailsClosed`) — and the `serve` tests drive a loopback DICOMweb daemon round-trip, the fail-closed
+non-loopback bind, and graceful shutdown on signal. These run under the standing `-race` gate the
+[cross-cutting statement](./cross-cutting.md#concurrency-and-race-posture) describes. The gate proves the module builds,
+vets, lints, scans clean, and that its contract and serve behaviour hold.
 
 ## References
 

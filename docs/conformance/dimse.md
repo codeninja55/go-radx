@@ -118,15 +118,28 @@ against the v1 target declared in [`./dicom.md`](./dicom.md); a feature is shipp
 | Maximum PDU length | PS3.7 Annex D.1 | Shipped |
 | Implementation identity (class UID, version name) | PS3.7 D.3.3.2 | Shipped |
 | SCP/SCU role selection (sub-item 0x54) | PS3.7 D.3.3.4 | Shipped |
-| Asynchronous-operations window | PS3.7 D.3.3.3 | Not yet shipped |
-| User identity | PS3.7 D.3.3.7 | Not yet shipped |
-| SOP Class extended and common extended negotiation | PS3.7 D.3.3.5, D.3.3.6 | Not yet shipped |
+| Asynchronous-operations window | PS3.7 D.3.3.3 | Shipped (`WithAsyncOps`; synchronous (1,1) window) |
+| User identity | PS3.7 D.3.3.7 | Shipped (`WithUserIdentity`, types 1-5; acceptor `WithAuthenticator`) |
+| SOP Class extended and common extended negotiation | PS3.7 D.3.3.5, D.3.3.6 | Shipped (`WithExtendedNegotiation`, `WithCommonExtendedNegotiation`) |
 | DIMSE-TLS | PS3.15 §B.1 | Shipped (`WithTLS`) |
 
 SCP/SCU role selection lets the requestor propose, per SOP Class, which of the SCU and SCP roles each peer plays; the
 acceptor responds with the roles it grants, never granting a role it does not itself support. The negotiated SCP role
-is observable on the established association, which is the prerequisite for same-association C-GET. The remaining
-not-yet-shipped features are declared in [`./dicom.md`](./dicom.md).
+is observable on the established association, which is the prerequisite for same-association C-GET.
+
+User-identity negotiation (PS3.7 D.3.3.7) is the only association-level authentication DICOM defines. The requestor
+presents an identity with `WithUserIdentity` across the five standard types (username, username and passcode, Kerberos
+ticket, SAML assertion, JWT); the acceptor accepts or rejects the association by that identity through
+`WithAuthenticator` on the `dimse.Server`, and a positive-response request reads the server response back via
+`Association.UserIdentityResponse`. The identity fields are secrets that are never logged (PRD §9.8).
+
+Asynchronous-operations-window negotiation (PS3.7 D.3.3.3) round-trips honestly through `WithAsyncOps`, read back via
+`Association.NegotiatedAsyncOps`. go-radx delivers concurrency through goroutines and context cancellation rather than
+the DICOM async-ops mechanism, so the acceptor echoes the synchronous (1,1) window by default: a negotiated (1,1) is the
+truthful negotiated value, not a stub for an unsupported feature. SOP-class extended and common-extended negotiation
+(PS3.7 D.3.3.5, D.3.3.6) carry their service-class application-information blobs verbatim through
+`WithExtendedNegotiation` and `WithCommonExtendedNegotiation`, with the acceptor's echo read back via
+`Association.NegotiatedExtendedNegotiations` and `Association.NegotiatedCommonExtendedNegotiations`.
 
 ## Out of scope
 
