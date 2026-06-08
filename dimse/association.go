@@ -26,7 +26,15 @@ type Association struct {
 	// A-ASSOCIATE-AC (PS3.7 D.3.3.4), one per SOP Class the requestor proposed a role for. A
 	// granted SCP role for a storage SOP Class is what lets a same-association C-GET proceed.
 	negotiatedRoles []RoleSelection
-	dimseTimeout    time.Duration
+	// negotiatedAsyncOps holds the asynchronous-operations window the acceptor echoed (PS3.7 D.3.3.3),
+	// or nil when none was negotiated. go-radx negotiates the window but delivers concurrency through
+	// goroutines, so an echoed (1,1) reports the honest synchronous window.
+	negotiatedAsyncOps *AsyncOps
+	// userIdentityResponse holds the user-identity server response the acceptor returned (PS3.7
+	// D.3.3.7), or nil when the requestor asked for no positive response. The bytes are opaque and
+	// never logged.
+	userIdentityResponse []byte
+	dimseTimeout         time.Duration
 	// localMaxPDULength is the maximum PDU length this AE advertised; peerMaxPDULength is the one
 	// the peer advertised in its A-ASSOCIATE-AC. A C-STORE is fragmented so every P-DATA-TF stays
 	// within both limits (MaxPDULength.SendCap), and an unlimited peer max (0) resolves to the
@@ -173,12 +181,18 @@ func (a *Association) setLastError(err error) {
 	a.mu.Unlock()
 }
 
-// AssociateOption configures an outbound association (async-ops, user-identity, and extended
-// negotiation are reserved for later increments).
+// AssociateOption configures an outbound association: SCP/SCU role selection, the
+// asynchronous-operations window, SOP-class extended and common-extended negotiation, and
+// user-identity negotiation (PS3.7 Annex D). The negotiation types and the With...() options live in
+// negotiation.go.
 type AssociateOption func(*associateConfig)
 
 type associateConfig struct {
-	roleSelections []pdu.RoleSelection
+	roleSelections             []pdu.RoleSelection
+	asyncOps                   *pdu.AsyncOperations
+	extendedNegotiations       []pdu.ExtendedNegotiation
+	commonExtendedNegotiations []pdu.CommonExtendedNegotiation
+	userIdentity               *pdu.UserIdentityRQ
 }
 
 // RoleSelection requests the SCP/SCU roles the requestor proposes to play for one SOP Class
@@ -230,13 +244,17 @@ func (ae *AE) Associate(
 
 	conn := dul.NewConn(nc, ae.cfg.acseTimeout)
 	req := acse.Request{
-		CalledAETitle:          string(called),
-		CallingAETitle:         string(ae.title),
-		MaxPDULength:           uint32(ae.cfg.maxPDULength),
-		Contexts:               toPDUContextsRQ(contexts),
-		ImplementationClassUID: string(ae.cfg.implementationClassUID),
-		ImplementationVersion:  ae.cfg.implementationVersion,
-		RoleSelections:         cfg.roleSelections,
+		CalledAETitle:              string(called),
+		CallingAETitle:             string(ae.title),
+		MaxPDULength:               uint32(ae.cfg.maxPDULength),
+		Contexts:                   toPDUContextsRQ(contexts),
+		ImplementationClassUID:     string(ae.cfg.implementationClassUID),
+		ImplementationVersion:      ae.cfg.implementationVersion,
+		RoleSelections:             cfg.roleSelections,
+		AsyncOps:                   cfg.asyncOps,
+		ExtendedNegotiations:       cfg.extendedNegotiations,
+		CommonExtendedNegotiations: cfg.commonExtendedNegotiations,
+		UserIdentity:               cfg.userIdentity,
 	}
 
 	acseCtx, cancel := ae.acseContext(ctx)
@@ -248,12 +266,14 @@ func (ae *AE) Associate(
 		return nil, translateAssociateError(err)
 	}
 	return &Association{
-		requestor:         requestor,
-		accepted:          fromPDUContextsAC(contexts, requestor.AcceptedContexts()),
-		negotiatedRoles:   fromPDURoles(requestor.NegotiatedRoles()),
-		dimseTimeout:      ae.cfg.dimseTimeout,
-		localMaxPDULength: ae.cfg.maxPDULength,
-		peerMaxPDULength:  MaxPDULength(requestor.PeerMaxPDULength()),
+		requestor:            requestor,
+		accepted:             fromPDUContextsAC(contexts, requestor.AcceptedContexts()),
+		negotiatedRoles:      fromPDURoles(requestor.NegotiatedRoles()),
+		negotiatedAsyncOps:   fromPDUAsyncOps(requestor.NegotiatedAsyncOps()),
+		userIdentityResponse: fromPDUUserIdentityAC(requestor.UserIdentityResponse()),
+		dimseTimeout:         ae.cfg.dimseTimeout,
+		localMaxPDULength:    ae.cfg.maxPDULength,
+		peerMaxPDULength:     MaxPDULength(requestor.PeerMaxPDULength()),
 	}, nil
 }
 

@@ -24,9 +24,27 @@ const protocolVersion uint16 = 1
 // mismatch is reported as "Called AE title not recognised", a Calling AE Title mismatch as
 // "Calling AE title not recognised").
 const (
+	reasonNoReasonGiven               uint8 = 1
 	reasonCallingAETitleNotRecognized uint8 = 3
 	reasonCalledAETitleNotRecognized  uint8 = 7
 )
+
+// reasonUserIdentityRejected is the A-ASSOCIATE-RJ diagnostic reason for a failed user-identity
+// authentication (PS3.7 D.3.3.7). DICOM defines no dedicated user-identity reason in the service-user
+// source list, so the acceptor rejects with the service-user "no reason given" code, matching
+// pynetdicom's user-identity rejection.
+const reasonUserIdentityRejected = reasonNoReasonGiven
+
+// reasonProtocolVersionNotSupported is the service-provider-ACSE-source A-ASSOCIATE-RJ diagnostic
+// reason (PS3.8 Table 9-22): the acceptor cannot serve the DUL protocol version the requestor offered.
+const reasonProtocolVersionNotSupported uint8 = 2
+
+// synchronousAsyncOps is the asynchronous-operations window an acceptor echoes when the requestor
+// proposed an async-ops sub-item but the acceptor declared no window of its own: (1,1), the
+// synchronous default (one operation invoked, one performed). go-radx negotiates the window honestly
+// but delivers concurrency through goroutines and context cancellation, not the DICOM async-ops
+// mechanism, so a (1,1) echo is the truthful negotiated window (PS3.7 D.3.3.3).
+var synchronousAsyncOps = pdu.AsyncOperations{MaxOperationsInvoked: 1, MaxOperationsPerformed: 1}
 
 // Request is the requestor-side input to Associate: the called and calling AE titles, the
 // proposed presentation contexts, and the local maximum PDU length to advertise (0 means
@@ -46,6 +64,18 @@ type Request struct {
 	// prerequisite for same-association C-GET. The acceptor's grant is read back via
 	// Requestor.NegotiatedRoles.
 	RoleSelections []pdu.RoleSelection
+
+	// AsyncOps, when non-nil, proposes the asynchronous-operations window (PS3.7 D.3.3.3). The
+	// acceptor echoes a window in its A-ASSOCIATE-AC, read back via Requestor.NegotiatedAsyncOps.
+	AsyncOps *pdu.AsyncOperations
+	// ExtendedNegotiations proposes per-SOP-class extended negotiation (PS3.7 D.3.3.5).
+	ExtendedNegotiations []pdu.ExtendedNegotiation
+	// CommonExtendedNegotiations proposes SOP-class common-extended negotiation (PS3.7 D.3.3.6).
+	CommonExtendedNegotiations []pdu.CommonExtendedNegotiation
+	// UserIdentity, when non-nil, presents the requestor's identity to the acceptor (PS3.7 D.3.3.7).
+	// When it sets PositiveResponseRequested the acceptor's server response is read back via
+	// Requestor.UserIdentityResponse.
+	UserIdentity *pdu.UserIdentityRQ
 }
 
 // AcceptParams is the acceptor-side input to Accept: the local called AE title, the
@@ -83,6 +113,22 @@ type AcceptParams struct {
 	// the acceptor never grants a role it does not declare here. An acceptor that declares an
 	// SCP role for a storage SOP Class is what lets a same-association C-GET proceed.
 	SupportedRoles []SupportedRole
+
+	// AsyncOps, when non-nil, is the asynchronous-operations window the acceptor advertises in its
+	// A-ASSOCIATE-AC (PS3.7 D.3.3.3). It is sent only when the requestor proposed an async-ops
+	// sub-item, since the sub-item is requestor-initiated; an acceptor that leaves it nil but receives
+	// a request echoes a window of (1,1), the synchronous default.
+	AsyncOps *pdu.AsyncOperations
+
+	// Authenticate, when non-nil, authenticates the requestor's presented user identity (PS3.7
+	// D.3.3.7). It runs after AuthorizeCalling, with the decoded user-identity request (or nil when the
+	// requestor presented none). A non-nil error rejects the association with an A-ASSOCIATE-RJ
+	// (service-user source, no-such-user reason) before any service runs. When the requestor asked for
+	// a positive response, the returned server-response bytes are echoed back in the A-ASSOCIATE-AC
+	// user-identity sub-item; an empty response with a nil error still accepts. This is the same seam
+	// AuthorizeCalling uses, extended to the identity DICOM itself negotiates. The identity fields it
+	// receives are never logged (PRD §9.8).
+	Authenticate func(identity *pdu.UserIdentityRQ) ([]byte, error)
 }
 
 // Requestor is an established outbound association from the requestor's perspective. It
@@ -98,15 +144,18 @@ type Requestor struct {
 	peerImplementationClassUID string
 	peerImplementationVersion  string
 	negotiatedRoles            []pdu.RoleSelection
+	negotiatedAsyncOps         *pdu.AsyncOperations
+	userIdentityResponse       *pdu.UserIdentityAC
 }
 
 // Acceptor is an established inbound association from the acceptor's perspective.
 type Acceptor struct {
-	conn            *dul.Conn
-	machine         *dul.StateMachine
-	accepted        []pdu.PresentationContextAC
-	request         *pdu.AssociateRQ
-	negotiatedRoles []pdu.RoleSelection
+	conn               *dul.Conn
+	machine            *dul.StateMachine
+	accepted           []pdu.PresentationContextAC
+	request            *pdu.AssociateRQ
+	negotiatedRoles    []pdu.RoleSelection
+	negotiatedAsyncOps *pdu.AsyncOperations
 }
 
 // Associate drives the requestor side of association establishment over conn: it advances
@@ -151,6 +200,8 @@ func Associate(ctx context.Context, conn *dul.Conn, req Request) (*Requestor, er
 			peerImplementationClassUID: p.UserInfo.ImplementationClassUID,
 			peerImplementationVersion:  p.UserInfo.ImplementationVersion,
 			negotiatedRoles:            p.UserInfo.RoleSelections,
+			negotiatedAsyncOps:         p.UserInfo.AsyncOps,
+			userIdentityResponse:       p.UserInfo.UserIdentityAC,
 		}, nil
 	case *pdu.AssociateRJ:
 		return nil, &RejectedError{Result: p.Result, Source: p.Source, Reason: p.Reason}
@@ -192,6 +243,22 @@ func Accept(ctx context.Context, conn *dul.Conn, params AcceptParams) (*Acceptor
 		return nil, wrapUnexpected(m, resp.Type(), nil)
 	}
 
+	// Negotiation hardening runs first: an unsupported protocol version or an over-limit
+	// presentation-context count is a malformed proposal the acceptor rejects deterministically with
+	// a service-provider-ACSE-sourced A-ASSOCIATE-RJ, BEFORE any policy or context matching, so a
+	// hostile or non-conformant requestor never reaches the service phase (PS3.8 §7.1.1.7, Table 9-21).
+	if reason, reject := protocolHardeningRejection(rq); reject {
+		return nil, rejectAssociationFrom(ctx, conn, m, pdu.AssociateRJSourceServiceProviderACSE, reason)
+	}
+
+	// Validate the AE-title charset/length at the boundary: a Called or Calling AE Title carrying a
+	// non-conformant character or an over-length value is a malformed RQ, rejected with a service-user
+	// A-ASSOCIATE-RJ naming whichever title is bad (PS3.5 VR AE, PS3.8 Table 9-21). This runs before
+	// the configured AE-title allowlist so a garbage title never reaches policy matching.
+	if reason, reject := aeTitleCharsetRejection(rq); reject {
+		return nil, rejectAssociation(ctx, conn, m, reason)
+	}
+
 	// Enforce the AE-title policy at negotiation: a mismatch is refused with an A-ASSOCIATE-RJ
 	// (service-user source) carrying the matching diagnostic reason, BEFORE any context
 	// matching, so the peer never sees an acceptance for an association the acceptor will not
@@ -210,6 +277,19 @@ func Accept(ctx context.Context, conn *dul.Conn, params AcceptParams) (*Acceptor
 		}
 	}
 
+	// User-identity authentication runs after the Calling-AE authorization and before context
+	// matching: it is the only association-level authentication DICOM defines (PS3.7 D.3.3.7). A
+	// non-nil Authenticate error rejects the association with an A-ASSOCIATE-RJ (service-user source)
+	// before any service runs; a nil error returns the optional positive-response bytes to echo back.
+	var identityAC *pdu.UserIdentityAC
+	if params.Authenticate != nil {
+		resp, aerr := params.Authenticate(rq.UserInfo.UserIdentityRQ)
+		if aerr != nil {
+			return nil, rejectAssociation(ctx, conn, m, reasonUserIdentityRejected)
+		}
+		identityAC = userIdentityResponse(rq.UserInfo.UserIdentityRQ, resp)
+	}
+
 	results := NegotiateAcceptor(rq.PresentationContexts, params.Supported)
 	if params.RejectAll || !anyAccepted(results) {
 		reason := uint8(pdu.PresentationContextAbstractSyntaxNotSupported)
@@ -220,14 +300,101 @@ func Accept(ctx context.Context, conn *dul.Conn, params AcceptParams) (*Acceptor
 	}
 
 	roles := NegotiateRoles(rq.UserInfo.RoleSelections, params.SupportedRoles)
-	ac := buildAssociateAC(params, rq, results, roles)
+	asyncOps := negotiateAsyncOps(rq.UserInfo.AsyncOps, params.AsyncOps)
+	ac := buildAssociateAC(params, rq, results, roles, asyncOps, identityAC)
 	if _, _, serr := m.Apply(dul.Evt7); serr != nil { // accept -> AE-7 (send AC) -> Sta6
 		return nil, wrapState(m, serr)
 	}
 	if err := conn.WritePDU(ctx, ac); err != nil {
 		return nil, err
 	}
-	return &Acceptor{conn: conn, machine: m, accepted: results, request: rq, negotiatedRoles: roles}, nil
+	return &Acceptor{conn: conn, machine: m, accepted: results, request: rq, negotiatedRoles: roles, negotiatedAsyncOps: asyncOps}, nil
+}
+
+// maxPresentationContexts is the PS3.8 §7.1.1.13 limit on presentation contexts in a single
+// A-ASSOCIATE-RQ: the context ID is an odd value in 1..255, so at most 128 contexts can be proposed.
+// A requestor that exceeds it is non-conformant and rejected at negotiation.
+const maxPresentationContexts = 128
+
+// protocolHardeningRejection reports whether the inbound A-ASSOCIATE-RQ is malformed at the
+// protocol level — an unsupported DUL protocol version, or more than the 128-context limit — and the
+// service-provider-ACSE diagnostic reason to reject it with (PS3.8 §7.1.1.7, §7.1.1.13, Table 9-21).
+// The version check requires bit 0 (the only defined version) to be set; an RQ that does not offer
+// version 1 cannot be served. These are deterministic, policy-independent rejections.
+func protocolHardeningRejection(rq *pdu.AssociateRQ) (uint8, bool) {
+	if rq.ProtocolVersion&protocolVersion == 0 {
+		return reasonProtocolVersionNotSupported, true
+	}
+	if len(rq.PresentationContexts) > maxPresentationContexts {
+		return reasonNoReasonGiven, true
+	}
+	return 0, false
+}
+
+// negotiateAsyncOps resolves the asynchronous-operations window the acceptor echoes (PS3.7 D.3.3.3).
+// The sub-item is requestor-initiated: when the requestor proposed none the acceptor returns nil
+// (no echo). When the requestor proposed one, the acceptor echoes its own configured window if set,
+// otherwise the synchronous (1,1) default. go-radx delivers concurrency through goroutines, not the
+// DICOM async-ops mechanism, so the (1,1) default is the honest negotiated window.
+func negotiateAsyncOps(requested, offered *pdu.AsyncOperations) *pdu.AsyncOperations {
+	if requested == nil {
+		return nil
+	}
+	if offered != nil {
+		echo := *offered
+		return &echo
+	}
+	echo := synchronousAsyncOps
+	return &echo
+}
+
+// userIdentityResponse builds the user-identity AC sub-item the acceptor echoes (PS3.7 D.3.3.7): a
+// response is returned only when the requestor presented an identity AND asked for a positive
+// response. The server-response bytes come from the Authenticate hook; an empty response still
+// returns a sub-item so the requestor sees its positive-response request was honoured.
+func userIdentityResponse(requested *pdu.UserIdentityRQ, serverResponse []byte) *pdu.UserIdentityAC {
+	if requested == nil || !requested.PositiveResponseRequested {
+		return nil
+	}
+	return &pdu.UserIdentityAC{ServerResponse: serverResponse}
+}
+
+// aeTitleMaxLength is the DICOM AE Title field width (PS3.5, VR AE): at most 16 characters, with
+// insignificant surrounding spaces not counted.
+const aeTitleMaxLength = 16
+
+// aeTitleCharsetRejection reports whether either AE Title in the inbound A-ASSOCIATE-RQ violates the
+// AE-title charset/length rule (PS3.5 VR AE: 1..16 characters of printable ASCII excluding backslash
+// and control characters), returning the matching service-user diagnostic reason (PS3.8 Table 9-21).
+// The Called AE Title is checked first: a malformed addressed title means the request is malformed at
+// the endpoint it named. acse validates the wire bytes itself rather than importing the root dimse
+// validator, keeping the layering acyclic.
+func aeTitleCharsetRejection(rq *pdu.AssociateRQ) (uint8, bool) {
+	if !validAETitleField(rq.CalledAETitle) {
+		return reasonCalledAETitleNotRecognized, true
+	}
+	if !validAETitleField(rq.CallingAETitle) {
+		return reasonCallingAETitleNotRecognized, true
+	}
+	return 0, false
+}
+
+// validAETitleField reports whether the 16-byte AE-title field, once its insignificant surrounding
+// spaces are trimmed, is a conformant AE Title: 1..16 characters of printable ASCII (0x20..0x7E)
+// excluding the backslash value delimiter (PS3.5 VR AE). An all-spaces or empty field, or one
+// carrying a control or non-ASCII byte or a backslash, is rejected.
+func validAETitleField(field [16]byte) bool {
+	trimmed := strings.Trim(string(field[:]), " ")
+	if trimmed == "" || len(trimmed) > aeTitleMaxLength {
+		return false
+	}
+	for i := 0; i < len(trimmed); i++ {
+		c := trimmed[i]
+		if c < 0x20 || c >= 0x7F || c == '\\' {
+			return false
+		}
+	}
+	return true
 }
 
 // aeTitleRejection reports whether the inbound A-ASSOCIATE-RQ violates the acceptor's AE-title
@@ -250,12 +417,20 @@ func aeTitleRejection(params AcceptParams, rq *pdu.AssociateRQ) (uint8, bool) {
 	return 0, false
 }
 
-// rejectAssociation performs the AE-8 reject: send an A-ASSOCIATE-RJ (service-user source,
-// permanent) carrying reason and advance to Sta13, returning the typed *RejectedError.
+// rejectAssociation performs the AE-8 reject from the service-user source (the AE-title and
+// authorization rejections, PS3.8 Table 9-21). It delegates to rejectAssociationFrom.
 func rejectAssociation(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, reason uint8) error {
+	return rejectAssociationFrom(ctx, conn, m, pdu.AssociateRJSourceServiceUser, reason)
+}
+
+// rejectAssociationFrom performs the AE-8 reject: send an A-ASSOCIATE-RJ (permanent) carrying source
+// and reason, advance to Sta13, and return the typed *RejectedError. The source distinguishes a
+// service-user rejection (an AE-title/authorization refusal) from a service-provider-ACSE rejection
+// (a protocol-level fault like an unsupported version), as PS3.8 Table 9-21/9-22 require.
+func rejectAssociationFrom(ctx context.Context, conn *dul.Conn, m *dul.StateMachine, source, reason uint8) error {
 	rj := &pdu.AssociateRJ{
 		Result: pdu.AssociateRJResultPermanent,
-		Source: pdu.AssociateRJSourceServiceUser,
+		Source: source,
 		Reason: reason,
 	}
 	if _, _, serr := m.Apply(dul.Evt8); serr != nil { // reject -> AE-8 (send RJ) -> Sta13
@@ -375,6 +550,32 @@ func (r *Requestor) NegotiatedRoles() []pdu.RoleSelection { return r.negotiatedR
 // sub-items it sent in its A-ASSOCIATE-AC). It is nil when no role selection was negotiated.
 func (a *Acceptor) NegotiatedRoles() []pdu.RoleSelection { return a.negotiatedRoles }
 
+// NegotiatedAsyncOps returns the asynchronous-operations window the acceptor echoed in its
+// A-ASSOCIATE-AC (PS3.7 D.3.3.3), or nil when no async-ops sub-item was negotiated. go-radx
+// negotiates the window but delivers concurrency through goroutines, so an echoed (1,1) reports the
+// honest synchronous window (requestor side).
+func (r *Requestor) NegotiatedAsyncOps() *pdu.AsyncOperations { return r.negotiatedAsyncOps }
+
+// NegotiatedAsyncOps returns the asynchronous-operations window the acceptor echoed (acceptor side),
+// or nil when none was negotiated.
+func (a *Acceptor) NegotiatedAsyncOps() *pdu.AsyncOperations { return a.negotiatedAsyncOps }
+
+// UserIdentityResponse returns the user-identity server response the acceptor returned in its
+// A-ASSOCIATE-AC (PS3.7 D.3.3.7), or nil when the requestor asked for no positive response or
+// presented no identity. The bytes are opaque (a Kerberos server ticket or a SAML response) and are
+// never logged (PRD §9.8).
+func (r *Requestor) UserIdentityResponse() *pdu.UserIdentityAC { return r.userIdentityResponse }
+
+// UserIdentity returns the user-identity request the requestor presented in its A-ASSOCIATE-RQ
+// (PS3.7 D.3.3.7, acceptor side), or nil when none was presented. Its fields are opaque secrets that
+// are never logged (PRD §9.8).
+func (a *Acceptor) UserIdentity() *pdu.UserIdentityRQ {
+	if a.request == nil {
+		return nil
+	}
+	return a.request.UserInfo.UserIdentityRQ
+}
+
 // PeerMaxPDULength reports the maximum PDU length the peer advertised (0 = unlimited).
 func (r *Requestor) PeerMaxPDULength() uint32 { return r.peerMax }
 
@@ -447,15 +648,26 @@ func buildAssociateRQ(req Request) *pdu.AssociateRQ {
 		ApplicationContext:   applicationContextUID,
 		PresentationContexts: req.Contexts,
 		UserInfo: pdu.UserInformation{
-			MaxPDULength:           req.MaxPDULength,
-			ImplementationClassUID: req.ImplementationClassUID,
-			ImplementationVersion:  req.ImplementationVersion,
-			RoleSelections:         req.RoleSelections,
+			MaxPDULength:               req.MaxPDULength,
+			ImplementationClassUID:     req.ImplementationClassUID,
+			ImplementationVersion:      req.ImplementationVersion,
+			RoleSelections:             req.RoleSelections,
+			AsyncOps:                   req.AsyncOps,
+			ExtendedNegotiations:       req.ExtendedNegotiations,
+			CommonExtendedNegotiations: req.CommonExtendedNegotiations,
+			UserIdentityRQ:             req.UserIdentity,
 		},
 	}
 }
 
-func buildAssociateAC(params AcceptParams, rq *pdu.AssociateRQ, results []pdu.PresentationContextAC, roles []pdu.RoleSelection) *pdu.AssociateAC {
+func buildAssociateAC(
+	params AcceptParams,
+	rq *pdu.AssociateRQ,
+	results []pdu.PresentationContextAC,
+	roles []pdu.RoleSelection,
+	asyncOps *pdu.AsyncOperations,
+	identityAC *pdu.UserIdentityAC,
+) *pdu.AssociateAC {
 	return &pdu.AssociateAC{
 		ProtocolVersion:      protocolVersion,
 		CalledAETitle:        rq.CalledAETitle,
@@ -467,6 +679,8 @@ func buildAssociateAC(params AcceptParams, rq *pdu.AssociateRQ, results []pdu.Pr
 			ImplementationClassUID: params.ImplementationClassUID,
 			ImplementationVersion:  params.ImplementationVersion,
 			RoleSelections:         roles,
+			AsyncOps:               asyncOps,
+			UserIdentityAC:         identityAC,
 		},
 	}
 }
