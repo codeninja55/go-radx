@@ -431,6 +431,55 @@ jobs:
         run: go test -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
       - name: Lint with codec tags
         run: mise exec -- golangci-lint run --build-tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./...
+      # Race pass over the codec entry points, using the clean Release-built libs above (BEFORE the
+      # ASAN rebuild — the race runtime and the ASAN runtime both intercept allocation, so they are
+      # never combined in one binary). The codec transcoders are synchronous per-call functions today,
+      # so this is a guard that a future concurrent codec path (a worker pool, shared mutable state)
+      # cannot land a Go data race unnoticed; the hostile-input subprocess harness also exercises the
+      # decode path under it. This is the codec-scoped complement to the pure-Go standing race gate.
+      - name: Race pass over codec packages
+        run: go test -race -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
+      # Rebuild the three codec libraries from the cached, already-verified source with AddressSanitizer
+      # + UndefinedBehaviorSanitizer instrumentation, installed over the Release libs (this runs after
+      # the Release build/test/lint and the race pass, which used the clean libs). -shared-libasan links
+      # the shared ASAN runtime so `go test -asan` (which preloads its own ASAN runtime) and the
+      # instrumented C libraries agree on one runtime rather than fighting two. -fno-omit-frame-pointer
+      # keeps the C stack legible in any report. The source is already extracted and SHA-256-verified by
+      # the build steps above, so this only recompiles.
+      - name: Rebuild codec libs with ASAN + UBSan
+        env:
+          SAN_FLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -shared-libasan"
+        run: |
+          set -e
+          for d in openjpeg-2.5.4 libjpeg-turbo-3.1.4 charls-2.4.3; do
+            extra=""
+            # libjpeg-turbo uses ENABLE_SHARED rather than BUILD_SHARED_LIBS and a non-default prefix.
+            case "$d" in
+              libjpeg-turbo-*) extra="-DENABLE_SHARED=ON -DCMAKE_INSTALL_PREFIX=/usr/local" ;;
+              *)               extra="-DBUILD_SHARED_LIBS=ON" ;;
+            esac
+            cmake -S "$d" -B "$d/build-asan" -DCMAKE_BUILD_TYPE=RelWithDebInfo $extra \
+              -DCMAKE_C_FLAGS="$SAN_FLAGS" -DCMAKE_CXX_FLAGS="$SAN_FLAGS"
+            cmake --build "$d/build-asan" -j"$(nproc)"
+            sudo cmake --install "$d/build-asan"
+          done
+          sudo ldconfig
+      # ASAN + UBSan pass over the codec tests, including the hostile-pixel-data corpora
+      # (codec_*_hostile_test.go). `go test -asan` instruments the Go heap and the cgo boundary; the
+      # ASAN-rebuilt C libraries above add the codec internals, so a heap-buffer-overflow,
+      # use-after-free, or undefined-behaviour fault on a malformed JPEG/JPEG2000/JPEG-LS/HTJ2K
+      # codestream aborts the test instead of silently corrupting memory. halt_on_error=1 and
+      # abort_on_error=1 make the FIRST fault fail the job; print_stacktrace=1 names the offending
+      # frame. -asan is supported on linux/amd64 (this runner) but NOT darwin/arm64, so this pass is
+      # CI-only — it does not run on a macOS dev box. If a sanitizer flags a real fault, fix it; do
+      # not suppress it.
+      - name: ASAN + UBSan pass over codec tests (hostile pixel data)
+        env:
+          CGO_CFLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer"
+          CGO_LDFLAGS: "-fsanitize=address,undefined"
+          ASAN_OPTIONS: "halt_on_error=1:abort_on_error=1:detect_leaks=0:print_stacktrace=1"
+          UBSAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+        run: go test -asan -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
 
   phi-sanity:
     # The PHI-default sweep (internal/phisweep) asserts the project's "no PHI in logs unless the
