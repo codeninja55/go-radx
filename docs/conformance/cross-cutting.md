@@ -287,6 +287,17 @@ runs two sanitiser passes over the codec packages:
   the gate covers go-radx memory safety, the cgo boundary, and our codec usage; it does not police upstream OpenJPEG /
   CharLS / libjpeg-turbo for style-level UB.
 
+  **One quarantined HTJ2K seed under ASAN.** The ASAN gate keeps memory-safety instrumentation on across everything,
+  including the vendored codec internals (it is never broadly narrowed). One hostile seed is the single exception: the
+  `zero_filled` case in `TestHTJ2KHostileInputs` (`codec_htj2k_hostile_test.go`) is skipped *only* when the ASAN step
+  exports `RADX_ASAN=1`. That input triggers a latent out-of-bounds read inside OpenJPEG 2.5.4's HT (HTJ2K) decoder; in
+  the normal build the codec rejects it cleanly with a typed `*jpeg2000Error`, but ASAN converts the upstream OOB into a
+  hard SIGSEGV. This is a known upstream OpenJPEG memory-safety bug, tracked in
+  [#107](https://github.com/codeninja55/go-radx/issues/107), not a go-radx defect. The seed still runs and passes in
+  every non-ASAN pass (the standard build, the `-race` pass, and the non-sanitizer codecs run), so the input is still
+  exercised; only the ASAN pass quarantines it, and only that one subcase — the rest of the HTJ2K hostile corpus, and
+  all other codecs, run under ASAN unchanged.
+
 One test surface still sits outside the race detector by deliberate scope decision: the `interop` matrix legs
 (`mise run interop:<leg>`) run without `-race`. They are `go test -tags interop -count=1` runs that drive real
 containerised origin servers (Orthanc, dcm4chee-arc), where the failure modes that matter are wire-protocol and
