@@ -14,39 +14,6 @@ func notImplemented(capability string) error {
 	return &exitcode.NotImplementedError{Capability: capability}
 }
 
-// ModifyCmd edits DICOM tags and regenerates UIDs (dcmodify). Not implemented in this
-// increment.
-type ModifyCmd struct {
-	Paths []string `arg:"" optional:"" name:"path" help:"DICOM files to edit."`
-}
-
-// Run fails closed.
-func (c *ModifyCmd) Run(*RunContext) error { return notImplemented("modify") }
-
-// OrganizeCmd reorganises files by UID structure. Not implemented in this increment.
-type OrganizeCmd struct {
-	Dir string `arg:"" optional:"" name:"dir" help:"Source directory."`
-}
-
-// Run fails closed.
-func (c *OrganizeCmd) Run(*RunContext) error { return notImplemented("organize") }
-
-// LookupCmd resolves DICOM dictionary information. Not implemented in this increment.
-type LookupCmd struct {
-	Query []string `arg:"" optional:"" name:"query" help:"Tag, keyword, or search fragment."`
-}
-
-// Run fails closed.
-func (c *LookupCmd) Run(*RunContext) error { return notImplemented("lookup") }
-
-// CatalogueCmd indexes and queries a local catalogue. Not implemented in this increment.
-type CatalogueCmd struct {
-	Dir string `arg:"" optional:"" name:"dir" help:"Directory to index."`
-}
-
-// Run fails closed.
-func (c *CatalogueCmd) Run(*RunContext) error { return notImplemented("catalogue") }
-
 // HL7Cmd is the HL7 v2 over MLLP group. Not implemented in this increment.
 type HL7Cmd struct {
 	Send   HL7SendCmd   `cmd:"" help:"Send a message and read the ACK."`
