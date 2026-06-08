@@ -473,11 +473,18 @@ jobs:
       # so `go test -asan` and the instrumented C libraries agree on one runtime. -fno-omit-frame-pointer
       # keeps the C stack legible in any report. The source is already extracted and SHA-256-verified by
       # the build steps above, so this only recompiles.
+      #
+      # -fsanitize-ignorelist=tools/ubsan-ignorelist.txt excludes the vendored codec source trees
+      # (OpenJPEG/CharLS/libjpeg-turbo) from UBSan instrumentation. Strict UBSan's -fsanitize=function
+      # fires on upstream C function-pointer casts inside those libraries (e.g. openjpeg.c:434 calling
+      # opj_j2k_setup_decoder through a generic pointer type) that are legitimate by C convention and
+      # not go-radx code. AddressSanitizer is unaffected by the ignorelist, so memory-safety
+      # instrumentation of the codec internals stays fully on -- the point of the pass.
       - name: Rebuild codec libs with ASAN + UBSan
         env:
           CC: clang
           CXX: clang++
-          SAN_FLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -shared-libasan"
+          SAN_FLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -shared-libasan -fsanitize-ignorelist=${{ github.workspace }}/tools/ubsan-ignorelist.txt"
         run: |
           set -e
           for d in openjpeg-2.5.4 libjpeg-turbo-3.1.4 charls-2.4.3; do
@@ -510,7 +517,7 @@ jobs:
           # GCC's static libasan and the two runtimes would clash at load.
           CC: clang
           CXX: clang++
-          CGO_CFLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -shared-libasan"
+          CGO_CFLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -shared-libasan -fsanitize-ignorelist=${{ github.workspace }}/tools/ubsan-ignorelist.txt"
           CGO_LDFLAGS: "-fsanitize=address,undefined -shared-libasan"
           ASAN_OPTIONS: "halt_on_error=1:abort_on_error=1:detect_leaks=0:print_stacktrace=1"
           UBSAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_stacktrace=1"

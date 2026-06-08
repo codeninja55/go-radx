@@ -269,6 +269,19 @@ runs two sanitiser passes over the codec packages:
   run as two passes; `-asan` is supported on the linux/amd64 runner but **not** darwin/arm64, so the ASAN pass is
   CI-only and does not run on a macOS dev box. If a sanitiser flags a real fault it is fixed, not suppressed.
 
+  **Scope of the sanitiser gate.** AddressSanitizer (memory safety) runs in full across everything — go-radx's cgo
+  glue, the cgo boundary, the Go heap, and the vendored codec internals — and is never narrowed. UBSan, by contrast,
+  does **not** gate on style or function-pointer undefined behaviour *inside* the vendored upstream codecs
+  (OpenJPEG 2.5.4, CharLS 2.4.3, libjpeg-turbo 3.1.4). Strict UBSan's `-fsanitize=function` fires on those libraries'
+  own function-pointer casts — for example OpenJPEG calling `opj_j2k_setup_decoder` through a generic function-pointer
+  type at `openjpeg.c:434` — which are legitimate by C convention but are third-party code go-radx neither owns nor
+  can fix upstream. The codec source trees are therefore excluded from UBSan instrumentation via a committed
+  ignorelist ([`tools/ubsan-ignorelist.txt`](../../tools/ubsan-ignorelist.txt), wired into `-fsanitize-ignorelist` for
+  both the codec rebuild and the test step). UBSan still fully checks go-radx's own code and the cgo glue; the
+  ignorelist only suppresses UBSan, not ASAN, so memory-safety coverage of the codec internals is untouched. In short:
+  the gate covers go-radx memory safety, the cgo boundary, and our codec usage; it does not police upstream OpenJPEG /
+  CharLS / libjpeg-turbo for style-level UB.
+
 One test surface still sits outside the race detector by deliberate scope decision: the `interop` matrix legs
 (`mise run interop:<leg>`) run without `-race`. They are `go test -tags interop -count=1` runs that drive real
 containerised origin servers (Orthanc, dcm4chee-arc), where the failure modes that matter are wire-protocol and
