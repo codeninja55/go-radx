@@ -17,8 +17,13 @@ const (
 	ItemTypeUserInformation        byte = 0x50
 	ItemTypeMaxLength              byte = 0x51
 	ItemTypeImplementationClassUID byte = 0x52
+	ItemTypeAsyncOperations        byte = 0x53
 	ItemTypeRoleSelection          byte = 0x54
 	ItemTypeImplementationVersion  byte = 0x55
+	ItemTypeExtendedNegotiation    byte = 0x56
+	ItemTypeCommonExtended         byte = 0x57
+	ItemTypeUserIdentityRQ         byte = 0x58
+	ItemTypeUserIdentityAC         byte = 0x59
 )
 
 // Presentation-context negotiation results (PS3.8 §9.3.3.2).
@@ -47,14 +52,34 @@ const (
 const insignificantTransferSyntax = "1.2.840.10008.1.2"
 
 // UserInformation carries the negotiated user-information sub-items (PS3.7 Annex D): the
-// maximum PDU length, the implementation class UID, the implementation version name, and the
-// SCP/SCU role-selection sub-items, one per SOP Class for which a non-default role is
-// requested (requestor) or granted (acceptor).
+// maximum PDU length, the implementation class UID, the implementation version name, the
+// SCP/SCU role-selection sub-items (one per SOP Class for which a non-default role is requested
+// or granted), the asynchronous-operations window, the SOP-class extended and common-extended
+// negotiation sub-items, and the user-identity sub-item (RQ on the requestor side, AC on the
+// acceptor side). The pointer-typed sub-items are absent (nil) by default so an association that
+// negotiates none of them encodes exactly the sub-items it carries.
 type UserInformation struct {
 	MaxPDULength           uint32
 	ImplementationClassUID string
 	ImplementationVersion  string
 	RoleSelections         []RoleSelection
+
+	// AsyncOps, when non-nil, carries the asynchronous-operations-window sub-item (item type 0x53,
+	// PS3.7 D.3.3.3): the maximum number of operations the AE may invoke and perform concurrently.
+	AsyncOps *AsyncOperations
+	// ExtendedNegotiations carries the SOP-class extended-negotiation sub-items (item type 0x56,
+	// PS3.7 D.3.3.5), one per SOP Class for which service-class application information is exchanged.
+	ExtendedNegotiations []ExtendedNegotiation
+	// CommonExtendedNegotiations carries the SOP-class common-extended-negotiation sub-items (item
+	// type 0x57, PS3.7 D.3.3.6), each binding a SOP Class to its Service Class and related SOP Classes.
+	CommonExtendedNegotiations []CommonExtendedNegotiation
+	// UserIdentityRQ, when non-nil, carries the user-identity-negotiation request sub-item (item type
+	// 0x58, PS3.7 D.3.3.7) the requestor presents. It is set on an A-ASSOCIATE-RQ only.
+	UserIdentityRQ *UserIdentityRQ
+	// UserIdentityAC, when non-nil, carries the user-identity-negotiation response sub-item (item type
+	// 0x59, PS3.7 D.3.3.7) the acceptor returns when the requestor asked for a positive response. It is
+	// set on an A-ASSOCIATE-AC only.
+	UserIdentityAC *UserIdentityAC
 }
 
 // RoleSelection is one SCP/SCU Role Selection sub-item (item type 0x54, PS3.7 D.3.3.4). In an
@@ -443,6 +468,21 @@ func encodeUserInformation(out *bytes.Buffer, ui UserInformation) {
 	for _, rs := range ui.RoleSelections {
 		encodeRoleSelection(&buf, rs)
 	}
+	if ui.AsyncOps != nil {
+		encodeAsyncOperations(&buf, *ui.AsyncOps)
+	}
+	for _, en := range ui.ExtendedNegotiations {
+		encodeExtendedNegotiation(&buf, en)
+	}
+	for _, cen := range ui.CommonExtendedNegotiations {
+		encodeCommonExtendedNegotiation(&buf, cen)
+	}
+	if ui.UserIdentityRQ != nil {
+		encodeUserIdentityRQ(&buf, *ui.UserIdentityRQ)
+	}
+	if ui.UserIdentityAC != nil {
+		encodeUserIdentityAC(&buf, *ui.UserIdentityAC)
+	}
 	encodeItem(out, ItemTypeUserInformation, buf.Bytes())
 }
 
@@ -469,6 +509,36 @@ func decodeUserInformation(data []byte) (UserInformation, error) {
 				return ui, err
 			}
 			ui.RoleSelections = append(ui.RoleSelections, rs)
+		case ItemTypeAsyncOperations:
+			ao, err := decodeAsyncOperations(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.AsyncOps = &ao
+		case ItemTypeExtendedNegotiation:
+			en, err := decodeExtendedNegotiation(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.ExtendedNegotiations = append(ui.ExtendedNegotiations, en)
+		case ItemTypeCommonExtended:
+			cen, err := decodeCommonExtendedNegotiation(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.CommonExtendedNegotiations = append(ui.CommonExtendedNegotiations, cen)
+		case ItemTypeUserIdentityRQ:
+			id, err := decodeUserIdentityRQ(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.UserIdentityRQ = &id
+		case ItemTypeUserIdentityAC:
+			ac, err := decodeUserIdentityAC(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.UserIdentityAC = &ac
 		}
 	}
 	return ui, nil
