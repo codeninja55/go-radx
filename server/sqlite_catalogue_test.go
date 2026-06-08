@@ -143,6 +143,47 @@ func TestSQLiteCatalogueRedactedSearchMatchesCleartext(t *testing.T) {
 	}
 }
 
+// TestSQLiteCatalogueRedactedWildcardMatchesNothing asserts a redacted catalogue never over-matches on
+// a wildcard/range PHI filter it cannot honour. PatientID is stored hashed, so a wildcard "MRN-*" or a
+// range cannot be tested against the one-way hash (the cleartext needed to apply the pattern is gone).
+// The constraint must match NOTHING for that clause, never be silently dropped (which would return
+// every row). An exact PatientID still matches its row, so exact-identity matching keeps working.
+func TestSQLiteCatalogueRedactedWildcardMatchesNothing(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	cat, err := SQLiteCatalogue(ctx, ":memory:", WithRedaction(true))
+	if err != nil {
+		t.Fatalf("SQLiteCatalogue: %v", err)
+	}
+	for _, mrn := range []string{"MRN-001", "MRN-002", "MRN-003"} {
+		study := "11." + mrn
+		if err := cat.Index(ctx, indexed(study, study+".1", study+".1.1", mrn, "CT")); err != nil {
+			t.Fatalf("Index %s: %v", mrn, err)
+		}
+	}
+
+	// A wildcard on the redacted PatientID matches nothing rather than over-matching every row.
+	wild := collect(t, cat.Query(ctx, CatalogueQuery{
+		Level: dimse.QueryLevelStudy,
+		Match: map[dicom.Tag]string{dicom.TagPatientID: "MRN-*"},
+	}))
+	if len(wild) != 0 {
+		t.Fatalf("redacted wildcard PatientID=MRN-* returned %d rows, want 0 (a hash cannot honour a wildcard)", len(wild))
+	}
+
+	// An exact PatientID still matches its row (exact-identity matching against the hash works).
+	exact := collect(t, cat.Query(ctx, CatalogueQuery{
+		Level: dimse.QueryLevelStudy,
+		Match: map[dicom.Tag]string{dicom.TagPatientID: "MRN-001"},
+	}))
+	if len(exact) != 1 {
+		t.Fatalf("redacted exact PatientID=MRN-001 returned %d rows, want 1", len(exact))
+	}
+	if v, _ := exact[0].GetString(dicom.TagStudyInstanceUID); v != "11.MRN-001" {
+		t.Errorf("exact-matched StudyInstanceUID = %q, want 11.MRN-001", v)
+	}
+}
+
 // TestSQLiteCatalogueStudyLevelDistinct asserts the query-level fix: a study with multiple instances
 // returns ONE row for a study-level query (distinct study), not one row per instance (Finding 4).
 func TestSQLiteCatalogueStudyLevelDistinct(t *testing.T) {

@@ -383,9 +383,12 @@ func (c *sqliteCatalogue) buildSelect(cols []indexedColumn) string {
 // Under redaction the PHI columns store a one-way hash of the identifier, never its cleartext, so a
 // pushed-down equality on a redacted column hashes the value the same way before comparison —
 // otherwise a query by the cleartext PatientID/PatientName would compare cleartext against a stored
-// hash and never match. A redacted column is only ever narrowed by exact equality (a hash cannot honour
-// a wildcard or range), and the matcher cannot re-decide a hashed column, so a non-exact match value
-// against a redacted column is left unconstrained rather than silently matching nothing.
+// hash and never match. A redacted column supports only exact-identity matching: a wildcard or range
+// match value cannot be satisfied against a one-way hash (the cleartext needed to test the pattern is
+// gone), and the Go matcher cannot re-decide a hashed column either. Such a constraint therefore
+// matches NOTHING — it is pushed down as an unsatisfiable predicate rather than dropped, because a
+// dropped PHI constraint would silently return every row (a redacted catalogue must never over-match
+// on a PHI filter it cannot honour).
 func (c *sqliteCatalogue) buildWhere(match map[dicom.Tag]string) (string, []any) {
 	column := columnByTag()
 	var clauses []string
@@ -399,8 +402,9 @@ func (c *sqliteCatalogue) buildWhere(match map[dicom.Tag]string) (string, []any)
 		if redacted {
 			// A redacted column cannot be re-decided by the Go matcher (it holds a hash), so the SQL must
 			// honour it directly. Only exact equality is representable against a hash; a wildcard or range
-			// is left unconstrained rather than matching nothing.
+			// match value matches nothing rather than being dropped (which would over-match every row).
 			if !isSafeNarrowingValue(ic.tag, value) {
+				clauses = append(clauses, "1 = 0")
 				continue
 			}
 			clauses = append(clauses, ic.column+" = ?")
@@ -460,7 +464,8 @@ func isTemporalTag(tag dicom.Tag) bool {
 // every candidate. Such a key is left to the caller, which fetches the stored dataset from the
 // ObjectStore and applies the full match against real attribute values (see the DICOMweb and DIMSE
 // roles). A redacted PHI key is dropped for the same reason: the column holds a one-way hash, never the
-// cleartext the matcher compares against, so the SQL clause already decided it (hashed equality) and the
+// cleartext the matcher compares against, so the SQL clause already decided it — by hashed equality for
+// an exact value, or by an unsatisfiable predicate for a wildcard/range a hash cannot honour — and the
 // matcher must not re-test it against the hash.
 func (c *sqliteCatalogue) matchKeys(match map[dicom.Tag]string) []dicomweb.MatchKey {
 	column := columnByTag()
