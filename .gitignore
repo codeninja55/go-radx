@@ -1,6 +1,8 @@
 # Binaries and build output
 /bin/
 /dist/
+# GoReleaser output dir when invoked from the cmd/radx module (its config lives there).
+/cmd/radx/dist/
 /cmd/radx/radx
 *.exe
 *.test
