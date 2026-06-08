@@ -1,15 +1,14 @@
 # radx CLI
 
-!!! warning "Partially implemented — foundation landed, command tree in progress"
+!!! info "Command tree implemented — `serve fhir` deferred"
 
-    This document describes the `radx` command-line interface. The foundation is implemented: the Kong scaffold, the
-    global output contract, the `RADX_*` environment configuration, the exit-code taxonomy, and the honest-failure
-    rules are in place, and two commands are wired end to end against the library — `echo` (C-ECHO SCU) and `dump`
-    (Part-10 inspection). The remaining commands (`store`, `find`/`get`/`move`, `scp`, `modify`, `organize`,
-    `lookup`, `catalogue`, and the `hl7`, `dicomweb`, `convert`, and `serve` groups) are registered as committed
-    surface so the command tree is stable, but they fail closed — each returns a typed "not implemented" error and
-    exits `1` until its implementation lands. The command surface below is the contract every command conforms to as
-    it ships.
+    This document describes the `radx` command-line interface. The foundation and the command tree are implemented:
+    the Kong scaffold, the global output contract, the `RADX_*` environment configuration, the exit-code taxonomy, and
+    the honest-failure rules are in place, and every command is wired end to end against the library — `echo`, `store`,
+    `find`, `get`, `move`, `scp`, `dump`, `modify`, `organize`, `lookup`, `catalogue`, and the `hl7`, `dicomweb`,
+    `convert`, and `serve dicomweb` commands. The one exception is `serve fhir`: the FHIR REST server role is a
+    separate increment, so `serve fhir` fails closed — it returns a typed "not implemented" error and exits `1` until
+    that role lands. The command surface below is the contract every command conforms to.
 
 The `radx` command-line interface is go-radx's flagship first-party consumer. It is the tool that proves the library
 API is usable, and it serves practitioners and operators who want dcmtk-class breadth from a single binary. It lives in
@@ -45,10 +44,10 @@ extending it with the new groups:
 - The global behaviour: output formats, environment configuration, exit codes, logging, and the honest-failure rules.
 
 Out of scope for v1 (deferred, not designed against here): the SCP/server sides of MPPS and Storage Commitment (the v1
-N-services are SCU-only, PRD §5.1); UPS-RS and the legacy WADO-URI interface. The DIMSE query/retrieve subcommands
-(`find`, `get`, `move`) are the top-three dcmtk-parity gaps the Codex audit named and arrive with M3 DIMSE depth
-(PRD §13); they are documented here as committed surface so the command tree is stable, and they fail-closed until M3
-lands.
+N-services are SCU-only, PRD §5.1); UPS-RS and the legacy WADO-URI interface; and the FHIR REST server role behind
+`serve fhir`, which fails closed until that role lands. The DIMSE query/retrieve subcommands (`find`, `get`, `move`)
+were the top-three dcmtk-parity gaps the Codex audit named (PRD §12); they are now wired against the `dimse`
+query/retrieve iterators.
 
 ## Command tree
 
@@ -61,9 +60,9 @@ radx <command> [flags]
 
   echo            Verify DICOM connectivity (C-ECHO)            ~ echoscu
   store           Send DICOM objects (C-STORE SCU)              ~ storescu
-  find            Query a remote AE (C-FIND SCU)                ~ findscu      [M3]
-  get             Retrieve over the same association (C-GET)    ~ getscu       [M3]
-  move            Retrieve to a destination AE (C-MOVE)         ~ movescu      [M3]
+  find            Query a remote AE (C-FIND SCU)                ~ findscu
+  get             Retrieve over the same association (C-GET)    ~ getscu
+  move            Retrieve to a destination AE (C-MOVE)         ~ movescu
   scp             Run a Storage/Verification SCP                ~ storescp     [loopback by default]
   dump            Inspect DICOM file contents                   ~ dcmdump
   modify          Edit DICOM tags and regenerate UIDs           ~ dcmodify
@@ -89,9 +88,8 @@ radx <command> [flags]
     fhir          Serve the FHIR REST API                        ~ (no direct dcmtk equivalent)
 ```
 
-The trailing `[M3]` and `[loopback]` notes are stable parts of the contract, not transient build state: the
-query/retrieve verbs return a typed "not implemented" error and exit `1` until M3 (the fail-closed rule, below), and
-`scp` binds loopback unless explicitly told otherwise.
+The `[loopback]` note is a stable part of the contract, not transient build state: `scp` binds loopback unless
+explicitly told otherwise.
 
 ## Global flags and output contract
 
@@ -199,7 +197,7 @@ Two rules the prototype broke (PRD §9.2) are load-bearing across every command:
   typed error and writes nothing. A stub errors; it never no-ops and reports success. This is the direct fix for the
   prototype's `modify`, whose `applyModifications` logged "Would delete" / "Would insert" and returned nil while writing
   unchanged files (RADX-001, RADX-002). In v1, if `modify` cannot apply an edit it returns an error with exit `1` and
-  leaves no output file; the query/retrieve verbs return "not implemented" and exit `1` until M3.
+  leaves no output file; `serve fhir` returns "not implemented" and exits `1` until the FHIR server role lands.
 - **Truncation and incompleteness are failures.** Parsers distinguish a clean record-boundary EOF from a short read
   mid-value and propagate `io.ErrUnexpectedEOF`; accepting a truncated object as complete is a defect. `dump` and
   `catalogue` that encounter an unparseable input record the failure and exit non-zero rather than logging and returning
@@ -266,8 +264,11 @@ fragments; there is no rate-limit window that turns a valid large object into a 
 ### find / get / move — query and retrieve (C-FIND / C-GET / C-MOVE)
 
 The query/retrieve trio, equivalent to dcmtk's `findscu`, `getscu`, and `movescu`. These are the top-three parity gaps
-the Codex audit named (PRD §12) and arrive with M3 DIMSE depth (PRD §13). They are committed surface now so the command
-tree is stable; until M3 they fail-closed (return "not implemented", exit `1`).
+the Codex audit named (PRD §12), wired against the `dimse` query/retrieve iterators. `find` streams one match per
+result; `get` retrieves over the same association, acting as the Storage SCP for the sub-operation C-STOREs and writing
+each received instance under `--output-dir`; `move` retrieves to a named `--move-destination` AE. A non-success terminal
+status (a partial-failure retrieve, a refused query, a "Move Destination Unknown") is reported faithfully and exits `4`,
+never laundered into success.
 
 ```text
 radx find [flags]    --level=STUDY  --match key=value...    ~ findscu
@@ -596,8 +597,8 @@ not numbered (PRD §8.2):
 - A refused connection, rejected or aborted association, non-success DIMSE status, or HTTP transport error exits `4`,
   with the DIMSE `Status` rendered by name and class.
 - An input that cannot be read or an output that cannot be created exits `5`.
-- An unimplemented capability (the M3 query/retrieve verbs, any not-yet-built path) exits `1` with a "not implemented"
-  error and writes nothing (fail-closed).
+- An unimplemented capability (`serve fhir`, any not-yet-built path) exits `1` with a "not implemented" error and
+  writes nothing (fail-closed).
 - Partial failure across a batch exits non-zero unless `--ignore-errors` is explicitly set; no flag converts a final
   failure into success.
 
@@ -616,8 +617,8 @@ capability. For v1:
 - **Reference servers.** The DIMSE Storage/QR SCP (`scp`) and HL7 v2 MLLP listener (`hl7 listen`) run as top-level
   commands; the DICOMweb and FHIR REST reference daemons run under `serve` (`serve dicomweb`, `serve fhir`). All four
   bind loopback by default and wrap the `server` package's embeddable roles (`docs/reference/servers.md`).
-- **DIMSE.** C-ECHO and C-STORE (SCU) and a loopback Storage/Verification SCP in the v1 floor; C-FIND/C-GET/C-MOVE
-  (`find`/`get`/`move`) are committed surface that fail-closed until M3 (PRD §13).
+- **DIMSE.** C-ECHO and C-STORE (SCU), C-FIND/C-GET/C-MOVE (`find`/`get`/`move`), and a loopback
+  Storage/Verification SCP, all wired against the `dimse` layer.
 - **Transport security.** DIMSE-TLS and DICOMweb/FHIR HTTP default to TLS 1.2+ with peer verification; mutual TLS is a
   documented option; `InsecureSkipVerify` exists only behind an explicit test flag (PRD §9.7).
 - **PHI defaults.** No PHI in stdout, stderr, logs, or telemetry at default verbosity; servers bind loopback; the
@@ -659,7 +660,7 @@ Details this document committed that the PRD left open, for review:
   cross-standard collision rules.
 - The `dicom` reference — the data model and Part 10 I/O behind `dump`, `modify`, `organize`, `store`, `scp`.
 - The `dimse` reference — associations, presentation contexts, and DIMSE services behind `echo`, `store`, `scp`, and
-  the M3 `find`/`get`/`move` verbs.
+  the `find`/`get`/`move` verbs.
 - The `dicomweb` reference — the WADO-RS / STOW-RS / QIDO-RS clients behind `radx dicomweb`.
 - The `hl7v2` reference — the MLLP client/server behind `radx hl7`.
 - The `convert` reference — the cross-standard conversions behind `radx convert`.
