@@ -552,11 +552,13 @@ func TestSearchFollowsBundleLinkPaging(t *testing.T) {
 }
 
 // TestFollowNextResolvesLinkForms proves the paging loop resolves a Bundle "next" link by its URL
-// type against a base URL that carries a path prefix ("/fhir"): an absolute link is used verbatim, an
-// origin-relative (leading-slash) link resolves against the scheme and host only — it must not double
-// the "/fhir" prefix — and a relative link joins to the base path. The server is mounted under
-// "/fhir" so the path-doubling bug (http://host/fhir/fhir/Patient) is observable: the test asserts the
-// exact path the second request hits.
+// type against the URL of the request that produced the page (RFC 3986), with a base URL that carries
+// a path prefix ("/fhir"): an absolute link is used verbatim, an origin-relative (leading-slash) link
+// resolves against the scheme and host only — it must not double the "/fhir" prefix — a relative link
+// joins to the search path, and a query-only link ("?page=2") keeps the search path and replaces only
+// the query (it must not page into the service root). The server is mounted under "/fhir" so the
+// path-doubling bug (http://host/fhir/fhir/Patient) and the query-only root bug (http://host/fhir/?page=2)
+// are observable: the test asserts the exact path the second request hits.
 func TestFollowNextResolvesLinkForms(t *testing.T) {
 	const basePath = "/fhir"
 	cases := []struct {
@@ -577,6 +579,11 @@ func TestFollowNextResolvesLinkForms(t *testing.T) {
 		{
 			name:     "relative",
 			nextLink: func(string) string { return "Patient?page=2" },
+			wantPath: "/fhir/Patient",
+		},
+		{
+			name:     "query only",
+			nextLink: func(string) string { return "?page=2" },
 			wantPath: "/fhir/Patient",
 		},
 	}

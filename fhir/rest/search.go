@@ -142,6 +142,11 @@ type SearchPage struct {
 	SelfURL string
 	NextURL string
 	PrevURL string
+
+	// RequestURL is the absolute URL of the request that produced this page. FollowNext/FollowPrev
+	// resolve a relative NextURL/PrevURL against it (RFC 3986 reference resolution), so a query-only
+	// continuation link ("?page=2") resolves against the search endpoint's path, not the service root.
+	RequestURL string
 }
 
 // HasNext reports whether the page carries a "next" link, so a caller can write
@@ -168,13 +173,19 @@ func (c *Client) Search(ctx context.Context, resourceType string, params *Search
 
 // FollowNext fetches the next page of a paged search by following the current page's "next" link.
 // It returns ErrNoNextPage (wrapped) when the page has no next link, so a paging loop terminates
-// cleanly. The link is the server's own next URL — absolute or relative — followed verbatim, which
-// is what makes paging robust to a server that encodes an opaque continuation token in the link.
+// cleanly. The link is the server's own next URL — absolute, origin-relative, relative-path, or
+// query-only — resolved against the URL of the request that produced this page (RFC 3986 reference
+// resolution), which is what makes paging robust to a server that encodes an opaque continuation
+// token in the link in any of those forms.
 func (c *Client) FollowNext(ctx context.Context, page *SearchPage) (*SearchPage, error) {
 	if page == nil || page.NextURL == "" {
 		return nil, ErrNoNextPage
 	}
-	return c.searchPath(ctx, page.NextURL)
+	next, err := resolveLink(page.RequestURL, page.NextURL)
+	if err != nil {
+		return nil, err
+	}
+	return c.searchPath(ctx, next)
 }
 
 // FollowPrev fetches the previous page by following the "previous" link, the symmetric counterpart
@@ -183,7 +194,31 @@ func (c *Client) FollowPrev(ctx context.Context, page *SearchPage) (*SearchPage,
 	if page == nil || page.PrevURL == "" {
 		return nil, ErrNoNextPage
 	}
-	return c.searchPath(ctx, page.PrevURL)
+	prev, err := resolveLink(page.RequestURL, page.PrevURL)
+	if err != nil {
+		return nil, err
+	}
+	return c.searchPath(ctx, prev)
+}
+
+// resolveLink resolves a Bundle navigation link against the absolute URL of the request that
+// produced the page, per RFC 3986. requestURL is the absolute URL searchPath fetched; link is the
+// server-supplied next/previous URL. ResolveReference handles every form uniformly: an absolute link
+// is returned as-is, an origin-relative link ("/fhir/Patient?page=2") resolves to the origin plus
+// path, a relative-path link ("Patient?page=2") resolves relative to the request path, and a
+// query-only link ("?page=2") keeps the request path and replaces only the query — so a continuation
+// link pages from the search endpoint, never the service root. A requestURL or link that does not
+// parse is an error rather than a silently misrouted request.
+func resolveLink(requestURL, link string) (string, error) {
+	base, err := url.Parse(requestURL)
+	if err != nil {
+		return "", fmt.Errorf("fhir/rest: paging request URL does not parse: %w", err)
+	}
+	ref, err := url.Parse(link)
+	if err != nil {
+		return "", fmt.Errorf("fhir/rest: paging link does not parse: %w", err)
+	}
+	return base.ResolveReference(ref).String(), nil
 }
 
 // SearchAll executes a search and follows every "next" link to collect the resources of all pages
@@ -239,10 +274,11 @@ func (c *Client) searchPath(ctx context.Context, path string) (*SearchPage, erro
 		return nil, fmt.Errorf("fhir/rest: search response is a %s, not a Bundle", r.ResourceType())
 	}
 	return &SearchPage{
-		Bundle:    r,
-		Resources: view.resources,
-		SelfURL:   view.linkURL(linkRelationSelf),
-		NextURL:   view.linkURL(linkRelationNext),
-		PrevURL:   view.linkURL(linkRelationPrevious),
+		Bundle:     r,
+		Resources:  view.resources,
+		SelfURL:    view.linkURL(linkRelationSelf),
+		NextURL:    view.linkURL(linkRelationNext),
+		PrevURL:    view.linkURL(linkRelationPrevious),
+		RequestURL: c.resolveURL(path),
 	}, nil
 }
