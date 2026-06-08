@@ -323,44 +323,59 @@ func (c *Client) store(ctx context.Context, path string, instances ...*dicom.Dat
 // parsing the application/dicom part into a *dicom.DataSet. A response that is not
 // multipart/related, or that carries no application/dicom part, is a typed error.
 func (c *Client) RetrieveInstance(ctx context.Context, p ResourcePath) (*dicom.DataSet, error) {
-	path, err := p.Path()
+	si, err := c.RetrieveInstanceObject(ctx, p)
 	if err != nil {
 		return nil, err
 	}
+	return si.DataSet, nil
+}
+
+// RetrieveInstanceObject fetches a single instance, preserving its transfer syntax and byte-exact
+// Part 10 representation. Unlike RetrieveInstance, which returns only the decoded dataset and so
+// discards the transfer syntax, this returns a RetrievedInstance whose TransferSyntax and Encoded
+// fields let the caller write the object back in the syntax the origin returned rather than
+// transcoding it, which matters for an encapsulated (compressed) syntax go-radx cannot re-encode
+// from a dataset. A response that is not multipart/related, or that carries no application/dicom
+// part, is a typed error.
+func (c *Client) RetrieveInstanceObject(ctx context.Context, p ResourcePath) (RetrievedInstance, error) {
+	path, err := p.Path()
+	if err != nil {
+		return RetrievedInstance{}, err
+	}
 	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return nil, err
+		return RetrievedInstance{}, err
 	}
 	req.Header.Set("Accept", acceptInstances(c.transferSyntaxes...))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, c.transportError(http.MethodGet, path, err)
+		return RetrievedInstance{}, c.transportError(http.MethodGet, path, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, c.httpError(http.MethodGet, path, resp)
+		return RetrievedInstance{}, c.httpError(http.MethodGet, path, resp)
 	}
 	if !isMultipartRelated(resp.Header.Get("Content-Type")) {
-		return nil, fmt.Errorf("%w: WADO-RS response is not multipart/related", ErrNotAcceptable)
+		return RetrievedInstance{}, fmt.Errorf("%w: WADO-RS response is not multipart/related", ErrNotAcceptable)
 	}
 
 	body := c.boundedBody(resp)
 	mr, err := NewMultipartReader(body, resp.Header.Get("Content-Type"))
 	if err != nil {
-		return nil, err
+		return RetrievedInstance{}, err
 	}
 	ct, part, err := mr.NextPart()
 	if errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("%w: WADO-RS response carried no instance part", ErrNotAcceptable)
+		return RetrievedInstance{}, fmt.Errorf("%w: WADO-RS response carried no instance part", ErrNotAcceptable)
 	}
 	if err != nil {
-		return nil, err
+		return RetrievedInstance{}, err
 	}
 	if mt := mediaTypeOf(ct); mt != mediaTypeDICOM {
-		return nil, fmt.Errorf("%w: WADO-RS part media type %q is not application/dicom", ErrNotAcceptable, mt)
+		return RetrievedInstance{}, fmt.Errorf("%w: WADO-RS part media type %q is not application/dicom", ErrNotAcceptable, mt)
 	}
-	return decodeInstance(part)
+	return decodeRetrievedInstance(part)
 }
 
 // parseStoreResponseBody reads and decodes the application/dicom+json store-response body

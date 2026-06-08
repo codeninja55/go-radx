@@ -93,3 +93,25 @@ func decodeInstance(r io.Reader) (*dicom.DataSet, error) {
 	}
 	return f.DataSet, nil
 }
+
+// decodeRetrievedInstance parses a Part 10 application/dicom object while capturing its exact
+// bytes, so a retrieval preserves the transfer syntax the origin returned instead of transcoding.
+// The dataset and its transfer syntax come from the decoded File; Encoded holds the byte-exact
+// Part 10 object so the caller can write it back unchanged in the origin's syntax rather than
+// re-encoding (which would silently transcode). An encapsulated (compressed) transfer syntax is a
+// fail-closed parse error here: go-radx reads only the four uncompressed syntaxes, so a compressed
+// object cannot be decoded faithfully — the honest outcome is the reader's error, never a corrupted
+// uncompressed file. A body that ends mid-object surfaces the same way (the multipart layer has
+// already typed a short part as a TruncatedError).
+func decodeRetrievedInstance(r io.Reader) (RetrievedInstance, error) {
+	var raw bytes.Buffer
+	f, err := dicom.Read(io.TeeReader(r, &raw))
+	if err != nil {
+		return RetrievedInstance{}, fmt.Errorf("dicomweb: decode application/dicom part: %w", err)
+	}
+	si := RetrievedInstance{DataSet: f.DataSet, Encoded: raw.Bytes()}
+	if f.Meta != nil {
+		si.TransferSyntax = f.Meta.TransferSyntaxUID
+	}
+	return si, nil
+}

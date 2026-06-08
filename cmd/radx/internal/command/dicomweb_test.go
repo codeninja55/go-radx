@@ -23,11 +23,15 @@ import (
 // without an external PACS. It holds only synthetic, non-PHI fixtures.
 type memBackend struct {
 	mu        sync.Mutex
-	instances map[string]*dicom.DataSet // keyed by SOP Instance UID
+	instances map[string]*dicom.DataSet       // keyed by SOP Instance UID
+	syntaxes  map[string]dicom.TransferSyntax // SOP Instance UID -> stored transfer syntax
 }
 
 func newMemBackend() *memBackend {
-	return &memBackend{instances: make(map[string]*dicom.DataSet)}
+	return &memBackend{
+		instances: make(map[string]*dicom.DataSet),
+		syntaxes:  make(map[string]dicom.TransferSyntax),
+	}
 }
 
 // Store records an instance by its SOP Instance UID.
@@ -39,6 +43,16 @@ func (m *memBackend) Store(_ context.Context, ds *dicom.DataSet) error {
 	return nil
 }
 
+// storeWithSyntax records an instance together with the transfer syntax it is stored in, so a test
+// can drive the WADO retrieve transfer-syntax policy with a non-default (non-Explicit VR LE) syntax.
+func (m *memBackend) storeWithSyntax(ds *dicom.DataSet, ts dicom.TransferSyntax) {
+	instance, _ := ds.GetString(dicom.TagSOPInstanceUID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.instances[instance] = ds
+	m.syntaxes[instance] = ts
+}
+
 // RetrieveInstance returns the instance addressed by the path's SOP Instance UID.
 func (m *memBackend) RetrieveInstance(_ context.Context, p dicomweb.ResourcePath) (*dicom.DataSet, error) {
 	m.mu.Lock()
@@ -47,6 +61,20 @@ func (m *memBackend) RetrieveInstance(_ context.Context, p dicomweb.ResourcePath
 		return ds, nil
 	}
 	return nil, dicomweb.ErrInvalidResource
+}
+
+// RetrieveStoredInstance reports the instance with its stored transfer syntax, so the WADO server's
+// retrieve transfer-syntax policy passes the true stored syntax through rather than assuming the
+// default. An instance stored without an explicit syntax reports a zero TransferSyntax, which the
+// policy treats as the default uncompressed syntax.
+func (m *memBackend) RetrieveStoredInstance(_ context.Context, p dicomweb.ResourcePath) (dicomweb.RetrievedInstance, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	ds, ok := m.instances[string(p.Instance)]
+	if !ok {
+		return dicomweb.RetrievedInstance{}, dicomweb.ErrInvalidResource
+	}
+	return dicomweb.RetrievedInstance{DataSet: ds, TransferSyntax: m.syntaxes[string(p.Instance)]}, nil
 }
 
 // Query returns the studies matching the request (here, every stored instance projected to its
@@ -135,6 +163,34 @@ func TestDICOMwebStowThenWado(t *testing.T) {
 	dest := filepath.Join(out, "1.2.3.4.5.1", "1.2.3.4.5.2", "1.2.900.10.dcm")
 	if _, err := os.Stat(dest); err != nil {
 		t.Errorf("expected retrieved instance at %s: %v", dest, err)
+	}
+}
+
+// TestDICOMwebWadoPreservesTransferSyntax is the no-silent-transcode regression: a WADO-RS retrieve
+// must write the file in the transfer syntax the origin returned, not force Explicit VR LE. The
+// origin stores an instance in Implicit VR LE; the retrieved file on disk must round-trip as Implicit
+// VR LE (1.2.840.10008.1.2), never the hard-coded Explicit VR LE (1.2.840.10008.1.2.1) the prior code
+// transcoded to.
+func TestDICOMwebWadoPreservesTransferSyntax(t *testing.T) {
+	const study, series, instance = "1.2.910.1", "1.2.910.2", "1.2.910.3"
+	url, backend := startDICOMwebServer(t)
+	backend.storeWithSyntax(webInstance(study, series, instance), dicom.ImplicitVRLittleEndian)
+
+	out := filepath.Join(t.TempDir(), "retrieved")
+	stdout, stderr, code := runRadx(t, "dicomweb", "wado", "--format", "json", "--url", url,
+		"--study", study, "--series", series, "--instance", instance, "--output-dir", out)
+	if code != exitcode.Success {
+		t.Fatalf("wado exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+
+	dest := filepath.Join(out, study, series, instance+".dcm")
+	f, err := dicom.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("read retrieved instance %s: %v", dest, err)
+	}
+	if got := f.Meta.TransferSyntaxUID; got != dicom.ImplicitVRLittleEndian {
+		t.Errorf("retrieved file transfer syntax = %q, want %q (origin's syntax, not forced Explicit VR LE %q)",
+			got, dicom.ImplicitVRLittleEndian, dicom.ExplicitVRLittleEndian)
 	}
 }
 

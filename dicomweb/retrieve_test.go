@@ -175,6 +175,58 @@ func TestRetrieveSeriesStreamsInstances(t *testing.T) {
 	}
 }
 
+// TestRetrieveInstanceObjectPreservesTransferSyntax asserts the client's object-retrieve path keeps
+// the instance's transfer syntax (and exact bytes) rather than discarding them, so a caller can write
+// the object back in the origin's syntax instead of transcoding. The instance is stored in Implicit
+// VR LE; the retrieved object must report that syntax and a byte-exact Part 10 representation.
+func TestRetrieveInstanceObjectPreservesTransferSyntax(t *testing.T) {
+	store := newWADOStore()
+	store.put(RetrievedInstance{
+		DataSet:        sampleInstance("1.2.3", "1.2.3.4", "1.2.3.4.5"),
+		TransferSyntax: dicom.ImplicitVRLittleEndian,
+	})
+	c := newWADOServerClient(t, store)
+
+	si, err := c.RetrieveInstanceObject(context.Background(), NewInstance("1.2.3", "1.2.3.4", "1.2.3.4.5"))
+	if err != nil {
+		t.Fatalf("RetrieveInstanceObject: %v", err)
+	}
+	if si.TransferSyntax != dicom.ImplicitVRLittleEndian {
+		t.Errorf("retrieved transfer syntax = %q, want %q (origin's syntax, not forced Explicit VR LE)",
+			si.TransferSyntax, dicom.ImplicitVRLittleEndian)
+	}
+	// The captured bytes must decode back to a Part 10 object whose file meta carries the same syntax.
+	f, err := dicom.Read(bytes.NewReader(si.Encoded))
+	if err != nil {
+		t.Fatalf("captured bytes do not parse as Part 10: %v", err)
+	}
+	if f.Meta.TransferSyntaxUID != dicom.ImplicitVRLittleEndian {
+		t.Errorf("captured bytes' file-meta transfer syntax = %q, want %q",
+			f.Meta.TransferSyntaxUID, dicom.ImplicitVRLittleEndian)
+	}
+}
+
+// TestRetrieveInstanceObjectCompressedFailsClosed asserts an encapsulated (compressed) instance is a
+// fail-closed parse error on retrieve, not a silent transcode: go-radx reads only the four
+// uncompressed syntaxes, so a compressed object cannot be decoded faithfully. The honest outcome is a
+// typed parse error (the caller surfaces exit 3), never a corrupted Explicit VR LE file. The stored
+// bytes here are a passthrough placeholder; the object-retrieve path decodes the part, which the
+// reader rejects for an encapsulated syntax.
+func TestRetrieveInstanceObjectCompressedFailsClosed(t *testing.T) {
+	const sop = "1.2.3.4.5"
+	store := newWADOStore()
+	store.put(RetrievedInstance{
+		DataSet:        sampleInstance("1.2.3", "1.2.3.4", sop),
+		TransferSyntax: dicom.JPEGBaseline8Bit,
+		Encoded:        bytes.Repeat([]byte{0x4A, 0x50, 0x45, 0x47}, 32),
+	})
+	c := newWADOServerClient(t, store)
+
+	if _, err := c.RetrieveInstanceObject(context.Background(), NewInstance("1.2.3", "1.2.3.4", sop)); err == nil {
+		t.Fatal("RetrieveInstanceObject of a compressed instance returned nil error; want a fail-closed parse error, never a silent transcode")
+	}
+}
+
 // TestRetrieveStudyNotFoundIs404 asserts an empty study answers 404 (the iterator yields a
 // single HTTPError), never a silent empty stream read as a complete study.
 func TestRetrieveStudyNotFoundIs404(t *testing.T) {

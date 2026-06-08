@@ -102,15 +102,20 @@ func (c *DICOMwebWadoCmd) runMetadata(rc *RunContext, client *dicomweb.Client) e
 }
 
 // runObjects streams the addressed resource's instances and writes each to --output-dir. An
-// instance level retrieve fetches one object; a study or series level streams every instance.
+// instance level retrieve fetches one object; a study or series level streams every instance. Each
+// object is written in the transfer syntax the origin returned, byte-for-byte: a retrieve must not
+// transcode, so the captured Part 10 bytes are written through unchanged rather than re-encoded
+// (which would silently change the representation, e.g. forcing Explicit VR LE). An object in a
+// transfer syntax go-radx cannot read (an encapsulated/compressed syntax) fails closed as a parse
+// error rather than being written corrupted.
 func (c *DICOMwebWadoCmd) runObjects(rc *RunContext, client *dicomweb.Client) error {
 	if err := ensureDir(c.Output); err != nil {
 		return err
 	}
 
 	count := 0
-	write := func(ds *dicom.DataSet) error {
-		if err := writeReceivedInstance(c.Output, ds, dicom.ExplicitVRLittleEndian); err != nil {
+	write := func(si dicomweb.RetrievedInstance) error {
+		if err := writeReceivedRawInstance(c.Output, si.DataSet, si.Encoded); err != nil {
 			return err
 		}
 		count++
@@ -119,28 +124,28 @@ func (c *DICOMwebWadoCmd) runObjects(rc *RunContext, client *dicomweb.Client) er
 
 	switch {
 	case c.Instance != "":
-		ds, err := client.RetrieveInstance(rc.Ctx, dicomweb.NewInstance(dicom.UID(c.Study), dicom.UID(c.Series), dicom.UID(c.Instance)))
+		si, err := client.RetrieveInstanceObject(rc.Ctx, dicomweb.NewInstance(dicom.UID(c.Study), dicom.UID(c.Series), dicom.UID(c.Instance)))
 		if err != nil {
 			return err
 		}
-		if err := write(ds); err != nil {
+		if err := write(si); err != nil {
 			return err
 		}
 	case c.Series != "":
-		for ds, err := range client.RetrieveSeries(rc.Ctx, dicom.UID(c.Study), dicom.UID(c.Series)) {
+		for si, err := range client.RetrieveSeriesObjects(rc.Ctx, dicom.UID(c.Study), dicom.UID(c.Series)) {
 			if err != nil {
 				return err
 			}
-			if err := write(ds); err != nil {
+			if err := write(si); err != nil {
 				return err
 			}
 		}
 	default:
-		for ds, err := range client.RetrieveStudy(rc.Ctx, dicom.UID(c.Study)) {
+		for si, err := range client.RetrieveStudyObjects(rc.Ctx, dicom.UID(c.Study)) {
 			if err != nil {
 				return err
 			}
-			if err := write(ds); err != nil {
+			if err := write(si); err != nil {
 				return err
 			}
 		}
