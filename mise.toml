@@ -15,6 +15,14 @@ description = "Fail if aggregate coverage is below the PRD floor (§11.4); write
 depends = ["cover"]
 run = "tools/cover-check.sh coverage.out"
 
+[tasks."cover:critical"]
+description = "Fail if a critical-path package is below the 90% target (or a ratchet package regressed); reuses coverage.out"
+# Depends on `cover` so the merged race profile exists, then enforces the per-package 90%
+# critical-path target on top of the module-wide 80% floor cover:check enforces. It reads the SAME
+# coverage.out cover wrote, so the two gates share one expensive race run rather than two.
+depends = ["cover"]
+run = "tools/cover-critical.sh coverage.out"
+
 [tasks."test:dicom"]
 description = "Run the dicom package test suite (race + coverage)"
 run = "go test -race -cover ./dicom/..."

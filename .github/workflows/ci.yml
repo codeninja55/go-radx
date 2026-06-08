@@ -92,6 +92,16 @@ jobs:
         # it to speed the step up. The codecs and interop jobs intentionally run without -race — see
         # the cross-cutting posture for why the race gate is the pure-Go unit-test gate.
         run: mise run cover:check
+      - name: critical-path coverage gate (90% on the untrusted-input + conversion core)
+        # On top of the module-wide 80% floor, enforce a per-package 90% target on the critical
+        # paths — the parsers, codecs, transport, and conversion core (docs/conformance/cross-cutting.md
+        # "Coverage targets and critical-path enumeration"). cover-check.sh above already ran `cover`,
+        # which wrote coverage.out; this step reuses that same merged race profile rather than running
+        # a second race suite. It FAILS if an ENFORCED critical-path package drops below 90% or a
+        # RATCHET (TODO-toward-90%) package regresses below its recorded baseline. The set that
+        # enforces 90% today vs. the documented TODO is recorded in tools/cover-critical.sh and
+        # cross-cutting.md.
+        run: tools/cover-critical.sh coverage.out
 
   conformance:
     name: DICOM conformance (dciodvfy + pydicom, enforced)
