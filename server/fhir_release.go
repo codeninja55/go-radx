@@ -217,12 +217,12 @@ func (a r5Adapter) capabilityStatement(basePath string) fhir.Resource {
 	cs.Software = &r5.CapabilityStatementSoftware{Name: strptr(capabilitySoftwareName)}
 
 	rest := r5.CapabilityStatementRest{Mode: &mode}
+	// The role advertises only the system interaction it actually implements: the base POST does
+	// transaction processing. It does not return a batch-response (a batch Bundle is processed as a
+	// transaction), and GET at the base is a 405, so neither batch nor search-system is advertised —
+	// the served metadata matches the handler exactly rather than over-advertising.
 	txn := r5.SystemRestfulInteractionTransaction
-	batch := r5.SystemRestfulInteractionBatch
-	searchSystem := r5.SystemRestfulInteractionSearchSystem
-	rest.Interaction = []r5.CapabilityStatementRestInteraction{
-		{Code: &txn}, {Code: &batch}, {Code: &searchSystem},
-	}
+	rest.Interaction = []r5.CapabilityStatementRestInteraction{{Code: &txn}}
 	for _, rt := range workflowResourceTypes {
 		typ, err := r5.ParseResourceType(rt)
 		if err != nil {
@@ -349,12 +349,12 @@ func (a r4Adapter) capabilityStatement(basePath string) fhir.Resource {
 	cs.Software = &r4.CapabilityStatementSoftware{Name: strptr(capabilitySoftwareName)}
 
 	rest := r4.CapabilityStatementRest{Mode: &mode}
+	// The role advertises only the system interaction it actually implements: the base POST does
+	// transaction processing. It does not return a batch-response (a batch Bundle is processed as a
+	// transaction), and GET at the base is a 405, so neither batch nor search-system is advertised —
+	// the served metadata matches the handler exactly rather than over-advertising.
 	txn := r4.SystemRestfulInteractionTransaction
-	batch := r4.SystemRestfulInteractionBatch
-	searchSystem := r4.SystemRestfulInteractionSearchSystem
-	rest.Interaction = []r4.CapabilityStatementRestInteraction{
-		{Code: &txn}, {Code: &batch}, {Code: &searchSystem},
-	}
+	rest.Interaction = []r4.CapabilityStatementRestInteraction{{Code: &txn}}
 	for _, rt := range workflowResourceTypes {
 		typ, err := r4.ParseResourceType(rt)
 		if err != nil {

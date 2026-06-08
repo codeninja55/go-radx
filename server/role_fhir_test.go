@@ -253,7 +253,10 @@ func TestFHIRRoleCapabilityStatement(t *testing.T) {
 				ResourceType string `json:"resourceType"`
 				FhirVersion  string `json:"fhirVersion"`
 				Rest         []struct {
-					Mode     string `json:"mode"`
+					Mode        string `json:"mode"`
+					Interaction []struct {
+						Code string `json:"code"`
+					} `json:"interaction"`
 					Resource []struct {
 						Type        string `json:"type"`
 						Interaction []struct {
@@ -279,6 +282,26 @@ func TestFHIRRoleCapabilityStatement(t *testing.T) {
 			}
 			if !advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", "create") {
 				t.Error("metadata: expected Patient create to be advertised")
+			}
+			// The served metadata must list only the system interactions the handler implements:
+			// transaction (the base POST) and nothing else. The handler does not return a batch-response
+			// and answers GET at the base with a 405, so advertising batch or search-system would
+			// over-advertise. A client preflighting via /metadata must see an accurate picture.
+			system := map[string]bool{}
+			for _, i := range cs.Rest[0].Interaction {
+				system[i.Code] = true
+			}
+			if !system["transaction"] {
+				t.Error("metadata: expected the transaction system interaction to be advertised")
+			}
+			if system["batch"] {
+				t.Error("metadata: batch is advertised but the handler does not return a batch-response")
+			}
+			if system["search-system"] {
+				t.Error("metadata: search-system is advertised but the handler does not implement it")
+			}
+			if len(cs.Rest[0].Interaction) != 1 {
+				t.Errorf("metadata: system interactions = %+v, want only transaction", cs.Rest[0].Interaction)
 			}
 		})
 	}
