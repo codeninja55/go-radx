@@ -325,6 +325,17 @@ The rule, applied uniformly to all four roles:
 var ErrInsecureBind = errors.New("server: non-loopback bind requires an explicit Authenticator")
 ```
 
+Having an `Authenticator` is not enough on its own; each role must actually run it against its callers. The DIMSE role
+wires the `Authenticator` into the association-accept layer: an unauthorized Calling AE Title is refused with an
+A-ASSOCIATE-RJ before any C-ECHO/C-STORE/C-FIND runs, so a non-loopback DIMSE bind authenticates every association
+rather than serving it. The DICOMweb role runs the `Authenticator` as HTTP middleware on every request.
+
+MLLP is the exception. The protocol carries no application-level identity, so a generic `Authenticator` cannot gate it.
+For MLLP, network exposure requires **mutual TLS**: a non-loopback MLLP bind must terminate a TLS config whose
+`ClientAuth` is `tls.RequireAndVerifyClientCert` so the transport, not the message, authenticates the peer. A
+non-loopback MLLP bind without client-certificate-verifying TLS is refused with `ErrInsecureBind` at start, the same
+fail-closed posture as an unauthenticated DIMSE or HTTP bind. A loopback MLLP bind is unconstrained.
+
 The §11.2 bind-default CI check asserts that, with default options, every role listens on loopback; it is a
 merge-blocking sanity test, not a compliance regime.
 
