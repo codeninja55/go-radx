@@ -186,7 +186,12 @@ func (c *CatalogueCmd) runQuery(rc *RunContext) error {
 	if err != nil {
 		return err
 	}
-	cat, err := server.SQLiteCatalogue(rc.Ctx, c.Database)
+	// A catalogue indexed with --redact stores PHI columns (PatientID/PatientName) as one-way
+	// hashes, so an exact filter only matches when the backend hashes the query value the same way.
+	// Opening the query with the redaction setting used at index time is therefore required: a
+	// redacted catalogue queried without --redact compares cleartext against hashes and returns
+	// nothing. Redaction state is not recorded in the database, so it must be re-specified here.
+	cat, err := server.SQLiteCatalogue(rc.Ctx, c.Database, server.WithRedaction(c.Redact))
 	if err != nil {
 		return err
 	}

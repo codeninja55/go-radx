@@ -429,6 +429,11 @@ whitespace SQL is a clean usage error, not a panic (RADX-014) — and every row-
 reporting success (RADX-015). Indexing that fails on some files exits non-zero unless `--ignore-errors` is set
 (RADX-013).
 
+A redacted catalogue stores PHI columns as one-way hashes, so querying one with a cleartext filter (for example
+`--query PatientID=...`) requires `--redact` on the query too: the backend hashes the filter value the same way before
+comparison, and the redaction state is not recorded in the database, so it must be re-specified. Querying a redacted
+catalogue without `--redact` compares cleartext against stored hashes and returns nothing.
+
 ## hl7 — HL7 v2 over MLLP
 
 The `hl7` group sends and receives HL7 v2.x messages over MLLP (the `0x0B … 0x1C 0x0D` framing, glossary). There is no

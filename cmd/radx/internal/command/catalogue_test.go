@@ -4,10 +4,31 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/codeninja55/go-radx/cmd/radx/internal/exitcode"
+	"github.com/codeninja55/go-radx/dicom"
 )
+
+// writeCataloguePatientDICOM writes a synthetic storable file carrying a PatientID sentinel, so a
+// redaction test can exercise the hashed PHI column. The value is a synthetic sentinel, never PHI.
+func writeCataloguePatientDICOM(t *testing.T, dir, sopInstanceUID, patientID string) string {
+	t.Helper()
+	ds := dicom.NewDataSet()
+	ds.SetString(dicom.TagSOPClassUID, "1.2.840.10008.5.1.4.1.1.2") // CT Image Storage
+	ds.SetString(dicom.TagSOPInstanceUID, sopInstanceUID)
+	ds.SetString(dicom.TagStudyInstanceUID, "1.2.3.4.5.1")
+	ds.SetString(dicom.TagSeriesInstanceUID, "1.2.3.4.5.2")
+	ds.SetString(dicom.TagModality, "CT")
+	ds.SetString(dicom.TagPatientID, patientID)
+
+	path := filepath.Join(dir, strings.ReplaceAll(sopInstanceUID, ".", "_")+".dcm")
+	if err := ds.WriteFile(path, dicom.ExplicitVRLittleEndian); err != nil {
+		t.Fatalf("write patient DICOM: %v", err)
+	}
+	return path
+}
 
 // TestCatalogueIndexAndQuery is the happy path: a directory of synthetic files is indexed under
 // --confirm-phi, the database is created 0600, and a tag-filter query returns the indexed instance.
@@ -67,6 +88,43 @@ func TestCataloguePHIGate(t *testing.T) {
 	_, _, redactCode := runRadx(t, "catalogue", "--database", db, "--redact", srcDir)
 	if redactCode != exitcode.Success {
 		t.Fatalf("catalogue --redact index exit = %d, want %d", redactCode, exitcode.Success)
+	}
+}
+
+// TestCatalogueRedactedQueryHonoursRedactFlag is the load-bearing regression for the redacted-query
+// path: a catalogue indexed with --redact stores PatientID as a one-way hash, so an exact PatientID
+// filter only matches when the query is opened with --redact too (the backend hashes the filter
+// value the same way). Without --redact the cleartext filter compares against the stored hash and
+// returns nothing. The PatientID is a synthetic sentinel, never real PHI.
+func TestCatalogueRedactedQueryHonoursRedactFlag(t *testing.T) {
+	const sentinel = "CAT-REDACT-SENTINEL-1"
+	srcDir := t.TempDir()
+	writeCataloguePatientDICOM(t, srcDir, "1.2.804.1", sentinel)
+	db := filepath.Join(t.TempDir(), "catalogue.db")
+
+	if _, _, code := runRadx(t, "catalogue", "--database", db, "--redact", srcDir); code != exitcode.Success {
+		t.Fatalf("catalogue --redact index exit = %d, want %d", code, exitcode.Success)
+	}
+
+	// Querying the redacted catalogue WITH --redact hashes the filter value and matches the row.
+	stdout, stderr, code := runRadx(t, "catalogue", "--format", "json", "--database", db,
+		"--redact", "--query", "PatientID="+sentinel)
+	if code != exitcode.Success {
+		t.Fatalf("redacted query exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+	if len(nonEmptyLines(stdout)) == 0 {
+		t.Errorf("redacted query with --redact returned no matches; want the indexed instance")
+	}
+
+	// Without --redact the cleartext filter compares against the stored hash and returns nothing,
+	// proving the flag is what wires the matching redaction setting through.
+	plainOut, _, plainCode := runRadx(t, "catalogue", "--format", "json", "--database", db,
+		"--query", "PatientID="+sentinel)
+	if plainCode != exitcode.Success {
+		t.Fatalf("cleartext query exit = %d, want %d\nstdout=%q", plainCode, exitcode.Success, plainOut)
+	}
+	if len(nonEmptyLines(plainOut)) != 0 {
+		t.Errorf("cleartext query against a redacted catalogue returned matches; want none:\n%s", plainOut)
 	}
 }
 
