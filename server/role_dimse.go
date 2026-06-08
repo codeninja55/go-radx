@@ -125,13 +125,24 @@ func (r *DIMSERole) start(ctx context.Context, host string, env roleEnv) error {
 		store:    r.store,
 		cat:      r.cat,
 		worklist: r.cfg.worklist,
-		auth:     env.auth,
 		logger:   env.logger,
 	}
 
 	var srvOpts []dimse.ServerOption
 	if r.cfg.maxAssoc > 0 {
 		srvOpts = append(srvOpts, dimse.WithMaxAssociations(r.cfg.maxAssoc))
+	}
+	// Enforce the daemon's Authenticator at the association-accept layer: an unauthorized Calling AE
+	// Title is rejected with an A-ASSOCIATE-RJ before any C-ECHO/C-STORE/C-FIND runs, so a
+	// non-loopback bind actually runs the authenticator the bind policy required (rather than the
+	// handler holding an unused auth reference). On a loopback bind the daemon defaults to AllowAll,
+	// whose AuthenticateDIMSE admits every association, so loopback behaviour is unchanged.
+	if env.auth != nil {
+		auth := env.auth
+		srvOpts = append(srvOpts, dimse.WithAssociationAuthorizer(func(callingAE string, _ net.Addr) error {
+			_, err := auth.AuthenticateDIMSE(ctx, dimse.AETitle(callingAE))
+			return err
+		}))
 	}
 	r.srv = dimse.NewServer(ae, r.cfg.contexts, r.handler, srvOpts...)
 
@@ -176,7 +187,6 @@ type dimseHandler struct {
 	store    ObjectStore
 	cat      Catalogue
 	worklist WorklistSource
-	auth     Authenticator
 	logger   *zap.Logger
 }
 
