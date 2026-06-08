@@ -1,0 +1,161 @@
+package rest
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/codeninja55/go-radx/fhir"
+)
+
+// Sentinel errors the client returns. Compare with errors.Is; a typed error wraps one with %w so a
+// caller distinguishes the failure class without parsing human text (PRD §8.2). None carries PHI:
+// a FHIR error names the resource type, the id, and the structural locator of an issue, never a
+// patient value (PRD §9.1).
+var (
+	// ErrNotFound is returned when the server answers 404 Not Found for a read, vread, or any
+	// interaction whose target resource is absent. It lets a caller distinguish a genuine miss from
+	// a transport or validation failure.
+	ErrNotFound = errors.New("fhir/rest: resource not found")
+
+	// ErrConflict is returned when the server answers 409 Conflict or 412 Precondition Failed: an
+	// optimistic-concurrency clash on an If-Match update, or a conditional create whose precondition
+	// did not hold. The caller re-reads the current version and retries.
+	ErrConflict = errors.New("fhir/rest: version conflict or failed precondition")
+
+	// ErrUnprocessable is returned when the server answers 422 Unprocessable Entity: a well-formed
+	// resource the server rejected on a business or profile rule. The accompanying OperationOutcome
+	// names the rule.
+	ErrUnprocessable = errors.New("fhir/rest: resource rejected as unprocessable")
+
+	// ErrUnauthorized is returned when the server answers 401 Unauthorized or 403 Forbidden: the
+	// credential the transport presented was missing, rejected, or insufficient.
+	ErrUnauthorized = errors.New("fhir/rest: request not authorized")
+
+	// ErrUnsupported is returned when the server answers 405 Method Not Allowed or 501 Not
+	// Implemented: the server does not offer the interaction the client attempted. A capability
+	// negotiation reports the same condition before the request is sent.
+	ErrUnsupported = errors.New("fhir/rest: interaction not supported by the server")
+
+	// ErrNoNextPage is returned by FollowNext/FollowPrev when the page carries no link to follow, so
+	// a paging loop terminates cleanly with errors.Is(err, rest.ErrNoNextPage) rather than a generic
+	// error.
+	ErrNoNextPage = errors.New("fhir/rest: no further page link")
+
+	// ErrReleaseMismatch is returned by a write (create, update, or any transaction POST entry) whose
+	// resource does not belong to the release the client was constructed for: for example an
+	// *r5.Patient passed to a client built with fhir.R4. The client is release-fixed, so a
+	// cross-release resource would marshal its own release's shape and be sent to the other release's
+	// endpoint; rejecting it client-side surfaces the mistake without a wrong-shape round trip to the
+	// server. The error names both releases (the resource's and the client's), never a patient value.
+	ErrReleaseMismatch = errors.New("fhir/rest: resource release does not match the client release")
+)
+
+// OperationOutcomeError is the typed error a non-2xx FHIR response maps to. The server's response
+// body, when it parses as a FHIR OperationOutcome, is surfaced through Outcome so a caller can
+// classify the failure by issue severity and code without re-parsing the body; the HTTP status is
+// carried alongside, and Sentinel is the errors.Is-comparable class the status maps to (one of the
+// sentinels above), so a caller can branch on errors.Is(err, rest.ErrConflict) regardless of which
+// release produced the outcome.
+//
+// The error message names the status, the interaction, the issue severity and code, and the issue
+// expression (the FHIRPath locator), all of which are structural — status codes, rule names, and
+// element paths, never patient values (PRD §9.1). The issue diagnostics is deliberately excluded
+// from the message: it is free text a peer server controls and can echo back a submitted patient
+// name, identifier, or value, so letting it into the error string would leak PHI into any log that
+// records the error (the dump/log PHI rule, mirroring the dicomweb CrossOriginBulkDataError fix). A
+// caller that explicitly chooses to inspect diagnostics reaches them through the structured Outcome
+// field with errors.As. The wrapped Sentinel is unwrapped by errors.Is. This aligns with how
+// exitcode.FromOperationOutcome classifies a validation result: an error-severity outcome is a
+// parse/validation failure.
+type OperationOutcomeError struct {
+	// StatusCode is the HTTP status the server returned (for example 404, 409, 422).
+	StatusCode int
+
+	// Sentinel is the errors.Is-comparable class the status maps to, so errors.Is(err, sentinel)
+	// works without inspecting the status code directly.
+	Sentinel error
+
+	// Outcome holds the issues parsed from the response body when it was a FHIR OperationOutcome,
+	// or nil when the body was absent or not an OperationOutcome. Unlike the structural fields the
+	// Error string exposes, an issue's Diagnostics is free text the peer server controls and may
+	// carry PHI, so it lives only here and never enters the error message; a caller that handles
+	// diagnostics opts into that exposure by reading this field.
+	Outcome *fhir.OperationOutcome
+
+	// Method and URL name the failed interaction without its query string, so a logged error reveals
+	// which interaction failed without exposing PHI-bearing search parameters.
+	Method string
+	URL    string
+}
+
+// Error renders the failure with the status, the interaction, and each issue's severity, code, and
+// expression locator. It deliberately omits the issue diagnostics: that field is free text the peer
+// server controls and may echo back a submitted patient value, so keeping it out of the string keeps
+// the error PHI-free for logging. The diagnostics stay reachable on the Outcome field for a caller
+// that explicitly chooses to inspect them.
+func (e *OperationOutcomeError) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "fhir/rest: %s %s: HTTP %d", e.Method, e.URL, e.StatusCode)
+	if e.Outcome != nil {
+		for i := range e.Outcome.Issue {
+			issue := &e.Outcome.Issue[i]
+			b.WriteString("; ")
+			b.WriteString(string(issue.Severity))
+			if issue.Code != "" {
+				b.WriteString(" ")
+				b.WriteString(string(issue.Code))
+			}
+			if issue.Expression != "" {
+				b.WriteString(" at ")
+				b.WriteString(issue.Expression)
+			}
+		}
+	}
+	return b.String()
+}
+
+// Unwrap returns the sentinel class so errors.Is(err, rest.ErrConflict) and the like match the
+// mapped condition. The sentinel is the bridge between the rich typed error and the simple class
+// checks a caller writes.
+func (e *OperationOutcomeError) Unwrap() error { return e.Sentinel }
+
+// sentinelForStatus maps an HTTP status to the errors.Is-comparable sentinel class. A status with
+// no more-specific class maps to nil, which leaves the OperationOutcomeError matchable only by
+// errors.As; the caller still sees the status and the outcome. The mapping mirrors the FHIR HTTP
+// status table the server role serves (servers.md): 401/403 unauthorized, 404 not-found,
+// 405/501 unsupported, 409/412 conflict, 422 unprocessable.
+func sentinelForStatus(status int) error {
+	switch status {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return ErrUnauthorized
+	case http.StatusNotFound:
+		return ErrNotFound
+	case http.StatusMethodNotAllowed, http.StatusNotImplemented:
+		return ErrUnsupported
+	case http.StatusConflict, http.StatusPreconditionFailed:
+		return ErrConflict
+	case http.StatusUnprocessableEntity:
+		return ErrUnprocessable
+	default:
+		return nil
+	}
+}
+
+// TransportError wraps a transport-level failure (a refused connection, a TLS fault, a context
+// cancellation) with the redacted interaction so a logged error names the operation without
+// exposing the query string or the resource id. It unwraps a *url.Error to its underlying cause
+// first, because net/http embeds the full request URL in url.Error.Error(), which would
+// reintroduce identifiers the redacted URL was meant to remove (PRD §9.1).
+type TransportError struct {
+	Method string
+	URL    string
+	Err    error
+}
+
+func (e *TransportError) Error() string {
+	return fmt.Sprintf("fhir/rest: %s %s: %v", e.Method, e.URL, e.Err)
+}
+
+func (e *TransportError) Unwrap() error { return e.Err }
