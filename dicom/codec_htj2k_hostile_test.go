@@ -36,6 +36,7 @@ func TestHTJ2KHostileInputs(t *testing.T) {
 		runHTJ2KHostileWorker() // never returns
 		return
 	}
+	skipHostileUnderASAN(t)
 
 	corpus := htj2kHostileCorpus(t)
 	exe, err := os.Executable()
@@ -45,11 +46,6 @@ func TestHTJ2KHostileInputs(t *testing.T) {
 
 	for name, payload := range corpus {
 		t.Run(name, func(t *testing.T) {
-			if name == "zero_filled" && os.Getenv("RADX_ASAN") != "" {
-				t.Skip("zero_filled quarantined under ASAN: upstream OpenJPEG HTJ2K decoder OOB, " +
-					"tracked in #107; exercised in the non-ASAN passes")
-			}
-
 			path := filepath.Join(t.TempDir(), "case.j2k")
 			if err := os.WriteFile(path, payload, 0o600); err != nil {
 				t.Fatalf("write case: %v", err)

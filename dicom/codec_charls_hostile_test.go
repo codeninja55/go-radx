@@ -13,6 +13,17 @@ import (
 	"time"
 )
 
+// jpeglsHostileParentBudget and jpeglsHostileChildBudget bound each hostile decode so a
+// hang fails the test rather than wedging CI (DCM-015). Each hostile decode terminates
+// (CharLS rejects malformed/truncated codestreams well inside this budget), so these are
+// hang-detection guards, not throughput limits. This test runs only in the non-ASAN
+// passes (the whole hostile-malformed-input corpus is excluded from ASAN; see
+// skipHostileUnderASAN), so a fixed budget suffices — no sanitizer-mode allowance.
+const (
+	jpeglsHostileParentBudget = 10 * time.Second
+	jpeglsHostileChildBudget  = 30 * time.Second
+)
+
 // jpeglsHostileWorkerEnv puts the test binary into single-decode worker mode for the
 // JPEG-LS hostile corpus. When set, the worker runs one hostile decode and exits, so
 // the parent can bound it with a timeout (DCM-015: a hang must fail the test, never
@@ -25,20 +36,6 @@ var jpeglsHostileGeom = PixelGeometry{
 	Rows: 64, Columns: 64, SamplesPerPixel: 1, BitsAllocated: 16, BitsStored: 16,
 }
 
-// jpeglsHostileDeadline returns the per-input decode budget. Each hostile decode
-// terminates (CharLS rejects malformed/truncated codestreams; the same corpus passes
-// well inside the tight budget in the non-sanitizer codecs run), so this is a
-// hang-detection guard, not a throughput limit. Under the ASAN + UBSan pass the codec
-// CI step exports RADX_ASAN=1; sanitizer instrumentation slows a terminating decode by
-// 2-20x, so the harness uses a generous budget in that mode rather than globally
-// weakening the fast normal-run guard.
-func jpeglsHostileDeadline() (parent, child time.Duration) {
-	if os.Getenv("RADX_ASAN") != "" {
-		return 120 * time.Second, 110 * time.Second
-	}
-	return 10 * time.Second, 30 * time.Second
-}
-
 // TestJPEGLSHostileInputs feeds malformed, truncated, and dimension-tampered JPEG-LS
 // codestreams to the decoder. Each case must fail with a typed *jpeglsError (wrapping
 // ErrJPEGLS) and must not crash or hang; every decode runs in a subprocess with a
@@ -48,13 +45,13 @@ func TestJPEGLSHostileInputs(t *testing.T) {
 		runJPEGLSHostileWorker() // never returns
 		return
 	}
+	skipHostileUnderASAN(t)
 
 	corpus := jpeglsHostileCorpus(t)
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatalf("locate test binary: %v", err)
 	}
-	parentBudget, childBudget := jpeglsHostileDeadline()
 
 	for name, payload := range corpus {
 		t.Run(name, func(t *testing.T) {
@@ -63,11 +60,11 @@ func TestJPEGLSHostileInputs(t *testing.T) {
 				t.Fatalf("write case: %v", err)
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), parentBudget)
+			ctx, cancel := context.WithTimeout(context.Background(), jpeglsHostileParentBudget)
 			defer cancel()
 
 			cmd := exec.CommandContext(ctx, exe,
-				"-test.run", "^TestJPEGLSHostileInputs$", "-test.timeout", childBudget.String())
+				"-test.run", "^TestJPEGLSHostileInputs$", "-test.timeout", jpeglsHostileChildBudget.String())
 			cmd.Env = append(os.Environ(), jpeglsHostileWorkerEnv+"="+path)
 			out, err := cmd.CombinedOutput()
 

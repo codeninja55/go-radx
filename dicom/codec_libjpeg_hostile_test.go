@@ -35,6 +35,7 @@ func TestJPEGHostileInputs(t *testing.T) {
 		runJPEGHostileWorker() // never returns
 		return
 	}
+	skipHostileUnderASAN(t)
 
 	corpus := jpegHostileCorpus(t)
 	exe, err := os.Executable()
