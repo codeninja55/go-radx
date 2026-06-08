@@ -126,15 +126,20 @@ func levelKeyTags(level dimse.QueryLevel) []dicom.Tag {
 type levelCollapser struct {
 	keyTags []dicom.Tag
 	project []indexedColumn
+	retain  []dicom.Tag
 	yielded map[string]struct{}
 }
 
 // newLevelCollapser builds a collapser for level, capturing the level's identifying key tags and the
-// columns the projected row carries.
-func newLevelCollapser(level dimse.QueryLevel) *levelCollapser {
+// columns the projected row carries. retain names attributes the projected row must carry beyond the
+// level's own projection — every match-key tag and any requested return field — so a downstream
+// re-matcher or includefield projection sees the value rather than a row the level collapse dropped it
+// from. A retained tag the row does not carry is simply absent from the projection.
+func newLevelCollapser(level dimse.QueryLevel, retain []dicom.Tag) *levelCollapser {
 	return &levelCollapser{
 		keyTags: levelKeyTags(level),
 		project: levelColumns(level),
+		retain:  retain,
 		yielded: make(map[string]struct{}),
 	}
 }
@@ -165,12 +170,23 @@ func (lc *levelCollapser) resourceKey(ds *dicom.DataSet) string {
 }
 
 // projectRow copies the level's projection columns from the matched instance row into a fresh DataSet,
-// so a study-level row carries the study-level attributes and not the per-instance ones.
+// so a study-level row carries the study-level attributes and not the per-instance ones. The retained
+// tags are carried alongside the projection so an attribute a downstream matcher or includefield
+// projection needs — a match key outside the level's columns, a requested return field — survives the
+// collapse rather than being dropped to the level's identifying set.
 func (lc *levelCollapser) projectRow(ds *dicom.DataSet) *dicom.DataSet {
 	out := dicom.NewDataSet()
 	for _, ic := range lc.project {
 		if v, ok := ds.GetString(ic.tag); ok && v != "" {
 			out.SetString(ic.tag, v)
+		}
+	}
+	for _, tag := range lc.retain {
+		if _, ok := out.Get(tag); ok {
+			continue
+		}
+		if e, ok := ds.Get(tag); ok {
+			out.Set(cloneElement(e))
 		}
 	}
 	return out
@@ -285,7 +301,7 @@ func (c *sqliteCatalogue) Query(ctx context.Context, q CatalogueQuery) iter.Seq2
 
 		// Limit and offset page the COLLAPSED, MATCHED result rows (QIDO-RS limit=/offset=), so paging
 		// counts one row per resource at the requested level rather than the pre-collapse instance rows.
-		out := newLevelCollapser(q.Level)
+		out := newLevelCollapser(q.Level, q.Return)
 		seen := 0
 		for rows.Next() {
 			ds, scanErr := scanRow(rows, indexedColumns)

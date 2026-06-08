@@ -45,7 +45,7 @@ func TestQueryCatalogueUnindexedKeyFetchesFromStore(t *testing.T) {
 
 	match := map[dicom.Tag]string{dicom.TagBodyPartExamined: "CHEST"}
 	var rows []*dicom.DataSet
-	for ds, err := range queryCatalogue(ctx, cat, store, match, dimse.QueryLevelStudy, false) {
+	for ds, err := range queryCatalogue(ctx, cat, store, match, dimse.QueryLevelStudy, nil, false, false) {
 		if err != nil {
 			t.Fatalf("queryCatalogue: %v", err)
 		}

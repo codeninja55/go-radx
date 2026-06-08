@@ -234,7 +234,10 @@ func (b *dicomwebQuery) Query(ctx context.Context, q dicomweb.QueryRequest) ([]*
 	level := dimseLevelFromQIDO(q.Level)
 	match := matchKeysFromQIDO(q)
 	var out []*dicom.DataSet
-	for ds, err := range queryCatalogue(ctx, b.cat, b.store, match, level, q.Fuzzy) {
+	// The DICOMweb server re-applies its matcher over every match key and projects the level defaults
+	// plus includefield. Ask the catalogue path to carry the includefield attributes onto the collapsed
+	// rows so the projection has them; the match-key tags are retained by the catalogue path itself.
+	for ds, err := range queryCatalogue(ctx, b.cat, b.store, match, level, q.IncludeFields, q.IncludeAll, q.Fuzzy) {
 		if err != nil {
 			return nil, err
 		}
