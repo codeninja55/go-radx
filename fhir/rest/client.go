@@ -46,6 +46,13 @@ const (
 	// mediaTypeJSONPatch is the Content-Type for a JSON Patch (RFC 6902) document, the patch format
 	// the FHIR patch interaction uses for a structural patch.
 	mediaTypeJSONPatch = "application/json-patch+json"
+
+	// preferReturnRepresentation is the Prefer header value the client sends on a write (create,
+	// update, patch) to ask the server to return the stored resource in the response. A server
+	// honouring return=minimal answers 2xx with no body; the client handles that bodyless success
+	// from the response headers (Location, ETag) rather than treating it as a failure, so a
+	// minimal-returning server is supported either way.
+	preferReturnRepresentation = "return=representation"
 )
 
 // defaultMaxResponseBytes caps a single response body before allocation (PRD §9.3). It is 32 MiB,

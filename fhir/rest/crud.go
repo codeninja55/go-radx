@@ -17,8 +17,19 @@ import (
 // caller that only wants the resource ignores the rest.
 type Result struct {
 	// Resource is the concrete resource of the client's release (for example *r5.Patient), decoded
-	// from the response body.
+	// from the response body. It is nil when the server honoured return=minimal and answered a
+	// successful write with no body; the id and version are then taken from the response headers.
 	Resource fhir.Resource
+
+	// ID is the resource's logical id. It comes from the decoded resource when a body is present, or
+	// is parsed from the Location header on a bodyless write, so a create that returns no body still
+	// yields the assigned id.
+	ID string
+
+	// VersionID is the resource's version id. It comes from the ETag header (the weak-ETag W/"..."
+	// quoting stripped), or from the Location header's _history segment when the server sets a
+	// versioned Location, so a version-aware update can be performed even on a bodyless write.
+	VersionID string
 
 	// ETag is the resource version from the ETag header (a weak ETag's W/"..." form is preserved
 	// verbatim), suitable to pass back as an If-Match on a version-aware update.
@@ -81,7 +92,7 @@ func (c *Client) Create(ctx context.Context, r fhir.Resource, ifNoneExist string
 	if err != nil {
 		return nil, err
 	}
-	headers := map[string]string{"Content-Type": mediaTypeFHIRJSON}
+	headers := map[string]string{"Content-Type": mediaTypeFHIRJSON, "Prefer": preferReturnRepresentation}
 	if ifNoneExist != "" {
 		headers["If-None-Exist"] = ifNoneExist
 	}
@@ -112,7 +123,7 @@ func (c *Client) Update(ctx context.Context, id string, r fhir.Resource, ifMatch
 		return nil, fmt.Errorf("fhir/rest: Update requires a non-empty id")
 	}
 	path := rt + "/" + id
-	headers := map[string]string{"Content-Type": mediaTypeFHIRJSON}
+	headers := map[string]string{"Content-Type": mediaTypeFHIRJSON, "Prefer": preferReturnRepresentation}
 	if ifMatch != "" {
 		headers["If-Match"] = ifMatch
 	}
@@ -141,7 +152,7 @@ func (c *Client) Patch(ctx context.Context, resourceType, id string, patch []byt
 		return nil, fmt.Errorf("fhir/rest: Patch document is not valid JSON")
 	}
 	path := resourceType + "/" + id
-	headers := map[string]string{"Content-Type": mediaTypeJSONPatch}
+	headers := map[string]string{"Content-Type": mediaTypeJSONPatch, "Prefer": preferReturnRepresentation}
 	if ifMatch != "" {
 		headers["If-Match"] = ifMatch
 	}
@@ -194,23 +205,110 @@ func (c *Client) History(ctx context.Context, resourceType, id string) (fhir.Res
 	return c.decodeResource(resp)
 }
 
-// resultFromResponse decodes the body into a release resource and lifts the addressing headers into
-// a Result, so the CRUD methods share one response-unpacking path.
+// resultFromResponse lifts a successful write response into a Result. When the response carries a
+// body it is decoded into a release resource (the client asks for one with Prefer:
+// return=representation); when a compliant server honours return=minimal and answers a 2xx with no
+// body, that is a success, not a failure — the id and version are taken from the response headers
+// (Location and ETag) rather than erroring, so the write reports what it can without ever reading an
+// empty compliant body as an honest-failure. This is the shared response-unpacking path for the CRUD
+// write methods.
 func (c *Client) resultFromResponse(resp *response) (*Result, error) {
-	r, err := c.decodeResource(resp)
-	if err != nil {
-		return nil, err
-	}
 	location := resp.header.Get("Location")
 	if location == "" {
 		location = resp.header.Get("Content-Location")
 	}
-	return &Result{
-		Resource:     r,
-		ETag:         resp.header.Get("ETag"),
+	etag := resp.header.Get("ETag")
+
+	result := &Result{
+		ETag:         etag,
 		Location:     location,
 		LastModified: resp.header.Get("Last-Modified"),
-	}, nil
+		VersionID:    versionIDFromHeaders(etag, location),
+		ID:           idFromLocation(location),
+	}
+
+	if len(resp.body) == 0 {
+		// A bodyless 2xx is a return=minimal success: the headers carry the id and version, so the
+		// write reports them without a resource. A caller that needs the resource re-reads it.
+		return result, nil
+	}
+
+	r, err := c.decodeResource(resp)
+	if err != nil {
+		return nil, err
+	}
+	result.Resource = r
+	if id := resourceLogicalID(r); id != "" {
+		result.ID = id
+	}
+	return result, nil
+}
+
+// resourceLogicalID reads a resource's logical id by marshalling it and peeking the top-level "id"
+// key, the same release-neutral approach the server uses. It is used to prefer the id the decoded
+// resource carries over the one parsed from a Location header.
+func resourceLogicalID(r fhir.Resource) string {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return ""
+	}
+	var env struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		return ""
+	}
+	return env.ID
+}
+
+// idFromLocation parses the logical id from a FHIR Location header. A FHIR write returns Location as
+// [base]/[type]/[id] or the versioned [base]/[type]/[id]/_history/[vid]; the id is the segment after
+// the resource type, so the version suffix (if any) is stripped first. An empty or unparseable
+// Location yields "".
+func idFromLocation(location string) string {
+	if location == "" {
+		return ""
+	}
+	path := location
+	if i := strings.IndexByte(path, '?'); i >= 0 {
+		path = path[:i]
+	}
+	if i := strings.Index(path, "/_history/"); i >= 0 {
+		path = path[:i]
+	}
+	segs := strings.Split(strings.Trim(path, "/"), "/")
+	if len(segs) == 0 {
+		return ""
+	}
+	return segs[len(segs)-1]
+}
+
+// versionIDFromHeaders derives the resource version id. It prefers the ETag (a FHIR version ETag is
+// the weak form W/"vid"; the W/ prefix and the quotes are stripped to the bare version), and falls
+// back to the _history segment of a versioned Location when no ETag is present. An absent version
+// yields "".
+func versionIDFromHeaders(etag, location string) string {
+	if v := versionFromETag(etag); v != "" {
+		return v
+	}
+	if i := strings.Index(location, "/_history/"); i >= 0 {
+		rest := location[i+len("/_history/"):]
+		if j := strings.IndexByte(rest, '/'); j >= 0 {
+			rest = rest[:j]
+		}
+		return rest
+	}
+	return ""
+}
+
+// versionFromETag strips a FHIR weak-ETag's W/"..." wrapping to the bare version id. A strong ETag's
+// "..." quoting is also stripped; an empty or unquoted value is returned as-is.
+func versionFromETag(etag string) string {
+	v := strings.TrimSpace(etag)
+	v = strings.TrimPrefix(v, "W/")
+	v = strings.TrimPrefix(v, `"`)
+	v = strings.TrimSuffix(v, `"`)
+	return v
 }
 
 // encodeResource marshals a resource to FHIR JSON and returns its resourceType (the endpoint path

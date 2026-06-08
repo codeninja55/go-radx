@@ -113,7 +113,20 @@ func (s *fakeServer) handleInstance(w http.ResponseWriter, r *http.Request, rt, 
 }
 
 func (s *fakeServer) handleCreate(t *testing.T, w http.ResponseWriter, r *http.Request, rt string) {
+	// "_minimal" models a server honouring Prefer: return=minimal: a 201 with Location and ETag and
+	// no body. The client must read this as a success and recover the id and version from the
+	// headers, not fail with "no resource body".
+	if rt == "_minimal" {
+		w.Header().Set("ETag", `W/"7"`)
+		w.Header().Set("Location", "Patient/min-42/_history/7")
+		w.WriteHeader(http.StatusCreated)
+		return
+	}
 	body, _ := readAll(r)
+	// The client asks for the stored resource back with Prefer: return=representation on every write.
+	if pref := r.Header.Get("Prefer"); pref != "return=representation" {
+		t.Errorf("create: Prefer header = %q, want return=representation", pref)
+	}
 	// Conditional create: an If-None-Exist whose query already matches answers 200 with the match.
 	if cond := r.Header.Get("If-None-Exist"); cond != "" {
 		s.mu.Lock()
@@ -368,6 +381,74 @@ func TestCRUDRoundTrip(t *testing.T) {
 			}
 			if resourceID(t, read.Resource) != id {
 				t.Errorf("Read: id = %q, want %q", resourceID(t, read.Resource), id)
+			}
+		})
+	}
+}
+
+// minimalResource is a test-only resource whose ResourceType routes a Create to the fake server's
+// "_minimal" path, which answers a bodyless 201 (the return=minimal shape). It marshals to an empty
+// FHIR object so the client encodes a valid body for the POST.
+type minimalResource struct{}
+
+func (minimalResource) ResourceType() string { return "_minimal" }
+
+func (minimalResource) MarshalJSON() ([]byte, error) {
+	return []byte(`{"resourceType":"_minimal"}`), nil
+}
+
+// TestCreateBodylessSuccess proves a compliant server honouring return=minimal — a 2xx with no body,
+// carrying Location and ETag — is read as a success, not the old "no resource body" failure. The
+// client recovers the assigned id and version from the headers; the resource is absent because the
+// server returned none.
+func TestCreateBodylessSuccess(t *testing.T) {
+	for _, release := range releases() {
+		t.Run(string(release), func(t *testing.T) {
+			c, _ := startClient(t, release)
+			res, err := c.Create(context.Background(), minimalResource{}, "")
+			if err != nil {
+				t.Fatalf("Create with a bodyless 201: %v", err)
+			}
+			if res.Resource != nil {
+				t.Errorf("bodyless create: expected a nil Resource, got %T", res.Resource)
+			}
+			if res.ID != "min-42" {
+				t.Errorf("bodyless create: id = %q, want min-42 (parsed from Location)", res.ID)
+			}
+			if res.VersionID != "7" {
+				t.Errorf("bodyless create: versionID = %q, want 7 (parsed from ETag)", res.VersionID)
+			}
+			if res.ETag != `W/"7"` {
+				t.Errorf("bodyless create: ETag = %q, want W/\"7\"", res.ETag)
+			}
+			if res.Location != "Patient/min-42/_history/7" {
+				t.Errorf("bodyless create: Location = %q, want the versioned Location", res.Location)
+			}
+		})
+	}
+}
+
+// TestCreateRepresentationSuccess proves the representation path still works: a 201 carrying the
+// resource body yields the decoded resource together with its id, ETag, and Location.
+func TestCreateRepresentationSuccess(t *testing.T) {
+	for _, release := range releases() {
+		t.Run(string(release), func(t *testing.T) {
+			c, _ := startClient(t, release)
+			res, err := c.Create(context.Background(), newPatient(release, "female"), "")
+			if err != nil {
+				t.Fatalf("Create with a representation body: %v", err)
+			}
+			if res.Resource == nil {
+				t.Fatal("representation create: expected a decoded resource")
+			}
+			if res.ID == "" {
+				t.Error("representation create: expected an id")
+			}
+			if res.ETag == "" {
+				t.Error("representation create: expected an ETag")
+			}
+			if res.Location == "" {
+				t.Error("representation create: expected a Location")
 			}
 		})
 	}

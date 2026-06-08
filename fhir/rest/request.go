@@ -83,10 +83,12 @@ func (c *Client) resolveURL(path string) string {
 	return c.baseURL + "/" + path
 }
 
-// decodeResource decodes a successful response body into a concrete resource of the client's
-// release through the release registry, so the dynamic type is (for example) *r5.Patient. An empty
-// body on a success status is an error: a 200/201 that promised a resource must carry one (the
-// honest-failure rule, never a silent nil resource, PRD §9.2).
+// decodeResource decodes a non-empty response body into a concrete resource of the client's release
+// through the release registry, so the dynamic type is (for example) *r5.Patient. An empty body is
+// an error here: the read-style interactions that call it (read, vread, history, search, metadata)
+// promise a resource, so a missing one is an honest failure, never a silent nil (PRD §9.2). The
+// write methods do not call this on a bodyless success — a return=minimal write is handled from the
+// response headers in resultFromResponse.
 func (c *Client) decodeResource(resp *response) (fhir.Resource, error) {
 	if len(resp.body) == 0 {
 		return nil, fmt.Errorf("fhir/rest: response carried no resource body")
