@@ -46,6 +46,12 @@ func (c *Conn) Close() error {
 	return c.nc.Close()
 }
 
+// RemoteAddr reports the peer's network address, so the acceptor can surface it to an
+// association authorizer alongside the negotiated Calling AE Title.
+func (c *Conn) RemoteAddr() net.Addr {
+	return c.nc.RemoteAddr()
+}
+
 // WritePDU encodes one PDU onto the connection, bounded by ctx: if ctx is cancelled the
 // write is interrupted and ctx's error is returned. Writes are serialised so a PDU is
 // never interleaved with another on the wire.

@@ -35,6 +35,12 @@ type serverConfig struct {
 	// acceptor only grants for a SOP Class it declares here. It is nil when no roles are configured, so
 	// a Server with no C-GET support grants no SCP role and same-association C-GET cannot proceed.
 	getStorageRoles []dicom.SOPClassUID
+	// associationAuthorizer, when non-nil, authorizes each inbound association by its Calling AE Title
+	// and peer address at negotiation: a non-nil return rejects the association with an
+	// A-ASSOCIATE-RJ before any service runs, so an exposed SCP can enforce caller identity rather
+	// than serving every peer the contexts otherwise allow. It is nil by default (every association
+	// the AE-title policy admits is served).
+	associationAuthorizer func(callingAE string, peer net.Addr) error
 }
 
 // ServerOption configures a Server at construction.
@@ -107,6 +113,18 @@ func WithGetStorageRoles(sopClasses ...dicom.SOPClassUID) ServerOption {
 		copy(copied, sopClasses)
 		c.getStorageRoles = copied
 	}
+}
+
+// WithAssociationAuthorizer authorizes each inbound association by its negotiated Calling AE Title
+// and peer address before any DIMSE service runs. The acceptor consults authorize after the
+// AE-title policy and before presentation-context matching; a non-nil return rejects the
+// association with an A-ASSOCIATE-RJ (calling-AE-title-not-recognized), so an unauthorized peer
+// cannot C-ECHO/C-STORE/C-FIND. It is the seam an embedding server uses to enforce an
+// application-level identity policy (DICOM user-identity, a Calling-AE allowlist resolved
+// dynamically) on a network-exposed SCP. A nil authorize restores the default (every association
+// the AE-title policy admits is served).
+func WithAssociationAuthorizer(authorize func(callingAE string, peer net.Addr) error) ServerOption {
+	return func(c *serverConfig) { c.associationAuthorizer = authorize }
 }
 
 // Server is an embeddable DIMSE SCP. It hosts a Handler, accepts inbound associations, negotiates
@@ -325,6 +343,11 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 		// same-association C-GET can C-STORE the matched instances back (PS3.7 D.3.3.4). The SCU role
 		// is granted too, so an everyday Storage SCU on the same SOP Class is unaffected.
 		SupportedRoles: s.getStorageSupportedRoles(),
+		// Carry the configured association authorizer into negotiation so an unauthorized Calling AE
+		// Title is rejected with an A-ASSOCIATE-RJ before any service runs. The peer address is
+		// captured here (the per-association goroutine owns conn) so the authorizer sees both the
+		// Calling AE Title and where the association came from.
+		AuthorizeCalling: s.authorizeCalling(conn.RemoteAddr()),
 	}
 	move := moveSupport{ae: s.ae, destinations: s.cfg.moveDestinations}
 	if err := dispatchAssociation(ctx, conn, params, s.ae.config().acseTimeout, s.ae.config().networkTimeout, s.handler, move); err != nil {
@@ -519,6 +542,19 @@ func (s *Server) getStorageSupportedRoles() []acse.SupportedRole {
 		})
 	}
 	return roles
+}
+
+// authorizeCalling adapts the configured association authorizer to the acse Calling-AE hook,
+// binding the peer address captured at accept so the authorizer sees both the Calling AE Title and
+// the peer. It returns nil when no authorizer is configured, so the acceptor admits every
+// association the AE-title policy allows.
+func (s *Server) authorizeCalling(peer net.Addr) func(callingAE string) error {
+	if s.cfg.associationAuthorizer == nil {
+		return nil
+	}
+	return func(callingAE string) error {
+		return s.cfg.associationAuthorizer(callingAE, peer)
+	}
 }
 
 // aeTitleStrings projects AE titles to their string form for the acse AcceptParams.
