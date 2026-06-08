@@ -35,3 +35,8 @@ The reference docs describe the public API of each package — the types, functi
 - [Cross-standard conversion](reference/convert.md)
 - [CLI](reference/cli.md)
 - [Servers](reference/servers.md)
+
+## Development
+
+- [Versioning and API stability](development/versioning.md) — semantic versioning, the pre-1.0 experimental posture,
+  per-package stability tiers, the deprecation policy, and the Go module major-version rule.

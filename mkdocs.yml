@@ -85,3 +85,5 @@ nav:
       - Cross-standard conversion: reference/convert.md
       - CLI: reference/cli.md
       - Servers: reference/servers.md
+  - Development:
+      - Versioning and API stability: development/versioning.md
