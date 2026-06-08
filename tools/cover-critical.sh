@@ -64,16 +64,20 @@ MODULE="$(awk '/^module /{print $2; exit}' "$REPO_ROOT/go.mod")"
 ENFORCED_PKGS=(
   "dimse/dul"
 )
-# pkg=baseline_percent
+# pkg=baseline_percent. Baselines are the EXACT measured union coverage (one decimal, the precision
+# `go tool cover` reports), NOT rounded down: a baseline below the measured value would let coverage
+# backslide within the rounding gap without failing, which contradicts the "fail on any regression
+# below the recorded baseline" contract. Mirrored in docs/conformance/cross-cutting.md ("Coverage
+# targets and critical-path enumeration"). Re-measure with `CRIT_TARGET=90 tools/cover-critical.sh`.
 RATCHET_PKGS=(
-  "dicom=85.0"
-  "dimse=83.0"
-  "dimse/acse=83.0"
-  "dimse/pdu=89.0"
-  "dicomweb=80.0"
-  "hl7v2=89.0"
-  "convert=81.0"
-  "fhir=88.0"
+  "dicom=85.8"
+  "dimse=83.8"
+  "dimse/acse=83.4"
+  "dimse/pdu=89.7"
+  "dicomweb=80.1"
+  "hl7v2=89.9"
+  "convert=81.8"
+  "fhir=88.7"
 )
 
 # Build the generated-file exclusion set (module-qualified, the form the profile's file column uses),
