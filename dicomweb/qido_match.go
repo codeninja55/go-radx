@@ -22,6 +22,28 @@ func matchDataSet(ds *dicom.DataSet, q QueryRequest) bool {
 	return true
 }
 
+// MatchDataSet reports whether ds satisfies every matching key in keys, applying the full DICOM
+// matching semantics of PS3.4 Annex C (single-value, UID-list, range, wildcard, and PN fuzzy when
+// fuzzy is set). It is the authoritative matcher shared with the server's catalogue so a C-FIND or
+// QIDO-RS query decides matching against real attribute values, not a coarse SQL equality. A key
+// against an attribute the dataset does not carry fails the match unless the value is universal.
+func MatchDataSet(ds *dicom.DataSet, keys []MatchKey, fuzzy bool) bool {
+	for _, mk := range keys {
+		if !matchKey(ds, mk, fuzzy) {
+			return false
+		}
+	}
+	return true
+}
+
+// NewMatchKey builds a MatchKey for tag with value, resolving the VR from the DICOM dictionary so the
+// matcher interprets the value the way the attribute's VR demands (a DA/TM/DT value as a range, a UI
+// value as a UID list, a string VR as single-value or wildcard). An unknown attribute defaults to UI,
+// matching the QIDO-RS parser's own default.
+func NewMatchKey(tag dicom.Tag, value string) MatchKey {
+	return MatchKey{Tag: tag, VR: dictVRForMatch(tag), Value: value}
+}
+
 // matchKey reports whether one matching key is satisfied by the dataset. The match is
 // dispatched by VR: DA/TM/DT support range matching, UI matches against a backslash list
 // of UIDs, PN supports fuzzy matching when requested, and the remaining string VRs use

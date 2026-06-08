@@ -67,6 +67,14 @@ type AcceptParams struct {
 	RequireCalledAETitle   string
 	RequireCallingAETitles []string
 
+	// AuthorizeCalling, when non-nil, is consulted after the static AE-title policy and before any
+	// presentation-context matching: it authorizes the association by its Calling AE Title, and a
+	// non-nil return rejects the RQ with an A-ASSOCIATE-RJ (service-user source,
+	// calling-AE-title-not-recognized) before an A-ASSOCIATE-AC is ever sent, so an unauthorized peer
+	// runs no service. It carries application-level identity policy (the static lists are a fixed
+	// allowlist); the two compose, the static check first.
+	AuthorizeCalling func(callingAE string) error
+
 	ImplementationClassUID string
 	ImplementationVersion  string
 
@@ -190,6 +198,16 @@ func Accept(ctx context.Context, conn *dul.Conn, params AcceptParams) (*Acceptor
 	// serve (PS3.8 Table 9-21).
 	if reason, reject := aeTitleRejection(params, rq); reject {
 		return nil, rejectAssociation(ctx, conn, m, reason)
+	}
+
+	// Application-level authorization runs after the static AE-title policy and before any context
+	// matching, so an unauthorized Calling AE Title is refused with an A-ASSOCIATE-RJ rather than
+	// established (PS3.8 Table 9-21 calling-AE-title-not-recognized). A nil hook authorizes every
+	// association the static policy admitted.
+	if params.AuthorizeCalling != nil {
+		if err := params.AuthorizeCalling(trimAETitle(rq.CallingAETitle)); err != nil {
+			return nil, rejectAssociation(ctx, conn, m, reasonCallingAETitleNotRecognized)
+		}
 	}
 
 	results := NegotiateAcceptor(rq.PresentationContexts, params.Supported)
