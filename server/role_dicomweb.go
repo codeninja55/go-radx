@@ -100,7 +100,7 @@ func (r *DICOMwebRole) start(ctx context.Context, host string, env roleEnv) erro
 	webOpts := []dicomweb.ServerOption{
 		dicomweb.WithStoreBackend(&dicomwebStore{store: r.store, cat: r.cat, logger: env.logger}),
 		dicomweb.WithRetrieveBackend(&dicomwebRetrieve{store: r.store}),
-		dicomweb.WithQueryBackend(&dicomwebQuery{cat: r.cat}),
+		dicomweb.WithQueryBackend(&dicomwebQuery{cat: r.cat, store: r.store}),
 	}
 	if r.cfg.maxRequestBytes > 0 {
 		webOpts = append(webOpts, dicomweb.WithMaxRequestBytes(r.cfg.maxRequestBytes))
@@ -218,50 +218,27 @@ func datasetUnderPath(ds *dicom.DataSet, p dicomweb.ResourcePath) bool {
 	return true
 }
 
-// dicomwebQuery adapts the Catalogue to the DICOMweb QueryBackend: a QIDO-RS search is forwarded to
-// the catalogue at the mapped level and the matching datasets are collected. The server applies
-// attribute matching, includefield projection, and paging on top, so this returns the candidate set.
+// dicomwebQuery adapts the shared backends to the DICOMweb QueryBackend: a QIDO-RS search narrows on
+// the catalogue and the full DICOM match decides which candidates match. The catalogue pushes only a
+// conservative SQL narrowing and the Go matcher decides (list/range/wildcard syntax and unindexed keys
+// are matched in Go, not as SQL equality); for a key the catalogue does not index, the stored dataset
+// is fetched from the ObjectStore so the matcher sees the real attribute value. The candidate set is
+// collapsed to the search level before it returns; the DICOMweb server re-applies its matcher,
+// includefield projection, and offset/limit paging on top.
 type dicomwebQuery struct {
-	cat Catalogue
+	cat   Catalogue
+	store ObjectStore
 }
 
 func (b *dicomwebQuery) Query(ctx context.Context, q dicomweb.QueryRequest) ([]*dicom.DataSet, error) {
-	cq := CatalogueQuery{
-		Level: dimseLevelFromQIDO(q.Level),
-		Match: matchKeysFromQIDO(q),
-	}
-	// The limit may only be pushed into the catalogue when EVERY match key is catalogue-indexed, so
-	// the SQLite WHERE filters completely. The DICOMweb server applies matchDataSet over ALL match
-	// keys (including ones the catalogue does not index) AFTER this backend returns, then pages with
-	// offset/limit. If the limit were pushed down with an unindexed match key present, SQLite could
-	// return the first N rows that satisfy only the indexed subset, discard later rows the unindexed
-	// key would have matched, and the page would be falsely empty or incomplete. When all keys are
-	// indexed the catalogue's filtering is complete, so the candidate set the server needs is the first
-	// offset+limit matching rows: push that many as the LIMIT (the server re-applies offset/limit to
-	// page), never a SQLite OFFSET, which would skip rows the server then expects to page itself.
-	if q.Limit > 0 && allMatchKeysIndexed(q) {
-		cq.Limit = q.Offset + q.Limit
-	}
+	level := dimseLevelFromQIDO(q.Level)
+	match := matchKeysFromQIDO(q)
 	var out []*dicom.DataSet
-	for ds, err := range b.cat.Query(ctx, cq) {
+	for ds, err := range queryCatalogue(ctx, b.cat, b.store, match, level, q.Fuzzy) {
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, ds)
 	}
 	return out, nil
-}
-
-// allMatchKeysIndexed reports whether every attribute-matching key in the request is a column the
-// catalogue indexes (the path-scoping StudyUID/SeriesUID are always indexed). Only then does the
-// catalogue's WHERE clause filter the candidate set completely, making it safe to push the QIDO
-// limit/offset down to SQLite rather than letting the DICOMweb server apply them after matchDataSet.
-func allMatchKeysIndexed(q dicomweb.QueryRequest) bool {
-	indexed := columnByTag()
-	for _, mk := range q.Match {
-		if _, ok := indexed[mk.Tag]; !ok {
-			return false
-		}
-	}
-	return true
 }

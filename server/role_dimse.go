@@ -257,14 +257,14 @@ func (h *dimseHandler) findWorklist(ctx context.Context, query *dicom.DataSet) i
 // completion, and a Find failure status on a backend fault.
 func (h *dimseHandler) findCatalogue(ctx context.Context, query *dicom.DataSet, level dimse.QueryLevel) iter.Seq2[dimse.Status, *dicom.DataSet] {
 	return func(yield func(dimse.Status, *dicom.DataSet) bool) {
-		cq := CatalogueQuery{Level: level, Match: matchKeysFromIdentifier(query)}
-		for match, err := range h.cat.Query(ctx, cq) {
+		match := matchKeysFromIdentifier(query)
+		for result, err := range queryCatalogue(ctx, h.cat, h.store, match, level, false) {
 			if err != nil {
 				h.logger.Warn("catalogue query failed")
 				yield(dimse.NewStatus(0xC000, dimse.ServiceClassFind), nil)
 				return
 			}
-			if !yield(dimse.StatusFindPending, match) {
+			if !yield(dimse.StatusFindPending, result) {
 				return
 			}
 		}

@@ -13,6 +13,7 @@ import (
 	_ "modernc.org/sqlite" // pure-Go SQLite driver; keeps the default build cgo-free.
 
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/dicomweb"
 	"github.com/codeninja55/go-radx/dimse"
 )
 
@@ -101,6 +102,80 @@ func columnsByName(names ...string) []indexedColumn {
 	return out
 }
 
+// levelKeyTags lists the tags that uniquely identify a resource at level, so the collapser yields one
+// row per study/series/instance rather than one per stored instance. A study collapses by Study UID, a
+// series by Study+Series UID, an instance by SOP Instance UID, and a patient by the patient
+// identifiers (the coarsest the index keys, since there is no separate patient table).
+func levelKeyTags(level dimse.QueryLevel) []dicom.Tag {
+	switch level {
+	case dimse.QueryLevelPatient:
+		return []dicom.Tag{dicom.TagPatientID, dicom.TagPatientName}
+	case dimse.QueryLevelStudy:
+		return []dicom.Tag{dicom.TagStudyInstanceUID}
+	case dimse.QueryLevelSeries:
+		return []dicom.Tag{dicom.TagStudyInstanceUID, dicom.TagSeriesInstanceUID}
+	default:
+		return []dicom.Tag{dicom.TagSOPInstanceUID}
+	}
+}
+
+// levelCollapser collapses matched instance rows to one row per resource at a query level. Matching
+// runs over the full per-instance row so an instance-level attribute the query constrains on is still
+// visible; the collapse then projects the survivor to the level's identifying attributes and drops
+// any later instance of an already-seen resource (the DISTINCT collapse moved AFTER the Go matcher).
+type levelCollapser struct {
+	keyTags []dicom.Tag
+	project []indexedColumn
+	yielded map[string]struct{}
+}
+
+// newLevelCollapser builds a collapser for level, capturing the level's identifying key tags and the
+// columns the projected row carries.
+func newLevelCollapser(level dimse.QueryLevel) *levelCollapser {
+	return &levelCollapser{
+		keyTags: levelKeyTags(level),
+		project: levelColumns(level),
+		yielded: make(map[string]struct{}),
+	}
+}
+
+// collapse projects a matched instance row to the level's identifying attributes and reports whether it
+// is the FIRST row for its resource: a true result is a new study/series/instance to yield, a false
+// result is a duplicate to skip. The returned DataSet carries only the level's columns.
+func (lc *levelCollapser) collapse(ds *dicom.DataSet) (*dicom.DataSet, bool) {
+	key := lc.resourceKey(ds)
+	if _, seen := lc.yielded[key]; seen {
+		return nil, false
+	}
+	lc.yielded[key] = struct{}{}
+	return lc.projectRow(ds), true
+}
+
+// resourceKey builds a collision-free identity for the row's resource at the query level by joining its
+// key-tag values under a separator that cannot appear in a UID, so two distinct resources never share
+// a key.
+func (lc *levelCollapser) resourceKey(ds *dicom.DataSet) string {
+	var b strings.Builder
+	for _, tag := range lc.keyTags {
+		v, _ := ds.GetString(tag)
+		b.WriteString(v)
+		b.WriteByte('\x1f')
+	}
+	return b.String()
+}
+
+// projectRow copies the level's projection columns from the matched instance row into a fresh DataSet,
+// so a study-level row carries the study-level attributes and not the per-instance ones.
+func (lc *levelCollapser) projectRow(ds *dicom.DataSet) *dicom.DataSet {
+	out := dicom.NewDataSet()
+	for _, ic := range lc.project {
+		if v, ok := ds.GetString(ic.tag); ok && v != "" {
+			out.SetString(ic.tag, v)
+		}
+	}
+	return out
+}
+
 // SQLiteCatalogue is the default Catalogue: a SQLite database at dbPath indexing the queryable
 // attributes of stored objects. dbPath is required and is never defaulted, because the catalogue
 // holds PHI — no command or daemon silently creates a PHI-bearing catalogue at a default path
@@ -180,25 +255,26 @@ func (c *sqliteCatalogue) Index(ctx context.Context, ds *dicom.DataSet) error {
 	return nil
 }
 
-// Query answers a hierarchical query at the requested level. It builds a parameterised SELECT from
-// the match keys (so a match value can never inject SQL) and streams the rows as an iterator,
-// reconstructing one DataSet per row. A backend fault terminates the iterator with a typed error,
-// never a laundered empty success (PRD §9.2). PHI columns are returned as stored (cleartext, or the
-// redaction hash), so a redacted catalogue never re-materialises a cleartext identifier it does not
-// hold.
+// Query answers a hierarchical query at the requested level. The SQL only NARROWS the candidate set
+// — it pushes down a conservative, definitely-safe equality on an indexed column when the match value
+// carries no DICOM matching syntax — and the authoritative DICOM matcher (PS3.4 Annex C: UID lists,
+// DA/TM/DT ranges, wildcards, PN fuzzy) DECIDES which candidates match. A value with list, range, or
+// wildcard syntax is never pushed to SQL (an exact comparison against the whole literal would return
+// nothing), so it is left to the Go matcher. The full DICOM match runs at instance granularity, and
+// the result is collapsed to the requested hierarchy level AFTER matching, so a study-level query
+// returns one row per matching study while matching still sees instance-level attributes.
+//
+// A backend fault terminates the iterator with a typed error, never a laundered empty success
+// (PRD §9.2). PHI columns are returned as stored (cleartext, or the redaction hash), so a redacted
+// catalogue never re-materialises a cleartext identifier it does not hold.
 func (c *sqliteCatalogue) Query(ctx context.Context, q CatalogueQuery) iter.Seq2[*dicom.DataSet, error] {
 	return func(yield func(*dicom.DataSet, error) bool) {
-		// Project to the columns the requested hierarchy level identifies and DISTINCT-collapse, so a
-		// study- or series-level query returns one row per study/series rather than one per instance.
-		cols := levelColumns(q.Level)
+		// Match and the level-collapse run over the full per-instance rows, so the matcher sees every
+		// indexed attribute (a series-level Modality, an instance-level number) rather than a
+		// level-projected subset that would drop the attribute the query constrains on.
+		keys := c.matchKeys(q.Match)
 		where, args := c.buildWhere(q.Match)
-		stmt := c.buildSelect(cols) + where
-		if q.Limit > 0 {
-			stmt += fmt.Sprintf(" LIMIT %d", q.Limit)
-		}
-		if q.Offset > 0 {
-			stmt += fmt.Sprintf(" OFFSET %d", q.Offset)
-		}
+		stmt := c.buildSelect(indexedColumns) + where
 
 		rows, err := c.db.QueryContext(ctx, stmt, args...)
 		if err != nil {
@@ -207,13 +283,36 @@ func (c *sqliteCatalogue) Query(ctx context.Context, q CatalogueQuery) iter.Seq2
 		}
 		defer func() { _ = rows.Close() }()
 
+		// Limit and offset page the COLLAPSED, MATCHED result rows (QIDO-RS limit=/offset=), so paging
+		// counts one row per resource at the requested level rather than the pre-collapse instance rows.
+		out := newLevelCollapser(q.Level)
+		seen := 0
 		for rows.Next() {
-			ds, scanErr := scanRow(rows, cols)
+			ds, scanErr := scanRow(rows, indexedColumns)
 			if scanErr != nil {
 				yield(nil, scanErr)
 				return
 			}
-			if !yield(ds, nil) {
+			// The Go matcher decides: a candidate the conservative SQL did not fully constrain is still
+			// tested against the full DICOM match rules before it is yielded.
+			if !dicomweb.MatchDataSet(ds, keys, q.Fuzzy) {
+				continue
+			}
+			projected, ok := out.collapse(ds)
+			if !ok {
+				// Already yielded a row for this study/series at the requested level; collapse the
+				// duplicate so a study-level query yields one row per matching study.
+				continue
+			}
+			if seen < q.Offset {
+				seen++
+				continue
+			}
+			seen++
+			if !yield(projected, nil) {
+				return
+			}
+			if q.Limit > 0 && seen-q.Offset >= q.Limit {
 				return
 			}
 		}
@@ -243,29 +342,34 @@ func (c *sqliteCatalogue) Remove(ctx context.Context, instance dicom.SOPInstance
 // Close releases the database handle.
 func (c *sqliteCatalogue) Close() error { return c.db.Close() }
 
-// buildSelect lists the projected columns in a stable order so scanRow maps the result columns back
-// to their tags deterministically. It uses SELECT DISTINCT so a study- or series-level projection
-// collapses the per-instance rows to one row per identified resource (PS3.4 hierarchical query),
-// rather than streaming a duplicate study/series record per stored instance.
+// buildSelect lists the projected columns in a stable order so scanRow maps the result columns back to
+// their tags deterministically. It selects the full per-instance rows (no SQL-level collapse): matching
+// runs over the instance attributes and the level-collapse to one row per study/series happens AFTER
+// the Go matcher (PS3.4 hierarchical query), so a collapse cannot drop an instance the match needed.
 func (c *sqliteCatalogue) buildSelect(cols []indexedColumn) string {
 	names := make([]string, 0, len(cols))
 	for _, ic := range cols {
 		names = append(names, ic.column)
 	}
-	return "SELECT DISTINCT " + strings.Join(names, ", ") + " FROM instances"
+	return "SELECT " + strings.Join(names, ", ") + " FROM instances"
 }
 
-// buildWhere builds a parameterised WHERE clause from the match keys: only tags the catalogue indexes
-// constrain the query, and each value is bound as a parameter so a hostile match value can never
-// inject SQL (PRD §9.1 input validation). A universal match (empty value) is a return key, not a
-// constraint, so it is skipped. A "*" wildcard becomes a LIKE so a QIDO-RS wildcard match works.
+// buildWhere builds a parameterised WHERE clause that NARROWS the candidate set without DECIDING the
+// match: it pushes down only a conservative, definitely-safe equality on an indexed column when the
+// match value carries no DICOM matching syntax — no backslash UID list, no DA/TM/DT range hyphen, no
+// "*"/"?" wildcard. Each value is bound as a parameter so a hostile match value can never inject SQL
+// (PRD §9.1 input validation). The authoritative DICOM matcher then decides every candidate, so the
+// SQL clause is an optimisation that must never drop a row the matcher would keep: any value with
+// list/range/wildcard syntax, and any unindexed key, is left entirely to the matcher rather than
+// compared as a whole literal that would return zero rows. A universal match (empty value) is a return
+// key, not a constraint, so it is skipped.
 //
 // Under redaction the PHI columns store a one-way hash of the identifier, never its cleartext, so a
-// query by the cleartext identifier is hashed the same way before comparison — otherwise a C-FIND or
-// QIDO by PatientID/PatientName would compare cleartext against a stored hash and never match. A
-// hashed column cannot honour a wildcard (the hash destroys the structure a "*" would match), so a
-// wildcard against a redacted PHI column is treated as a universal (unconstrained) match rather than
-// silently returning nothing.
+// pushed-down equality on a redacted column hashes the value the same way before comparison —
+// otherwise a query by the cleartext PatientID/PatientName would compare cleartext against a stored
+// hash and never match. A redacted column is only ever narrowed by exact equality (a hash cannot honour
+// a wildcard or range), and the matcher cannot re-decide a hashed column, so a non-exact match value
+// against a redacted column is left unconstrained rather than silently matching nothing.
 func (c *sqliteCatalogue) buildWhere(match map[dicom.Tag]string) (string, []any) {
 	column := columnByTag()
 	var clauses []string
@@ -276,17 +380,21 @@ func (c *sqliteCatalogue) buildWhere(match map[dicom.Tag]string) (string, []any)
 			continue
 		}
 		redacted := ic.phi && c.redact
-		if strings.ContainsAny(value, "*?") {
-			if redacted {
-				// A hash cannot be wildcard-matched; do not constrain on it rather than match nothing.
+		if redacted {
+			// A redacted column cannot be re-decided by the Go matcher (it holds a hash), so the SQL must
+			// honour it directly. Only exact equality is representable against a hash; a wildcard or range
+			// is left unconstrained rather than matching nothing.
+			if !isSafeNarrowingValue(ic.tag, value) {
 				continue
 			}
-			clauses = append(clauses, ic.column+" LIKE ?")
-			args = append(args, wildcardToLike(value))
+			clauses = append(clauses, ic.column+" = ?")
+			args = append(args, hashIdentifier(value))
 			continue
 		}
-		if redacted {
-			value = hashIdentifier(value)
+		if !isSafeNarrowingValue(ic.tag, value) {
+			// List, range, or wildcard syntax: leave it to the authoritative matcher rather than comparing
+			// the whole literal as SQL equality (which would return zero rows).
+			continue
 		}
 		clauses = append(clauses, ic.column+" = ?")
 		args = append(args, value)
@@ -295,6 +403,66 @@ func (c *sqliteCatalogue) buildWhere(match map[dicom.Tag]string) (string, []any)
 		return "", nil
 	}
 	return " WHERE " + strings.Join(clauses, " AND "), args
+}
+
+// isSafeNarrowingValue reports whether value is a single token the catalogue may push down as exact
+// SQL equality without risking dropping a candidate the DICOM matcher would keep. It is safe only when
+// the value carries no DICOM matching syntax: no "*"/"?" wildcard, no backslash UID list, and — for a
+// DA/TM/DT attribute, whose hyphen denotes a range — no hyphen. A hyphen in a non-temporal attribute
+// is a literal character (a UID never contains one), so it does not bar narrowing there.
+func isSafeNarrowingValue(tag dicom.Tag, value string) bool {
+	if strings.ContainsAny(value, "*?\\") {
+		return false
+	}
+	if isTemporalTag(tag) && strings.ContainsRune(value, '-') {
+		return false
+	}
+	return true
+}
+
+// isTemporalTag reports whether tag's VR is DA, TM, or DT, the value representations whose match value
+// may carry a range ("lo-hi"). The catalogue must not push down equality on a range value.
+func isTemporalTag(tag dicom.Tag) bool {
+	info, ok := dicom.Lookup(tag)
+	if !ok {
+		return false
+	}
+	switch info.VR {
+	case dicom.VRDA, dicom.VRTM, dicom.VRDT:
+		return true
+	default:
+		return false
+	}
+}
+
+// matchKeys projects the catalogue's tag->value match map into the authoritative matcher's key slice,
+// resolving each key's VR from the dictionary so the matcher applies the right rule (UID list, range,
+// wildcard, single value). A universal (empty) value is dropped: it constrains nothing.
+//
+// Only keys the catalogue INDEXES are returned. A key on an attribute the catalogue does not store
+// cannot be decided here — the candidate row never carries the attribute, so the matcher would reject
+// every candidate. Such a key is left to the caller, which fetches the stored dataset from the
+// ObjectStore and applies the full match against real attribute values (see the DICOMweb and DIMSE
+// roles). A redacted PHI key is dropped for the same reason: the column holds a one-way hash, never the
+// cleartext the matcher compares against, so the SQL clause already decided it (hashed equality) and the
+// matcher must not re-test it against the hash.
+func (c *sqliteCatalogue) matchKeys(match map[dicom.Tag]string) []dicomweb.MatchKey {
+	column := columnByTag()
+	keys := make([]dicomweb.MatchKey, 0, len(match))
+	for tag, value := range match {
+		if value == "" {
+			continue
+		}
+		ic, ok := column[tag]
+		if !ok {
+			continue
+		}
+		if ic.phi && c.redact {
+			continue
+		}
+		keys = append(keys, dicomweb.NewMatchKey(tag, value))
+	}
+	return keys
 }
 
 // scanRow reconstructs a DataSet from one result row over the projected columns, writing each
@@ -327,27 +495,6 @@ func columnByTag() map[dicom.Tag]indexedColumn {
 		m[ic.tag] = ic
 	}
 	return m
-}
-
-// wildcardToLike translates a DICOM wildcard match value (PS3.4 C.2.2.2.4: "*" any, "?" one char) to
-// a SQL LIKE pattern, escaping the SQL metacharacters so only the DICOM wildcards are special.
-func wildcardToLike(value string) string {
-	var b strings.Builder
-	for _, r := range value {
-		switch r {
-		case '*':
-			b.WriteByte('%')
-		case '?':
-			b.WriteByte('_')
-		case '%', '_':
-			// A literal SQL wildcard in the value must not act as a pattern; there is no ESCAPE clause,
-			// so collapse it to a single-char match rather than letting it widen the result silently.
-			b.WriteByte('_')
-		default:
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
 }
 
 // hashIdentifier returns a stable one-way hash of a direct identifier for the redacted catalogue, so

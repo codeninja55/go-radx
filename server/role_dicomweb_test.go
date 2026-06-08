@@ -49,60 +49,52 @@ func TestDICOMwebRetrieveValidatesParentUIDs(t *testing.T) {
 	}
 }
 
-// TestDICOMwebQueryDoesNotPreLimitUnindexedMatch asserts the QIDO-limit fix: when a request carries
-// an unindexed match key alongside a limit, the catalogue is NOT asked to pre-limit, so the matching
-// row that sorts after the first N candidates is still fetched for the server's matchDataSet to find
-// (Finding 5). The catalogue indexes neither StudyDescription nor any free-text attribute, so a match
-// on it must be applied AFTER the candidate set is fetched, not pushed into SQLite's LIMIT.
-func TestDICOMwebQueryDoesNotPreLimitUnindexedMatch(t *testing.T) {
+// TestDICOMwebQueryMatchesUnindexedKeyFromStore asserts the catalogue-narrows-vs-matcher-decides fix:
+// a QIDO match on an attribute the catalogue does NOT index (StudyDescription) is honoured by fetching
+// the stored dataset from the ObjectStore and applying the full DICOM match against the real value, so
+// the matching study is returned rather than every candidate being rejected as missing the attribute
+// (Finding 3). The candidate is collapsed to one row per study and carries the matched attribute so the
+// DICOMweb server's re-match passes.
+func TestDICOMwebQueryMatchesUnindexedKeyFromStore(t *testing.T) {
 	t.Parallel()
-	_, cat := newTestBackends(t)
+	store, cat := newTestBackends(t)
 	ctx := context.Background()
 
-	// Index three studies; only the THIRD (which sorts last) carries the StudyDescription the request
-	// will match on. With a limit of 1 pushed into SQLite, the third row would be discarded.
+	// Store and index three studies; only the THIRD carries the StudyDescription the request matches on.
 	for i, study := range []string{"6.1.1", "6.1.2", "6.1.3"} {
 		ds := newTestObject(study, study+".1", study+".1.1")
 		if i == 2 {
 			ds.SetString(dicom.TagStudyDescription, "TARGET")
+		}
+		if err := store.Put(ctx, ds); err != nil {
+			t.Fatalf("Put %s: %v", study, err)
 		}
 		if err := cat.Index(ctx, ds); err != nil {
 			t.Fatalf("Index %s: %v", study, err)
 		}
 	}
 
-	b := &dicomwebQuery{cat: cat}
+	b := &dicomwebQuery{cat: cat, store: store}
 	q := dicomweb.QueryRequest{
 		Level: dicomweb.QueryStudies,
-		Limit: 1,
 		Match: []dicomweb.MatchKey{
 			{Tag: dicom.TagStudyDescription, VR: dicom.VRLO, Value: "TARGET"},
 		},
 	}
-	candidates, err := b.Query(ctx, q)
+	got, err := b.Query(ctx, q)
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
-	// The backend must return the full candidate set (all three studies), not the first one, so the
-	// server's matchDataSet can find the TARGET study that sorts last.
-	if len(candidates) != 3 {
-		t.Fatalf("Query with an unindexed match key + limit returned %d candidates, want 3 (no pre-limit)", len(candidates))
+	// The unindexed match must select exactly the TARGET study, not every candidate and not none.
+	if len(got) != 1 {
+		t.Fatalf("Query on an unindexed key returned %d rows, want 1 (the TARGET study)", len(got))
 	}
-
-	// Sanity: with only indexed match keys present, the limit IS pushed down (the catalogue filtering
-	// is complete), so the candidate set is bounded.
-	indexedQ := dicomweb.QueryRequest{
-		Level: dicomweb.QueryStudies,
-		Limit: 1,
-		Match: []dicomweb.MatchKey{
-			{Tag: dicom.TagStudyInstanceUID, VR: dicom.VRUI, Value: "6.*"},
-		},
+	if v, _ := got[0].GetString(dicom.TagStudyInstanceUID); v != "6.1.3" {
+		t.Errorf("matched StudyInstanceUID = %q, want 6.1.3", v)
 	}
-	bounded, err := b.Query(ctx, indexedQ)
-	if err != nil {
-		t.Fatalf("Query (indexed): %v", err)
-	}
-	if len(bounded) != 1 {
-		t.Errorf("Query with only indexed match keys + limit 1 returned %d candidates, want 1 (limit pushed down)", len(bounded))
+	// The matched attribute is carried onto the row so the DICOMweb server's re-match and projection see
+	// it rather than treating the projected study row as missing the attribute.
+	if v, _ := got[0].GetString(dicom.TagStudyDescription); v != "TARGET" {
+		t.Errorf("matched row StudyDescription = %q, want TARGET", v)
 	}
 }

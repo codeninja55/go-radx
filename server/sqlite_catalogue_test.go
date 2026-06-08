@@ -51,10 +51,12 @@ func TestSQLiteCatalogueIndexAndQuery(t *testing.T) {
 		t.Errorf("matched StudyInstanceUID = %q, want 1.2.1", v)
 	}
 
-	// A wildcard match on StudyInstanceUID returns both studies under the prefix.
+	// A wildcard match on a string-VR attribute (PatientID, LO) returns both studies under the prefix.
+	// The authoritative matcher applies DICOM wildcard semantics to string VRs; a UID VR uses UID-list
+	// matching, not wildcards (PS3.4 C.2.2.2), so the wildcard is exercised on PatientID here.
 	wild := collect(t, cat.Query(ctx, CatalogueQuery{
 		Level: dimse.QueryLevelStudy,
-		Match: map[dicom.Tag]string{dicom.TagStudyInstanceUID: "1.2.*"},
+		Match: map[dicom.Tag]string{dicom.TagPatientID: "MRN-*"},
 	}))
 	if len(wild) != 2 {
 		t.Fatalf("wildcard query returned %d rows, want 2", len(wild))
@@ -183,6 +185,72 @@ func TestSQLiteCatalogueStudyLevelDistinct(t *testing.T) {
 	}))
 	if len(instanceRows) != 3 {
 		t.Fatalf("instance-level query returned %d rows, want 3", len(instanceRows))
+	}
+}
+
+// TestSQLiteCatalogueDateRangeMatch asserts the catalogue-narrows-vs-matcher-decides fix for a DA
+// range value: a StudyDate range "20240110-20240120" must match the studies whose date falls in the
+// window, not compare the whole literal as SQL equality and return nothing (Finding 2). The catalogue
+// leaves a range value to the authoritative matcher rather than pushing it down as exact equality.
+func TestSQLiteCatalogueDateRangeMatch(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	cat, err := SQLiteCatalogue(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("SQLiteCatalogue: %v", err)
+	}
+
+	dates := map[string]string{"8.1.1": "20240105", "8.1.2": "20240115", "8.1.3": "20240125"}
+	for study, date := range dates {
+		ds := indexed(study, study+".1", study+".1.1", "MRN-DATE", "CT")
+		ds.SetString(dicom.TagStudyDate, date)
+		if err := cat.Index(ctx, ds); err != nil {
+			t.Fatalf("Index %s: %v", study, err)
+		}
+	}
+
+	rows := collect(t, cat.Query(ctx, CatalogueQuery{
+		Level: dimse.QueryLevelStudy,
+		Match: map[dicom.Tag]string{dicom.TagStudyDate: "20240110-20240120"},
+	}))
+	if len(rows) != 1 {
+		t.Fatalf("StudyDate range query returned %d rows, want 1 (the 20240115 study)", len(rows))
+	}
+	if v, _ := rows[0].GetString(dicom.TagStudyInstanceUID); v != "8.1.2" {
+		t.Errorf("range-matched StudyInstanceUID = %q, want 8.1.2", v)
+	}
+}
+
+// TestSQLiteCatalogueUIDListMatch asserts the catalogue-narrows-vs-matcher-decides fix for a UID-list
+// value: a StudyInstanceUID list "8.2.1\8.2.3" must match the listed studies, not compare the whole
+// backslash literal as SQL equality and return nothing (Finding 2).
+func TestSQLiteCatalogueUIDListMatch(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	cat, err := SQLiteCatalogue(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("SQLiteCatalogue: %v", err)
+	}
+	for _, study := range []string{"8.2.1", "8.2.2", "8.2.3"} {
+		if err := cat.Index(ctx, indexed(study, study+".1", study+".1.1", "MRN-LIST", "CT")); err != nil {
+			t.Fatalf("Index %s: %v", study, err)
+		}
+	}
+
+	rows := collect(t, cat.Query(ctx, CatalogueQuery{
+		Level: dimse.QueryLevelStudy,
+		Match: map[dicom.Tag]string{dicom.TagStudyInstanceUID: "8.2.1\\8.2.3"},
+	}))
+	if len(rows) != 2 {
+		t.Fatalf("UID-list query returned %d rows, want 2 (the listed studies)", len(rows))
+	}
+	seen := map[string]bool{}
+	for _, r := range rows {
+		v, _ := r.GetString(dicom.TagStudyInstanceUID)
+		seen[v] = true
+	}
+	if !seen["8.2.1"] || !seen["8.2.3"] || seen["8.2.2"] {
+		t.Errorf("UID-list matched studies = %v, want exactly 8.2.1 and 8.2.3", seen)
 	}
 }
 
