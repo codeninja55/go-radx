@@ -1,20 +1,22 @@
 # Cross-cutting conformance statement
 
-> **Implementation status: NOT YET SHIPPED.** This is a scaffold. The cross-cutting conformance statement — the
-> versioned contract for the engineering posture that holds *across* every subsystem (supply chain, interop
-> determinism, build and module layout, coverage, concurrency, conformance-drift control, and governance) — is not yet
-> authored. Until this banner is removed and the sections below are filled, **no cross-cutting guarantee is
-> conformance-backed**. The CI workflow at `.github/workflows/ci.yml` runs the gates described below, but several of
-> them are still being assembled and, as recorded under [Gate enforcement status](#gate-enforcement-status), none of
-> them is merge-blocking yet. Do not cite this document as a conformance basis.
-
 | Field | Value |
 |-------|-------|
 | Scope | Engineering posture shared across every subsystem (CI, supply chain, interop, build, coverage, concurrency) |
 | Library | `github.com/codeninja55/go-radx` |
-| Conformance version | unassigned (statement not yet authored) |
-| Status | **NOT YET SHIPPED** — scaffold only |
-| Scope authority | This document will be the single source of truth for the cross-cutting contract (PRD §6.1) |
+| Conformance version | 1 |
+| Status | Published |
+| Scope authority | This document is the single source of truth for the cross-cutting contract (PRD §6.1) |
+
+This statement is authored and conformance-backed for the engineering posture that holds *across* every subsystem:
+supply chain, interop determinism, build and module layout, coverage, concurrency, hostile-input robustness,
+conformance-drift control, and governance. The gates the sections below describe are wired and run on every push and
+pull request to `main`; each section states what its gate enforces and the honest scope of that enforcement. The one
+open item against an absolute guarantee is recorded under [Gate enforcement status](#gate-enforcement-status): the CI
+jobs run and report on every change, but the `main` branch ruleset that would make them block a merge at the GitHub
+level is not yet enabled, so the local gates and review remain the binding pre-merge net. go-radx is pre-1.0 and every
+public package is experimental (see [Governance and stability posture](#governance-and-stability-posture)); read every
+guarantee here against that v0.x-experimental status.
 
 This document is the cross-cutting counterpart to the per-subsystem conformance statements. Where the DICOM
 ([`./dicom.md`](./dicom.md)), DIMSE ([`./dimse.md`](./dimse.md)), DICOMweb ([`./dicomweb.md`](./dicomweb.md)),
@@ -168,8 +170,9 @@ root module — then runs [`tools/cover-check.sh`](../../tools/cover-check.sh), 
 `mise run cover:check`.
 
 The measurement method matters for what the number means. `-coverpkg=./...` puts every statement in the root module in
-the denominator, so a package with no tests (today `server` and `fhir/r4`) lowers the aggregate rather than being
-silently excluded; the percentage is union coverage across all test binaries, not a per-binary figure. The run is
+the denominator, so a package with no in-package unit tests (today the generated `fhir/r4` tree, gated by the
+byte-for-byte regeneration test and the HL7 validator rather than by unit coverage) lowers the aggregate rather than
+being silently excluded; the percentage is union coverage across all test binaries, not a per-binary figure. The run is
 scoped to the root module with `GOWORK=off`, so the `go.work` workspace does not pull `cmd/radx` into the figure — the
 CLI module is gated by its own `cmd-radx` job (see
 [Build and module layout](#build-and-module-layout-gowork-cmdradx-ci)), not by this floor. `-race` is preserved
@@ -238,13 +241,14 @@ the short packages are a documented TODO carried in [`tools/cover-critical.sh`](
 
 go-radx is a concurrent library: the servers accept connections and dispatch handlers on their own goroutines. The
 target contract is that each public type states its concurrency posture in its godoc — some safe for concurrent use
-(`dimse.Server` declares this), others deliberately single-flight (`dimse.Association` documents that it is not safe
-for concurrent queries, because `LastError()` is per-association; run one `Find`/`Get`/`Move` iterator per association
-at a time). The library does **not** claim every public API is concurrent-safe, and the contract is **not yet complete
-on every surface**: `dicomweb.Server` and its `Handler` do not yet state a concurrency posture in their godoc, and
-documenting it (and proving it under the race gate) is an open item on the per-server checklist below, not a satisfied
-one. Where a posture is stated, the race gate exists to catch a violation of either kind — a type that should be safe
-but races, or a single-flight type misused under test. That stated-and-proven contract is held by a
+(`dimse.Server`, `hl7v2.Server`, and `server.Daemon` each declare this), others deliberately single-flight
+(`dimse.Association` documents that it is not safe for concurrent queries, because `LastError()` is per-association; run
+one `Find`/`Get`/`Move` iterator per association at a time). The library does **not** claim every public API is
+concurrent-safe, and the contract is **not yet complete on every surface**: `dicomweb.Server` and its `Handler` do not
+yet state a concurrency posture in their godoc, and documenting it (and proving it under the race gate) is the one open
+item on the per-server checklist below, not a satisfied one. Where a posture is stated, the race gate exists to catch a
+violation of either kind — a type that should be safe but races, or a single-flight type misused under test. That
+stated-and-proven contract is held by a
 **standing required gate**, not by review alone. The `cover` mise task — the
 one the `lint-test` job invokes through `cover:check` — is a single
 `go test -race -covermode=atomic -coverpkg=./... ./...`
@@ -338,24 +342,44 @@ lifecycle must survive; not every item applies to every server, but an increment
 - **Per-connection timeouts.** Where the server enforces idle, negotiation, or completion timeouts, assert a timeout
   fires on its own goroutine without racing a concurrent shutdown or a slow but legitimate large transfer.
 
-The surfaces each current and planned server must clear under `-race`:
+The surfaces each server must clear under `-race`:
 
 - **`dimse.Server`** (shipped). The accept loop, the semaphore-bounded spawn, `Shutdown` (idempotent,
   deadline-bounded, and retried after a deadline), context-cancel stop, and the idle, negotiation, and completion
   timeouts. This server is the reference implementation of the checklist below.
+- **`hl7v2.Server` (MLLP server)** (shipped). The connection-accepting MLLP server is the same model as `dimse.Server`:
+  its godoc declares it safe for concurrent use, a capacity semaphore bounds in-flight handlers, every per-connection
+  goroutine is tracked and joined by `Shutdown` (no fire-and-forget goroutines), and `Shutdown` is idempotent with a
+  re-runnable bounded join. `TestServerConcurrentClients` drives many MLLP clients at once,
+  `TestServerBoundsConcurrentConnections` floods past the cap and asserts the bound holds,
+  `TestServerShutdownDrainsOnContextCancel` and `TestServerShutdownIsReRunnable` cover the drain and idempotency, and
+  `TestServerRejectsOversizeFrame` covers the framing cap — all in
+  [`hl7v2/mllp_conn_test.go`](../../hl7v2/mllp_conn_test.go) and [`hl7v2/mllp_test.go`](../../hl7v2/mllp_test.go), under
+  the standing `-race ./...` gate.
+- **FHIR server role** (`server.FHIRRole`, shipped). An `http.Handler` over FHIR resource routes mounted in the
+  `Daemon`. Concurrent writes against the in-memory repository are exercised by
+  `TestMemoryRepositoryTransactionPreservesConcurrentCreates` (50 concurrent `Create`s racing a failing transaction's
+  rollback) in [`server/role_fhir_test.go`](../../server/role_fhir_test.go), which under `-race` proves the repository
+  holds reference and write integrity under concurrency; the role's lifecycle is driven through the `Daemon` `Run`/
+  `Shutdown` path the daemon tests exercise. Two items stay honest follow-ups: a multi-client concurrent read/write
+  race test directly against the mounted HTTP handler, and a stated concurrency posture in the role's godoc.
+- **daemon composition root** (`server.Daemon`, shipped). `server.New(...).Run(ctx)` composes every mounted role behind
+  one signal-driven lifecycle; the `Daemon` godoc declares it safe for concurrent use after construction. The
+  [`server`](../../server) suite runs `Run` on its own goroutine while `Shutdown`/context-cancel fire concurrently —
+  `TestDaemonDIMSERoundTrip`, `TestDaemonMLLPRoundTrip`, `TestDaemonDICOMwebServes`, `TestShutdownDrainsWithinDeadline`,
+  and `TestShutdownTimeoutNamesRole` — proving concurrent startup, a shared drain that stops every role, and a
+  role-naming `ErrShutdownTimeout` rather than a silent success, all under the standing `-race ./...` gate. The
+  `cmd/radx serve` subcommands wrap this composition root and are race-tested in their own `cmd-radx` job
+  (`go test -race ./...`).
 - **`dicomweb.Server`** (handler shipped; race coverage outstanding). An `http.Handler` mounted under a caller's mux.
-  Its functional behaviour is tested (store, retrieve round-trip, fail-closed store, content negotiation), but those
-  tests are sequential: the concurrent-request surface is **not yet** exercised under `-race`, and the public `Server`
-  and `Handler` godoc does not yet state a concurrency posture. The outstanding work is to document that posture, what
-  a `StoreBackend`/retrieve backend must guarantee under concurrency, and add a concurrent-request race test; the full
-  server lifecycle (shutdown, drain) is added once it owns an `http.Server` rather than only exposing a handler.
-- **MLLP server (HL7 v2)** (planned). The accept loop over MLLP framing, concurrent message handling, ACK/NACK
-  ordering, and graceful shutdown — the same checklist as `dimse.Server`, since both are connection-accepting servers.
-- **FHIR server role** (planned). An `http.Handler` over FHIR resource routes: concurrent reads and writes,
-  reference integrity held under concurrency, and shutdown.
-- **daemon composition root** (`cmd/radx`, planned). The process that composes the servers above behind one
-  lifecycle: concurrent server startup, a shared signal-driven shutdown that drains every server, and no shared
-  mutable state across them.
+  Its functional behaviour is tested (store, retrieve round-trip, fail-closed store, content negotiation), and the
+  `server` package mounts it in the `Daemon` and round-trips it (`TestDaemonDICOMwebServes`), but those request tests
+  are sequential: the concurrent-request surface is **not yet** exercised under `-race`, and the public `Server` and
+  `Handler` godoc still does not state a concurrency posture. The outstanding work is to document that posture, state
+  what a `StoreBackend`/retrieve backend must guarantee under concurrency, and add a concurrent-request race test; the
+  full server lifecycle (shutdown, drain) is added once `dicomweb` owns an `http.Server` rather than only exposing a
+  handler. This is the one server surface that has not yet cleared the checklist, and it is tracked here rather than
+  closed.
 
 The `dimse.Server` suite ([`dimse/server_test.go`](../../dimse/server_test.go)) is the reference implementation of this
 checklist today: `TestServerMaxAssociationsRefusesBeforeSpawn`,
@@ -532,6 +556,79 @@ adversarial review are the only pre-merge net, and the CI signal is advisory rat
 This is a **known gap against the Phase 0 definition of done.** Closing it means enabling the `main` ruleset with the CI
 jobs as required status checks, so the gates this statement relies on actually bind. Until enforcement is enabled, treat
 every "gated by CI" claim in the per-subsystem statements as gated-but-not-enforced.
+
+## Conformance sign-off summary
+
+This summary is the single roll-up of what go-radx claims and how each claim is backed. It exists so a consumer can read
+one section and know which subsystems are conformance-tested against a reference tool, which rest on unit fixtures only,
+and what is genuinely deferred. It restates none of the per-subsystem scope; it records the conformance *basis* per
+subsystem and the known limitations that bound the claims. Read all of it against the v0.x-experimental status below.
+
+### Shipped subsystems and their conformance basis
+
+The conformance basis is the strongest verification each subsystem clears today: a reference tool (an external validator
+or a live reference server), a unit/fixture suite, or a generation gate.
+
+| Subsystem | Statement | Conformance basis |
+|-----------|-----------|-------------------|
+| DICOM (Part 10, IOD) | [`./dicom.md`](./dicom.md) | Reference tool: `dciodvfy` IOD + `pydicom` round-trip; codec round-trip under ASAN |
+| DIMSE (C-services, negotiation) | [`./dimse.md`](./dimse.md) | Reference servers: Orthanc + dcm4chee-arc interop; unit fixtures for MWL/MPPS/commit |
+| DICOMweb (WADO/STOW/QIDO) | [`./dicomweb.md`](./dicomweb.md) | Reference server: Orthanc STOW/WADO round-trip; unit fixtures for QIDO |
+| HL7 v2 (parse, MLLP) | [`./hl7v2.md`](./hl7v2.md) | Unit/fixture suite; MLLP client/server round-trip in-process (no live leg yet) |
+| FHIR (R4 4.0.1, R5 5.0.0) | [`./fhir.md`](./fhir.md) | Reference tool: HL7 FHIR validator (merge-blocking); generation gate for the trees |
+| convert (§5.1 loop) | [`./convert.md`](./convert.md) | Per-twin release-validator verification; end-to-end interop leg vs Orthanc |
+| CLI / server roles | [`./cli-server.md`](./cli-server.md) | Unit/contract tests under `-race`; serve daemons via the interop and serve tests |
+
+### The interop matrix that runs in CI
+
+The `interop` job runs a three-leg testcontainers matrix on every push and pull request to `main`, each leg against a
+digest-pinned reference origin (see [Interop-matrix coverage](#interop-matrix-coverage)):
+
+- **DIMSE** against Orthanc *and* dcm4chee-arc: C-ECHO, C-STORE, C-FIND, C-GET, C-MOVE. MWL C-FIND, MPPS (N-CREATE /
+  N-SET), and Storage Commitment (N-ACTION) drive the dcm4chee archive and **skip** their success assertion where the
+  archive is not configured to advertise the matching SCP role or enforces an IOD the ephemeral harness does not
+  satisfy — documented follow-ups, not silent passes.
+- **DICOMweb** against Orthanc: STOW-RS store then WADO-RS retrieve round-trip, with a negative control that proves the
+  gate bites against a wrong DICOMweb root.
+- **convert** against Orthanc: the cross-standard end-to-end walking skeleton (C-STORE then STOW/WADO, then the HL7 ORM
+  to ServiceRequest, DICOM SR to DiagnosticReport, and DICOM instance to ImagingStudy conversions in-process).
+
+The FHIR REST conformance runs in the separate `fhir-conformance` job (the HL7 validator over the workflow set). MLLP
+and the FHIR REST surface are exercised in-process today, not against a live external listener or FHIR server — their
+claims rest on unit fixtures rather than a reference origin.
+
+### Known limitations
+
+- **Vendored-codec out-of-bounds reads on hostile input.** Feeding malformed codestreams to the vendored
+  OpenJPEG / CharLS C decoders trips latent upstream out-of-bounds reads that ASAN converts to hard faults
+  non-deterministically. This is an upstream codec memory-safety limitation tracked in
+  [#107](https://github.com/codeninja55/go-radx/issues/107); the hostile corpora run and pass outside ASAN, where each
+  malformed input is rejected with a typed codec error and no crash (see
+  [Hostile-input robustness](#hostile-input-robustness)).
+- **FHIR validator pinned by version, not yet by asset digest.** The HL7 `validator_cli.jar` is pinned by release
+  version (`6.9.9`) in [`tools/versions`](../../tools/versions); recording and verifying its asset SHA-256 to close it
+  to a fixed-byte pin is an open item (see
+  [Interop determinism](#interop-determinism-pinned-tools-and-images)).
+- **Critical-path coverage ratchet.** Only `dimse/dul` is enforced at the 90% critical-path target today; the remaining
+  critical-path packages carry a no-regression ratchet baseline and are being brought up to 90% (see
+  [Coverage targets and critical-path enumeration](#coverage-targets-and-critical-path-enumeration)).
+- **`dicomweb.Server` concurrency posture.** The handler is functionally tested but the concurrent-request surface is
+  not yet exercised under `-race` and the godoc states no posture (see
+  [Per-server race checklist](#per-server-race-checklist)).
+- **One historical intermittent race, not yet root-caused** (see
+  [Known intermittent race](#known-intermittent-race-not-yet-root-caused)).
+- **`radx serve fhir` is a fail-closed stub.** The FHIR server *role* ships in the `server` package; only its dedicated
+  CLI subcommand is deferred (see [`./cli-server.md`](./cli-server.md)).
+- **Merge enforcement not yet enabled.** The CI gates run and report but do not block a merge at the GitHub level (see
+  [Gate enforcement status](#gate-enforcement-status)).
+
+### v0.x-experimental status
+
+go-radx is pre-1.0. Every public package is experimental: exported types, signatures, and behaviour can change between
+any two `v0.x` releases (see [Governance and stability posture](#governance-and-stability-posture)). The conformance
+claims above are claims against the explicitly declared, versioned subset each statement fixes — not a claim that the
+library implements all of any standard, and not a claim of a stable API. Treat every guarantee as accurate for the
+declared subset at this version and subject to change before v1.0.
 
 ## References
 
