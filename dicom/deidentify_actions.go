@@ -75,6 +75,30 @@ func basicProfileAction(t Tag) (deidAction, bool) {
 	return a, ok
 }
 
+// IsConfidential reports whether t is a confidentiality attribute that carries an
+// identifying value the PS3.15 Annex E Basic Profile removes, replaces, or cleans —
+// the patient identity, demographics, and direct-identifier set (PatientName,
+// PatientID, dates, ReferringPhysicianName, InstitutionName, and the rest of Table
+// E.1-1). It is the single source of truth a consumer that must redact PHI before
+// display shares with the de-identification profile, so the two never diverge.
+//
+// Attributes the Basic Profile keeps unchanged (BodyPartExamined, ImageType, and the
+// de-identification metadata itself) are not confidential and return false. UIDs are
+// also excluded: the profile remaps them to break the reference graph, but a UID is a
+// structural identifier, not a patient value, so a structural listing may render it.
+func IsConfidential(t Tag) bool {
+	a, ok := basicProfileActions[t]
+	if !ok {
+		return false
+	}
+	switch a {
+	case deidKeep, deidReplaceUID:
+		return false
+	default:
+		return true
+	}
+}
+
 // basicProfileKeywordActions is the PS3.15 Table E.1-1 Basic Profile column, keyed by
 // PS3.6 keyword. Date and time attributes carry their Basic-Profile action here; the
 // profile overrides them when the caller opts in to temporal retention.
