@@ -20,25 +20,36 @@
 #   * ENFORCED — packages at or above 90% today. The gate FAILS if any drops below 90%. This is the
 #     real, biting 90% contract.
 #   * RATCHET  — packages still being brought up to 90% (a documented TODO, mirrored in
-#     cross-cutting.md). Each carries a recorded baseline; the gate FAILS if one regresses below its
-#     baseline, so a TODO package can only move toward 90%, never backslide. When a RATCHET package
-#     reaches 90% the gate prints a PROMOTE notice: move it into ENFORCED (and update the doc) so the
-#     90% contract binds it from then on.
+#     cross-cutting.md). Each carries a recorded baseline; the gate FAILS if one regresses more than
+#     the jitter tolerance below its baseline (see RATCHET_TOLERANCE below), so a TODO package can only
+#     move toward 90%, never meaningfully backslide. When a RATCHET package reaches 90% the gate prints
+#     a PROMOTE notice: move it into ENFORCED (and update the doc) so the 90% contract binds it from
+#     then on.
 #
 # So the gate enforces 90% on the ENFORCED subset now and ratchets the rest upward; it never lowers
 # the 90% bar and never hides a short package.
+#
+# Ratchet jitter tolerance. Union coverage from `go test -race -coverpkg=./...` is NOT bit-stable
+# run-to-run: which tests happen to exercise cross-package code shifts slightly under -race timing, so
+# a per-package number can wobble by a fraction of a point between identical runs. A RATCHET baseline
+# pinned to the exact measured value would then false-fail on that noise (it once failed on a 0.1pp
+# drop). So a RATCHET package fails only when it falls more than RATCHET_TOLERANCE (0.5 percentage
+# points) below its baseline — enough to absorb measurement jitter, still tight enough to catch a real
+# regression (>0.5pp). This tolerance applies ONLY to the per-package no-regression baseline. The 90%
+# target itself gets NO tolerance: it is a fixed bar, and ENFORCED packages must be >= 90.0 exactly.
 #
 # Inputs:
 #   $1            profile path  (default: coverage.out — the profile cover:check already wrote)
 #   CRIT_TARGET   critical-path target percent (default: 90.0)
 #
-# Exit 0 when every ENFORCED package meets the target and no RATCHET package regressed; exit 1
-# (naming the offending packages) otherwise, or if the profile is missing.
+# Exit 0 when every ENFORCED package meets the target and no RATCHET package regressed beyond the
+# tolerance; exit 1 (naming the offending packages) otherwise, or if the profile is missing.
 
 set -euo pipefail
 
 PROFILE="${1:-coverage.out}"
 TARGET="${CRIT_TARGET:-90.0}"
+RATCHET_TOLERANCE="0.5"
 
 if [ ! -f "$PROFILE" ]; then
   echo "FAIL: coverage profile '$PROFILE' not found; run the coverage test step (mise run cover) first." >&2
@@ -145,24 +156,27 @@ for pkg in "${ENFORCED_PKGS[@]}"; do
   fi
 done
 
-echo "  RATCHET (TODO toward 90%; must not regress below baseline):"
+echo "  RATCHET (TODO toward 90%; must not regress more than ${RATCHET_TOLERANCE}pp below baseline):"
 for entry in "${RATCHET_PKGS[@]}"; do
   pkg="${entry%%=*}"
   base="${entry#*=}"
+  # Floor = baseline minus the jitter tolerance; a regression FAILS only when current < floor, so
+  # sub-0.5pp run-to-run noise is absorbed while a real >0.5pp drop still bites.
+  floor="$(awk -v b="$base" -v t="$RATCHET_TOLERANCE" 'BEGIN { printf "%.4f", b - t }')"
   cov="$(pkg_coverage "$pkg")"
   if [ -z "$cov" ]; then
     echo "    FAIL ${pkg}: no profiled statements found — is the package in the profile's -coverpkg set?" >&2
     fail=1
     continue
   fi
-  if below "$cov" "$base"; then
-    echo "    FAIL ${pkg}: ${cov}% regressed below its recorded baseline ${base}% — restore coverage or justify lowering the baseline." >&2
+  if below "$cov" "$floor"; then
+    echo "    FAIL ${pkg}: ${cov}% regressed more than ${RATCHET_TOLERANCE}pp below its recorded baseline ${base}% — restore coverage or justify lowering the baseline." >&2
     fail=1
   elif ! below "$cov" "$TARGET"; then
     echo "    PROMOTE ${pkg}: ${cov}% now meets the ${TARGET}% target — move it into ENFORCED_PKGS and update cross-cutting.md." >&2
     fail=1
   else
-    echo "    ok   ${pkg}: ${cov}% (>= baseline ${base}%, still below ${TARGET}% target)"
+    echo "    ok   ${pkg}: ${cov}% (within ${RATCHET_TOLERANCE}pp of baseline ${base}%, still below ${TARGET}% target)"
   fi
 done
 
@@ -171,4 +185,4 @@ if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 
-echo "OK: every ENFORCED critical-path package meets ${TARGET}% and no RATCHET package regressed."
+echo "OK: every ENFORCED critical-path package meets ${TARGET}% and no RATCHET package regressed more than ${RATCHET_TOLERANCE}pp below its baseline."

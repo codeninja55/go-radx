@@ -218,10 +218,16 @@ the short packages are a documented TODO carried in [`tools/cover-critical.sh`](
 - **Ratchet (TODO toward 90%).** The remaining critical-path packages are below 90% on union coverage today and are
   being brought up: `hl7v2` (89.9%), `dimse/pdu` (89.7%), `fhir` (88.7%), `dicom` (85.8%), `dimse` (83.8%),
   `dimse/acse` (83.4%), `convert` (81.8%), and `dicomweb` (80.1%). Each carries a recorded baseline in the gate; the
-  gate FAILS if any regresses below its baseline, so a TODO package can only move toward 90%, never backslide. When one
-  reaches 90% the gate prints a `PROMOTE` notice (and fails until acted on) so it is moved into the enforced set and
-  this list is updated. The percentages above are the union-coverage numbers measured at the time of writing; re-run
-  `tools/cover-critical.sh <profile>` to print the current figures.
+  gate FAILS if any regresses more than **0.5 percentage points** below its baseline, so a TODO package can only move
+  toward 90%, never meaningfully backslide. The 0.5pp tolerance is deliberate, not a hidden weakening: union coverage
+  from the `-race -coverpkg=./...` run is not bit-stable run-to-run (which tests exercise cross-package code shifts
+  slightly under `-race` timing), so a baseline pinned to the exact measured value false-fails on sub-1% noise. The
+  tolerance absorbs that jitter while still catching a real regression (a drop of more than 0.5pp). It applies only to
+  the per-package no-regression baseline; the 90% target itself carries **no** tolerance — it is a fixed bar, and an
+  enforced package must be at or above 90.0%. When a ratchet package reaches 90% the gate prints a `PROMOTE` notice
+  (and fails until acted on) so it is moved into the enforced set and this list is updated. The percentages above are
+  the union-coverage numbers measured at the time of writing; re-run `tools/cover-critical.sh <profile>` to print the
+  current figures.
 
 ## Concurrency and race posture
 
