@@ -47,6 +47,16 @@ type releaseAdapter interface {
 	// request bundle and building the response bundle are release-specific.
 	processTransaction(ctx context.Context, bundle fhir.Resource, repo Repository) (fhir.Resource, error)
 
+	// transactionPostEntries returns one transactionPostEntry per POST entry of a transaction Bundle:
+	// the resource the entry would create and the target resource type its request.url names. The role
+	// validates each through the shared create gate before the repository commits, so a transaction
+	// create cannot bypass the validation a direct create enforces. Reading the entries is
+	// release-specific (the entry shape differs between r4 and r5), so it lives on the adapter; an entry
+	// of a verb other than POST is skipped (the repository handles a GET entry, which performs no
+	// create). A POST entry missing its resource is an error so a malformed transaction is rejected
+	// before commit rather than at apply time.
+	transactionPostEntries(bundle fhir.Resource) ([]transactionPostEntry, error)
+
 	// operationOutcome builds a release OperationOutcome resource from a set of issues, for the error
 	// response body. The issues are PHI-free structural locators.
 	operationOutcome(issues []outcomeIssue) fhir.Resource
@@ -54,6 +64,15 @@ type releaseAdapter interface {
 	// capabilityStatement builds the served CapabilityStatement advertising the role's supported
 	// interactions over the workflow resource set.
 	capabilityStatement(basePath string) fhir.Resource
+}
+
+// transactionPostEntry is one create a transaction Bundle would perform, extracted by the adapter so
+// the role can validate it through the shared create gate before the repository commits. resource is
+// the entry's resource (a release concrete type behind fhir.Resource) and targetType is the resource
+// type the entry's request.url names, the transaction analogue of the create endpoint's {type}.
+type transactionPostEntry struct {
+	resource   fhir.Resource
+	targetType string
 }
 
 // outcomeIssue is the release-neutral issue the role hands an adapter to render into a release
@@ -181,6 +200,26 @@ func (a r5Adapter) processTransaction(ctx context.Context, bundle fhir.Resource,
 	}
 	bt := r5.BundleTypeTransactionResponse
 	return &r5.Bundle{Type: &bt, Entry: responses}, nil
+}
+
+func (a r5Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPostEntry, error) {
+	b, ok := bundle.(*r5.Bundle)
+	if !ok {
+		return nil, fmt.Errorf("server: transaction bundle is a %s, not an R5 Bundle", bundle.ResourceType())
+	}
+	var writes []transactionPostEntry
+	for i := range b.Entry {
+		entry := &b.Entry[i]
+		if entry.Request == nil || entry.Request.Method == nil || *entry.Request.Method != r5.HTTPVerbPOST {
+			continue
+		}
+		if entry.Resource == nil {
+			return nil, fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
+		}
+		targetType, _ := splitTypeID(deref(entry.Request.URL))
+		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType})
+	}
+	return writes, nil
 }
 
 func (r5Adapter) operationOutcome(issues []outcomeIssue) fhir.Resource {
@@ -314,6 +353,26 @@ func (a r4Adapter) processTransaction(ctx context.Context, bundle fhir.Resource,
 	}
 	bt := r4.BundleTypeTransactionResponse
 	return &r4.Bundle{Type: &bt, Entry: responses}, nil
+}
+
+func (a r4Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPostEntry, error) {
+	b, ok := bundle.(*r4.Bundle)
+	if !ok {
+		return nil, fmt.Errorf("server: transaction bundle is a %s, not an R4 Bundle", bundle.ResourceType())
+	}
+	var writes []transactionPostEntry
+	for i := range b.Entry {
+		entry := &b.Entry[i]
+		if entry.Request == nil || entry.Request.Method == nil || *entry.Request.Method != r4.HTTPVerbPOST {
+			continue
+		}
+		if entry.Resource == nil {
+			return nil, fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
+		}
+		targetType, _ := splitTypeID(deref(entry.Request.URL))
+		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType})
+	}
+	return writes, nil
 }
 
 func (r4Adapter) operationOutcome(issues []outcomeIssue) fhir.Resource {

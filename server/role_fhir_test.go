@@ -477,6 +477,62 @@ func TestMemoryRepositoryTransactionPreservesConcurrentCreates(t *testing.T) {
 	}
 }
 
+// TestFHIRRoleTransactionValidatesEntries proves a transaction's POST entries go through the same
+// create-validation gate a direct create POST does, so a transaction cannot commit a resource the
+// direct path would reject. An Encounter missing its required status is a 422 OperationOutcome via
+// POST /Encounter; the same Encounter inside a transaction (alongside a valid Patient) must reject the
+// whole transaction and commit nothing — the valid sibling must be absent too, because the transaction
+// is atomic. A transaction whose entries are all valid commits. An out-of-scope resource type inside a
+// transaction is rejected the same way handleCreate rejects an out-of-scope create.
+func TestFHIRRoleTransactionValidatesEntries(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			// A direct create of an Encounter with no status is a 422 (well-formed but unprocessable).
+			status, body, _ := httpDo(t, http.MethodPost, base+"/Encounter", "application/fhir+json",
+				encounterNoStatusJSON(t, release))
+			if status != http.StatusUnprocessableEntity {
+				t.Fatalf("direct create of an invalid Encounter status = %d, want 422; body=%s", status, body)
+			}
+			assertOperationOutcome(t, body, "error")
+
+			// The same invalid Encounter inside a transaction (with a valid Patient sibling) must reject the
+			// whole transaction with an error OperationOutcome and commit nothing.
+			status, body, _ = httpDo(t, http.MethodPost, base, "application/fhir+json",
+				invalidEntryTransactionBundle(t, release))
+			if status != http.StatusUnprocessableEntity {
+				t.Fatalf("transaction with an invalid Encounter status = %d, want 422; body=%s", status, body)
+			}
+			assertOperationOutcome(t, body, "error")
+
+			// Atomic: the valid Patient sibling must not have committed.
+			assertWorkflowCount(t, base, "Patient", 0)
+			assertWorkflowCount(t, base, "Encounter", 0)
+
+			// A transaction whose entries are all valid commits.
+			status, body, _ = httpDo(t, http.MethodPost, base, "application/fhir+json",
+				transactionRequestBundle(t, release))
+			if status != http.StatusOK {
+				t.Fatalf("all-valid transaction status = %d, want 200; body=%s", status, body)
+			}
+			assertWorkflowCount(t, base, "Patient", 1)
+
+			// An out-of-scope resource type inside a transaction is rejected (400), the same class of
+			// rejection handleCreate gives an out-of-scope create, and commits nothing.
+			status, body, _ = httpDo(t, http.MethodPost, base, "application/fhir+json",
+				outOfScopeTransactionBundle(t, release))
+			if status != http.StatusBadRequest {
+				t.Fatalf("transaction with an out-of-scope type status = %d, want 400; body=%s", status, body)
+			}
+			assertOperationOutcome(t, body, "error")
+			// The Patient count is unchanged: the out-of-scope transaction committed nothing.
+			assertWorkflowCount(t, base, "Patient", 1)
+		})
+	}
+}
+
 func TestFHIRRoleCapabilityStatement(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -749,6 +805,97 @@ func collectionBundleBytes(t *testing.T, release fhir.Release) []byte {
 		b, err := r5.NewCollection()
 		if err != nil {
 			t.Fatalf("r5 NewCollection: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	}
+}
+
+// assertWorkflowCount asserts the role serves exactly want resources of resourceType, read through the
+// role's own search so it observes the committed store rather than the repository directly.
+func assertWorkflowCount(t *testing.T, base, resourceType string, want int) {
+	t.Helper()
+	status, body, _ := httpDo(t, http.MethodGet, base+"/"+resourceType, "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("search %s status = %d, want 200; body=%s", resourceType, status, body)
+	}
+	var bundle struct {
+		Total int `json:"total"`
+	}
+	if err := json.Unmarshal(body, &bundle); err != nil {
+		t.Fatalf("search %s bundle decode: %v", resourceType, err)
+	}
+	if bundle.Total != want {
+		t.Fatalf("store holds %d %s, want %d", bundle.Total, resourceType, want)
+	}
+}
+
+// encounterNoStatusJSON builds an Encounter with no status (its required element) as JSON, the
+// well-formed-but-unprocessable resource the create-validation gate rejects with a 422.
+func encounterNoStatusJSON(t *testing.T, release fhir.Release) []byte {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		b, _ := json.Marshal(&r4.Encounter{})
+		return b
+	default:
+		b, _ := json.Marshal(&r5.Encounter{})
+		return b
+	}
+}
+
+// invalidEntryTransactionBundle builds a two-POST transaction whose first entry is a valid Patient and
+// whose second entry is an Encounter missing its required status, so the transaction must reject the
+// whole bundle (atomic) on the invalid entry and commit neither.
+func invalidEntryTransactionBundle(t *testing.T, release fhir.Release) []byte {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		g := r4.AdministrativeGender("female")
+		b, err := r4.NewTransaction(
+			r4.TransactionEntry{Resource: &r4.Patient{Gender: &g}, Method: r4.HTTPVerbPOST, URL: "Patient"},
+			r4.TransactionEntry{Resource: &r4.Encounter{}, Method: r4.HTTPVerbPOST, URL: "Encounter"},
+		)
+		if err != nil {
+			t.Fatalf("r4 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	default:
+		g := r5.AdministrativeGender("female")
+		b, err := r5.NewTransaction(
+			r5.TransactionEntry{Resource: &r5.Patient{Gender: &g}, Method: r5.HTTPVerbPOST, URL: "Patient"},
+			r5.TransactionEntry{Resource: &r5.Encounter{}, Method: r5.HTTPVerbPOST, URL: "Encounter"},
+		)
+		if err != nil {
+			t.Fatalf("r5 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	}
+}
+
+// outOfScopeTransactionBundle builds a single-POST transaction whose entry creates a Medication, a
+// resource type the role does not serve, so the create-validation gate rejects it the same way
+// handleCreate rejects an out-of-scope direct create.
+func outOfScopeTransactionBundle(t *testing.T, release fhir.Release) []byte {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		b, err := r4.NewTransaction(
+			r4.TransactionEntry{Resource: &r4.Medication{}, Method: r4.HTTPVerbPOST, URL: "Medication"},
+		)
+		if err != nil {
+			t.Fatalf("r4 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	default:
+		b, err := r5.NewTransaction(
+			r5.TransactionEntry{Resource: &r5.Medication{}, Method: r5.HTTPVerbPOST, URL: "Medication"},
+		)
+		if err != nil {
+			t.Fatalf("r5 NewTransaction: %v", err)
 		}
 		out, _ := json.Marshal(b)
 		return out

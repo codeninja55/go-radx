@@ -139,13 +139,8 @@ func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resou
 		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body is not a valid FHIR resource")
 		return
 	}
-	if resource.ResourceType() != resourceType {
-		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeInvalid,
-			"resource type "+resource.ResourceType()+" does not match the "+resourceType+" endpoint")
-		return
-	}
-	if oo := h.adapter.validate(resource); oo.HasErrors() {
-		h.writeOutcome(w, r, http.StatusUnprocessableEntity, h.adapter.operationOutcome(toOutcomeIssues(oo)))
+	if status, oo, ok := h.validateCreate(resource, resourceType); !ok {
+		h.writeOutcome(w, r, status, oo)
 		return
 	}
 	created, cerr := h.repo.Create(r.Context(), resource)
@@ -156,6 +151,42 @@ func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resou
 	h.logger.Info("fhir create", zap.String("type", resourceType), zap.String("interaction", "create"))
 	location := h.basePath + "/" + created.ResourceType() + "/" + h.adapter.resourceID(created)
 	h.writeResource(w, r, http.StatusCreated, created, location)
+}
+
+// validateCreate is the one create-validation gate both write paths share: the type-level create POST
+// and every POST entry of a transaction. It enforces, in order, that the target type is a served
+// workflow type, that the resource's own resourceType matches that target, and that the resource
+// passes the release structural validator. targetType is the create endpoint's {type} (handleCreate)
+// or a transaction POST entry's request.url (the transaction pre-commit pass), so a transaction entry
+// cannot bypass a check the direct create enforces. On rejection it returns the HTTP status (400 for a
+// malformed or out-of-scope request, 422 for a well-formed but unprocessable resource), the release
+// OperationOutcome to write, and false; on acceptance it returns 0, nil, true. The returned outcome is
+// PHI-free: it names a resource type, a code, or a structural rule, never a patient value (PRD §9.1).
+func (h *fhirHandler) validateCreate(resource fhir.Resource, targetType string) (int, fhir.Resource, bool) {
+	if !isWorkflowResourceType(targetType) {
+		return http.StatusBadRequest, h.singleIssueOutcome(issueTypeNotSupported,
+			"resource type "+targetType+" is not served by this endpoint"), false
+	}
+	if resource.ResourceType() != targetType {
+		return http.StatusBadRequest, h.singleIssueOutcome(fhir.IssueTypeInvalid,
+			"resource type "+resource.ResourceType()+" does not match the "+targetType+" endpoint"), false
+	}
+	if oo := h.adapter.validate(resource); oo.HasErrors() {
+		return http.StatusUnprocessableEntity, h.adapter.operationOutcome(toOutcomeIssues(oo)), false
+	}
+	return 0, nil, true
+}
+
+// singleIssueOutcome builds a single-error-issue release OperationOutcome, the shared body for an
+// error the role detects itself (an out-of-scope type, a type mismatch). It is the resource form of
+// writeError's body, used where a caller needs the OperationOutcome value rather than writing it
+// directly. The diagnostic is PHI-free (PRD §9.1).
+func (h *fhirHandler) singleIssueOutcome(code fhir.IssueType, diagnostics string) fhir.Resource {
+	return h.adapter.operationOutcome([]outcomeIssue{{
+		Severity:    fhir.SeverityError,
+		Code:        code,
+		Diagnostics: diagnostics,
+	}})
 }
 
 // handleSearch serves a type-level search: it forwards the raw query parameters to the repository
@@ -199,6 +230,15 @@ func (h *fhirHandler) handleTransaction(w http.ResponseWriter, r *http.Request) 
 			"the base endpoint processes a transaction Bundle only, got Bundle.type "+bt)
 		return
 	}
+	// Validate every create the transaction would perform through the same gate handleCreate uses,
+	// before the repository commits anything. A transaction is atomic, so the whole transaction must be
+	// rejected if any entry fails validation; a single invalid entry must not commit alongside its valid
+	// siblings. Without this pass a transaction POST would reach the repository directly and bypass the
+	// whitelist, url/type, and structural-validation checks a direct create enforces.
+	if status, oo, ok := h.validateTransactionWrites(bundle); !ok {
+		h.writeOutcome(w, r, status, oo)
+		return
+	}
 	response, terr := h.repo.Transaction(r.Context(), bundle)
 	if terr != nil {
 		h.writeError(w, r, http.StatusBadRequest, issueTypeProcessing, sanitizeRepoMessage(terr))
@@ -206,6 +246,26 @@ func (h *fhirHandler) handleTransaction(w http.ResponseWriter, r *http.Request) 
 	}
 	h.logger.Info("fhir transaction", zap.String("interaction", "transaction"))
 	h.writeResource(w, r, http.StatusOK, response, "")
+}
+
+// validateTransactionWrites validates every create a transaction Bundle would perform through the
+// shared validateCreate gate, before the repository commits anything. It is the transaction half of
+// the single create-validation path: each POST entry's resource is checked against its request.url
+// target type exactly as a direct create POST is, so the two write paths cannot diverge. Because the
+// transaction is atomic, the first failing entry rejects the whole transaction (nothing commits) — the
+// pass stops and returns that entry's status and OperationOutcome. On full success it returns 0, nil,
+// true and the repository then applies the now-validated entries. The returned outcome is PHI-free.
+func (h *fhirHandler) validateTransactionWrites(bundle fhir.Resource) (int, fhir.Resource, bool) {
+	writes, err := h.adapter.transactionPostEntries(bundle)
+	if err != nil {
+		return http.StatusBadRequest, h.singleIssueOutcome(fhir.IssueTypeInvalid, sanitizeRepoMessage(err)), false
+	}
+	for _, wr := range writes {
+		if status, oo, ok := h.validateCreate(wr.resource, wr.targetType); !ok {
+			return status, oo, false
+		}
+	}
+	return 0, nil, true
 }
 
 // writeResource marshals a resource and writes it with the FHIR JSON content type, optionally with a
