@@ -10,6 +10,7 @@ import (
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/acse"
 	"github.com/codeninja55/go-radx/dimse/dul"
+	"github.com/codeninja55/go-radx/dimse/pdu"
 )
 
 // defaultMaxAssociations bounds concurrent inbound associations when WithMaxAssociations is not
@@ -41,6 +42,13 @@ type serverConfig struct {
 	// than serving every peer the contexts otherwise allow. It is nil by default (every association
 	// the AE-title policy admits is served).
 	associationAuthorizer func(callingAE string, peer net.Addr) error
+	// authenticator, when non-nil, authenticates the user-identity sub-item a requestor presents
+	// (PS3.7 D.3.3.7) at negotiation: a non-nil error rejects the association with an A-ASSOCIATE-RJ
+	// before any service runs; a nil error returns the optional positive-response bytes echoed back in
+	// the A-ASSOCIATE-AC. It is the same negotiation seam as associationAuthorizer, extended to the
+	// identity DICOM itself negotiates. It is nil by default (no user-identity authentication: an
+	// identity a peer presents is accepted without challenge).
+	authenticator func(id *UserIdentity, peer net.Addr) ([]byte, error)
 }
 
 // ServerOption configures a Server at construction.
@@ -125,6 +133,21 @@ func WithGetStorageRoles(sopClasses ...dicom.SOPClassUID) ServerOption {
 // the AE-title policy admits is served).
 func WithAssociationAuthorizer(authorize func(callingAE string, peer net.Addr) error) ServerOption {
 	return func(c *serverConfig) { c.associationAuthorizer = authorize }
+}
+
+// WithAuthenticator authenticates the user identity a requestor presents in its A-ASSOCIATE-RQ (PS3.7
+// D.3.3.7) before any DIMSE service runs — the only association-level authentication DICOM defines.
+// The acceptor consults authenticate after the Calling-AE authorizer and before presentation-context
+// matching, passing the presented identity (nil when the peer presented none) and the peer address; a
+// non-nil error rejects the association with an A-ASSOCIATE-RJ (service-user source), so an
+// unauthenticated peer cannot run any service. When the requestor asked for a positive response, the
+// returned bytes are echoed back as the user-identity server response (a Kerberos server ticket or a
+// SAML response); an empty response with a nil error still accepts. It composes with
+// WithAssociationAuthorizer (the Calling-AE check runs first). A nil authenticate restores the default
+// (an identity a peer presents is accepted without challenge). The identity it receives carries
+// secrets that must never be logged (PRD §9.8).
+func WithAuthenticator(authenticate func(id *UserIdentity, peer net.Addr) ([]byte, error)) ServerOption {
+	return func(c *serverConfig) { c.authenticator = authenticate }
 }
 
 // Server is an embeddable DIMSE SCP. It hosts a Handler, accepts inbound associations, negotiates
@@ -348,6 +371,10 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 		// captured here (the per-association goroutine owns conn) so the authorizer sees both the
 		// Calling AE Title and where the association came from.
 		AuthorizeCalling: s.authorizeCalling(conn.RemoteAddr()),
+		// Carry the configured user-identity authenticator into negotiation so a presented identity is
+		// authenticated (and rejected with an A-ASSOCIATE-RJ on failure) before any service runs (PS3.7
+		// D.3.3.7). The peer address is bound here, as for the Calling-AE authorizer.
+		Authenticate: s.authenticate(conn.RemoteAddr()),
 	}
 	move := moveSupport{ae: s.ae, destinations: s.cfg.moveDestinations}
 	if err := dispatchAssociation(ctx, conn, params, s.ae.config().acseTimeout, s.ae.config().networkTimeout, s.handler, move); err != nil {
@@ -554,6 +581,35 @@ func (s *Server) authorizeCalling(peer net.Addr) func(callingAE string) error {
 	}
 	return func(callingAE string) error {
 		return s.cfg.associationAuthorizer(callingAE, peer)
+	}
+}
+
+// authenticate adapts the configured user-identity authenticator to the acse Authenticate hook,
+// translating the pdu-level user-identity request to the public UserIdentity and binding the peer
+// address captured at accept. It returns nil when no authenticator is configured, so the acceptor
+// accepts a presented identity without challenge. The translated identity carries secrets that the
+// authenticator must not log (PRD §9.8).
+func (s *Server) authenticate(peer net.Addr) func(*pdu.UserIdentityRQ) ([]byte, error) {
+	if s.cfg.authenticator == nil {
+		return nil
+	}
+	return func(rq *pdu.UserIdentityRQ) ([]byte, error) {
+		return s.cfg.authenticator(fromPDUUserIdentityRQ(rq), peer)
+	}
+}
+
+// fromPDUUserIdentityRQ translates the pdu-level user-identity request to the public UserIdentity,
+// returning nil when the requestor presented none so the authenticator sees a nil identity for an
+// anonymous association.
+func fromPDUUserIdentityRQ(rq *pdu.UserIdentityRQ) *UserIdentity {
+	if rq == nil {
+		return nil
+	}
+	return &UserIdentity{
+		Type:                      UserIdentityType(rq.Type),
+		PrimaryField:              rq.PrimaryField,
+		SecondaryField:            rq.SecondaryField,
+		PositiveResponseRequested: rq.PositiveResponseRequested,
 	}
 }
 

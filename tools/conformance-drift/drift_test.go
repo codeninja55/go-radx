@@ -111,15 +111,15 @@ func TestCheckDetectsDrift(t *testing.T) {
 			wantSubj:  "StorageContexts",
 		},
 		{
-			// Reproduces the audit's dicom.md over-claim: a negotiation row is flipped to "Yes" while
-			// still naming an option function the dimse package does not export. The check must bite.
+			// Reproduces the audit's dicom.md over-claim: a negotiation row marked "Yes" names an option
+			// function the dimse package does not export. The check must bite.
 			name: "negotiation feature claimed as supported but the option function is absent",
 			mutate: func(t *testing.T, root string) {
-				claimNegotiationSupported(t, root, "Asynchronous operations window")
+				addOverClaimNegotiationRow(t, root, "Fictional negotiation", "WithNonexistentNegotiation")
 			},
 			counts:    codePresetCounts,
 			wantClass: "negotiation-missing",
-			wantSubj:  "Asynchronous operations window",
+			wantSubj:  "Fictional negotiation",
 		},
 		{
 			name: "missing not-yet-shipped banner",
@@ -204,8 +204,10 @@ func copyTreeForCheck(t *testing.T) string {
 
 	// DiscoverCodePresets and DiscoverDimseFuncs parse the dimse package source, so the fixture
 	// carries the real presets file (preset existence) and the option-function sources the
-	// negotiation table names (negotiation existence) alongside the dimse stability marker above.
-	for _, name := range []string{"presets.go", "ae.go", "association.go"} {
+	// negotiation table names (negotiation existence) alongside the dimse stability marker above:
+	// negotiation.go declares WithAsyncOps/WithUserIdentity/WithExtendedNegotiation/
+	// WithCommonExtendedNegotiation and server.go declares WithAuthenticator.
+	for _, name := range []string{"presets.go", "ae.go", "association.go", "negotiation.go", "server.go"} {
 		copyFile(t, filepath.Join(src, "dimse", name), filepath.Join(dst, "dimse", name))
 	}
 	return dst
@@ -281,29 +283,32 @@ func markPresetNotYetShipped(t *testing.T, root, preset string) {
 	t.Fatalf("preset row for %q not found in dicom.md", preset)
 }
 
-// claimNegotiationSupported flips the support cell of a negotiation row to "Yes" while leaving the
-// notes cell (which names the option function) intact, reproducing an over-claim: a feature marked
-// supported whose option function the dimse package does not export.
-func claimNegotiationSupported(t *testing.T, root, feature string) {
+// addOverClaimNegotiationRow inserts a new negotiation-table row marked "Yes" that names an option
+// function the dimse package does not export, reproducing an over-claim: a feature marked supported
+// whose `With...(` knob does not exist. The row is inserted inside the "## Association negotiation"
+// section (before the next "###" sub-heading) so the section-scoped parser picks it up. Now that
+// every real negotiation feature ships, the over-claim is injected with a fictional function rather
+// than by flipping a real row.
+func addOverClaimNegotiationRow(t *testing.T, root, feature, fn string) {
 	t.Helper()
 	path := filepath.Join(root, "docs", "conformance", "dicom.md")
 	lines := strings.Split(readFile(t, path), "\n")
+	inSection := false
+	row := "| " + feature + " | Yes | `" + fn + "(...)` |"
 	for i, line := range lines {
-		if !strings.HasPrefix(strings.TrimSpace(line), "|") || !strings.Contains(line, feature) {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "## Association negotiation") {
+			inSection = true
 			continue
 		}
-		cells := strings.Split(line, "|")
-		// cells[0] is the empty prefix before the first pipe; cells[1] is the feature, cells[2] the
-		// support marker. Flip support to "Yes" and keep the notes cell so the named function stays.
-		if len(cells) < 4 {
-			continue
+		if inSection && strings.HasPrefix(trimmed, "###") {
+			// Insert the over-claim row just before the next sub-heading, still inside the section.
+			lines = append(lines[:i], append([]string{row, ""}, lines[i:]...)...)
+			writeFile(t, path, strings.Join(lines, "\n"))
+			return
 		}
-		cells[2] = " Yes "
-		lines[i] = strings.Join(cells, "|")
-		writeFile(t, path, strings.Join(lines, "\n"))
-		return
 	}
-	t.Fatalf("negotiation row for %q not found in dicom.md", feature)
+	t.Fatalf("association-negotiation section not found in dicom.md")
 }
 
 // stripBanner removes only the leading blockquote scaffold banner line, leaving any other
