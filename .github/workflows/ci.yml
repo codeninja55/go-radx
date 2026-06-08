@@ -275,8 +275,34 @@ jobs:
         run: go build ./...
       - name: go vet
         run: go vet ./...
+      - name: gofmt
+        # The cmd/radx module is gofmt-clean on its own, scoped to this working-directory so
+        # the check is independent of the root module's gofmt step.
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These cmd/radx files are not gofmt-clean:"; echo "$unformatted"; exit 1
+          fi
+      - name: race tests
+        # The CLI's own race gate: the exit-code totality test, the output-contract test, and
+        # the echo/dump golden-output tests run under the race detector against the in-tree
+        # library (GOWORK=off resolves the replace to ../..). echo's in-process SCP test server
+        # exercises a concurrent association, so -race must be preserved here.
+        run: go test -race ./...
       - name: golangci-lint
         run: mise exec -- golangci-lint run ./...
+      - name: radx --version smoke
+        # Confirm the wired binary runs and prints a coherent build line: --version exits 0 and
+        # emits a non-empty "radx <version> ..." string. This catches a binary that builds but
+        # cannot start (a broken Kong grammar or version-var wiring) before it ships.
+        run: |
+          go build -o /tmp/radx .
+          out="$(/tmp/radx --version 2>&1)"
+          echo "$out"
+          case "$out" in
+            radx\ *) echo "radx --version OK" ;;
+            *) echo "radx --version did not print a coherent build line" >&2; exit 1 ;;
+          esac
       - name: govulncheck
         # Pinned to the same released version as the root govulncheck job so both modules are scanned
         # by an analysis tool whose behaviour is fixed run to run; the vulnerability database stays

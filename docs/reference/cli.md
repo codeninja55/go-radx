@@ -1,10 +1,15 @@
 # radx CLI
 
-!!! warning "Planned design — not yet implemented"
+!!! warning "Partially implemented — foundation landed, command tree in progress"
 
-    This document describes the planned `radx` command-line interface. The CLI is not yet implemented: `cmd/radx`
-    currently builds to a stub that prints a not-yet-implemented notice. The command surface below is the contract the
-    implementation will conform to as commands land.
+    This document describes the `radx` command-line interface. The foundation is implemented: the Kong scaffold, the
+    global output contract, the `RADX_*` environment configuration, the exit-code taxonomy, and the honest-failure
+    rules are in place, and two commands are wired end to end against the library — `echo` (C-ECHO SCU) and `dump`
+    (Part-10 inspection). The remaining commands (`store`, `find`/`get`/`move`, `scp`, `modify`, `organize`,
+    `lookup`, `catalogue`, and the `hl7`, `dicomweb`, `convert`, and `serve` groups) are registered as committed
+    surface so the command tree is stable, but they fail closed — each returns a typed "not implemented" error and
+    exits `1` until its implementation lands. The command surface below is the contract every command conforms to as
+    it ships.
 
 The `radx` command-line interface is go-radx's flagship first-party consumer. It is the tool that proves the library
 API is usable, and it serves practitioners and operators who want dcmtk-class breadth from a single binary. It lives in
@@ -314,13 +319,19 @@ radx dump <path>... [flags]
   -t, --tag=<tag>...        Show only these tags ((GGGG,EEEE), GGGGEEEE, or keyword)
   -g, --group=<group>...    Show only these groups (GGGG or a group name, e.g. "patient")
       --process-pixel-data  Parse pixel-data elements (off by default)
+      --redact              Mask PHI-sensitive element values as [redacted]
       --ignore-errors       Exit 0 even if some inputs failed (exploratory)
 ```
 
-Input: file or directory paths. Output: in `human`, an indented element listing per file; in `json`, a tag-keyed object
-per file; in `csv`, one row per element. Pixel-data values are not rendered as PHI; the listing names structure, not
-patient values (PRD §9.1). If any input fails to parse, `dump` exits `3` and the per-file machine output flags which
-file failed; the prototype logged and returned nil (RADX-012). `--ignore-errors` opts into a zero exit.
+Input: file or directory paths (with `-R` to recurse). Output: in `human`, an indented element listing per file; in
+`json`, a tag-keyed object per file (a single file is one object, multiple files are a JSON Lines stream so the output
+stays parseable); in `csv`, one row per element. Element values are shown by default — a dump is an explicit,
+authorized inspection of a file you already hold (the dcmtk `dcmdump` posture); the no-PHI rule targets ambient logging,
+not a command you deliberately ran on a local file. `--redact` masks the values of PHI-sensitive elements (the PS3.15
+confidentiality attributes) to `[redacted]` so you can share a listing; the structure is always shown. Pixel-data values
+stay out of the listing unless `--process-pixel-data` is set. If any input fails to parse, `dump` exits `3` and the
+per-file machine output flags which file failed; the prototype logged and returned nil (RADX-012). `--ignore-errors`
+opts into a zero exit.
 
 ### modify — edit tags and regenerate UIDs
 

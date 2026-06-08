@@ -203,3 +203,26 @@ run = "mkdocs build --strict"
 # Requires mkdocs + mkdocs-material on PATH (see docs:build).
 description = "Preview the mkdocs documentation site locally with live reload"
 run = "mkdocs serve"
+
+[tasks."radx:build"]
+description = "Build the radx CLI from its own module (GOWORK=off) into cmd/radx/radx (gitignored)"
+# GOWORK=off resolves the cmd/radx replace to the in-tree library (../..), exactly as the
+# cmd-radx CI job and a downstream `go build` of the CLI module see it. The output path
+# (cmd/radx/radx) is the one .gitignore already excludes, so the tracked-binary-hygiene gate
+# stays satisfied. The release stamp is overridable via -ldflags; a plain build falls back to
+# the embedded VCS stamp (radx --version reads runtime/debug.ReadBuildInfo when the vars are
+# unset). To stamp a release, append:
+#   -ldflags "-X github.com/codeninja55/go-radx/cmd/radx/internal/cli.version=vX.Y.Z \
+#             -X .../internal/cli.commit=$(git rev-parse --short HEAD) \
+#             -X .../internal/cli.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+dir = "cmd/radx"
+env = { GOWORK = "off" }
+run = "go build -o radx ."
+
+[tasks."radx:run"]
+description = "Run the radx CLI from its own module (GOWORK=off); pass args after --"
+# `mise run radx:run -- echo localhost 11112 --format json` runs the in-tree CLI without a
+# build artefact. GOWORK=off keeps resolution identical to the gated CI build.
+dir = "cmd/radx"
+env = { GOWORK = "off" }
+run = "go run ."
