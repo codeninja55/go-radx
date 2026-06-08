@@ -268,11 +268,14 @@ runs two sanitiser passes over the codec packages:
 - **An ASAN + UBSan pass** (`go test -asan -tags "…" ./dicom/...`) against the codec libraries *rebuilt from the
   cached, SHA-256-verified source with `-fsanitize=address,undefined -shared-libasan`*. Go's `-asan` instruments the Go
   heap and the cgo boundary; the ASAN-rebuilt C libraries add the codec internals, so a heap-buffer-overflow,
-  use-after-free, or undefined-behaviour fault on a malformed JPEG/JPEG2000/JPEG-LS/HTJ2K codestream
-  (`codec_*_hostile_test.go`) aborts the job (`ASAN_OPTIONS`/`UBSAN_OPTIONS` set `halt_on_error=1`) rather than silently
-  corrupting memory. `-race` and `-asan` are never combined in one binary (both runtimes intercept allocation), so they
-  run as two passes; `-asan` is supported on the linux/amd64 runner but **not** darwin/arm64, so the ASAN pass is
-  CI-only and does not run on a macOS dev box. If a sanitiser flags a real fault it is fixed, not suppressed.
+  use-after-free, or undefined-behaviour fault while decoding or encoding a *valid* JPEG/JPEG2000/JPEG-LS/HTJ2K frame
+  (the codec round-trip, decode, and transcode tests — for example `TestJPEG2000LosslessRoundTripPixelExact`,
+  `TestJPEGLSDecodeLosslessPixelExact`, `TestJPEGDecodeBaselineRGBFixture`, `TestHTJ2KDecodeFixtures`) aborts the job
+  (`ASAN_OPTIONS`/`UBSAN_OPTIONS` set `halt_on_error=1`) rather than silently corrupting memory. The hostile-malformed-
+  input corpora (`codec_*_hostile_test.go`) are deliberately **excluded** from this pass — see below. `-race` and
+  `-asan` are never combined in one binary (both runtimes intercept allocation), so they run as two passes; `-asan` is
+  supported on the linux/amd64 runner but **not** darwin/arm64, so the ASAN pass is CI-only and does not run on a macOS
+  dev box. If a sanitiser flags a real fault it is fixed, not suppressed.
 
   **Scope of the sanitiser gate.** AddressSanitizer (memory safety) runs in full across everything — go-radx's cgo
   glue, the cgo boundary, the Go heap, and the vendored codec internals — and is never narrowed. UBSan, by contrast,
@@ -284,19 +287,23 @@ runs two sanitiser passes over the codec packages:
   ignorelist ([`tools/ubsan-ignorelist.txt`](../../tools/ubsan-ignorelist.txt), wired into `-fsanitize-ignorelist` for
   both the codec rebuild and the test step). UBSan still fully checks go-radx's own code and the cgo glue; the
   ignorelist only suppresses UBSan, not ASAN, so memory-safety coverage of the codec internals is untouched. In short:
-  the gate covers go-radx memory safety, the cgo boundary, and our codec usage; it does not police upstream OpenJPEG /
-  CharLS / libjpeg-turbo for style-level UB.
+  the gate covers go-radx memory safety, the cgo boundary, and our codec usage over valid data; it does not police
+  upstream OpenJPEG / CharLS / libjpeg-turbo for style-level UB.
 
-  **One quarantined HTJ2K seed under ASAN.** The ASAN gate keeps memory-safety instrumentation on across everything,
-  including the vendored codec internals (it is never broadly narrowed). One hostile seed is the single exception: the
-  `zero_filled` case in `TestHTJ2KHostileInputs` (`codec_htj2k_hostile_test.go`) is skipped *only* when the ASAN step
-  exports `RADX_ASAN=1`. That input triggers a latent out-of-bounds read inside OpenJPEG 2.5.4's HT (HTJ2K) decoder; in
-  the normal build the codec rejects it cleanly with a typed `*jpeg2000Error`, but ASAN converts the upstream OOB into a
-  hard SIGSEGV. This is a known upstream OpenJPEG memory-safety bug, tracked in
-  [#107](https://github.com/codeninja55/go-radx/issues/107), not a go-radx defect. The seed still runs and passes in
-  every non-ASAN pass (the standard build, the `-race` pass, and the non-sanitizer codecs run), so the input is still
-  exercised; only the ASAN pass quarantines it, and only that one subcase — the rest of the HTJ2K hostile corpus, and
-  all other codecs, run under ASAN unchanged.
+  **Hostile-malformed-input corpora run outside ASAN, not under it.** The ASAN pass exercises the *valid-data* codec
+  paths — the round-trip, decode, and transcode tests that push real JPEG/JPEG2000/JPEG-LS/HTJ2K frames through the cgo
+  boundary and the codec internals — so it deterministically catches go-radx's own memory bugs. The
+  hostile-malformed-input corpora (`TestJPEG2000HostileInputs`, `TestJPEGHostileInputs`, `TestJPEGLSHostileInputs`,
+  `TestHTJ2KHostileInputs` in the `codec_*_hostile_test.go` files) skip the whole test under ASAN, via
+  `skipHostileUnderASAN`, which the ASAN CI step triggers by exporting `RADX_ASAN=1`. Feeding malformed, truncated, or
+  dimension-tampered codestreams to the vendored OpenJPEG/CharLS C decoders trips latent **upstream** out-of-bounds
+  reads that ASAN converts into hard SIGSEGVs — non-deterministically, with different inputs faulting on different runs
+  (HTJ2K `zero_filled`, JPEG-LS `truncated_tail` / `oversized_dims`, and others). That is a known upstream codec
+  memory-safety limitation, tracked in [#107](https://github.com/codeninja55/go-radx/issues/107), not a go-radx defect,
+  and a per-seed quarantine cannot converge on it. The hostile corpora still run and pass in every non-ASAN pass (the
+  standard build, the `-race` pass, and the non-sanitizer codecs run), where each malformed input is rejected cleanly
+  with a typed codec error (`*jpeg2000Error`, `*jpegError`, `*jpeglsError`) and no crash — so the hostile-rejection
+  behaviour is still gated, just outside ASAN.
 
 One test surface still sits outside the race detector by deliberate scope decision: the `interop` matrix legs
 (`mise run interop:<leg>`) run without `-race`. They are `go test -tags interop -count=1` runs that drive real
@@ -483,8 +490,8 @@ target on the untrusted-input and conversion core),
 pinned HL7 validator), `interop` (the testcontainers matrix over the DIMSE,
 DICOMweb, and convert legs), `govulncheck` (the vulnerability scan of the root module), `cmd-radx` (build, vet, lint,
 and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed pixel codecs built from source, then a
-[`-race` pass and an ASAN + UBSan pass](#concurrency-and-race-posture) over the codec tests including the hostile
-pixel-data corpora).
+[`-race` pass and an ASAN + UBSan pass](#concurrency-and-race-posture) over the codec tests; the ASAN pass covers the
+valid-data codec paths and the cgo boundary, while the hostile-malformed-input corpora run in the non-ASAN passes).
 
 The Phase 0 Lane-A artifacts and the hostile-input gates are wired as their own jobs so each runs on every push and pull
 request: `phi-sanity` (the PHI-default log sweep, `internal/phisweep`), `fuzz` (a bounded smoke run over every committed

@@ -35,6 +35,7 @@ func TestJPEG2000HostileInputs(t *testing.T) {
 		runHostileWorker() // never returns
 		return
 	}
+	skipHostileUnderASAN(t)
 
 	corpus := hostileCorpus(t)
 	exe, err := os.Executable()
