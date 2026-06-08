@@ -1008,7 +1008,9 @@ boundaries, each stage gated by its own tests:
 > validating decode and documented not-inlined boundaries for non-enumerable terminology, FHIR-013) are generated into
 > `fhir/r5`. The hand-written Bundle builders and reference helpers are shipped, and the release-agnostic structural
 > `Validate` engine (driven by a generated per-resource descriptor in `fhir/r5/validation_descriptors.go`) is shipped.
-> The `_summary` serialiser and the generated `fhir/r4` output are not yet shipped.
+> The `_summary` serialiser (`MarshalSummary`) and the generated `fhir/r4` output are shipped: `fhir/r4` is generated
+> end to end from the 4.0.1 definition bundle and conformance-tested by the merge-blocking HL7 validator gate alongside
+> R5.
 
 ## What this statement fixes (re-foundation note)
 
