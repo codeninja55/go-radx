@@ -57,7 +57,7 @@ func (c *Client) Read(ctx context.Context, resourceType, id string) (*Result, er
 	if resp.status != http.StatusOK {
 		return nil, c.errorForResponse(http.MethodGet, path, resp)
 	}
-	return c.resultFromResponse(resp)
+	return c.resultFromReadResponse(resp)
 }
 
 // VRead returns a specific historical version of one resource by type, id, and versionId (the
@@ -77,7 +77,7 @@ func (c *Client) VRead(ctx context.Context, resourceType, id, versionID string) 
 	if resp.status != http.StatusOK {
 		return nil, c.errorForResponse(http.MethodGet, path, resp)
 	}
-	return c.resultFromResponse(resp)
+	return c.resultFromReadResponse(resp)
 }
 
 // Create stores a new resource (POST [type]). The resource's ResourceType determines the endpoint;
@@ -238,6 +238,37 @@ func (c *Client) resultFromResponse(resp *response) (*Result, error) {
 		return nil, err
 	}
 	result.Resource = r
+	if id := resourceLogicalID(r); id != "" {
+		result.ID = id
+	}
+	return result, nil
+}
+
+// resultFromReadResponse lifts a successful read response (read, vread) into a Result. Unlike a
+// write, a read must return data: a 200 with no body is an error, not a return=minimal success, so a
+// misbehaving server or proxy that strips the body is never reported as a successful read of nothing.
+// decodeResource enforces the non-empty body; the response metadata is then attached around the
+// decoded resource.
+func (c *Client) resultFromReadResponse(resp *response) (*Result, error) {
+	r, err := c.decodeResource(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	location := resp.header.Get("Location")
+	if location == "" {
+		location = resp.header.Get("Content-Location")
+	}
+	etag := resp.header.Get("ETag")
+
+	result := &Result{
+		Resource:     r,
+		ETag:         etag,
+		Location:     location,
+		LastModified: resp.header.Get("Last-Modified"),
+		VersionID:    versionIDFromHeaders(etag, location),
+		ID:           idFromLocation(location),
+	}
 	if id := resourceLogicalID(r); id != "" {
 		result.ID = id
 	}

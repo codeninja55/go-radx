@@ -78,6 +78,13 @@ func (s *fakeServer) handler(t *testing.T) http.Handler {
 func (s *fakeServer) handleInstance(w http.ResponseWriter, r *http.Request, rt, id string) {
 	switch r.Method {
 	case http.MethodGet:
+		// "_empty" models a misbehaving server or proxy that answers a read with a 200 and no body. A
+		// read must return data, so the client treats this as an error, never a nil-resource success.
+		if id == "_empty" {
+			w.Header().Set("Content-Type", mediaTypeFHIRJSON)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		s.mu.Lock()
 		body, ok := s.store[rt+"/"+id]
 		etag := s.version[rt+"/"+id]
@@ -461,6 +468,38 @@ func TestReadNotFoundMapsToErrNotFound(t *testing.T) {
 			_, err := c.Read(context.Background(), "Patient", "does-not-exist")
 			if !errors.Is(err, rest.ErrNotFound) {
 				t.Fatalf("Read of absent resource: err = %v, want ErrNotFound", err)
+			}
+		})
+	}
+}
+
+func TestReadEmptyBodyIsError(t *testing.T) {
+	for _, release := range releases() {
+		t.Run(string(release), func(t *testing.T) {
+			c, _ := startClient(t, release)
+			ctx := context.Background()
+
+			// A 200 with no body must be an error for a read: a read promises a resource, so a bodyless
+			// 200 is a misbehaving server, not a return=minimal success that yields a nil resource.
+			if _, err := c.Read(ctx, "Patient", "_empty"); err == nil {
+				t.Fatal("Read of a bodyless 200 returned nil error, want a missing-body error")
+			}
+
+			// A normal read still returns the resource, so requiring a body does not break the happy path.
+			created, err := c.Create(ctx, newPatient(release, "female"), "")
+			if err != nil {
+				t.Fatalf("Create: %v", err)
+			}
+			id := resourceID(t, created.Resource)
+			read, err := c.Read(ctx, "Patient", id)
+			if err != nil {
+				t.Fatalf("Read: %v", err)
+			}
+			if read.Resource == nil {
+				t.Fatal("Read returned a nil resource on a normal 200")
+			}
+			if got := read.Resource.ResourceType(); got != "Patient" {
+				t.Errorf("Read: resourceType = %q, want Patient", got)
 			}
 		})
 	}
