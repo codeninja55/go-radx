@@ -195,6 +195,14 @@ func (c *CatalogueCmd) runQuery(rc *RunContext) error {
 	if err != nil {
 		return err
 	}
+	// Query mode reads an EXISTING catalogue; it must never conjure one. server.SQLiteCatalogue opens
+	// with CREATE TABLE IF NOT EXISTS, so a mistyped --database path would otherwise create and migrate
+	// an empty file and stream zero matches at exit 0 — indistinguishable from a real catalogue with no
+	// hits. Stat the file first so a missing path returns its *os.PathError (wrapping fs.ErrNotExist),
+	// which exitcode.Classify routes to FileIOError (exit 5): a missing input, not a clean empty result.
+	if _, statErr := os.Stat(c.Database); statErr != nil {
+		return statErr
+	}
 	// A catalogue indexed with --redact stores PHI columns (PatientID/PatientName) as one-way
 	// hashes, so an exact filter only matches when the backend hashes the query value the same way.
 	// Opening the query with the redaction setting used at index time is therefore required: a

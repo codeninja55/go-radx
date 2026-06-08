@@ -71,6 +71,21 @@ func TestCatalogueIndexAndQuery(t *testing.T) {
 	}
 }
 
+// TestCatalogueQueryMissingDatabaseExits5 confirms a --query against a non-existent catalogue is a
+// file-I/O failure (exit 5), not a silent empty success: query mode reads an existing catalogue, so a
+// mistyped --database path must refuse the run rather than create and migrate an empty file and stream
+// zero matches at exit 0. The database file is never created.
+func TestCatalogueQueryMissingDatabaseExits5(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "does-not-exist.db")
+	_, _, code := runRadx(t, "catalogue", "--format", "json", "--database", db, "--query", "Modality=CT")
+	if code != exitcode.FileIOError {
+		t.Fatalf("query of a missing catalogue exit = %d, want %d (file-I/O failure, not a clean empty result)", code, exitcode.FileIOError)
+	}
+	if _, err := os.Stat(db); !os.IsNotExist(err) {
+		t.Errorf("query of a missing catalogue created the database file; query mode must not conjure a catalogue")
+	}
+}
+
 // TestCataloguePHIGate is the privacy regression: indexing PHI columns without --confirm-phi is a
 // usage error (the catalogue is an opt-in PHI store, RADX-007), and --redact indexes without the
 // acknowledgement.
