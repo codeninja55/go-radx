@@ -439,15 +439,26 @@ jobs:
       # decode path under it. This is the codec-scoped complement to the pure-Go standing race gate.
       - name: Race pass over codec packages
         run: go test -race -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
+      # Clang is the compiler for the whole ASAN/UBSan pass (the rebuild below and the `go test -asan`
+      # step). ubuntu-latest defaults cgo/cmake to GCC, and GCC rejects `-shared-libasan` (it links
+      # libasan statically and has no such flag), so a GCC configure fails before any sanitizer runs.
+      # Clang accepts `-shared-libasan`, which lets the instrumented C libraries and `go test -asan`
+      # (which preloads its own ASAN runtime) share ONE shared ASAN runtime instead of fighting two
+      # static copies. clang/clang++ are preinstalled on ubuntu-latest; install fail-safe in case the
+      # image drops them.
+      - name: Install clang for the ASAN pass
+        run: sudo apt-get install -y clang
       # Rebuild the three codec libraries from the cached, already-verified source with AddressSanitizer
       # + UndefinedBehaviorSanitizer instrumentation, installed over the Release libs (this runs after
-      # the Release build/test/lint and the race pass, which used the clean libs). -shared-libasan links
-      # the shared ASAN runtime so `go test -asan` (which preloads its own ASAN runtime) and the
-      # instrumented C libraries agree on one runtime rather than fighting two. -fno-omit-frame-pointer
+      # the Release build/test/lint and the race pass, which used the clean libs). CC/CXX force clang so
+      # -shared-libasan is accepted (see the install step). -shared-libasan links the shared ASAN runtime
+      # so `go test -asan` and the instrumented C libraries agree on one runtime. -fno-omit-frame-pointer
       # keeps the C stack legible in any report. The source is already extracted and SHA-256-verified by
       # the build steps above, so this only recompiles.
       - name: Rebuild codec libs with ASAN + UBSan
         env:
+          CC: clang
+          CXX: clang++
           SAN_FLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -shared-libasan"
         run: |
           set -e
@@ -459,6 +470,7 @@ jobs:
               *)               extra="-DBUILD_SHARED_LIBS=ON" ;;
             esac
             cmake -S "$d" -B "$d/build-asan" -DCMAKE_BUILD_TYPE=RelWithDebInfo $extra \
+              -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
               -DCMAKE_C_FLAGS="$SAN_FLAGS" -DCMAKE_CXX_FLAGS="$SAN_FLAGS"
             cmake --build "$d/build-asan" -j"$(nproc)"
             sudo cmake --install "$d/build-asan"
@@ -475,8 +487,13 @@ jobs:
       # not suppress it.
       - name: ASAN + UBSan pass over codec tests (hostile pixel data)
         env:
-          CGO_CFLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer"
-          CGO_LDFLAGS: "-fsanitize=address,undefined"
+          # cgo must compile the C boundary with clang too, so it links the SAME clang shared ASAN
+          # runtime the codec libs were rebuilt against above; a GCC-compiled cgo boundary would pull in
+          # GCC's static libasan and the two runtimes would clash at load.
+          CC: clang
+          CXX: clang++
+          CGO_CFLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -shared-libasan"
+          CGO_LDFLAGS: "-fsanitize=address,undefined -shared-libasan"
           ASAN_OPTIONS: "halt_on_error=1:abort_on_error=1:detect_leaks=0:print_stacktrace=1"
           UBSAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
         run: go test -asan -tags "dicom_openjpeg dicom_libjpeg dicom_charls" ./dicom/...
