@@ -319,13 +319,19 @@ radx dump <path>... [flags]
   -t, --tag=<tag>...        Show only these tags ((GGGG,EEEE), GGGGEEEE, or keyword)
   -g, --group=<group>...    Show only these groups (GGGG or a group name, e.g. "patient")
       --process-pixel-data  Parse pixel-data elements (off by default)
+      --redact              Mask PHI-sensitive element values as [redacted]
       --ignore-errors       Exit 0 even if some inputs failed (exploratory)
 ```
 
-Input: file or directory paths. Output: in `human`, an indented element listing per file; in `json`, a tag-keyed object
-per file; in `csv`, one row per element. Pixel-data values are not rendered as PHI; the listing names structure, not
-patient values (PRD §9.1). If any input fails to parse, `dump` exits `3` and the per-file machine output flags which
-file failed; the prototype logged and returned nil (RADX-012). `--ignore-errors` opts into a zero exit.
+Input: file or directory paths (with `-R` to recurse). Output: in `human`, an indented element listing per file; in
+`json`, a tag-keyed object per file (a single file is one object, multiple files are a JSON Lines stream so the output
+stays parseable); in `csv`, one row per element. Element values are shown by default — a dump is an explicit,
+authorized inspection of a file you already hold (the dcmtk `dcmdump` posture); the no-PHI rule targets ambient logging,
+not a command you deliberately ran on a local file. `--redact` masks the values of PHI-sensitive elements (the PS3.15
+confidentiality attributes) to `[redacted]` so you can share a listing; the structure is always shown. Pixel-data values
+stay out of the listing unless `--process-pixel-data` is set. If any input fails to parse, `dump` exits `3` and the
+per-file machine output flags which file failed; the prototype logged and returned nil (RADX-012). `--ignore-errors`
+opts into a zero exit.
 
 ### modify — edit tags and regenerate UIDs
 
