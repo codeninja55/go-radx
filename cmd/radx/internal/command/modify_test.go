@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/codeninja55/go-radx/cmd/radx/internal/exitcode"
@@ -187,5 +188,63 @@ func TestModifyInPlaceWriteFailureLeavesOriginalIntact(t *testing.T) {
 			names = append(names, e.Name())
 		}
 		t.Errorf("a stray temp file was left behind: dir entries = %v, want only the original", names)
+	}
+}
+
+// TestModifyOutputDirBasenameCollisionFailsClosed confirms that two inputs whose base names collide
+// under --output-dir do not silently overwrite one another: the run errors and the later input is
+// not falsely reported successful. The prior code flattened every source to filepath.Base and the
+// write truncated, so b/IM0001.dcm silently clobbered a/IM0001.dcm while both were reported success.
+func TestModifyOutputDirBasenameCollisionFailsClosed(t *testing.T) {
+	root := t.TempDir()
+	dirA := filepath.Join(root, "a")
+	dirB := filepath.Join(root, "b")
+	if err := os.MkdirAll(dirA, 0o700); err != nil {
+		t.Fatalf("mkdir a: %v", err)
+	}
+	if err := os.MkdirAll(dirB, 0o700); err != nil {
+		t.Fatalf("mkdir b: %v", err)
+	}
+
+	// Two distinct instances with the SAME base name in different directories.
+	srcA := writeStorableDICOMNamed(t, dirA, "1.2.3.4.600.60", "IM0001.dcm")
+	srcB := writeStorableDICOMNamed(t, dirB, "1.2.3.4.600.61", "IM0001.dcm")
+
+	outDir := filepath.Join(root, "out")
+	stdout, _, code := runRadx(t, "modify", "--format", "json",
+		"--output-dir", outDir, "--insert", "PatientID=ANON-060", srcA, srcB)
+	if code == exitcode.Success {
+		t.Fatalf("colliding output names exited 0; want non-zero\nstdout=%q", stdout)
+	}
+
+	// The first input wrote its output; the second must be reported a failure, never a silent
+	// overwrite. Decode the JSON object stream and check the per-file outcomes.
+	dec := json.NewDecoder(strings.NewReader(stdout))
+	var results []modifyResult
+	for {
+		var r modifyResult
+		if err := dec.Decode(&r); err != nil {
+			break
+		}
+		results = append(results, r)
+	}
+	if len(results) != 2 {
+		t.Fatalf("want a result per input, got %d:\n%s", len(results), stdout)
+	}
+	if results[0].Status != "success" {
+		t.Errorf("first input status = %q, want success", results[0].Status)
+	}
+	if results[1].Status != "failure" {
+		t.Errorf("second (colliding) input status = %q, want failure (no silent overwrite)", results[1].Status)
+	}
+
+	// Exactly one output file exists, and it is the one written by the first input.
+	out := filepath.Join(outDir, "IM0001.dcm")
+	f, err := dicom.ReadFile(out)
+	if err != nil {
+		t.Fatalf("read written output: %v", err)
+	}
+	if got, _ := f.DataSet.GetString(dicom.TagSOPInstanceUID); got != "1.2.3.4.600.60" {
+		t.Errorf("written output SOP Instance UID = %q, want the first input's 1.2.3.4.600.60", got)
 	}
 }

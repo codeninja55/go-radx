@@ -66,6 +66,14 @@ func startStorageServer(t *testing.T, failInstance string) (host string, port in
 // Storage SCP needs, with a caller-chosen SOP Instance UID so a test can target it for failure.
 func writeStorableDICOM(t *testing.T, dir, sopInstanceUID string) string {
 	t.Helper()
+	return writeStorableDICOMNamed(t, dir, sopInstanceUID, strings.ReplaceAll(sopInstanceUID, ".", "_")+".dcm")
+}
+
+// writeStorableDICOMNamed is writeStorableDICOM with a caller-chosen file name, so a test can write
+// two distinct instances that share a base name in different directories (the --output-dir collision
+// case).
+func writeStorableDICOMNamed(t *testing.T, dir, sopInstanceUID, name string) string {
+	t.Helper()
 	ds := dicom.NewDataSet()
 	ds.SetString(dicom.TagSOPClassUID, "1.2.840.10008.5.1.4.1.1.2") // CT Image Storage
 	ds.SetString(dicom.TagSOPInstanceUID, sopInstanceUID)
@@ -73,7 +81,7 @@ func writeStorableDICOM(t *testing.T, dir, sopInstanceUID string) string {
 	ds.SetString(dicom.TagSeriesInstanceUID, "1.2.3.4.5.2")
 	ds.SetString(dicom.TagModality, "CT")
 
-	path := filepath.Join(dir, strings.ReplaceAll(sopInstanceUID, ".", "_")+".dcm")
+	path := filepath.Join(dir, name)
 	if err := ds.WriteFile(path, dicom.ExplicitVRLittleEndian); err != nil {
 		t.Fatalf("write storable DICOM: %v", err)
 	}

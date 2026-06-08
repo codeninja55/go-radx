@@ -125,6 +125,14 @@ func (c *ModifyCmd) Run(rc *RunContext) error {
 // later input that would clobber an earlier output is refused rather than silently overwriting it.
 func (c *ModifyCmd) modifyOne(path string, plan modifyPlan, gen *dicom.UIDGenerator, written map[string]string) (modifyResult, error) {
 	dest := c.destinationFor(path)
+	if prior, clash := written[dest]; clash {
+		// Two inputs flatten to the same --output-dir path. Overwriting the earlier output would
+		// destroy a file already reported successful, so fail closed: a collision is an error, never
+		// a silent data loss (the no-silent-data-loss rule). The structural detail names paths only.
+		err := &exitcode.UsageErr{Message: fmt.Sprintf(
+			"output collision: %q and %q both write to %q; rename an input or use distinct output names", prior, path, dest)}
+		return modifyResult{File: path, Status: "failure", Error: structuralError(err)}, err
+	}
 
 	f, err := dicom.ReadFile(path)
 	if err != nil {
