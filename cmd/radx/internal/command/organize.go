@@ -145,52 +145,26 @@ func (c *OrganizeCmd) place(src, dest string) error {
 		}
 		// A cross-device rename fails; fall back to copy-then-remove so a move still works across
 		// filesystems rather than failing the whole run.
-		if err := copyFileExclusive(src, dest, c.Overwrite); err != nil {
+		if err := copyFileAtomic(src, dest, c.Overwrite); err != nil {
 			return err
 		}
 		return os.Remove(src)
 	}
-	return copyFileExclusive(src, dest, c.Overwrite)
+	return copyFileAtomic(src, dest, c.Overwrite)
 }
 
-// copyFileExclusive copies src to dest. Without overwrite it creates dest exclusively (O_EXCL), so a
-// concurrent or duplicate write cannot truncate an existing file; a failure removes the partial it
-// created, which is safe because no prior destination existed. With overwrite it replaces dest with
-// successful-or-nothing semantics: it copies into a sibling temp file, fsyncs and closes it, and only
-// renames it over dest once the whole copy is durable. An existing destination is therefore never
-// truncated up front (the prior O_TRUNC path destroyed it before the copy, so a failed copy left no
-// file at all — a clinical-data-safety defect); on any failure the temp file is removed and the
-// existing destination is left byte-for-byte intact.
-func copyFileExclusive(src, dest string, overwrite bool) error {
-	if overwrite {
-		return copyFileAtomic(src, dest)
-	}
-
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = in.Close() }()
-
-	out, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o640)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		_ = out.Close()
-		_ = os.Remove(dest)
-		return err
-	}
-	return out.Close()
-}
-
-// copyFileAtomic copies src over dest with successful-or-nothing semantics, mirroring
-// writeDataSetAtomic for the raw-byte copy case. It writes to a temp file in dest's directory,
-// fsyncs and closes it, and renames it over dest only after the copy and close both succeed (a
-// rename within one directory does not cross device boundaries). On any failure the temp file is
-// removed and the existing destination is left untouched, so an --overwrite that fails mid-copy
-// never destroys the file it was replacing.
-func copyFileAtomic(src, dest string) error {
+// copyFileAtomic copies src to dest with successful-or-nothing semantics in both modes, mirroring
+// writeDataSetAtomic for the raw-byte copy case. It copies into a sibling temp file, fsyncs and
+// closes it, and commits the fully written temp into place only after the copy and close both succeed
+// (a rename or link within one directory does not cross device boundaries). With overwrite the commit
+// is an atomic rename that replaces any existing dest; without overwrite the commit is a hard link
+// that fails if dest already exists, preserving exclusive-create semantics atomically (no
+// probe-then-write gap a racing writer could exploit). On any failure the temp file is removed and an
+// existing destination is left untouched, so a delayed writeback failure (a Close error on a full
+// disk or NFS) leaves NO file at dest. The earlier non-overwrite path wrote straight into an O_EXCL
+// handle and returned out.Close() last, so a Close failure left a truncated .dcm behind that a later
+// run treated as an existing destination — violating successful-or-nothing for clinical data.
+func copyFileAtomic(src, dest string, overwrite bool) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -203,14 +177,15 @@ func copyFileAtomic(src, dest string) error {
 		return err
 	}
 	tmpName := tmp.Name()
-	// Any path out of this function that has not renamed the temp into place removes it, so a failure
-	// never leaves a stray partial file beside the destination.
+	// Any path out of this function that has not committed the temp removes it, so a failure never
+	// leaves a stray partial file beside the destination. The exclusive route also removes the temp
+	// after a successful link, since the linked dest is the durable copy and the temp is now redundant.
 	committed := false
 	defer func() {
 		if !committed {
 			_ = tmp.Close()
-			_ = os.Remove(tmpName)
 		}
+		_ = os.Remove(tmpName)
 	}()
 
 	if _, err := io.Copy(tmp, in); err != nil {
@@ -222,11 +197,11 @@ func copyFileAtomic(src, dest string) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpName, dest); err != nil {
-		return err
-	}
 	committed = true
-	return nil
+	if overwrite {
+		return os.Rename(tmpName, dest)
+	}
+	return os.Link(tmpName, dest)
 }
 
 // dicomSourceFiles lists the *.dcm files to organise. With recursive set it descends the whole

@@ -222,3 +222,90 @@ func TestOrganizeOverwriteFailurePreservesDestination(t *testing.T) {
 		t.Errorf("destination changed after a failed overwrite; want byte-identical to the original")
 	}
 }
+
+// TestCopyFileAtomicExclusiveCreatesDest confirms the non-overwrite (exclusive-create) path copies
+// the source into a previously-absent destination byte-for-byte.
+func TestCopyFileAtomicExclusiveCreatesDest(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.dcm")
+	want := []byte("RADX-SENTINEL-PAYLOAD")
+	if err := os.WriteFile(src, want, 0o640); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	dest := filepath.Join(dir, "dest.dcm")
+
+	if err := copyFileAtomic(src, dest, false); err != nil {
+		t.Fatalf("exclusive copy into an absent destination failed: %v", err)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("read destination after exclusive copy: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("destination contents = %q, want %q", got, want)
+	}
+}
+
+// TestCopyFileAtomicExclusiveFailsWhenDestExists confirms exclusive-create semantics survive the move
+// to the atomic temp-then-commit path: a non-overwrite copy into an existing destination still fails
+// closed and leaves the existing file byte-for-byte intact, never silently replacing it.
+func TestCopyFileAtomicExclusiveFailsWhenDestExists(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.dcm")
+	if err := os.WriteFile(src, []byte("REPLACEMENT"), 0o640); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	dest := filepath.Join(dir, "dest.dcm")
+	original := []byte("ORIGINAL-DEST")
+	if err := os.WriteFile(dest, original, 0o640); err != nil {
+		t.Fatalf("write existing destination: %v", err)
+	}
+
+	if err := copyFileAtomic(src, dest, false); err == nil {
+		t.Fatal("exclusive copy over an existing destination returned nil; want a failure")
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("read destination after a refused exclusive copy: %v", err)
+	}
+	if !bytes.Equal(got, original) {
+		t.Errorf("existing destination changed after a refused exclusive copy; want byte-identical")
+	}
+}
+
+// TestCopyFileAtomicExclusiveFailureLeavesNoPartial is the data-safety regression for the
+// non-overwrite path: a copy whose write/commit fails must leave NO file at dest, not a truncated one
+// a later run would mistake for a real existing destination. The earlier path wrote straight into an
+// O_EXCL handle and returned out.Close() last, so a delayed writeback failure left a partial behind.
+// The failure is provoked by making dest's directory read-only so the sibling temp cannot be created;
+// the commit never runs, and dest must remain absent.
+func TestCopyFileAtomicExclusiveFailureLeavesNoPartial(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root bypasses directory write permissions; cannot provoke the temp-create failure")
+	}
+	parent := t.TempDir()
+	src := filepath.Join(parent, "src.dcm")
+	if err := os.WriteFile(src, []byte("RADX-SENTINEL-PAYLOAD"), 0o640); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	destDir := filepath.Join(parent, "out")
+	if err := os.Mkdir(destDir, 0o750); err != nil {
+		t.Fatalf("mkdir destination dir: %v", err)
+	}
+	dest := filepath.Join(destDir, "dest.dcm")
+
+	if err := os.Chmod(destDir, 0o500); err != nil {
+		t.Fatalf("chmod destination dir read-only: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(destDir, 0o750) })
+
+	if err := copyFileAtomic(src, dest, false); err == nil {
+		t.Fatal("exclusive copy into a read-only directory returned nil; want a failure")
+	}
+	if err := os.Chmod(destDir, 0o750); err != nil {
+		t.Fatalf("restore destination dir perms: %v", err)
+	}
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		t.Errorf("a failed exclusive copy left a file at dest (stat err=%v); want no file at all", err)
+	}
+}
