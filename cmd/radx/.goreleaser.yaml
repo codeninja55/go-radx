@@ -100,17 +100,21 @@ sboms:
 # `id-token: write`, so cosign mints a short-lived Fulcio certificate from the GitHub Actions OIDC
 # token — no long-lived private key is stored anywhere. Signing the checksums file transitively
 # covers every archive, since each archive's digest is recorded in the checksums file.
+#
+# cosign v3 (installed by sigstore/cosign-installer@v3) replaced the v2 two-file output
+# (--output-certificate / --output-signature) with a single Sigstore bundle: `sign-blob --bundle`
+# writes one `${artifact}.sigstore.json` carrying both the certificate and the signature, verified
+# with `cosign verify-blob --bundle ...`. See https://goreleaser.com/blog/cosign-v3/. `--yes` keeps
+# keyless signing non-interactive; keyless is the default in cosign v3, so no COSIGN_EXPERIMENTAL.
 signs:
   - id: checksums
     cmd: cosign
-    signature: "${artifact}.sig"
-    certificate: "${artifact}.pem"
+    signature: "${artifact}.sigstore.json"
     artifacts: checksum
     output: true
     args:
       - sign-blob
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
+      - "--bundle=${signature}"
       - "${artifact}"
       - "--yes"
 
@@ -140,5 +144,6 @@ release:
     this release is its CLI binary. The library itself is licensed MIT (see the repository LICENSE).
 
     Verify the download against `{{ .ProjectName }}_{{ .Version }}_checksums.txt` and the cosign
-    signature (`.sig` + `.pem`). An SBOM (CycloneDX and SPDX) accompanies each archive, and every
-    artifact carries a SLSA build-provenance attestation.
+    Sigstore bundle (`{{ .ProjectName }}_{{ .Version }}_checksums.txt.sigstore.json`) with
+    `cosign verify-blob --bundle`. An SBOM (CycloneDX and SPDX) accompanies each archive, and the
+    archives, checksums, and SBOMs carry SLSA build-provenance attestations.
