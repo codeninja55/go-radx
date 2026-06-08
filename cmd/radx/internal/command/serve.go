@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -126,9 +127,30 @@ func (c *ServeDICOMwebCmd) Run(rc *RunContext) error {
 	}
 	log.Info("serve dicomweb: listening", zap.String("base_path", c.BasePath))
 
-	<-sigCtx.Done()
-	if serveErr := <-runErr; serveErr != nil {
-		return serveErr
+	return awaitDaemonStop(sigCtx, runErr, log)
+}
+
+// awaitDaemonStop blocks after a successful startup until either an interrupt signal arrives or the
+// daemon's Run goroutine returns. It selects on BOTH so a post-startup daemon failure (a listener or
+// role that dies after reporting ready) is surfaced promptly with its error rather than hanging the
+// CLI until a signal: if runErr fires first, that error is returned (and maps to its exit code); if
+// the signal fires first, the daemon drains gracefully and Run's terminal error (nil on a clean
+// stop) is returned. Either way Run is awaited once, so the daemon is fully drained before the
+// command returns.
+func awaitDaemonStop(sigCtx context.Context, runErr <-chan error, log *zap.Logger) error {
+	select {
+	case serveErr := <-runErr:
+		// The daemon stopped on its own after reporting ready: a listener or role failure. Surface it
+		// rather than blocking on a signal that may never come.
+		if serveErr != nil {
+			return serveErr
+		}
+	case <-sigCtx.Done():
+		// An interrupt: the signal cancels sigCtx, which wakes the daemon's Run; wait for it to finish
+		// draining and surface any terminal error from the graceful shutdown.
+		if serveErr := <-runErr; serveErr != nil {
+			return serveErr
+		}
 	}
 	log.Info("serve dicomweb: stopped")
 	return nil

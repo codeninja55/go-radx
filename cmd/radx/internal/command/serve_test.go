@@ -1,6 +1,8 @@
 package command
 
 import (
+	"context"
+	"errors"
 	"net"
 	"net/http"
 	"os"
@@ -9,6 +11,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/codeninja55/go-radx/cmd/radx/internal/exitcode"
 )
@@ -83,6 +87,53 @@ func TestServeDICOMwebLoopbackRoundTrip(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("daemon did not stop within the deadline after SIGINT")
+	}
+}
+
+// TestAwaitDaemonStopSurfacesPostStartupFailure is the no-hang regression: when the daemon's Run
+// returns an error after it reported ready (a listener or role that died post-startup), awaitDaemonStop
+// must surface that error promptly instead of blocking on a signal that never comes. The prior code
+// waited on sigCtx.Done() first and ignored runErr, so a post-startup failure hung the CLI.
+func TestAwaitDaemonStopSurfacesPostStartupFailure(t *testing.T) {
+	// A never-cancelled signal context, so the only way out is the runErr channel.
+	runErr := make(chan error, 1)
+	want := errors.New("listener died after startup")
+	runErr <- want
+
+	done := make(chan error, 1)
+	go func() { done <- awaitDaemonStop(context.Background(), runErr, zap.NewNop()) }()
+
+	select {
+	case got := <-done:
+		if !errors.Is(got, want) {
+			t.Fatalf("awaitDaemonStop returned %v, want %v", got, want)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("awaitDaemonStop hung on a post-startup daemon failure instead of returning the error")
+	}
+}
+
+// TestAwaitDaemonStopGracefulOnSignal confirms the normal path: when the signal context is cancelled,
+// awaitDaemonStop waits for the daemon to finish draining and returns its terminal error (nil on a
+// clean stop), not a hang.
+func TestAwaitDaemonStopGracefulOnSignal(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+
+	done := make(chan error, 1)
+	go func() { done <- awaitDaemonStop(ctx, runErr, zap.NewNop()) }()
+
+	// Cancel the context (a SIGINT in production), then let the daemon's Run report a clean drain.
+	cancel()
+	runErr <- nil
+
+	select {
+	case got := <-done:
+		if got != nil {
+			t.Fatalf("awaitDaemonStop on a clean signal-driven stop returned %v, want nil", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("awaitDaemonStop did not return after a clean signal-driven shutdown")
 	}
 }
 
