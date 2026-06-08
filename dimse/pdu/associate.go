@@ -357,13 +357,29 @@ func readAssociateFixedFields(br *boundedReader, version *uint16, called, callin
 
 // encodeItem writes a sub-item: type byte, reserved byte, 2-byte big-endian length,
 // data. It writes to a bytes.Buffer (whose Write never fails), so the sub-item layout
-// composes without error plumbing on infallible writes.
+// composes without error plumbing on infallible writes. Callers must guarantee len(data)
+// fits the 2-byte length prefix; sub-items assembled from variable-length fields use
+// encodeItemChecked instead, which refuses an over-length body rather than wrapping it.
 func encodeItem(buf *bytes.Buffer, itemType byte, data []byte) {
 	var hdr [4]byte
 	hdr[0] = itemType
 	binary.BigEndian.PutUint16(hdr[2:4], uint16(len(data)))
 	buf.Write(hdr[:])
 	buf.Write(data)
+}
+
+// encodeItemChecked writes a sub-item like encodeItem but first validates that the assembled body
+// fits the 2-byte length prefix. Guarding each inner field is not enough: a body built from several
+// fields, each within the prefix, can still sum past 65535 (a length prefix plus its data, repeated),
+// at which point encodeItem's uint16(len(data)) cast would wrap and emit a sub-item whose declared
+// length disagrees with the bytes that follow. Negotiation sub-items with variable-length bodies route
+// through here so an over-length body is an *EncodeError, never a corrupt PDU.
+func encodeItemChecked(buf *bytes.Buffer, field string, itemType byte, data []byte) error {
+	if err := checkUint16Field(field, len(data)); err != nil {
+		return err
+	}
+	encodeItem(buf, itemType, data)
+	return nil
 }
 
 // readItem reads one sub-item, validating its declared length against the bounded

@@ -263,10 +263,10 @@ func TestUserIdentityACRejectsTruncated(t *testing.T) {
 
 // TestEncodeRejectsOversizedNegotiationFields verifies every uint16-length-prefixed negotiation field
 // is refused with an *EncodeError when it exceeds the 65535-byte length prefix, rather than silently
-// truncating the length and emitting a corrupt PDU. A field exactly at the limit still encodes.
+// truncating the length and emitting a corrupt PDU. The enclosing sub-item body is guarded separately
+// in TestEncodeRejectsOversizedNegotiationSubItemBody.
 func TestEncodeRejectsOversizedNegotiationFields(t *testing.T) {
 	oversized := make([]byte, maxUint16Field+1) // 65536 bytes, one past the uint16 prefix
-	atLimit := make([]byte, maxUint16Field)     // 65535 bytes, the largest encodable field
 	oversizedUID := string(make([]byte, maxUint16Field+1))
 
 	t.Run("user-identity RQ primary field", func(t *testing.T) {
@@ -302,16 +302,6 @@ func TestEncodeRejectsOversizedNegotiationFields(t *testing.T) {
 		})
 		assertEncodeError(t, err)
 	})
-	t.Run("field at the uint16 limit still encodes", func(t *testing.T) {
-		var buf bytes.Buffer
-		if err := encodeUserIdentityAC(&buf, UserIdentityAC{ServerResponse: atLimit}); err != nil {
-			t.Fatalf("encodeUserIdentityAC at the limit: %v", err)
-		}
-		// The body is the 4-byte sub-item header plus a 2-byte length plus the field bytes.
-		if want := 4 + 2 + len(atLimit); buf.Len() != want {
-			t.Errorf("encoded length = %d, want %d", buf.Len(), want)
-		}
-	})
 }
 
 // TestEncodeOversizedFieldCorruptsAssociatePDU verifies an A-ASSOCIATE-AC carrying an over-length
@@ -337,6 +327,79 @@ func TestEncodeOversizedFieldCorruptsAssociatePDU(t *testing.T) {
 	if buf.Len() != 0 {
 		t.Errorf("Encode wrote %d bytes despite the over-length field; want a clean refusal", buf.Len())
 	}
+}
+
+// TestEncodeRejectsOversizedNegotiationSubItemBody verifies the assembled sub-item body is guarded,
+// not just its inner fields. A field that fits the 2-byte field prefix can still push the enclosing
+// sub-item body past 65535 once its own length prefix (and any sibling fields) are added; encodeItem's
+// uint16 cast would then wrap and emit a sub-item whose declared length disagrees with the bytes that
+// follow — a corrupt A-ASSOCIATE PDU. Each case sizes a field so the body lands just over the limit,
+// and asserts an *EncodeError; a body sized exactly at the limit still encodes.
+func TestEncodeRejectsOversizedNegotiationSubItemBody(t *testing.T) {
+	// A user-identity AC server response of exactly 65535 fits the field prefix (writeLengthPrefixed
+	// passes) but the sub-item body is 65537 (the 2-byte response length prefix + 65535 data), which
+	// overflows the sub-item's own 2-byte length. Before the body guard this silently wrapped.
+	t.Run("user-identity AC body overflows at 65535-byte response", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := encodeUserIdentityAC(&buf, UserIdentityAC{ServerResponse: make([]byte, maxUint16Field)})
+		assertEncodeError(t, err)
+		if buf.Len() != 0 {
+			t.Errorf("encodeUserIdentityAC wrote %d bytes despite the over-length body; want a clean refusal", buf.Len())
+		}
+	})
+
+	// The largest server response whose sub-item body fits the 2-byte length is 65533: the body is then
+	// 65535 (2-byte response length prefix + 65533 data), exactly at the limit, and still encodes.
+	t.Run("user-identity AC body at exactly 65535 still encodes", func(t *testing.T) {
+		var buf bytes.Buffer
+		resp := make([]byte, maxUint16Field-2)
+		if err := encodeUserIdentityAC(&buf, UserIdentityAC{ServerResponse: resp}); err != nil {
+			t.Fatalf("encodeUserIdentityAC at the body limit: %v", err)
+		}
+		if want := 4 + 2 + len(resp); buf.Len() != want { // 4-byte sub-item header + 2-byte field length + data
+			t.Errorf("encoded length = %d, want %d", buf.Len(), want)
+		}
+	})
+
+	// The user-identity RQ body carries two leading bytes (type, flag) and two length-prefixed fields.
+	// A primary field at the field limit (65535) lands the body well past 65535 once the prefixes and
+	// leading bytes are added, so the body guard must fire even though the field guard passes.
+	t.Run("user-identity RQ body overflows at 65535-byte primary field", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := encodeUserIdentityRQ(&buf, UserIdentityRQ{Type: UserIdentityKerberos, PrimaryField: make([]byte, maxUint16Field)})
+		assertEncodeError(t, err)
+		if buf.Len() != 0 {
+			t.Errorf("encodeUserIdentityRQ wrote %d bytes despite the over-length body; want a clean refusal", buf.Len())
+		}
+	})
+
+	// The extended-negotiation body is a length-prefixed SOP Class UID followed by the app-info bytes
+	// (no prefix). A short UID with app-info sized to push the total just past 65535 overflows the
+	// sub-item body even though neither field alone exceeds its prefix.
+	t.Run("extended-negotiation body overflows past 65535", func(t *testing.T) {
+		var buf bytes.Buffer
+		// body = 2-byte UID length + len(UID) + len(appInfo). Pick sizes that sum to 65536.
+		uid := negFindSOPUID
+		appInfo := make([]byte, maxUint16Field+1-(2+len(uid)))
+		err := encodeExtendedNegotiation(&buf, ExtendedNegotiation{SOPClassUID: uid, ServiceClassAppInfo: appInfo})
+		assertEncodeError(t, err)
+		if buf.Len() != 0 {
+			t.Errorf("encodeExtendedNegotiation wrote %d bytes despite the over-length body; want a clean refusal", buf.Len())
+		}
+	})
+
+	// The extended-negotiation body sized to exactly 65535 still encodes.
+	t.Run("extended-negotiation body at exactly 65535 still encodes", func(t *testing.T) {
+		var buf bytes.Buffer
+		uid := negFindSOPUID
+		appInfo := make([]byte, maxUint16Field-(2+len(uid)))
+		if err := encodeExtendedNegotiation(&buf, ExtendedNegotiation{SOPClassUID: uid, ServiceClassAppInfo: appInfo}); err != nil {
+			t.Fatalf("encodeExtendedNegotiation at the body limit: %v", err)
+		}
+		if want := 4 + 2 + len(uid) + len(appInfo); buf.Len() != want {
+			t.Errorf("encoded length = %d, want %d", buf.Len(), want)
+		}
+	})
 }
 
 func assertEncodeError(t *testing.T, err error) {

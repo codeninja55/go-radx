@@ -87,16 +87,15 @@ func decodeAsyncOperations(data []byte) (AsyncOperations, error) {
 
 // encodeExtendedNegotiation writes the SOP Class Extended Negotiation sub-item body (PS3.7 D.3.3.5):
 // a 2-byte SOP Class UID length, the SOP Class UID bytes, then the service-class application
-// information bytes (the remainder of the sub-item, no length prefix). An over-length SOP Class UID
-// is an *EncodeError.
+// information bytes (the remainder of the sub-item, no length prefix). An over-length SOP Class UID,
+// or an assembled body that exceeds the sub-item's 2-byte length prefix, is an *EncodeError.
 func encodeExtendedNegotiation(out *bytes.Buffer, en ExtendedNegotiation) error {
 	var body bytes.Buffer
 	if err := writeUIDField(&body, "Extended Negotiation SOP Class UID", en.SOPClassUID); err != nil {
 		return err
 	}
 	body.Write(en.ServiceClassAppInfo)
-	encodeItem(out, ItemTypeExtendedNegotiation, body.Bytes())
-	return nil
+	return encodeItemChecked(out, "Extended Negotiation sub-item body", ItemTypeExtendedNegotiation, body.Bytes())
 }
 
 // decodeExtendedNegotiation parses one SOP Class Extended Negotiation sub-item body (PS3.7 D.3.3.5),
@@ -127,8 +126,8 @@ func decodeExtendedNegotiation(data []byte) (ExtendedNegotiation, error) {
 // (PS3.7 D.3.3.6): the length-prefixed SOP Class UID, the length-prefixed Service Class UID, a
 // 2-byte length for the Related General SOP Class Identification field, then that field as a sequence
 // of length-prefixed UIDs. The reserved trailing field is omitted (it carries no value here). An
-// over-length UID, or a related-classes field whose total length exceeds the 2-byte prefix, is an
-// *EncodeError.
+// over-length UID, a related-classes field whose total length exceeds the 2-byte prefix, or an
+// assembled body that exceeds the sub-item's 2-byte length prefix, is an *EncodeError.
 func encodeCommonExtendedNegotiation(out *bytes.Buffer, cen CommonExtendedNegotiation) error {
 	var body bytes.Buffer
 	if err := writeUIDField(&body, "Common Extended Negotiation SOP Class UID", cen.SOPClassUID); err != nil {
@@ -152,8 +151,7 @@ func encodeCommonExtendedNegotiation(out *bytes.Buffer, cen CommonExtendedNegoti
 	body.Write(rl[:])
 	body.Write(related.Bytes())
 
-	encodeItem(out, ItemTypeCommonExtended, body.Bytes())
-	return nil
+	return encodeItemChecked(out, "Common Extended Negotiation sub-item body", ItemTypeCommonExtended, body.Bytes())
 }
 
 // decodeCommonExtendedNegotiation parses one SOP Class Common Extended Negotiation sub-item body
@@ -198,8 +196,10 @@ func decodeCommonExtendedNegotiation(data []byte) (CommonExtendedNegotiation, er
 // length and the primary-field bytes, then a 2-byte secondary-field length and the secondary-field
 // bytes. The secondary field is meaningful only for the username-and-passcode type but is always
 // length-prefixed (a 0 length when absent).
-// It returns an *EncodeError when either field exceeds its 2-byte length prefix; the field names are
-// generic ("primary"/"secondary") so the error carries no secret bytes (PRD §9.8).
+// It returns an *EncodeError when either field exceeds its 2-byte length prefix, or when the assembled
+// body (both fields plus their length prefixes and the two leading bytes) exceeds the sub-item's
+// 2-byte length prefix; the field names are generic ("primary"/"secondary") so the error carries no
+// secret bytes (PRD §9.8).
 func encodeUserIdentityRQ(out *bytes.Buffer, id UserIdentityRQ) error {
 	var body bytes.Buffer
 	body.WriteByte(id.Type)
@@ -210,8 +210,7 @@ func encodeUserIdentityRQ(out *bytes.Buffer, id UserIdentityRQ) error {
 	if err := writeLengthPrefixed(&body, "user-identity secondary field", id.SecondaryField); err != nil {
 		return err
 	}
-	encodeItem(out, ItemTypeUserIdentityRQ, body.Bytes())
-	return nil
+	return encodeItemChecked(out, "user-identity RQ sub-item body", ItemTypeUserIdentityRQ, body.Bytes())
 }
 
 // decodeUserIdentityRQ parses one User Identity Negotiation request sub-item body (PS3.7 D.3.3.7),
@@ -245,15 +244,15 @@ func decodeUserIdentityRQ(data []byte) (UserIdentityRQ, error) {
 }
 
 // encodeUserIdentityAC writes the User Identity Negotiation response sub-item body (PS3.7 D.3.3.7):
-// a 2-byte server-response length and the server-response bytes. An over-length server response is an
-// *EncodeError; the field name carries no secret bytes (PRD §9.8).
+// a 2-byte server-response length and the server-response bytes. An over-length server response, or an
+// assembled body (the response plus its 2-byte length prefix) that exceeds the sub-item's 2-byte
+// length prefix, is an *EncodeError; the field name carries no secret bytes (PRD §9.8).
 func encodeUserIdentityAC(out *bytes.Buffer, ac UserIdentityAC) error {
 	var body bytes.Buffer
 	if err := writeLengthPrefixed(&body, "user-identity server response", ac.ServerResponse); err != nil {
 		return err
 	}
-	encodeItem(out, ItemTypeUserIdentityAC, body.Bytes())
-	return nil
+	return encodeItemChecked(out, "user-identity AC sub-item body", ItemTypeUserIdentityAC, body.Bytes())
 }
 
 // decodeUserIdentityAC parses one User Identity Negotiation response sub-item body (PS3.7 D.3.3.7),
