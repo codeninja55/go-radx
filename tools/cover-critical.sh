@@ -23,11 +23,16 @@
 #     cross-cutting.md). Each carries a recorded baseline; the gate FAILS if one regresses more than
 #     the jitter tolerance below its baseline (see RATCHET_TOLERANCE below), so a TODO package can only
 #     move toward 90%, never meaningfully backslide. When a RATCHET package reaches 90% the gate prints
-#     a PROMOTE notice: move it into ENFORCED (and update the doc) so the 90% contract binds it from
-#     then on.
+#     an ADVISORY PROMOTE notice: it SUGGESTS moving the package into ENFORCED (and updating the doc) so
+#     the 90% contract binds it from then on, but it does NOT fail the gate. A gate must fail on a
+#     REGRESSION, never on an IMPROVEMENT — a ratchet package jittering up to/over 90% is the build
+#     working, not breaking. Some ratchet packages oscillate around the 90.0 boundary (e.g. hl7v2 wobbles
+#     ~89.9-90.1), so they stay in RATCHET rather than being auto-promoted: the 0.5pp baseline tolerance
+#     plus the advisory PROMOTE then handle both directions, where the hard 90.0 ENFORCED bar would
+#     false-fail on a downward jitter.
 #
 # So the gate enforces 90% on the ENFORCED subset now and ratchets the rest upward; it never lowers
-# the 90% bar and never hides a short package.
+# the 90% bar and never hides a short package, and it never fails on an upward move.
 #
 # Ratchet jitter tolerance. Union coverage from `go test -race -coverpkg=./...` is NOT bit-stable
 # run-to-run: which tests happen to exercise cross-package code shifts slightly under -race timing, so
@@ -68,7 +73,8 @@ MODULE="$(awk '/^module /{print $2; exit}' "$REPO_ROOT/go.mod")"
 # top-level package: validate.go, resource.go, primitive.go, binding.go, ...), not the generated tree.
 #
 # ENFORCED: at or below this list the 90% target BITES. RATCHET: TODO packages with their recorded
-# baseline; the gate fails on a regression below the baseline and prints a promote notice at >= target.
+# baseline; the gate fails on a regression below the baseline and prints an advisory promote notice
+# at >= target (which suggests but does not force promotion, and never fails the gate).
 # Baselines were measured on the merged -race -coverpkg=./... profile with generated files excluded;
 # re-measure with `CRIT_TARGET=90 tools/cover-critical.sh <profile>` (it prints every package's number)
 # and bump a baseline only when raising it, never to paper over a regression.
@@ -156,7 +162,7 @@ for pkg in "${ENFORCED_PKGS[@]}"; do
   fi
 done
 
-echo "  RATCHET (TODO toward 90%; must not regress more than ${RATCHET_TOLERANCE}pp below baseline):"
+echo "  RATCHET (TODO toward 90%; must not regress more than ${RATCHET_TOLERANCE}pp below baseline; reaching ${TARGET}% prints an advisory PROMOTE notice but does not fail):"
 for entry in "${RATCHET_PKGS[@]}"; do
   pkg="${entry%%=*}"
   base="${entry#*=}"
@@ -173,8 +179,11 @@ for entry in "${RATCHET_PKGS[@]}"; do
     echo "    FAIL ${pkg}: ${cov}% regressed more than ${RATCHET_TOLERANCE}pp below its recorded baseline ${base}% — restore coverage or justify lowering the baseline." >&2
     fail=1
   elif ! below "$cov" "$TARGET"; then
-    echo "    PROMOTE ${pkg}: ${cov}% now meets the ${TARGET}% target — move it into ENFORCED_PKGS and update cross-cutting.md." >&2
-    fail=1
+    # Advisory only: a ratchet package reaching the target is an IMPROVEMENT, not a regression, so it
+    # must never fail the gate. Suggest promoting it (and updating the doc), but do NOT set fail. The
+    # no-regression baseline still guards the downside, so a package that jitters back below 90 next run
+    # is fine to leave in RATCHET.
+    echo "    PROMOTE ${pkg}: ${cov}% now meets the ${TARGET}% target (advisory) — consider moving it into ENFORCED_PKGS and updating cross-cutting.md; not required, and this does not fail the gate." >&2
   else
     echo "    ok   ${pkg}: ${cov}% (within ${RATCHET_TOLERANCE}pp of baseline ${base}%, still below ${TARGET}% target)"
   fi

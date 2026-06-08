@@ -224,10 +224,15 @@ the short packages are a documented TODO carried in [`tools/cover-critical.sh`](
   slightly under `-race` timing), so a baseline pinned to the exact measured value false-fails on sub-1% noise. The
   tolerance absorbs that jitter while still catching a real regression (a drop of more than 0.5pp). It applies only to
   the per-package no-regression baseline; the 90% target itself carries **no** tolerance — it is a fixed bar, and an
-  enforced package must be at or above 90.0%. When a ratchet package reaches 90% the gate prints a `PROMOTE` notice
-  (and fails until acted on) so it is moved into the enforced set and this list is updated. The percentages above are
-  the union-coverage numbers measured at the time of writing; re-run `tools/cover-critical.sh <profile>` to print the
-  current figures.
+  enforced package must be at or above 90.0%. When a ratchet package reaches 90% the gate prints an **advisory**
+  `PROMOTE` notice — it *suggests* moving the package into the enforced set and updating this list, but it does **not**
+  fail the gate. A gate must fail on a regression, never on an improvement: a ratchet package jittering up to or over
+  90% is the build working, not breaking, so failing on it would block the very progress the ratchet exists to
+  encourage. Some ratchet packages oscillate around the 90.0 boundary (`hl7v2`, for example, wobbles ~89.9-90.1%
+  run-to-run), so they are left in the ratchet rather than auto-promoted: the 0.5pp baseline tolerance plus the advisory
+  promote handle both directions, whereas the hard 90.0% enforced bar would false-fail on a downward jitter. The
+  percentages above are the union-coverage numbers measured at the time of writing; re-run
+  `tools/cover-critical.sh <profile>` to print the current figures.
 
 ## Concurrency and race posture
 
