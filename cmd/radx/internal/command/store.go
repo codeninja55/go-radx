@@ -103,7 +103,7 @@ func (c *StoreCmd) Run(rc *RunContext) error {
 		zap.Int("workers", c.Workers),
 	)
 
-	results := c.transferAll(rc.Ctx, files, calling, called)
+	results, firstErr := c.transferAll(rc.Ctx, files, calling, called)
 
 	succeeded, failed := 0, 0
 	for _, r := range results {
@@ -129,7 +129,14 @@ func (c *StoreCmd) Run(rc *RunContext) error {
 
 	if failed > 0 {
 		// Honest-failure: a partial batch is a failure. --continue-on-error governed only whether the
-		// batch stopped early, never the final status (RADX-003).
+		// batch stopped early, never the final status (RADX-003). Return the first transfer's underlying
+		// typed error so exitcode.Classify routes it to its real class — a missing input file to exit 5,
+		// a refused association or non-success C-STORE status to exit 4, a malformed object to exit 3 —
+		// rather than collapsing every runtime failure into a usage error (exit 2). UsageError is for
+		// CLI misuse only; the exit-code taxonomy is the contract operators branch on.
+		if firstErr != nil {
+			return firstErr
+		}
 		return &exitcode.UsageErr{Message: fmt.Sprintf("%d of %d objects failed to store", failed, summary.Total)}
 	}
 	return nil
@@ -137,9 +144,14 @@ func (c *StoreCmd) Run(rc *RunContext) error {
 
 // transferAll fans the files across the worker pool. Each worker owns its own association for its
 // whole slice of work, so a reconnect replaces only that worker's client (RADX-009). Order of the
-// returned results follows input order so the per-file output is deterministic for golden tests.
-func (c *StoreCmd) transferAll(ctx context.Context, files []string, calling, called dimse.AETitle) []storeResult {
+// returned results follows input order so the per-file output is deterministic for golden tests. It
+// also returns the underlying typed error of the first failed file in input order (or nil when every
+// transfer succeeded), so Run can surface the real failure class through exitcode.Classify rather
+// than a flattened usage error. Per-file errors are stored index-aligned and selected after the pool
+// drains, keeping the choice deterministic regardless of which worker finished first.
+func (c *StoreCmd) transferAll(ctx context.Context, files []string, calling, called dimse.AETitle) ([]storeResult, error) {
 	results := make([]storeResult, len(files))
+	errs := make([]error, len(files))
 
 	type job struct {
 		idx  int
@@ -168,8 +180,9 @@ func (c *StoreCmd) transferAll(ctx context.Context, files []string, calling, cal
 					continue
 				default:
 				}
-				r := c.transferOne(ctx, j.path, calling, called)
+				r, err := c.transferOne(ctx, j.path, calling, called)
 				results[j.idx] = r
+				errs[j.idx] = err
 				if r.Status != "success" && !c.ContinueOnError {
 					stopOnce.Do(func() { close(stopAll) })
 				}
@@ -182,17 +195,29 @@ func (c *StoreCmd) transferAll(ctx context.Context, files []string, calling, cal
 	}
 	close(jobs)
 	wg.Wait()
-	return results
+
+	var firstErr error
+	for _, err := range errs {
+		if err != nil {
+			firstErr = err
+			break
+		}
+	}
+	return results, firstErr
 }
 
 // transferOne reads one file, opens a Storage association, and sends the object. A read or parse
 // failure is reported per-file; an association or transport fault is a network failure; a
 // non-success C-STORE status is promoted to a failure outcome so the batch never reads a peer's
-// "no" as a success (PRD §9.2). The association is released cleanly on every path.
-func (c *StoreCmd) transferOne(ctx context.Context, path string, calling, called dimse.AETitle) storeResult {
+// "no" as a success (PRD §9.2). The association is released cleanly on every path. Alongside the
+// per-file result it returns the underlying typed error (the os/fs error, the dicom parse error,
+// the dimse association/abort error, or a *exitcode.StatusError for a non-success terminal status)
+// so the caller can classify the failure by its real class — the typed error is preserved, never
+// flattened to a string-only outcome.
+func (c *StoreCmd) transferOne(ctx context.Context, path string, calling, called dimse.AETitle) (storeResult, error) {
 	f, err := dicom.ReadFile(path)
 	if err != nil {
-		return storeResult{File: path, Status: "failure", Error: structuralError(err)}
+		return storeResult{File: path, Status: "failure", Error: structuralError(err)}, err
 	}
 	sopInstance, _ := f.DataSet.GetString(dicom.TagSOPInstanceUID)
 
@@ -203,33 +228,36 @@ func (c *StoreCmd) transferOne(ctx context.Context, path string, calling, called
 		dimse.WithConnectionTimeout(c.Timeout),
 	)
 	if err != nil {
-		return storeResult{File: path, SOPInstanceUID: sopInstance, Status: "failure", Error: err.Error()}
+		return storeResult{File: path, SOPInstanceUID: sopInstance, Status: "failure", Error: err.Error()}, err
 	}
 
 	assoc, err := ae.Associate(ctx, hostPort(c.Host, c.Port), called, dimse.StorageContexts())
 	if err != nil {
-		return storeResult{File: path, SOPInstanceUID: sopInstance, Status: "failure", Error: err.Error()}
+		return storeResult{File: path, SOPInstanceUID: sopInstance, Status: "failure", Error: err.Error()}, err
 	}
 	defer func() { _ = assoc.Release(ctx) }()
 
 	status, err := assoc.Store(ctx, f.DataSet)
 	if err != nil {
-		return storeResult{File: path, SOPInstanceUID: sopInstance, Status: "failure", Error: structuralError(err)}
+		return storeResult{File: path, SOPInstanceUID: sopInstance, Status: "failure", Error: structuralError(err)}, err
 	}
 	if !status.IsSuccess() {
+		// The conversation reached the peer and the peer answered with a non-success terminal status.
+		// Promote it to a *exitcode.StatusError so Classify routes the run to NetworkError (exit 4),
+		// the class for "the peer reported it could not perform the work" (PRD §9.2).
 		return storeResult{
 			File:           path,
 			SOPInstanceUID: sopInstance,
 			Status:         "failure",
 			DIMSEStatus:    status.String(),
-		}
+		}, &exitcode.StatusError{Status: status}
 	}
 	return storeResult{
 		File:           path,
 		SOPInstanceUID: sopInstance,
 		Status:         "success",
 		DIMSEStatus:    status.String(),
-	}
+	}, nil
 }
 
 // emit renders one per-file result: a JSON Line in json format, or a human progress line on the

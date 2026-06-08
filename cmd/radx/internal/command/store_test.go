@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -166,6 +167,80 @@ func TestStoreTranscodeToFailsClosed(t *testing.T) {
 		"--transcode-to", "1.2.840.10008.1.2.5", f)
 	if code != exitcode.UsageError {
 		t.Fatalf("store --transcode-to exit = %d, want %d (usage error, not a silent passthrough)", code, exitcode.UsageError)
+	}
+}
+
+// TestStoreMissingFileExits5 confirms a missing input is a file-I/O failure (exit 5), not a usage
+// error: store must preserve the underlying os/fs error so exitcode.Classify routes a missing file
+// to FileIOError rather than collapsing it into UsageError. The exit-code taxonomy is the contract.
+func TestStoreMissingFileExits5(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "does-not-exist.dcm")
+	_, _, code := runRadx(t, "store", "--format", "json",
+		"--host", "127.0.0.1", "--port", "11112", "--called-ae", "RADX-SCP", missing)
+	if code != exitcode.FileIOError {
+		t.Fatalf("store of a missing file exit = %d, want %d (file-I/O failure, not usage)", code, exitcode.FileIOError)
+	}
+}
+
+// TestStoreTruncatedFileExits3 confirms a malformed/truncated object is a parse failure (exit 3):
+// store reads the file before opening any association, and a read/parse error must surface its real
+// class rather than a flattened usage error.
+func TestStoreTruncatedFileExits3(t *testing.T) {
+	dir := t.TempDir()
+	good := writeStorableDICOM(t, dir, "1.2.3.4.5.40")
+	full, err := os.ReadFile(good)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	// Cut well inside the main dataset (past the preamble/magic and file-meta group) so the reader
+	// fails mid-element, not at a clean record boundary.
+	truncPath := filepath.Join(dir, "truncated.dcm")
+	if err := os.WriteFile(truncPath, full[:len(full)-8], 0o600); err != nil {
+		t.Fatalf("write truncated fixture: %v", err)
+	}
+
+	_, _, code := runRadx(t, "store", "--format", "json",
+		"--host", "127.0.0.1", "--port", "11112", "--called-ae", "RADX-SCP", truncPath)
+	if code != exitcode.ParseError {
+		t.Fatalf("store of a truncated file exit = %d, want %d (parse failure, not usage)", code, exitcode.ParseError)
+	}
+}
+
+// TestStoreUnreachablePeerExits4 confirms a refused/unreachable peer is a network failure (exit 4):
+// the file reads fine, the association cannot be opened, and the dimse error must classify to
+// NetworkError rather than a usage error. The port is bound and immediately closed so the connection
+// is refused deterministically.
+func TestStoreUnreachablePeerExits4(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve port: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close() // close so the port refuses connections deterministically
+
+	dir := t.TempDir()
+	f := writeStorableDICOM(t, dir, "1.2.3.4.5.41")
+	_, _, code := runRadx(t, "store", "--format", "json", "--timeout", "5s",
+		"--host", "127.0.0.1", "--port", strconv.Itoa(port), "--called-ae", "RADX-SCP", f)
+	if code != exitcode.NetworkError {
+		t.Fatalf("store against a refused peer exit = %d, want %d (network failure, not usage)", code, exitcode.NetworkError)
+	}
+}
+
+// TestStoreNonSuccessStatusExits4 confirms a non-success C-STORE terminal status is a network
+// failure (exit 4): the conversation reached the peer and the peer answered with a Failure-category
+// status, which store promotes to a *exitcode.StatusError so an operator branches on a peer "no" the
+// same way regardless of where it surfaced.
+func TestStoreNonSuccessStatusExits4(t *testing.T) {
+	const failUID = "1.2.3.4.5.42"
+	host, port := startStorageServer(t, failUID)
+	dir := t.TempDir()
+	bad := writeStorableDICOM(t, dir, failUID)
+
+	_, _, code := runRadx(t, "store", "--format", "json",
+		"--host", host, "--port", strconv.Itoa(port), "--called-ae", "RADX-SCP", bad)
+	if code != exitcode.NetworkError {
+		t.Fatalf("store with a non-success C-STORE status exit = %d, want %d (network failure)", code, exitcode.NetworkError)
 	}
 }
 
