@@ -20,6 +20,15 @@ type principalKey struct{}
 // (PRD §9.1).
 func authMiddleware(auth Authenticator, logger *zap.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if auth == nil {
+			// Defensive fail-closed: the bind policy refuses a non-loopback bind without an authenticator
+			// and defaults a loopback bind to AllowAll, so auth is never nil in a correctly constructed
+			// daemon. Should it ever be, reject rather than panic dereferencing it — an absent
+			// authenticator must never read as an admitted request (PRD §9.1).
+			logger.Info("http request rejected: no authenticator configured", zap.String("method", r.Method))
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		principal, err := auth.AuthenticateHTTP(r.Context(), r)
 		if err != nil {
 			logger.Info("http request unauthenticated", zap.String("method", r.Method))

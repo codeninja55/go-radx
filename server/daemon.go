@@ -135,8 +135,17 @@ func WithShutdownTimeout(d time.Duration) Option {
 // WithAuthenticator sets the Authenticator applied to every role that supports it. It is required to
 // bind a non-loopback address (the fail-closed default); on a loopback bind the default is
 // AllowAll() because the surface is reachable only from localhost.
+//
+// A nil Authenticator is treated as NOT set: it does not satisfy the non-loopback bind requirement and
+// leaves the safe loopback default in place. Were a nil authenticator to count as "set", a
+// non-loopback bind would be accepted with no authenticator at all — the DIMSE role would install no
+// association authorizer and the DICOMweb middleware would have no authenticator to consult — which is
+// exactly the unauthenticated exposure the fail-closed bind policy exists to prevent (PRD §9.1).
 func WithAuthenticator(a Authenticator) Option {
 	return func(c *config) {
+		if a == nil {
+			return
+		}
 		c.auth = a
 		c.authSet = true
 	}

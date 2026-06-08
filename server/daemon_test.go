@@ -89,6 +89,30 @@ func TestInsecureBindAppliesToEveryRole(t *testing.T) {
 	}
 }
 
+// TestNilAuthenticatorDoesNotSatisfyBindPolicy asserts that WithAuthenticator(nil) is treated as NOT
+// set, so a non-loopback bind paired with a nil authenticator is refused with ErrInsecureBind exactly
+// like omitting the authenticator. Were nil to count as set, the daemon would expose an unauthenticated
+// server to the network — the very exposure the fail-closed bind policy prevents (PRD §9.1).
+func TestNilAuthenticatorDoesNotSatisfyBindPolicy(t *testing.T) {
+	t.Parallel()
+	store, cat := newTestBackends(t)
+	aet, _ := dimse.ParseAETitle("RADX-SCP")
+	dimseRole, err := NewDIMSERole(aet, store, cat, WithDIMSEPort(0))
+	if err != nil {
+		t.Fatalf("NewDIMSERole: %v", err)
+	}
+
+	if _, err := New(WithDIMSE(dimseRole), WithBind("0.0.0.0"), WithAuthenticator(nil)); !errors.Is(err, ErrInsecureBind) {
+		t.Fatalf("New(non-loopback bind, nil authenticator) = %v, want ErrInsecureBind", err)
+	}
+
+	// A loopback bind with a nil authenticator is still accepted; the safe AllowAll default stays in
+	// place rather than leaving the daemon with no authenticator at all.
+	if _, err := New(WithDIMSE(dimseRole), WithBind("127.0.0.1"), WithAuthenticator(nil)); err != nil {
+		t.Fatalf("New(loopback bind, nil authenticator) = %v, want nil", err)
+	}
+}
+
 // TestShutdownDrainsWithinDeadline asserts a Shutdown(ctx) drains the mounted roles and returns nil
 // when they drain cleanly, exercising the SIGINT/SIGTERM-equivalent code path (Run blocks until the
 // context is cancelled, then drains).
