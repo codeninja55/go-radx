@@ -541,6 +541,38 @@ jobs:
       - name: Fuzz targets (bounded, hang = failure)
         run: mise run fuzz
 
+  hostile-corpus:
+    # Hostile-input memory-capped corpus gate. Replays the committed malformed-input corpus
+    # (dicomweb/testdata/malformed plus every Go-fuzz seed corpus) through its parsers under an
+    # ENFORCED memory ceiling (GOMEMLIMIT) and a wall-clock timeout, asserting no parser OOMs, panics,
+    # or hangs on hostile bytes. This is distinct from the `fuzz` job (which mutates outward from the
+    # seeds for a fixed budget): this gate proves the FIXED, committed corpus survives a tight memory
+    # cap on every run — the in-process trust-boundary defence of PRD §9.3. GOWORK=off scopes it to the
+    # root module; the harness lives at internal/hostilecorpus and the run is driven by the
+    # `hostile:corpus` mise task so CI and `mise run hostile:corpus` stay in agreement.
+    name: Hostile-input corpus (memory-capped, OOM/panic/hang = failure)
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
+      GOCACHE: ${{ runner.temp }}/.gocache/build
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-root-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-root-
+      - name: Replay malformed corpus under the memory cap
+        run: mise run hostile:corpus
+
   benchmark-baseline:
     # Run every dicom and fhir benchmark once (-benchtime=1x, -run='^$' so no unit tests run) so the
     # benchmark code and its committed baselines (docs/conformance/benchmarks/) cannot rot
