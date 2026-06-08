@@ -86,10 +86,19 @@ func NewMemoryRepository(release fhir.Release) (*MemoryRepository, error) {
 	}, nil
 }
 
-// Read returns the stored resource for (resourceType, id), or ErrNotFound.
+// Read returns the stored resource for (resourceType, id), or ErrNotFound. It is a thin read-locked
+// wrapper around readLocked; a transaction calls readLocked directly because it already holds the
+// write lock for the whole transaction.
 func (m *MemoryRepository) Read(_ context.Context, resourceType, id string) (fhir.Resource, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	return m.readLocked(resourceType, id)
+}
+
+// readLocked returns the stored resource for (resourceType, id), or ErrNotFound. The caller must hold
+// m.mu (read or write); it never locks, so it composes inside the transaction's write-locked section
+// without deadlocking.
+func (m *MemoryRepository) readLocked(resourceType, id string) (fhir.Resource, error) {
 	r, ok := m.byKey[storeKey(resourceType, id)]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s/%s", ErrNotFound, resourceType, id)
@@ -99,8 +108,19 @@ func (m *MemoryRepository) Read(_ context.Context, resourceType, id string) (fhi
 
 // Create stores r, assigning a server id when it has none, and returns the stored resource. The id
 // the repository assigns is set on the resource through the release adapter so the stored resource
-// (and the read-back) carries it.
+// (and the read-back) carries it. It is a thin write-locked wrapper around createLocked; a
+// transaction calls createLocked directly because it already holds the write lock.
 func (m *MemoryRepository) Create(_ context.Context, r fhir.Resource) (fhir.Resource, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.createLocked(r)
+}
+
+// createLocked stores r, assigning a server id when it has none, and returns the stored resource. The
+// caller must hold m.mu for writing; it never locks, so the transaction can apply many creates inside
+// one write-locked section. The id is assigned (nextID is itself atomic) and the resource is stored
+// under the held lock, so a concurrent Create or transaction is serialised, not interleaved.
+func (m *MemoryRepository) createLocked(r fhir.Resource) (fhir.Resource, error) {
 	id := m.adapter.resourceID(r)
 	if id == "" {
 		id = m.nextID()
@@ -110,8 +130,6 @@ func (m *MemoryRepository) Create(_ context.Context, r fhir.Resource) (fhir.Reso
 		}
 		r = updated
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.byKey[storeKey(r.ResourceType(), id)] = r
 	return r, nil
 }
@@ -146,42 +164,67 @@ func (m *MemoryRepository) Search(_ context.Context, resourceType string, params
 // (create) and GET (read) entries, the two verbs the workflow exercise needs; an unsupported verb in
 // an entry fails the transaction, never silently dropping it (PRD §9.2).
 //
-// The transaction is atomic, the all-or-nothing semantics the role advertises in its
-// CapabilityStatement: a snapshot of the store is taken first, the entries are applied in order, and
-// any failure restores the snapshot so a partially applied transaction never leaves committed
-// resources behind. This matters for clinical data — a failed transaction must leave no orphaned
-// resource a later read could surface. The id counter is not rolled back, so a retried transaction
-// reuses no id; only the stored resources are restored.
+// The transaction is atomic and isolated. It holds the repository's write lock for the entire
+// snapshot/apply window, so no concurrent Create or transaction can commit while it runs: the
+// all-or-nothing outcome is decided against a store no one else is mutating. The entries are applied
+// to a staging copy of the store; only on full success does the staging copy become the live store,
+// so a failure throws the staging copy away and the live store is left exactly as it was — including
+// every write another goroutine committed before this transaction took the lock. The earlier design
+// snapshotted without holding the lock and restored an older snapshot on failure, which silently
+// discarded concurrent writes; holding the lock across the whole window is what makes "atomic" also
+// mean "loses no concurrent write".
+//
+// Because the adapter's per-entry operations call back through the Repository interface, the
+// transaction passes a lockedView that routes those calls to the unlocked createLocked/readLocked
+// helpers against the staging copy, so applying many entries never re-acquires the held lock and
+// never deadlocks. The id counter is not rolled back, so a retried transaction reuses no id; only the
+// stored resources are.
 func (m *MemoryRepository) Transaction(ctx context.Context, bundle fhir.Resource) (fhir.Resource, error) {
-	snapshot := m.snapshot()
-	resp, err := m.adapter.processTransaction(ctx, bundle, m)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	live := m.byKey
+	staging := make(map[string]fhir.Resource, len(live))
+	for k, v := range live {
+		staging[k] = v
+	}
+
+	// Apply the entries against the staging copy via a lockedView, so the adapter's repo.Create /
+	// repo.Read route to the unlocked helpers and never re-take the held write lock.
+	m.byKey = staging
+	resp, err := m.adapter.processTransaction(ctx, bundle, lockedView{repo: m})
 	if err != nil {
-		m.restore(snapshot)
+		// Failure: discard the staging copy and restore the live store, keeping every concurrent write
+		// that committed before this transaction took the lock.
+		m.byKey = live
 		return nil, err
 	}
+	// Success: the staging copy (already installed) becomes the live store, committing every entry.
 	return resp, nil
 }
 
-// snapshot copies the store's keys under the read lock so a failed transaction can be rolled back to
-// the pre-transaction state. The fhir.Resource values are immutable after Create (the adapter
-// re-decodes on id assignment rather than mutating in place), so copying the map's key set without
-// deep-copying each resource restores the exact pre-transaction state.
-func (m *MemoryRepository) snapshot() map[string]fhir.Resource {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make(map[string]fhir.Resource, len(m.byKey))
-	for k, v := range m.byKey {
-		out[k] = v
-	}
-	return out
+// lockedView adapts a MemoryRepository whose write lock the caller already holds into a Repository
+// whose Create/Read use the unlocked helpers, so a transaction can drive the release adapter's
+// per-entry callbacks without the adapter re-acquiring the lock. Search and Transaction are not used
+// inside a transaction and are not supported on the view.
+type lockedView struct {
+	repo *MemoryRepository
 }
 
-// restore replaces the live store with the snapshot under the write lock, undoing every create a
-// failed transaction applied so no partial commit survives.
-func (m *MemoryRepository) restore(snapshot map[string]fhir.Resource) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.byKey = snapshot
+func (v lockedView) Read(_ context.Context, resourceType, id string) (fhir.Resource, error) {
+	return v.repo.readLocked(resourceType, id)
+}
+
+func (v lockedView) Create(_ context.Context, r fhir.Resource) (fhir.Resource, error) {
+	return v.repo.createLocked(r)
+}
+
+func (v lockedView) Search(context.Context, string, url.Values) (fhir.Resource, error) {
+	return nil, fmt.Errorf("server: search is not supported inside a transaction")
+}
+
+func (v lockedView) Transaction(context.Context, fhir.Resource) (fhir.Resource, error) {
+	return nil, fmt.Errorf("server: nested transactions are not supported")
 }
 
 // nextID returns a fresh, monotonic server id. It is a counter rather than a UUID so the development

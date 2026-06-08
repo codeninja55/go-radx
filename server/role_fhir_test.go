@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -384,6 +385,98 @@ func TestMemoryRepositoryTransactionRollback(t *testing.T) {
 	}
 }
 
+// TestMemoryRepositoryTransactionPreservesConcurrentCreates proves the transaction's atomic rollback
+// does not discard concurrent writes. A failing transaction runs alongside many concurrent Creates;
+// after the transaction fails, every concurrently created resource must still be present and the
+// failed transaction's own entry must be absent. The earlier design snapshotted the store without
+// holding the lock and, on failure, restored that older snapshot — silently dropping any Create that
+// committed after the snapshot was taken, unrelated clinical-data loss. Run under -race, this also
+// guards the lock discipline of the snapshot/apply/restore window.
+func TestMemoryRepositoryTransactionPreservesConcurrentCreates(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			repo, err := NewMemoryRepository(release)
+			if err != nil {
+				t.Fatalf("NewMemoryRepository: %v", err)
+			}
+			ctx := context.Background()
+
+			const concurrentCreates = 50
+			createdIDs := make(chan string, concurrentCreates)
+
+			var wg sync.WaitGroup
+			// One goroutine runs a transaction that ultimately fails (its second entry GETs a missing
+			// resource); the rest run independent Creates of an Encounter. The failing transaction must
+			// not roll back any of the concurrent Encounters.
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				failing := failingTransactionBundle(t, release)
+				if _, terr := repo.Transaction(ctx, failing); terr == nil {
+					t.Error("failing transaction returned nil error, want a transaction failure")
+				}
+			}()
+
+			for i := 0; i < concurrentCreates; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					enc := newEncounterResource(release)
+					stored, cerr := repo.Create(ctx, enc)
+					if cerr != nil {
+						t.Errorf("concurrent Create: %v", cerr)
+						return
+					}
+					createdIDs <- resourceLogicalIDForTest(t, stored)
+				}()
+			}
+
+			wg.Wait()
+			close(createdIDs)
+
+			// Every concurrently created Encounter must still be readable: the failed transaction discarded
+			// none of them.
+			present := 0
+			for id := range createdIDs {
+				if id == "" {
+					t.Error("concurrent Create returned a resource with no id")
+					continue
+				}
+				if _, rerr := repo.Read(ctx, "Encounter", id); rerr != nil {
+					t.Errorf("Encounter/%s lost after a failed concurrent transaction: %v", id, rerr)
+					continue
+				}
+				present++
+			}
+			if present != concurrentCreates {
+				t.Fatalf("after a failed transaction %d of %d concurrent Creates survive, want all", present, concurrentCreates)
+			}
+
+			// The failed transaction's own Patient entry must be absent (atomic rollback of its own work).
+			searched, err := repo.Search(ctx, "Patient", nil)
+			if err != nil {
+				t.Fatalf("Search Patient after failed transaction: %v", err)
+			}
+			if total := searchsetTotal(t, searched); total != 0 {
+				t.Fatalf("failed transaction left %d Patients, want 0 (its own entries must not commit)", total)
+			}
+
+			// A subsequent valid transaction still commits all its entries.
+			ok := transactionBundleResource(t, release)
+			if _, err := repo.Transaction(ctx, ok); err != nil {
+				t.Fatalf("valid transaction after the failed one: %v", err)
+			}
+			searched, err = repo.Search(ctx, "Patient", nil)
+			if err != nil {
+				t.Fatalf("Search Patient after valid transaction: %v", err)
+			}
+			if total := searchsetTotal(t, searched); total != 1 {
+				t.Fatalf("valid transaction committed %d Patients, want 1", total)
+			}
+		})
+	}
+}
+
 func TestFHIRRoleCapabilityStatement(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -605,6 +698,38 @@ func searchsetTotal(t *testing.T, bundle fhir.Resource) int {
 		t.Fatalf("decode searchset total: %v", err)
 	}
 	return env.Total
+}
+
+// newEncounterResource builds a minimal Encounter of the release for the concurrency test. The
+// repository stores what it is given without validating (validation is the role handler's job), so a
+// status-only Encounter is enough to exercise concurrent Creates.
+func newEncounterResource(release fhir.Release) fhir.Resource {
+	switch release {
+	case fhir.R4:
+		s := r4.EncounterStatus("finished")
+		return &r4.Encounter{Status: &s}
+	default:
+		s := r5.EncounterStatus("completed")
+		return &r5.Encounter{Status: &s}
+	}
+}
+
+// resourceLogicalIDForTest reads a stored resource's logical id by peeking its JSON "id" key, so the
+// concurrency test can read each concurrently created Encounter back by id without depending on a
+// release's concrete type.
+func resourceLogicalIDForTest(t *testing.T, r fhir.Resource) string {
+	t.Helper()
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatalf("marshal resource for id: %v", err)
+	}
+	var env struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("decode resource id: %v", err)
+	}
+	return env.ID
 }
 
 // collectionBundleBytes builds an empty collection Bundle of the release as JSON, the input for the
