@@ -1,0 +1,117 @@
+# Release engineering for the radx CLI.
+#
+# go-radx is a Go LIBRARY (versioned by git tags + semver, consumed through the module proxy) plus
+# one binary artifact: the `radx` command-line interface, which lives in its own module at cmd/radx.
+# This workflow builds and publishes only that CLI; the library itself needs no binary release.
+#
+# Two jobs:
+#   - `release` runs only on a pushed `v*` tag. It builds the cross-platform `radx` binaries with
+#     GoReleaser, generates an SBOM (CycloneDX + SPDX via syft) per archive, signs the checksums
+#     file with cosign keyless (Sigstore/Fulcio over the GitHub OIDC token — no stored key), and
+#     attaches SLSA build provenance to every published artifact.
+#   - `validate` runs on every push and pull request to main (NOT tag-gated). It runs
+#     `goreleaser check` and a full `goreleaser release --snapshot --clean` (build + archive + SBOM,
+#     no publish, no signing), so the release config is exercised on every change rather than first
+#     discovered to be broken at tag time.
+#
+# Workflow-author invariant: NEVER reference the `runner`, `steps`, `needs`, or `job` contexts inside
+# a workflow- or job-level `env:` block. Only github/env/vars/secrets/inputs/matrix are valid there;
+# anything else fails the whole workflow at startup (the class of failure that bit ci.yml). Where a
+# step needs a RUNNER_TEMP-derived path, set it from the always-present `$RUNNER_TEMP` shell variable
+# inside a step via `$GITHUB_ENV`, never in an env block.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Opt the Node20-based actions into the Node24 runtime ahead of the forced migration, matching ci.yml.
+# Only literal/github/env-context values are legal in a workflow-level env block; this is a literal.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  release:
+    name: Build, sign, SBOM, and publish the radx release
+    # Only a pushed v* tag publishes a release. PRs and branch pushes never reach this job.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      # Least privilege for a signed, provenance-bearing release:
+      contents: write # create the GitHub release and upload archives, checksums, SBOMs, signatures
+      id-token: write # mint the OIDC token cosign and the provenance attestor exchange for a cert
+      attestations: write # write the SLSA build-provenance attestation for each artifact
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # GoReleaser needs the full history and tags to compute the version and changelog context.
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.4" # pinned to match mise.toml [tools] and both go.mod files
+      - uses: anchore/sbom-action/download-syft@v0 # installs syft; goreleaser shells out to it
+      - uses: sigstore/cosign-installer@v3 # installs cosign for keyless checksum signing
+      - name: Run GoReleaser (build, archive, SBOM, sign, publish)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2" # pin the GoReleaser v2 line; never `latest`
+          # The CLI config lives beside its module; the workspace dir keeps `main: .` and the
+          # `replace ../..` resolving the in-tree library, matching the cmd-radx CI job.
+          workdir: cmd/radx
+          args: release --clean
+        env:
+          # GITHUB_TOKEN is a secret context, which IS valid in a step-level env block.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Attest build provenance for the release artifacts
+        uses: actions/attest-build-provenance@v2
+        with:
+          # Provenance over every archive, the checksums file, and the per-archive SBOMs GoReleaser
+          # wrote under cmd/radx/dist. The sboms block names documents `${artifact}.cyclonedx.sbom.json`
+          # and `${artifact}.spdx.sbom.json`, so `*.sbom.json` attests both renderings.
+          subject-path: |
+            cmd/radx/dist/*.tar.gz
+            cmd/radx/dist/*.zip
+            cmd/radx/dist/*_checksums.txt
+            cmd/radx/dist/*.sbom.json
+
+  validate:
+    name: Validate the release config (goreleaser check + snapshot, no publish)
+    # Exercise the release pipeline on every change without publishing, so a broken config is caught
+    # in PR review rather than at tag time. Never runs on a tag (that is the release job's lane).
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # snapshot builds nothing that needs write; least privilege
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.4"
+      - uses: anchore/sbom-action/download-syft@v0 # syft so the snapshot exercises SBOM generation
+      - name: goreleaser check (config is structurally valid)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          workdir: cmd/radx
+          args: check
+      - name: goreleaser release --snapshot (build + archive + SBOM, no publish, no sign)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          workdir: cmd/radx
+          # --snapshot disables PUBLISHING but still runs the signs block; signing needs cosign + the
+          # OIDC token that only exist in the tag-gated release job, so skip it here. SBOM stays (syft
+          # is installed above), exercising the build, archive, checksum, and SBOM config end to end.
+          args: release --snapshot --clean --skip=sign
