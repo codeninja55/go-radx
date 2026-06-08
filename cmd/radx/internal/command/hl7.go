@@ -101,8 +101,12 @@ func (c *HL7SendCmd) Run(rc *RunContext) error {
 		return emitErr
 	}
 	if !result.Positive {
-		// A rejecting acknowledgement is a peer "no": exit non-zero so automation branches on it.
-		return &exitcode.UsageErr{Message: fmt.Sprintf("peer returned a non-accept acknowledgement: %s", result.AckCode)}
+		// A rejecting acknowledgement is a peer "no" at the application level: the message parsed and
+		// was framed and sent fine, and the peer rejected it (AE) or refused it (AR). That is a
+		// protocol/peer failure, not a usage fault — classify it as a network/protocol error (exit 4),
+		// mirroring how a non-success DIMSE status maps, so a script never reads an AE/AR as a flag
+		// mistake (exit 2) or as success.
+		return &exitcode.ProtocolErr{Message: fmt.Sprintf("peer returned a non-accept acknowledgement: %s", result.AckCode)}
 	}
 	return nil
 }

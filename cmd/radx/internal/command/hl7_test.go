@@ -108,6 +108,28 @@ func TestHL7SendStdinPositiveAck(t *testing.T) {
 	}
 }
 
+// TestHL7SendRejectAckExits4 confirms an AR (application reject) acknowledgement exits 4 (the
+// network/protocol class), not 2 (usage): the message parsed and was sent fine, and the peer
+// rejected it at the application level — a peer "no", not a flag mistake. An AE would map the same.
+func TestHL7SendRejectAckExits4(t *testing.T) {
+	host, port := startMLLPServer(t, hl7v2.AckReject)
+	_, _, code := runRadxStdin(t, syntheticORM, "hl7", "send", "--format", "json",
+		"--host", host, "--port", strconv.Itoa(port), "-")
+	if code != exitcode.NetworkError {
+		t.Fatalf("hl7 send with an AR ack exit = %d, want %d (network/protocol error)", code, exitcode.NetworkError)
+	}
+}
+
+// TestHL7SendAcceptAckExits0 confirms an AA (accept) acknowledgement is success: exit 0.
+func TestHL7SendAcceptAckExits0(t *testing.T) {
+	host, port := startMLLPServer(t, hl7v2.AckAccept)
+	_, _, code := runRadxStdin(t, syntheticORM, "hl7", "send", "--format", "json",
+		"--host", host, "--port", strconv.Itoa(port), "-")
+	if code != exitcode.Success {
+		t.Fatalf("hl7 send with an AA ack exit = %d, want %d (success)", code, exitcode.Success)
+	}
+}
+
 // TestHL7ListenBadAckIsUsageError confirms an invalid --ack code is a usage error, rejected before
 // the listener binds.
 func TestHL7ListenBadAckIsUsageError(t *testing.T) {

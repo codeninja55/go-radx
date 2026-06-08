@@ -82,6 +82,7 @@ func TestClassifyTotality(t *testing.T) {
 		{"dimse ProtocolError", &dimse.ProtocolError{Detail: "bad pdu"}, NetworkError},
 		{"dimse CommitmentFailureError", &dimse.CommitmentFailureError{FailedCount: 1}, NetworkError},
 		{"dimse non-success Status", &StatusError{Status: dimse.NewStatus(0xC000, dimse.ServiceClassVerification)}, NetworkError},
+		{"command protocol error (HL7 AE/AR ack)", &ProtocolErr{Message: "peer returned a non-accept acknowledgement: AR"}, NetworkError},
 		{"acse RejectedError", &acse.RejectedError{Result: 1, Source: 1, Reason: 1}, NetworkError},
 		{"acse AbortedError", &acse.AbortedError{Source: 1, Reason: 1}, NetworkError},
 		{"acse ProtocolError", &acse.ProtocolError{Detail: "bad state", State: dul.State(0)}, NetworkError},

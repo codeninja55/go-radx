@@ -86,6 +86,20 @@ type UsageErr struct {
 
 func (e *UsageErr) Error() string { return "radx: " + e.Message }
 
+// ProtocolErr is an application-level protocol failure a command raises when the exchange itself
+// completed — the request was framed and sent, the peer answered — but the peer rejected the work
+// at the application level. The HL7 v2 AE (application error) and AR (application reject)
+// acknowledgements are the canonical case: the message parsed and sent fine, and the peer said no.
+// It classifies to NetworkError (exit 4), mirroring how a non-success DIMSE Status maps, so an
+// operator branches on a peer "no" the same way regardless of protocol, and never confuses it with
+// a usage fault (exit 2) the way a flag mistake would surface.
+type ProtocolErr struct {
+	// Message names the protocol-level rejection without any patient value (e.g. the ack code).
+	Message string
+}
+
+func (e *ProtocolErr) Error() string { return "radx: " + e.Message }
+
 // Classify maps err onto the exit-code taxonomy. A nil error is Success. The mapping checks
 // the most specific classes first (typed parse/network/file errors), then the broad parse and
 // network families, and falls through to GeneralFailure only for genuinely unclassified
@@ -142,11 +156,13 @@ func isFileIOError(err error) bool {
 
 // isNetworkError reports a transport or protocol fault. It covers the public dimse error
 // types and their internal acse/dul/pdu causes (a public *dimse error usually wraps one), a
-// non-success DIMSE terminal status promoted to a *StatusError, the Storage Commitment
-// failure, and the DICOMweb HTTP/store transport failures.
+// non-success DIMSE terminal status promoted to a *StatusError, an application-level protocol
+// rejection promoted to a *ProtocolErr (an HL7 v2 AE/AR ack), the Storage Commitment failure,
+// and the DICOMweb HTTP/store transport failures.
 func isNetworkError(err error) bool {
 	var (
 		statusErr     *StatusError
+		protocolErr   *ProtocolErr
 		assocErr      *dimse.AssociationError
 		abortErr      *dimse.AbortError
 		protoErr      *dimse.ProtocolError
@@ -163,6 +179,7 @@ func isNetworkError(err error) bool {
 	)
 	switch {
 	case errors.As(err, &statusErr),
+		errors.As(err, &protocolErr),
 		errors.As(err, &assocErr),
 		errors.As(err, &abortErr),
 		errors.As(err, &protoErr),
