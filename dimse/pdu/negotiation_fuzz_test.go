@@ -23,7 +23,7 @@ func FuzzDecodeAsyncOperations(f *testing.F) {
 // UID length past the bytes present must return an error, never over-read (PRD §9.3).
 func FuzzDecodeExtendedNegotiation(f *testing.F) {
 	f.Add(subItemBodyHelper(func(b *bytes.Buffer) {
-		encodeExtendedNegotiation(b, ExtendedNegotiation{SOPClassUID: "1.2.840.10008.5.1.4.1.1.2", ServiceClassAppInfo: []byte{0x01}})
+		_ = encodeExtendedNegotiation(b, ExtendedNegotiation{SOPClassUID: "1.2.840.10008.5.1.4.1.1.2", ServiceClassAppInfo: []byte{0x01}})
 	}))
 	f.Add([]byte{})
 	f.Add([]byte{0x00, 0x40, 0x31, 0x32}) // huge declared UID length
@@ -37,7 +37,7 @@ func FuzzDecodeExtendedNegotiation(f *testing.F) {
 // declared length running past the buffer must return an error, never panic (PRD §9.3).
 func FuzzDecodeCommonExtendedNegotiation(f *testing.F) {
 	f.Add(subItemBodyHelper(func(b *bytes.Buffer) {
-		encodeCommonExtendedNegotiation(b, CommonExtendedNegotiation{
+		_ = encodeCommonExtendedNegotiation(b, CommonExtendedNegotiation{
 			SOPClassUID:              "1.2.840.10008.5.1.4.1.1.2",
 			ServiceClassUID:          "1.2.840.10008.4.2",
 			RelatedGeneralSOPClasses: []string{"1.2.840.10008.5.1.4.1.1.4"},
@@ -55,7 +55,7 @@ func FuzzDecodeCommonExtendedNegotiation(f *testing.F) {
 // flag, or length-prefixed field must return an error, never panic or over-read (PRD §9.3).
 func FuzzDecodeUserIdentityRQ(f *testing.F) {
 	f.Add(subItemBodyHelper(func(b *bytes.Buffer) {
-		encodeUserIdentityRQ(b, UserIdentityRQ{Type: UserIdentityUsernamePasscode, PrimaryField: []byte("alice"), SecondaryField: []byte("pw"), PositiveResponseRequested: true})
+		_ = encodeUserIdentityRQ(b, UserIdentityRQ{Type: UserIdentityUsernamePasscode, PrimaryField: []byte("alice"), SecondaryField: []byte("pw"), PositiveResponseRequested: true})
 	}))
 	f.Add([]byte{})
 	f.Add([]byte{0x01})                         // type only
@@ -70,7 +70,7 @@ func FuzzDecodeUserIdentityRQ(f *testing.F) {
 // server-response length past the bytes present must return an error, never over-read (PRD §9.3).
 func FuzzDecodeUserIdentityAC(f *testing.F) {
 	f.Add(subItemBodyHelper(func(b *bytes.Buffer) {
-		encodeUserIdentityAC(b, UserIdentityAC{ServerResponse: []byte{0x01, 0x02}})
+		_ = encodeUserIdentityAC(b, UserIdentityAC{ServerResponse: []byte{0x01, 0x02}})
 	}))
 	f.Add([]byte{})
 	f.Add([]byte{0x00})             // partial length

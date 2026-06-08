@@ -2,6 +2,7 @@ package pdu
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 )
 
@@ -17,7 +18,9 @@ const (
 func roundTripUserInfo(t *testing.T, ui UserInformation) UserInformation {
 	t.Helper()
 	var buf bytes.Buffer
-	encodeUserInformation(&buf, ui)
+	if err := encodeUserInformation(&buf, ui); err != nil {
+		t.Fatalf("encodeUserInformation: %v", err)
+	}
 	itemType, data, err := readItem(newBoundedReader(bytes.NewReader(buf.Bytes()), int64(buf.Len())))
 	if err != nil {
 		t.Fatalf("readItem: %v", err)
@@ -255,6 +258,95 @@ func TestUserIdentityACRejectsTruncated(t *testing.T) {
 		if _, err := decodeUserIdentityAC(data); err == nil {
 			t.Errorf("decodeUserIdentityAC(%v) = nil error, want a decode error", data)
 		}
+	}
+}
+
+// TestEncodeRejectsOversizedNegotiationFields verifies every uint16-length-prefixed negotiation field
+// is refused with an *EncodeError when it exceeds the 65535-byte length prefix, rather than silently
+// truncating the length and emitting a corrupt PDU. A field exactly at the limit still encodes.
+func TestEncodeRejectsOversizedNegotiationFields(t *testing.T) {
+	oversized := make([]byte, maxUint16Field+1) // 65536 bytes, one past the uint16 prefix
+	atLimit := make([]byte, maxUint16Field)     // 65535 bytes, the largest encodable field
+	oversizedUID := string(make([]byte, maxUint16Field+1))
+
+	t.Run("user-identity RQ primary field", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := encodeUserIdentityRQ(&buf, UserIdentityRQ{Type: UserIdentityKerberos, PrimaryField: oversized})
+		assertEncodeError(t, err)
+	})
+	t.Run("user-identity RQ secondary field", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := encodeUserIdentityRQ(&buf, UserIdentityRQ{Type: UserIdentityUsernamePasscode, PrimaryField: []byte("alice"), SecondaryField: oversized})
+		assertEncodeError(t, err)
+	})
+	t.Run("user-identity AC server response", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := encodeUserIdentityAC(&buf, UserIdentityAC{ServerResponse: oversized})
+		assertEncodeError(t, err)
+	})
+	t.Run("extended-negotiation SOP Class UID", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := encodeExtendedNegotiation(&buf, ExtendedNegotiation{SOPClassUID: oversizedUID})
+		assertEncodeError(t, err)
+	})
+	t.Run("common-extended SOP Class UID", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := encodeCommonExtendedNegotiation(&buf, CommonExtendedNegotiation{SOPClassUID: oversizedUID, ServiceClassUID: negStorageSC})
+		assertEncodeError(t, err)
+	})
+	t.Run("user-information surfaces the field error", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := encodeUserInformation(&buf, UserInformation{
+			MaxPDULength:   16382,
+			UserIdentityAC: &UserIdentityAC{ServerResponse: oversized},
+		})
+		assertEncodeError(t, err)
+	})
+	t.Run("field at the uint16 limit still encodes", func(t *testing.T) {
+		var buf bytes.Buffer
+		if err := encodeUserIdentityAC(&buf, UserIdentityAC{ServerResponse: atLimit}); err != nil {
+			t.Fatalf("encodeUserIdentityAC at the limit: %v", err)
+		}
+		// The body is the 4-byte sub-item header plus a 2-byte length plus the field bytes.
+		if want := 4 + 2 + len(atLimit); buf.Len() != want {
+			t.Errorf("encoded length = %d, want %d", buf.Len(), want)
+		}
+	})
+}
+
+// TestEncodeOversizedFieldCorruptsAssociatePDU verifies an A-ASSOCIATE-AC carrying an over-length
+// user-identity server response fails to encode (rather than emitting a PDU whose nested item lengths
+// disagree with the bytes that follow).
+func TestEncodeOversizedFieldCorruptsAssociatePDU(t *testing.T) {
+	ac := &AssociateAC{
+		ProtocolVersion:    1,
+		CalledAETitle:      padAETitle("ACCEPTOR"),
+		CallingAETitle:     padAETitle("REQUESTOR"),
+		ApplicationContext: "1.2.840.10008.3.1.1.1",
+		PresentationContexts: []PresentationContextAC{
+			{ID: 1, Result: PresentationContextAcceptance, TransferSyntax: "1.2.840.10008.1.2.1"},
+		},
+		UserInfo: UserInformation{
+			MaxPDULength:   16382,
+			UserIdentityAC: &UserIdentityAC{ServerResponse: make([]byte, maxUint16Field+1)},
+		},
+	}
+	var buf bytes.Buffer
+	err := ac.Encode(&buf)
+	assertEncodeError(t, err)
+	if buf.Len() != 0 {
+		t.Errorf("Encode wrote %d bytes despite the over-length field; want a clean refusal", buf.Len())
+	}
+}
+
+func assertEncodeError(t *testing.T, err error) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("got nil error, want an *EncodeError for the over-length field")
+	}
+	var ee *EncodeError
+	if !errors.As(err, &ee) {
+		t.Fatalf("error = %T (%v), want *EncodeError", err, err)
 	}
 }
 

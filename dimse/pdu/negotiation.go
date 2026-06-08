@@ -87,15 +87,16 @@ func decodeAsyncOperations(data []byte) (AsyncOperations, error) {
 
 // encodeExtendedNegotiation writes the SOP Class Extended Negotiation sub-item body (PS3.7 D.3.3.5):
 // a 2-byte SOP Class UID length, the SOP Class UID bytes, then the service-class application
-// information bytes (the remainder of the sub-item, no length prefix).
-func encodeExtendedNegotiation(out *bytes.Buffer, en ExtendedNegotiation) {
+// information bytes (the remainder of the sub-item, no length prefix). An over-length SOP Class UID
+// is an *EncodeError.
+func encodeExtendedNegotiation(out *bytes.Buffer, en ExtendedNegotiation) error {
 	var body bytes.Buffer
-	var lb [2]byte
-	binary.BigEndian.PutUint16(lb[:], uint16(len(en.SOPClassUID)))
-	body.Write(lb[:])
-	body.WriteString(en.SOPClassUID)
+	if err := writeUIDField(&body, "Extended Negotiation SOP Class UID", en.SOPClassUID); err != nil {
+		return err
+	}
 	body.Write(en.ServiceClassAppInfo)
 	encodeItem(out, ItemTypeExtendedNegotiation, body.Bytes())
+	return nil
 }
 
 // decodeExtendedNegotiation parses one SOP Class Extended Negotiation sub-item body (PS3.7 D.3.3.5),
@@ -125,15 +126,26 @@ func decodeExtendedNegotiation(data []byte) (ExtendedNegotiation, error) {
 // encodeCommonExtendedNegotiation writes the SOP Class Common Extended Negotiation sub-item body
 // (PS3.7 D.3.3.6): the length-prefixed SOP Class UID, the length-prefixed Service Class UID, a
 // 2-byte length for the Related General SOP Class Identification field, then that field as a sequence
-// of length-prefixed UIDs. The reserved trailing field is omitted (it carries no value here).
-func encodeCommonExtendedNegotiation(out *bytes.Buffer, cen CommonExtendedNegotiation) {
+// of length-prefixed UIDs. The reserved trailing field is omitted (it carries no value here). An
+// over-length UID, or a related-classes field whose total length exceeds the 2-byte prefix, is an
+// *EncodeError.
+func encodeCommonExtendedNegotiation(out *bytes.Buffer, cen CommonExtendedNegotiation) error {
 	var body bytes.Buffer
-	writeUIDField(&body, cen.SOPClassUID)
-	writeUIDField(&body, cen.ServiceClassUID)
+	if err := writeUIDField(&body, "Common Extended Negotiation SOP Class UID", cen.SOPClassUID); err != nil {
+		return err
+	}
+	if err := writeUIDField(&body, "Common Extended Negotiation Service Class UID", cen.ServiceClassUID); err != nil {
+		return err
+	}
 
 	var related bytes.Buffer
 	for _, uid := range cen.RelatedGeneralSOPClasses {
-		writeUIDField(&related, uid)
+		if err := writeUIDField(&related, "Common Extended Negotiation related SOP Class UID", uid); err != nil {
+			return err
+		}
+	}
+	if err := checkUint16Field("Common Extended Negotiation related-classes field", related.Len()); err != nil {
+		return err
 	}
 	var rl [2]byte
 	binary.BigEndian.PutUint16(rl[:], uint16(related.Len()))
@@ -141,6 +153,7 @@ func encodeCommonExtendedNegotiation(out *bytes.Buffer, cen CommonExtendedNegoti
 	body.Write(related.Bytes())
 
 	encodeItem(out, ItemTypeCommonExtended, body.Bytes())
+	return nil
 }
 
 // decodeCommonExtendedNegotiation parses one SOP Class Common Extended Negotiation sub-item body
@@ -185,13 +198,20 @@ func decodeCommonExtendedNegotiation(data []byte) (CommonExtendedNegotiation, er
 // length and the primary-field bytes, then a 2-byte secondary-field length and the secondary-field
 // bytes. The secondary field is meaningful only for the username-and-passcode type but is always
 // length-prefixed (a 0 length when absent).
-func encodeUserIdentityRQ(out *bytes.Buffer, id UserIdentityRQ) {
+// It returns an *EncodeError when either field exceeds its 2-byte length prefix; the field names are
+// generic ("primary"/"secondary") so the error carries no secret bytes (PRD §9.8).
+func encodeUserIdentityRQ(out *bytes.Buffer, id UserIdentityRQ) error {
 	var body bytes.Buffer
 	body.WriteByte(id.Type)
 	body.WriteByte(boolToFlag(id.PositiveResponseRequested))
-	writeLengthPrefixed(&body, id.PrimaryField)
-	writeLengthPrefixed(&body, id.SecondaryField)
+	if err := writeLengthPrefixed(&body, "user-identity primary field", id.PrimaryField); err != nil {
+		return err
+	}
+	if err := writeLengthPrefixed(&body, "user-identity secondary field", id.SecondaryField); err != nil {
+		return err
+	}
 	encodeItem(out, ItemTypeUserIdentityRQ, body.Bytes())
+	return nil
 }
 
 // decodeUserIdentityRQ parses one User Identity Negotiation request sub-item body (PS3.7 D.3.3.7),
@@ -225,11 +245,15 @@ func decodeUserIdentityRQ(data []byte) (UserIdentityRQ, error) {
 }
 
 // encodeUserIdentityAC writes the User Identity Negotiation response sub-item body (PS3.7 D.3.3.7):
-// a 2-byte server-response length and the server-response bytes.
-func encodeUserIdentityAC(out *bytes.Buffer, ac UserIdentityAC) {
+// a 2-byte server-response length and the server-response bytes. An over-length server response is an
+// *EncodeError; the field name carries no secret bytes (PRD §9.8).
+func encodeUserIdentityAC(out *bytes.Buffer, ac UserIdentityAC) error {
 	var body bytes.Buffer
-	writeLengthPrefixed(&body, ac.ServerResponse)
+	if err := writeLengthPrefixed(&body, "user-identity server response", ac.ServerResponse); err != nil {
+		return err
+	}
 	encodeItem(out, ItemTypeUserIdentityAC, body.Bytes())
+	return nil
 }
 
 // decodeUserIdentityAC parses one User Identity Negotiation response sub-item body (PS3.7 D.3.3.7),
@@ -246,21 +270,45 @@ func decodeUserIdentityAC(data []byte) (UserIdentityAC, error) {
 	return ac, nil
 }
 
-// writeUIDField writes a 2-byte big-endian length followed by the UID bytes.
-func writeUIDField(buf *bytes.Buffer, uid string) {
+// maxUint16Field is the largest value a 2-byte big-endian length prefix can carry. A
+// length-prefixed field whose byte length exceeds it cannot be encoded without truncating the prefix,
+// which would emit a corrupt PDU (PS3.7 D.3.3 sub-item length fields are 2 bytes).
+const maxUint16Field = 0xFFFF
+
+// checkUint16Field reports an *EncodeError when a length-prefixed field is too long for its 2-byte
+// length prefix. The encoders call it before writing the prefix so an over-length field is refused
+// rather than emitted with a truncated length and trailing bytes that leak into the enclosing item.
+func checkUint16Field(field string, n int) error {
+	if n > maxUint16Field {
+		return &EncodeError{Detail: fmt.Sprintf("%s is %d bytes, exceeds the %d-byte (uint16) length prefix", field, n, maxUint16Field)}
+	}
+	return nil
+}
+
+// writeUIDField writes a 2-byte big-endian length followed by the UID bytes, after validating the UID
+// fits in the 2-byte length prefix.
+func writeUIDField(buf *bytes.Buffer, field, uid string) error {
+	if err := checkUint16Field(field, len(uid)); err != nil {
+		return err
+	}
 	var lb [2]byte
 	binary.BigEndian.PutUint16(lb[:], uint16(len(uid)))
 	buf.Write(lb[:])
 	buf.WriteString(uid)
+	return nil
 }
 
-// writeLengthPrefixed writes a 2-byte big-endian length followed by the data bytes. A nil or empty
-// slice writes a zero length and no data.
-func writeLengthPrefixed(buf *bytes.Buffer, data []byte) {
+// writeLengthPrefixed writes a 2-byte big-endian length followed by the data bytes, after validating
+// the data fits in the 2-byte length prefix. A nil or empty slice writes a zero length and no data.
+func writeLengthPrefixed(buf *bytes.Buffer, field string, data []byte) error {
+	if err := checkUint16Field(field, len(data)); err != nil {
+		return err
+	}
 	var lb [2]byte
 	binary.BigEndian.PutUint16(lb[:], uint16(len(data)))
 	buf.Write(lb[:])
 	buf.Write(data)
+	return nil
 }
 
 // fieldReader walks a sub-item body field by field, validating every declared length against the

@@ -137,23 +137,28 @@ type AssociateRJ struct {
 // Encode writes the A-ASSOCIATE-RQ PDU: the 6-byte header with the summed body length,
 // then the fixed fields and variable sub-items.
 func (p *AssociateRQ) Encode(w io.Writer) error {
-	body := p.encodeBody()
+	body, err := p.encodeBody()
+	if err != nil {
+		return err
+	}
 	if err := writeHeader(w, PDUTypeAssociateRQ, uint32(body.Len())); err != nil {
 		return err
 	}
-	_, err := w.Write(body.Bytes())
-	return err
+	_, werr := w.Write(body.Bytes())
+	return werr
 }
 
-func (p *AssociateRQ) encodeBody() *bytes.Buffer {
+func (p *AssociateRQ) encodeBody() (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	writeAssociateFixedFields(&buf, p.ProtocolVersion, p.CalledAETitle, p.CallingAETitle)
 	encodeItem(&buf, ItemTypeApplicationContext, []byte(p.ApplicationContext))
 	for _, pc := range p.PresentationContexts {
 		encodePresentationContextRQ(&buf, pc)
 	}
-	encodeUserInformation(&buf, p.UserInfo)
-	return &buf
+	if err := encodeUserInformation(&buf, p.UserInfo); err != nil {
+		return nil, err
+	}
+	return &buf, nil
 }
 
 // Encode writes the A-ASSOCIATE-AC PDU.
@@ -164,7 +169,9 @@ func (p *AssociateAC) Encode(w io.Writer) error {
 	for _, pc := range p.PresentationContexts {
 		encodePresentationContextAC(&buf, pc)
 	}
-	encodeUserInformation(&buf, p.UserInfo)
+	if err := encodeUserInformation(&buf, p.UserInfo); err != nil {
+		return err
+	}
 	if err := writeHeader(w, PDUTypeAssociateAC, uint32(buf.Len())); err != nil {
 		return err
 	}
@@ -452,7 +459,11 @@ func decodePresentationContextAC(data []byte) (PresentationContextAC, error) {
 	return pc, nil
 }
 
-func encodeUserInformation(out *bytes.Buffer, ui UserInformation) {
+// encodeUserInformation writes the User Information sub-item (item type 0x50) and its nested
+// negotiation sub-items. It returns an *EncodeError when a length-prefixed negotiation field exceeds
+// the 2-byte length prefix the wire format reserves for it, so a self-encoded A-ASSOCIATE PDU is never
+// emitted with a truncated length and trailing bytes that leak into this enclosing item.
+func encodeUserInformation(out *bytes.Buffer, ui UserInformation) error {
 	var buf bytes.Buffer
 	if ui.MaxPDULength > 0 {
 		var lb [4]byte
@@ -472,18 +483,27 @@ func encodeUserInformation(out *bytes.Buffer, ui UserInformation) {
 		encodeAsyncOperations(&buf, *ui.AsyncOps)
 	}
 	for _, en := range ui.ExtendedNegotiations {
-		encodeExtendedNegotiation(&buf, en)
+		if err := encodeExtendedNegotiation(&buf, en); err != nil {
+			return err
+		}
 	}
 	for _, cen := range ui.CommonExtendedNegotiations {
-		encodeCommonExtendedNegotiation(&buf, cen)
+		if err := encodeCommonExtendedNegotiation(&buf, cen); err != nil {
+			return err
+		}
 	}
 	if ui.UserIdentityRQ != nil {
-		encodeUserIdentityRQ(&buf, *ui.UserIdentityRQ)
+		if err := encodeUserIdentityRQ(&buf, *ui.UserIdentityRQ); err != nil {
+			return err
+		}
 	}
 	if ui.UserIdentityAC != nil {
-		encodeUserIdentityAC(&buf, *ui.UserIdentityAC)
+		if err := encodeUserIdentityAC(&buf, *ui.UserIdentityAC); err != nil {
+			return err
+		}
 	}
 	encodeItem(out, ItemTypeUserInformation, buf.Bytes())
+	return nil
 }
 
 func decodeUserInformation(data []byte) (UserInformation, error) {
