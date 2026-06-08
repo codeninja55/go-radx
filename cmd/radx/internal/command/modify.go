@@ -97,10 +97,18 @@ func (c *ModifyCmd) Run(rc *RunContext) error {
 	log := logging.FromContext(rc.Ctx)
 	gen := dicom.NewRandomUIDGenerator()
 
+	// One old->new UID map per re-keyed grouping tag, shared across every file in this run. The first
+	// file to carry a given old Study (or Series) UID mints one new UID for it; every later file with
+	// the same old UID reuses that new UID, so a multi-file study or series is re-keyed as ONE object,
+	// not split into N unrelated ones. SOP Instance UIDs are never mapped — each instance gets a
+	// unique new UID — so the reference graph (study groups its series, series groups its instances)
+	// survives the batch (the preserve-the-reference-graph contract).
+	uidMaps := newUIDRemap()
+
 	written := make(map[string]string, len(files))
 	var firstErr error
 	for _, path := range files {
-		result, modifyErr := c.modifyOne(path, plan, gen, written)
+		result, modifyErr := c.modifyOne(path, plan, gen, written, uidMaps)
 		// Diagnostics name structure only — the edit COUNT and tag identities, never the values.
 		log.Debug("modify: processed file",
 			zap.String("file", path),
@@ -123,7 +131,7 @@ func (c *ModifyCmd) Run(rc *RunContext) error {
 // dataset is fully re-encoded to a sibling temp file and only renamed over the destination once it
 // is complete on disk). The written map records each destination already produced in this run so a
 // later input that would clobber an earlier output is refused rather than silently overwriting it.
-func (c *ModifyCmd) modifyOne(path string, plan modifyPlan, gen *dicom.UIDGenerator, written map[string]string) (modifyResult, error) {
+func (c *ModifyCmd) modifyOne(path string, plan modifyPlan, gen *dicom.UIDGenerator, written map[string]string, uidMaps *uidRemap) (modifyResult, error) {
 	dest := c.destinationFor(path)
 	if prior, clash := written[dest]; clash {
 		// Two inputs flatten to the same --output-dir path. Overwriting the earlier output would
@@ -152,7 +160,7 @@ func (c *ModifyCmd) modifyOne(path string, plan modifyPlan, gen *dicom.UIDGenera
 	}
 	regenerated := false
 	if len(plan.regenUIDs) > 0 {
-		if err := applyUIDRegeneration(f, plan.regenUIDs, gen); err != nil {
+		if err := applyUIDRegeneration(f, plan.regenUIDs, gen, uidMaps); err != nil {
 			return modifyResult{File: path, Status: "failure", Error: structuralError(err)}, err
 		}
 		edits += len(plan.regenUIDs)
@@ -296,16 +304,72 @@ func (c *ModifyCmd) buildPlan() (modifyPlan, error) {
 	return plan, nil
 }
 
+// uidRemap is the run-level old->new UID map for the grouping tags (Study, Series). It maps a tag
+// to a per-tag table of original UID -> minted UID, so every file in one invocation that shares an
+// old Study or Series UID is re-keyed to the SAME new UID, preserving the study/series grouping
+// across the batch. It is NOT used for SOP Instance UID, which must stay unique per instance.
+type uidRemap struct {
+	byTag map[dicom.Tag]map[string]dicom.UID
+}
+
+// newUIDRemap returns an empty run-level UID remap.
+func newUIDRemap() *uidRemap {
+	return &uidRemap{byTag: make(map[dicom.Tag]map[string]dicom.UID)}
+}
+
+// mintFor returns the new UID this run has assigned to old under tag, minting and recording one the
+// first time old is seen so every later file sharing that old UID maps to the same new UID. A blank
+// old UID is not pooled: a file missing a grouping UID gets a fresh UID of its own rather than being
+// merged with every other file that also lacks one. The minted UID is validated before it is
+// recorded, so a remap never yields a non-conformant identifier.
+func (r *uidRemap) mintFor(tag dicom.Tag, old string, gen *dicom.UIDGenerator) (dicom.UID, error) {
+	if old != "" {
+		if table, ok := r.byTag[tag]; ok {
+			if mapped, seen := table[old]; seen {
+				return mapped, nil
+			}
+		}
+	}
+	fresh := gen.Generate()
+	if err := fresh.Validate(); err != nil {
+		return "", fmt.Errorf("generated UID for %s is not conformant: %w", tag, err)
+	}
+	if old != "" {
+		table := r.byTag[tag]
+		if table == nil {
+			table = make(map[string]dicom.UID)
+			r.byTag[tag] = table
+		}
+		table[old] = fresh
+	}
+	return fresh, nil
+}
+
 // applyUIDRegeneration mints a fresh, validated UID for each requested UID tag, writes it to the
-// dataset, and keeps the file's reference graph intact: a new SOP Instance UID is also written to
-// the File Meta MediaStorageSOPInstanceUID (0002,0003) so the Part 10 header and the dataset agree.
-// A minted UID is validated before it is written, so a regeneration never produces a non-conformant
-// identifier (RADX-002: the prototype generated UIDs and logged them without ever writing them).
-func applyUIDRegeneration(f *dicom.File, tags []dicom.Tag, gen *dicom.UIDGenerator) error {
+// dataset, and keeps the file's reference graph intact in two ways. Within one file, a new SOP
+// Instance UID is mirrored into the File Meta MediaStorageSOPInstanceUID (0002,0003) so the Part 10
+// header and the dataset agree. Across the run, the grouping tags (Study, Series) are re-keyed
+// through the shared run-level map so files that came in under one Study or Series UID stay grouped
+// under one new UID, rather than each file becoming an unrelated object. The SOP Instance UID is
+// always minted fresh per instance and never pooled. A minted UID is validated before it is written,
+// so a regeneration never produces a non-conformant identifier (RADX-002: the prototype generated
+// UIDs and logged them without ever writing them).
+func applyUIDRegeneration(f *dicom.File, tags []dicom.Tag, gen *dicom.UIDGenerator, uidMaps *uidRemap) error {
 	for _, tag := range tags {
-		fresh := gen.Generate()
-		if err := fresh.Validate(); err != nil {
-			return fmt.Errorf("generated UID for %s is not conformant: %w", tag, err)
+		var fresh dicom.UID
+		if tag == dicom.TagSOPInstanceUID {
+			// Each instance is a distinct object: never share a SOP Instance UID across the batch.
+			fresh = gen.Generate()
+			if err := fresh.Validate(); err != nil {
+				return fmt.Errorf("generated UID for %s is not conformant: %w", tag, err)
+			}
+		} else {
+			old, _ := f.DataSet.GetString(tag)
+			mapped, err := uidMaps.mintFor(tag, old, gen)
+			if err != nil {
+				return err
+			}
+			fresh = mapped
 		}
 		f.DataSet.SetString(tag, string(fresh))
 		if tag == dicom.TagSOPInstanceUID && f.Meta != nil {

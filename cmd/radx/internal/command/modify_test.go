@@ -96,6 +96,74 @@ func TestModifyRegeneratesUIDs(t *testing.T) {
 	}
 }
 
+// TestModifyBatchPreservesStudySeriesGrouping is the reference-graph regression: re-keying a batch of
+// files that share a Study (and Series) UID must map each distinct OLD grouping UID to ONE new UID
+// for the whole run, so the study is not silently split into N unrelated objects. Two files sharing a
+// StudyInstanceUID and SeriesInstanceUID, run together with --regenerate-study-uid and
+// --regenerate-series-uid, must come out with the SAME new Study UID and the SAME new Series UID
+// (each changed from the original), while their SOP Instance UIDs, when also regenerated, stay unique
+// per file. Every minted UID must be conformant.
+func TestModifyBatchPreservesStudySeriesGrouping(t *testing.T) {
+	dir := t.TempDir()
+	// writeStorableDICOM writes both files under Study 1.2.3.4.5.1 and Series 1.2.3.4.5.2, so they
+	// share a study and series — the batch case the run-level UID map must keep grouped.
+	srcA := writeStorableDICOM(t, dir, "1.2.3.4.700.1")
+	srcB := writeStorableDICOM(t, dir, "1.2.3.4.700.2")
+	outDir := filepath.Join(t.TempDir(), "rekeyed")
+
+	stdout, stderr, code := runRadx(t, "modify", "--format", "json", "--output-dir", outDir,
+		"--regenerate-study-uid", "--regenerate-series-uid", "--regenerate-instance-uid", srcA, srcB)
+	if code != exitcode.Success {
+		t.Fatalf("modify batch re-key exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+
+	outA, errA := dicom.ReadFile(filepath.Join(outDir, filepath.Base(srcA)))
+	if errA != nil {
+		t.Fatalf("read rekeyed A: %v", errA)
+	}
+	outB, errB := dicom.ReadFile(filepath.Join(outDir, filepath.Base(srcB)))
+	if errB != nil {
+		t.Fatalf("read rekeyed B: %v", errB)
+	}
+
+	studyA, _ := outA.DataSet.GetString(dicom.TagStudyInstanceUID)
+	studyB, _ := outB.DataSet.GetString(dicom.TagStudyInstanceUID)
+	seriesA, _ := outA.DataSet.GetString(dicom.TagSeriesInstanceUID)
+	seriesB, _ := outB.DataSet.GetString(dicom.TagSeriesInstanceUID)
+	sopA, _ := outA.DataSet.GetString(dicom.TagSOPInstanceUID)
+	sopB, _ := outB.DataSet.GetString(dicom.TagSOPInstanceUID)
+
+	// Both files must land under ONE new Study UID and ONE new Series UID (grouping preserved).
+	if studyA != studyB {
+		t.Errorf("batch re-key split the study: A study=%q, B study=%q, want one shared new UID", studyA, studyB)
+	}
+	if seriesA != seriesB {
+		t.Errorf("batch re-key split the series: A series=%q, B series=%q, want one shared new UID", seriesA, seriesB)
+	}
+	// The new grouping UIDs must differ from the originals (the re-key actually happened).
+	if studyA == "1.2.3.4.5.1" {
+		t.Errorf("Study UID was not regenerated: %q", studyA)
+	}
+	if seriesA == "1.2.3.4.5.2" {
+		t.Errorf("Series UID was not regenerated: %q", seriesA)
+	}
+	// SOP Instance UIDs stay unique per instance — never shared.
+	if sopA == sopB {
+		t.Errorf("SOP Instance UIDs were shared across files: A=%q B=%q, want unique per instance", sopA, sopB)
+	}
+	if sopA == "1.2.3.4.700.1" || sopB == "1.2.3.4.700.2" {
+		t.Errorf("a SOP Instance UID was not regenerated: A=%q B=%q", sopA, sopB)
+	}
+	// Every minted UID validates as conformant.
+	for name, uid := range map[string]string{
+		"studyA": studyA, "seriesA": seriesA, "sopA": sopA, "sopB": sopB,
+	} {
+		if err := dicom.UID(uid).Validate(); err != nil {
+			t.Errorf("regenerated %s UID %q is not conformant: %v", name, uid, err)
+		}
+	}
+}
+
 // TestModifyUnwritableTargetErrorsWritingNothing is the second honest-failure regression: when the
 // output destination cannot be created, modify exits non-zero and leaves no output file — it never
 // reports success on an edit that did not land (the fail-closed rule).
