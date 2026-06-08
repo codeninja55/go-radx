@@ -62,6 +62,9 @@ type RunContext struct {
 	Out *cli.Output
 	// Build is the resolved build stamp, for commands that report it.
 	Build cli.BuildInfo
+	// Stdin is the process input stream, read by the commands that accept a message on stdin
+	// (hl7 send, the convert HL7 mappers) when their path argument is "-" or absent.
+	Stdin io.Reader
 }
 
 // Main parses args and runs the selected command, returning the process exit code. It is the
@@ -127,8 +130,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	out.Banner(banner)
 
-	rctx := &RunContext{Ctx: loggerCtx, Out: out, Build: cli.ResolveBuildInfo()}
-	_ = stdin // reserved for commands that read a message from stdin (hl7 send, convert)
+	rctx := &RunContext{Ctx: loggerCtx, Out: out, Build: cli.ResolveBuildInfo(), Stdin: stdin}
 
 	if runErr := kctx.Run(rctx); runErr != nil {
 		// The command already wrote any partial machine output it chose to. Report the error

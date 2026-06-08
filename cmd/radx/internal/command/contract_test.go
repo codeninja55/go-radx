@@ -76,14 +76,11 @@ func TestVersionFlagCoherent(t *testing.T) {
 
 // TestStubFailsClosed confirms a committed-but-unbuilt command fails closed: it exits 1 (not
 // 0) and writes nothing to machine stdout, never a no-op success (docs/reference/cli.md
-// "Honest-failure rules"; closes RADX-001/002).
+// "Honest-failure rules"; closes RADX-001/002). `serve fhir` is the canonical example: the FHIR
+// server role is a separate increment, so it stays a typed not-implemented error rather than a
+// stub that reports success.
 func TestStubFailsClosed(t *testing.T) {
 	for _, args := range [][]string{
-		{"find"},
-		{"get"},
-		{"move"},
-		{"hl7", "send"},
-		{"convert", "dicom-to-fhir"},
 		{"serve", "fhir"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {

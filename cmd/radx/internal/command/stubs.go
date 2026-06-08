@@ -14,38 +14,6 @@ func notImplemented(capability string) error {
 	return &exitcode.NotImplementedError{Capability: capability}
 }
 
-// StoreCmd is the C-STORE SCU (storescu). Not implemented in this increment.
-type StoreCmd struct {
-	Paths []string `arg:"" optional:"" name:"path" help:"DICOM files or directories to send."`
-}
-
-// Run fails closed.
-func (c *StoreCmd) Run(*RunContext) error { return notImplemented("store") }
-
-// FindCmd is the C-FIND SCU (findscu), committed surface that arrives with M3.
-type FindCmd struct{}
-
-// Run fails closed.
-func (c *FindCmd) Run(*RunContext) error { return notImplemented("find") }
-
-// GetCmd is the C-GET SCU (getscu), committed surface that arrives with M3.
-type GetCmd struct{}
-
-// Run fails closed.
-func (c *GetCmd) Run(*RunContext) error { return notImplemented("get") }
-
-// MoveCmd is the C-MOVE SCU (movescu), committed surface that arrives with M3.
-type MoveCmd struct{}
-
-// Run fails closed.
-func (c *MoveCmd) Run(*RunContext) error { return notImplemented("move") }
-
-// ScpCmd is the Storage/Verification SCP (storescp). Not implemented in this increment.
-type ScpCmd struct{}
-
-// Run fails closed.
-func (c *ScpCmd) Run(*RunContext) error { return notImplemented("scp") }
-
 // ModifyCmd edits DICOM tags and regenerates UIDs (dcmodify). Not implemented in this
 // increment.
 type ModifyCmd struct {
