@@ -595,13 +595,18 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Point the Go caches outside the checkout via a step: $RUNNER_TEMP is a shell variable here,
+      # whereas ${{ runner.temp }} in a job-level env block is an invalid context that fails the
+      # workflow at parse time (a startup failure with zero jobs).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       - name: Cache Go modules and build output
         uses: actions/cache@v4
         with:
