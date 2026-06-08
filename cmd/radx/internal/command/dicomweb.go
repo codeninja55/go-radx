@@ -218,7 +218,16 @@ func (c *DICOMwebStowCmd) Run(rc *RunContext) error {
 	log := logging.FromContext(rc.Ctx)
 	log.Debug("dicomweb stow: storing", zap.Int("instances", len(instances)))
 
-	resp, storeErr := client.Store(rc.Ctx, instances...)
+	// When --study is set, target the study-scoped /studies/{study} STOW path so the origin
+	// constrains the request to that StudyInstanceUID and rejects an instance from a different
+	// study; an empty --study posts to the unconstrained root /studies target.
+	store := client.Store
+	if c.Study != "" {
+		store = func(ctx context.Context, ds ...*dicom.DataSet) (*dicomweb.StoreResponse, error) {
+			return client.StoreToStudy(ctx, dicom.UID(c.Study), ds...)
+		}
+	}
+	resp, storeErr := store(rc.Ctx, instances...)
 	result := stowResult{Status: "success"}
 	if resp != nil {
 		result.Accepted = len(resp.Referenced)

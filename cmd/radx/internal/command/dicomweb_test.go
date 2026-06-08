@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -146,6 +147,57 @@ func TestDICOMwebQidoStreamsMatches(t *testing.T) {
 	}
 	if len(nonEmptyLines(stdout)) == 0 {
 		t.Errorf("qido returned no matches:\n%s", stdout)
+	}
+}
+
+// TestDICOMwebStowScopedToStudyTargetsStudyPath confirms --study routes the STOW-RS request to the
+// study-scoped /studies/{study} endpoint, not the root /studies target, so the origin can constrain
+// the store to that StudyInstanceUID. The fixture's StudyInstanceUID is 1.2.3.4.5.1.
+func TestDICOMwebStowScopedToStudyTargetsStudyPath(t *testing.T) {
+	const study = "1.2.3.4.5.1"
+	var gotPath string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/dicom+json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("{}")) // complete store response: nothing failed
+	}))
+	t.Cleanup(ts.Close)
+
+	dir := t.TempDir()
+	src := writeStorableDICOM(t, dir, "1.2.900.20")
+
+	stdout, stderr, code := runRadx(t, "dicomweb", "stow", "--format", "json",
+		"--url", ts.URL, "--study", study, src)
+	if code != exitcode.Success {
+		t.Fatalf("stow exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+	if want := "/studies/" + study; gotPath != want {
+		t.Errorf("STOW-RS request path = %q, want %q (scoped --study must target the study path)", gotPath, want)
+	}
+}
+
+// TestDICOMwebStowWithoutStudyTargetsRoot confirms that, absent --study, STOW-RS still posts to the
+// unconstrained root /studies target.
+func TestDICOMwebStowWithoutStudyTargetsRoot(t *testing.T) {
+	var gotPath string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/dicom+json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	t.Cleanup(ts.Close)
+
+	dir := t.TempDir()
+	src := writeStorableDICOM(t, dir, "1.2.900.21")
+
+	stdout, stderr, code := runRadx(t, "dicomweb", "stow", "--format", "json", "--url", ts.URL, src)
+	if code != exitcode.Success {
+		t.Fatalf("stow exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+	if gotPath != "/studies" {
+		t.Errorf("STOW-RS request path = %q, want /studies (no --study posts to the root target)", gotPath)
 	}
 }
 

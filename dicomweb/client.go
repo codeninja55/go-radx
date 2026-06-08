@@ -232,11 +232,34 @@ func withClientCertificate(base http.RoundTripper, cert tls.Certificate) http.Ro
 }
 
 // Store POSTs one or more instances as a multipart/related body of application/dicom
-// parts to /studies and parses the application/dicom+json store response. It is
-// fail-closed (PRD §9.2): when any instance failed it returns the parsed StoreResponse
-// together with a non-nil *StoreError, so the caller sees both the partial success and
-// the failure. A transport error returns a nil response and the transport error.
+// parts to the unconstrained /studies target and parses the application/dicom+json store
+// response. It is fail-closed (PRD §9.2): when any instance failed it returns the parsed
+// StoreResponse together with a non-nil *StoreError, so the caller sees both the partial
+// success and the failure. A transport error returns a nil response and the transport
+// error. To target a specific study so the origin rejects instances from a different
+// StudyInstanceUID, use StoreToStudy.
 func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*StoreResponse, error) {
+	return c.store(ctx, "/studies", instances...)
+}
+
+// StoreToStudy POSTs one or more instances to the study-scoped /studies/{study} target so
+// the origin constrains the request to that StudyInstanceUID (PS3.18 §10.5): an instance
+// whose StudyInstanceUID differs is rejected rather than silently accepted under the root
+// target. The study UID is validated as a conformant DICOM UID before it is interpolated,
+// so a malformed identifier can never inject path segments. The fail-closed semantics
+// match Store.
+func (c *Client) StoreToStudy(ctx context.Context, study dicom.UID, instances ...*dicom.DataSet) (*StoreResponse, error) {
+	path, err := NewStudy(study).Path()
+	if err != nil {
+		return nil, err
+	}
+	return c.store(ctx, path, instances...)
+}
+
+// store builds the multipart/related STOW-RS body and POSTs it to path (either the root
+// /studies target or a study-scoped /studies/{study} target), then parses and fail-closes
+// on the application/dicom+json store response.
+func (c *Client) store(ctx context.Context, path string, instances ...*dicom.DataSet) (*StoreResponse, error) {
 	if len(instances) == 0 {
 		return nil, fmt.Errorf("dicomweb: Store requires at least one instance")
 	}
@@ -256,7 +279,7 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 		return nil, err
 	}
 
-	req, err := c.newRequest(ctx, http.MethodPost, "/studies", &body)
+	req, err := c.newRequest(ctx, http.MethodPost, path, &body)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +288,7 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, c.transportError(http.MethodPost, "/studies", err)
+		return nil, c.transportError(http.MethodPost, path, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -275,7 +298,7 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusAccepted, http.StatusConflict:
 	default:
-		return nil, c.httpError(http.MethodPost, "/studies", resp)
+		return nil, c.httpError(http.MethodPost, path, resp)
 	}
 
 	store, err := c.parseStoreResponseBody(resp)
@@ -283,7 +306,7 @@ func (c *Client) Store(ctx context.Context, instances ...*dicom.DataSet) (*Store
 		return nil, err
 	}
 	// Fail closed on the HTTP status, not only on the parsed body: a 202/409 means the
-	// origin reported a partial or total failure, so Store must return a *StoreError even
+	// origin reported a partial or total failure, so store must return a *StoreError even
 	// when the response body omits or under-reports the Failed SOP Sequence (a sparse or
 	// malformed store response must never read as a clean success, PRD §9.2).
 	if resp.StatusCode != http.StatusOK || !store.IsComplete() {
