@@ -14,31 +14,6 @@ func notImplemented(capability string) error {
 	return &exitcode.NotImplementedError{Capability: capability}
 }
 
-// DICOMwebCmd is the DICOMweb client group. Not implemented in this increment.
-type DICOMwebCmd struct {
-	Wado DICOMwebWadoCmd `cmd:"" help:"Retrieve via WADO-RS."`
-	Stow DICOMwebStowCmd `cmd:"" help:"Store via STOW-RS."`
-	Qido DICOMwebQidoCmd `cmd:"" help:"Search via QIDO-RS."`
-}
-
-// DICOMwebWadoCmd retrieves via WADO-RS. Not implemented in this increment.
-type DICOMwebWadoCmd struct{}
-
-// Run fails closed.
-func (c *DICOMwebWadoCmd) Run(*RunContext) error { return notImplemented("dicomweb wado") }
-
-// DICOMwebStowCmd stores via STOW-RS. Not implemented in this increment.
-type DICOMwebStowCmd struct{}
-
-// Run fails closed.
-func (c *DICOMwebStowCmd) Run(*RunContext) error { return notImplemented("dicomweb stow") }
-
-// DICOMwebQidoCmd searches via QIDO-RS. Not implemented in this increment.
-type DICOMwebQidoCmd struct{}
-
-// Run fails closed.
-func (c *DICOMwebQidoCmd) Run(*RunContext) error { return notImplemented("dicomweb qido") }
-
 // ConvertCmd is the cross-standard conversion group. Not implemented in this increment.
 type ConvertCmd struct {
 	DICOMToFHIR ConvertDICOMToFHIRCmd `cmd:"" name:"dicom-to-fhir" help:"Build a FHIR ImagingStudy from DICOM."`
