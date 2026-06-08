@@ -197,6 +197,81 @@ func TestCatalogueIndexTruncatedFileFailsClosed(t *testing.T) {
 	}
 }
 
+// TestCatalogueIndexTruncatedFileExits3 confirms a truncated/malformed object makes the index run
+// exit with ParseError (exit 3): catalogue must preserve the underlying dicom parse error so
+// exitcode.Classify routes it to its real class rather than collapsing it into a usage error. The
+// exit-code taxonomy is the contract operators branch on.
+func TestCatalogueIndexTruncatedFileExits3(t *testing.T) {
+	srcDir := t.TempDir()
+	good := writeStorableDICOM(t, srcDir, "1.2.804.1")
+	full, err := os.ReadFile(good)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	// Cut well inside the main dataset so the reader fails mid-element, a parse failure not a clean EOF.
+	bad := filepath.Join(srcDir, "truncated.dcm")
+	if err := os.WriteFile(bad, full[:len(full)-8], 0o600); err != nil {
+		t.Fatalf("write truncated fixture: %v", err)
+	}
+	db := filepath.Join(t.TempDir(), "catalogue.db")
+
+	_, _, code := runRadx(t, "catalogue", "--format", "json", "--database", db, "--confirm-phi", srcDir)
+	if code != exitcode.ParseError {
+		t.Fatalf("catalogue index of a truncated file exit = %d, want %d (parse failure, not usage)", code, exitcode.ParseError)
+	}
+}
+
+// TestCatalogueIndexPermissionDeniedExits5 confirms a permission-denied input makes the index run
+// exit with FileIOError (exit 5): catalogue must preserve the underlying fs.ErrPermission so Classify
+// routes it to the file-I/O class rather than a usage error.
+func TestCatalogueIndexPermissionDeniedExits5(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root bypasses file mode bits; cannot provoke a permission denial")
+	}
+	srcDir := t.TempDir()
+	denied := writeStorableDICOM(t, srcDir, "1.2.805.1")
+	if err := os.Chmod(denied, 0o000); err != nil {
+		t.Fatalf("chmod 000: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(denied, 0o600) }) // let t.TempDir cleanup remove it
+	db := filepath.Join(t.TempDir(), "catalogue.db")
+
+	_, _, code := runRadx(t, "catalogue", "--format", "json", "--database", db, "--confirm-phi", srcDir)
+	if code != exitcode.FileIOError {
+		t.Fatalf("catalogue index of a permission-denied file exit = %d, want %d (file-I/O failure, not usage)", code, exitcode.FileIOError)
+	}
+}
+
+// TestCatalogueIndexIgnoreErrorsExits0RecordsFailure confirms --ignore-errors opts a failing index
+// into a zero exit while still tallying the failure in the machine output, so an exploratory run does
+// not hide the unindexed file.
+func TestCatalogueIndexIgnoreErrorsExits0RecordsFailure(t *testing.T) {
+	srcDir := t.TempDir()
+	writeStorableDICOM(t, srcDir, "1.2.806.1") // one valid file
+	good := writeStorableDICOM(t, srcDir, "1.2.806.2")
+	full, err := os.ReadFile(good)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	if err := os.WriteFile(good, full[:len(full)-8], 0o600); err != nil { // truncate one file
+		t.Fatalf("truncate fixture: %v", err)
+	}
+	db := filepath.Join(t.TempDir(), "catalogue.db")
+
+	stdout, _, code := runRadx(t, "catalogue", "--format", "json",
+		"--database", db, "--confirm-phi", "--ignore-errors", srcDir)
+	if code != exitcode.Success {
+		t.Fatalf("catalogue index --ignore-errors exit = %d, want %d", code, exitcode.Success)
+	}
+	var got catalogueIndexResult
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v", err)
+	}
+	if got.Failed != 1 {
+		t.Errorf("--ignore-errors index failed tally = %d, want 1 (the failure must still be recorded)", got.Failed)
+	}
+}
+
 // TestCatalogueSchema confirms --schema prints the column set without opening a database.
 func TestCatalogueSchema(t *testing.T) {
 	stdout, _, code := runRadx(t, "catalogue", "--format", "json", "--schema")

@@ -133,9 +133,13 @@ func (c *CatalogueCmd) runIndex(rc *RunContext) error {
 
 	log := logging.FromContext(rc.Ctx)
 	indexed, failed := 0, 0
+	var firstErr error
 	for _, path := range files {
 		if err := indexFile(rc.Ctx, cat, path); err != nil {
 			failed++
+			if firstErr == nil {
+				firstErr = err
+			}
 			// Diagnostics name the file and the structural reason, never a patient value.
 			log.Warn("catalogue: failed to index file", zap.String("file", path), zap.Error(err))
 			continue
@@ -153,7 +157,12 @@ func (c *CatalogueCmd) runIndex(rc *RunContext) error {
 		return emitErr
 	}
 	if failed > 0 && !c.IgnoreErrors {
-		return &exitcode.UsageErr{Message: fmt.Sprintf("%d of %d files failed to index", failed, indexed+failed)}
+		// Return the first file's underlying typed error so exitcode.Classify routes the run to its real
+		// class — a truncated/malformed object to ParseError (exit 3), a permission-denied input to
+		// FileIOError (exit 5) — rather than collapsing every index failure into a usage error (exit 2).
+		// The tally is already in the machine output; the exit code names the failure class an operator
+		// branches on. --ignore-errors still opts into exit 0 while recording the failure.
+		return firstErr
 	}
 	return nil
 }
