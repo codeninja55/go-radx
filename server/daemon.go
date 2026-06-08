@@ -269,6 +269,14 @@ func (d *Daemon) Run(ctx context.Context) error {
 		started = append(started, r)
 	}
 
+	// A daemon with no roles serves nothing, so there is nothing to drain and no reason to block until
+	// cancellation: Run returns immediately, honouring New's documented contract rather than parking on
+	// the shutdown wait until the caller's context is cancelled.
+	if len(started) == 0 {
+		d.finishRun(nil)
+		return nil
+	}
+
 	d.cfg.logger.Info("daemon started", zap.Int("roles", len(started)))
 
 	// Block until the context is cancelled or a Shutdown is requested, whichever fires first. Run is

@@ -113,6 +113,29 @@ func TestNilAuthenticatorDoesNotSatisfyBindPolicy(t *testing.T) {
 	}
 }
 
+// TestNoRoleDaemonRunReturnsImmediately asserts the no-role contract: a daemon with no mounted roles
+// serves nothing, so Run returns promptly with a non-cancelled context rather than parking on the
+// shutdown wait until the caller's context is cancelled (Finding 4).
+func TestNoRoleDaemonRunReturnsImmediately(t *testing.T) {
+	t.Parallel()
+	d, err := New()
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// A non-cancelled, deadline-free context: if Run blocked on the shutdown wait it would hang here.
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(context.Background()) }()
+	select {
+	case err := <-runErr:
+		if err != nil {
+			t.Fatalf("Run() with no roles = %v, want nil", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() with no roles did not return promptly; it blocked on the shutdown wait")
+	}
+}
+
 // TestShutdownDrainsWithinDeadline asserts a Shutdown(ctx) drains the mounted roles and returns nil
 // when they drain cleanly, exercising the SIGINT/SIGTERM-equivalent code path (Run blocks until the
 // context is cancelled, then drains).
