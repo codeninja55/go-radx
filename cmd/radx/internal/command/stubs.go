@@ -14,19 +14,10 @@ func notImplemented(capability string) error {
 	return &exitcode.NotImplementedError{Capability: capability}
 }
 
-// ServeCmd is the reference-daemon group. Not implemented in this increment.
-type ServeCmd struct {
-	DICOMweb ServeDICOMwebCmd `cmd:"" name:"dicomweb" help:"Serve WADO-RS / STOW-RS / QIDO-RS."`
-	FHIR     ServeFHIRCmd     `cmd:"" name:"fhir" help:"Serve the FHIR REST API."`
-}
-
-// ServeDICOMwebCmd serves DICOMweb. Not implemented in this increment.
-type ServeDICOMwebCmd struct{}
-
-// Run fails closed.
-func (c *ServeDICOMwebCmd) Run(*RunContext) error { return notImplemented("serve dicomweb") }
-
-// ServeFHIRCmd serves the FHIR REST API. Not implemented in this increment.
+// ServeFHIRCmd serves the FHIR REST API. The FHIR server role is a separate concurrent increment,
+// so this stays fail-closed: it returns a typed not-implemented error (exit 1) rather than a stub
+// that reports success (docs/reference/cli.md serve, the serve-fhir deferral). The serve dicomweb
+// daemon and the ServeCmd group live in serve.go.
 type ServeFHIRCmd struct{}
 
 // Run fails closed.
