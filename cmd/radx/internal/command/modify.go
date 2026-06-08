@@ -26,8 +26,8 @@ type ModifyCmd struct {
 
 	OutputDir string   `name:"output-dir" help:"Write modified files here (required unless --in-place)."`
 	InPlace   bool     `short:"i" name:"in-place" help:"Overwrite the originals in place."`
-	Insert    []string `short:"I" name:"insert" help:"Insert or update a tag ((GGGG,EEEE)=value or keyword=value)."`
-	Delete    []string `short:"D" name:"delete" help:"Delete a tag ((GGGG,EEEE) or keyword)."`
+	Insert    []string `short:"I" name:"insert" sep:"none" help:"Insert or update a tag ((GGGG,EEEE)=value or keyword=value)."`
+	Delete    []string `short:"D" name:"delete" sep:"none" help:"Delete a tag ((GGGG,EEEE) or keyword)."`
 	Recursive bool     `short:"R" name:"recursive" help:"Descend into directories for *.dcm files."`
 
 	RegenerateStudyUID    bool `name:"regenerate-study-uid" help:"New Study Instance UID (0020,000D)."`
@@ -379,10 +379,12 @@ func applyUIDRegeneration(f *dicom.File, tags []dicom.Tag, gen *dicom.UIDGenerat
 	return nil
 }
 
-// emit renders one file's modify result in the resolved format.
+// emit renders one file's modify result in the resolved format. Under JSON it writes one compact
+// object per file (JSON Lines), so a batch over multiple files is a parseable stream consistent with
+// the other per-item commands (store, qido) rather than concatenated indented documents.
 func (c *ModifyCmd) emit(rc *RunContext, r modifyResult) error {
 	if rc.Out.Format == cli.FormatJSON {
-		return rc.Out.EmitJSON(r)
+		return rc.Out.EmitJSONLine(r)
 	}
 	if r.Status == "success" {
 		_, err := fmt.Fprintf(rc.Out.Machine, "%s -> %s: %d edits applied\n", r.File, r.Output, r.Edits)

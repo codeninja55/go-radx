@@ -316,3 +316,29 @@ func TestModifyOutputDirBasenameCollisionFailsClosed(t *testing.T) {
 		t.Errorf("written output SOP Instance UID = %q, want the first input's 1.2.3.4.600.60", got)
 	}
 }
+
+// TestModifyAcceptsParenthesizedTagInsert is the regression for the Kong comma-split defect: a
+// documented parenthesized tag like "(0010,0020)=ANON" must survive flag parsing intact (sep:"none")
+// rather than being split on the comma into "(0010" and "0020)=ANON" and rejected. It asserts the
+// edit actually lands on disk under the parenthesized form.
+func TestModifyAcceptsParenthesizedTagInsert(t *testing.T) {
+	src := writeStorableDICOM(t, t.TempDir(), "1.2.3.4.600.70")
+	outDir := filepath.Join(t.TempDir(), "modified")
+
+	stdout, stderr, code := runRadx(t, "modify", "--format", "json",
+		"--output-dir", outDir,
+		"--insert", "(0010,0020)=ANON-PAREN",
+		src)
+	if code != exitcode.Success {
+		t.Fatalf("modify exit = %d, want %d (parenthesized tag must parse)\nstdout=%q\nstderr=%q",
+			code, exitcode.Success, stdout, stderr)
+	}
+	out := filepath.Join(outDir, filepath.Base(src))
+	f, err := dicom.ReadFile(out)
+	if err != nil {
+		t.Fatalf("read modified file: %v", err)
+	}
+	if got, _ := f.DataSet.GetString(dicom.TagPatientID); got != "ANON-PAREN" {
+		t.Errorf("PatientID = %q, want ANON-PAREN (the parenthesized-tag insert must apply)", got)
+	}
+}
