@@ -41,6 +41,40 @@ func writeSyntheticDICOM(t *testing.T) string {
 	return path
 }
 
+// syntheticPatientName is the synthetic PatientName token written into every fixture. It is a
+// deliberately fictional sentinel, never a real patient value (PRD §9.1), so a test can assert
+// that a default dump shows it and a --redact dump masks it.
+const syntheticPatientName = "TEST^FIXTURE"
+
+// writeSyntheticDICOMWithPixelData writes a synthetic Part-10 file that also carries a small
+// PixelData (7FE0,0010) element, so a test can assert that pixel-data bytes are summarised
+// structurally and never rendered unless --process-pixel-data is set.
+func writeSyntheticDICOMWithPixelData(t *testing.T, dir string) string {
+	t.Helper()
+	ds := dicom.NewDataSet()
+	ds.Set(dicom.Element{Tag: dicom.NewTag(0x0008, 0x0016), VR: dicom.VRUI, Value: dicom.NewStrings(dicom.VRUI, "1.2.840.10008.5.1.4.1.1.7")})
+	ds.Set(dicom.Element{Tag: dicom.NewTag(0x0008, 0x0018), VR: dicom.VRUI, Value: dicom.NewStrings(dicom.VRUI, "1.2.3.4.5.6.7.8.9")})
+	ds.Set(dicom.Element{Tag: dicom.NewTag(0x0010, 0x0010), VR: dicom.VRPN, Value: dicom.NewStrings(dicom.VRPN, syntheticPatientName)})
+	ds.Set(dicom.Element{Tag: dicom.NewTag(0x0028, 0x0010), VR: dicom.VRUS, Value: dicom.NewInts(dicom.VRUS, 2)})
+	ds.Set(dicom.Element{Tag: dicom.NewTag(0x0028, 0x0011), VR: dicom.VRUS, Value: dicom.NewInts(dicom.VRUS, 2)})
+	ds.Set(dicom.Element{Tag: dicom.NewTag(0x7FE0, 0x0010), VR: dicom.VROW, Value: dicom.NewBytes(dicom.VROW, []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07})})
+
+	f := &dicom.File{
+		Meta: &dicom.FileMeta{
+			MediaStorageSOPClassUID:    "1.2.840.10008.5.1.4.1.1.7",
+			MediaStorageSOPInstanceUID: "1.2.3.4.5.6.7.8.9",
+			TransferSyntaxUID:          dicom.ExplicitVRLittleEndian,
+		},
+		DataSet: ds,
+	}
+
+	path := filepath.Join(dir, "pixels.dcm")
+	if err := dicom.WriteFile(path, f); err != nil {
+		t.Fatalf("write synthetic DICOM with pixel data: %v", err)
+	}
+	return path
+}
+
 // runRadx runs the radx entry point in-process with the given args, capturing stdout and
 // stderr separately so a test can assert the clean-stdout contract.
 func runRadx(t *testing.T, args ...string) (stdout, stderr string, code int) {
@@ -163,5 +197,97 @@ func TestDumpIgnoreErrorsExits0(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "\"status\": \"failure\"") {
 		t.Errorf("dump --ignore-errors did not record the per-file failure:\n%s", stdout)
+	}
+}
+
+// TestDumpShowsValuesByDefault confirms a default dump is an authorized local inspection that
+// shows element values, including PHI-sensitive ones: the synthetic PatientName sentinel is
+// present. A dump the user explicitly ran on a file they hold is exempt from the ambient-logging
+// no-PHI rule (docs/reference/cli.md dump).
+func TestDumpShowsValuesByDefault(t *testing.T) {
+	path := writeSyntheticDICOM(t)
+	stdout, _, code := runRadx(t, "dump", "--format", "json", path)
+	if code != exitcode.Success {
+		t.Fatalf("dump exit = %d, want %d", code, exitcode.Success)
+	}
+	if !strings.Contains(stdout, syntheticPatientName) {
+		t.Errorf("default dump did not show the PatientName value %q:\n%s", syntheticPatientName, stdout)
+	}
+}
+
+// TestDumpRedactMasksPHI confirms --redact masks PHI-sensitive element values to the fixed
+// marker: the synthetic PatientName sentinel is replaced by [redacted] and never appears.
+func TestDumpRedactMasksPHI(t *testing.T) {
+	path := writeSyntheticDICOM(t)
+	stdout, _, code := runRadx(t, "dump", "--format", "json", "--redact", path)
+	if code != exitcode.Success {
+		t.Fatalf("dump --redact exit = %d, want %d", code, exitcode.Success)
+	}
+	if strings.Contains(stdout, syntheticPatientName) {
+		t.Errorf("dump --redact leaked the PatientName value %q:\n%s", syntheticPatientName, stdout)
+	}
+	if !strings.Contains(stdout, redactedMarker) {
+		t.Errorf("dump --redact did not mask the value to %q:\n%s", redactedMarker, stdout)
+	}
+}
+
+// TestDumpMultiFileJSONIsJSONLines confirms multiple files dumped as json are emitted as a JSON
+// Lines stream — one parseable JSON object per line — rather than concatenated indented
+// documents a consumer cannot parse.
+func TestDumpMultiFileJSONIsJSONLines(t *testing.T) {
+	a := writeSyntheticDICOM(t)
+	b := writeSyntheticDICOM(t)
+	stdout, _, code := runRadx(t, "dump", "--format", "json", a, b)
+	if code != exitcode.Success {
+		t.Fatalf("multi-file dump exit = %d, want %d\nstdout=%q", code, exitcode.Success, stdout)
+	}
+	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("multi-file json line count = %d, want 2 (one per file)\n%s", len(lines), stdout)
+	}
+	for i, line := range lines {
+		var df dumpFile
+		if err := json.Unmarshal([]byte(line), &df); err != nil {
+			t.Fatalf("line %d is not valid JSON: %v\nline=%q", i, err, line)
+		}
+		if df.Status != "success" {
+			t.Errorf("line %d status = %q, want success", i, df.Status)
+		}
+	}
+}
+
+// TestDumpRecursiveDirectory confirms -R descends a directory for *.dcm files and that pixel
+// data is summarised structurally — the raw bytes never appear — unless --process-pixel-data is
+// set.
+func TestDumpRecursiveDirectory(t *testing.T) {
+	dir := t.TempDir()
+	writeSyntheticDICOMWithPixelData(t, dir)
+
+	stdout, _, code := runRadx(t, "dump", "--format", "json", "-R", dir)
+	if code != exitcode.Success {
+		t.Fatalf("dump -R exit = %d, want %d\nstdout=%q", code, exitcode.Success, stdout)
+	}
+
+	var df dumpFile
+	if err := json.Unmarshal([]byte(strings.TrimRight(stdout, "\n")), &df); err != nil {
+		t.Fatalf("recursive dump line is not valid JSON: %v\nstdout=%q", err, stdout)
+	}
+	pix, ok := df.Elements["7FE0,0010"]
+	if !ok {
+		t.Fatalf("recursive dump did not include the PixelData element:\n%s", stdout)
+	}
+	if !strings.Contains(pix.Value, "not processed") {
+		t.Errorf("PixelData value = %q, want a structural summary (pixel bytes must be omitted by default)", pix.Value)
+	}
+}
+
+// TestDumpDirectoryWithoutRecursiveIsUsageError confirms a directory input without -R is a usage
+// error (exit 2): a directory is not a DICOM file, and the fault is in the invocation.
+func TestDumpDirectoryWithoutRecursiveIsUsageError(t *testing.T) {
+	dir := t.TempDir()
+	writeSyntheticDICOMWithPixelData(t, dir)
+	_, _, code := runRadx(t, "dump", "--format", "json", dir)
+	if code != exitcode.UsageError {
+		t.Fatalf("dump on a directory without -R exit = %d, want %d (usage error)", code, exitcode.UsageError)
 	}
 }
