@@ -211,14 +211,10 @@ func (c *HL7ListenCmd) Run(rc *RunContext) error {
 	}
 	log.Info("hl7 listen: listening", zap.String("addr", addr.String()))
 
-	<-sigCtx.Done()
-	shutdownCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if shutErr := srv.Shutdown(shutdownCtx); shutErr != nil {
-		return shutErr
-	}
-	if serveErr := <-served; serveErr != nil {
-		return serveErr
+	// Wait on BOTH the serve goroutine and the signal: a post-startup MLLP listener failure returns its
+	// error promptly instead of hanging until an interrupt, while a signal drains the server gracefully.
+	if err := awaitListenerStop(sigCtx, served, srv.Shutdown); err != nil {
+		return err
 	}
 	log.Info("hl7 listen: stopped", zap.Int64("received", received.Load()))
 	return nil

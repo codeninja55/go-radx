@@ -137,6 +137,92 @@ func TestAwaitDaemonStopGracefulOnSignal(t *testing.T) {
 	}
 }
 
+// TestAwaitListenerStopSurfacesPostStartupFailure is the no-hang regression shared by scp and hl7
+// listen: when the serve goroutine returns an error after the listener reported ready (a dead accept
+// loop), awaitListenerStop must surface that error promptly without calling Shutdown and without
+// blocking on a signal that never comes. The prior commands waited on sigCtx.Done() first and ignored
+// the served channel, so a post-startup failure hung the CLI.
+func TestAwaitListenerStopSurfacesPostStartupFailure(t *testing.T) {
+	served := make(chan error, 1)
+	want := errors.New("accept loop died after startup")
+	served <- want
+
+	shutdownCalled := false
+	shutdown := func(context.Context) error { shutdownCalled = true; return nil }
+
+	done := make(chan error, 1)
+	go func() { done <- awaitListenerStop(context.Background(), served, shutdown) }()
+
+	select {
+	case got := <-done:
+		if !errors.Is(got, want) {
+			t.Fatalf("awaitListenerStop returned %v, want %v", got, want)
+		}
+		if shutdownCalled {
+			t.Error("awaitListenerStop called Shutdown on a self-terminated server; want no shutdown")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("awaitListenerStop hung on a post-startup listener failure instead of returning the error")
+	}
+}
+
+// TestAwaitListenerStopGracefulOnSignal confirms the normal path: when the signal context is
+// cancelled, awaitListenerStop calls Shutdown to drain in-flight work and then returns the serve
+// goroutine's terminal error (nil on a clean stop), not a hang.
+func TestAwaitListenerStopGracefulOnSignal(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	served := make(chan error, 1)
+
+	shutdownCalled := false
+	shutdown := func(context.Context) error {
+		shutdownCalled = true
+		// A real Shutdown closes the listener, which makes the serve goroutine return; model that here.
+		served <- nil
+		return nil
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- awaitListenerStop(ctx, served, shutdown) }()
+
+	cancel() // a SIGINT in production
+
+	select {
+	case got := <-done:
+		if got != nil {
+			t.Fatalf("awaitListenerStop on a clean signal-driven stop returned %v, want nil", got)
+		}
+		if !shutdownCalled {
+			t.Error("awaitListenerStop did not call Shutdown on a signal; want a graceful drain")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("awaitListenerStop did not return after a clean signal-driven shutdown")
+	}
+}
+
+// TestAwaitListenerStopSurfacesShutdownError confirms a Shutdown that fails to drain within its
+// context surfaces that error rather than being swallowed.
+func TestAwaitListenerStopSurfacesShutdownError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	served := make(chan error, 1)
+
+	want := errors.New("shutdown drain timed out")
+	shutdown := func(context.Context) error { return want }
+
+	done := make(chan error, 1)
+	go func() { done <- awaitListenerStop(ctx, served, shutdown) }()
+
+	cancel()
+
+	select {
+	case got := <-done:
+		if !errors.Is(got, want) {
+			t.Fatalf("awaitListenerStop returned %v, want the shutdown error %v", got, want)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("awaitListenerStop hung on a failing shutdown instead of returning the error")
+	}
+}
+
 // freeLoopbackPort returns a currently-free loopback TCP port by binding and releasing it.
 func freeLoopbackPort(t *testing.T) int {
 	t.Helper()

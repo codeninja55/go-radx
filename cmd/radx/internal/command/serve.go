@@ -156,6 +156,33 @@ func awaitDaemonStop(sigCtx context.Context, runErr <-chan error, log *zap.Logge
 	return nil
 }
 
+// awaitListenerStop blocks after a successful startup for the listener commands (scp, hl7 listen)
+// whose server is run via ListenAndServe and stopped with an explicit Shutdown. It selects on BOTH
+// the served channel and the signal context, mirroring awaitDaemonStop, so a post-startup listener
+// failure (an accept loop that dies after reporting ready) is surfaced promptly with its error rather
+// than hanging the CLI until a signal: if served fires first, that error is returned (and maps to its
+// exit code); if the signal fires first, shutdown drains in-flight work against a fresh background
+// context and the serve goroutine's terminal error is returned. Either way served is awaited once, so
+// the server is fully drained before the command returns. A nil return is a clean stop; the caller
+// logs its own stop message (with role-specific counters) afterwards.
+func awaitListenerStop(sigCtx context.Context, served <-chan error, shutdown func(context.Context) error) error {
+	select {
+	case serveErr := <-served:
+		// The server stopped on its own after reporting ready: a listener failure. Surface it rather
+		// than blocking on a signal that may never come.
+		return serveErr
+	case <-sigCtx.Done():
+		// An interrupt: drain in-flight associations against a background context the signal has not
+		// cancelled, then collect the serve goroutine's terminal error.
+		shutdownCtx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		if shutErr := shutdown(shutdownCtx); shutErr != nil {
+			return shutErr
+		}
+		return <-served
+	}
+}
+
 // emit renders the listening result in the resolved format.
 func (c *ServeDICOMwebCmd) emit(rc *RunContext, r serveStartedResult) error {
 	if rc.Out.Format == cli.FormatJSON {
