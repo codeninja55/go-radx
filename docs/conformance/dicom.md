@@ -40,10 +40,11 @@ In scope for v1:
 - **Storage Commitment Push Model** as SCU only (N-ACTION, N-EVENT-REPORT).
 - Uncompressed transfer syntaxes for read and write; compressed transfer syntaxes for transport always, and for pixel
   decode/encode only where a pure-Go or optional-CGo codec is built in.
-- Association negotiation: presentation-context negotiation, maximum PDU length, SCP/SCU role selection, and DIMSE-TLS
-  (TLS 1.2+ with peer verification and optional mutual-TLS). The asynchronous operations window, user identity
-  (types 1–5), and SOP Class extended and common extended negotiation are designed-for but not yet shipped (see the
-  negotiation table below).
+- Association negotiation: presentation-context negotiation, maximum PDU length, SCP/SCU role selection, the
+  asynchronous operations window, user identity (types 1–5), SOP Class extended and common extended negotiation, and
+  DIMSE-TLS (TLS 1.2+ with peer verification and optional mutual-TLS). The asynchronous-operations window is negotiated
+  but the acceptor windows to (1,1); concurrency is delivered through Go goroutines, not the DICOM async-ops mechanism
+  (see the negotiation table below).
 
 Out of scope for v1 (deferred, designed-for but not implemented — PRD §3.2, §5.1):
 
@@ -356,19 +357,21 @@ Regenerate a baseline with the command recorded in each file's header, and compa
 
 ## Association negotiation
 
-go-radx negotiates associations through `dimse.AE`, `AE.Associate(...)`, and `dimse.NewServer(...)`. Presentation-context
-negotiation, maximum PDU length, SCP/SCU role selection, and DIMSE-TLS ship today; the remaining features in the table
-are designed-for against the `pynetdicom` floor (PRD §6.2) but not yet shipped.
+go-radx negotiates associations through `dimse.AE`, `AE.Associate(...)`, and `dimse.NewServer(...)`. Every feature in
+the table ships today, negotiated against the `pynetdicom` floor (PRD §6.2). The asynchronous-operations window is
+negotiated and echoed honestly but the acceptor windows to (1,1): go-radx delivers concurrency through Go goroutines and
+`context.Context`, not the DICOM async-ops mechanism, so the negotiated window is the truthful (1,1), not real
+asynchronous delivery.
 
 | Feature | Support | Notes |
 |---------|---------|-------|
 | Presentation-context negotiation | Yes | Odd-ID-keyed; per-context accepted transfer syntax; rejection reason codes |
 | Maximum PDU length | Yes | `WithMaxPDULength(n)`; default `dimse.MaxPDULength` (16382); 0 = "no maximum specified" |
 | SCP/SCU role selection | Yes | `WithRoleSelection(...)`; required for C-GET (requestor accepts the Storage SCP role) |
-| Asynchronous operations window | Not yet shipped | Designed-for `WithAsyncOps(...)`; acceptor would window to (1,1), synchronous |
-| User identity negotiation | Not yet shipped | Designed-for `WithUserIdentity(...)`: username, passcode, Kerberos, SAML, JWT (types 1–5) |
-| SOP Class extended negotiation | Not yet shipped | Designed-for `WithExtendedNegotiation(...)`: per-SOP-class service-class application info |
-| SOP Class common extended negotiation | Not yet shipped | Designed-for `WithCommonExtendedNegotiation(...)` |
+| Asynchronous operations window | Yes (negotiated, window 1) | `WithAsyncOps(invoked, performed)`; acceptor echoes (1,1) — concurrency via goroutines, not DICOM async-ops |
+| User identity negotiation | Yes | `WithUserIdentity(...)`: username, passcode, Kerberos, SAML, JWT (types 1–5); acceptor seam `WithAuthenticator(...)` |
+| SOP Class extended negotiation | Yes | `WithExtendedNegotiation(...)`: per-SOP-class service-class application info |
+| SOP Class common extended negotiation | Yes | `WithCommonExtendedNegotiation(...)` |
 | DIMSE-TLS | Yes | `WithTLS(cfg)`; TLS 1.2+ (prefer 1.3), peer verification on by default, optional mutual-TLS (PRD §9.7) |
 
 ### DUL state machine
@@ -386,6 +389,25 @@ carrying source, reason, and result. This is a parity-floor requirement and the 
 The reference SCP can require a specific Called AE Title (`WithRequireCalledAETitle`) and an allow-list of Calling AE
 Titles (`WithRequireCallingAETitles`). `AETitle` is a validated named type (1–16 characters, default repertoire),
 never a bare string.
+
+### User identity negotiation
+
+User identity is the only association-level authentication DICOM defines (PS3.7 D.3.3.7). An SCU presents an identity
+with `WithUserIdentity(...)` — username, username and passcode, Kerberos service ticket, SAML assertion, or JSON Web
+Token (types 1–5). The acceptor authenticates it through `WithAuthenticator(...)`, the same negotiation seam
+`WithAssociationAuthorizer(...)` uses: the authenticator runs after the Calling-AE check and before presentation-context
+matching, and a non-nil error rejects the association with an A-ASSOCIATE-RJ before any service runs. When the SCU asks
+for a positive response, the authenticator's returned bytes are echoed back as the user-identity server response,
+readable via `Association.UserIdentityResponse()`. Identity fields hold secrets (passcodes, tokens) that are never
+logged or written to any catalogue (PRD §9.8).
+
+### Negotiation hardening
+
+The acceptor rejects a malformed or non-conformant A-ASSOCIATE-RQ deterministically before any policy or service runs:
+an unsupported DUL protocol version is refused with a service-provider-ACSE A-ASSOCIATE-RJ (protocol-version-not-
+supported); an RQ proposing more than the 128-presentation-context limit (PS3.8 §7.1.1.13) is refused with a
+service-provider-ACSE rejection; and a Called or Calling AE Title field carrying a non-conformant character or an
+over-length value is refused with a service-user rejection naming the bad title (PS3.5 VR AE, PS3.8 Table 9-21).
 
 ## Behaviour and error model
 

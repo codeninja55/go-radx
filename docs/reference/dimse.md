@@ -20,9 +20,10 @@ In scope for v1:
 
 - Application Entity and `AETitle` value type.
 - Association lifecycle: A-ASSOCIATE negotiation, A-RELEASE, A-ABORT, A-P-ABORT, with `context.Context` cancellation.
-- Presentation-context negotiation: max PDU length and SCP/SCU role selection, with presentation-context presets
-  (implemented). Asynchronous-operations window, user identity (types 1–5), and SOP-class extended and common-extended
-  negotiation are committed v1 surface but **planned, not yet implemented**.
+- Presentation-context negotiation: max PDU length and SCP/SCU role selection, with presentation-context presets. The
+  asynchronous-operations window, user identity (types 1–5), and SOP-class extended and common-extended negotiation are
+  implemented. The async-ops window is negotiated and echoed honestly but the acceptor windows to (1,1); concurrency is
+  delivered through goroutines and `context.Context`, not the DICOM async-ops mechanism.
 - The PS3.8 Table 9-10 DUL finite state machine: 13 states (including release-collision Sta9–Sta12), 19 events, 28
   actions.
 - PDU and PDV encode/decode with hostile-input hardening.
@@ -259,12 +260,11 @@ func (ae *AE) Associate(
 
 type AssociateOption func(*associateConfig)
 
-func WithRoleSelection(sel ...RoleSelection) AssociateOption
-// The four options below are committed v1 surface but planned, not yet implemented:
-func WithAsyncOps(invoked, performed uint16) AssociateOption // window negotiation
+func WithRoleSelection(role RoleSelection) AssociateOption
+func WithAsyncOps(invoked, performed uint16) AssociateOption // window negotiation; acceptor echoes (1,1)
 func WithUserIdentity(id UserIdentity) AssociateOption
-func WithExtendedNegotiation(items ...SOPClassExtendedNegotiation) AssociateOption
-func WithCommonExtendedNegotiation(items ...SOPClassCommonExtendedNegotiation) AssociateOption
+func WithExtendedNegotiation(items ...ExtendedNegotiation) AssociateOption
+func WithCommonExtendedNegotiation(items ...CommonExtendedNegotiation) AssociateOption
 ```
 
 ### Serving inbound associations (SCP)
@@ -288,6 +288,8 @@ type ServerOption func(*serverConfig)
 func WithMaxAssociations(n int) ServerOption       // capacity is acquired before spawning the handler (Codex DIMSE-013)
 func WithRequireCalledAETitle(t AETitle) ServerOption
 func WithRequireCallingAETitles(t ...AETitle) ServerOption
+func WithAssociationAuthorizer(authorize func(callingAE string, peer net.Addr) error) ServerOption
+func WithAuthenticator(authenticate func(id *UserIdentity, peer net.Addr) ([]byte, error)) ServerOption // PS3.7 D.3.3.7
 ```
 
 ## Negotiation primitives
@@ -301,26 +303,30 @@ These are the user-information sub-items negotiated inside A-ASSOCIATE (PS3.7 An
 // that cannot fit a PDV header is rejected with a typed error (Codex DIMSE-005, DIMSE-012).
 type MaxPDULength uint32
 
-// RoleSelection is SCP/SCU role-selection negotiation (PS3.7 D.3.3.4) for one abstract syntax. Required to act as an
+// RoleSelection is SCP/SCU role-selection negotiation (PS3.7 D.3.3.4) for one SOP Class. Required to act as an
 // SCP for C-GET (the requestor must accept the SCP role for the Storage SOP Classes used by sub-operations).
 type RoleSelection struct {
-	AbstractSyntax dicom.SOPClassUID
-	SCURole        bool
-	SCPRole        bool
+	SOPClassUID dicom.SOPClassUID
+	SCURole     bool
+	SCPRole     bool
 }
 
-// AsyncOps is asynchronous-operations-window negotiation (PS3.7 D.3.3.3). pynetdicom negotiates but never delivers
-// real async; go-radx negotiates the window AND delivers genuine concurrency via goroutines (PRD §6.3).
+// AsyncOps is asynchronous-operations-window negotiation (PS3.7 D.3.3.3). go-radx negotiates and echoes the window
+// honestly but the acceptor windows to (1,1); concurrency is delivered through goroutines and context.Context, not the
+// DICOM async-ops mechanism, so a negotiated (1,1) is the truthful window. Read it back via
+// Association.NegotiatedAsyncOps.
 type AsyncOps struct {
 	MaxOperationsInvoked   uint16 // 0 = unlimited
 	MaxOperationsPerformed uint16 // 0 = unlimited
 }
 
-// UserIdentity is user-identity negotiation (PS3.7 D.3.3.7). Type is one of the five standard forms.
+// UserIdentity is user-identity negotiation (PS3.7 D.3.3.7), the only association-level authentication DICOM defines.
+// Type is one of the five standard forms. When PositiveResponseRequested is set, the acceptor's server response is read
+// back via Association.UserIdentityResponse.
 type UserIdentity struct {
-	Type                     UserIdentityType
-	PrimaryField             []byte // username, Kerberos ticket, SAML assertion, or JWT
-	SecondaryField           []byte // passcode, for UserIdentityUsernamePasscode only
+	Type                      UserIdentityType
+	PrimaryField              []byte // username, Kerberos ticket, SAML assertion, or JWT
+	SecondaryField            []byte // passcode, for UserIdentityUsernamePasscode only
 	PositiveResponseRequested bool
 }
 
@@ -334,22 +340,25 @@ const (
 	UserIdentityJWT              UserIdentityType = 5 // JSON Web Token
 )
 
-// SOPClassExtendedNegotiation is per-SOP-class extended negotiation (PS3.7 D.3.3.5): an opaque service-class
+// ExtendedNegotiation is per-SOP-class extended negotiation (PS3.7 D.3.3.5): an opaque service-class
 // application-information blob keyed by SOP Class UID.
-type SOPClassExtendedNegotiation struct {
-	SOPClassUID            dicom.SOPClassUID
-	ServiceClassAppInfo    []byte
+type ExtendedNegotiation struct {
+	SOPClassUID         dicom.SOPClassUID
+	ServiceClassAppInfo []byte
 }
 
-// SOPClassCommonExtendedNegotiation is common-extended negotiation (PS3.7 D.3.3.6).
-type SOPClassCommonExtendedNegotiation struct {
-	SOPClassUID            dicom.SOPClassUID
-	ServiceClassUID        dicom.UID
+// CommonExtendedNegotiation is common-extended negotiation (PS3.7 D.3.3.6).
+type CommonExtendedNegotiation struct {
+	SOPClassUID              dicom.SOPClassUID
+	ServiceClassUID          dicom.UID
 	RelatedGeneralSOPClasses []dicom.SOPClassUID
 }
 ```
 
-Secrets carried in `UserIdentity` (passcodes, tokens) are never logged and never written to any catalogue (PRD §9.8).
+The acceptor authenticates a presented `UserIdentity` through `WithAuthenticator(...)` — the same negotiation seam
+`WithAssociationAuthorizer(...)` uses — rejecting an unauthenticated association with an A-ASSOCIATE-RJ before any
+service runs. Secrets carried in `UserIdentity` (passcodes, tokens) are never logged and never written to any catalogue
+(PRD §9.8).
 
 ## Presentation contexts and presets
 
@@ -968,8 +977,9 @@ What v1 conforms to:
 - **DIMSE-C**: C-ECHO, C-STORE, C-FIND, C-GET, C-MOVE — both SCU and SCP — with C-CANCEL and the streaming
   multi-response contract.
 - **DIMSE-N (SCU only)**: MPPS (N-CREATE / N-SET) and Storage Commitment Push Model (N-ACTION / N-EVENT-REPORT).
-- **Negotiation**: max PDU length, SCP/SCU role selection, asynchronous-operations window (with genuine concurrency),
-  user identity types 1–5, SOP-class extended and common-extended negotiation.
+- **Negotiation**: max PDU length, SCP/SCU role selection, asynchronous-operations window (negotiated and echoed at
+  window 1; concurrency is delivered through goroutines, not the DICOM async-ops mechanism), user identity types 1–5
+  (acceptor authentication via `WithAuthenticator`), and SOP-class extended and common-extended negotiation.
 - **DUL**: PS3.8 Table 9-10 in full — 13 states (including Sta9–Sta12), 19 events, 28 actions.
 - **Transfer syntaxes**: the four defaults negotiated and exercised end-to-end; the full registered set recognised for
   negotiation; every supported compressed syntax **decoded**; **encode/transcode** only where a codec exists (RLE and

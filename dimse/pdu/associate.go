@@ -17,8 +17,13 @@ const (
 	ItemTypeUserInformation        byte = 0x50
 	ItemTypeMaxLength              byte = 0x51
 	ItemTypeImplementationClassUID byte = 0x52
+	ItemTypeAsyncOperations        byte = 0x53
 	ItemTypeRoleSelection          byte = 0x54
 	ItemTypeImplementationVersion  byte = 0x55
+	ItemTypeExtendedNegotiation    byte = 0x56
+	ItemTypeCommonExtended         byte = 0x57
+	ItemTypeUserIdentityRQ         byte = 0x58
+	ItemTypeUserIdentityAC         byte = 0x59
 )
 
 // Presentation-context negotiation results (PS3.8 §9.3.3.2).
@@ -47,14 +52,34 @@ const (
 const insignificantTransferSyntax = "1.2.840.10008.1.2"
 
 // UserInformation carries the negotiated user-information sub-items (PS3.7 Annex D): the
-// maximum PDU length, the implementation class UID, the implementation version name, and the
-// SCP/SCU role-selection sub-items, one per SOP Class for which a non-default role is
-// requested (requestor) or granted (acceptor).
+// maximum PDU length, the implementation class UID, the implementation version name, the
+// SCP/SCU role-selection sub-items (one per SOP Class for which a non-default role is requested
+// or granted), the asynchronous-operations window, the SOP-class extended and common-extended
+// negotiation sub-items, and the user-identity sub-item (RQ on the requestor side, AC on the
+// acceptor side). The pointer-typed sub-items are absent (nil) by default so an association that
+// negotiates none of them encodes exactly the sub-items it carries.
 type UserInformation struct {
 	MaxPDULength           uint32
 	ImplementationClassUID string
 	ImplementationVersion  string
 	RoleSelections         []RoleSelection
+
+	// AsyncOps, when non-nil, carries the asynchronous-operations-window sub-item (item type 0x53,
+	// PS3.7 D.3.3.3): the maximum number of operations the AE may invoke and perform concurrently.
+	AsyncOps *AsyncOperations
+	// ExtendedNegotiations carries the SOP-class extended-negotiation sub-items (item type 0x56,
+	// PS3.7 D.3.3.5), one per SOP Class for which service-class application information is exchanged.
+	ExtendedNegotiations []ExtendedNegotiation
+	// CommonExtendedNegotiations carries the SOP-class common-extended-negotiation sub-items (item
+	// type 0x57, PS3.7 D.3.3.6), each binding a SOP Class to its Service Class and related SOP Classes.
+	CommonExtendedNegotiations []CommonExtendedNegotiation
+	// UserIdentityRQ, when non-nil, carries the user-identity-negotiation request sub-item (item type
+	// 0x58, PS3.7 D.3.3.7) the requestor presents. It is set on an A-ASSOCIATE-RQ only.
+	UserIdentityRQ *UserIdentityRQ
+	// UserIdentityAC, when non-nil, carries the user-identity-negotiation response sub-item (item type
+	// 0x59, PS3.7 D.3.3.7) the acceptor returns when the requestor asked for a positive response. It is
+	// set on an A-ASSOCIATE-AC only.
+	UserIdentityAC *UserIdentityAC
 }
 
 // RoleSelection is one SCP/SCU Role Selection sub-item (item type 0x54, PS3.7 D.3.3.4). In an
@@ -112,23 +137,28 @@ type AssociateRJ struct {
 // Encode writes the A-ASSOCIATE-RQ PDU: the 6-byte header with the summed body length,
 // then the fixed fields and variable sub-items.
 func (p *AssociateRQ) Encode(w io.Writer) error {
-	body := p.encodeBody()
+	body, err := p.encodeBody()
+	if err != nil {
+		return err
+	}
 	if err := writeHeader(w, PDUTypeAssociateRQ, uint32(body.Len())); err != nil {
 		return err
 	}
-	_, err := w.Write(body.Bytes())
-	return err
+	_, werr := w.Write(body.Bytes())
+	return werr
 }
 
-func (p *AssociateRQ) encodeBody() *bytes.Buffer {
+func (p *AssociateRQ) encodeBody() (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	writeAssociateFixedFields(&buf, p.ProtocolVersion, p.CalledAETitle, p.CallingAETitle)
 	encodeItem(&buf, ItemTypeApplicationContext, []byte(p.ApplicationContext))
 	for _, pc := range p.PresentationContexts {
 		encodePresentationContextRQ(&buf, pc)
 	}
-	encodeUserInformation(&buf, p.UserInfo)
-	return &buf
+	if err := encodeUserInformation(&buf, p.UserInfo); err != nil {
+		return nil, err
+	}
+	return &buf, nil
 }
 
 // Encode writes the A-ASSOCIATE-AC PDU.
@@ -139,7 +169,9 @@ func (p *AssociateAC) Encode(w io.Writer) error {
 	for _, pc := range p.PresentationContexts {
 		encodePresentationContextAC(&buf, pc)
 	}
-	encodeUserInformation(&buf, p.UserInfo)
+	if err := encodeUserInformation(&buf, p.UserInfo); err != nil {
+		return err
+	}
 	if err := writeHeader(w, PDUTypeAssociateAC, uint32(buf.Len())); err != nil {
 		return err
 	}
@@ -325,13 +357,29 @@ func readAssociateFixedFields(br *boundedReader, version *uint16, called, callin
 
 // encodeItem writes a sub-item: type byte, reserved byte, 2-byte big-endian length,
 // data. It writes to a bytes.Buffer (whose Write never fails), so the sub-item layout
-// composes without error plumbing on infallible writes.
+// composes without error plumbing on infallible writes. Callers must guarantee len(data)
+// fits the 2-byte length prefix; sub-items assembled from variable-length fields use
+// encodeItemChecked instead, which refuses an over-length body rather than wrapping it.
 func encodeItem(buf *bytes.Buffer, itemType byte, data []byte) {
 	var hdr [4]byte
 	hdr[0] = itemType
 	binary.BigEndian.PutUint16(hdr[2:4], uint16(len(data)))
 	buf.Write(hdr[:])
 	buf.Write(data)
+}
+
+// encodeItemChecked writes a sub-item like encodeItem but first validates that the assembled body
+// fits the 2-byte length prefix. Guarding each inner field is not enough: a body built from several
+// fields, each within the prefix, can still sum past 65535 (a length prefix plus its data, repeated),
+// at which point encodeItem's uint16(len(data)) cast would wrap and emit a sub-item whose declared
+// length disagrees with the bytes that follow. Negotiation sub-items with variable-length bodies route
+// through here so an over-length body is an *EncodeError, never a corrupt PDU.
+func encodeItemChecked(buf *bytes.Buffer, field string, itemType byte, data []byte) error {
+	if err := checkUint16Field(field, len(data)); err != nil {
+		return err
+	}
+	encodeItem(buf, itemType, data)
+	return nil
 }
 
 // readItem reads one sub-item, validating its declared length against the bounded
@@ -427,7 +475,11 @@ func decodePresentationContextAC(data []byte) (PresentationContextAC, error) {
 	return pc, nil
 }
 
-func encodeUserInformation(out *bytes.Buffer, ui UserInformation) {
+// encodeUserInformation writes the User Information sub-item (item type 0x50) and its nested
+// negotiation sub-items. It returns an *EncodeError when a length-prefixed negotiation field exceeds
+// the 2-byte length prefix the wire format reserves for it, so a self-encoded A-ASSOCIATE PDU is never
+// emitted with a truncated length and trailing bytes that leak into this enclosing item.
+func encodeUserInformation(out *bytes.Buffer, ui UserInformation) error {
 	var buf bytes.Buffer
 	if ui.MaxPDULength > 0 {
 		var lb [4]byte
@@ -443,7 +495,33 @@ func encodeUserInformation(out *bytes.Buffer, ui UserInformation) {
 	for _, rs := range ui.RoleSelections {
 		encodeRoleSelection(&buf, rs)
 	}
-	encodeItem(out, ItemTypeUserInformation, buf.Bytes())
+	if ui.AsyncOps != nil {
+		encodeAsyncOperations(&buf, *ui.AsyncOps)
+	}
+	for _, en := range ui.ExtendedNegotiations {
+		if err := encodeExtendedNegotiation(&buf, en); err != nil {
+			return err
+		}
+	}
+	for _, cen := range ui.CommonExtendedNegotiations {
+		if err := encodeCommonExtendedNegotiation(&buf, cen); err != nil {
+			return err
+		}
+	}
+	if ui.UserIdentityRQ != nil {
+		if err := encodeUserIdentityRQ(&buf, *ui.UserIdentityRQ); err != nil {
+			return err
+		}
+	}
+	if ui.UserIdentityAC != nil {
+		if err := encodeUserIdentityAC(&buf, *ui.UserIdentityAC); err != nil {
+			return err
+		}
+	}
+	// Guard the enclosing User-Information item too: individually-valid sub-items can together exceed
+	// 65535 bytes (e.g. several large extended-negotiation items), which would wrap the 0x50 item's
+	// uint16 length and emit a corrupt A-ASSOCIATE PDU. Same checked encoding as the nested sub-items.
+	return encodeItemChecked(out, "user-information", ItemTypeUserInformation, buf.Bytes())
 }
 
 func decodeUserInformation(data []byte) (UserInformation, error) {
@@ -469,6 +547,36 @@ func decodeUserInformation(data []byte) (UserInformation, error) {
 				return ui, err
 			}
 			ui.RoleSelections = append(ui.RoleSelections, rs)
+		case ItemTypeAsyncOperations:
+			ao, err := decodeAsyncOperations(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.AsyncOps = &ao
+		case ItemTypeExtendedNegotiation:
+			en, err := decodeExtendedNegotiation(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.ExtendedNegotiations = append(ui.ExtendedNegotiations, en)
+		case ItemTypeCommonExtended:
+			cen, err := decodeCommonExtendedNegotiation(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.CommonExtendedNegotiations = append(ui.CommonExtendedNegotiations, cen)
+		case ItemTypeUserIdentityRQ:
+			id, err := decodeUserIdentityRQ(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.UserIdentityRQ = &id
+		case ItemTypeUserIdentityAC:
+			ac, err := decodeUserIdentityAC(itemData)
+			if err != nil {
+				return ui, err
+			}
+			ui.UserIdentityAC = &ac
 		}
 	}
 	return ui, nil
