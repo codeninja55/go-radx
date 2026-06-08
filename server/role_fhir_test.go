@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/codeninja55/go-radx/dimse"
 	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r4"
 	"github.com/codeninja55/go-radx/fhir/r5"
@@ -578,6 +580,95 @@ func TestFHIRRoleTransactionValidatesEntries(t *testing.T) {
 	}
 }
 
+// TestFHIRRoleAuthRejectionIsOperationOutcome proves the FHIR role's auth rejection flows through the
+// FHIR error contract: a non-loopback bind with a real Authenticator that rejects a request answers
+// 401 with an application/fhir+json OperationOutcome body, not net/http's plain-text "unauthorized". An
+// accepted request proceeds to the handler. The auth decision is the Authenticator's; only the
+// rejection response format is the FHIR one.
+func TestFHIRRoleAuthRejectionIsOperationOutcome(t *testing.T) {
+	repo, err := NewMemoryRepository(fhir.R5)
+	if err != nil {
+		t.Fatalf("NewMemoryRepository: %v", err)
+	}
+	role, err := NewFHIRRole(repo, WithFHIRPort(0), WithFHIRRelease(fhir.R5))
+	if err != nil {
+		t.Fatalf("NewFHIRRole: %v", err)
+	}
+	// A non-loopback bind (permitted only with an explicit Authenticator) with an Authenticator that
+	// rejects every HTTP request unless it carries the sentinel bearer token.
+	d, err := New(WithFHIR(role), WithBind("0.0.0.0"),
+		WithAuthenticator(bearerAuth{token: "sentinel-token"}))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(runCtx) }()
+	waitForAddrs(t, d, "fhir")
+	defer func() {
+		cancelRun()
+		select {
+		case <-runErr:
+		case <-time.After(5 * time.Second):
+			t.Error("daemon did not stop within 5s")
+		}
+	}()
+
+	bound := d.Addrs()["fhir"]
+	if bound == nil {
+		t.Fatal("daemon reported no FHIR address after start")
+	}
+	_, port, err := net.SplitHostPort(bound.String())
+	if err != nil {
+		t.Fatalf("bound addr %q not host:port: %v", bound, err)
+	}
+	base := "http://127.0.0.1:" + port + "/fhir"
+
+	// A request with no credentials is rejected: 401 with an application/fhir+json OperationOutcome.
+	req, err := http.NewRequest(http.MethodGet, base+"/metadata", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Do (unauthenticated): %v", err)
+	}
+	rejectedBody, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated status = %d, want 401; body=%s", resp.StatusCode, rejectedBody)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "application/fhir+json" {
+		t.Errorf("401 Content-Type = %q, want application/fhir+json (not plain text)", ct)
+	}
+	assertOperationOutcome(t, rejectedBody, "error")
+
+	// A request carrying the sentinel token is admitted and reaches the handler.
+	req, err = http.NewRequest(http.MethodGet, base+"/metadata", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer sentinel-token")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Do (authenticated): %v", err)
+	}
+	okBody, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("authenticated metadata status = %d, want 200; body=%s", resp.StatusCode, okBody)
+	}
+	var cs struct {
+		ResourceType string `json:"resourceType"`
+	}
+	if err := json.Unmarshal(okBody, &cs); err != nil {
+		t.Fatalf("metadata decode: %v", err)
+	}
+	if cs.ResourceType != "CapabilityStatement" {
+		t.Errorf("authenticated request resourceType = %q, want CapabilityStatement", cs.ResourceType)
+	}
+}
+
 func TestFHIRRoleCapabilityStatement(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -854,6 +945,25 @@ func collectionBundleBytes(t *testing.T, release fhir.Release) []byte {
 		out, _ := json.Marshal(b)
 		return out
 	}
+}
+
+// bearerAuth is an Authenticator that admits an HTTP request only when it carries the configured
+// bearer token, the test seam proving the FHIR role's rejection flows through the OperationOutcome
+// adapter rather than net/http's plain-text body. It admits every DIMSE association (this test
+// exercises only the HTTP path).
+type bearerAuth struct {
+	token string
+}
+
+func (a bearerAuth) AuthenticateHTTP(_ context.Context, r *http.Request) (Principal, error) {
+	if r.Header.Get("Authorization") != "Bearer "+a.token {
+		return Principal{}, errors.New("missing or invalid bearer token")
+	}
+	return Principal{ID: "test-subject"}, nil
+}
+
+func (a bearerAuth) AuthenticateDIMSE(_ context.Context, calling dimse.AETitle) (Principal, error) {
+	return Principal{ID: string(calling)}, nil
 }
 
 // assertWorkflowCount asserts the role serves exactly want resources of resourceType, read through the

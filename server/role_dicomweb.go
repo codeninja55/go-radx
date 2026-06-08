@@ -112,7 +112,7 @@ func (r *DICOMwebRole) start(ctx context.Context, host string, env roleEnv) erro
 
 	mux := http.NewServeMux()
 	mux.Handle(r.cfg.basePath+"/", http.StripPrefix(r.cfg.basePath, web.Handler()))
-	handler := authMiddleware(env.auth, env.logger, mux)
+	handler := authMiddleware(env.auth, env.logger, nil, mux)
 
 	addr := joinHostPort(host, r.cfg.port)
 	ln, err := listen(addr, env.tlsConfig)

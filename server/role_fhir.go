@@ -142,7 +142,11 @@ func (r *FHIRRole) start(_ context.Context, host string, env roleEnv) error {
 	// route too — otherwise the client cannot run a transaction against this very server.
 	mux.Handle(r.cfg.basePath, stripped)
 	mux.Handle(r.cfg.basePath+"/", stripped)
-	wrapped := authMiddleware(env.auth, env.logger, mux)
+	// The auth middleware rejects before the FHIR handler runs, so its 401 must still be a release
+	// OperationOutcome to honour the role's FHIR-native error contract: a real Authenticator rejecting a
+	// non-loopback request must not leak net/http's plain-text body. The auth decision is unchanged
+	// (same Authenticator); only the rejection response format is the FHIR one.
+	wrapped := authMiddleware(env.auth, env.logger, handler.writeUnauthorized, mux)
 
 	addr := joinHostPort(host, r.cfg.port)
 	ln, err := listen(addr, env.tlsConfig)

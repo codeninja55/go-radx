@@ -20,6 +20,9 @@ const (
 	issueTypeNotSupported fhir.IssueType = "not-supported"
 	issueTypeProcessing   fhir.IssueType = "processing"
 	issueTypeException    fhir.IssueType = "exception"
+	// issueTypeSecurity is the FHIR issue-type code for an authentication/authorization failure, the
+	// code a 401 OperationOutcome carries (the same code across R4 and R5).
+	issueTypeSecurity fhir.IssueType = "security"
 )
 
 // ServeHTTP routes a FHIR REST request to its interaction handler. The path arrives already stripped
@@ -321,6 +324,15 @@ func (h *fhirHandler) writeOutcome(w http.ResponseWriter, _ *http.Request, statu
 // channel (servers.md: never a silent no-op).
 func (h *fhirHandler) writeUnsupported(w http.ResponseWriter, r *http.Request, diagnostics string) {
 	h.writeError(w, r, http.StatusMethodNotAllowed, issueTypeNotSupported, diagnostics)
+}
+
+// writeUnauthorized writes a 401 release OperationOutcome with the FHIR JSON content type, the
+// rejection body the auth middleware uses for the FHIR role so a 401 stays on the role's FHIR-native
+// error channel rather than net/http's plain-text body. It is the unauthorizedResponder the role hands
+// authMiddleware; the diagnostic names the failure class only, never a credential or a request value
+// (PRD §9.1).
+func (h *fhirHandler) writeUnauthorized(w http.ResponseWriter, r *http.Request) {
+	h.writeError(w, r, http.StatusUnauthorized, issueTypeSecurity, "the request is not authenticated")
 }
 
 // requireFHIRWriteMedia enforces the FHIR write content type before a write body is read or decoded.
