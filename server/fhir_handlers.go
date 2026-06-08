@@ -285,6 +285,14 @@ func (h *fhirHandler) validateTransactionWrites(bundle fhir.Resource) (int, fhir
 		return http.StatusBadRequest, h.singleIssueOutcome(fhir.IssueTypeInvalid, sanitizeRepoMessage(err)), false
 	}
 	for _, wr := range writes {
+		// A transaction CREATE must target the type endpoint ("Patient"), never an instance URL
+		// ("Patient/123"). splitTypeID surfaces the id segment when the request.url carries one; a
+		// non-empty id is a malformed create that would otherwise be silently created against the type,
+		// ignoring the id, so it is rejected (400) before the repository commits anything.
+		if wr.targetID != "" {
+			return http.StatusBadRequest, h.singleIssueOutcome(fhir.IssueTypeInvalid,
+				"transaction POST entry url "+wr.targetType+"/"+wr.targetID+" targets an instance; a create must target the "+wr.targetType+" type endpoint"), false
+		}
 		if status, oo, ok := h.validateCreate(wr.resource, wr.targetType); !ok {
 			return status, oo, false
 		}

@@ -162,6 +162,69 @@ func collidingCreateTransactionBundle(t *testing.T, release fhir.Release) []byte
 	}
 }
 
+// instanceURLCreateTransactionBundle builds a transaction whose single POST entry targets an instance
+// URL ("Patient/123") rather than the type endpoint ("Patient"). A FHIR transaction create must
+// target the type, so the role must reject this bundle rather than silently creating a Patient and
+// discarding the id. The entry's resource carries no id, so the only thing wrong is the request.url.
+func instanceURLCreateTransactionBundle(t *testing.T, release fhir.Release) []byte {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		g := r4.AdministrativeGender("female")
+		b, err := r4.NewTransaction(
+			r4.TransactionEntry{Resource: &r4.Patient{Gender: &g}, Method: r4.HTTPVerbPOST, URL: "Patient/123"},
+		)
+		if err != nil {
+			t.Fatalf("r4 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	default:
+		g := r5.AdministrativeGender("female")
+		b, err := r5.NewTransaction(
+			r5.TransactionEntry{Resource: &r5.Patient{Gender: &g}, Method: r5.HTTPVerbPOST, URL: "Patient/123"},
+		)
+		if err != nil {
+			t.Fatalf("r5 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	}
+}
+
+// TestFHIRRoleTransactionRejectsInstanceURLCreate proves a transaction POST entry whose request.url
+// names an instance ("Patient/123") is rejected with a 400 OperationOutcome and commits nothing: a
+// create must target the type endpoint, so the role must not silently create a Patient under a
+// server id while discarding the malformed instance URL. The store stays empty (atomic), and a POST
+// entry url of the bare type still creates, so the rejection is the instance URL, not the verb.
+func TestFHIRRoleTransactionRejectsInstanceURLCreate(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			bundle := instanceURLCreateTransactionBundle(t, release)
+			status, body, _ := httpDo(t, http.MethodPost, base, "application/fhir+json", bundle)
+			if status != http.StatusBadRequest {
+				t.Fatalf("instance-url create transaction status = %d, want 400; body=%s", status, body)
+			}
+			assertOperationOutcome(t, body, "error")
+			// Atomic: nothing was created.
+			assertWorkflowCount(t, base, "Patient", 0)
+
+			// A POST entry targeting the bare type still creates, so the guard rejects the instance URL,
+			// not the POST verb.
+			ok := transactionBundleResource(t, release)
+			okBody, _ := json.Marshal(ok)
+			status, body, _ = httpDo(t, http.MethodPost, base, "application/fhir+json", okBody)
+			if status != http.StatusOK {
+				t.Fatalf("type-endpoint create transaction status = %d, want 200; body=%s", status, body)
+			}
+			assertWorkflowCount(t, base, "Patient", 1)
+		})
+	}
+}
+
 func TestFHIRRoleCreateReadSearch(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {

@@ -70,9 +70,13 @@ type releaseAdapter interface {
 // the role can validate it through the shared create gate before the repository commits. resource is
 // the entry's resource (a release concrete type behind fhir.Resource) and targetType is the resource
 // type the entry's request.url names, the transaction analogue of the create endpoint's {type}.
+// targetID is the id segment of that request.url when one is present; a create must target the type
+// endpoint ("Patient"), so a POST entry whose url carries an id ("Patient/123") is malformed and is
+// rejected before commit.
 type transactionPostEntry struct {
 	resource   fhir.Resource
 	targetType string
+	targetID   string
 }
 
 // outcomeIssue is the release-neutral issue the role hands an adapter to render into a release
@@ -216,8 +220,8 @@ func (a r5Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPo
 		if entry.Resource == nil {
 			return nil, fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
-		targetType, _ := splitTypeID(deref(entry.Request.URL))
-		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType})
+		targetType, targetID := splitTypeID(deref(entry.Request.URL))
+		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType, targetID: targetID})
 	}
 	return writes, nil
 }
@@ -370,8 +374,8 @@ func (a r4Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPo
 		if entry.Resource == nil {
 			return nil, fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
-		targetType, _ := splitTypeID(deref(entry.Request.URL))
-		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType})
+		targetType, targetID := splitTypeID(deref(entry.Request.URL))
+		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType, targetID: targetID})
 	}
 	return writes, nil
 }
