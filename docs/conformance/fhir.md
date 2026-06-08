@@ -92,6 +92,25 @@ directly (it remains the most deployed release and US Core runs on it) rather th
 - `_summary` modes (`full` / `true` / `text` / `data` / `count`) for bandwidth-constrained serialization.
 - JSON serialization as the normative wire format.
 
+### FHIR REST client and server
+
+> **Implementation status: SHIPPED.** The FHIR REST **client** (`fhir/rest`) and the FHIR REST **server role**
+> (`server.NewFHIRRole`, mounted with `server.WithFHIR`) are implemented over the generated R4 and R5 models, each fixed
+> to one release per instance. The detailed conformance scope of both lives in the CLI/server conformance statement
+> ([`./cli-server.md`](./cli-server.md) "FHIR REST client and server role"); this note records that they ship and that
+> SMART on FHIR remains the documented deferral.
+
+The client implements the FHIR HTTP interactions — `read`, `vread`, `create`, `update`, `patch`, `delete`, `history`,
+type-level `search` (typed parameters, modifiers, single-level chaining, `_include`/`_revinclude`, and `Bundle.link`
+paging), `transaction`/`batch`, conditional create/update with ETag concurrency, and `CapabilityStatement`
+negotiation — sending and accepting `application/fhir+json` only. A non-2xx response whose body is an
+`OperationOutcome` is mapped to a typed error the caller classifies by issue severity, consistent with the package's
+`OperationOutcome` error model. The server role serves the conformance subset (`read`, `create`, `search-type`,
+`transaction` over the workflow resource set) over a pluggable repository, validating inbound resources with the
+release validator and answering every error with a release `OperationOutcome`. Deep multi-hop search chaining beyond a
+server's `SearchParameter` definitions and every `_include`/`_revinclude` form are the server's concern; the client
+transmits whatever chained or include parameter the caller supplies rather than validating the chain itself.
+
 ### Out of scope / deferred (v1)
 
 These are architected-for but not implemented in v1 (PRD §3.2, §5.3). They are listed here so the boundary is explicit
