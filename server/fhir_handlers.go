@@ -190,6 +190,15 @@ func (h *fhirHandler) handleTransaction(w http.ResponseWriter, r *http.Request) 
 			"the base endpoint requires a Bundle, got "+bundle.ResourceType())
 		return
 	}
+	// Only a transaction Bundle is processed at the system endpoint: the repository applies it
+	// atomically and the role advertises only the transaction interaction. A Bundle of any other type
+	// (collection, searchset, document, batch, ...) is rejected before the repository is touched, so an
+	// empty collection or searchset Bundle is never silently run as a transaction.
+	if bt := bundleType(bundle); bt != bundleTypeTransaction {
+		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeInvalid,
+			"the base endpoint processes a transaction Bundle only, got Bundle.type "+bt)
+		return
+	}
 	response, terr := h.repo.Transaction(r.Context(), bundle)
 	if terr != nil {
 		h.writeError(w, r, http.StatusBadRequest, issueTypeProcessing, sanitizeRepoMessage(terr))
@@ -277,6 +286,29 @@ func toOutcomeIssues(oo *fhir.OperationOutcome) []outcomeIssue {
 		})
 	}
 	return out
+}
+
+// bundleTypeTransaction is the one Bundle.type the system endpoint processes. A request Bundle of any
+// other type is rejected before the repository is touched, matching the advertised transaction-only
+// system interaction. The value is the stable FHIR Bundle-type code, identical across R4 and R5.
+const bundleTypeTransaction = "transaction"
+
+// bundleType reads a Bundle's "type" by marshalling it and peeking the top-level "type" key, the same
+// release-neutral JSON approach the adapters use for a resource id. A Bundle always serialises its
+// type under "type", so this reads an R4 or R5 Bundle's type without a per-release switch. A Bundle
+// with no type yields "".
+func bundleType(bundle fhir.Resource) string {
+	data, err := json.Marshal(bundle)
+	if err != nil {
+		return ""
+	}
+	var env struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		return ""
+	}
+	return env.Type
 }
 
 // isWorkflowResourceType reports whether resourceType is in the served workflow set, so a request

@@ -309,6 +309,35 @@ func TestFHIRRoleClientTransactionAtBase(t *testing.T) {
 	}
 }
 
+// TestFHIRRoleRejectsNonTransactionBundleAtBase proves the system endpoint processes only a
+// transaction Bundle: a collection Bundle POSTed to the base is rejected with a 400 OperationOutcome
+// before the repository is touched, never run as a transaction and answered with a 200
+// transaction-response. The role advertises only the transaction system interaction, so accepting a
+// collection or searchset Bundle would silently process a request it does not implement.
+func TestFHIRRoleRejectsNonTransactionBundleAtBase(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			collection := collectionBundleBytes(t, release)
+			status, body, _ := httpDo(t, http.MethodPost, base, "application/fhir+json", collection)
+			if status != http.StatusBadRequest {
+				t.Fatalf("collection Bundle at base status = %d, want 400; body=%s", status, body)
+			}
+			assertOperationOutcome(t, body, "error")
+
+			// A transaction Bundle at the same endpoint still succeeds, so the type check rejects only the
+			// unsupported Bundle types rather than breaking the supported one.
+			txn := transactionRequestBundle(t, release)
+			status, body, _ = httpDo(t, http.MethodPost, base, "application/fhir+json", txn)
+			if status != http.StatusOK {
+				t.Fatalf("transaction Bundle at base status = %d, want 200; body=%s", status, body)
+			}
+		})
+	}
+}
+
 // TestMemoryRepositoryTransactionRollback proves the in-memory repository's transaction is atomic: a
 // two-entry transaction whose second entry fails leaves the first resource absent (no partial
 // commit), and a fully valid transaction commits every entry. A partial commit on a clinical store
@@ -576,6 +605,29 @@ func searchsetTotal(t *testing.T, bundle fhir.Resource) int {
 		t.Fatalf("decode searchset total: %v", err)
 	}
 	return env.Total
+}
+
+// collectionBundleBytes builds an empty collection Bundle of the release as JSON, the input for the
+// non-transaction-Bundle rejection test: a collection is a valid Bundle the system endpoint must
+// reject rather than process as a transaction.
+func collectionBundleBytes(t *testing.T, release fhir.Release) []byte {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		b, err := r4.NewCollection()
+		if err != nil {
+			t.Fatalf("r4 NewCollection: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	default:
+		b, err := r5.NewCollection()
+		if err != nil {
+			t.Fatalf("r5 NewCollection: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	}
 }
 
 func transactionRequestBundle(t *testing.T, release fhir.Release) []byte {
