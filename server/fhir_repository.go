@@ -144,13 +144,44 @@ func (m *MemoryRepository) Search(_ context.Context, resourceType string, params
 // Transaction processes a transaction Bundle by applying each entry through the repository and
 // builds a transaction-response Bundle of the release. The development repository supports POST
 // (create) and GET (read) entries, the two verbs the workflow exercise needs; an unsupported verb in
-// an entry fails the transaction, never silently dropping it (PRD §9.2). Atomicity is best-effort
-// for the in-memory store: a failed entry aborts before any partial commit by validating and
-// applying in two passes is out of scope here, so the development repository applies entries in
-// order and reports the first failure as a transaction error, which the role maps to an
-// OperationOutcome. A production Repository implements full atomic rollback.
+// an entry fails the transaction, never silently dropping it (PRD §9.2).
+//
+// The transaction is atomic, the all-or-nothing semantics the role advertises in its
+// CapabilityStatement: a snapshot of the store is taken first, the entries are applied in order, and
+// any failure restores the snapshot so a partially applied transaction never leaves committed
+// resources behind. This matters for clinical data — a failed transaction must leave no orphaned
+// resource a later read could surface. The id counter is not rolled back, so a retried transaction
+// reuses no id; only the stored resources are restored.
 func (m *MemoryRepository) Transaction(ctx context.Context, bundle fhir.Resource) (fhir.Resource, error) {
-	return m.adapter.processTransaction(ctx, bundle, m)
+	snapshot := m.snapshot()
+	resp, err := m.adapter.processTransaction(ctx, bundle, m)
+	if err != nil {
+		m.restore(snapshot)
+		return nil, err
+	}
+	return resp, nil
+}
+
+// snapshot copies the store's keys under the read lock so a failed transaction can be rolled back to
+// the pre-transaction state. The fhir.Resource values are immutable after Create (the adapter
+// re-decodes on id assignment rather than mutating in place), so copying the map's key set without
+// deep-copying each resource restores the exact pre-transaction state.
+func (m *MemoryRepository) snapshot() map[string]fhir.Resource {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make(map[string]fhir.Resource, len(m.byKey))
+	for k, v := range m.byKey {
+		out[k] = v
+	}
+	return out
+}
+
+// restore replaces the live store with the snapshot under the write lock, undoing every create a
+// failed transaction applied so no partial commit survives.
+func (m *MemoryRepository) restore(snapshot map[string]fhir.Resource) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.byKey = snapshot
 }
 
 // nextID returns a fresh, monotonic server id. It is a counter rather than a UUID so the development

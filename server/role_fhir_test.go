@@ -309,6 +309,52 @@ func TestFHIRRoleClientTransactionAtBase(t *testing.T) {
 	}
 }
 
+// TestMemoryRepositoryTransactionRollback proves the in-memory repository's transaction is atomic: a
+// two-entry transaction whose second entry fails leaves the first resource absent (no partial
+// commit), and a fully valid transaction commits every entry. A partial commit on a clinical store
+// would leave an orphaned resource a later read could surface, which the role's advertised
+// all-or-nothing transaction interaction forbids.
+func TestMemoryRepositoryTransactionRollback(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			repo, err := NewMemoryRepository(release)
+			if err != nil {
+				t.Fatalf("NewMemoryRepository: %v", err)
+			}
+			ctx := context.Background()
+
+			// A two-entry transaction: a valid create followed by a GET of a resource that does not
+			// exist, which fails the transaction. Nothing must be committed.
+			failing := failingTransactionBundle(t, release)
+			if _, err := repo.Transaction(ctx, failing); err == nil {
+				t.Fatal("failing transaction returned nil error, want a transaction failure")
+			}
+
+			// The repository must hold no Patient: the first entry's create was rolled back.
+			searched, err := repo.Search(ctx, "Patient", nil)
+			if err != nil {
+				t.Fatalf("Search after rollback: %v", err)
+			}
+			if total := searchsetTotal(t, searched); total != 0 {
+				t.Fatalf("after a failed transaction the repository holds %d Patients, want 0 (no partial commit)", total)
+			}
+
+			// A fully valid single-entry transaction commits.
+			ok := transactionBundleResource(t, release)
+			if _, err := repo.Transaction(ctx, ok); err != nil {
+				t.Fatalf("valid transaction: %v", err)
+			}
+			searched, err = repo.Search(ctx, "Patient", nil)
+			if err != nil {
+				t.Fatalf("Search after commit: %v", err)
+			}
+			if total := searchsetTotal(t, searched); total != 1 {
+				t.Fatalf("after a valid transaction the repository holds %d Patients, want 1", total)
+			}
+		})
+	}
+}
+
 func TestFHIRRoleCapabilityStatement(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -484,6 +530,52 @@ func transactionBundleResource(t *testing.T, release fhir.Release) fhir.Resource
 		}
 		return b
 	}
+}
+
+// failingTransactionBundle builds a two-entry transaction whose first entry is a valid Patient create
+// and whose second entry is a GET of a resource that does not exist, so the transaction fails on the
+// second entry. It is the input for the rollback test: the first create must not survive the failure.
+func failingTransactionBundle(t *testing.T, release fhir.Release) fhir.Resource {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		g := r4.AdministrativeGender("female")
+		b, err := r4.NewTransaction(
+			r4.TransactionEntry{Resource: &r4.Patient{Gender: &g}, Method: r4.HTTPVerbPOST, URL: "Patient"},
+			r4.TransactionEntry{Method: r4.HTTPVerbGET, URL: "Patient/does-not-exist"},
+		)
+		if err != nil {
+			t.Fatalf("r4 NewTransaction: %v", err)
+		}
+		return b
+	default:
+		g := r5.AdministrativeGender("female")
+		b, err := r5.NewTransaction(
+			r5.TransactionEntry{Resource: &r5.Patient{Gender: &g}, Method: r5.HTTPVerbPOST, URL: "Patient"},
+			r5.TransactionEntry{Method: r5.HTTPVerbGET, URL: "Patient/does-not-exist"},
+		)
+		if err != nil {
+			t.Fatalf("r5 NewTransaction: %v", err)
+		}
+		return b
+	}
+}
+
+// searchsetTotal reads the total of a searchset Bundle returned by the repository, so the rollback
+// test can assert the Patient count without depending on a release's concrete Bundle type.
+func searchsetTotal(t *testing.T, bundle fhir.Resource) int {
+	t.Helper()
+	data, err := json.Marshal(bundle)
+	if err != nil {
+		t.Fatalf("marshal searchset: %v", err)
+	}
+	var env struct {
+		Total int `json:"total"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("decode searchset total: %v", err)
+	}
+	return env.Total
 }
 
 func transactionRequestBundle(t *testing.T, release fhir.Release) []byte {
