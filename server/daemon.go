@@ -178,11 +178,18 @@ func WithMLLP(r *MLLPRole) Option {
 	}
 }
 
-// TODO: WithFHIR(role *FHIRRole) mounts the FHIR REST role. The FHIR REST client and server role are
-// a separate later increment: they wrap server.Repository over the fhir/r4 and fhir/r5 packages and
-// fix the release at role construction (one role serves one release; see "FHIR REST server" in
-// docs/reference/servers.md). The bind policy, observability, and lifecycle below already accept it
-// uniformly — a FHIRRole need only satisfy the role interface — so mounting it is additive.
+// WithFHIR mounts the FHIR REST role. The role wraps a server.Repository over the fhir/r4 or fhir/r5
+// package and fixes the release at role construction (one role serves one release; see "FHIR REST
+// server" in docs/reference/servers.md). It satisfies the role interface, so the bind policy,
+// observability, and lifecycle accept it uniformly — a non-loopback FHIR bind without an
+// Authenticator fails closed with ErrInsecureBind exactly like the DICOMweb role.
+func WithFHIR(r *FHIRRole) Option {
+	return func(c *config) {
+		if r != nil {
+			c.roles = append(c.roles, r)
+		}
+	}
+}
 
 // Daemon composes one or more server roles behind shared observability and lifecycle policy.
 // Construct one per process. Safe for concurrent use after construction.

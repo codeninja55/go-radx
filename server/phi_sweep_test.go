@@ -3,16 +3,21 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"iter"
 	"net"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse"
+	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/internal/phisweep"
 	"github.com/codeninja55/go-radx/logging"
 )
@@ -46,6 +51,137 @@ func TestPHIDefaultSweep(t *testing.T) {
 		}
 		t.Fatalf("%d PHI sentinel(s) surfaced at default verbosity", len(leaks))
 	}
+}
+
+// TestFHIRRolePHIDefaultSweep drives the FHIR REST role over a sentinel-bearing Patient at default
+// verbosity (a create whose Patient.name carries the PHI sentinel, then a read and a search), and
+// asserts no sentinel surfaces in stdout, stderr, returned errors, or the structured log. It is the
+// FHIR-role counterpart of the DIMSE sweep, proving the role logs structure and identifiers only —
+// resource type, id, and interaction name — never the patient values in the resource body (PRD
+// §9.1, §11.2).
+func TestFHIRRolePHIDefaultSweep(t *testing.T) {
+	sentinels := []string{phiPatientName, phiPatientID}
+
+	capture, err := phisweep.Run(func(ctx context.Context) []error {
+		return exerciseFHIRRole(ctx)
+	})
+	if err != nil {
+		t.Fatalf("phisweep.Run: %v", err)
+	}
+
+	if leaks := phisweep.Scan(capture, sentinels); len(leaks) > 0 {
+		for _, l := range leaks {
+			t.Errorf("PHI leak: %s", l)
+		}
+		t.Fatalf("%d PHI sentinel(s) surfaced at default verbosity", len(leaks))
+	}
+}
+
+// exerciseFHIRRole runs a daemon with the FHIR role at default verbosity, creates a sentinel-bearing
+// Patient over real HTTP, reads it back, and searches for it, returning every error it produced so
+// the harness scans their strings for sentinels. The Patient carries the PHI sentinels in its name
+// and identifier so a careless logging or error path that formatted the body would surface one.
+func exerciseFHIRRole(ctx context.Context) []error {
+	logger := logging.FromContext(ctx)
+	var errs []error
+
+	repo, err := NewMemoryRepository(fhir.R5)
+	if err != nil {
+		return []error{err}
+	}
+	role, err := NewFHIRRole(repo, WithFHIRPort(0))
+	if err != nil {
+		return []error{err}
+	}
+	d, err := New(WithLogger(logger), WithFHIR(role))
+	if err != nil {
+		return []error{err}
+	}
+
+	runCtx, cancelRun := context.WithCancel(ctx)
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(runCtx) }()
+
+	addr := waitDaemonAddr(d, "fhir")
+	if addr == nil {
+		cancelRun()
+		<-runErr
+		return []error{fmt.Errorf("daemon did not bind fhir role")}
+	}
+	base := "http://" + addr.String() + "/fhir"
+
+	opCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	// A Patient whose name and identifier carry the PHI sentinels.
+	patient := []byte(fmt.Sprintf(
+		`{"resourceType":"Patient","identifier":[{"value":%q}],"name":[{"family":%q}],"gender":"female"}`,
+		phiPatientID, phiPatientName))
+
+	id, cerr := fhirCreate(opCtx, base, patient)
+	if cerr != nil {
+		errs = append(errs, cerr)
+	} else {
+		if rerr := fhirGet(opCtx, base+"/Patient/"+id); rerr != nil {
+			errs = append(errs, rerr)
+		}
+		if serr := fhirGet(opCtx, base+"/Patient?_id="+id); serr != nil {
+			errs = append(errs, serr)
+		}
+	}
+
+	cancelRun()
+	if rerr := <-runErr; rerr != nil {
+		errs = append(errs, rerr)
+	}
+	_ = logger.Sync()
+	return errs
+}
+
+// fhirCreate POSTs a resource to the FHIR role and returns the created resource's id, so the sweep
+// can read it back. A non-201 status is an error whose string is scanned for sentinels.
+func fhirCreate(ctx context.Context, base string, body []byte) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/Patient", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/fhir+json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	out, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusCreated {
+		return "", fmt.Errorf("fhir create status %d", resp.StatusCode)
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(out, &created); err != nil {
+		return "", err
+	}
+	return created.ID, nil
+}
+
+// fhirGet issues a GET against a FHIR role URL, returning a non-2xx as an error whose string is
+// scanned for sentinels. The response body is discarded; a leak can only arise from a logged field
+// or a returned error, not from the resource the client itself receives.
+func fhirGet(ctx context.Context, url string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("fhir get status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // exerciseDaemonStore runs a daemon with the context-injected logger at default (info) verbosity,
