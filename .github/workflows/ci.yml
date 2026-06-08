@@ -26,16 +26,21 @@ jobs:
   lint-test:
     name: Lint, vet, build, race tests (pure-Go default build)
     runs-on: ubuntu-latest
-    # Pin the Go module and build caches to fixed in-workspace paths so the cache step below restores
-    # to known locations regardless of how Go was installed (mise here, setup-go elsewhere).
-    env:
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin the Go module and build caches to fixed runner-temp paths (OFF the checked-out workspace,
+      # so gofmt/lint do not descend into third-party module sources) before any go command runs. This
+      # must be a step, not a job-level env: the `runner` context is invalid in an env block and using
+      # it there fails the whole workflow at parse time. The shell var $RUNNER_TEMP (always set in a
+      # step) stands in for ${{ runner.temp }} here; the actions/cache step below restores to the same
+      # paths via ${{ runner.temp }}, which IS valid in a step's with:.
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       # Cache the Go module downloads (GOMODCACHE) and compiled build output (GOCACHE). The key
       # embeds the Go version (a toolchain bump must not reuse objects built by the old compiler) and
       # go.sum (a dependency change re-resolves the module cache); restore-keys lets an unchanged Go
@@ -98,13 +103,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: "true" # flips tools/dicom-conformance/*.sh from skip-locally to fail-if-tool-absent
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       - name: Cache Go modules and build output
         uses: actions/cache@v4
         with:
@@ -142,13 +150,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: "true" # flips tools/fhir-conformance/validate.sh from skip-locally to fail-if-absent
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3 # installs Go 1.26 per mise.toml [tools]; the gate runs `go run` for the fixtures
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       - name: Cache Go modules and build output
         uses: actions/cache@v4
         with:
@@ -177,9 +188,6 @@ jobs:
   interop:
     name: Interop gate (${{ matrix.leg }} — testcontainers)
     runs-on: ubuntu-latest
-    env:
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     strategy:
       # Run each interop leg on its own runner rather than serially on one. The legs all
       # drive containers; isolating them keeps the memory-heavy DIMSE dcm4chee-arc stack
@@ -197,6 +205,11 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       # Per-leg cache scope: the legs run concurrently, so a shared key would race on the cache write.
       # The `interop` build-tag objects differ from the default build, so this scope is kept distinct
       # from the root cache rather than competing with it.
@@ -249,9 +262,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      # Absolute paths so the caches resolve identically regardless of the cmd/radx working-directory.
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     defaults:
       run:
         working-directory: cmd/radx
@@ -260,6 +270,12 @@ jobs:
       - uses: jdx/mise-action@v3 # installs Go 1.26 + golangci-lint 2.12.2 per mise.toml [tools]
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin the Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      # Absolute $RUNNER_TEMP paths resolve identically regardless of the cmd/radx working-directory.
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       # Scoped to cmd/radx's own go.sum (the module is gated as a downstream consumer would build it).
       # hashFiles and the cache path are workspace-relative, unaffected by the working-directory above.
       - name: Cache Go modules and build output
@@ -317,14 +333,16 @@ jobs:
     # libraries are built from source here.
     name: CGo pixel codecs (native libs from source)
     runs-on: ubuntu-latest
-    env:
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       # The codec build/test compiles cgo-tagged objects distinct from the default build, so this is a
       # separate cache scope from the root job rather than competing with it.
       - name: Cache Go modules and build output
@@ -431,13 +449,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       - name: Cache Go modules and build output
         uses: actions/cache@v4
         with:
@@ -463,13 +484,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       - name: Cache Go modules and build output
         uses: actions/cache@v4
         with:
@@ -492,13 +516,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       - name: Cache Go modules and build output
         uses: actions/cache@v4
         with:
@@ -519,13 +546,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
-      GOMODCACHE: ${{ runner.temp }}/.gocache/mod
-      GOCACHE: ${{ runner.temp }}/.gocache/build
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Pin Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
       - name: Cache Go modules and build output
         uses: actions/cache@v4
         with:
