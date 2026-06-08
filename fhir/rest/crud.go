@@ -101,11 +101,19 @@ func (c *Client) Create(ctx context.Context, r fhir.Resource, ifNoneExist string
 		return nil, err
 	}
 	// A create answers 201 Created; a conditional create that matched an existing resource answers
-	// 200 OK. Both are success and both carry the stored resource.
-	if resp.status != http.StatusCreated && resp.status != http.StatusOK {
+	// 200 OK; a return=minimal server may answer 204 No Content. All are success.
+	if !isWriteSuccess(resp.status) {
 		return nil, c.errorForResponse(http.MethodPost, rt, resp)
 	}
 	return c.resultFromResponse(resp)
+}
+
+// isWriteSuccess reports whether a FHIR write (create/update/patch) response status is a success. A
+// server may answer 200 OK or 201 Created with the resource or, under return=minimal, 204 No Content
+// with no body; resultFromResponse already lifts a bodyless 2xx into a Result from the headers, so
+// reporting any of these as an error would surface a completed write as a failure.
+func isWriteSuccess(status int) bool {
+	return status == http.StatusOK || status == http.StatusCreated || status == http.StatusNoContent
 }
 
 // Update stores a new version of a resource at a known id (PUT [type]/[id]). The id is the
@@ -131,7 +139,7 @@ func (c *Client) Update(ctx context.Context, id string, r fhir.Resource, ifMatch
 	if err != nil {
 		return nil, err
 	}
-	if resp.status != http.StatusOK && resp.status != http.StatusCreated {
+	if !isWriteSuccess(resp.status) {
 		return nil, c.errorForResponse(http.MethodPut, path, resp)
 	}
 	return c.resultFromResponse(resp)
@@ -160,7 +168,7 @@ func (c *Client) Patch(ctx context.Context, resourceType, id string, patch []byt
 	if err != nil {
 		return nil, err
 	}
-	if resp.status != http.StatusOK {
+	if !isWriteSuccess(resp.status) {
 		return nil, c.errorForResponse(http.MethodPatch, path, resp)
 	}
 	return c.resultFromResponse(resp)

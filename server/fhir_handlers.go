@@ -49,6 +49,20 @@ func (h *fhirHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleType(w, r, segs[0])
 	case 2:
 		h.handleInstance(w, r, segs[0], segs[1])
+	case 3, 4:
+		// "{type}/{id}/_history" (history) and "{type}/{id}/_history/{vid}" (vread) are recognized FHIR
+		// interactions this role defers; the contract answers a deferred-but-recognized interaction with
+		// 501, matching the deferred update/delete/patch path, not the 405 used for an unknown route.
+		if isWorkflowResourceType(segs[0]) && segs[2] == "_history" {
+			interaction := "history"
+			if len(segs) == 4 {
+				interaction = "vread"
+			}
+			h.writeError(w, r, http.StatusNotImplemented, issueTypeNotSupported,
+				"the "+interaction+" interaction is not implemented in v1")
+			return
+		}
+		h.writeUnsupported(w, r, "the requested interaction is not supported")
 	default:
 		h.writeUnsupported(w, r, "the requested interaction is not supported")
 	}

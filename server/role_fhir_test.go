@@ -349,6 +349,16 @@ func TestFHIRRoleDeferredInteractionIsNotImplemented(t *testing.T) {
 		t.Fatalf("update status = %d, want 501; body=%s", status, body)
 	}
 	assertOperationOutcome(t, body, "error")
+
+	// history and vread are recognized FHIR interactions this role defers; per the contract they
+	// answer 501 (deferred), not the 405 used for an unknown route.
+	for _, path := range []string{"/Patient/1/_history", "/Patient/1/_history/2"} {
+		status, body, _ := httpDo(t, http.MethodGet, base+path, "", nil)
+		if status != http.StatusNotImplemented {
+			t.Errorf("GET %s status = %d, want 501; body=%s", path, status, body)
+		}
+		assertOperationOutcome(t, body, "error")
+	}
 }
 
 func TestFHIRRoleUnservedResourceType(t *testing.T) {

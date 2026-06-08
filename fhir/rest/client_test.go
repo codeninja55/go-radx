@@ -875,3 +875,45 @@ func transactionBundle(t *testing.T, release fhir.Release) fhir.Resource {
 		return b
 	}
 }
+
+// TestWriteBodylessSuccessStatuses confirms create/update/patch accept the full set of FHIR write
+// success statuses — 200, 201, and a return=minimal 204 No Content — rather than reporting a
+// completed server-side write as a client error (which would break retry/concurrency logic).
+func TestWriteBodylessSuccessStatuses(t *testing.T) {
+	patient := newPatient(fhir.R5, "female")
+	jsonPatch := []byte(`[{"op":"add","path":"/active","value":true}]`)
+	cases := []struct {
+		name   string
+		status int
+	}{
+		{"200 OK", http.StatusOK},
+		{"201 Created", http.StatusCreated},
+		{"204 No Content", http.StatusNoContent},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/Patient/1", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("ETag", `W/"2"`)
+				w.Header().Set("Location", "/Patient/1/_history/2")
+				w.WriteHeader(tc.status)
+				if tc.status != http.StatusNoContent {
+					_, _ = w.Write([]byte(`{"resourceType":"Patient","id":"1"}`))
+				}
+			})
+			srv := httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+			c, err := rest.NewClient(fhir.R5, srv.URL)
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+			ctx := context.Background()
+			if _, err := c.Update(ctx, "1", patient, ""); err != nil {
+				t.Errorf("Update with %s reported a failure: %v", tc.name, err)
+			}
+			if _, err := c.Patch(ctx, "Patient", "1", jsonPatch, ""); err != nil {
+				t.Errorf("Patch with %s reported a failure: %v", tc.name, err)
+			}
+		})
+	}
+}
