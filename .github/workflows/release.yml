@@ -101,12 +101,13 @@ jobs:
           version: "~> v2"
           workdir: cmd/radx
           args: check
-      - name: goreleaser release --snapshot --clean (build + archive + SBOM, no publish)
+      - name: goreleaser release --snapshot (build + archive + SBOM, no publish, no sign)
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: "~> v2"
           workdir: cmd/radx
-          # --snapshot skips the publish, signing, and provenance steps; it builds the matrix,
-          # archives, and SBOMs so the config is fully exercised without touching the OIDC signer.
-          args: release --snapshot --clean
+          # --snapshot disables PUBLISHING but still runs the signs block; signing needs cosign + the
+          # OIDC token that only exist in the tag-gated release job, so skip it here. SBOM stays (syft
+          # is installed above), exercising the build, archive, checksum, and SBOM config end to end.
+          args: release --snapshot --clean --skip=sign
