@@ -22,23 +22,21 @@ import (
 const banner = "radx — go-radx command-line interface"
 
 // CLI is the root Kong grammar: the shared global flags, the --version flag, and the command
-// tree. Only the two proof commands (echo, dump) are wired end to end in this increment; the
-// rest of the tree is registered as fail-closed stubs that return a typed not-implemented
-// error and exit 1 (docs/reference/cli.md "Honest-failure rules").
+// tree. Every command is wired end to end against the library except `serve fhir`, which fails
+// closed (a typed not-implemented error, exit 1) until the FHIR server role lands (see stubs.go;
+// docs/reference/cli.md "Honest-failure rules").
 type CLI struct {
 	cli.Globals
 
 	Version kong.VersionFlag `short:"V" name:"version" help:"Print build information and exit."`
 
-	// Wired commands.
 	Echo EchoCmd `cmd:"" help:"Verify DICOM connectivity (C-ECHO)."`
 	Dump DumpCmd `cmd:"" help:"Inspect DICOM file contents."`
 
-	// Committed surface, fail-closed until built (see stubs.go).
 	Store     StoreCmd     `cmd:"" help:"Send DICOM objects (C-STORE SCU)."`
-	Find      FindCmd      `cmd:"" help:"Query a remote AE (C-FIND SCU) [M3]."`
-	Get       GetCmd       `cmd:"" help:"Retrieve over the same association (C-GET) [M3]."`
-	Move      MoveCmd      `cmd:"" help:"Retrieve to a destination AE (C-MOVE) [M3]."`
+	Find      FindCmd      `cmd:"" help:"Query a remote AE (C-FIND SCU)."`
+	Get       GetCmd       `cmd:"" help:"Retrieve over the same association (C-GET)."`
+	Move      MoveCmd      `cmd:"" help:"Retrieve to a destination AE (C-MOVE)."`
 	Scp       ScpCmd       `cmd:"" help:"Run a Storage/Verification SCP."`
 	Modify    ModifyCmd    `cmd:"" help:"Edit DICOM tags and regenerate UIDs."`
 	Organize  OrganizeCmd  `cmd:"" help:"Reorganise files by Study/Series/SOP UID."`
