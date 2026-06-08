@@ -48,12 +48,20 @@ func TestLookupByTag(t *testing.T) {
 	}
 }
 
-// TestLookupUnknownExitsNonZero confirms a query that resolves to no dictionary entry is a failure,
-// not a silent empty success: the input named something the standard does not define.
-func TestLookupUnknownExitsNonZero(t *testing.T) {
-	_, _, code := runRadx(t, "lookup", "--format", "json", "NotARealKeyword")
-	if code == exitcode.Success {
-		t.Fatalf("lookup of an unknown keyword exited 0; want non-zero")
+// TestLookupUnknownIsParseError confirms a well-formed query that resolves to no dictionary entry is
+// a parse/validation failure (exit 3), not a usage error (exit 2): the input is syntactically valid
+// (a plausible keyword) but names something the standard does not define, the same "cannot honour
+// this data" class as a malformed DICOM value. A valid query still exits 0. Both the human and the
+// CSV paths must use the parse classification.
+func TestLookupUnknownIsParseError(t *testing.T) {
+	if _, _, code := runRadx(t, "lookup", "--format", "json", "NotARealKeyword"); code != exitcode.ParseError {
+		t.Errorf("lookup NotARealKeyword exit = %d, want %d (parse error)", code, exitcode.ParseError)
+	}
+	if _, _, code := runRadx(t, "lookup", "--format", "csv", "NotARealKeyword"); code != exitcode.ParseError {
+		t.Errorf("lookup --format csv NotARealKeyword exit = %d, want %d (parse error)", code, exitcode.ParseError)
+	}
+	if _, _, code := runRadx(t, "lookup", "--format", "json", "PatientName"); code != exitcode.Success {
+		t.Errorf("lookup PatientName exit = %d, want %d (valid query)", code, exitcode.Success)
 	}
 }
 

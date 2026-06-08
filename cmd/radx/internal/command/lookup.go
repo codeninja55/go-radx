@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/codeninja55/go-radx/cmd/radx/internal/cli"
-	"github.com/codeninja55/go-radx/cmd/radx/internal/exitcode"
 	"github.com/codeninja55/go-radx/dicom"
 )
 
@@ -48,7 +47,7 @@ func (c *LookupCmd) Run(rc *RunContext) error {
 		}
 	}
 	if unresolved {
-		return &exitcode.UsageErr{Message: "one or more queries did not resolve to a dictionary entry"}
+		return errUnresolvedLookup()
 	}
 	return nil
 }
@@ -96,9 +95,23 @@ func (c *LookupCmd) runCSV(rc *RunContext) error {
 		return err
 	}
 	if unresolved {
-		return &exitcode.UsageErr{Message: "one or more queries did not resolve to a dictionary entry"}
+		return errUnresolvedLookup()
 	}
 	return nil
+}
+
+// errUnresolvedLookup is the error a lookup raises when a well-formed query names nothing the
+// standard dictionary defines. It is a parse/validation failure, not a usage fault: the input is
+// syntactically valid (a parseable tag or a plausible keyword) but resolves to no dictionary entry,
+// the same "well-formed input the standard does not define" class as a malformed DICOM value, so it
+// classifies to exit 3 (parse) rather than exit 2 (usage). A genuinely malformed query string is
+// rejected earlier as a usage error by the argument parser. The message names no PHI (the query is a
+// tag or keyword, never a patient value).
+func errUnresolvedLookup() error {
+	return &dicom.ValueError{
+		VR:  dicom.VRUI,
+		Msg: "one or more queries did not resolve to a dictionary entry",
+	}
 }
 
 // emit renders one lookup record in the resolved format.
