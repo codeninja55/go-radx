@@ -35,9 +35,11 @@ type Repository interface {
 	// The returned fhir.Resource is a concrete resource of the role's release.
 	Read(ctx context.Context, resourceType, id string) (fhir.Resource, error)
 
-	// Create stores a new resource, assigning a server id when the resource has none, and returns the
-	// stored resource. The caller (the role) validates with the release validator first; a resource
-	// with error-severity issues never reaches Create.
+	// Create stores a new resource under a server-assigned id and returns the stored resource. The
+	// server always mints the id and ignores any client-supplied id, because FHIR create makes a new
+	// resource and is not the update path: a create whose client id collided with an existing resource
+	// must never overwrite it. The caller (the role) validates with the release validator first; a
+	// resource with error-severity issues never reaches Create.
 	Create(ctx context.Context, r fhir.Resource) (fhir.Resource, error)
 
 	// Search executes a type-level search and returns a searchset Bundle of the role's release (built
@@ -106,9 +108,10 @@ func (m *MemoryRepository) readLocked(resourceType, id string) (fhir.Resource, e
 	return r, nil
 }
 
-// Create stores r, assigning a server id when it has none, and returns the stored resource. The id
-// the repository assigns is set on the resource through the release adapter so the stored resource
-// (and the read-back) carries it. It is a thin write-locked wrapper around createLocked; a
+// Create stores r under a server-assigned id and returns the stored resource. The repository always
+// mints the id (ignoring any client-supplied id) and sets it on the resource through the release
+// adapter, so the stored resource (and the read-back) carries the server id and a create never
+// overwrites an existing resource. It is a thin write-locked wrapper around createLocked; a
 // transaction calls createLocked directly because it already holds the write lock.
 func (m *MemoryRepository) Create(_ context.Context, r fhir.Resource) (fhir.Resource, error) {
 	m.mu.Lock()
@@ -116,19 +119,21 @@ func (m *MemoryRepository) Create(_ context.Context, r fhir.Resource) (fhir.Reso
 	return m.createLocked(r)
 }
 
-// createLocked stores r, assigning a server id when it has none, and returns the stored resource. The
-// caller must hold m.mu for writing; it never locks, so the transaction can apply many creates inside
-// one write-locked section. The id is assigned (nextID is itself atomic) and the resource is stored
-// under the held lock, so a concurrent Create or transaction is serialised, not interleaved.
+// createLocked stores r under a freshly minted server id and returns the stored resource. The caller
+// must hold m.mu for writing; it never locks, so the transaction can apply many creates inside one
+// write-locked section. The id is assigned (nextID is itself atomic) and the resource is stored under
+// the held lock, so a concurrent Create or transaction is serialised, not interleaved.
+//
+// The server always assigns the id and ignores any client-supplied id: FHIR create makes a new
+// resource, it is not the update path, and this role exposes no update. Honouring a client id would
+// let a second create with the same id silently clobber the first (bypassing concurrency control), so
+// every create instead gets a fresh unique id and the new id is set on the stored resource through the
+// release adapter. Because nextID is monotonic, the minted id never collides with an existing entry.
 func (m *MemoryRepository) createLocked(r fhir.Resource) (fhir.Resource, error) {
-	id := m.adapter.resourceID(r)
-	if id == "" {
-		id = m.nextID()
-		updated, err := m.adapter.withResourceID(r, id)
-		if err != nil {
-			return nil, err
-		}
-		r = updated
+	id := m.nextID()
+	r, err := m.adapter.withResourceID(r, id)
+	if err != nil {
+		return nil, err
 	}
 	m.byKey[storeKey(r.ResourceType(), id)] = r
 	return r, nil

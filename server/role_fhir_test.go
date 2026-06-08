@@ -95,6 +95,73 @@ func patientJSON(release fhir.Release, gender string) []byte {
 
 func fhirReleases() []fhir.Release { return []fhir.Release{fhir.R4, fhir.R5} }
 
+// patientJSONWithID builds a Patient carrying a client-supplied id, the create payload that proves the
+// server assigns its own id and never honours the client's on create.
+func patientJSONWithID(release fhir.Release, id string) []byte {
+	switch release {
+	case fhir.R4:
+		g := r4.AdministrativeGender("female")
+		b, _ := json.Marshal(&r4.Patient{DomainResource: r4.DomainResource{ID: &id}, Gender: &g})
+		return b
+	default:
+		g := r5.AdministrativeGender("female")
+		b, _ := json.Marshal(&r5.Patient{DomainResource: r5.DomainResource{ID: &id}, Gender: &g})
+		return b
+	}
+}
+
+// createPatientWithClientID POSTs a Patient carrying the given client id and returns the
+// server-assigned id from the response body, for the create-never-overwrites guard.
+func createPatientWithClientID(t *testing.T, base string, release fhir.Release, clientID string) string {
+	t.Helper()
+	status, body, _ := httpDo(t, http.MethodPost, base+"/Patient", "application/fhir+json",
+		patientJSONWithID(release, clientID))
+	if status != http.StatusCreated {
+		t.Fatalf("create status = %d, want 201; body=%s", status, body)
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(body, &created); err != nil {
+		t.Fatalf("create body decode: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatalf("create body has no id: %s", body)
+	}
+	return created.ID
+}
+
+// collidingCreateTransactionBundle builds a two-POST transaction whose entries both carry the same
+// client id "1", so the test can prove a transaction create assigns server ids and never overwrites.
+func collidingCreateTransactionBundle(t *testing.T, release fhir.Release) []byte {
+	t.Helper()
+	id := "1"
+	switch release {
+	case fhir.R4:
+		g := r4.AdministrativeGender("female")
+		b, err := r4.NewTransaction(
+			r4.TransactionEntry{Resource: &r4.Patient{DomainResource: r4.DomainResource{ID: &id}, Gender: &g}, Method: r4.HTTPVerbPOST, URL: "Patient"},
+			r4.TransactionEntry{Resource: &r4.Patient{DomainResource: r4.DomainResource{ID: &id}, Gender: &g}, Method: r4.HTTPVerbPOST, URL: "Patient"},
+		)
+		if err != nil {
+			t.Fatalf("r4 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	default:
+		g := r5.AdministrativeGender("female")
+		b, err := r5.NewTransaction(
+			r5.TransactionEntry{Resource: &r5.Patient{DomainResource: r5.DomainResource{ID: &id}, Gender: &g}, Method: r5.HTTPVerbPOST, URL: "Patient"},
+			r5.TransactionEntry{Resource: &r5.Patient{DomainResource: r5.DomainResource{ID: &id}, Gender: &g}, Method: r5.HTTPVerbPOST, URL: "Patient"},
+		)
+		if err != nil {
+			t.Fatalf("r5 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	}
+}
+
 func TestFHIRRoleCreateReadSearch(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -147,6 +214,89 @@ func TestFHIRRoleCreateReadSearch(t *testing.T) {
 			if bundle.Total != 1 || len(bundle.Entry) != 1 {
 				t.Errorf("search bundle total=%d entries=%d, want 1/1", bundle.Total, len(bundle.Entry))
 			}
+		})
+	}
+}
+
+// TestFHIRRoleCreateAssignsIDAndNeverOverwrites proves a create with a client-supplied id never
+// clobbers an existing resource: FHIR create makes a new resource (it is not the update path, which
+// this role does not expose), so the server assigns the id and ignores the client's. Two creates that
+// both carry the same non-numeric client id must yield two distinct resources under server-assigned
+// ids, with the first still present — never a single overwritten resource that bypasses concurrency
+// control. The client id is deliberately non-numeric so it cannot coincide with the monotonic
+// server-assigned id, making "the server ignored the client id" observable.
+func TestFHIRRoleCreateAssignsIDAndNeverOverwrites(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			const clientID = "client-supplied-id"
+			firstID := createPatientWithClientID(t, base, release, clientID)
+			secondID := createPatientWithClientID(t, base, release, clientID)
+
+			// The server assigned both ids; neither is the client's id and the two differ, so the second
+			// create made a new resource rather than overwriting the first.
+			if firstID == clientID || secondID == clientID {
+				t.Fatalf("server honoured the client id: got first=%q second=%q, want server-assigned ids", firstID, secondID)
+			}
+			if firstID == secondID {
+				t.Fatalf("two creates collapsed onto one id %q; the second overwrote the first", firstID)
+			}
+
+			// Both resources are present: the first survived the second create.
+			for _, id := range []string{firstID, secondID} {
+				status, body, _ := httpDo(t, http.MethodGet, base+"/Patient/"+id, "", nil)
+				if status != http.StatusOK {
+					t.Fatalf("read Patient/%s status = %d, want 200; body=%s", id, status, body)
+				}
+			}
+			assertWorkflowCount(t, base, "Patient", 2)
+		})
+	}
+}
+
+// TestFHIRRoleTransactionCreateNeverOverwrites is the transaction twin of the direct-create guard: a
+// transaction whose two POST entries both carry id "1" must commit two distinct resources under
+// server-assigned ids, atomically, never a single overwritten Patient/1. The transaction shares the
+// create path, so the server-assigns-id rule holds for transaction creates exactly as for direct ones.
+func TestFHIRRoleTransactionCreateNeverOverwrites(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			bundle := collidingCreateTransactionBundle(t, release)
+			status, body, _ := httpDo(t, http.MethodPost, base, "application/fhir+json", bundle)
+			if status != http.StatusOK {
+				t.Fatalf("transaction status = %d, want 200; body=%s", status, body)
+			}
+			var resp struct {
+				Entry []struct {
+					Response struct {
+						Status   string `json:"status"`
+						Location string `json:"location"`
+					} `json:"response"`
+				} `json:"entry"`
+			}
+			if err := json.Unmarshal(body, &resp); err != nil {
+				t.Fatalf("transaction response decode: %v", err)
+			}
+			if len(resp.Entry) != 2 {
+				t.Fatalf("transaction response entries = %d, want 2; body=%s", len(resp.Entry), body)
+			}
+			for i, e := range resp.Entry {
+				if !strings.HasPrefix(e.Response.Status, "201") {
+					t.Errorf("entry %d status = %q, want a 201", i, e.Response.Status)
+				}
+			}
+			if loc0, loc1 := resp.Entry[0].Response.Location, resp.Entry[1].Response.Location; loc0 == loc1 {
+				t.Fatalf("both transaction creates landed at %q; the second overwrote the first", loc0)
+			}
+
+			// Both Patients are committed under distinct server ids, proving no silent overwrite and that
+			// the atomic transaction created two resources.
+			assertWorkflowCount(t, base, "Patient", 2)
 		})
 	}
 }
