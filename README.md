@@ -14,6 +14,40 @@ go get github.com/codeninja55/go-radx@main
 The published semantic-version tags (`v0.10.x` and earlier) belong to the legacy codebase on the
 `legacy-main` branch. Until the re-foundation is tagged, depend on `@main`.
 
+## Quick start
+
+Read a DICOM Part 10 file and look up elements by tag:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/codeninja55/go-radx/dicom"
+)
+
+func main() {
+	f, err := dicom.ReadFile("study.dcm")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if name, ok := f.DataSet.GetString(dicom.TagPatientName); ok {
+		fmt.Println("Patient name:", name)
+	}
+	if modality, ok := f.DataSet.GetString(dicom.TagModality); ok {
+		fmt.Println("Modality:", modality)
+	}
+}
+```
+
+The `radx` CLI wraps the same library for the common workflows — for example `radx dump study.dcm`
+to inspect a file, or `radx echo PACS_HOST 11112 --called-ae ARCHIVE` to verify DIMSE connectivity.
+See [`docs/reference/`](docs/reference/) for the per-package API and [`docs/reference/cli.md`](docs/reference/cli.md)
+for the full command tree.
+
 ## Stability: pre-1.0, everything experimental
 
 > **go-radx is pre-1.0. Every public package is experimental and the entire API surface is
