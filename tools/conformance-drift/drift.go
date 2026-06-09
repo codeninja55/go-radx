@@ -85,7 +85,7 @@ type NegotiationClaim struct {
 
 // Finding is a single detected drift. The check fails when any finding is produced.
 type Finding struct {
-	Class   string // "preset-count", "preset-missing", "preset-unexpected", "negotiation-missing", "banner", "shipped-banner", "stability"
+	Class   string // "preset-count", "preset-missing", "preset-unexpected", "negotiation-missing", "deid-count", "banner", "shipped-banner", "stability"
 	Subject string // the preset, feature, doc, or package the finding concerns
 	Detail  string
 }
@@ -148,6 +148,12 @@ func Check(root string, codeCounts map[string]PresetCounter) ([]Finding, error) 
 		return nil, err
 	}
 	findings = append(findings, negotiationFindings...)
+
+	deidFindings, err := checkDeidentifyCount(root)
+	if err != nil {
+		return nil, err
+	}
+	findings = append(findings, deidFindings...)
 
 	bannerFindings, err := checkBanners(root)
 	if err != nil {
@@ -295,6 +301,94 @@ func checkNegotiationFeatures(root string) ([]Finding, error) {
 		}
 	}
 	return findings, nil
+}
+
+// deidActionMapVar is the name of the keyword-action map in dicom/deidentify_actions.go whose
+// entry count is the authoritative size of the PS3.15 Table E.1-1 covered attribute set. The
+// drift check counts its entries from the source AST and reconciles them with the documented
+// count in dicom.md, so the de-identification conformance section cannot drift from the code.
+const deidActionMapVar = "basicProfileKeywordActions"
+
+// deidActionsFile is the source file, relative to the repo root, holding deidActionMapVar.
+var deidActionsFile = filepath.Join("dicom", "deidentify_actions.go")
+
+// deidCountRE pulls the documented covered-attribute count out of the de-identification section
+// of dicom.md — the bolded "**N attributes**" claim the section makes about the Table E.1-1 set.
+var deidCountRE = regexp.MustCompile(`\*\*(\d+) attributes\*\*`)
+
+// checkDeidentifyCount reconciles the documented PS3.15 Table E.1-1 covered-attribute count in
+// dicom.md with the number of entries in the basicProfileKeywordActions map in the dicom package.
+// The documented count is parsed from the "**N attributes**" claim; the code-side count is the
+// number of key/value pairs in the map literal, read from the source AST. A mismatch is a
+// deid-count finding so the enumerated checklist cannot silently fall out of step with the code.
+func checkDeidentifyCount(root string) ([]Finding, error) {
+	documented, err := ParseDeidentifyCount(filepath.Join(root, "docs", "conformance", "dicom.md"))
+	if err != nil {
+		return nil, err
+	}
+
+	coded, err := CountDeidentifyActions(filepath.Join(root, deidActionsFile))
+	if err != nil {
+		return nil, err
+	}
+
+	if documented != coded {
+		return []Finding{{
+			Class:   "deid-count",
+			Subject: "PS3.15 Table E.1-1 attribute set",
+			Detail:  fmt.Sprintf("dicom.md documents %d covered attributes, %s has %d", documented, deidActionMapVar, coded),
+		}}, nil
+	}
+	return nil, nil
+}
+
+// ParseDeidentifyCount reads the documented covered-attribute count out of the conformance
+// statement at path — the "**N attributes**" claim in the de-identification section. An absent or
+// unparseable claim is an error so the section cannot lose its checkable count unnoticed.
+func ParseDeidentifyCount(path string) (int, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	m := deidCountRE.FindSubmatch(data)
+	if m == nil {
+		return 0, fmt.Errorf("no \"**N attributes**\" de-identification count found in %s: the section is missing or its format changed", filepath.Base(path))
+	}
+	return strconv.Atoi(string(m[1]))
+}
+
+// CountDeidentifyActions parses the Go source at path and returns the number of key/value entries
+// in the deidActionMapVar map literal. It reads the source AST rather than importing the dicom
+// package so the check has no build-tag or compile dependency, matching the other discover helpers.
+func CountDeidentifyActions(path string) (int, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		return 0, err
+	}
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for i, name := range vs.Names {
+				if name.Name != deidActionMapVar || i >= len(vs.Values) {
+					continue
+				}
+				lit, ok := vs.Values[i].(*ast.CompositeLit)
+				if !ok {
+					return 0, fmt.Errorf("%s in %s is not a composite literal", deidActionMapVar, filepath.Base(path))
+				}
+				return len(lit.Elts), nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("%s not found in %s", deidActionMapVar, filepath.Base(path))
 }
 
 // DiscoverDimseFuncs parses the Go source in dimseDir and returns the set of exported,
