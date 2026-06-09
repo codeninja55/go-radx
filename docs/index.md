@@ -17,11 +17,11 @@ basis.
   concurrency, and the conformance-drift methodology that keeps these statements honest.
 - [DICOM](conformance/dicom.md) — the data layer and DIMSE networking scope (authoritative for DIMSE today).
 - [DIMSE](conformance/dimse.md) — the network-plane statement (scaffold).
-- [DICOMweb](conformance/dicomweb.md) — WADO-RS, STOW-RS, and QIDO-RS scope (scaffold).
+- [DICOMweb](conformance/dicomweb.md) — WADO-RS, STOW-RS, and QIDO-RS scope.
 - [HL7 v2](conformance/hl7v2.md) — the messaging scope.
 - [FHIR](conformance/fhir.md) — the FHIR R4/R5 resource scope.
-- [Cross-standard conversion](conformance/convert.md) — the DICOM/HL7 v2/FHIR mapping scope (scaffold).
-- [CLI and server](conformance/cli-server.md) — the operator-facing surface scope (scaffold).
+- [Cross-standard conversion](conformance/convert.md) — the DICOM/HL7 v2/FHIR mapping scope (the PRD §5.1 loop).
+- [CLI and server](conformance/cli-server.md) — the operator-facing surface scope.
 
 ## API reference
 
