@@ -1,10 +1,12 @@
 # Embeddable servers and reference daemons
 
-!!! warning "Planned design — not yet implemented"
+!!! note "Status: implemented, pre-1.0 experimental"
 
-    This document describes the planned `server` package. The package is not yet implemented: `server/` currently
-    contains only a package doc. The composition layer, pluggable backends, and reference daemons below are the
-    contract the implementation will conform to as the package is built.
+    The `server` package is implemented: the composition layer, the four server roles, the pluggable backends, and
+    the reference daemons described below all ship today. Like every go-radx package it is pre-1.0 and experimental,
+    so the API can change between `v0.x` releases. A few interactions remain deferred — noted in the relevant
+    sections and authoritatively scoped in the
+    [CLI and server conformance statement](../conformance/cli-server.md).
 
 The `server` package is go-radx's composition layer for the receiving side of the radiology workflow. The four
 server roles — the DIMSE SCP (including a Modality Worklist SCP), the DICOMweb server, the FHIR REST server, and the
@@ -16,7 +18,7 @@ should own: a set of small pluggable backends (object store, catalogue, authenti
 of those primitives it ships **thin reference daemons** that wire sane defaults — a filesystem object store and a
 SQLite catalogue — so the `radx` CLI and a first-time user get something runnable immediately.
 
-This document is the public-API contract for the `server` package. The implementation will conform to it. Where the product
+This document is the public-API contract for the `server` package, and the implementation conforms to it. Where the product
 requirements document (`docs/prd/go-radx-prd.md`) committed a behaviour in §7.2 (servers), §9.1 (PHI and bind
 defaults), §9.2 (honest failure), §9.4 (concurrency), §9.7 (transport security), and §9.10 (observability), this
 document honours it. Terminology follows the project glossary (`UBIQUITOUS_LANGUAGE.md`); in particular the package
@@ -629,8 +631,10 @@ The `server` package is where PHI most concentrates, so the §9.1 defaults are s
 - **Loopback by default.** A non-loopback `--bind` is explicit and, without an `Authenticator`, fails closed
   (`ErrInsecureBind`).
 - **Governance is the consumer's.** Encryption at rest, retention/erasure, access control, and audit storage are the
-  integrating consumer's responsibility (PRD §9.1, §9.5). The optional data-modification audit hook (PRD §9.5) can be
-  wired to the consumer's sink; the package mandates neither a schema nor a sink.
+  integrating consumer's responsibility (PRD §9.1, §9.5). The data-modification audit hook envisaged in PRD §9.5 is
+  **not yet implemented**: the package exposes no audit or modification-callback seam, so a consumer cannot currently
+  wire one. Its shape is deferred and tracked in issue
+  [#113](https://github.com/codeninja55/go-radx/issues/113).
 
 ## Conformance scope and limits
 

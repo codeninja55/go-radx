@@ -460,6 +460,159 @@ with synthetic identifiers alongside hostile regression seeds (truncated, oversi
 replays both as regression cases. The targets are intended to run in CI with `hang=fail` so a hang or a crash fails the
 build; that scheduled fuzz job is wired separately.
 
+## De-identification conformance (PS3.15 Basic Application Level Confidentiality Profile, Table E.1-1)
+
+go-radx implements the PS3.15 Annex E Basic Application Level Confidentiality Profile through `dicom.Profile`
+(`NewProfile` / `Deidentify`). The profile applies a fixed action to each confidentiality attribute wherever it appears,
+recursing into every sequence item, and writes the PS3.15 de-identification metadata (`PatientIdentityRemoved`
+(0012,0062) = `YES`, `DeidentificationMethod` (0012,0063), and `DeidentificationMethodCodeSequence` (0012,0064)). The
+covered attribute set and its actions are enumerated below so the conformance claim is checkable, not generic.
+
+The covered set is exactly **213 attributes**, the keyword table in `dicom/deidentify_actions.go`. The
+`tools/conformance-drift` gate asserts this documented count matches `len(basicProfileKeywordActions)` in that
+source, so the statement cannot drift from the code.
+
+### Action codes
+
+The profile models the Table E.1-1 action vocabulary as `dicom.deidAction`. go-radx applies these codes:
+
+| Code | Action | go-radx behaviour |
+|------|--------|-------------------|
+| X | Remove | The attribute is deleted at every nesting level. |
+| Z | Replace with zero length | The value is replaced with a zero-length value of the same VR. |
+| D | Replace with non-zero dummy | The value is replaced with a VR-valid, non-empty placeholder (overridable per tag via `WithDummyValues`). |
+| C | Clean | go-radx cannot parse free text for residual identity, so C collapses to Z: identity is removed, benign content is not preserved (documented v1 limit). |
+| U | Replace UID | The UID is remapped through a stable per-call map so the reference graph stays consistent within one dataset. |
+| K | Keep | The attribute is retained unchanged. |
+
+### Action breakdown
+
+The 213 covered attributes resolve to these actions under the default (strictest) profile:
+
+| Action | Count |
+|--------|-------|
+| X (remove) | 149 |
+| Z (replace with zero length) | 28 |
+| U (replace UID) | 18 |
+| C (clean → collapses to Z in v1) | 7 |
+| K (keep) | 7 |
+| D (replace with dummy) | 4 |
+| Total | 213 |
+
+### Attributes by action
+
+**D — replace with dummy (4):** `PatientName` (0010,0010), `PatientID` (0010,0020), `VerifyingObserverName`
+(0040,A075), `VerifyingObserverSequence` (0040,A073).
+
+**C — clean, collapses to Z in v1 (7):** `StudyDescription` (0008,1030), `SeriesDescription` (0008,103E),
+`ProtocolName` (0018,1030), `RequestedProcedureDescription` (0032,1060), `PerformedProcedureStepDescription`
+(0040,0254), `DerivationDescription` (0008,2111), `AcquisitionDeviceProcessingDescription` (0018,1400).
+
+**U — replace UID (18):** `InstanceCreatorUID`, `SOPInstanceUID`, `StudyInstanceUID`, `SeriesInstanceUID`,
+`FrameOfReferenceUID`, `SynchronizationFrameOfReferenceUID`, `ReferencedFrameOfReferenceUID`, `ConcatenationUID`,
+`DimensionOrganizationUID`, `PaletteColorLookupTableUID`, `ReferencedSOPInstanceUID`, `StorageMediaFileSetUID`,
+`FiducialUID`, `IrradiationEventUID`, `TargetUID`, `TransactionUID`, `DeviceUID`, `FailedSOPInstanceUIDList`.
+
+**K — keep (7):** `BodyPartExamined` (0018,0015), `ImageType` (0008,0008), `DerivationCodeSequence` (0008,9215),
+`ContentSequence` (0040,A730), and the three de-identification-metadata attributes the profile itself writes —
+`PatientIdentityRemoved`, `DeidentificationMethod`, `DeidentificationMethodCodeSequence`. Keeping the metadata
+attributes prevents the table walk from removing the markers the profile must set.
+
+**Z — replace with zero length (28):** `PatientBirthDate`, `PatientSex`, `PatientSexNeutered`, `AccessionNumber`,
+`StudyID`, `StudyDate`, `StudyTime`, `ReferringPhysicianName`, `SeriesDate`, `SeriesTime`, `PerformingPhysicianName`,
+`OperatorsName`, `RequestAttributesSequence`, `PerformedProcedureStepStartDate`, `PerformedProcedureStepStartTime`,
+`PerformedProcedureStepEndDate`, `PerformedProcedureStepEndTime`, `AcquisitionDate`, `AcquisitionTime`,
+`AcquisitionDateTime`, `ContentDate`, `ContentTime`, `InstanceCreationDate`, `InstanceCreationTime`,
+`ReferencedImageSequence`, `SourceImageSequence`, `ReferencedPerformedProcedureStepSequence`, `ContentCreatorName`.
+
+**X — remove (149):** the remaining covered attributes, removed at every nesting level. Grouped by module as the
+source table organises them:
+
+- Patient identity and demographics: `IssuerOfPatientID`, `TypeOfPatientID`, `PatientBirthTime`,
+  `PatientInsurancePlanCodeSequence`, `PatientPrimaryLanguageCodeSequence`, `OtherPatientIDs`,
+  `OtherPatientIDsSequence`, `OtherPatientNames`, `PatientBirthName`, `PatientAge`, `PatientSize`, `PatientWeight`,
+  `PatientAddress`,
+  `InsurancePlanIdentification`, `PatientMotherBirthName`, `MilitaryRank`, `BranchOfService`, `MedicalRecordLocator`,
+  `MedicalAlerts`, `Allergies`, `CountryOfResidence`, `RegionOfResidence`, `PatientTelephoneNumbers`, `EthnicGroup`,
+  `Occupation`, `SmokingStatus`, `AdditionalPatientHistory`, `PregnancyStatus`, `LastMenstrualDate`,
+  `PatientReligiousPreference`, `PatientComments`, `PatientSpeciesDescription`, `PatientBreedDescription`,
+  `BreedRegistrationNumber`, `ResponsiblePerson`, `ResponsibleOrganization`, `PatientState`, `CurrentPatientLocation`,
+  `PatientInstitutionResidence`, `ConfidentialityConstraintOnPatientDataDescription`.
+- Study, visit, and ordering identity: `IssuerOfAccessionNumberSequence`, `StudyIDIssuer`, `ReferringPhysicianAddress`,
+  `ReferringPhysicianTelephoneNumbers`, `ReferringPhysicianIdentificationSequence`, `ConsultingPhysicianName`,
+  `ConsultingPhysicianIdentificationSequence`, `PhysiciansOfRecord`, `PhysiciansOfRecordIdentificationSequence`,
+  `NameOfPhysiciansReadingStudy`, `PhysiciansReadingStudyIdentificationSequence`, `RequestingPhysician`,
+  `RequestingService`, `AdmittingDiagnosesDescription`, `AdmittingDiagnosesCodeSequence`, `PatientHospitalDiscussion`,
+  `AdmissionID`, `IssuerOfAdmissionID`, `IssuerOfAdmissionIDSequence`, `ServiceEpisodeID`, `ServiceEpisodeDescription`,
+  `IssuerOfServiceEpisodeID`, `IssuerOfServiceEpisodeIDSequence`, `ReferencedPatientAliasSequence`, `AdmittingDate`,
+  `AdmittingTime`, `DischargeDiagnosisDescription`, `PerformedProcedureStepID`, `CommentsOnThePerformedProcedureStep`,
+  `ScheduledProcedureStepStartDate`, `ScheduledProcedureStepStartTime`, `ScheduledProcedureStepEndDate`,
+  `ScheduledProcedureStepEndTime`, `ScheduledPerformingPhysicianName`, `ScheduledStationName`,
+  `ScheduledStationAETitle`, `ScheduledProcedureStepDescription`, `RequestedProcedureID`,
+  `FillerOrderNumberImagingServiceRequest`,
+  `PlacerOrderNumberImagingServiceRequest`, `OrderCallbackPhoneNumber`, `OrderEnteredBy`, `OrderEntererLocation`.
+- Series and operator identity: `PerformingPhysicianIdentificationSequence`, `OperatorIdentificationSequence`.
+- Equipment and institution identity: `InstitutionName`, `InstitutionAddress`, `InstitutionCodeSequence`,
+  `InstitutionalDepartmentName`, `StationName`, `DeviceSerialNumber`, `DeviceLabel`, `GantryID`, `PlateID`,
+  `DetectorID`, `CassetteID`, `SourceManufacturer`.
+- Image, acquisition, and overlay: `OverlayDate`, `OverlayTime`, `DateOfLastCalibration`, `TimeOfLastCalibration`,
+  `AcquisitionComments`, `ImageComments`, `FrameComments`, `ImagePresentationComments`.
+- SOP common and provenance: `TimezoneOffsetFromUTC`, `DigitalSignaturesSequence`, `DigitalSignatureUID`,
+  `MACParametersSequence`, `DataSetTrailingPadding`, `ContributionDescription`, `ModifiedAttributesSequence`,
+  `OriginalAttributesSequence`.
+- Content, person, and free text: `PersonName`, `PersonAddress`, `PersonTelephoneNumbers`,
+  `PersonIdentificationCodeSequence`, `VerifyingObserverIdentificationCodeSequence`, `VerifyingOrganization`,
+  `AuthorObserverSequence`, `ParticipantSequence`, `CustodialOrganizationSequence`,
+  `ContentCreatorIdentificationCodeSequence`, `NameOfPhysiciansReadingStudyCodeSequence`, `TextComments`, `TextString`,
+  `TelephoneNumberTrial`, `DistributionName`, `DistributionAddress`, `NamesOfIntendedRecipientsOfResults`,
+  `IntendedRecipientsOfResultsIdentificationSequence`, `ImpressionsTrial`, `ResultsComments`,
+  `InterpretationApproverSequence`, `InterpretationAuthor`, `InterpretationDiagnosisDescription`,
+  `InterpretationIDIssuer`, `InterpretationRecorder`, `InterpretationTranscriber`, `InterpretationText`, `ReviewerName`,
+  `DataSetName`, `ArbitraryText`.
+- Specimen and protocol-context identity: `BarcodeValue`, `SpecimenAccessionNumber`, `SpecimenIdentifier`,
+  `SlideIdentifier`, `DischargeDate`, `DischargeTime`.
+
+### Supported sub-options
+
+The default profile (zero-value options) is the strictest: nothing retained, UIDs remapped, dates removed or zeroed,
+all private tags removed, burned-in pixel data fail-closed. Each sub-option below is an explicit opt-in that weakens
+de-identification, and selecting it appends the matching PS3.15 Context Group 7050 code to
+`DeidentificationMethodCodeSequence`:
+
+| Sub-option | `dicom.ProfileOption` | CG 7050 code | Effect |
+|------------|-----------------------|--------------|--------|
+| Retain Patient Characteristics | `WithRetainPatientCharacteristics()` | 113108 | Keeps age, sex, size, weight, smoking and pregnancy status. |
+| Retain Longitudinal Temporal Information | `WithRetainLongitudinalTemporalInformation(mode)` | 113106 / 113107 | Keeps dates/times verbatim (`DateModeKeep`) or shifts them by one per-study offset (`DateModeShift`). |
+| Retain Device Identity | `WithRetainDeviceIdentity()` | 113109 | Keeps station name, device serial number, institution name and related device/institution attributes. |
+| Retain UIDs | `WithRetainUIDs()` | 113110 | Skips UID remapping, leaving Study/Series/SOP and referenced UIDs in place. |
+| Retain Safe Private | `WithRetainSafePrivate(creators...)` | 113111 | Keeps private attributes whose private creator is on the supplied allow-list; all other private tags are removed. |
+
+The Basic Profile code `113100` ("Basic Application Confidentiality Profile") is always written; the sub-option codes
+are appended only when the matching option is set.
+
+### Documented limits
+
+- **Burned-in pixel data is fail-closed.** If a dataset declares `BurnedInAnnotation` (0028,0301) = `YES`, `Deidentify`
+  returns `dicom.ErrBurnedInPixelData` before doing any work and never reports a complete de-identification while
+  identifying pixel text remains. The profile never itself removes or cleans burned-in pixel text. A caller that has
+  handled the pixels by other means can accept the residual risk with `WithAllowBurnedInPixelData()`.
+- **C (clean) is not content-preserving.** Clean attributes collapse to Z (zero length): identity is removed, but the
+  benign clinical content a true PS3.15 clean would retain is not preserved. This is a v1 limit, applied in the safe
+  direction.
+- **Private tags are removed wholesale by default.** go-radx implements no private-SOP-class logic to judge which
+  private attributes are safe, so the Basic Profile removes all private tags unless `WithRetainSafePrivate` allow-lists
+  specific private creators (PRD §3.2).
+- **UID remap is per-call and structural.** Each `Deidentify` call mints replacements through a fresh map keyed by
+  source UID, preserving the reference graph within one dataset; UIDs are not correlated across separate calls unless
+  the caller reuses identifiers. UID remapping requires a `UIDGenerator`; without one the call fails closed
+  (`errNoUIDGenerator`) unless `WithRetainUIDs` is set.
+- **Date shifting preserves precision, not absolute dates.** Under `DateModeShift` the per-study offset is derived from
+  `StudyInstanceUID`, so intervals within a study are preserved while absolute dates are obscured; time-only (TM) values
+  are left unchanged because they have no date to anchor a day-granular shift.
+- **Out of Table E.1-1 scope for v1.** Attributes the standard's Table E.1-1 lists but go-radx does not yet model are
+  treated as Keep (K) by default, the same as any attribute absent from the table. Curve/overlay comment data beyond the
+  overlay date/time attributes above, and option columns other than the five sub-options listed, are not covered in v1.
+
 ## Worked examples
 
 ### C-ECHO against a reference PACS

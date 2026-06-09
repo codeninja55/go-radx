@@ -1,6 +1,7 @@
 package conformancedrift
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -122,6 +123,18 @@ func TestCheckDetectsDrift(t *testing.T) {
 			wantSubj:  "Fictional negotiation",
 		},
 		{
+			// The de-identification section documents the PS3.15 Table E.1-1 covered count; if that
+			// count drifts from len(basicProfileKeywordActions) the enumerated checklist is no longer
+			// trustworthy. Mutating the documented count must surface a deid-count finding.
+			name: "de-identification count drifts from the code action table",
+			mutate: func(t *testing.T, root string) {
+				setDeidentifyCount(t, root, 212)
+			},
+			counts:    codePresetCounts,
+			wantClass: "deid-count",
+			wantSubj:  "PS3.15 Table E.1-1 attribute set",
+		},
+		{
 			// dimse.md repeats NOT YET SHIPPED in its status-table row, so a whole-file phrase search
 			// would miss the removed header banner; the header-specific check catches it regardless.
 			name: "missing scaffold banner despite the phrase appearing elsewhere",
@@ -214,6 +227,11 @@ func copyTreeForCheck(t *testing.T) string {
 	for _, name := range []string{"presets.go", "ae.go", "association.go", "negotiation.go", "server.go"} {
 		copyFile(t, filepath.Join(src, "dimse", name), filepath.Join(dst, "dimse", name))
 	}
+
+	// CountDeidentifyActions parses dicom/deidentify_actions.go for the keyword-action map, so the
+	// fixture carries that file to feed the de-identification count reconciliation.
+	mkdirAll(t, filepath.Join(dst, "dicom"))
+	copyFile(t, filepath.Join(src, deidActionsFile), filepath.Join(dst, deidActionsFile))
 	return dst
 }
 
@@ -285,6 +303,20 @@ func markPresetNotYetShipped(t *testing.T, root, preset string) {
 		}
 	}
 	t.Fatalf("preset row for %q not found in dicom.md", preset)
+}
+
+// setDeidentifyCount rewrites the documented PS3.15 Table E.1-1 covered-attribute count in
+// dicom.md to want, simulating a documented count that has drifted from the code action table.
+func setDeidentifyCount(t *testing.T, root string, want int) {
+	t.Helper()
+	path := filepath.Join(root, "docs", "conformance", "dicom.md")
+	data := readFile(t, path)
+	loc := deidCountRE.FindStringIndex(data)
+	if loc == nil {
+		t.Fatalf("no de-identification count claim found in dicom.md")
+	}
+	replaced := deidCountRE.ReplaceAllString(data[loc[0]:loc[1]], fmt.Sprintf("**%d attributes**", want))
+	writeFile(t, path, data[:loc[0]]+replaced+data[loc[1]:])
 }
 
 // addOverClaimNegotiationRow inserts a new negotiation-table row marked "Yes" that names an option
