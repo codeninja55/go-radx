@@ -629,8 +629,10 @@ The `server` package is where PHI most concentrates, so the §9.1 defaults are s
 - **Loopback by default.** A non-loopback `--bind` is explicit and, without an `Authenticator`, fails closed
   (`ErrInsecureBind`).
 - **Governance is the consumer's.** Encryption at rest, retention/erasure, access control, and audit storage are the
-  integrating consumer's responsibility (PRD §9.1, §9.5). The optional data-modification audit hook (PRD §9.5) can be
-  wired to the consumer's sink; the package mandates neither a schema nor a sink.
+  integrating consumer's responsibility (PRD §9.1, §9.5). The data-modification audit hook envisaged in PRD §9.5 is
+  **not yet implemented**: the package exposes no audit or modification-callback seam, so a consumer cannot currently
+  wire one. Its shape is deferred and tracked in issue
+  [#113](https://github.com/codeninja55/go-radx/issues/113).
 
 ## Conformance scope and limits
 
