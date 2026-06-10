@@ -22,6 +22,10 @@ import (
 // finite so a stuck role cannot block shutdown forever (PRD §9.4).
 const defaultShutdownTimeout = 30 * time.Second
 
+// readHeaderTimeout bounds how long an HTTP role waits for a client to finish sending request
+// headers, so a slowloris peer trickling header bytes cannot pin connections open indefinitely.
+const readHeaderTimeout = 10 * time.Second
+
 // role is the lifecycle contract every mounted server role satisfies. The Daemon drives start and
 // graceful shutdown through it uniformly, so adding a role is mounting one more role value, not a
 // new branch in the lifecycle. Each implementation wraps one protocol server (dimse.Server,

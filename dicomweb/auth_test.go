@@ -284,3 +284,53 @@ func selfSignedCert(t *testing.T) (tls.Certificate, *x509.CertPool) {
 	pool.AddCert(leaf)
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key, Leaf: leaf}, pool
 }
+
+// TestClientTLSFloorRefusesDowngradedOrigin asserts the client's default transport enforces the
+// TLS 1.2 floor: a request to an origin limited to TLS 1.1 fails the handshake with a protocol-
+// version error (never a downgraded connection). The control probe proves the legacy origin
+// genuinely negotiates 1.1 with a willing peer, so the failure is the client's floor, not a broken
+// fixture; matching the protocol-version error distinguishes the floor from a certificate failure.
+func TestClientTLSFloorRefusesDowngradedOrigin(t *testing.T) {
+	cert, pool := selfSignedCert(t)
+	ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS10,
+		MaxVersion:   tls.VersionTLS11,
+	})
+	if err != nil {
+		t.Fatalf("tls.Listen (legacy origin): %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.(*tls.Conn).Handshake()
+			_ = conn.Close()
+		}
+	}()
+
+	// Control: a raw 1.1-willing dialer handshakes with the legacy origin.
+	probe, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
+		RootCAs: pool, ServerName: "127.0.0.1",
+		MinVersion: tls.VersionTLS10, MaxVersion: tls.VersionTLS11,
+	})
+	if err != nil {
+		t.Fatalf("control 1.1 handshake against the legacy origin failed: %v", err)
+	}
+	_ = probe.Close()
+
+	c, err := NewClient("https://" + ln.Addr().String())
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	_, err = c.RetrieveMetadata(context.Background(), NewStudy("1.2.3"))
+	if err == nil {
+		t.Fatal("RetrieveMetadata against a TLS 1.1-limited origin succeeded, want the 1.2 floor to reject the handshake")
+	}
+	if !strings.Contains(err.Error(), "protocol version") {
+		t.Fatalf("error = %v, want a TLS protocol-version failure (not, e.g., a certificate failure)", err)
+	}
+}

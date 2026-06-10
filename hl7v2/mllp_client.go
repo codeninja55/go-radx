@@ -61,9 +61,28 @@ func WithClientMaxFrameSize(n int) ClientOption {
 // WithClientTLS dials over TLS using cfg, so the client verifies the server's
 // certificate against cfg.RootCAs and cfg.ServerName (PRD §9.7). Passing a
 // config with InsecureSkipVerify set disables that verification and is the
-// caller's explicit choice. A nil cfg leaves the client on plain TCP.
+// caller's explicit choice. The library enforces a TLS 1.2 floor: any
+// cfg.MinVersion below 1.2 (unset, or a pinned 1.0/1.1) is raised to 1.2,
+// preferring 1.3 where the peer supports it; a caller-pinned higher floor is
+// preserved. A nil cfg leaves the client on plain TCP.
 func WithClientTLS(cfg *tls.Config) ClientOption {
 	return func(c *clientConfig) { c.tlsConfig = cfg }
+}
+
+// tlsConfigWithFloor returns a clone of cfg with the minimum protocol version clamped up to
+// TLS 1.2, or nil for a nil cfg. It mirrors the dimse AE floor: cloning keeps the caller's
+// config immutable, and any MinVersion below 1.2 — unset (0) or a pinned 1.0/1.1 — is raised
+// so the "TLS 1.2+" contract holds regardless of what the caller supplied; a caller-pinned
+// HIGHER floor (e.g. 1.3) is preserved.
+func tlsConfigWithFloor(cfg *tls.Config) *tls.Config {
+	if cfg == nil {
+		return nil
+	}
+	out := cfg.Clone()
+	if out.MinVersion < tls.VersionTLS12 {
+		out.MinVersion = tls.VersionTLS12
+	}
+	return out
 }
 
 // Client is a blocking MLLP sender. It holds one connection to a peer for its
@@ -111,7 +130,7 @@ func dial(addr string, cfg clientConfig) (net.Conn, error) {
 		}
 		return conn, nil
 	}
-	conn, err := tls.DialWithDialer(dialer, "tcp", addr, cfg.tlsConfig)
+	conn, err := tls.DialWithDialer(dialer, "tcp", addr, tlsConfigWithFloor(cfg.tlsConfig))
 	if err != nil {
 		return nil, fmt.Errorf("hl7v2: tls dial %q: %w", addr, err)
 	}

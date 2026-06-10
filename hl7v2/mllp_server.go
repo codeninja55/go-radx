@@ -109,9 +109,11 @@ func WithMaxConnections(n int) MLLPServerOption {
 }
 
 // WithServerTLS terminates TLS on the listener using cfg, so an inbound
-// connection completes a TLS handshake before any frame is read (PRD §9.7). To
-// require client certificates, set cfg.ClientAuth and cfg.ClientCAs. A nil cfg
-// leaves the server on plain TCP.
+// connection completes a TLS handshake before any frame is read (PRD §9.7). The
+// library enforces a TLS 1.2 floor: any cfg.MinVersion below 1.2 (unset, or a
+// pinned 1.0/1.1) is raised to 1.2; a caller-pinned higher floor is preserved.
+// To require client certificates, set cfg.ClientAuth and cfg.ClientCAs. A nil
+// cfg leaves the server on plain TCP.
 func WithServerTLS(cfg *tls.Config) MLLPServerOption {
 	return func(c *serverConfig) { c.tlsConfig = cfg }
 }
@@ -198,7 +200,7 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 		return fmt.Errorf("hl7v2: listen on %q: %w", addr, err)
 	}
 	if s.cfg.tlsConfig != nil {
-		ln = tls.NewListener(ln, s.cfg.tlsConfig)
+		ln = tls.NewListener(ln, tlsConfigWithFloor(s.cfg.tlsConfig))
 	}
 
 	handlerCtx, cancelHandlers := context.WithCancel(ctx)

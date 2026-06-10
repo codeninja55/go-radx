@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/hl7v2"
 )
 
@@ -189,5 +190,135 @@ func TestDaemonDICOMwebServes(t *testing.T) {
 	cancelRun()
 	if err := <-runErr; err != nil {
 		t.Fatalf("Run returned %v on clean shutdown, want nil", err)
+	}
+}
+
+// serverTLSConfig mints a self-signed server identity for 127.0.0.1 and returns a TLS config
+// presenting it plus the pool that trusts it, for the HTTP-role TLS tests that complete a real
+// handshake (unlike mutualTLSConfig, which only satisfies the bind-policy check).
+func serverTLSConfig(t *testing.T) (*tls.Config, *x509.CertPool) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "127.0.0.1"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1)},
+		IsCA:         true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("CreateCertificate: %v", err)
+	}
+	leaf, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("ParseCertificate: %v", err)
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(leaf)
+	return &tls.Config{
+		Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key, Leaf: leaf}},
+	}, pool
+}
+
+// TestHTTPRoleTLSFloorClampsCallerConfig asserts the TLS 1.2 floor WithTLS documents holds on the
+// HTTP roles' listeners even when the caller pins a weaker floor: a daemon whose WithTLS config
+// pins MinVersion = TLS 1.0 still rejects a TLS 1.1-limited client, because listen() clamps the
+// floor up to 1.2. The control proves the same listener accepts a 1.2 client, so the rejection is
+// the version, not a broken fixture.
+func TestHTTPRoleTLSFloorClampsCallerConfig(t *testing.T) {
+	t.Parallel()
+	serverTLS, pool := serverTLSConfig(t)
+	// Caller PINS a weak floor (TLS 1.0); listen() must clamp it up to 1.2.
+	serverTLS.MinVersion = tls.VersionTLS10
+
+	store, cat := newTestBackends(t)
+	webRole, err := NewDICOMwebRole(store, cat, WithDICOMwebPort(0))
+	if err != nil {
+		t.Fatalf("NewDICOMwebRole: %v", err)
+	}
+	d, err := New(WithDICOMweb(webRole), WithTLS(serverTLS))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(runCtx) }()
+	waitForAddrs(t, d, "dicomweb")
+	defer func() {
+		cancelRun()
+		select {
+		case <-runErr:
+		case <-time.After(10 * time.Second):
+			t.Error("Run did not return after cancel")
+		}
+	}()
+	addr := d.Addrs()["dicomweb"].String()
+
+	legacy := &tls.Config{
+		RootCAs: pool, ServerName: "127.0.0.1",
+		MinVersion: tls.VersionTLS10, MaxVersion: tls.VersionTLS11,
+	}
+	if conn, err := tls.Dial("tcp", addr, legacy); err == nil {
+		_ = conn.Close()
+		t.Fatal("a TLS 1.1-limited client completed a handshake with the HTTP role, want the clamped 1.2 floor to reject it")
+	}
+
+	// Control: a 1.2 client handshakes against the same listener.
+	modern := &tls.Config{RootCAs: pool, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS12}
+	conn, err := tls.Dial("tcp", addr, modern)
+	if err != nil {
+		t.Fatalf("control 1.2 handshake against the clamped listener failed: %v", err)
+	}
+	_ = conn.Close()
+}
+
+// TestHTTPRolesSetReadHeaderTimeout asserts each HTTP role's http.Server carries the shared
+// ReadHeaderTimeout, so a slowloris peer trickling header bytes cannot pin connections open
+// indefinitely (gosec G112).
+func TestHTTPRolesSetReadHeaderTimeout(t *testing.T) {
+	t.Parallel()
+	store, cat := newTestBackends(t)
+	webRole, err := NewDICOMwebRole(store, cat, WithDICOMwebPort(0))
+	if err != nil {
+		t.Fatalf("NewDICOMwebRole: %v", err)
+	}
+	repo, err := NewMemoryRepository(fhir.R5)
+	if err != nil {
+		t.Fatalf("NewMemoryRepository: %v", err)
+	}
+	fhirRole, err := NewFHIRRole(repo, WithFHIRPort(0), WithFHIRRelease(fhir.R5))
+	if err != nil {
+		t.Fatalf("NewFHIRRole: %v", err)
+	}
+	d, err := New(WithDICOMweb(webRole), WithFHIR(fhirRole))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(runCtx) }()
+	waitForAddrs(t, d, "dicomweb")
+	waitForAddrs(t, d, fhirRole.name())
+	cancelRun()
+	select {
+	case <-runErr:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Run did not return after cancel")
+	}
+
+	// The srv fields are read only after Run has returned: the roles assign them on the start
+	// goroutine, so an in-flight read would race the daemon lifecycle the production code sequences.
+	if got := webRole.srv.ReadHeaderTimeout; got != readHeaderTimeout {
+		t.Errorf("dicomweb role ReadHeaderTimeout = %v, want %v", got, readHeaderTimeout)
+	}
+	if got := fhirRole.srv.ReadHeaderTimeout; got != readHeaderTimeout {
+		t.Errorf("fhir role ReadHeaderTimeout = %v, want %v", got, readHeaderTimeout)
 	}
 }
