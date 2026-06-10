@@ -12,6 +12,12 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Reference-library parity matrices under `docs/conformance/parity/` — six audited matrices comparing each
+  subsystem against its reference's documented public surface (DICOM vs pydicom + pylibjpeg, DIMSE vs
+  pynetdicom, HL7 v2 vs python-hl7 with a HAPI catalogue stretch, FHIR vs fhir.resources + HAPI REST,
+  DICOMweb vs dicomweb-client + PS3.18, CLI vs the dcmtk suite), with file:symbol evidence, S/M/L sizing on
+  every non-MET row, and an aggregate `index.md` that schedules the gaps into build waves (#116).
+
 - Fuzz targets and benchmark baselines for the FHIR R5 decode / validate / summary hot paths (F1-P).
   `fhir/r5/fuzz_test.go` adds three Go native fuzz targets — `FuzzUnmarshalResource` (registry-dispatched decode),
   `FuzzValidate` (decode-then-validate, asserting no validation issue echoes a synthetic patient-data sentinel), and
