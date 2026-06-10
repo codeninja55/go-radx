@@ -78,7 +78,7 @@ through pkg-config. When the native libraries do not link, the go-radx codec row
 
 <!-- bench-compare:begin provenance -->
 
-- Generated: 2026-06-10T09:24:42Z (mode: smoke)
+- Generated: 2026-06-10T09:29:22Z (mode: smoke)
 - Host: Apple M1 / 17179869184 bytes RAM / Darwin 25.5.0 (arm64)
 - Go: go version go1.26.4 darwin/arm64
 - Python: 3.12.13
@@ -96,29 +96,29 @@ through pkg-config. When the native libraries do not link, the go-radx codec row
 
 | Benchmark | Fixture | go-radx ns/op | go-radx MB/s | go allocs/op | Python ns/op | Python MB/s | Speedup (py/go) |
 |---|---|---:|---:|---:|---:|---:|---:|
-| dicom-part10-read | MR-SIEMENS-DICOM-WithOverlays.dcm | 189.88k | 2.67k | 1.38k | 300.13k | 1.70k | 1.6x |
-| dicom-part10-read | MR2_UNCI.dcm | 435.22k | 4.18k | 1.10k | 411.58k | 5.10k | 0.9x |
-| dicom-part10-read | SC_rgb_expb.dcm | 40.90k | 737.15 | 395.00 | 177.21k | 176.56 | 4.3x |
-| dicom-part10-read | basic-text-sr.dcm | 51.98k | 56.79 | 1.24k | 575.77k | 5.15 | 11.1x |
-| dicom-part10-read | liver.dcm | 93.74k | 979.89 | 1.56k | 857.22k | 119.72 | 9.1x |
-| pixel-decode-htj2k | HTJ2KLossless_08_RGB.dcm | 17.27M | - | 3.00 | 11.90M | - | 0.7x |
-| pixel-decode-htj2k | HTJ2K_08_RGB.dcm | 13.44M | - | 3.00 | 9.75M | - | 0.7x |
-| pixel-decode-j2k | liver_j2k.dcm | 8.32M | - | 9.00 | 8.28M | - | 1.0x |
-| pixel-decode-jpeg | JPGExtended.dcm | 634.04k | - | 3.00 | 1.50M | - | 2.4x |
-| pixel-decode-jpeg | JPGLosslessP14SV1_1s_1f_8b.dcm | 4.66M | - | 4.00 | 21.09M | - | 4.5x |
-| pixel-decode-jpeg | SC_jpeg_no_color_transform.dcm | 264.44k | - | 3.00 | 2.26M | - | 8.6x |
-| pixel-decode-jpegls | JPEGLSNearLossless_08.dcm | 5.47k | - | 3.00 | 75.49k | - | 13.8x |
-| pixel-decode-jpegls | JPEGLSNearLossless_16.dcm | 259.77k | - | 3.00 | 325.08k | - | 1.3x |
-| pixel-decode-jpegls | MR_small_jpeg_ls_lossless.dcm | 109.64k | - | 3.00 | 642.13k | - | 5.9x |
-| pixel-decode-jpegls | SC_rgb_jls_lossy_sample.dcm | 45.30k | - | 3.00 | 350.44k | - | 7.7x |
-| pixel-decode-rle | liver_rle.dcm | 533.88k | - | 6.00 | 462.52k | - | 0.9x |
+| dicom-part10-read | MR-SIEMENS-DICOM-WithOverlays.dcm | 203.69k | 2.40k | 1.39k | 277.01k | 1.84k | 1.4x |
+| dicom-part10-read | MR2_UNCI.dcm | 351.65k | 6.06k | 1.11k | 407.35k | 5.15k | 1.2x |
+| dicom-part10-read | SC_rgb_expb.dcm | 35.28k | 830.35 | 395.00 | 165.69k | 188.84 | 4.7x |
+| dicom-part10-read | basic-text-sr.dcm | 53.91k | 53.96 | 1.24k | 554.23k | 5.36 | 10.3x |
+| dicom-part10-read | liver.dcm | 86.90k | 1.07k | 1.56k | 762.58k | 134.58 | 8.8x |
+| pixel-decode-htj2k | HTJ2KLossless_08_RGB.dcm | 10.09M | - | 5.00 | 8.93M | - | 0.9x |
+| pixel-decode-htj2k | HTJ2K_08_RGB.dcm | 8.94M | - | 3.00 | 8.74M | - | 1.0x |
+| pixel-decode-j2k | liver_j2k.dcm | 7.92M | - | 9.00 | 6.62M | - | 0.8x |
+| pixel-decode-jpeg | JPGExtended.dcm | 991.31k | - | 3.00 | 1.38M | - | 1.4x |
+| pixel-decode-jpeg | JPGLosslessP14SV1_1s_1f_8b.dcm | 6.30M | - | 3.00 | 14.08M | - | 2.2x |
+| pixel-decode-jpeg | SC_jpeg_no_color_transform.dcm | 327.94k | - | 3.00 | 792.85k | - | 2.4x |
+| pixel-decode-jpegls | JPEGLSNearLossless_08.dcm | 5.50k | - | 3.00 | 70.58k | - | 12.8x |
+| pixel-decode-jpegls | JPEGLSNearLossless_16.dcm | 428.05k | - | 3.00 | 300.60k | - | 0.7x |
+| pixel-decode-jpegls | MR_small_jpeg_ls_lossless.dcm | 103.07k | - | 3.00 | 612.42k | - | 5.9x |
+| pixel-decode-jpegls | SC_rgb_jls_lossy_sample.dcm | 40.88k | - | 3.00 | 324.60k | - | 7.9x |
+| pixel-decode-rle | liver_rle.dcm | 462.26k | - | 6.00 | 425.78k | - | 0.9x |
 | pixel-encode-htj2k (go-radx: unsupported) | n/a | - | - | - | - | - | - |
-| pixel-encode-j2k (python: unsupported) | liver_j2k.dcm | 10.49M | - | 13.00 | - | - | - |
+| pixel-encode-j2k (python: unsupported) | liver_j2k.dcm | 4.02M | - | 12.00 | - | - | - |
 | pixel-encode-jpeg (go-radx: unsupported) | n/a | - | - | - | - | - | - |
-| pixel-encode-jpegls | MR_small_jpeg_ls_lossless.dcm | 125.33k | - | 3.00 | 115.56k | 70.89 | 0.9x |
-| pixel-encode-rle | 16-bit_mono_256x256 | 256.67k | 465.25 | 39.00 | 1.30M | 100.87 | 5.1x |
-| pixel-encode-rle | 8-bit_mono_256x256 | 109.56k | 584.27 | 18.00 | 623.07k | 105.18 | 5.7x |
-| pixel-encode-rle | 8-bit_rgb_256x256 | 889.58k | 199.68 | 70.00 | 1.63M | 120.48 | 1.8x |
+| pixel-encode-jpegls | MR_small_jpeg_ls_lossless.dcm | 221.63k | - | 3.00 | 105.17k | 77.89 | 0.5x |
+| pixel-encode-rle | 16-bit_mono_256x256 | 249.35k | 535.59 | 39.00 | 967.02k | 135.54 | 3.9x |
+| pixel-encode-rle | 8-bit_mono_256x256 | 110.37k | 594.36 | 18.00 | 469.01k | 139.73 | 4.2x |
+| pixel-encode-rle | 8-bit_rgb_256x256 | 667.01k | 287.82 | 70.00 | 1.46M | 134.55 | 2.2x |
 
 Rows without numbers:
 
@@ -132,22 +132,22 @@ Rows without numbers:
 
 | Benchmark | Fixture | go-radx ns/op | go-radx MB/s | go allocs/op | Python ns/op | Python MB/s | Speedup (py/go) |
 |---|---|---:|---:|---:|---:|---:|---:|
-| dimse-cstore-loopback | 5x liver.dcm + 2x MR2_UNCI.dcm | 2.86M | 235.13 | - | 10.43M | 64.57 | 3.6x |
+| dimse-cstore-loopback | 5x liver.dcm + 2x MR2_UNCI.dcm | 1.09M | 614.73 | - | 9.51M | 70.78 | 8.7x |
 
 ### HL7 v2: parse throughput
 
 | Benchmark | Fixture | go-radx ns/op | go-radx MB/s | go allocs/op | Python ns/op | Python MB/s | Speedup (py/go) |
 |---|---|---:|---:|---:|---:|---:|---:|
-| hl7v2-parse | adt-a01.hl7 | 10.76k | 31.49 | 448.00 | 168.73k | 2.01 | 15.7x |
-| hl7v2-parse | oru-r01.hl7 | 54.91k | 10.87 | 721.02 | 267.69k | 2.23 | 4.9x |
+| hl7v2-parse | adt-a01.hl7 | 10.08k | 33.64 | 448.00 | 303.78k | 1.12 | 30.1x |
+| hl7v2-parse | oru-r01.hl7 | 17.79k | 33.55 | 721.12 | 287.11k | 2.08 | 16.1x |
 
 ### FHIR R5: Bundle unmarshal / marshal / validate
 
 | Benchmark | Fixture | go-radx ns/op | go-radx MB/s | go allocs/op | Python ns/op | Python MB/s | Speedup (py/go) |
 |---|---|---:|---:|---:|---:|---:|---:|
-| fhir-bundle-marshal | Bundle.json | 300.77k | 25.23 | 241.00 | 3.84M | 1.98 | 12.8x |
-| fhir-bundle-unmarshal | Bundle.json | 1.42M | 5.34 | 1.97k | 1.56M | 4.87 | 1.1x |
-| fhir-bundle-validate (python: unsupported) | Bundle.json | 155.61k | 48.78 | 789.75 | - | - | - |
+| fhir-bundle-marshal | Bundle.json | 109.04k | 69.61 | 241.95 | 755.90k | 10.04 | 6.9x |
+| fhir-bundle-unmarshal | Bundle.json | 503.49k | 15.07 | 1.98k | 353.79k | 21.45 | 0.7x |
+| fhir-bundle-validate (python: unsupported) | Bundle.json | 59.76k | 127.01 | 789.00 | - | - | - |
 
 Rows without numbers:
 
