@@ -38,6 +38,7 @@ func decodeSequence(br *boundedReader, h elementHeader, ts TransferSyntax, cfg r
 func decodeUndefinedLengthSequence(br *boundedReader, owner Tag, ts TransferSyntax, cfg readConfig, depth int) (*Sequence, error) {
 	seq := &Sequence{undefinedLength: true}
 	for {
+		itemStart := br.offset()
 		tag, length, err := readDelimiterHeader(br, ts)
 		if err != nil {
 			return nil, err
@@ -50,6 +51,7 @@ func decodeUndefinedLengthSequence(br *boundedReader, owner Tag, ts TransferSynt
 			if err != nil {
 				return nil, err
 			}
+			item.fileOffset = itemStart
 			seq.items = append(seq.items, item)
 		default:
 			return nil, &ValueError{Tag: owner, VR: VRSQ, Msg: "unexpected tag inside undefined-length sequence"}
@@ -67,6 +69,7 @@ func decodeDefinedLengthSequence(br *boundedReader, h elementHeader, ts Transfer
 	seq := &Sequence{undefinedLength: false}
 	end := br.offset() + int64(h.length)
 	for br.offset() < end {
+		itemStart := br.offset()
 		tag, length, err := readDelimiterHeader(br, ts)
 		if err != nil {
 			return nil, err
@@ -78,6 +81,7 @@ func decodeDefinedLengthSequence(br *boundedReader, h elementHeader, ts Transfer
 		if err != nil {
 			return nil, err
 		}
+		item.fileOffset = itemStart
 		seq.items = append(seq.items, item)
 	}
 	if br.offset() != end {
