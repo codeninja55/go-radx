@@ -38,9 +38,10 @@ In scope for v1, seeded from the `pydicom` parity floor (`docs/prd/go-radx-prd.m
   reads (PRD §5.1 step 6); the supported SR SOP classes are declared in `docs/conformance/dicom.md`.
 - The PS3.15 Basic Application Level Confidentiality Profile for de-identification, with documented scope and limits.
 
-Out of scope for v1 (deferred, not designed against here): DICOMDIR file-sets and DICOM-JSON are part of the broader
-`pydicom` floor but are documented in their own references. This file covers the binary data model, the Structured
-Report content-item model, and Part 10.
+DICOM-JSON is part of the broader `pydicom` floor but is documented in its own reference. DICOMDIR file-sets ship in
+the `dicom` package (`FileSet`, `OpenFileSet`, `FileSetBuilder`) with their conformance scope declared in
+`docs/conformance/dicom.md`; the API detail lives in the package godoc. This file covers the binary data model, the
+Structured Report content-item model, and Part 10.
 
 ## The data model
 
