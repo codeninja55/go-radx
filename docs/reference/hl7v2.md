@@ -443,6 +443,11 @@ func (a ADT) PV1() (PV1, bool)
 type ORM struct{ *Message }
 func (o ORM) Orders() iter.Seq[OrderGroup] // each ORC with its following OBR(s)
 
+// OMG — general clinical order (the imaging-order variant of ORM; OMG^O19).
+// AsORM also admits OMG codes; AsOMG distinguishes the variant.
+type OMG struct{ *Message }
+func (o OMG) Orders() iter.Seq[OrderGroup] // the same ORC+OBR grouping as ORM
+
 // ORU — observation result. Iterates result groups (OBR with its OBX rows).
 type ORU struct{ *Message }
 func (o ORU) PID() (PID, bool)
@@ -457,6 +462,7 @@ func (a ACK) Errors() []ERR
 // if MSH-9.1 does not match.
 func AsADT(m *Message) (ADT, bool)
 func AsORM(m *Message) (ORM, bool)
+func AsOMG(m *Message) (OMG, bool)
 func AsORU(m *Message) (ORU, bool)
 func AsACK(m *Message) (ACK, bool)
 ```
