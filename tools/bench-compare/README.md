@@ -8,8 +8,9 @@ fixtures on both sides. Methodology, caveats, and the published tables live in
 ## Prerequisites
 
 - `uv` on PATH (https://docs.astral.sh/uv/ - `brew install uv` or the standalone installer).
-  The harness syncs its own pinned CPython 3.12 environment from `uv.lock`; nothing is installed
-  globally.
+  The harness syncs its own environment from `uv.lock` on the exact CPython patch pinned in
+  `.python-version` (3.12.13); nothing is installed globally. Bump the interpreter pin and the
+  lock together, deliberately.
 - Go toolchain via mise (repo standard).
 - Optional, for the go-radx cgo codec rows: OpenJPEG, libjpeg-turbo, and CharLS resolvable via
   pkg-config (`brew install openjpeg jpeg-turbo charls` locally; CI builds them from source).
