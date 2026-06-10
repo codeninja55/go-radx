@@ -521,7 +521,9 @@ configuration is exercised before any tag is pushed. These claims describe what 
 
 The CI workflow at `.github/workflows/ci.yml` runs on every push and pull request to `main` and defines fourteen jobs.
 The core build and test jobs are:
-`lint-test` (gofmt, `go vet`, golangci-lint on the default and interop builds, `go build`, the `pin-drift` check, the
+`lint-test` (gofmt, `go vet`, golangci-lint — including the `gosec` security linter, enabled in `.golangci.yml` with
+per-site `#nosec` justifications and zero open findings — on the default and interop builds, `go build`, the
+`pin-drift` check, the
 standing [`-race` gate](#concurrency-and-race-posture) step that also enforces the
 [80% coverage floor](#coverage-targets-and-critical-path-enumeration), and the
 [critical-path coverage gate](#coverage-targets-and-critical-path-enumeration) step that enforces the per-package 90%
@@ -535,7 +537,10 @@ and vulnerability scan of the `cmd/radx` CLI module), and `codecs` (the C-backed
 valid-data codec paths and the cgo boundary, while the hostile-malformed-input corpora run in the non-ASAN passes).
 
 The Phase 0 Lane-A artifacts and the hostile-input gates are wired as their own jobs so each runs on every push and pull
-request: `phi-sanity` (the PHI-default log sweep, `internal/phisweep`), `fuzz` (a bounded smoke run over every committed
+request: `phi-sanity` (the PHI-default log sweep, `internal/phisweep`; its sibling credential-leak sweep,
+`internal/credsweep`, drives synthetic credential sentinels through the DIMSE user-identity, DICOMweb and FHIR REST
+client auth, and server auth-middleware surfaces — it runs under the standing root-module test gates and via
+`mise run cred-sweep`, not as its own CI job), `fuzz` (a bounded smoke run over every committed
 fuzz target — the list is discovered from `go test -list '^Fuzz'` rather than hand-maintained, each target wrapped in
 `timeout` so a hang is a failure, never a skip; see [Bounded fuzz smoke](#bounded-fuzz-smoke)),
 `hostile-corpus` (the [hostile-input memory-capped corpus gate](#hostile-input-memory-capped-corpus) that replays the
