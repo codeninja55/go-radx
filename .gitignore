@@ -35,3 +35,8 @@ go.work.sum
 .env
 .env.*
 !.env.example
+
+# bench-compare local artifacts (the harness writes results JSON/md; the gobench binary is built on demand)
+tools/bench-compare/results/
+tools/bench-compare/gobench/gobench
+tools/bench-compare/.venv/
