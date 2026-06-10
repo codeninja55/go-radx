@@ -4,9 +4,10 @@ import "encoding/binary"
 
 // TransferSyntax is the UID-identified encoding of a dataset: byte order,
 // implicit-versus-explicit VR, and compression. It is the single transfer-syntax
-// type reused by dimse and dicomweb. v1 reads and writes the four uncompressed
-// syntaxes; compressed syntaxes are recognised for transport and pixel decoding,
-// but the main dataset is never written in a compressed syntax.
+// type reused by dimse and dicomweb. The reader and writer handle the four
+// uncompressed syntaxes and the recognised encapsulated syntaxes below (whose main
+// dataset is Explicit VR LE and whose pixel data is a retained fragment stream);
+// pixel decode/encode is a separate, codec-gated concern.
 type TransferSyntax UID
 
 const (

@@ -223,6 +223,10 @@ func cloneValue(v Value) Value {
 		return NewBytes(t.vr, t.b)
 	case *sequenceValue:
 		return &sequenceValue{seq: cloneSequence(t.seq)}
+	case *encapsulatedValue:
+		cp := make([]byte, len(t.stream))
+		copy(cp, t.stream)
+		return &encapsulatedValue{stream: cp}
 	default:
 		return v
 	}

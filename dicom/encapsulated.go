@@ -26,6 +26,23 @@ type encapsulated struct {
 	fragments []fragment // fragment items in stream order
 }
 
+// encapsulatedValue is the Value wrapper for an encapsulated (7FE0,0010) element:
+// the verbatim fragment item stream — Basic Offset Table item, fragment items, and
+// Sequence Delimitation Item — exactly as it appeared on the wire. The reader
+// retains it byte-for-byte and never decodes it (decode lives in the
+// PixelData/Frames pipeline), so a compressed file round-trips with an identical
+// pixel stream.
+type encapsulatedValue struct {
+	stream []byte
+}
+
+func (v *encapsulatedValue) VR() VR { return VROB }
+
+// EncodedLen reports the undefined-length sentinel: an encapsulated pixel-data
+// element is always written with undefined length and is delimited by the Sequence
+// Delimitation Item its stream ends with (PS3.5 A.4).
+func (v *encapsulatedValue) EncodedLen(binary.ByteOrder) uint32 { return undefinedLength }
+
 // frameRange names the fragments that compose one frame as a half-open fragment
 // index range [first, last).
 type frameRange struct {

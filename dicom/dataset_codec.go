@@ -38,12 +38,20 @@ func readDataSet(br *boundedReader, ts TransferSyntax, cfg readConfig) (*DataSet
 		}
 
 		var v Value
-		if h.vr == VRSQ || h.length == undefinedLength {
-			// An SQ (by VR) or any undefined-length value is a sequence delimited by a
-			// Sequence Delimitation Item, parsed structurally into nested datasets so it
-			// is never dropped (Codex DCM-005). Encapsulated pixel data under a
-			// compressed syntax is handled by the pixel pipeline (Increment 6), not here;
-			// v1 reads only uncompressed syntaxes whose undefined-length values are SQ.
+		if h.tag == TagPixelData && h.length == undefinedLength && ts.IsEncapsulated() {
+			// Encapsulated pixel data: retain the verbatim fragment stream on the
+			// dataset, byte-for-byte and undecoded, so metadata of a compressed file is
+			// reachable and a round-trip re-emits an identical pixel stream. Decoding
+			// stays in the PixelData/Frames pipeline (Codex DCM-006).
+			stream, err := readEncapsulatedValue(br, ts)
+			if err != nil {
+				return nil, err
+			}
+			v = &encapsulatedValue{stream: stream}
+		} else if h.vr == VRSQ || h.length == undefinedLength {
+			// An SQ (by VR) or any other undefined-length value is a sequence delimited
+			// by a Sequence Delimitation Item, parsed structurally into nested datasets
+			// so it is never dropped (Codex DCM-005).
 			seq, err := decodeSequence(br, elementHeader{tag: h.tag, vr: VRSQ, length: h.length}, ts, cfg, 1)
 			if err != nil {
 				return nil, err
@@ -96,6 +104,13 @@ func writeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error {
 			continue
 		}
 
+		if ev, ok := e.Value.(*encapsulatedValue); ok {
+			if err := writeEncapsulatedElement(w, e, ev, ts); err != nil {
+				return err
+			}
+			continue
+		}
+
 		n := e.Value.EncodedLen(enc.byteOrder)
 		if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: n}, ts); err != nil {
 			return err
@@ -109,6 +124,26 @@ func writeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error {
 		}
 	}
 	return nil
+}
+
+// writeEncapsulatedElement writes an encapsulated (7FE0,0010) element: the
+// undefined-length header followed by the verbatim fragment stream, which already
+// ends with its Sequence Delimitation Item. Only an encapsulated transfer syntax
+// may carry it — under an uncompressed syntax pixel data must be native (PS3.5
+// A.4) — so a dataset still holding fragments fails closed rather than emitting a
+// non-conformant stream; re-encode it first (Transcode + File.SetPixelData).
+func writeEncapsulatedElement(w io.Writer, e Element, ev *encapsulatedValue, ts TransferSyntax) error {
+	if !ts.IsEncapsulated() {
+		return &ValueError{
+			Tag: e.Tag, VR: e.VR,
+			Msg: "encapsulated pixel data cannot be written under an uncompressed transfer syntax; transcode it first",
+		}
+	}
+	if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: undefinedLength}, ts); err != nil {
+		return err
+	}
+	_, err := w.Write(ev.stream)
+	return err
 }
 
 // writeSequenceElement writes an SQ element: its header with the recorded length
