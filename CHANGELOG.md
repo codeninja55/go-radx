@@ -17,6 +17,25 @@ legacy codebase (`legacy-main`) and are not continued here.
   pynetdicom, HL7 v2 vs python-hl7 with a HAPI catalogue stretch, FHIR vs fhir.resources + HAPI REST,
   DICOMweb vs dicomweb-client + PS3.18, CLI vs the dcmtk suite), with file:symbol evidence, S/M/L sizing on
   every non-MET row, and an aggregate `index.md` that schedules the gaps into build waves (#116).
+- Credential-leak sweep `internal/credsweep` (`mise run cred-sweep`): synthetic credential sentinels driven
+  through DIMSE user-identity, DICOMweb/FHIR REST Authorization, and the daemon auth middleware, with all
+  four phisweep sinks scanned and a planted-leak canary - the first automated test of PRD §9.8 (#117).
+- TLS-downgrade regression tests for MLLP, the DICOMweb and FHIR REST clients, and the daemon HTTP roles,
+  each with a control proving the legacy TLS 1.1 fixture genuinely bites (#117).
+
+### Changed
+
+- gosec joined the lint gate across all four configs; every production finding resolved with a real guard
+  or a per-site `#nosec` naming the verified invariant. DICOM/DIMSE/DICOMweb binary writers now refuse
+  values that would silently truncate a 16/32-bit wire length field, hostile wider-VR Image Pixel
+  attributes are rejected rather than truncated into wrong frame geometry, and received DICOM files are
+  written 0600 (#117).
+
+### Fixed
+
+- hl7v2 MLLP and the server HTTP roles enforced no TLS floor: a caller-pinned MinVersion of 1.0/1.1 took
+  effect despite the documented TLS 1.2 contract. Both now clone-and-clamp like the DIMSE AE; HTTP roles
+  also gain a ReadHeaderTimeout against slowloris peers (#117).
 
 - Fuzz targets and benchmark baselines for the FHIR R5 decode / validate / summary hot paths (F1-P).
   `fhir/r5/fuzz_test.go` adds three Go native fuzz targets — `FuzzUnmarshalResource` (registry-dispatched decode),
