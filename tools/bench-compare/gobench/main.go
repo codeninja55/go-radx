@@ -1,9 +1,10 @@
 // Command gobench is the go-radx side of the PRD section 11.3 comparative benchmark
 // harness for the areas the committed `go test -bench` suites do not already cover with
-// a fixture-matched benchmark: loopback DIMSE C-STORE throughput, HL7 v2 parse
-// throughput, and FHIR R5 Bundle unmarshal/marshal/validate over the shared file
+// a fixture-matched, user-facing benchmark: per-transfer-syntax pixel decode through the
+// public dicom.ReadPixelData + Frames() path, loopback DIMSE C-STORE throughput, HL7 v2
+// parse throughput, and FHIR R5 Bundle unmarshal/marshal/validate over the shared file
 // fixture. It emits raw wall-clock samples as JSON on stdout; the Python orchestrator
-// (tools/bench-compare/runner.py) normalizes both sides with the same arithmetic.
+// (benchcompare) normalizes both sides with the same arithmetic.
 //
 // Loopback only: the DIMSE area binds 127.0.0.1 and never reaches the network.
 package main
@@ -44,18 +45,19 @@ type result struct {
 }
 
 const (
-	sideGo    = "go-radx"
-	statusOK  = "ok"
-	statusErr = "error"
+	sideGo            = "go-radx"
+	statusOK          = "ok"
+	statusErr         = "error"
+	statusUnavailable = "unavailable"
 )
 
 func main() {
 	var (
-		area        = flag.String("area", "", "benchmark area: dimse | hl7 | fhir")
+		area        = flag.String("area", "", "benchmark area: dicom | dimse | hl7 | fhir")
 		testdata    = flag.String("testdata", "../../../testdata", "path to the repo testdata directory")
 		repeats     = flag.Int("repeats", 5, "measured samples per benchmark (median is published)")
 		warmup      = flag.Int("warmup", 1, "unmeasured warmup samples per benchmark")
-		iters       = flag.Int("iters", 200, "operations per sample for the hl7 and fhir areas")
+		iters       = flag.Int("iters", 200, "operations per sample for the dicom, hl7, and fhir areas")
 		smallCount  = flag.Int("small-count", 200, "small instances per C-STORE sample")
 		mediumCount = flag.Int("medium-count", 20, "medium instances per C-STORE sample")
 	)
@@ -66,6 +68,8 @@ func main() {
 		err     error
 	)
 	switch *area {
+	case "dicom":
+		results, err = benchDICOM(*testdata, *repeats, *warmup, *iters)
 	case "dimse":
 		results, err = benchDIMSE(*testdata, *repeats, *warmup, *smallCount, *mediumCount)
 	case "hl7":
@@ -119,6 +123,94 @@ func measure(fn func() error, ops, repeats, warmup int, allocTrack bool) ([]floa
 		}
 	}
 	return samples, allocsPerOp, nil
+}
+
+// pixelDecodeFixtures mirrors DECODE_FIXTURES in benchcompare/bench_dicom.py: the same
+// (comparison name, fixture) pairs, so the renderer pairs these rows with pydicom's
+// pixel_array rows. The JPEG-family, J2K, and HTJ2K fixtures decode only when this
+// binary is built with the cgo codec tags; without them those rows are emitted as
+// unavailable while RLE (pure Go) still measures.
+var pixelDecodeFixtures = []struct{ name, fixture string }{
+	{"pixel-decode-rle", "liver_rle.dcm"},
+	{"pixel-decode-jpegls", "MR_small_jpeg_ls_lossless.dcm"},
+	{"pixel-decode-jpegls", "JPEGLSNearLossless_08.dcm"},
+	{"pixel-decode-jpegls", "JPEGLSNearLossless_16.dcm"},
+	{"pixel-decode-jpegls", "SC_rgb_jls_lossy_sample.dcm"},
+	{"pixel-decode-jpeg", "SC_jpeg_no_color_transform.dcm"},
+	{"pixel-decode-jpeg", "JPGExtended.dcm"},
+	{"pixel-decode-jpeg", "JPGLosslessP14SV1_1s_1f_8b.dcm"},
+	{"pixel-decode-j2k", "liver_j2k.dcm"},
+	{"pixel-decode-htj2k", "HTJ2KLossless_08_RGB.dcm"},
+	{"pixel-decode-htj2k", "HTJ2K_08_RGB.dcm"},
+}
+
+// benchDICOM times the user-facing pixel decode path. dicom.ReadPixelData parses the
+// Part 10 object once outside the timed loop (the pydicom runner likewise dcmreads once);
+// each timed operation then iterates PixelData.Frames(), which maps fragments to frames
+// and decodes every frame through the registered codec - the same user-visible work
+// pydicom's pixel_array performs on an in-memory dataset. The raw codec.Decode rows from
+// the committed go test benchmarks are reported separately as codec-decode-* (go-internal,
+// no Python pair).
+func benchDICOM(testdata string, repeats, warmup, iters int) ([]result, error) {
+	results := make([]result, 0, len(pixelDecodeFixtures))
+	for _, fx := range pixelDecodeFixtures {
+		pd, err := dicom.ReadPixelData(filepath.Join(testdata, "dicom", fx.fixture))
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", fx.fixture, err)
+		}
+		decodeAll := func() error {
+			for _, ferr := range pd.Frames() {
+				if ferr != nil {
+					return ferr
+				}
+			}
+			return nil
+		}
+		// Trial decode: a missing cgo codec (default build) surfaces here as a typed
+		// CodecUnavailableError and becomes an unavailable row instead of a crash.
+		if err := decodeAll(); err != nil {
+			status := statusErr
+			if errors.Is(err, dicom.ErrCodecUnavailable) {
+				status = statusUnavailable
+			}
+			results = append(results, result{
+				Area:    "dicom",
+				Name:    fx.name,
+				Fixture: fx.fixture,
+				Side:    sideGo,
+				Library: "go-radx dicom",
+				Status:  status,
+				Note:    truncateNote(err.Error()),
+			})
+			continue
+		}
+		samples, allocs, err := measure(decodeAll, iters, repeats, warmup, true)
+		if err != nil {
+			return nil, fmt.Errorf("decode %s: %w", fx.fixture, err)
+		}
+		results = append(results, result{
+			Area:        "dicom",
+			Name:        fx.name,
+			Fixture:     fx.fixture,
+			Side:        sideGo,
+			Library:     "go-radx dicom",
+			Status:      statusOK,
+			Note:        "dicom.ReadPixelData once, then Frames() per op (public path, all frames)",
+			Ops:         iters,
+			Samples:     samples,
+			AllocsPerOp: allocs,
+		})
+	}
+	return results, nil
+}
+
+// truncateNote bounds an error message for the JSON note field.
+func truncateNote(s string) string {
+	const max = 160
+	if len(s) <= max {
+		return s
+	}
+	return s[:max]
 }
 
 // storeSink is the benchmark C-STORE SCP handler: the dataset is already fully decoded by

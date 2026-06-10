@@ -58,7 +58,7 @@ def main() -> int:
         results += codec_rows
     results += gorunner.go_unsupported_rows()
 
-    for area in ("dimse", "hl7", "fhir"):
+    for area in ("dicom", "dimse", "hl7", "fhir"):
         print(f"bench-compare: gobench -area {area}...", flush=True)
         results += gorunner.run_gobench(REPO_ROOT, area, cfg)
 

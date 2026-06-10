@@ -43,9 +43,12 @@ Outputs:
   `bench_fhir`), the go-side driver (`gorunner`), the renderer (`render`), and the orchestrator
   (`__main__`).
 - `gobench/` - standalone Go module (built with `GOWORK=off`, `replace` to the in-tree library)
-  covering the areas the committed `go test -bench` suites do not: DIMSE loopback C-STORE, HL7 v2
-  parse, FHIR Bundle over the shared file fixture. The DICOM rows REUSE the committed benchmarks
-  in `./dicom/` via `go test -bench`.
+  covering the user-facing areas the committed `go test -bench` suites do not: per-transfer-syntax
+  pixel decode through the public `dicom.ReadPixelData` + `Frames()` path (`pixel-decode-*`, the
+  rows paired with pydicom's `pixel_array`), DIMSE loopback C-STORE, HL7 v2 parse, and FHIR Bundle
+  over the shared file fixture. The Part 10 read, raw codec decode (`codec-decode-*`,
+  go-internal, no Python pair), and pixel encode rows REUSE the committed benchmarks in
+  `./dicom/` via `go test -bench`.
 - `pyproject.toml` / `uv.lock` - exact Python pins; bump only via a deliberate `uv lock --upgrade`.
 
 ## What it measures
