@@ -38,8 +38,10 @@ In scope for v1:
 - **Modality Worklist** (C-FIND) as SCU, with a reference Modality Worklist SCP so the leg is testable end to end.
 - **Modality Performed Procedure Step (MPPS)** as SCU only (N-CREATE, N-SET).
 - **Storage Commitment Push Model** as SCU only (N-ACTION, N-EVENT-REPORT).
-- Uncompressed transfer syntaxes for read and write; compressed transfer syntaxes for transport always, and for pixel
-  decode/encode only where a pure-Go or optional-CGo codec is built in.
+- Uncompressed transfer syntaxes for read and write. The recognised compressed transfer syntaxes (RLE, the JPEG
+  families, JPEG 2000, HTJ2K) also read and write at the Part 10 / dataset level: the main dataset parses in full
+  and the encapsulated pixel stream is retained verbatim and re-emitted byte-identically. Pixel decode/encode is a
+  separate concern, available only where a pure-Go or optional-CGo codec is built in.
 - **DICOMDIR file-sets** (PS3.10 §8; PS3.3 Annex F): load and query an existing file-set through the glossary-named
   `dicom.FileSet` (`OpenFileSet`, record hierarchy, `Find`/`FindValues`, member `Load`), and create and write a new
   one from Part 10 files with `dicom.FileSetBuilder` (Patient/Study/Series/Instance records, conformant generated
@@ -270,6 +272,10 @@ divides transfer syntaxes into three tiers, and this distinction is the heart of
 ### Tier 1 — uncompressed: read and write, always available
 
 These are pure Go, require no build tags, and are always available. The dataset codec reads and writes all four.
+The recognised encapsulated syntaxes in Tiers 2 and 3 are also readable and writable at the dataset level — their
+main dataset is Explicit VR LE (PS3.5 A.4) and the `(7FE0,0010)` fragment stream is retained verbatim, undecoded —
+so `dicom.Read`/`Write` round-trip a compressed file byte-identically regardless of which pixel codecs are built in.
+An unrecognised or private transfer syntax is rejected fail-closed.
 
 | Transfer syntax | UID | Read | Write |
 |-----------------|-----|------|-------|
@@ -337,9 +343,10 @@ pixel handling (JPIP, MPEG-2/4, HEVC/H.265, JPEG XL, SMPTE ST 2110, multi-compon
 transport but have no go-radx pixel codec.
 
 Selecting a codec is explicit, and **transcoding is off by default**: go-radx never re-encodes pixel data unless the
-consumer opts in (PRD §8.2 opinionated default). Reading a file preserves its transfer syntax; transcoding is a
-deliberate, opt-in `Transcode`-style call in the library, surfaced on the CLI as `radx store --transcode` (see
-`docs/reference/cli.md`).
+consumer opts in (PRD §8.2 opinionated default). Reading a file preserves its transfer syntax — encapsulated pixel
+data is retained verbatim, never decoded on the read path. Transcoding is the deliberate, opt-in
+`dicom.Transcode` call, written back to the dataset through `File.SetPixelData`, and surfaced on the CLI as
+`radx store --transcode-to` (see `docs/reference/cli.md`).
 
 ### Performance baseline
 
