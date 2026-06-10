@@ -1,0 +1,34 @@
+# Comparative benchmark harness (PRD section 11.3): go-radx versus the Python reference
+# libraries, over the same vendored fixtures. Every dependency is pinned exactly; uv.lock
+# carries the full transitive pin set and hashes. Resolve drift is a deliberate act
+# (`uv lock --upgrade`), never a side effect of running the harness.
+[project]
+name = "bench-compare"
+version = "0.1.0"
+description = "go-radx vs Python reference libraries comparative benchmark harness"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pydicom==3.0.2",
+    "pylibjpeg==2.1.0",
+    "pylibjpeg-libjpeg==2.4.0",
+    "pylibjpeg-openjpeg==2.5.0",
+    "pylibjpeg-rle==2.2.0",
+    # pyjpegls is the pydicom-ecosystem CharLS binding; without it pydicom has no JPEG-LS
+    # encoder, which would leave the JPEG-LS encode row one-sided (go-radx links CharLS too).
+    "pyjpegls==1.5.1",
+    "pynetdicom==3.0.4",
+    "hl7==0.4.5",
+    "fhir.resources==8.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff==0.15.16",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "ANN"]
