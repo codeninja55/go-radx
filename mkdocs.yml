@@ -76,6 +76,14 @@ nav:
       - FHIR: conformance/fhir.md
       - Cross-standard conversion: conformance/convert.md
       - CLI and server: conformance/cli-server.md
+      - Parity audit:
+          - Overview and backlog: conformance/parity/index.md
+          - DICOM vs pydicom: conformance/parity/dicom.md
+          - DIMSE vs pynetdicom: conformance/parity/dimse.md
+          - HL7 v2 vs python-hl7: conformance/parity/hl7v2.md
+          - FHIR vs fhir.resources and HAPI: conformance/parity/fhir.md
+          - DICOMweb vs dicomweb-client and PS3.18: conformance/parity/dicomweb.md
+          - CLI vs dcmtk: conformance/parity/cli.md
   - API reference:
       - DICOM: reference/dicom.md
       - DIMSE: reference/dimse.md
