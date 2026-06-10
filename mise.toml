@@ -261,6 +261,15 @@ description = "Run the dicom + fhir benchmarks once (-benchtime=1x) so the bench
 # fhir benchmarks defend the committed baselines under docs/conformance/benchmarks/.
 run = "GOWORK=off go test -bench=. -benchtime=1x -run='^$' ./dicom/... ./fhir/..."
 
+[tasks."bench:compare"]
+description = "Run the PRD 11.3 comparative harness (go-radx vs Python reference libraries); pass -- --mode smoke for a tiny-N validation run"
+# Requires uv on PATH (see tools/bench-compare/README.md). The harness reuses the committed
+# go test -bench suites for the DICOM rows and drives the gobench module + the pinned Python
+# reference libraries for the rest; it rewrites the generated block in
+# docs/conformance/benchmarks/comparative.md and drops JSON+md under tools/bench-compare/results/.
+dir = "tools/bench-compare"
+run = "uv sync --frozen && uv run python -m benchcompare"
+
 [tasks."docs:build"]
 # Requires mkdocs + mkdocs-material on PATH (pip install mkdocs mkdocs-material). The CI job that
 # provisions this toolchain is wired by the gate-enforcement work; until then this is a local task.

@@ -16,6 +16,10 @@
 /coverage.*
 cover.html
 
+# bench-compare harness: synced Python env and per-run outputs (the committed doc is the artifact)
+/tools/bench-compare/.venv/
+/tools/bench-compare/results/
+
 # Go workspace lock file (generated; the committed go.work ties the root and cmd/radx modules)
 go.work.sum
 
