@@ -10,6 +10,13 @@ var (
 	// backend fault, never reporting a silent success on missing data (PRD §9.2).
 	ErrNotFound = errors.New("server: object or resource not found")
 
+	// ErrGone is returned by Repository.VRead when the named version exists in the resource's
+	// history but records a deletion: FHIR R5 http.html#vread answers that version with 410 Gone,
+	// distinct from the 404 an unknown resource or version gets. The in-memory repository cannot
+	// produce a deleted version yet (delete is a deferred interaction), but the contract names the
+	// sentinel so a versioned production Repository and the role agree on the 404-vs-410 split.
+	ErrGone = errors.New("server: resource version is deleted")
+
 	// ErrInsecureBind is returned by New when a non-loopback WithBind is combined with no explicit
 	// Authenticator, so the fail-closed default cannot be bypassed by omission. Pass
 	// WithAuthenticator(AllowAll()) to override deliberately (see the bind policy in servers.md).

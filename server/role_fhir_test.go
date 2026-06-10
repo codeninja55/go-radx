@@ -548,22 +548,13 @@ func TestFHIRRoleDeferredInteractionIsNotImplemented(t *testing.T) {
 	base, cleanup := startFHIRDaemon(t, fhir.R5)
 	defer cleanup()
 	// A PUT (update) is a deferred interaction: a 501 OperationOutcome, never a silent no-op.
+	// (vread and history-instance are implemented interactions now — see fhir_versioning_test.go.)
 	status, body, _ := httpDo(t, http.MethodPut, base+"/Patient/1", "application/fhir+json",
 		patientJSON(fhir.R5, "female"))
 	if status != http.StatusNotImplemented {
 		t.Fatalf("update status = %d, want 501; body=%s", status, body)
 	}
 	assertOperationOutcome(t, body, "error")
-
-	// history and vread are recognized FHIR interactions this role defers; per the contract they
-	// answer 501 (deferred), not the 405 used for an unknown route.
-	for _, path := range []string{"/Patient/1/_history", "/Patient/1/_history/2"} {
-		status, body, _ := httpDo(t, http.MethodGet, base+path, "", nil)
-		if status != http.StatusNotImplemented {
-			t.Errorf("GET %s status = %d, want 501; body=%s", path, status, body)
-		}
-		assertOperationOutcome(t, body, "error")
-	}
 }
 
 func TestFHIRRoleUnservedResourceType(t *testing.T) {
@@ -1092,11 +1083,45 @@ func TestFHIRRoleCapabilityStatement(t *testing.T) {
 			if len(cs.Rest) == 0 || cs.Rest[0].Mode != "server" {
 				t.Fatalf("metadata rest = %+v, want one server-mode rest", cs.Rest)
 			}
-			if !advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", "read") {
-				t.Error("metadata: expected Patient read to be advertised")
+			for _, interaction := range []string{"read", "vread", "history-instance", "create", "search-type"} {
+				if !advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", interaction) {
+					t.Errorf("metadata: expected Patient %s to be advertised", interaction)
+				}
 			}
-			if !advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", "create") {
-				t.Error("metadata: expected Patient create to be advertised")
+			// Deferred interactions must not be over-advertised.
+			for _, interaction := range []string{"update", "patch", "delete"} {
+				if advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", interaction) {
+					t.Errorf("metadata: %s is advertised but the handler answers it 501", interaction)
+				}
+			}
+			// The $validate operation is advertised with its canonical definition.
+			var rawCS struct {
+				Rest []struct {
+					Resource []struct {
+						Type      string `json:"type"`
+						Operation []struct {
+							Name       string `json:"name"`
+							Definition string `json:"definition"`
+						} `json:"operation"`
+					} `json:"resource"`
+				} `json:"rest"`
+			}
+			if err := json.Unmarshal(body, &rawCS); err != nil {
+				t.Fatalf("metadata operation decode: %v", err)
+			}
+			foundValidate := false
+			for _, res := range rawCS.Rest[0].Resource {
+				if res.Type != "Patient" {
+					continue
+				}
+				for _, op := range res.Operation {
+					if op.Name == "validate" && op.Definition == "http://hl7.org/fhir/OperationDefinition/Resource-validate" {
+						foundValidate = true
+					}
+				}
+			}
+			if !foundValidate {
+				t.Error("metadata: expected the Patient $validate operation to be advertised with its canonical definition")
 			}
 			// The served metadata must list only the system interactions the handler implements:
 			// transaction (the base POST) and nothing else. The handler does not return a batch-response
