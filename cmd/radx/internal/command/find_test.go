@@ -6,6 +6,7 @@ import (
 	"iter"
 	"net"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -113,6 +114,117 @@ func TestFindCSVGolden(t *testing.T) {
 	}
 	if lines[0] != "status,StudyInstanceUID" {
 		t.Errorf("header = %q, want status,StudyInstanceUID", lines[0])
+	}
+}
+
+// cannedWorklistHandler answers a Modality Worklist C-FIND by yielding one scheduled-step match per
+// accession number then a terminal Success, recording the identifier the SCU sent so the test can
+// assert the worklist query shape (SPS sequence skeleton, no Query/Retrieve Level).
+type cannedWorklistHandler struct {
+	accessions []string
+
+	mu    sync.Mutex
+	query *dicom.DataSet
+}
+
+func (h *cannedWorklistHandler) Find(_ context.Context, query *dicom.DataSet, _ dimse.QueryLevel, _ dimse.OpInfo) iter.Seq2[dimse.Status, *dicom.DataSet] {
+	h.mu.Lock()
+	h.query = query
+	h.mu.Unlock()
+	return func(yield func(dimse.Status, *dicom.DataSet) bool) {
+		for _, acc := range h.accessions {
+			ds := dicom.NewDataSet()
+			ds.SetString(dicom.TagAccessionNumber, acc)
+			if !yield(dimse.StatusWorklistPending, ds) {
+				return
+			}
+		}
+	}
+}
+
+func (h *cannedWorklistHandler) receivedQuery() *dicom.DataSet {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.query
+}
+
+// startWorklistServer runs a Modality Worklist C-FIND SCP on loopback returning one scheduled step
+// per accession number. It mirrors startFindServer but negotiates the worklist abstract syntax.
+func startWorklistServer(t *testing.T, h *cannedWorklistHandler) (host string, port int) {
+	t.Helper()
+	ae, err := dimse.NewAE(dimse.AETitle("MWLSCP"))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	srv := dimse.NewServer(ae, dimse.BasicWorklistContexts(), h)
+
+	served := make(chan error, 1)
+	go func() { served <- srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) && srv.Addr() == nil {
+		time.Sleep(time.Millisecond)
+	}
+	if srv.Addr() == nil {
+		t.Fatal("worklist SCP did not bind within the deadline")
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+		<-served
+	})
+	tcp := srv.Addr().(*net.TCPAddr)
+	return "127.0.0.1", tcp.Port
+}
+
+// TestFindWorklistFlagStreamsScheduledSteps is the -W golden (dcmtk findscu -W): the worklist flag
+// negotiates the Modality Worklist context, sends the SPS-sequence query skeleton with the --match
+// keys and NO Query/Retrieve Level (the worklist model is flat, PS3.4 K.6.1.2.1), and streams one
+// JSON Line per scheduled step.
+func TestFindWorklistFlagStreamsScheduledSteps(t *testing.T) {
+	want := []string{"ACC-1001", "ACC-1002"}
+	handler := &cannedWorklistHandler{accessions: want}
+	host, port := startWorklistServer(t, handler)
+
+	stdout, stderr, code := runRadx(t, "find", "--format", "json",
+		"--host", host, "--port", strconv.Itoa(port), "--called-ae", "MWLSCP",
+		"-W", "--match", "AccessionNumber=")
+	if code != exitcode.Success {
+		t.Fatalf("find -W exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+
+	lines := nonEmptyLines(stdout)
+	if len(lines) != len(want) {
+		t.Fatalf("want %d match lines, got %d:\n%s", len(want), len(lines), stdout)
+	}
+	got := make(map[string]bool)
+	for _, line := range lines {
+		var m findMatch
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatalf("match line is not valid JSON: %v\nline=%q", err, line)
+		}
+		got[m.Attributes["0008,0050"]] = true // AccessionNumber
+	}
+	for _, acc := range want {
+		if !got[acc] {
+			t.Errorf("missing scheduled-step match %q in:\n%s", acc, stdout)
+		}
+	}
+
+	// The sent identifier carries the worklist skeleton: the Scheduled Procedure Step Sequence
+	// (0040,0100) universal item plus the --match key, and no Query/Retrieve Level (flat model).
+	query := handler.receivedQuery()
+	if query == nil {
+		t.Fatal("worklist SCP recorded no query identifier")
+	}
+	if _, ok := query.Get(dicom.TagScheduledProcedureStepSequence); !ok {
+		t.Error("worklist query has no Scheduled Procedure Step Sequence (0040,0100) skeleton")
+	}
+	if _, ok := query.Get(dicom.TagQueryRetrieveLevel); ok {
+		t.Error("worklist query carries a Query/Retrieve Level (0008,0052); the worklist model is flat")
+	}
+	if _, ok := query.Get(dicom.TagAccessionNumber); !ok {
+		t.Error("worklist query dropped the --match AccessionNumber return key")
 	}
 }
 

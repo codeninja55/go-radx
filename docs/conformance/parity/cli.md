@@ -13,7 +13,7 @@ library already provides.
 
 ## Summary
 
-28 in-scope dcmtk tools/tool-pairs: **7 MET, 11 PARTIAL, 10 NOT-MET.**
+28 in-scope dcmtk tools/tool-pairs: **8 MET, 10 PARTIAL, 10 NOT-MET.**
 
 Top gaps, largest first:
 
@@ -66,12 +66,12 @@ Top gaps, largest first:
 | dcmsend | Simplified storage SCU | MET | Same `radx store` surface | - | No `--report-file`; the JSON Lines stream plus summary line serves the same automation need |
 | storescp | Storage SCP writing received files | PARTIAL | `radx scp` (`command/scp.go`): loopback-default `--bind`, `--aet`, `--output-dir`, `--no-accept-echo`, `--max-conns`, UID-validated paths, graceful drain | S | No study-folder sorting (`--sort-conc-studies`), no `--exec-on-reception` hooks, no filename templates; loopback-by-default and traversal-safe UID paths exceed storescp's defaults |
 | dcmrecv | Simplified storage SCP | MET | Same `radx scp` surface | - | - |
-| findscu | C-FIND SCU (Q/R models + worklist) | PARTIAL | `radx find` (`command/find.go`): `--level PATIENT/STUDY/SERIES/IMAGE`, repeatable `--match key=value` (keyword or tag forms), streamed matches as JSON Lines/CSV; proposes all six Patient Root + Study Root FIND/MOVE/GET contexts (`dimse/presets.go:115`) | S | No `-W` worklist model in the CLI even though `dimse.FindWorklist` + `BasicWorklistContexts` ship in the library; no `--extract` of responses to DICOM/XML files |
+| findscu | C-FIND SCU (Q/R models + worklist) | MET | `radx find` (`command/find.go`): `--level PATIENT/STUDY/SERIES/IMAGE`, repeatable `--match key=value` (keyword or tag forms), streamed matches as JSON Lines/CSV; proposes all six Patient Root + Study Root FIND/MOVE/GET contexts (`dimse/presets.go:115`); `-W`/`--worklist` queries the Modality Worklist model via `dimse.FindWorklist` + `BasicWorklistContexts` on the SPS-sequence skeleton (`TestFindWorklistFlagStreamsScheduledSteps`, `command/find_test.go`) | - | No `--extract` of responses to DICOM/XML files; matches stream as JSON Lines/CSV instead |
 | getscu | C-GET SCU (same-association retrieve) | MET | `radx get` (`command/get.go`): levels, match keys, `--output-dir`, Storage SCP role negotiation for sub-operation C-STOREs, sub-op counts in the result | - | - |
 | movescu | C-MOVE SCU to a destination AE | MET | `radx move` (`command/move.go`): `--move-destination`, levels, match keys, faithful Warning/Failure terminal reporting (exit 4) | - | No embedded receive port (`movescu --port` spawns its own SCP); run `radx scp` alongside instead |
 | termscu | Association termination test SCU | NOT-MET | None | S | Niche diagnostic tool; the dimse layer has full ACSE association/release/abort, so a command is small if ever wanted |
 | dcmqrscp | Image archive: storage + Q/R SCP + DB | PARTIAL | Library: `server.NewDIMSERole` serves C-ECHO/C-STORE/C-FIND over `ObjectStore` + `Catalogue` (`server/role_dimse.go`); CLI: `radx scp` (storage only) + `radx catalogue` (index/query) | L | C-GET/C-MOVE SCP are explicitly unmounted in the role ("a later increment", `server/role_dimse.go:182`) and no `radx serve dimse` subcommand exposes the role |
-| wlmscpfs | Modality Worklist SCP from data files | PARTIAL | Library: `server.WithWorklistSource` mounts an MWL SCP in the DIMSE role (`server/role_dimse.go:46`); no CLI command | M | Needs a `radx serve dimse` (or worklist) subcommand plus a file-backed `WorklistSource`; the SCU side (`dimse.FindWorklist`) also lacks CLI exposure (see findscu row) |
+| wlmscpfs | Modality Worklist SCP from data files | PARTIAL | Library: `server.WithWorklistSource` mounts an MWL SCP in the DIMSE role (`server/role_dimse.go:46`); no CLI command | M | Needs a `radx serve dimse` (or worklist) subcommand plus a file-backed `WorklistSource`; the SCU side ships as `radx find -W` (see findscu row) |
 
 Note: the audit brief listed `dcmanonymize`; no dcmtk tool of that name exists in the current docs index.
 dcmtk de-identification is done through dcmodify recipes; the radx counterparts are `modify --delete` +

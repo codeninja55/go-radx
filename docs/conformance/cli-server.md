@@ -16,7 +16,8 @@ and the reference docs disagree on scope, this statement wins. The behaviour bel
 ## Command surface
 
 The `radx` command tree ships today, parsed by Kong, with every command group registered so `radx --help` lists the
-full surface. The DICOM command groups are `echo` (C-ECHO), `store` (C-STORE SCU), `find` (C-FIND SCU), `get` (C-GET),
+full surface. The DICOM command groups are `echo` (C-ECHO), `store` (C-STORE SCU), `find` (C-FIND SCU over the
+Patient/Study Root models, or the Modality Worklist model with `-W`/`--worklist`), `get` (C-GET),
 `move` (C-MOVE), `scp` (Storage/Verification SCP), `dump` (inspect a Part 10 file), `modify` (edit tags, regenerate
 UIDs), `organize` (reorganise files by Study/Series/SOP UID), `lookup` (resolve tag dictionary information), and
 `catalogue` (index and query a local DICOM catalogue). The cross-standard groups are `hl7` (HL7 v2 over MLLP),

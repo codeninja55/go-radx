@@ -273,6 +273,7 @@ never laundered into success.
 
 ```text
 radx find [flags]    --level=STUDY  --match key=value...    ~ findscu
+radx find [flags]    -W             --match key=value...    ~ findscu -W (worklist)
 radx get  [flags]    --level=SERIES --match key=value...    ~ getscu
 radx move [flags]    --move-destination=AE ...              ~ movescu
 ```
@@ -280,6 +281,11 @@ radx move [flags]    --move-destination=AE ...              ~ movescu
 `--level` takes a typed `QueryLevel` (`PATIENT|STUDY|SERIES|IMAGE`, glossary), `--match` builds the identifier dataset,
 and `find` returns one match per JSON Line, mirroring the streaming multi-response contract of the underlying
 `Association.Find` iterator (PRD §8.1). `move` requires `--move-destination`, a named `AETitle`.
+
+`find -W` (`--worklist`) queries the Modality Worklist Information Model instead of the Patient/Study Root models,
+matching dcmtk's `findscu -W`: it negotiates the worklist context and sends the Scheduled Procedure Step Sequence
+query skeleton (`dimse.NewWorklistQuery`) with the `--match` keys applied at the top level. The worklist model is
+flat, so `--level` is ignored and no Query/Retrieve Level is sent (PS3.4 K.6.1.2.1).
 
 ### scp — receive objects (Storage / Verification SCP)
 
