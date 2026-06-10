@@ -9,24 +9,29 @@ effort for non-MET rows. Evidence is `file:symbol` in this repository; tests cou
 
 ## Summary
 
-Across the four sections: **46 MET, 7 PARTIAL, 40 NOT-MET, 5 N-A** (98 rows).
+Across the four sections: **50 MET, 8 PARTIAL, 35 NOT-MET, 5 N-A** (98 rows).
 Section split (MET/PARTIAL/NOT-MET/N-A): models 7/0/2/2, primitives-validation 11/2/6/2, REST client
-20/3/13/1, server role 8/2/19/0. The model and client layers are near parity; the server role carries
-two-thirds of the gaps.
+20/3/13/1, server role 12/3/14/0. The model and client layers are near parity; the server role still
+carries most of the remaining gaps, but its read-side is now whole: versioning, vread, instance history,
+ETag/Last-Modified/If-Match, server-side `$validate`, and the `radx serve fhir` daemon shipped in wave 0
+(see the flipped rows below).
 
 Top gaps, largest first:
 
-1. **Server write-side beyond create**: update, patch, delete, vread, and instance history all answer 501
-   (`server/fhir_handlers.go:handleInstance`). Combined L; this is the single biggest distance from the
-   HAPI/R5 interaction table, and it pulls server versioning/ETag (L) along with it.
+1. **Server mutations beyond create**: update, patch, and delete answer 501
+   (`server/fhir_handlers.go:handleInstance`). Combined M-L (wave 3); the version store, ETag emission,
+   and the If-Match precondition already ship, so the remaining work is the mutations themselves — the
+   store is interaction-shaped (`server/fhir_repository.go:ResourceVersion`) and extends by appending
+   versions.
 2. **STU3 models** (L) and **R4B models** (M) — fhir.resources ships both as sub-packages; go-radx ships
    neither (deliberate v1 deferral). For STU3 the plan calls for a structural assessment of whether the
    `fhir/internal/gen` pipeline fits the STU3 definition-bundle shape before any build decision.
 3. **SMART on FHIR** (L) — documented deferral on both client and server.
 4. **XML serialization** (L) and YAML (M) — fhir.resources has both (experimental); go-radx is JSON-only by
    declared scope.
-5. **Operations framework** (`$validate`, `$everything`, custom operations) (M) — absent from client and
-   server; HAPI treats this as core surface.
+5. **Operations framework** (`$everything`, custom operations; client-side `$validate`) (M) — the server
+   now ships `$validate` (`server/fhir_handlers.go:handleValidate`); the client has no operation
+   invocation API and `$everything` is absent on both sides. HAPI treats this as core surface.
 6. **Batch at the system endpoint** (M) — the server explicitly rejects a `batch` Bundle; only `transaction`
    is processed (`server/fhir_handlers.go:handleTransaction`). The client sends both.
 7. **Search depth on the server** (M) — the handler forwards raw params, but the shipped `MemoryRepository`
@@ -144,10 +149,10 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
 |---|---|---|---|---|---|
 | capabilities (GET /metadata) | http.html#capabilities | MET | `server/fhir_handlers.go:handleMetadata`; `server/fhir_release.go:capabilityStatement` (R4 + R5) | — | Advertises only implemented interactions — honest CapabilityStatement |
 | read | http.html#read | MET | `server/fhir_handlers.go:handleRead`; 404 → OperationOutcome | — | |
-| vread | http.html#vread | NOT-MET | recognized and answered 501 (`fhir_handlers.go:57-63`) | M | Requires a versioned Repository |
-| history-instance | http.html#history | NOT-MET | 501 on `{type}/{id}/_history` (same path) | M | Same versioned-store dependency |
+| vread | http.html#vread | MET | `server/fhir_handlers.go:handleVRead` over `Repository.VRead`; 404-vs-410 split via `ErrGone`; tests `server/fhir_versioning_test.go:TestFHIRRoleVRead` / `TestFHIRRoleVReadDeletedVersionIsGone`, client interop `TestFHIRRoleClientVReadAndHistory` | — | Version store: `server/fhir_repository.go` (`byVer`, `ResourceVersion`) |
+| history-instance | http.html#history | MET | `fhir_handlers.go:handleHistoryInstance` + `historyEntries`; history Bundle with per-version entry.request/response, newest first, release-validated in `TestFHIRRoleHistoryInstance` / `TestFHIRRoleHistoryRendersUpdatesAndDeletes` | — | bdl-1/bdl-3 honoured; deleted versions render resource-less DELETE entries |
 | history-type / history-system | http.html#history | NOT-MET | routes do not exist | M | |
-| update (PUT) | http.html#update | NOT-MET | 501 (`fhir_handlers.go:handleInstance`, PUT/DELETE/PATCH arm) | M | The deliberate v1 deferral; conformance statement scopes the role to read/create/search-type/transaction |
+| update (PUT) | http.html#update | NOT-MET | 501 (`fhir_handlers.go:handleInstance`, PUT/DELETE/PATCH arm) | M | Deferred to wave 3; the If-Match precondition already gates the arm (412 on a stale version, `checkIfMatch`) and the version store appends versions, so update slots in without redesign |
 | patch | http.html#patch | NOT-MET | 501 (same arm) | M | |
 | delete | http.html#delete | NOT-MET | 501 (same arm) | M | |
 | Conditional update / patch / delete | http.html#cond-update etc. | NOT-MET | follows the missing base interactions | M | Blocked on update/delete |
@@ -161,21 +166,24 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
 | Paging (Bundle.link next/prev, `_count`) | http.html#paging | NOT-MET | `MemoryRepository.Search` returns all matches, no links | M | |
 | transaction (POST [base]) | http.html#transaction | MET | `fhir_handlers.go:handleTransaction`; atomic staging-copy apply under write lock (`fhir_repository.go:Transaction`); per-entry create validation (`validateTransactionWrites`) | — | Transaction entries limited to POST/GET verbs in the dev repository |
 | batch (POST [base]) | http.html#transaction (batch) | NOT-MET | explicitly rejected: "processes a transaction Bundle only" (`fhir_handlers.go` bundle-type check) | M | Batch is independent-entry semantics — simpler than the transaction already shipped |
-| Versioning / ETag / Last-Modified emission | http.html#concurrency | NOT-MET | no ETag/If-Match handling anywhere in `server/*.go` | L | Prerequisite for vread/history/conditional writes; needs Repository version store |
+| Versioning / ETag / Last-Modified emission | http.html#concurrency | MET | version store in `server/fhir_repository.go` (every create stamps `meta.versionId`/`meta.lastUpdated`); `fhir_handlers.go:setVersionHeaders` (ETag `W/"versionId"` + Last-Modified on read/vread/create) and `checkIfMatch` (412 on stale If-Match); tests `TestFHIRRoleReadAndCreateEmitVersionHeaders` / `TestFHIRRoleIfMatchPrecondition` | — | Conditional writes themselves remain wave 3 (rows above) |
 | Prefer header handling (return=minimal etc.) | http.html#ops | NOT-MET | not read; create always returns the resource | S | |
 | OperationOutcome on every error path | HAPI server error model | MET | `fhir_handlers.go:writeError`/`writeOutcome`; auth 401 also a release OperationOutcome (`role_fhir.go:155`) | — | PHI-safe messages via `sanitizeRepoMessage` |
 | Resource coverage breadth | HAPI: all resource types | PARTIAL | workflow set only (`fhir_handlers.go:isWorkflowResourceType`, 8 types); others → 404/whitelist reject | M | Deliberate conformance subset; widening is config, not architecture |
-| Extended operations (`$validate`, `$everything`) | HAPI plain server operations | NOT-MET | no operation routes | M | `$validate` is nearly free: the release validator already runs on create |
+| Extended operations (`$validate`, `$everything`) | HAPI plain server operations | PARTIAL | `$validate`: `fhir_handlers.go:handleValidate` (POST `[type]/$validate`, same release validator as create, OperationOutcome result, nothing persisted; advertised in the CapabilityStatement); test `TestFHIRRoleValidateOperation` | M | `$everything` and custom operations remain absent |
 | Two releases per process | HAPI multi-tenant/versioned servers | MET | one release per role; mount two roles on `/fhir/r4` + `/fhir/r5` (`cli-server.md`) | — | Documented pattern rather than a flag |
 | Pluggable storage backend | HAPI JPA/plain provider seam | MET | `server/fhir_repository.go:Repository` interface; `MemoryRepository` dev default | — | Concurrency-safe contract; transaction atomicity proven against concurrent writes |
 | Auth on the role | HAPI server interceptors | MET | `server/auth_middleware.go` via `role_fhir.go:authMiddleware`; non-loopback bind guarded | — | |
-| CLI `radx serve fhir` | (operational expectation) | NOT-MET | registered fail-closed stub: `cmd/radx/internal/command/stubs.go:24` returns notImplemented; flag wired in `serve.go:25` | S | Library role ships; only the subcommand wiring is deferred |
+| CLI `radx serve fhir` | (operational expectation) | MET | `cmd/radx/internal/command/serve.go:ServeFHIRCmd` (loopback default, `--release r4\|r5`, in-memory repository, ErrInsecureBind usage-error mapping); round-trip test `serve_test.go:TestServeFHIRLoopbackRoundTrip` (create + vread + SIGINT drain) | — | Memory-only repository: a production deployment embeds the role with its own `Repository` |
 | HAPI interop CI leg | (project plan) | NOT-MET | open issue #114 includes a FHIR–HAPI interop CI leg (planned) | M | Server-side counterpart of the client interop test |
 
 ## Methodology
 
-- **Date**: 2026-06-10.
-- **Repository state**: main at `fdf7b54`.
+- **Date**: 2026-06-10; server-role and CLI rows updated 2026-06-11 after the wave-0 FHIR-server slice
+  (version store, vread, history-instance, ETag/If-Match, server `$validate`, `radx serve fhir`) landed
+  on `feat/fhir-server-versioning`; the flipped rows cite their shipped evidence and tests directly.
+- **Repository state**: main at `fdf7b54` for the original audit; `10c1174` plus the wave-0 FHIR-server
+  slice for the updated rows.
 - **References consulted**:
   - fhir.resources README (github.com/nazrulworld/fhir.resources), fetched 2026-06-10: release coverage
     (R5 default, R4B/STU3 sub-packages, R4 dropped at v7.0.0), pydantic v2 validation, JSON/YAML/XML dump,

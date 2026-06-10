@@ -105,9 +105,13 @@ type-level `search` (typed parameters, modifiers, single-level chaining, `_inclu
 paging), `transaction`/`batch`, conditional create/update with ETag concurrency, and `CapabilityStatement`
 negotiation — sending and accepting `application/fhir+json` only. A non-2xx response whose body is an
 `OperationOutcome` is mapped to a typed error the caller classifies by issue severity, consistent with the package's
-`OperationOutcome` error model. The server role serves the conformance subset (`read`, `create`, `search-type`,
-`transaction` over the workflow resource set) over a pluggable repository, validating inbound resources with the
-release validator and answering every error with a release `OperationOutcome`. Deep multi-hop search chaining beyond a
+`OperationOutcome` error model. The server role serves the conformance subset (`read`, `vread`, `history-instance`,
+`create`, `search-type`, `transaction`, and the `$validate` operation over the workflow resource set) over a
+pluggable versioned repository — every create stores version 1 with `meta.versionId`/`meta.lastUpdated`; read, vread,
+and create emit `ETag`/`Last-Modified`; a write's `If-Match` answers `412` on a stale version — validating inbound
+resources with the release validator and answering every error with a release `OperationOutcome`. Server-side
+`update`/`patch`/`delete` and conditional writes stay deferred (`501`); the version store appends versions, so they
+extend it without reshaping. Deep multi-hop search chaining beyond a
 server's `SearchParameter` definitions and every `_include`/`_revinclude` form are the server's concern; the client
 transmits whatever chained or include parameter the caller supplies rather than validating the chain itself.
 

@@ -110,9 +110,9 @@ radx capabilities with no dcmtk equivalent:
 - **DICOMweb server**: `radx serve dicomweb` runs the reference daemon (WADO-RS/STOW-RS/QIDO-RS) over the
   filesystem object store and SQLite catalogue, loopback-default with `ErrInsecureBind` fail-closed on
   non-loopback binds without authentication.
-- **FHIR server (registered stub)**: `radx serve fhir` is a deliberate fail-closed stub - typed
-  not-implemented error, exit 1, no output (`command/stubs.go`); the FHIR server role itself ships as a
-  library surface (`server.NewFHIRRole`).
+- **FHIR server**: `radx serve fhir` runs the FHIR REST reference daemon (`server.NewFHIRRole` over the
+  in-memory development repository, one release per process via `--release r4|r5`), loopback-default with
+  `ErrInsecureBind` fail-closed on non-loopback binds without authentication (`command/serve.go`).
 - **HL7 v2 over MLLP**: `radx hl7 send` (file or stdin, named MSA-1 ACK result, non-accept ACK exits 4) and
   `radx hl7 listen` (loopback-default MLLP responder with frame cap).
 - **Cross-standard conversion**: `radx convert dicom-to-fhir | sr-to-fhir | oru-to-fhir | orm-to-fhir |

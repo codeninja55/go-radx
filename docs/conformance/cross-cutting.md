@@ -622,8 +622,6 @@ claims rest on unit fixtures rather than a reference origin.
   [Per-server race checklist](#per-server-race-checklist)).
 - **One historical intermittent race, not yet root-caused** (see
   [Known intermittent race](#known-intermittent-race-not-yet-root-caused)).
-- **`radx serve fhir` is a fail-closed stub.** The FHIR server *role* ships in the `server` package; only its dedicated
-  CLI subcommand is deferred (see [`./cli-server.md`](./cli-server.md)).
 - **Merge enforcement not yet enabled.** The CI gates run and report but do not block a merge at the GitHub level (see
   [Gate enforcement status](#gate-enforcement-status)).
 

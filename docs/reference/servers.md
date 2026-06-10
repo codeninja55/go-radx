@@ -46,11 +46,11 @@ In scope for v1:
   honouring the no-PHI rule (PRD §9.1, §9.10). OTel exports nowhere by default; it is operator-opt-in.
 - The four reference daemons (DIMSE SCP with optional Modality Worklist SCP, DICOMweb, FHIR REST, HL7 v2 MLLP) wired to
   the default filesystem object store and SQLite catalogue. The DIMSE SCP is launched by `radx scp` and the MLLP server
-  by `radx hl7 listen` (see [radx CLI](cli.md)); the DICOMweb and FHIR REST daemons are embeddable library features in
-  v1 with no dedicated CLI subcommand (the `dicomweb`/`convert` CLI groups are clients, not servers — cli.md Scope).
-- A minimal **FHIR REST** server surface (the conformance subset of `read`, `create`, `search-type`, and `transaction`
-  for the workflow resource set) over a pluggable `server.Repository`, serving a single FHIR release fixed at role
-  construction (see "FHIR REST server").
+  by `radx hl7 listen` (see [radx CLI](cli.md)); the DICOMweb and FHIR REST daemons run under `radx serve`
+  (`serve dicomweb`, `serve fhir` — the `dicomweb`/`convert` CLI groups are clients, not servers — cli.md Scope).
+- A minimal **FHIR REST** server surface (the conformance subset of `read`, `vread`, `history-instance`, `create`,
+  `search-type`, `transaction`, and the `$validate` operation for the workflow resource set) over a pluggable,
+  versioned `server.Repository`, serving a single FHIR release fixed at role construction (see "FHIR REST server").
 
 Out of scope for v1 (architected-for, deferred — PRD §3.2, §5.1):
 
@@ -435,11 +435,21 @@ R5 role; an R4 role substitutes `r4.Bundle` for `r5.Bundle` identically.
 // concrete types. Implementations are safe for concurrent use.
 type Repository interface {
     // Read returns the current version of one resource by type and id, or ErrNotFound. The returned fhir.Resource is a
-    // concrete resource of the role's release (e.g. *r5.Patient).
+    // concrete resource of the role's release (e.g. *r5.Patient), carrying its meta.versionId/meta.lastUpdated so the
+    // role can emit the ETag and Last-Modified headers.
     Read(ctx context.Context, resourceType, id string) (fhir.Resource, error)
 
-    // Create stores a new resource, assigning a server id when the resource has none, and returns the stored resource.
-    // It validates with fhir.Validate first; a resource with error-severity issues is rejected with that outcome.
+    // VRead returns one specific version (the vread interaction): ErrNotFound when the resource or version is absent,
+    // ErrGone when the version records a deletion (the spec's 410 path).
+    VRead(ctx context.Context, resourceType, id, versionID string) (fhir.Resource, error)
+
+    // History returns every stored version of one resource, newest first, or ErrNotFound when the resource has never
+    // existed. The role renders the versions into the release's history Bundle.
+    History(ctx context.Context, resourceType, id string) ([]ResourceVersion, error)
+
+    // Create stores a new resource, assigning a server id when the resource has none, and returns the stored resource
+    // as version 1 (meta.versionId "1", meta.lastUpdated stamped). It validates with fhir.Validate first; a resource
+    // with error-severity issues is rejected with that outcome.
     Create(ctx context.Context, r fhir.Resource) (fhir.Resource, error)
 
     // Search executes a type-level search and returns a searchset Bundle of the role's release (built with the
@@ -457,15 +467,20 @@ type Repository interface {
 `fhir.Resource`, `fhir.Validate`, and `fhir.OperationOutcome` are the release-agnostic machinery the root `fhir` package
 publishes; `r5.Bundle` / `r4.Bundle` and the resource types (`r5.Patient`, `r4.Patient`, and so on) live in the
 `fhir/r4` and `fhir/r5` packages, all documented in [FHIR R4/R5](fhir.md). The server introduces no parallel resource
-model. The served interactions in v1 are `read`, `create`, `search-type`, and `transaction` for the workflow resource
-set (`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`, `DiagnosticReport`, `Observation`, in the role's
-release); `update`, `delete`, `vread`, `history`, and `patch` are deferred and return a `405`/`501` with an
-`OperationOutcome`, never a silent no-op (PRD §9.2).
+model. The served interactions are `read`, `vread`, `history-instance`, `create`, `search-type`, `transaction`, and
+the `$validate` operation for the workflow resource set (`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`,
+`DiagnosticReport`, `Observation`, in the role's release). Every create writes version 1 into the repository's
+version store (`meta.versionId`/`meta.lastUpdated`); `update`, `delete`, and `patch` are deferred and return a
+`405`/`501` with an `OperationOutcome`, never a silent no-op (PRD §9.2) — the version store is interaction-shaped so
+those writes (and conditional writes) land by appending versions, not by reshaping the store.
 
-The HTTP status mapping is explicit: `200` on a successful read or search, `201` on create (with a `Location` header),
-`400` with an `error`-severity `OperationOutcome` when `fhir.Validate` rejects the body, `404` with an
-`OperationOutcome` on a missing resource, `422` for a well-formed but unprocessable resource, and `401`/`403` from the
-`Authenticator`. The base path defaults to `/fhir` (`WithFHIRBasePath`).
+The HTTP status mapping is explicit: `200` on a successful read, vread, history, search, or `$validate` (the
+operation's findings are its result), `201` on create (with a `Location` header), `400` with an `error`-severity
+`OperationOutcome` when `fhir.Validate` rejects the body, `404` with an `OperationOutcome` on a missing resource or
+version, `410` on a vread of a deleted version (`ErrGone`), `412` when a write's `If-Match` names a stale version
+(FHIR R5 http.html#concurrency; read, vread, and create responses carry `ETag: W/"versionId"` and `Last-Modified`),
+`422` for a well-formed but unprocessable resource, and `401`/`403` from the `Authenticator`. The base path defaults
+to `/fhir` (`WithFHIRBasePath`).
 
 ## Thin reference daemons
 
@@ -657,9 +672,9 @@ Explicit limits (deferred, architected-for — PRD §3.2, §5.1):
   answer N-CREATE/N-SET/N-ACTION for those flows.
 - **Not a PACS/archive.** No multi-tenant access control, retention/erasure, replication, HA, or audit storage; those
   are the consumer's product built on these primitives.
-- **FHIR REST is the conformance subset.** Only `read`, `create`, `search-type`, and `transaction` for the workflow
-  resource set; `update`/`delete`/`vread`/`history`/`patch`, SMART on FHIR, and Subscriptions are deferred and answered
-  with a typed `OperationOutcome`, never a silent no-op.
+- **FHIR REST is the conformance subset.** Only `read`, `vread`, `history-instance`, `create`, `search-type`,
+  `transaction`, and `$validate` for the workflow resource set; `update`/`delete`/`patch`, conditional writes, SMART
+  on FHIR, and Subscriptions are deferred and answered with a typed `OperationOutcome`, never a silent no-op.
 - **DICOMweb deferrals** (rendered/thumbnail, WADO-URI, UPS-RS) and **HL7 v2 deferrals** (inline charset escapes,
   message-profile validation) are inherited from the [DICOMweb](dicomweb.md) and [HL7 v2](hl7v2.md) packages.
 

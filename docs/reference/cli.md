@@ -1,14 +1,13 @@
 # radx CLI
 
-!!! info "Command tree implemented — `serve fhir` deferred"
+!!! info "Command tree implemented"
 
     This document describes the `radx` command-line interface. The foundation and the command tree are implemented:
     the Kong scaffold, the global output contract, the `RADX_*` environment configuration, the exit-code taxonomy, and
     the honest-failure rules are in place, and every command is wired end to end against the library — `echo`, `store`,
     `find`, `get`, `move`, `scp`, `dump`, `modify`, `organize`, `lookup`, `catalogue`, and the `hl7`, `dicomweb`,
-    `convert`, and `serve dicomweb` commands. The one exception is `serve fhir`: the FHIR REST server role is a
-    separate increment, so `serve fhir` fails closed — it returns a typed "not implemented" error and exits `1` until
-    that role lands. The command surface below is the contract every command conforms to.
+    `convert`, and `serve` commands (`serve dicomweb` and `serve fhir`). The command surface below is the contract
+    every command conforms to.
 
 The `radx` command-line interface is go-radx's flagship first-party consumer. It is the tool that proves the library
 API is usable, and it serves practitioners and operators who want dcmtk-class breadth from a single binary. It lives in
@@ -44,8 +43,8 @@ extending it with the new groups:
 - The global behaviour: output formats, environment configuration, exit codes, logging, and the honest-failure rules.
 
 Out of scope for v1 (deferred, not designed against here): the SCP/server sides of MPPS and Storage Commitment (the v1
-N-services are SCU-only, PRD §5.1); UPS-RS and the legacy WADO-URI interface; and the FHIR REST server role behind
-`serve fhir`, which fails closed until that role lands. The DIMSE query/retrieve subcommands (`find`, `get`, `move`)
+N-services are SCU-only, PRD §5.1); and UPS-RS and the legacy WADO-URI interface. The DIMSE query/retrieve
+subcommands (`find`, `get`, `move`)
 were the top-three dcmtk-parity gaps the Codex audit named (PRD §12); they are now wired against the `dimse`
 query/retrieve iterators.
 
@@ -197,7 +196,7 @@ Two rules the prototype broke (PRD §9.2) are load-bearing across every command:
   typed error and writes nothing. A stub errors; it never no-ops and reports success. This is the direct fix for the
   prototype's `modify`, whose `applyModifications` logged "Would delete" / "Would insert" and returned nil while writing
   unchanged files (RADX-001, RADX-002). In v1, if `modify` cannot apply an edit it returns an error with exit `1` and
-  leaves no output file; `serve fhir` returns "not implemented" and exits `1` until the FHIR server role lands.
+  leaves no output file.
 - **Truncation and incompleteness are failures.** Parsers distinguish a clean record-boundary EOF from a short read
   mid-value and propagate `io.ErrUnexpectedEOF`; accepting a truncated object as complete is a defect. `dump` and
   `catalogue` that encounter an unparseable input record the failure and exit non-zero rather than logging and returning
@@ -508,9 +507,10 @@ an error and exits `3` rather than emitting a lossy resource (fail-closed, PRD �
 
 The `serve` group runs the thin reference daemons that wrap the `server` package's embeddable roles, giving the
 DICOMweb and FHIR REST servers a CLI entry point alongside the DIMSE SCP (`scp`) and the HL7 v2 MLLP listener
-(`hl7 listen`). Each subcommand wires the shared backends — a filesystem object store and a SQLite catalogue — binds to
-loopback by default, and uses no-authentication (`AllowAll`) on that loopback bind, exactly as
-`docs/reference/servers.md` describes. There is no dcmtk equivalent; these are go-radx reference servers.
+(`hl7 listen`). `serve dicomweb` wires the shared backends — a filesystem object store and a SQLite catalogue;
+`serve fhir` wires the in-memory development repository (one FHIR release per process). Each binds to loopback by
+default and uses no-authentication (`AllowAll`) on that loopback bind, exactly as `docs/reference/servers.md`
+describes. There is no dcmtk equivalent; these are go-radx reference servers.
 
 ```text
 radx serve dicomweb [flags]
@@ -520,23 +520,24 @@ radx serve dicomweb [flags]
       --object-store=...     Filesystem object-store root (required)
       --catalogue=...        SQLite catalogue path (required; PHI store, never a default path)
       --max-request-bytes=... Request body cap (hostile-input limit)
-      --tls-cert=/--tls-key= Serve over TLS (peer verification on by default)
 
 radx serve fhir [flags]
       --bind=127.0.0.1       Listen address (loopback by default)  [env: RADX_BIND]
       --port=8080            Listen port
       --base-path=/fhir      FHIR REST base path
-      --repository=...       Repository backend selector / DSN (required)
-      --tls-cert=/--tls-key= Serve over TLS (peer verification on by default)
+      --release=r5           FHIR release to serve (r4 or r5; one release per process)
+      --max-request-bytes=... Request body cap (hostile-input limit)
 ```
 
 Both daemons follow the same safe defaults as the other servers. They **bind to loopback** (`127.0.0.1`); a
 non-loopback bind (`--bind 0.0.0.0`) is an explicit, logged opt-in that requires authentication to be configured
-(servers.md "Bind policy"). The SQLite catalogue holds PHI, so the `dicomweb` daemon requires an explicit `--catalogue`
-path and never creates a PHI-bearing database at a default path. Each daemon shuts down gracefully on
-`SIGINT`/`SIGTERM`, draining in-flight requests within the configured timeout. For embedding these roles in your own
-process, or running several together behind one composition root, use the `server` package directly
-(`docs/reference/servers.md`).
+(servers.md "Bind policy") and is refused as a usage error otherwise. The SQLite catalogue holds PHI, so the
+`dicomweb` daemon requires an explicit `--catalogue` path and never creates a PHI-bearing database at a default path.
+The `fhir` daemon's repository is memory-only — resources are versioned in process and nothing is persisted, so no
+PHI lands on disk; it is a development and integration-test daemon, and a production deployment supplies its own
+`server.Repository` through the `server` package. Each daemon shuts down gracefully on `SIGINT`/`SIGTERM`, draining
+in-flight requests within the configured timeout. For embedding these roles in your own process, or running several
+together behind one composition root, use the `server` package directly (`docs/reference/servers.md`).
 
 ## Worked examples
 
@@ -603,8 +604,8 @@ not numbered (PRD §8.2):
 - A refused connection, rejected or aborted association, non-success DIMSE status, or HTTP transport error exits `4`,
   with the DIMSE `Status` rendered by name and class.
 - An input that cannot be read or an output that cannot be created exits `5`.
-- An unimplemented capability (`serve fhir`, any not-yet-built path) exits `1` with a "not implemented" error and
-  writes nothing (fail-closed).
+- An unimplemented capability (any not-yet-built path) exits `1` with a "not implemented" error and writes nothing
+  (fail-closed).
 - Partial failure across a batch exits non-zero unless `--ignore-errors` is explicitly set; no flag converts a final
   failure into success.
 
