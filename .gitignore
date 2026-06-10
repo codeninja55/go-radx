@@ -40,3 +40,4 @@ go.work.sum
 tools/bench-compare/results/
 tools/bench-compare/gobench/gobench
 tools/bench-compare/.venv/
+tools/bench-compare/benchcompare/__pycache__/
