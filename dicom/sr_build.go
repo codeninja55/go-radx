@@ -33,8 +33,8 @@ func encodeContentItem(item *DataSet, ci *ContentItem, isRoot bool, depth, maxDe
 	if depth > maxDepth {
 		return &LimitExceededError{
 			Tag:    TagContentSequence,
-			Limit:  uint64(maxDepth),
-			Actual: uint64(depth),
+			Limit:  uint64(maxDepth), // #nosec G115 -- small non-negative recursion limit
+			Actual: uint64(depth),    // #nosec G115 -- small non-negative recursion counter
 			Kind:   "sequence-depth",
 		}
 	}

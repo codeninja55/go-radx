@@ -38,7 +38,7 @@ func main() {
 		os.Exit(64)
 	}
 	outDir := os.Args[1]
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(outDir, 0o755); err != nil { // #nosec G703 -- dev-only fixture generator writing to the developer-named output dir
 		fmt.Fprintf(os.Stderr, "fixtures-r4: mkdir %s: %v\n", outDir, err)
 		os.Exit(1)
 	}
@@ -81,7 +81,7 @@ func main() {
 			os.Exit(1)
 		}
 		path := filepath.Join(outDir, r.name+".json")
-		if err := os.WriteFile(path, append(encoded, '\n'), 0o644); err != nil {
+		if err := os.WriteFile(path, append(encoded, '\n'), 0o644); err != nil { // #nosec G703 -- dev-only fixture generator writing to the developer-named output dir
 			fmt.Fprintf(os.Stderr, "fixtures-r4: write %s: %v\n", path, err)
 			os.Exit(1)
 		}

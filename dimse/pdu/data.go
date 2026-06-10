@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 // Message-control header bits (PS3.8 §9.3.5.1). Bit 0 is the command/dataset bit;
@@ -51,9 +52,15 @@ func MakeControlHeader(command, last bool) byte {
 const pdvHeaderLen = 2
 
 // encodePDV writes one PDV item: a 4-byte big-endian item length (header + payload),
-// the context ID, the message-control header, then the payload.
+// the context ID, the message-control header, then the payload. The dimse sender
+// fragments payloads to the negotiated send cap, but Encode is public, so an
+// over-length payload from a direct caller is refused rather than emitted with a
+// wrapped 32-bit item length.
 func encodePDV(w io.Writer, pdv PresentationDataValue) error {
-	itemLen := uint32(pdvHeaderLen + len(pdv.Data))
+	if int64(len(pdv.Data)) > int64(math.MaxUint32)-pdvHeaderLen {
+		return &EncodeError{Detail: fmt.Sprintf("PDV payload is %d bytes, exceeds the 32-bit item length field", len(pdv.Data))}
+	}
+	itemLen := uint32(pdvHeaderLen + len(pdv.Data)) // #nosec G115 -- bounded by the check above
 	var hdr [6]byte
 	binary.BigEndian.PutUint32(hdr[0:4], itemLen)
 	hdr[4] = pdv.PresentationContextID
@@ -127,7 +134,10 @@ func (p *DataTF) Encode(w io.Writer) error {
 			return err
 		}
 	}
-	if err := writeHeader(w, PDUTypeData, uint32(body.Len())); err != nil {
+	if int64(body.Len()) > int64(math.MaxUint32) {
+		return &EncodeError{Detail: fmt.Sprintf("p-data-tf body is %d bytes, exceeds the 32-bit PDU length field", body.Len())}
+	}
+	if err := writeHeader(w, PDUTypeData, uint32(body.Len())); err != nil { // #nosec G115 -- bounded by the check above
 		return err
 	}
 	_, err := w.Write(body.Bytes())

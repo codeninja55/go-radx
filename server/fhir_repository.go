@@ -161,7 +161,7 @@ func (m *MemoryRepository) Search(_ context.Context, resourceType string, params
 	}
 	m.mu.RUnlock()
 
-	return m.adapter.newSearchSet(int32(len(matches)), matches)
+	return m.adapter.newSearchSet(int32(len(matches)), matches) // #nosec G115 -- an in-memory match count is far below int32
 }
 
 // Transaction processes a transaction Bundle by applying each entry through the repository and

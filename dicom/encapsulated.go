@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 )
 
 // fragment is one (FFFE,E000) item of an encapsulated pixel-data stream. data is a
@@ -67,7 +68,12 @@ func parseEncapsulated(data []byte, numFrames int) (*encapsulated, error) {
 	// recorded offset is captured before the 8-byte item header is read.
 	base := br.offset()
 	for {
-		headerOff := uint32(br.offset() - base)
+		// Fragment offsets are 32-bit Basic Offset Table values (PS3.5 A.4); a
+		// stream past that range cannot be referenced and is rejected.
+		if br.offset()-base > int64(math.MaxUint32) {
+			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "encapsulated stream exceeds the 32-bit offset table"}
+		}
+		headerOff := uint32(br.offset() - base) // #nosec G115 -- bounded by the MaxUint32 check above
 		tag, length, err := readDelimiterHeader(br, ExplicitVRLittleEndian)
 		if err != nil {
 			return nil, err

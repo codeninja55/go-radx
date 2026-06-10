@@ -30,7 +30,7 @@ const (
 // reason).
 func (p *Abort) Encode(w io.Writer) error {
 	body := []byte{0x00, 0x00, p.Source, p.Reason}
-	if err := writeHeader(w, PDUTypeAbort, uint32(len(body))); err != nil {
+	if err := writeHeader(w, PDUTypeAbort, uint32(len(body))); err != nil { // #nosec G115 -- fixed 4-byte body
 		return err
 	}
 	_, err := w.Write(body)

@@ -304,7 +304,7 @@ func (c *SpecificCharacterSet) encodeSingleByteSegment(seg []byte) ([]byte, erro
 	var g1 charsetEntry
 	for _, r := range string(seg) {
 		if r < 0x80 {
-			out = append(out, byte(r))
+			out = append(out, byte(r)) // #nosec G115 -- r < 0x80 guarded immediately above
 			continue
 		}
 		entry, ok := c.g1ForRune(r)

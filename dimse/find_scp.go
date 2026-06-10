@@ -137,7 +137,7 @@ type findCancelWatcher struct {
 
 // newFindCancelWatcher starts the cancel-watch goroutine bound by a context derived from parent.
 func newFindCancelWatcher(parent context.Context, conn *dul.Conn, m *dul.StateMachine, msgID uint16) *findCancelWatcher {
-	ctx, cancel := context.WithCancel(parent)
+	ctx, cancel := context.WithCancel(parent) // #nosec G118 -- cancel is stored on the watcher and invoked via stopOnce in stop()
 	w := &findCancelWatcher{
 		result: make(chan findCancelResult, 1),
 		cancel: cancel,

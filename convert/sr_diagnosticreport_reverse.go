@@ -1,7 +1,7 @@
 package convert
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- deterministic UID derivation (a stable name hash), not a security primitive
 	"fmt"
 	"math/big"
 	"strings"
@@ -163,7 +163,7 @@ func drIdentitySeed(dr *r5.DiagnosticReport) string {
 // or the dot — so the UID can never end in a dot and the role-specific leading digits
 // that keep the three UIDs distinct are preserved.
 func mintUID(root dicom.UID, seed, role string) dicom.UID {
-	h := sha1.New()
+	h := sha1.New() // #nosec G401 -- deterministic UID derivation (a stable name hash), not a security primitive
 	h.Write([]byte(seed))
 	h.Write([]byte{0})
 	h.Write([]byte(role))

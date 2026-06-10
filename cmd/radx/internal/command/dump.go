@@ -341,7 +341,7 @@ func parseTagSpec(raw string) (dicom.Tag, bool) {
 	if err != nil {
 		return 0, false
 	}
-	return dicom.NewTag(uint16(n>>16), uint16(n)), true
+	return dicom.NewTag(uint16(n>>16), uint16(n)), true // #nosec G115 -- ParseUint(s, 16, 32) bounds n to 32 bits; this splits its halves
 }
 
 // parseGroupSpec resolves a --group value to a 16-bit group number. It accepts a 4-hex-digit

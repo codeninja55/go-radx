@@ -147,7 +147,7 @@ func encodeCommonExtendedNegotiation(out *bytes.Buffer, cen CommonExtendedNegoti
 		return err
 	}
 	var rl [2]byte
-	binary.BigEndian.PutUint16(rl[:], uint16(related.Len()))
+	binary.BigEndian.PutUint16(rl[:], uint16(related.Len())) // #nosec G115 -- bounded by the checkUint16Field guard above
 	body.Write(rl[:])
 	body.Write(related.Bytes())
 
@@ -291,7 +291,7 @@ func writeUIDField(buf *bytes.Buffer, field, uid string) error {
 		return err
 	}
 	var lb [2]byte
-	binary.BigEndian.PutUint16(lb[:], uint16(len(uid)))
+	binary.BigEndian.PutUint16(lb[:], uint16(len(uid))) // #nosec G115 -- bounded by the checkUint16Field guard above
 	buf.Write(lb[:])
 	buf.WriteString(uid)
 	return nil
@@ -304,7 +304,7 @@ func writeLengthPrefixed(buf *bytes.Buffer, field string, data []byte) error {
 		return err
 	}
 	var lb [2]byte
-	binary.BigEndian.PutUint16(lb[:], uint16(len(data)))
+	binary.BigEndian.PutUint16(lb[:], uint16(len(data))) // #nosec G115 -- bounded by the checkUint16Field guard above
 	buf.Write(lb[:])
 	buf.Write(data)
 	return nil

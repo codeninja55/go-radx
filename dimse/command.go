@@ -298,7 +298,7 @@ func (cs CommandSet) Encode() ([]byte, error) {
 	// group-length element itself (PS3.7 §10.3.1). Compute it over body, then prepend it.
 	var out bytes.Buffer
 	groupLength := make([]byte, 4)
-	binary.LittleEndian.PutUint32(groupLength, uint32(body.Len()))
+	binary.LittleEndian.PutUint32(groupLength, uint32(body.Len())) // #nosec G115 -- a command set is a handful of fixed-width/short elements (PS3.7 §9-10), far below the 32-bit field
 	if err := writeImplicitVRElement(&out, tagCommandGroupLength, groupLength); err != nil {
 		return nil, err
 	}
@@ -480,7 +480,7 @@ func writeImplicitVRElement(w io.Writer, tag dicom.Tag, value []byte) error {
 	var hdr [8]byte
 	binary.LittleEndian.PutUint16(hdr[0:2], tag.Group())
 	binary.LittleEndian.PutUint16(hdr[2:4], tag.Element())
-	binary.LittleEndian.PutUint32(hdr[4:8], uint32(len(value)))
+	binary.LittleEndian.PutUint32(hdr[4:8], uint32(len(value))) // #nosec G115 -- command-set element values are fixed-width or short strings (PS3.7 §9-10)
 	if _, err := w.Write(hdr[:]); err != nil {
 		return fmt.Errorf("dimse: write command element %s header: %w", tag, err)
 	}

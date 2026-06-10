@@ -32,7 +32,7 @@ import (
 
 // redactedToken replaces a locator that fails structural validation. It is a
 // fixed, value-free marker so a misrouted patient value can never reach the sink.
-const redactedToken = "[redacted-non-structural]"
+const redactedToken = "[redacted-non-structural]" // #nosec G101 -- redaction marker constant, not a credential
 
 var (
 	// dicomKeywordPattern matches PS3.6 dictionary keywords: a letter followed by

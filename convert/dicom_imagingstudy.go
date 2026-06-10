@@ -78,11 +78,11 @@ func DICOMToImagingStudyR5(instances []*dicom.DataSet, opts ...Option) (*r5.Imag
 
 	// numberOfSeries/numberOfInstances are recomputed from the distinct UIDs seen,
 	// never copied from a source attribute that may be stale.
-	numSeries := int32(len(series))
+	numSeries := int32(len(series)) // #nosec G115 -- a study's in-memory series count is far below int32
 	study.NumberOfSeries = &numSeries
 	var numInstances int32
 	for i := range series {
-		numInstances += int32(len(series[i].Instance))
+		numInstances += int32(len(series[i].Instance)) // #nosec G115 -- a series' in-memory instance count is far below int32
 	}
 	study.NumberOfInstances = &numInstances
 

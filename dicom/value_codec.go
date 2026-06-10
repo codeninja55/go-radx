@@ -114,17 +114,17 @@ func decodeInts(vr VR, raw []byte, bo binary.ByteOrder) Value {
 		chunk := raw[i*size : i*size+size]
 		switch vr {
 		case VRSS:
-			vals = append(vals, int64(int16(bo.Uint16(chunk))))
+			vals = append(vals, int64(int16(bo.Uint16(chunk)))) // #nosec G115 -- same-width sign reinterpretation per PS3.5 Table 6.2-1
 		case VRUS:
 			vals = append(vals, int64(bo.Uint16(chunk)))
 		case VRSL:
-			vals = append(vals, int64(int32(bo.Uint32(chunk))))
+			vals = append(vals, int64(int32(bo.Uint32(chunk)))) // #nosec G115 -- same-width sign reinterpretation per PS3.5 Table 6.2-1
 		case VRUL:
 			vals = append(vals, int64(bo.Uint32(chunk)))
 		case VRSV:
-			vals = append(vals, int64(bo.Uint64(chunk)))
+			vals = append(vals, int64(bo.Uint64(chunk))) // #nosec G115 -- same-width sign reinterpretation per PS3.5 Table 6.2-1
 		case VRUV:
-			vals = append(vals, int64(bo.Uint64(chunk)))
+			vals = append(vals, int64(bo.Uint64(chunk))) // #nosec G115 -- UV occupies the full 64 bits; the bits round-trip through encodeInts's uint64
 		}
 	}
 	return NewInts(vr, vals...)
@@ -160,6 +160,12 @@ func decodeTags(raw []byte, bo binary.ByteOrder) Value {
 	return NewTags(vals...)
 }
 
+// maxValueFieldLen is the largest byte count the 32-bit element length field can
+// carry; 0xFFFFFFFF is the undefined-length sentinel (PS3.5 §7.1.1). The encode
+// helpers reject a larger value with a typed error so a silently truncated length
+// can never reach an output stream.
+const maxValueFieldLen = int64(0xFFFFFFFE)
+
 // encodeValue writes v's value field in enc's byte order and returns the bytes
 // written, which equals v.EncodedLen and is always even. Character VRs are padded
 // with the correct trailing byte (Codex DCM-007 write half).
@@ -170,7 +176,7 @@ func encodeValue(w io.Writer, v Value, enc encoding) (uint32, error) {
 			// A value read under a non-default character set re-emits its verbatim,
 			// already-padded bytes so the round-trip is byte-exact.
 			written, err := w.Write(t.raw)
-			return uint32(written), err
+			return uint32(written), err // #nosec G115 -- raw is only set on the read path from a 32-bit length field
 		}
 		return encodePadded(w, strings.Join(t.Strings(), `\`), t.VR())
 
@@ -203,38 +209,67 @@ func encodeValue(w io.Writer, v Value, enc encoding) (uint32, error) {
 // encodePadded writes s and, when its length is odd, the VR pad byte, so the
 // emitted character value field is even (Codex DCM-007).
 func encodePadded(w io.Writer, s string, vr VR) (uint32, error) {
+	if int64(len(s)) > maxValueFieldLen {
+		return 0, &ValueError{VR: vr, Msg: "value field exceeds the 32-bit element length"}
+	}
 	n, err := io.WriteString(w, s)
 	if err != nil {
-		return uint32(n), err
+		return uint32(n), err // #nosec G115 -- n <= len(s), bounded by the maxValueFieldLen guard
 	}
 	if len(s)%2 == 1 {
 		if pad, ok := vr.PadByte(); ok {
 			if _, err := w.Write([]byte{pad}); err != nil {
-				return uint32(n), err
+				return uint32(n), err // #nosec G115 -- n <= len(s), bounded by the maxValueFieldLen guard
 			}
-			return uint32(n + 1), nil
+			return uint32(n + 1), nil // #nosec G115 -- n <= len(s), bounded by the maxValueFieldLen guard
 		}
 	}
-	return uint32(n), nil
+	return uint32(n), nil // #nosec G115 -- n <= len(s), bounded by the maxValueFieldLen guard
 }
 
 func encodeInts(w io.Writer, t *Ints, bo binary.ByteOrder) (uint32, error) {
 	vals := t.Ints()
 	size := intSize(t.VR())
+	if int64(len(vals))*int64(size) > maxValueFieldLen {
+		return 0, &ValueError{VR: t.VR(), Msg: "value field exceeds the 32-bit element length"}
+	}
 	buf := make([]byte, len(vals)*size)
 	for i, n := range vals {
+		// A caller-supplied value outside the VR's wire width is a typed rejection,
+		// never a silent truncation into the output stream.
+		if !intFits(t.VR(), n) {
+			return 0, &ValueError{VR: t.VR(), Msg: "integer value does not fit the VR wire width"}
+		}
 		chunk := buf[i*size : i*size+size]
 		switch size {
 		case 2:
-			bo.PutUint16(chunk, uint16(n))
+			bo.PutUint16(chunk, uint16(n)) // #nosec G115 -- intFits bounds n to the SS/US range
 		case 4:
-			bo.PutUint32(chunk, uint32(n))
+			bo.PutUint32(chunk, uint32(n)) // #nosec G115 -- intFits bounds n to the SL/UL range
 		case 8:
-			bo.PutUint64(chunk, uint64(n))
+			bo.PutUint64(chunk, uint64(n)) // #nosec G115 -- SV/UV occupy the full 64 bits; same-width reinterpretation
 		}
 	}
 	written, err := w.Write(buf)
-	return uint32(written), err
+	return uint32(written), err // #nosec G115 -- written <= len(buf), bounded by the maxValueFieldLen guard
+}
+
+// intFits reports whether n is representable in vr's wire width (PS3.5 Table
+// 6.2-1). SV and UV occupy the full 64 bits carried by int64: a UV value above
+// MaxInt64 is held as its reinterpreted bit pattern and restored on encode.
+func intFits(vr VR, n int64) bool {
+	switch vr {
+	case VRSS:
+		return n >= math.MinInt16 && n <= math.MaxInt16
+	case VRUS:
+		return n >= 0 && n <= math.MaxUint16
+	case VRSL:
+		return n >= math.MinInt32 && n <= math.MaxInt32
+	case VRUL:
+		return n >= 0 && n <= math.MaxUint32
+	default:
+		return true
+	}
 }
 
 func encodeFloats(w io.Writer, t *Floats, bo binary.ByteOrder) (uint32, error) {
@@ -242,6 +277,9 @@ func encodeFloats(w io.Writer, t *Floats, bo binary.ByteOrder) (uint32, error) {
 	size := 4
 	if t.VR() == VRFD || t.VR() == VROD {
 		size = 8
+	}
+	if int64(len(vals))*int64(size) > maxValueFieldLen {
+		return 0, &ValueError{VR: t.VR(), Msg: "value field exceeds the 32-bit element length"}
 	}
 	buf := make([]byte, len(vals)*size)
 	for i, f := range vals {
@@ -253,11 +291,14 @@ func encodeFloats(w io.Writer, t *Floats, bo binary.ByteOrder) (uint32, error) {
 		}
 	}
 	written, err := w.Write(buf)
-	return uint32(written), err
+	return uint32(written), err // #nosec G115 -- written <= len(buf), bounded by the maxValueFieldLen guard
 }
 
 func encodeTags(w io.Writer, t *Tags, bo binary.ByteOrder) (uint32, error) {
 	vals := t.Tags()
+	if int64(len(vals))*4 > maxValueFieldLen {
+		return 0, &ValueError{VR: VRAT, Msg: "value field exceeds the 32-bit element length"}
+	}
 	buf := make([]byte, len(vals)*4)
 	for i, tag := range vals {
 		chunk := buf[i*4 : i*4+4]
@@ -265,21 +306,24 @@ func encodeTags(w io.Writer, t *Tags, bo binary.ByteOrder) (uint32, error) {
 		bo.PutUint16(chunk[2:4], tag.Element())
 	}
 	written, err := w.Write(buf)
-	return uint32(written), err
+	return uint32(written), err // #nosec G115 -- written <= len(buf), bounded by the maxValueFieldLen guard
 }
 
 // encodeBytes writes the raw bytes, padding to even with a trailing NULL.
 func encodeBytes(w io.Writer, t *Bytes) (uint32, error) {
 	b := t.Bytes()
+	if int64(len(b)) > maxValueFieldLen {
+		return 0, &ValueError{VR: t.VR(), Msg: "value field exceeds the 32-bit element length"}
+	}
 	written, err := w.Write(b)
 	if err != nil {
-		return uint32(written), err
+		return uint32(written), err // #nosec G115 -- written <= len(b), bounded by the maxValueFieldLen guard
 	}
 	if len(b)%2 == 1 {
 		if _, err := w.Write([]byte{0x00}); err != nil {
-			return uint32(written), err
+			return uint32(written), err // #nosec G115 -- written <= len(b), bounded by the maxValueFieldLen guard
 		}
-		return uint32(written + 1), nil
+		return uint32(written + 1), nil // #nosec G115 -- written <= len(b), bounded by the maxValueFieldLen guard
 	}
-	return uint32(written), nil
+	return uint32(written), nil // #nosec G115 -- written <= len(b), bounded by the maxValueFieldLen guard
 }

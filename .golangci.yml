@@ -5,14 +5,33 @@ version: "2"
 linters:
   # The standard set: errcheck, govet, ineffassign, staticcheck, unused.
   default: standard
+  enable:
+    - gosec
   exclusions:
     # Generated files (the tag/UID dictionaries carry a "Code generated" header).
     generated: lax
     rules:
-      # Unchecked errors in tests are conventional and low-risk.
+      # Unchecked errors in tests are conventional and low-risk. gosec is excluded
+      # because tests deliberately craft hostile inputs (downgraded TLS configs,
+      # fixture credentials, synthetic overflows); gosec targets shipped code.
       - path: _test\.go
         linters:
           - errcheck
+          - gosec
+      # Dev-only codegen and fixture tooling does repo-local file IO by design;
+      # G301/G304/G306 (dir perms, variable paths, file perms) do not apply.
+      - path: ^tools/
+        linters:
+          - gosec
+        text: "G30[146]"
+      - path: ^dicom/gen/
+        linters:
+          - gosec
+        text: "G30[146]"
+      - path: ^fhir/internal/gen/
+        linters:
+          - gosec
+        text: "G30[146]"
 
 formatters:
   enable:

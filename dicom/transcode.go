@@ -1,5 +1,7 @@
 package dicom
 
+import "math"
+
 // Transcode re-encodes src's pixel frames into target. It is an explicit, opt-in
 // operation: re-compressing clinical pixels is a data-integrity hazard, so it is never
 // performed automatically by the reader or writer (PRD §7.3). Transcoding requires a
@@ -76,8 +78,12 @@ func transcodeToEncapsulated(geom PixelGeometry, frames [][]byte, codec Codec) (
 		offsets[i] = pos
 		enc.fragments = append(enc.fragments, fragment{offset: pos, data: encoded})
 		// The next fragment's item header begins after this fragment's 8-byte item
-		// header and even-length value.
-		pos += uint32(8 + len(encoded))
+		// header and even-length value. Basic Offset Table entries are 32-bit
+		// (PS3.5 A.4), so a stream growing past that cannot be represented.
+		if uint64(pos)+uint64(8+len(encoded)) > math.MaxUint32 {
+			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "encapsulated stream exceeds the 32-bit offset table"}
+		}
+		pos += uint32(8 + len(encoded)) // #nosec G115 -- bounded by the MaxUint32 check above
 	}
 	enc.bot = offsets
 	return &PixelData{Geometry: geom, encaps: enc}, nil

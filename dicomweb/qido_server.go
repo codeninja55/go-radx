@@ -122,7 +122,7 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request, segs []stri
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	_, _ = w.Write(body) // #nosec G705 -- Content-Type is application/dicom+json (set above), not an HTML sink
 }
 
 // warningResultsTruncated is the HTTP Warning header value for a QIDO-RS response capped

@@ -1,5 +1,7 @@
 package dicom
 
+import "fmt"
+
 // PixelGeometry is the resolved image-pixel module describing one instance's pixel
 // layout. It is the parameter a Codec needs to decode or encode a frame: the codec
 // must know the frame dimensions, sample count, and bit packing to lay decoded
@@ -55,28 +57,45 @@ func ResolvePixelGeometry(ds *DataSet, ts TransferSyntax) (PixelGeometry, error)
 	}
 
 	geom := PixelGeometry{
-		Rows:                uint16(rows),
-		Columns:             uint16(cols),
 		SamplesPerPixel:     1,
-		BitsAllocated:       uint16(bits),
 		NumberOfFrames:      1,
 		PlanarConfiguration: 0,
 		TransferSyntax:      ts,
 	}
+	var err error
+	if geom.Rows, err = usRange(TagRows, rows); err != nil {
+		return PixelGeometry{}, err
+	}
+	if geom.Columns, err = usRange(TagColumns, cols); err != nil {
+		return PixelGeometry{}, err
+	}
+	if geom.BitsAllocated, err = usRange(TagBitsAllocated, bits); err != nil {
+		return PixelGeometry{}, err
+	}
 	if n, ok := ds.GetInt(TagSamplesPerPixel); ok && n > 0 {
-		geom.SamplesPerPixel = uint16(n)
+		if geom.SamplesPerPixel, err = usRange(TagSamplesPerPixel, n); err != nil {
+			return PixelGeometry{}, err
+		}
 	}
 	if n, ok := ds.GetInt(TagBitsStored); ok {
-		geom.BitsStored = uint16(n)
+		if geom.BitsStored, err = usRange(TagBitsStored, n); err != nil {
+			return PixelGeometry{}, err
+		}
 	}
 	if n, ok := ds.GetInt(TagHighBit); ok {
-		geom.HighBit = uint16(n)
+		if geom.HighBit, err = usRange(TagHighBit, n); err != nil {
+			return PixelGeometry{}, err
+		}
 	}
 	if n, ok := ds.GetInt(TagPixelRepresentation); ok {
-		geom.PixelRepresentation = uint16(n)
+		if geom.PixelRepresentation, err = usRange(TagPixelRepresentation, n); err != nil {
+			return PixelGeometry{}, err
+		}
 	}
 	if n, ok := ds.GetInt(TagPlanarConfiguration); ok {
-		geom.PlanarConfiguration = uint16(n)
+		if geom.PlanarConfiguration, err = usRange(TagPlanarConfiguration, n); err != nil {
+			return PixelGeometry{}, err
+		}
 	}
 	if n, ok := ds.GetInt(TagNumberOfFrames); ok && n > 0 {
 		geom.NumberOfFrames = int(n)
@@ -85,4 +104,15 @@ func ResolvePixelGeometry(ds *DataSet, ts TransferSyntax) (PixelGeometry, error)
 		geom.PhotometricInterpretation = s
 	}
 	return geom, nil
+}
+
+// usRange narrows an Image Pixel attribute to the US range. GetInt returns an
+// unbounded int64 (a hostile file can carry the attribute under a wider VR), and a
+// silent uint16 truncation here would mis-size every frame allocation derived from
+// the geometry, so an out-of-range value is a typed rejection instead.
+func usRange(t Tag, v int64) (uint16, error) {
+	if v < 0 || v > 0xFFFF {
+		return 0, &ValueError{Tag: t, VR: VRUS, Msg: fmt.Sprintf("value %d outside the US range 0..65535", v)}
+	}
+	return uint16(v), nil
 }

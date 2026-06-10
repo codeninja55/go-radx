@@ -48,8 +48,8 @@ func parseContentItem(item *DataSet, isRoot bool, depth, maxDepth int) (ContentI
 	if depth > maxDepth {
 		return ContentItem{}, &LimitExceededError{
 			Tag:    TagContentSequence,
-			Limit:  uint64(maxDepth),
-			Actual: uint64(depth),
+			Limit:  uint64(maxDepth), // #nosec G115 -- small non-negative recursion limit
+			Actual: uint64(depth),    // #nosec G115 -- small non-negative recursion counter
 			Kind:   "sequence-depth",
 		}
 	}
