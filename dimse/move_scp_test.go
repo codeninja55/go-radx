@@ -677,6 +677,61 @@ func TestServeMoveReturnsOnContextCancelWhileHandlerBlocked(t *testing.T) {
 	}
 }
 
+// TestServeMoveTerminalCancelOnInboundCancel is the C-CANCEL-during-C-MOVE regression (PS3.4
+// C.4.2.3): when the SCU sends a C-CANCEL-RQ mid-retrieve, the SCP's inbound cancel watcher must
+// read it, stop sub-operation dispatch (cancelling the parked handler), and answer the terminal
+// Cancel status with the counts accumulated so far — a clean cancellation, never a protocol fault
+// that poisons the association. It mirrors the C-GET cancel regression
+// (TestServeGetTerminalCancelOnInboundCancel) over the three-AE move topology.
+func TestServeMoveTerminalCancelOnInboundCancel(t *testing.T) {
+	destTitle, destAddr, dest := startDestinationSCP(t)
+	handler := &blockingMoveHandler{first: instanceDataset("1.2.3.1"), entered: make(chan struct{})}
+	moveAddr := startMoveServer(t, handler, map[AETitle]string{destTitle: destAddr})
+
+	assoc, ctx, cancel := dialMoveServerSCU(t, moveAddr)
+	defer cancel()
+
+	query := dicom.NewDataSet()
+	query.SetString(dicom.TagStudyInstanceUID, "1.2.3")
+
+	// Break out of the SCU range loop after the first Pending response: the iterator's break sends a
+	// C-CANCEL-RQ on the same association and drains to the terminal, which the SCP must answer with
+	// the Cancel status while its handler is parked between yields.
+	for status := range assoc.Move(ctx, query, QueryLevelStudy, destTitle) {
+		if status.IsPending() {
+			break
+		}
+	}
+
+	// The SCU's cancel-drain leaves the association clean: no transport/protocol fault is recorded,
+	// so the association is reusable rather than poisoned or wedged awaiting a terminal that never
+	// comes (pre-fix the SCP only noticed the cancel after the move completed).
+	if err := assoc.LastError(); err != nil {
+		var pe *ProtocolError
+		if errors.As(err, &pe) {
+			t.Fatalf("inbound C-CANCEL was treated as a protocol fault, poisoning the association: %v", err)
+		}
+		t.Fatalf("Move LastError = %v, want nil after a clean cancellation", err)
+	}
+
+	// The cancel must stop sub-operation dispatch: the parked handler observes its cancelled context.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && !handler.wasCanceled() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !handler.wasCanceled() {
+		t.Error("the parked C-MOVE handler never observed the C-CANCEL; sub-operation dispatch was not stopped")
+	}
+
+	// Only the sub-operation dispatched before the cancel reached the destination.
+	instances, _ := dest.snapshot()
+	if len(instances) != 1 || instances[0] != "1.2.3.1" {
+		t.Errorf("destination received %v, want exactly the pre-cancel instance 1.2.3.1", instances)
+	}
+
+	_ = assoc.Release(ctx)
+}
+
 // TestServeMoveUnsupported is the interface-segregation regression: a C-MOVE-RQ routed to a handler
 // with no Move capability (a store-only handler) is refused with a terminal C-MOVE-RSP carrying
 // StatusSOPClassNotSupported, never a panic.
