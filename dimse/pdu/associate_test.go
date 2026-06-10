@@ -234,3 +234,57 @@ func TestDecodeAssociateRQRejectsTruncatedItem(t *testing.T) {
 		t.Error("DecodeAssociateRQ should reject a sub-item length exceeding the body")
 	}
 }
+
+// TestAssociateEncodeRejectsOversizedFields verifies every variable-length string an
+// A-ASSOCIATE PDU carries is refused with an *EncodeError when it exceeds its 2-byte
+// sub-item length prefix, rather than silently truncating the length and emitting a
+// corrupt PDU. The fields are public struct members, so the caller contract alone
+// cannot bound them.
+func TestAssociateEncodeRejectsOversizedFields(t *testing.T) {
+	oversized := string(make([]byte, maxUint16Field+1))
+	okPC := PresentationContextRQ{ID: 1, AbstractSyntax: "1.2.840.10008.1.1", TransferSyntaxes: []string{"1.2.840.10008.1.2"}}
+
+	rqCases := []struct {
+		name string
+		rq   AssociateRQ
+	}{
+		{"application context", AssociateRQ{ApplicationContext: oversized, PresentationContexts: []PresentationContextRQ{okPC}}},
+		{"abstract syntax", AssociateRQ{PresentationContexts: []PresentationContextRQ{{ID: 1, AbstractSyntax: oversized}}}},
+		{"transfer syntax", AssociateRQ{PresentationContexts: []PresentationContextRQ{{ID: 1, AbstractSyntax: "1.2.840.10008.1.1", TransferSyntaxes: []string{oversized}}}}},
+		// Each transfer syntax fits its own prefix, but the composed presentation-context
+		// item exceeds 65535; only the composite check can catch the sum.
+		{"presentation-context composite", AssociateRQ{PresentationContexts: []PresentationContextRQ{{
+			ID: 1, AbstractSyntax: "1.2.840.10008.1.1",
+			TransferSyntaxes: []string{string(make([]byte, 40000)), string(make([]byte, 40000))},
+		}}}},
+		{"implementation class UID", AssociateRQ{PresentationContexts: []PresentationContextRQ{okPC}, UserInfo: UserInformation{ImplementationClassUID: oversized}}},
+		{"implementation version", AssociateRQ{PresentationContexts: []PresentationContextRQ{okPC}, UserInfo: UserInformation{ImplementationVersion: oversized}}},
+		{"role-selection SOP class UID", AssociateRQ{PresentationContexts: []PresentationContextRQ{okPC}, UserInfo: UserInformation{RoleSelections: []RoleSelection{{SOPClassUID: oversized}}}}},
+		// A UID that fits its own 2-byte prefix but whose role-selection body (UID length
+		// field + UID + two role flags) exceeds the enclosing sub-item prefix.
+		{"role-selection composite", AssociateRQ{PresentationContexts: []PresentationContextRQ{okPC}, UserInfo: UserInformation{RoleSelections: []RoleSelection{{SOPClassUID: string(make([]byte, maxUint16Field))}}}}},
+	}
+	for _, tc := range rqCases {
+		t.Run("rq "+tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			assertEncodeError(t, tc.rq.Encode(&buf))
+		})
+	}
+
+	acCases := []struct {
+		name string
+		ac   AssociateAC
+	}{
+		{"application context", AssociateAC{ApplicationContext: oversized}},
+		{"transfer syntax", AssociateAC{PresentationContexts: []PresentationContextAC{{ID: 1, TransferSyntax: oversized}}}},
+		// The transfer syntax fits its own prefix, but header bytes push the composed
+		// presentation-context item past 65535.
+		{"presentation-context composite", AssociateAC{PresentationContexts: []PresentationContextAC{{ID: 1, TransferSyntax: string(make([]byte, maxUint16Field))}}}},
+	}
+	for _, tc := range acCases {
+		t.Run("ac "+tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			assertEncodeError(t, tc.ac.Encode(&buf))
+		})
+	}
+}

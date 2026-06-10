@@ -572,3 +572,20 @@ func TestServerTLSFloorRefusesDowngradedClient(t *testing.T) {
 	}
 	_ = conn.Close()
 }
+
+// TestTLSConfigFloorEdges verifies the clamp contract's edges: a nil config stays
+// nil (plain TCP), a caller-pinned floor above 1.2 is preserved, and the caller's
+// config is cloned rather than mutated.
+func TestTLSConfigFloorEdges(t *testing.T) {
+	if got := tlsConfigWithFloor(nil); got != nil {
+		t.Fatalf("tlsConfigWithFloor(nil) = %v, want nil", got)
+	}
+	pinned := &tls.Config{MinVersion: tls.VersionTLS13}
+	out := tlsConfigWithFloor(pinned)
+	if out.MinVersion != tls.VersionTLS13 {
+		t.Fatalf("MinVersion = %#x, want TLS 1.3 preserved", out.MinVersion)
+	}
+	if out == pinned {
+		t.Fatal("tlsConfigWithFloor must clone, not mutate the caller's config")
+	}
+}
