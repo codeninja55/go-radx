@@ -80,12 +80,22 @@ func (c *StoreCmd) Run(rc *RunContext) error {
 	if c.Workers < 1 || c.Workers > 128 {
 		return &exitcode.UsageErr{Message: fmt.Sprintf("--workers %d out of range (1-128)", c.Workers)}
 	}
-	// Transcode-on-store is an explicit data-integrity operation that depends on the optional CGo
-	// encode codecs. The library exposes whole-dataset re-encoding only at the pixel-data layer, not
-	// through Store, so a --transcode-to request fails closed rather than silently sending as stored
-	// (RADX-011: medical-image fidelity is never altered by a silent default, nor a silent no-op).
+	// Transcode-on-store is an explicit data-integrity operation (RADX-011: fidelity is
+	// never altered by a silent default). The store transport encodes each dataset in the
+	// negotiated uncompressed transfer syntax (dimse.DefaultTransferSyntaxes), so the
+	// honourable targets are the uncompressed syntaxes — decompress-before-send. An
+	// encapsulated or malformed target fails closed here as a usage error rather than
+	// surprising the operator per file at encode time.
 	if c.TranscodeTo != "" {
-		return &exitcode.UsageErr{Message: "--transcode-to is not supported by this build (encode-side transcoding requires the CGo codec build); objects are sent as stored"}
+		target := dicom.TransferSyntax(c.TranscodeTo)
+		if err := dicom.UID(target).Validate(); err != nil {
+			return &exitcode.UsageErr{Message: fmt.Sprintf("--transcode-to %q is not a valid transfer syntax UID", c.TranscodeTo)}
+		}
+		if target.IsEncapsulated() {
+			return &exitcode.UsageErr{Message: fmt.Sprintf(
+				"--transcode-to %s (%s) cannot be honoured: store sends datasets in the negotiated uncompressed transfer syntax, so only uncompressed targets are supported",
+				target.Name(), c.TranscodeTo)}
+		}
 	}
 
 	calling, called, err := parseAETitles(c.CallingAE, c.CalledAE)
@@ -255,6 +265,10 @@ func (c *StoreCmd) runWorker(
 			record(j.idx, storeResult{File: j.path, Status: "failure", Error: structuralError(err)}, err)
 			continue
 		}
+		if err := prepareForStore(f, dicom.TransferSyntax(c.TranscodeTo)); err != nil {
+			record(j.idx, storeResult{File: j.path, Status: "failure", Error: structuralError(err)}, err)
+			continue
+		}
 		sopInstance, _ := f.DataSet.GetString(dicom.TagSOPInstanceUID)
 
 		if assoc == nil {
@@ -298,6 +312,34 @@ func (c *StoreCmd) runWorker(
 			DIMSEStatus:    status.String(),
 		}, nil)
 	}
+}
+
+// prepareForStore makes f sendable over the negotiated uncompressed transfer syntaxes. With a
+// --transcode-to target, a compressed object is decoded and re-encoded through the library's
+// dataset-level seam (NewPixelData -> Transcode -> SetPixelData); a pixel-less object and an
+// already-uncompressed object pass through unchanged, so nothing is silently altered. Without a
+// target, a compressed pixel-bearing object is a per-file failure naming the flag: the transport
+// cannot carry encapsulated pixel data and never silently decompresses it (RADX-011).
+func prepareForStore(f *dicom.File, target dicom.TransferSyntax) error {
+	if !f.Meta.TransferSyntaxUID.IsEncapsulated() {
+		return nil
+	}
+	if _, ok := f.DataSet.Get(dicom.TagPixelData); !ok {
+		return nil
+	}
+	if target == "" {
+		return fmt.Errorf("object is compressed (%s) and the store transport is uncompressed; pass --transcode-to to decompress on send",
+			f.Meta.TransferSyntaxUID.Name())
+	}
+	pd, err := dicom.NewPixelData(f.DataSet, f.Meta.TransferSyntaxUID)
+	if err != nil {
+		return err
+	}
+	out, err := dicom.Transcode(pd, target)
+	if err != nil {
+		return err
+	}
+	return f.SetPixelData(out)
 }
 
 // associate opens one Storage association for a worker. The AE is built per association so each
