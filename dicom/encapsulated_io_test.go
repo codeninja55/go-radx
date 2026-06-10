@@ -329,6 +329,134 @@ func TestStopAtPixelDataOnEncapsulatedFile(t *testing.T) {
 	}
 }
 
+// TestSetPixelDataTranscodeRoundTrip is the dataset-level transcode acceptance:
+// decode -> re-encode -> write must work end to end through the public seam
+// (NewPixelData -> Transcode -> File.SetPixelData -> Write), in both directions.
+// MR2_UNCI.dcm is a conformant uncompressed 16-bit MR image; the chain compresses
+// it to RLE Lossless, writes and re-reads the compressed file, decompresses it back
+// to Explicit VR LE, writes and re-reads again, and requires pixel-exact frames.
+func TestSetPixelDataTranscodeRoundTrip(t *testing.T) {
+	f, err := ReadFile(filepath.Join("..", "testdata", "dicom", "MR2_UNCI.dcm"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	pd, err := NewPixelData(f.DataSet, f.Meta.TransferSyntaxUID)
+	if err != nil {
+		t.Fatalf("NewPixelData: %v", err)
+	}
+	wantFrames := collectFrames(t, pd)
+
+	// Compress: native -> RLE Lossless -> Part 10 file.
+	rle, err := Transcode(pd, RLELossless)
+	if err != nil {
+		t.Fatalf("Transcode to RLE: %v", err)
+	}
+	if err := f.SetPixelData(rle); err != nil {
+		t.Fatalf("SetPixelData(RLE): %v", err)
+	}
+	if f.Meta.TransferSyntaxUID != RLELossless {
+		t.Errorf("SetPixelData left TransferSyntaxUID = %q, want RLE Lossless", f.Meta.TransferSyntaxUID)
+	}
+	dir := t.TempDir()
+	rlePath := filepath.Join(dir, "rle.dcm")
+	if err := WriteFile(rlePath, f); err != nil {
+		t.Fatalf("WriteFile(RLE): %v", err)
+	}
+
+	// Decompress: re-read the compressed file, transcode back, write again.
+	compressed, err := ReadFile(rlePath)
+	if err != nil {
+		t.Fatalf("re-ReadFile(RLE): %v", err)
+	}
+	if compressed.Meta.TransferSyntaxUID != RLELossless {
+		t.Fatalf("re-read TransferSyntaxUID = %q, want RLE Lossless", compressed.Meta.TransferSyntaxUID)
+	}
+	cpd, err := NewPixelData(compressed.DataSet, compressed.Meta.TransferSyntaxUID)
+	if err != nil {
+		t.Fatalf("NewPixelData(RLE): %v", err)
+	}
+	native, err := Transcode(cpd, ExplicitVRLittleEndian)
+	if err != nil {
+		t.Fatalf("Transcode to native: %v", err)
+	}
+	if err := compressed.SetPixelData(native); err != nil {
+		t.Fatalf("SetPixelData(native): %v", err)
+	}
+	nativePath := filepath.Join(dir, "native.dcm")
+	if err := WriteFile(nativePath, compressed); err != nil {
+		t.Fatalf("WriteFile(native): %v", err)
+	}
+
+	got, err := ReadFile(nativePath)
+	if err != nil {
+		t.Fatalf("re-ReadFile(native): %v", err)
+	}
+	if got.Meta.TransferSyntaxUID != ExplicitVRLittleEndian {
+		t.Errorf("final TransferSyntaxUID = %q, want Explicit VR LE", got.Meta.TransferSyntaxUID)
+	}
+	gotPD, err := NewPixelData(got.DataSet, got.Meta.TransferSyntaxUID)
+	if err != nil {
+		t.Fatalf("NewPixelData after round-trip: %v", err)
+	}
+	gotFrames := collectFrames(t, gotPD)
+	if len(gotFrames) != len(wantFrames) {
+		t.Fatalf("frame count %d != %d", len(gotFrames), len(wantFrames))
+	}
+	for i := range wantFrames {
+		if !bytes.Equal(gotFrames[i], wantFrames[i]) {
+			t.Errorf("frame %d pixels differ after compress/decompress round-trip", i)
+		}
+	}
+}
+
+// TestSetPixelDataRemovesStaleExtendedOffsets pins the staleness rule: replacing the
+// pixel stream drops the Extended Offset Table elements, which describe the previous
+// stream's byte layout.
+func TestSetPixelDataRemovesStaleExtendedOffsets(t *testing.T) {
+	f, err := ReadFile(filepath.Join("..", "testdata", "dicom", "liver_rle.dcm"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	pd, err := NewPixelData(f.DataSet, f.Meta.TransferSyntaxUID)
+	if err != nil {
+		t.Fatalf("NewPixelData: %v", err)
+	}
+	native, err := Transcode(pd, ExplicitVRLittleEndian)
+	if err != nil {
+		t.Fatalf("Transcode: %v", err)
+	}
+	f.DataSet.Set(Element{Tag: TagExtendedOffsetTable, VR: VROV, Value: NewBytes(VROV, make([]byte, 8))})
+	f.DataSet.Set(Element{Tag: TagExtendedOffsetTableLengths, VR: VROV, Value: NewBytes(VROV, make([]byte, 8))})
+	if err := f.SetPixelData(native); err != nil {
+		t.Fatalf("SetPixelData: %v", err)
+	}
+	if _, ok := f.DataSet.Get(TagExtendedOffsetTable); ok {
+		t.Error("stale ExtendedOffsetTable survived SetPixelData")
+	}
+	if _, ok := f.DataSet.Get(TagExtendedOffsetTableLengths); ok {
+		t.Error("stale ExtendedOffsetTableLengths survived SetPixelData")
+	}
+}
+
+// TestSetPixelDataGuards pins the typed-error guards on the transcode seam.
+func TestSetPixelDataGuards(t *testing.T) {
+	f, err := ReadFile(filepath.Join("..", "testdata", "dicom", "liver_rle.dcm"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if err := f.SetPixelData(nil); err == nil {
+		t.Error("SetPixelData(nil) should fail")
+	}
+	var nilFile *File
+	pd, err := NewPixelData(f.DataSet, f.Meta.TransferSyntaxUID)
+	if err != nil {
+		t.Fatalf("NewPixelData: %v", err)
+	}
+	if err := nilFile.SetPixelData(pd); err == nil {
+		t.Error("SetPixelData on a nil File should fail")
+	}
+}
+
 // TestDataSetCloneCopiesEncapsulatedStream checks the retained fragment stream is
 // deep-copied by Clone, never aliased.
 func TestDataSetCloneCopiesEncapsulatedStream(t *testing.T) {

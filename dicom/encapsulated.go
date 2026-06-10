@@ -43,6 +43,36 @@ func (v *encapsulatedValue) VR() VR { return VROB }
 // Delimitation Item its stream ends with (PS3.5 A.4).
 func (v *encapsulatedValue) EncodedLen(binary.ByteOrder) uint32 { return undefinedLength }
 
+// encodeStream serialises the parsed fragment stream back into the verbatim
+// item-stream form the writer emits: the Basic Offset Table item, each fragment
+// item, and the Sequence Delimitation Item (PS3.5 A.4). It is the bridge that lets
+// a Transcode result re-enter a DataSet (File.SetPixelData). Item lengths are
+// 32-bit fields, so a table or fragment past maxValueFieldLen is a typed error; an
+// odd fragment cannot be represented (PS3.5 item values are even) and fails closed.
+func (e *encapsulated) encodeStream() ([]byte, error) {
+	if int64(len(e.bot))*4 > maxValueFieldLen {
+		return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "Basic Offset Table exceeds the 32-bit item length"}
+	}
+	out := appendDelimiterHeader(nil, tagItem, uint32(4*len(e.bot)), ExplicitVRLittleEndian) // #nosec G115 -- bounded by the maxValueFieldLen guard above
+	var entry [4]byte
+	for _, off := range e.bot {
+		binary.LittleEndian.PutUint32(entry[:], off)
+		out = append(out, entry[:]...)
+	}
+	for i := range e.fragments {
+		data := e.fragments[i].data
+		if len(data)%2 != 0 {
+			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "fragment length is odd; encapsulated item values must be even"}
+		}
+		if int64(len(data)) > maxValueFieldLen {
+			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "fragment exceeds the 32-bit item length"}
+		}
+		out = appendDelimiterHeader(out, tagItem, uint32(len(data)), ExplicitVRLittleEndian) // #nosec G115 -- bounded by the maxValueFieldLen guard above
+		out = append(out, data...)
+	}
+	return appendDelimiterHeader(out, tagSequenceDelimit, 0, ExplicitVRLittleEndian), nil
+}
+
 // frameRange names the fragments that compose one frame as a half-open fragment
 // index range [first, last).
 type frameRange struct {
