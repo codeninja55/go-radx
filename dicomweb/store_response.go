@@ -2,6 +2,7 @@ package dicomweb
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -58,7 +59,7 @@ func parseStoreResponse(ds *dicom.DataSet) *StoreResponse {
 		resp.RetrieveURL = url
 	}
 	if reason, ok := ds.GetInt(dicom.TagFailureReason); ok {
-		resp.OtherFailure = uint16(reason)
+		resp.OtherFailure = usOrZero(reason)
 	}
 	if seq, ok := ds.GetSequence(dicom.TagReferencedSOPSequence); ok {
 		for item := range seq.Items() {
@@ -72,7 +73,7 @@ func parseStoreResponse(ds *dicom.DataSet) *StoreResponse {
 					SOPInstanceUID: dicom.SOPInstanceUID(instance),
 				},
 				RetrieveURL:   url,
-				WarningReason: uint16(warn),
+				WarningReason: usOrZero(warn),
 			})
 		}
 	}
@@ -86,11 +87,21 @@ func parseStoreResponse(ds *dicom.DataSet) *StoreResponse {
 					SOPClassUID:    dicom.SOPClassUID(class),
 					SOPInstanceUID: dicom.SOPInstanceUID(instance),
 				},
-				FailureReason: uint16(reason),
+				FailureReason: usOrZero(reason),
 			})
 		}
 	}
 	return resp
+}
+
+// usOrZero narrows a US (0..65535) reason code from an untrusted origin response. A
+// non-conformant wider value is reported as 0 (unknown) rather than truncated to a
+// misleading registered code.
+func usOrZero(v int64) uint16 {
+	if v < 0 || v > math.MaxUint16 {
+		return 0
+	}
+	return uint16(v)
 }
 
 // StoreError reports a STOW-RS transfer in which one or more instances were rejected. It

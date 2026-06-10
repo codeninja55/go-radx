@@ -3,6 +3,7 @@ package dicom
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 )
 
 // RLE Lossless (PS3.5 Annex G). Each frame is a 64-byte header of sixteen
@@ -169,7 +170,7 @@ func unpackBits(src []byte, want int) ([]byte, error) {
 	out := make([]byte, 0, want)
 	i := 0
 	for i < len(src) && len(out) < want {
-		n := int8(src[i])
+		n := int8(src[i]) // #nosec G115 -- same-width reinterpretation: the PackBits control byte is signed per PS3.5 G.3
 		i++
 		switch {
 		case n >= 0:
@@ -186,7 +187,7 @@ func unpackBits(src []byte, want int) ([]byte, error) {
 			if i >= len(src) {
 				return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "RLE replicate run missing its byte"}
 			}
-			v := src[i]
+			v := src[i] // #nosec G602 -- guarded by the i >= len(src) check immediately above
 			i++
 			for k := 0; k < count; k++ {
 				out = append(out, v)
@@ -216,13 +217,18 @@ func encodeRLEFrame(frame []byte, geom PixelGeometry) ([]byte, error) {
 	stride := samples * bytesPerSample
 
 	header := make([]byte, rleHeaderLen)
-	binary.LittleEndian.PutUint32(header[0:4], uint32(segments))
+	binary.LittleEndian.PutUint32(header[0:4], uint32(segments)) // #nosec G115 -- rleSegmentCount bounds segments to 1..15
 
 	var body []byte
 	for seg := 0; seg < segments; seg++ {
 		// The header records each segment's offset from the start of the frame; the
-		// first segment begins immediately after the 64-byte header.
-		binary.LittleEndian.PutUint32(header[4+seg*4:8+seg*4], uint32(rleHeaderLen+len(body)))
+		// first segment begins immediately after the 64-byte header. Offsets are
+		// 32-bit fields (PS3.5 Annex G), so a frame whose encoding grows past that
+		// cannot be represented in RLE at all.
+		if int64(rleHeaderLen)+int64(len(body)) > math.MaxUint32 {
+			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "RLE segment offset exceeds the 32-bit header field"}
+		}
+		binary.LittleEndian.PutUint32(header[4+seg*4:8+seg*4], uint32(rleHeaderLen+len(body))) // #nosec G115 -- bounded by the MaxUint32 check above
 
 		sample := seg / bytesPerSample
 		bytePlane := seg % bytesPerSample
@@ -260,6 +266,7 @@ func packBits(src []byte) []byte {
 			runLen++
 		}
 		if runLen >= 3 {
+			// #nosec G115 -- same-width reinterpretation: runLen is 3..128 so 1-runLen fits int8 (PS3.5 G.3)
 			out = append(out, byte(int8(1-runLen)), src[i])
 			i += runLen
 			continue
@@ -274,7 +281,7 @@ func packBits(src []byte) []byte {
 			i++
 		}
 		litLen := i - start
-		out = append(out, byte(int8(litLen-1)))
+		out = append(out, byte(int8(litLen-1))) // #nosec G115 -- same-width reinterpretation: litLen is 1..128 so litLen-1 fits int8 (PS3.5 G.3)
 		out = append(out, src[start:i]...)
 	}
 	return out

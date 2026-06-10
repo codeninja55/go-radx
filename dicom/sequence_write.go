@@ -18,6 +18,12 @@ func encodeSequenceValue(w io.Writer, seq *Sequence, ts TransferSyntax) (uint32,
 		if err != nil {
 			return n, err
 		}
+		// The running total feeds a defined-length SQ header's 32-bit field; reject a
+		// sequence that grows past it rather than wrapping the recorded length. The cap
+		// is 0xFFFFFFFE: 0xFFFFFFFF is the undefined-length sentinel (PS3.5 §7.1.1).
+		if written > uint32(maxValueFieldLen)-n {
+			return n, &ValueError{Tag: tagItem, VR: VRSQ, Msg: "sequence value field exceeds the 32-bit element length"}
+		}
 		n += written
 	}
 	if seq.undefinedLength {
@@ -39,10 +45,19 @@ func encodeItem(w io.Writer, it Item, ts TransferSyntax) (uint32, error) {
 	if err := writeDataSet(&body, it.DataSet, ts); err != nil {
 		return 0, err
 	}
+	// The item length and the caller's running sequence length are 32-bit fields
+	// (PS3.5 §7.5); an item body past that cannot be represented, and exactly
+	// 0xFFFFFFFF would collide with the undefined-length sentinel (PS3.5 §7.1.1).
+	// The cap reserves the item's framing too (8-byte header plus an optional
+	// 8-byte delimiter), so the returned byte count cannot wrap the 32-bit
+	// accounting the running sequence length is summed in.
+	if int64(body.Len()) > maxValueFieldLen-16 {
+		return 0, &ValueError{Tag: tagItem, VR: VRSQ, Msg: "sequence item exceeds the 32-bit length field"}
+	}
 
 	itemLen := undefinedLength
 	if !it.undefinedLength {
-		itemLen = uint32(body.Len())
+		itemLen = uint32(body.Len()) // #nosec G115 -- bounded by the maxValueFieldLen check above
 	}
 
 	var n uint32
@@ -53,7 +68,7 @@ func encodeItem(w io.Writer, it Item, ts TransferSyntax) (uint32, error) {
 	n += written
 
 	bw, err := w.Write(body.Bytes())
-	n += uint32(bw)
+	n += uint32(bw) // #nosec G115 -- bw <= body.Len(), bounded by the MaxUint32 check above
 	if err != nil {
 		return n, err
 	}
@@ -77,7 +92,7 @@ func writeDelimiterHeader(w io.Writer, tag Tag, length uint32, ts TransferSyntax
 	bo.PutUint16(b[2:4], tag.Element())
 	bo.PutUint32(b[4:8], length)
 	n, err := w.Write(b[:])
-	return uint32(n), err
+	return uint32(n), err // #nosec G115 -- n <= 8 (the fixed header size)
 }
 
 // sequenceEncodedLen returns the value-field byte length the sequence serialises to

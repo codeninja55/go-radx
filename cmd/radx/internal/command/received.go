@@ -50,7 +50,8 @@ func writeReceivedRawInstance(root string, ds *dicom.DataSet, encoded []byte) er
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, encoded, 0o640)
+	// 0o600: a received instance may carry PHI, so it is readable by the owner only.
+	return os.WriteFile(path, encoded, 0o600)
 }
 
 // receivedInstancePath validates the dataset's Study/Series/SOP UIDs as path-safe segments and

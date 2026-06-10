@@ -483,3 +483,109 @@ func TestServerRejectsOversizeFrame(t *testing.T) {
 		t.Fatalf("Send after oversize rejection: %v", err)
 	}
 }
+
+// legacyTLSListener simulates a legacy peer limited to TLS 1.1 (the peer is not this
+// library): a raw TLS listener that completes handshakes and discards connections.
+func legacyTLSListener(t *testing.T, cert tls.Certificate) net.Listener {
+	t.Helper()
+	ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS10,
+		MaxVersion:   tls.VersionTLS11,
+	})
+	if err != nil {
+		t.Fatalf("tls.Listen (legacy peer): %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.(*tls.Conn).Handshake()
+			_ = conn.Close()
+		}
+	}()
+	return ln
+}
+
+// TestClientTLSFloorRefusesDowngradedServer asserts the MLLP client's TLS 1.2 floor: against a
+// legacy server limited to TLS 1.1, a client whose caller config pins a weak 1.0 floor still
+// cannot complete the handshake, because the library clamps the floor up to 1.2 (the dimse AE
+// pattern). The control proves the legacy listener genuinely negotiates 1.1 with a willing peer,
+// so the failure is the floor, not a broken fixture.
+func TestClientTLSFloorRefusesDowngradedServer(t *testing.T) {
+	cert, pool := selfSignedCert(t)
+	ln := legacyTLSListener(t, cert)
+
+	// Control: a raw 1.1-willing dialer handshakes with the legacy listener.
+	probe, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
+		RootCAs: pool, ServerName: "127.0.0.1",
+		MinVersion: tls.VersionTLS10, MaxVersion: tls.VersionTLS11,
+	})
+	if err != nil {
+		t.Fatalf("control 1.1 handshake against the legacy listener failed: %v", err)
+	}
+	_ = probe.Close()
+
+	// The caller pins a weak 1.0 floor; the library must clamp it to 1.2, so the
+	// handshake against the 1.1-limited peer fails rather than downgrading.
+	clientTLS := &tls.Config{RootCAs: pool, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS10}
+	if _, err := NewClient(ln.Addr().String(), WithClientTLS(clientTLS)); err == nil {
+		t.Fatal("NewClient completed a handshake with a TLS 1.1-limited peer, want the 1.2 floor to reject it")
+	}
+}
+
+// TestServerTLSFloorRefusesDowngradedClient is the server half of the floor: an MLLP server whose
+// caller config pins a weak 1.0 floor still rejects a TLS 1.1-limited client, because the listener
+// clamps the floor up to 1.2. The control proves the same listener accepts a 1.2 client, so the
+// rejection is the version, not a broken fixture.
+func TestServerTLSFloorRefusesDowngradedClient(t *testing.T) {
+	cert, pool := selfSignedCert(t)
+	// Caller PINS a weak floor (TLS 1.0); the listener must clamp it up to 1.2.
+	serverTLS := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS10}
+
+	srv := NewServer(nil, WithServerTLS(serverTLS))
+	go func() { _ = srv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, srv)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}()
+
+	legacy := &tls.Config{
+		RootCAs: pool, ServerName: "127.0.0.1",
+		MinVersion: tls.VersionTLS10, MaxVersion: tls.VersionTLS11,
+	}
+	if conn, err := tls.Dial("tcp", srv.Addr().String(), legacy); err == nil {
+		_ = conn.Close()
+		t.Fatal("a TLS 1.1-limited client completed a handshake, want the clamped 1.2 floor to reject it")
+	}
+
+	// Control: a 1.2 client handshakes against the same listener.
+	modern := &tls.Config{RootCAs: pool, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS12}
+	conn, err := tls.Dial("tcp", srv.Addr().String(), modern)
+	if err != nil {
+		t.Fatalf("control 1.2 handshake against the clamped listener failed: %v", err)
+	}
+	_ = conn.Close()
+}
+
+// TestTLSConfigFloorEdges verifies the clamp contract's edges: a nil config stays
+// nil (plain TCP), a caller-pinned floor above 1.2 is preserved, and the caller's
+// config is cloned rather than mutated.
+func TestTLSConfigFloorEdges(t *testing.T) {
+	if got := tlsConfigWithFloor(nil); got != nil {
+		t.Fatalf("tlsConfigWithFloor(nil) = %v, want nil", got)
+	}
+	pinned := &tls.Config{MinVersion: tls.VersionTLS13}
+	out := tlsConfigWithFloor(pinned)
+	if out.MinVersion != tls.VersionTLS13 {
+		t.Fatalf("MinVersion = %#x, want TLS 1.3 preserved", out.MinVersion)
+	}
+	if out == pinned {
+		t.Fatal("tlsConfigWithFloor must clone, not mutate the caller's config")
+	}
+}

@@ -20,8 +20,8 @@ func decodeSequence(br *boundedReader, h elementHeader, ts TransferSyntax, cfg r
 	if depth > cfg.maxSequenceDepth {
 		return nil, &LimitExceededError{
 			Tag:    h.tag,
-			Limit:  uint64(cfg.maxSequenceDepth),
-			Actual: uint64(depth),
+			Limit:  uint64(cfg.maxSequenceDepth), // #nosec G115 -- small non-negative recursion limit
+			Actual: uint64(depth),                // #nosec G115 -- small non-negative recursion counter
 			Kind:   "sequence-depth",
 		}
 	}

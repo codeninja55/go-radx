@@ -15,7 +15,7 @@ func NewTag(group, element uint16) Tag {
 func (t Tag) Group() uint16 { return uint16(t >> 16) }
 
 // Element returns the low 16 bits.
-func (t Tag) Element() uint16 { return uint16(t) }
+func (t Tag) Element() uint16 { return uint16(t) } // #nosec G115 -- intentional low-16-bit extraction of the 32-bit tag
 
 // String renders the canonical (gggg,eeee) form.
 func (t Tag) String() string {

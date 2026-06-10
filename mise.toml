@@ -126,6 +126,11 @@ description = "Run the PHI-default log sweep: fail if a patient identifier reach
 # Scopes to the root module; the sweep uses synthetic sentinels only, never real PHI.
 run = "GOWORK=off go test ./internal/phisweep/..."
 
+[tasks."cred-sweep"]
+description = "Run the credential-leak sweep: fail if an auth secret reaches a sink under default config"
+# Scopes to the root module; the sweep uses synthetic credential sentinels only, never real secrets.
+run = "GOWORK=off go test ./internal/credsweep/..."
+
 [tasks."fuzz"]
 description = "Bounded fuzz smoke over every target (discovered from go test -list, hang = failure)"
 # The target list is DISCOVERED from `go test -list`, not hand-maintained, so it cannot drift out of

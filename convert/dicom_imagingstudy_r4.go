@@ -63,11 +63,11 @@ func DICOMToImagingStudyR4(instances []*dicom.DataSet, opts ...Option) (*r4.Imag
 	series, modalities := groupSeriesR4(instances, report)
 	study.Series = series
 
-	numSeries := int32(len(series))
+	numSeries := int32(len(series)) // #nosec G115 -- a study's in-memory series count is far below int32
 	study.NumberOfSeries = &numSeries
 	var numInstances int32
 	for i := range series {
-		numInstances += int32(len(series[i].Instance))
+		numInstances += int32(len(series[i].Instance)) // #nosec G115 -- a series' in-memory instance count is far below int32
 	}
 	study.NumberOfInstances = &numInstances
 

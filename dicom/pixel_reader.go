@@ -12,7 +12,7 @@ import (
 // fragment stream — into a PixelData. The fragment stream is parsed as a bounded item
 // stream so a malformed object fails with a typed error (Codex DCM-006).
 func ReadPixelData(path string, opts ...ReadOption) (*PixelData, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) // #nosec G304 -- reading a caller-supplied path is this API's contract
 	if err != nil {
 		return nil, err
 	}

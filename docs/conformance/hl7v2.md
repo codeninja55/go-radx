@@ -220,7 +220,10 @@ auto-build a reply. A nil handler installs the default that replies with the `Bu
 error from the handler closes that connection without a reply (used when no meaningful ACK can be produced); the error
 is never logged with payload bytes, so no PHI leaks. The server binds to loopback unless an explicit non-loopback
 address is supplied (PRD §9.1), and supports a configurable maximum frame length, read timeouts, and TLS with peer
-verification (PRD §9.7). `ReadFrame` is bounded: it stops at the end block or at the maximum frame size before the
+verification and a TLS 1.2 floor — a caller-supplied config pinning a weaker `MinVersion` is clamped up to 1.2 on both
+the client dial and the server listener, the same normalisation the `dimse` AE applies (PRD §9.7); downgrade regression
+tests in `mllp_conn_test.go` prove a TLS 1.1-limited peer cannot complete the handshake.
+`ReadFrame` is bounded: it stops at the end block or at the maximum frame size before the
 payload buffer can grow without limit, so a peer that never sends an end block cannot drive an unbounded allocation.
 Type and option signatures are in the API reference.
 

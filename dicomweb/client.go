@@ -359,7 +359,7 @@ func (c *Client) retrieveSingleInstance(ctx context.Context, p ResourcePath, cap
 	}
 	req.Header.Set("Accept", acceptInstances(c.transferSyntaxes...))
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req) // #nosec G704 -- the URL is joined from the caller-configured base URL (newRequest); requesting the configured service is the client's purpose
 	if err != nil {
 		return RetrievedInstance{}, c.transportError(http.MethodGet, path, err)
 	}
@@ -409,7 +409,7 @@ func (c *Client) parseStoreResponseBody(resp *http.Response) (*StoreResponse, er
 // *http.Request (PRD §9.8).
 func (c *Client) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	url := c.baseURL + path
-	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	req, err := http.NewRequestWithContext(ctx, method, url, body) // #nosec G704 -- the URL is joined from the caller-configured base URL; requesting the configured service is the client's purpose
 	if err != nil {
 		return nil, fmt.Errorf("dicomweb: build %s request: %w", method, err)
 	}
@@ -440,8 +440,8 @@ func (cr *cappedReader) Read(p []byte) (int, error) {
 		n, err := cr.r.Read(probe[:])
 		if n > 0 {
 			return 0, &LimitExceededError{
-				Limit:  uint64(cr.limit),
-				Actual: uint64(cr.limit) + 1,
+				Limit:  uint64(cr.limit),     // #nosec G115 -- limit is a non-negative configured byte cap
+				Actual: uint64(cr.limit) + 1, // #nosec G115 -- limit is a non-negative configured byte cap
 				Kind:   "response-body-bytes",
 			}
 		}

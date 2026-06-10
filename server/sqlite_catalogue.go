@@ -239,7 +239,7 @@ func (c *sqliteCatalogue) migrate(ctx context.Context) error {
 		}
 		cols = append(cols, ic.column+" TEXT")
 	}
-	stmt := "CREATE TABLE IF NOT EXISTS instances (" + strings.Join(cols, ", ") + ")"
+	stmt := "CREATE TABLE IF NOT EXISTS instances (" + strings.Join(cols, ", ") + ")" // #nosec G202 -- column names come only from the compile-time indexedColumns table
 	if _, err := c.db.ExecContext(ctx, stmt); err != nil {
 		return fmt.Errorf("server: migrate catalogue: %w", err)
 	}
@@ -267,6 +267,7 @@ func (c *sqliteCatalogue) Index(ctx context.Context, ds *dicom.DataSet) error {
 		placeholders = append(placeholders, "?")
 		args = append(args, v)
 	}
+	// #nosec G201 -- column names come only from the compile-time indexedColumns table; all values bind via ? placeholders
 	stmt := fmt.Sprintf("INSERT OR REPLACE INTO instances (%s) VALUES (%s)",
 		strings.Join(cols, ", "), strings.Join(placeholders, ", "))
 	if _, err := c.db.ExecContext(ctx, stmt, args...); err != nil {
@@ -294,7 +295,7 @@ func (c *sqliteCatalogue) Query(ctx context.Context, q CatalogueQuery) iter.Seq2
 		// level-projected subset that would drop the attribute the query constrains on.
 		keys := c.matchKeys(q.Match)
 		where, args := c.buildWhere(q.Match)
-		stmt := c.buildSelect(indexedColumns) + where
+		stmt := c.buildSelect(indexedColumns) + where // #nosec G202 -- buildSelect/buildWhere interpolate only indexedColumns names; match values bind via ? placeholders
 
 		rows, err := c.db.QueryContext(ctx, stmt, args...)
 		if err != nil {

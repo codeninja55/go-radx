@@ -165,7 +165,7 @@ func (c *OrganizeCmd) place(src, dest string) error {
 // handle and returned out.Close() last, so a Close failure left a truncated .dcm behind that a later
 // run treated as an existing destination — violating successful-or-nothing for clinical data.
 func copyFileAtomic(src, dest string, overwrite bool) error {
-	in, err := os.Open(src)
+	in, err := os.Open(src) // #nosec G304 -- copying the user-specified source file is the CLI's purpose
 	if err != nil {
 		return err
 	}

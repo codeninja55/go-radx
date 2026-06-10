@@ -262,7 +262,7 @@ func readMessageInput(path string, stdin io.Reader) ([]byte, error) {
 	if path == "" || path == "-" {
 		return io.ReadAll(stdin)
 	}
-	return os.ReadFile(path)
+	return os.ReadFile(path) // #nosec G304 -- reading the user-specified input file is the CLI's purpose
 }
 
 // renderMessageType formats an MSH-9 message type as "Code^TriggerEvent" (e.g. "ORU^R01"). It

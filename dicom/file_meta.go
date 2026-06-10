@@ -3,6 +3,7 @@ package dicom
 import (
 	"bytes"
 	"fmt"
+	"math"
 )
 
 // fileMetaTransferSyntax is the fixed encoding of the File Meta Information group:
@@ -61,14 +62,17 @@ func readFileMeta(br *boundedReader) (*FileMeta, error) {
 		return nil, fmt.Errorf("dicom: %s File Meta Information Group Length is not a single UL value", tagFileMetaGroupLength)
 	}
 	groupLen := ints.Ints()[0]
-	if groupLen < 0 {
-		return nil, fmt.Errorf("dicom: negative file meta group length")
+	// The group length is a UL (0..2^32-1); GetInt-style decoding can surface a
+	// wider hostile VR, so an out-of-range value is rejected rather than truncated
+	// into a wrong parse boundary.
+	if groupLen < 0 || groupLen > int64(math.MaxUint32) {
+		return nil, fmt.Errorf("dicom: file meta group length %d outside the UL range", groupLen)
 	}
 
 	// Read exactly groupLen bytes; that hard boundary is what keeps file-meta
 	// parsing from spilling into the main dataset, and a short read here is a
 	// truncated file (Codex DCM-003).
-	groupBytes, err := br.readN(uint32(groupLen))
+	groupBytes, err := br.readN(uint32(groupLen)) // #nosec G115 -- bounded by the UL range check above
 	if err != nil {
 		return nil, err
 	}

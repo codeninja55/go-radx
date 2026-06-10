@@ -145,8 +145,8 @@ func (mr *MultipartReader) NextPart() (contentType string, body io.Reader, err e
 	if mr.count > mr.MaxParts {
 		// Reject before exposing the body, so the offending part is never read in.
 		return "", nil, &LimitExceededError{
-			Limit:  uint64(mr.MaxParts),
-			Actual: uint64(mr.count),
+			Limit:  uint64(mr.MaxParts), // #nosec G115 -- non-negative configured part cap
+			Actual: uint64(mr.count),    // #nosec G115 -- non-negative part counter
 			Kind:   "multipart-part-count",
 		}
 	}
@@ -182,8 +182,8 @@ func (b *boundedPartReader) Read(p []byte) (int, error) {
 		n, err := b.part.Read(probe[:])
 		if n > 0 {
 			return 0, &LimitExceededError{
-				Limit:  uint64(b.limit),
-				Actual: uint64(b.limit) + 1,
+				Limit:  uint64(b.limit),     // #nosec G115 -- limit is a non-negative configured byte cap
+				Actual: uint64(b.limit) + 1, // #nosec G115 -- limit is a non-negative configured byte cap
 				Kind:   "multipart-part-bytes",
 			}
 		}

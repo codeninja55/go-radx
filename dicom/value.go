@@ -61,11 +61,12 @@ func (v *Strings) Strings() []string {
 // A value retaining its verbatim raw bytes reports their length unchanged.
 func (v *Strings) EncodedLen(binary.ByteOrder) uint32 {
 	if v.raw != nil {
-		return uint32(len(v.raw))
+		return uint32(len(v.raw)) // #nosec G115 -- raw is only set on the read path from a 32-bit length field
 	}
 	if len(v.vals) == 0 {
 		return 0
 	}
+	// #nosec G115 -- a value past maxValueFieldLen truncates here, but encodePadded's guard then fails the element's write before any value bytes, so a successful write never carries a truncated length
 	n := uint32(len(strings.Join(v.vals, `\`)))
 	if n%2 == 1 {
 		if _, ok := v.vr.PadByte(); ok {
@@ -98,6 +99,7 @@ func (v *Ints) Ints() []int64 {
 }
 
 func (v *Ints) EncodedLen(binary.ByteOrder) uint32 {
+	// #nosec G115 -- a value past maxValueFieldLen truncates here, but encodeInts's guard then fails the element's write before any value bytes, so a successful write never carries a truncated length
 	return uint32(len(v.vals)) * uint32(intSize(v.vr))
 }
 
@@ -142,6 +144,7 @@ func (v *Floats) EncodedLen(binary.ByteOrder) uint32 {
 	if v.vr == VRFD || v.vr == VROD {
 		size = 8
 	}
+	// #nosec G115 -- a value past maxValueFieldLen truncates here, but encodeFloats's guard then fails the element's write before any value bytes, so a successful write never carries a truncated length
 	return uint32(len(v.vals)) * uint32(size)
 }
 
@@ -177,6 +180,7 @@ func (v *Decimals) EncodedLen(binary.ByteOrder) uint32 {
 	for i, d := range v.vals {
 		parts[i] = d.String()
 	}
+	// #nosec G115 -- a value past maxValueFieldLen truncates here, but encodePadded's guard then fails the element's write before any value bytes, so a successful write never carries a truncated length
 	n := uint32(len(strings.Join(parts, `\`)))
 	if n%2 == 1 {
 		n++
@@ -205,7 +209,10 @@ func (v *Tags) Tags() []Tag {
 	return cp
 }
 
-func (v *Tags) EncodedLen(binary.ByteOrder) uint32 { return uint32(len(v.vals)) * 4 }
+// EncodedLen is four bytes per tag; a value past maxValueFieldLen truncates here,
+// but encodeTags's guard then fails the element's write before any value bytes, so
+// a successful write never carries a truncated length.
+func (v *Tags) EncodedLen(binary.ByteOrder) uint32 { return uint32(len(v.vals)) * 4 } // #nosec G115
 
 // Bytes is the value type for OB OW OL OV UN (length-bounded raw bytes).
 type Bytes struct {
@@ -231,7 +238,7 @@ func (v *Bytes) Bytes() []byte {
 
 // EncodedLen is the byte length padded up to even with a trailing NULL.
 func (v *Bytes) EncodedLen(binary.ByteOrder) uint32 {
-	n := uint32(len(v.b))
+	n := uint32(len(v.b)) // #nosec G115 -- a value past maxValueFieldLen truncates here, but encodeBytes's guard then fails the element's write before any value bytes, so a successful write never carries a truncated length
 	if n%2 == 1 {
 		n++
 	}

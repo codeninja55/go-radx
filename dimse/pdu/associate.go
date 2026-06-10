@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 // Item types for the variable-length sub-items inside association PDUs (PS3.8 §9.3.2).
@@ -141,7 +142,10 @@ func (p *AssociateRQ) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := writeHeader(w, PDUTypeAssociateRQ, uint32(body.Len())); err != nil {
+	if int64(body.Len()) > int64(math.MaxUint32) {
+		return &EncodeError{Detail: fmt.Sprintf("associate-rq body is %d bytes, exceeds the 32-bit PDU length field", body.Len())}
+	}
+	if err := writeHeader(w, PDUTypeAssociateRQ, uint32(body.Len())); err != nil { // #nosec G115 -- bounded by the check above
 		return err
 	}
 	_, werr := w.Write(body.Bytes())
@@ -151,9 +155,13 @@ func (p *AssociateRQ) Encode(w io.Writer) error {
 func (p *AssociateRQ) encodeBody() (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	writeAssociateFixedFields(&buf, p.ProtocolVersion, p.CalledAETitle, p.CallingAETitle)
-	encodeItem(&buf, ItemTypeApplicationContext, []byte(p.ApplicationContext))
+	if err := encodeItemChecked(&buf, "application-context", ItemTypeApplicationContext, []byte(p.ApplicationContext)); err != nil {
+		return nil, err
+	}
 	for _, pc := range p.PresentationContexts {
-		encodePresentationContextRQ(&buf, pc)
+		if err := encodePresentationContextRQ(&buf, pc); err != nil {
+			return nil, err
+		}
 	}
 	if err := encodeUserInformation(&buf, p.UserInfo); err != nil {
 		return nil, err
@@ -165,14 +173,21 @@ func (p *AssociateRQ) encodeBody() (*bytes.Buffer, error) {
 func (p *AssociateAC) Encode(w io.Writer) error {
 	var buf bytes.Buffer
 	writeAssociateFixedFields(&buf, p.ProtocolVersion, p.CalledAETitle, p.CallingAETitle)
-	encodeItem(&buf, ItemTypeApplicationContext, []byte(p.ApplicationContext))
+	if err := encodeItemChecked(&buf, "application-context", ItemTypeApplicationContext, []byte(p.ApplicationContext)); err != nil {
+		return err
+	}
 	for _, pc := range p.PresentationContexts {
-		encodePresentationContextAC(&buf, pc)
+		if err := encodePresentationContextAC(&buf, pc); err != nil {
+			return err
+		}
 	}
 	if err := encodeUserInformation(&buf, p.UserInfo); err != nil {
 		return err
 	}
-	if err := writeHeader(w, PDUTypeAssociateAC, uint32(buf.Len())); err != nil {
+	if int64(buf.Len()) > int64(math.MaxUint32) {
+		return &EncodeError{Detail: fmt.Sprintf("associate-ac body is %d bytes, exceeds the 32-bit PDU length field", buf.Len())}
+	}
+	if err := writeHeader(w, PDUTypeAssociateAC, uint32(buf.Len())); err != nil { // #nosec G115 -- bounded by the check above
 		return err
 	}
 	_, err := w.Write(buf.Bytes())
@@ -182,7 +197,7 @@ func (p *AssociateAC) Encode(w io.Writer) error {
 // Encode writes the A-ASSOCIATE-RJ PDU (a 4-byte body: reserved, result, source, reason).
 func (p *AssociateRJ) Encode(w io.Writer) error {
 	body := []byte{0x00, p.Result, p.Source, p.Reason}
-	if err := writeHeader(w, PDUTypeAssociateRJ, uint32(len(body))); err != nil {
+	if err := writeHeader(w, PDUTypeAssociateRJ, uint32(len(body))); err != nil { // #nosec G115 -- fixed 4-byte body
 		return err
 	}
 	_, err := w.Write(body)
@@ -363,7 +378,7 @@ func readAssociateFixedFields(br *boundedReader, version *uint16, called, callin
 func encodeItem(buf *bytes.Buffer, itemType byte, data []byte) {
 	var hdr [4]byte
 	hdr[0] = itemType
-	binary.BigEndian.PutUint16(hdr[2:4], uint16(len(data)))
+	binary.BigEndian.PutUint16(hdr[2:4], uint16(len(data))) // #nosec G115 -- the documented caller contract above guarantees len(data) fits the prefix
 	buf.Write(hdr[:])
 	buf.Write(data)
 }
@@ -403,15 +418,19 @@ func readItem(br *boundedReader) (byte, []byte, error) {
 	return hdr[0], data, nil
 }
 
-func encodePresentationContextRQ(out *bytes.Buffer, pc PresentationContextRQ) {
+func encodePresentationContextRQ(out *bytes.Buffer, pc PresentationContextRQ) error {
 	var buf bytes.Buffer
 	buf.WriteByte(pc.ID)
 	buf.Write([]byte{0x00, 0x00, 0x00}) // reserved
-	encodeItem(&buf, ItemTypeAbstractSyntax, []byte(pc.AbstractSyntax))
-	for _, ts := range pc.TransferSyntaxes {
-		encodeItem(&buf, ItemTypeTransferSyntax, []byte(ts))
+	if err := encodeItemChecked(&buf, "abstract-syntax", ItemTypeAbstractSyntax, []byte(pc.AbstractSyntax)); err != nil {
+		return err
 	}
-	encodeItem(out, ItemTypePresentationContextRQ, buf.Bytes())
+	for _, ts := range pc.TransferSyntaxes {
+		if err := encodeItemChecked(&buf, "transfer-syntax", ItemTypeTransferSyntax, []byte(ts)); err != nil {
+			return err
+		}
+	}
+	return encodeItemChecked(out, "presentation-context", ItemTypePresentationContextRQ, buf.Bytes())
 }
 
 func decodePresentationContextRQ(data []byte) (PresentationContextRQ, error) {
@@ -440,7 +459,7 @@ func decodePresentationContextRQ(data []byte) (PresentationContextRQ, error) {
 // encodePresentationContextAC encodes one negotiated context. A rejected context still
 // carries exactly one (insignificant) transfer-syntax sub-item, as PS3.8 §9.3.3.2
 // requires; the prototype omitted it for non-acceptance results (Codex DIMSE-008).
-func encodePresentationContextAC(out *bytes.Buffer, pc PresentationContextAC) {
+func encodePresentationContextAC(out *bytes.Buffer, pc PresentationContextAC) error {
 	var buf bytes.Buffer
 	buf.WriteByte(pc.ID)
 	buf.WriteByte(0x00)      // reserved
@@ -450,8 +469,10 @@ func encodePresentationContextAC(out *bytes.Buffer, pc PresentationContextAC) {
 	if ts == "" {
 		ts = insignificantTransferSyntax
 	}
-	encodeItem(&buf, ItemTypeTransferSyntax, []byte(ts))
-	encodeItem(out, ItemTypePresentationContextAC, buf.Bytes())
+	if err := encodeItemChecked(&buf, "transfer-syntax", ItemTypeTransferSyntax, []byte(ts)); err != nil {
+		return err
+	}
+	return encodeItemChecked(out, "presentation-context", ItemTypePresentationContextAC, buf.Bytes())
 }
 
 func decodePresentationContextAC(data []byte) (PresentationContextAC, error) {
@@ -487,13 +508,19 @@ func encodeUserInformation(out *bytes.Buffer, ui UserInformation) error {
 		encodeItem(&buf, ItemTypeMaxLength, lb[:])
 	}
 	if ui.ImplementationClassUID != "" {
-		encodeItem(&buf, ItemTypeImplementationClassUID, []byte(ui.ImplementationClassUID))
+		if err := encodeItemChecked(&buf, "implementation-class-uid", ItemTypeImplementationClassUID, []byte(ui.ImplementationClassUID)); err != nil {
+			return err
+		}
 	}
 	if ui.ImplementationVersion != "" {
-		encodeItem(&buf, ItemTypeImplementationVersion, []byte(ui.ImplementationVersion))
+		if err := encodeItemChecked(&buf, "implementation-version", ItemTypeImplementationVersion, []byte(ui.ImplementationVersion)); err != nil {
+			return err
+		}
 	}
 	for _, rs := range ui.RoleSelections {
-		encodeRoleSelection(&buf, rs)
+		if err := encodeRoleSelection(&buf, rs); err != nil {
+			return err
+		}
 	}
 	if ui.AsyncOps != nil {
 		encodeAsyncOperations(&buf, *ui.AsyncOps)
@@ -585,15 +612,14 @@ func decodeUserInformation(data []byte) (UserInformation, error) {
 // encodeRoleSelection writes one SCP/SCU Role Selection sub-item (item type 0x54, PS3.7
 // D.3.3.4): a 2-byte UID length, the SOP Class UID bytes, then the 1-byte SCU-role and
 // 1-byte SCP-role flags.
-func encodeRoleSelection(out *bytes.Buffer, rs RoleSelection) {
+func encodeRoleSelection(out *bytes.Buffer, rs RoleSelection) error {
 	var body bytes.Buffer
-	var lb [2]byte
-	binary.BigEndian.PutUint16(lb[:], uint16(len(rs.SOPClassUID)))
-	body.Write(lb[:])
-	body.WriteString(rs.SOPClassUID)
+	if err := writeUIDField(&body, "role-selection sop-class-uid", rs.SOPClassUID); err != nil {
+		return err
+	}
 	body.WriteByte(boolToFlag(rs.SCURole))
 	body.WriteByte(boolToFlag(rs.SCPRole))
-	encodeItem(out, ItemTypeRoleSelection, body.Bytes())
+	return encodeItemChecked(out, "role-selection", ItemTypeRoleSelection, body.Bytes())
 }
 
 // decodeRoleSelection parses one role-selection sub-item body, validating the declared UID

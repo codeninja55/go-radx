@@ -120,7 +120,7 @@ func (r *DICOMwebRole) start(ctx context.Context, host string, env roleEnv) erro
 		return err
 	}
 	r.setBound(ln.Addr())
-	r.srv = &http.Server{Handler: handler}
+	r.srv = &http.Server{Handler: handler, ReadHeaderTimeout: readHeaderTimeout}
 	go func() { _ = r.srv.Serve(ln) }()
 	return nil
 }
@@ -150,13 +150,19 @@ func (r *DICOMwebRole) shutdown(ctx context.Context) error {
 
 // listen binds a TCP listener at addr, wrapping it in a TLS listener when cfg is non-nil so an HTTP
 // role terminates TLS before serving (PRD §9.7). The bind is loopback-resolved by the caller, so addr
-// already names a concrete host.
+// already names a concrete host. The TLS 1.2 floor WithTLS documents is enforced here for the HTTP
+// roles (the DIMSE role inherits the dimse AE clamp, the MLLP role the hl7v2 clamp): the caller's
+// config is cloned and any MinVersion below 1.2 is raised, a higher pinned floor preserved.
 func listen(addr string, cfg *tls.Config) (net.Listener, error) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
 	if cfg != nil {
+		cfg = cfg.Clone()
+		if cfg.MinVersion < tls.VersionTLS12 {
+			cfg.MinVersion = tls.VersionTLS12
+		}
 		ln = tls.NewListener(ln, cfg)
 	}
 	return ln, nil

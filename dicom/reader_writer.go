@@ -11,7 +11,7 @@ import (
 
 // ReadFile opens path and parses it as a Part 10 file.
 func ReadFile(path string, opts ...ReadOption) (*File, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- reading a caller-supplied path is this API's contract
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func Read(r io.Reader, opts ...ReadOption) (*File, error) {
 
 // WriteFile encodes f to path in f.Meta.TransferSyntaxUID.
 func WriteFile(path string, f *File, opts ...WriteOption) error {
-	out, err := os.Create(path)
+	out, err := os.Create(path) // #nosec G304 -- writing a caller-supplied path is this API's contract
 	if err != nil {
 		return err
 	}

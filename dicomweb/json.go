@@ -560,8 +560,8 @@ func isJSONEndOfInput(err error) bool {
 func unmarshalObject(doc map[string]jsonElement, cfg *jsonConfig, depth int) (*dicom.DataSet, error) {
 	if depth > cfg.maxDepth {
 		return nil, &LimitExceededError{
-			Limit:  uint64(cfg.maxDepth),
-			Actual: uint64(depth),
+			Limit:  uint64(cfg.maxDepth), // #nosec G115 -- small non-negative configured depth cap
+			Actual: uint64(depth),        // #nosec G115 -- small non-negative recursion counter
 			Kind:   "json-sequence-depth",
 		}
 	}
@@ -930,8 +930,8 @@ func decodeATValue(raw json.RawMessage) (dicom.Tag, error) {
 func decodeSequence(vals []json.RawMessage, cfg *jsonConfig, depth int) (dicom.Value, error) {
 	if len(vals) > 0 && depth+1 > cfg.maxDepth {
 		return nil, &LimitExceededError{
-			Limit:  uint64(cfg.maxDepth),
-			Actual: uint64(depth + 1),
+			Limit:  uint64(cfg.maxDepth), // #nosec G115 -- small non-negative configured depth cap
+			Actual: uint64(depth + 1),    // #nosec G115 -- small non-negative recursion counter
 			Kind:   "json-sequence-depth",
 		}
 	}

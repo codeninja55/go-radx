@@ -278,3 +278,51 @@ func mustDecimals(t *testing.T, ss ...string) Value {
 	}
 	return NewDecimals(VRDS, ds...)
 }
+
+// TestEncodeIntsRejectsOutOfRangeValue pins the intFits guard: a caller-supplied integer outside
+// its VR's wire width (here 70000 under US, 0..65535) is a typed rejection, never a silent
+// truncation into the output stream.
+func TestEncodeIntsRejectsOutOfRangeValue(t *testing.T) {
+	cases := []struct {
+		name string
+		vr   VR
+		val  int64
+	}{
+		{"US too large", VRUS, 70000},
+		{"US negative", VRUS, -1},
+		{"SS too large", VRSS, 40000},
+		{"UL negative", VRUL, -1},
+		{"SL too large", VRSL, 1 << 40},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := encodeValue(io.Discard, NewInts(tc.vr, tc.val), encodingFor(ExplicitVRLittleEndian))
+			var verr *ValueError
+			if !errors.As(err, &verr) {
+				t.Fatalf("encodeValue(%s, %d): err = %v, want *ValueError", tc.vr, tc.val, err)
+			}
+		})
+	}
+}
+
+// TestEncodeIntsRoundTripsFullWidth64 pins the SV/UV exemption: the full 64-bit values, including
+// a UV bit pattern above MaxInt64 carried as a reinterpreted negative int64, encode without error
+// and round-trip bit-exactly.
+func TestEncodeIntsRoundTripsFullWidth64(t *testing.T) {
+	for _, vr := range []VR{VRSV, VRUV} {
+		var buf bytes.Buffer
+		want := []int64{-1, 0, 1 << 62}
+		if _, err := encodeValue(&buf, NewInts(vr, want...), encodingFor(ExplicitVRLittleEndian)); err != nil {
+			t.Fatalf("encodeValue(%s): %v", vr, err)
+		}
+		got := decodeInts(vr, buf.Bytes(), binary.LittleEndian).(*Ints).Ints()
+		if len(got) != len(want) {
+			t.Fatalf("%s round-trip length = %d, want %d", vr, len(got), len(want))
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("%s round-trip[%d] = %d, want %d", vr, i, got[i], want[i])
+			}
+		}
+	}
+}

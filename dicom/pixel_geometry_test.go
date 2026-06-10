@@ -1,6 +1,9 @@
 package dicom
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestResolvePixelGeometryFromImagePixelModule(t *testing.T) {
 	ds := NewDataSet()
@@ -78,6 +81,21 @@ func TestResolvePixelGeometryRejectsMissingDimensions(t *testing.T) {
 
 	if _, err := ResolvePixelGeometry(ds, ExplicitVRLittleEndian); err == nil {
 		t.Fatal("expected an error for a dataset missing Rows/Columns")
+	}
+}
+
+// TestResolvePixelGeometryRejectsOutOfRangeAttribute pins the US range guard: a hostile file can
+// carry an Image Pixel attribute under a wider VR (here UL), and a value past 65535 must be a typed
+// rejection rather than a silent uint16 truncation that mis-sizes every derived frame allocation.
+func TestResolvePixelGeometryRejectsOutOfRangeAttribute(t *testing.T) {
+	ds := NewDataSet()
+	ds.Set(Element{Tag: TagRows, VR: VRUL, Value: NewInts(VRUL, 65537)})
+	ds.Set(Element{Tag: TagColumns, VR: VRUS, Value: NewInts(VRUS, 4)})
+	ds.Set(Element{Tag: TagBitsAllocated, VR: VRUS, Value: NewInts(VRUS, 8)})
+
+	var verr *ValueError
+	if _, err := ResolvePixelGeometry(ds, ExplicitVRLittleEndian); !errors.As(err, &verr) {
+		t.Fatalf("ResolvePixelGeometry with Rows = 65537: err = %v, want *ValueError", err)
 	}
 }
 

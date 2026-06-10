@@ -478,7 +478,7 @@ func (s *Server) writeStoreResponse(w http.ResponseWriter, r *http.Request, b *s
 	accepted, failed := b.counts()
 	w.Header().Set("Content-Type", mediaTypeDICOMJSON)
 	w.WriteHeader(storeStatus(accepted, failed, b.hasOtherFailure()))
-	_, _ = w.Write(out)
+	_, _ = w.Write(out) // #nosec G705 -- Content-Type is application/dicom+json (set above), not an HTML sink
 }
 
 // storeStatus maps the store outcome to the STOW-RS HTTP status (PS3.18 §10.5.3): 200 OK

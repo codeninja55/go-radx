@@ -242,7 +242,7 @@ func (s *Server) handleRetrieveMetadata(w http.ResponseWriter, r *http.Request, 
 	}
 	w.Header().Set("Content-Type", mediaTypeDICOMJSON)
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	_, _ = w.Write(body) // #nosec G705 -- Content-Type is application/dicom+json (set above), not an HTML sink
 }
 
 // routeFrames parses the frame-list segment of a WADO-RS frames target into 1-based frame

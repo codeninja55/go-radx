@@ -160,7 +160,7 @@ func (r *FHIRRole) start(_ context.Context, host string, env roleEnv) error {
 		return err
 	}
 	r.setBound(ln.Addr())
-	r.srv = &http.Server{Handler: wrapped}
+	r.srv = &http.Server{Handler: wrapped, ReadHeaderTimeout: readHeaderTimeout}
 	go func() { _ = r.srv.Serve(ln) }()
 	return nil
 }

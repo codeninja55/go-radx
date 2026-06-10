@@ -1,7 +1,7 @@
 package convert
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- RFC 4122 version-5 UUIDs are defined over SHA-1; identifier derivation, not a security primitive
 	"encoding/binary"
 	"fmt"
 
@@ -222,9 +222,9 @@ var observationUUIDNamespace = [16]byte{
 // are stable across runs. The derivation uses no randomness and no wall-clock time.
 func deterministicObservationUUID(sopInstanceUID string, index int) string {
 	var idx [8]byte
-	binary.BigEndian.PutUint64(idx[:], uint64(index))
+	binary.BigEndian.PutUint64(idx[:], uint64(index)) // #nosec G115 -- index is a non-negative positional counter
 
-	h := sha1.New()
+	h := sha1.New() // #nosec G401 -- RFC 4122 version-5 UUIDs are defined over SHA-1; this derives a stable identifier, not a security primitive
 	h.Write(observationUUIDNamespace[:])
 	h.Write([]byte(sopInstanceUID))
 	h.Write([]byte{0}) // separator so a UID ending in digits cannot collide with the index

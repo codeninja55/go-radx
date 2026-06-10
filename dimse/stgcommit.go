@@ -3,6 +3,7 @@ package dimse
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 
 	"github.com/codeninja55/go-radx/dicom"
@@ -283,7 +284,9 @@ func parseCommitmentResult(eventType StorageCommitmentEventType, ds *dicom.DataS
 			class, _ := it.DataSet.GetString(dicom.TagReferencedSOPClassUID)
 			instance, _ := it.DataSet.GetString(dicom.TagReferencedSOPInstanceUID)
 			var reason uint16
-			if r, ok := it.DataSet.GetInt(dicom.TagFailureReason); ok {
+			// FailureReason is a US (0..65535); a non-conformant wider value from the
+			// peer is left as 0 (unknown) rather than truncated to a misleading code.
+			if r, ok := it.DataSet.GetInt(dicom.TagFailureReason); ok && r >= 0 && r <= math.MaxUint16 {
 				reason = uint16(r)
 			}
 			result.Failed = append(result.Failed, dicom.FailedSOPInstance{
