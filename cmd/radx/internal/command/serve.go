@@ -13,16 +13,118 @@ import (
 
 	"github.com/codeninja55/go-radx/cmd/radx/internal/cli"
 	"github.com/codeninja55/go-radx/cmd/radx/internal/exitcode"
+	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/logging"
 	"github.com/codeninja55/go-radx/server"
 )
 
 // ServeCmd groups the reference daemons. serve dicomweb wires the server package's DICOMweb role
-// over the default filesystem object store and SQLite catalogue; serve fhir is fail-closed until
-// the FHIR server role lands (docs/reference/cli.md serve).
+// over the default filesystem object store and SQLite catalogue; serve fhir wires the FHIR REST
+// role over the in-memory development repository (docs/reference/cli.md serve).
 type ServeCmd struct {
 	DICOMweb ServeDICOMwebCmd `cmd:"" name:"dicomweb" help:"Serve WADO-RS / STOW-RS / QIDO-RS."`
-	FHIR     ServeFHIRCmd     `cmd:"" name:"fhir" help:"Serve the FHIR REST API."`
+	FHIR     ServeFHIRCmd     `cmd:"" name:"fhir" help:"Serve the FHIR REST API (in-memory development repository)."`
+}
+
+// ServeFHIRCmd runs the FHIR REST reference daemon: the server package's FHIRRole over the
+// in-memory development repository, binding loopback by default. One process serves one FHIR
+// release (--release); the repository holds resources in memory only — nothing is persisted, so no
+// PHI ever lands on disk — which makes this a development and integration-test daemon, not an
+// archive (servers.md; a production deployment supplies its own server.Repository). A non-loopback
+// bind requires authentication and is refused otherwise, exactly like serve dicomweb
+// (ErrInsecureBind; servers.md "Bind policy").
+type ServeFHIRCmd struct {
+	Bind            string `name:"bind" default:"127.0.0.1" env:"RADX_BIND" help:"Listen address (loopback by default)."`
+	Port            int    `name:"port" default:"8080" help:"Listen port."`
+	BasePath        string `name:"base-path" default:"/fhir" help:"FHIR REST base path."`
+	Release         string `name:"release" default:"r5" enum:"r4,r5" help:"FHIR release to serve (r4 or r5)."`
+	MaxRequestBytes int64  `name:"max-request-bytes" default:"0" help:"Request body cap (0 = library default)."`
+}
+
+// Run wires the FHIR role over the in-memory repository and runs the daemon until interrupted. A
+// non-loopback bind without authentication is refused with a clear usage error (ErrInsecureBind),
+// never a silent unauthenticated exposure.
+func (c *ServeFHIRCmd) Run(rc *RunContext) error {
+	if rc.Out.Format == cli.FormatCSV {
+		return &exitcode.UsageErr{Message: "serve fhir does not support --format csv; use human or json"}
+	}
+
+	release := fhir.R5
+	if c.Release == "r4" {
+		release = fhir.R4
+	}
+	repo, err := server.NewMemoryRepository(release)
+	if err != nil {
+		return err
+	}
+
+	roleOpts := []server.FHIRRoleOption{
+		server.WithFHIRPort(c.Port),
+		server.WithFHIRBasePath(c.BasePath),
+		server.WithFHIRRelease(release),
+	}
+	if c.MaxRequestBytes > 0 {
+		roleOpts = append(roleOpts, server.WithFHIRMaxRequestBytes(c.MaxRequestBytes))
+	}
+	role, err := server.NewFHIRRole(repo, roleOpts...)
+	if err != nil {
+		return err
+	}
+
+	log := logging.FromContext(rc.Ctx)
+	daemonOpts := []server.Option{
+		server.WithLogger(log),
+		server.WithFHIR(role),
+		server.WithBind(c.Bind),
+	}
+	if !isLoopbackBind(c.Bind) {
+		// A non-loopback bind is an explicit opt-in the daemon refuses without an authenticator
+		// (ErrInsecureBind, mapped below); the reference daemon enables AllowAll only on loopback.
+		log.Warn("serve fhir: binding a non-loopback address requires authentication",
+			zap.String("bind", c.Bind))
+	}
+
+	daemon, err := server.New(daemonOpts...)
+	if err != nil {
+		if errors.Is(err, server.ErrInsecureBind) {
+			return &exitcode.UsageErr{Message: "a non-loopback --bind requires authentication; the reference daemon serves loopback only"}
+		}
+		return err
+	}
+
+	sigCtx, stop := signal.NotifyContext(rc.Ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	runErr := make(chan error, 1)
+	go func() { runErr <- daemon.Run(sigCtx) }()
+
+	addrs, err := waitForDaemon(daemon, runErr)
+	if err != nil {
+		return err
+	}
+
+	result := serveStartedResult{
+		Status:   "listening",
+		Bind:     c.Bind,
+		BasePath: c.BasePath,
+		Addrs:    stringAddrs(addrs),
+	}
+	if emitErr := c.emit(rc, result); emitErr != nil {
+		return emitErr
+	}
+	log.Info("serve fhir: listening",
+		zap.String("base_path", c.BasePath), zap.String("release", c.Release))
+
+	return awaitDaemonStop(sigCtx, runErr, log, "serve fhir")
+}
+
+// emit renders the listening result in the resolved format.
+func (c *ServeFHIRCmd) emit(rc *RunContext, r serveStartedResult) error {
+	if rc.Out.Format == cli.FormatJSON {
+		return rc.Out.EmitJSON(r)
+	}
+	_, err := fmt.Fprintf(rc.Out.Machine, "FHIR daemon listening on %s%s\n", r.Bind, r.BasePath)
+	return err
 }
 
 // ServeDICOMwebCmd runs the DICOMweb reference daemon over the shared filesystem object store and
@@ -127,7 +229,7 @@ func (c *ServeDICOMwebCmd) Run(rc *RunContext) error {
 	}
 	log.Info("serve dicomweb: listening", zap.String("base_path", c.BasePath))
 
-	return awaitDaemonStop(sigCtx, runErr, log)
+	return awaitDaemonStop(sigCtx, runErr, log, "serve dicomweb")
 }
 
 // awaitDaemonStop blocks after a successful startup until either an interrupt signal arrives or the
@@ -137,7 +239,7 @@ func (c *ServeDICOMwebCmd) Run(rc *RunContext) error {
 // the signal fires first, the daemon drains gracefully and Run's terminal error (nil on a clean
 // stop) is returned. Either way Run is awaited once, so the daemon is fully drained before the
 // command returns.
-func awaitDaemonStop(sigCtx context.Context, runErr <-chan error, log *zap.Logger) error {
+func awaitDaemonStop(sigCtx context.Context, runErr <-chan error, log *zap.Logger, name string) error {
 	select {
 	case serveErr := <-runErr:
 		// The daemon stopped on its own after reporting ready: a listener or role failure. Surface it
@@ -152,7 +254,7 @@ func awaitDaemonStop(sigCtx context.Context, runErr <-chan error, log *zap.Logge
 			return serveErr
 		}
 	}
-	log.Info("serve dicomweb: stopped")
+	log.Info(name + ": stopped")
 	return nil
 }
 

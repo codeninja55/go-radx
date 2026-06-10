@@ -22,9 +22,7 @@ import (
 const banner = "radx — go-radx command-line interface"
 
 // CLI is the root Kong grammar: the shared global flags, the --version flag, and the command
-// tree. Every command is wired end to end against the library except `serve fhir`, which fails
-// closed (a typed not-implemented error, exit 1) until the FHIR server role lands (see stubs.go;
-// docs/reference/cli.md "Honest-failure rules").
+// tree. Every command is wired end to end against the library (docs/reference/cli.md).
 type CLI struct {
 	cli.Globals
 

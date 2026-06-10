@@ -2,12 +2,15 @@ package command
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -17,15 +20,79 @@ import (
 	"github.com/codeninja55/go-radx/cmd/radx/internal/exitcode"
 )
 
-// TestServeFHIRFailsClosed confirms serve fhir is a typed not-implemented error (exit 1) writing
-// nothing, since the FHIR server role is a separate increment (the serve-fhir deferral).
-func TestServeFHIRFailsClosed(t *testing.T) {
-	stdout, _, code := runRadx(t, "serve", "fhir")
-	if code != exitcode.GeneralFailure {
-		t.Fatalf("serve fhir exit = %d, want %d (fail-closed)", code, exitcode.GeneralFailure)
+// TestServeFHIRInsecureBindIsUsageError confirms a non-loopback bind without authentication is
+// refused as a usage error (ErrInsecureBind), never a silent unauthenticated exposure (RADX-017),
+// matching serve dicomweb.
+func TestServeFHIRInsecureBindIsUsageError(t *testing.T) {
+	_, _, code := runRadx(t, "serve", "fhir", "--bind", "0.0.0.0")
+	if code != exitcode.UsageError {
+		t.Fatalf("serve fhir --bind 0.0.0.0 exit = %d, want %d (usage error)", code, exitcode.UsageError)
 	}
-	if stdout != "" {
-		t.Errorf("serve fhir wrote to stdout: %q (must write nothing)", stdout)
+}
+
+// TestServeFHIRLoopbackRoundTrip runs the FHIR daemon on loopback in a goroutine, creates a
+// Patient over HTTP, reads back its version 1 through the vread interaction (proving the role is
+// wired over the versioned in-memory repository), then stops the daemon with SIGINT and asserts a
+// clean exit. The signal is caught by the command's own signal.NotifyContext, so it does not
+// disturb the test binary.
+func TestServeFHIRLoopbackRoundTrip(t *testing.T) {
+	port := freeLoopbackPort(t)
+
+	done := make(chan int, 1)
+	go func() {
+		_, _, code := runRadx(t, "serve", "fhir",
+			"--port", strconv.Itoa(port), "--base-path", "/fhir", "--release", "r5")
+		done <- code
+	}()
+
+	base := "http://127.0.0.1:" + strconv.Itoa(port) + "/fhir"
+	if !waitForHTTP(t, base+"/metadata", 5*time.Second) {
+		t.Fatal("daemon did not answer within the deadline")
+	}
+
+	// Create a Patient, then vread its version 1: the end-to-end proof the daemon serves the
+	// versioned FHIR role, not just a bound port.
+	resp, err := http.Post(base+"/Patient", "application/fhir+json", //nolint:noctx // a short-lived test probe
+		strings.NewReader(`{"resourceType":"Patient","gender":"female"}`))
+	if err != nil {
+		t.Fatalf("create Patient: %v", err)
+	}
+	createBody, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create status = %d, want 201; body=%s", resp.StatusCode, createBody)
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createBody, &created); err != nil || created.ID == "" {
+		t.Fatalf("create body has no id (%v): %s", err, createBody)
+	}
+
+	resp, err = http.Get(base + "/Patient/" + created.ID + "/_history/1") //nolint:noctx // a short-lived test probe
+	if err != nil {
+		t.Fatalf("vread: %v", err)
+	}
+	vreadBody, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("vread status = %d, want 200; body=%s", resp.StatusCode, vreadBody)
+	}
+	if etag := resp.Header.Get("ETag"); etag != `W/"1"` {
+		t.Errorf("vread ETag = %q, want %q", etag, `W/"1"`)
+	}
+
+	// Stop the daemon with SIGINT; the command catches it and drains cleanly.
+	if err := syscall.Kill(syscall.Getpid(), syscall.SIGINT); err != nil {
+		t.Fatalf("send SIGINT: %v", err)
+	}
+	select {
+	case code := <-done:
+		if code != exitcode.Success {
+			t.Errorf("serve fhir exit = %d, want %d after SIGINT", code, exitcode.Success)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("daemon did not stop within the deadline after SIGINT")
 	}
 }
 
@@ -101,7 +168,7 @@ func TestAwaitDaemonStopSurfacesPostStartupFailure(t *testing.T) {
 	runErr <- want
 
 	done := make(chan error, 1)
-	go func() { done <- awaitDaemonStop(context.Background(), runErr, zap.NewNop()) }()
+	go func() { done <- awaitDaemonStop(context.Background(), runErr, zap.NewNop(), "serve test") }()
 
 	select {
 	case got := <-done:
@@ -121,7 +188,7 @@ func TestAwaitDaemonStopGracefulOnSignal(t *testing.T) {
 	runErr := make(chan error, 1)
 
 	done := make(chan error, 1)
-	go func() { done <- awaitDaemonStop(ctx, runErr, zap.NewNop()) }()
+	go func() { done <- awaitDaemonStop(ctx, runErr, zap.NewNop(), "serve test") }()
 
 	// Cancel the context (a SIGINT in production), then let the daemon's Run report a clean drain.
 	cancel()
