@@ -47,7 +47,9 @@ library surface; its full public-API contract is `docs/reference/servers.md`. Wh
   and `Authenticator` (the identity plane), each segregated so a deployment implements only what it serves.
 - **Four server roles.** A DIMSE SCP role (`NewDIMSERole`, wrapping `dimse.Server`, storing via `ObjectStore` and
   indexing via `Catalogue`, with an optional Modality Worklist SCP fed by a `WorklistSource`), a DICOMweb role
-  (`NewDICOMwebRole`, wrapping `dicomweb.Server` over the same backends), an HL7 v2 MLLP role (`NewMLLPRole`, wrapping
+  (`NewDICOMwebRole`, wrapping `dicomweb.Server` over the same backends and mounting the full WADO-RS retrieval
+  surface — instance, study, series, metadata, frames, and bulkdata — alongside QIDO-RS search and STOW-RS storage),
+  an HL7 v2 MLLP role (`NewMLLPRole`, wrapping
   `hl7v2.Server`), and a FHIR REST role (`NewFHIRRole`, over a `Repository` bound to one FHIR release; see
   [FHIR REST client and server role](#fhir-rest-client-and-server-role) below). Each applies the daemon's shared bind,
   TLS, and observability policy uniformly.

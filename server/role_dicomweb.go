@@ -14,6 +14,7 @@ import (
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dicomweb"
+	"github.com/codeninja55/go-radx/dimse"
 )
 
 const (
@@ -60,7 +61,8 @@ func WithMaxRequestBytes(n int64) DICOMwebRoleOption {
 // DICOMwebRole configures the DICOMweb HTTP server over the shared backends. STOW-RS stores through
 // the ObjectStore (and indexes through the Catalogue), QIDO-RS queries the Catalogue, and WADO-RS
 // retrieves from the ObjectStore — the same store and catalogue the DIMSE role uses, so a study
-// stored over either plane is queryable and retrievable over both.
+// stored over either plane is queryable and retrievable over both. The full WADO-RS retrieval
+// surface is mounted: instance, study, series, metadata, frames, and bulkdata.
 type DICOMwebRole struct {
 	cfg   dicomwebRoleConfig
 	store ObjectStore
@@ -99,7 +101,7 @@ func (r *DICOMwebRole) name() string { return "dicomweb" }
 func (r *DICOMwebRole) start(ctx context.Context, host string, env roleEnv) error {
 	webOpts := []dicomweb.ServerOption{
 		dicomweb.WithStoreBackend(&dicomwebStore{store: r.store, cat: r.cat, logger: env.logger}),
-		dicomweb.WithRetrieveBackend(&dicomwebRetrieve{store: r.store}),
+		dicomweb.WithRetrieveBackend(&dicomwebRetrieve{store: r.store, cat: r.cat}),
 		dicomweb.WithQueryBackend(&dicomwebQuery{cat: r.cat, store: r.store}),
 	}
 	if r.cfg.maxRequestBytes > 0 {
@@ -184,10 +186,16 @@ func (b *dicomwebStore) Store(ctx context.Context, ds *dicom.DataSet) error {
 	return b.cat.Index(ctx, ds)
 }
 
-// dicomwebRetrieve adapts the ObjectStore to the DICOMweb RetrieveBackend: a WADO-RS instance
-// retrieve resolves the SOP Instance UID from the resource path and fetches the stored object.
+// dicomwebRetrieve adapts the shared ObjectStore + Catalogue to the DICOMweb RetrieveBackend and
+// the optional study/series/metadata/frames/bulkdata retriever interfaces: an instance retrieve
+// fetches the stored object by SOP Instance UID, while the study- and series-level retrievals
+// enumerate the scope's instances through the Catalogue (the index that knows which instances live
+// under a study/series) and fetch each full object from the ObjectStore. The store yields decoded
+// datasets re-encodable in the default uncompressed transfer syntax, so RetrievedInstance carries
+// no stored-syntax override.
 type dicomwebRetrieve struct {
 	store ObjectStore
+	cat   Catalogue
 }
 
 // RetrieveInstance fetches the stored object by SOP Instance UID and verifies it lives under the
@@ -205,6 +213,128 @@ func (b *dicomwebRetrieve) RetrieveInstance(ctx context.Context, p dicomweb.Reso
 		return nil, fmt.Errorf("%w: instance not under the requested study/series", ErrNotFound)
 	}
 	return ds, nil
+}
+
+// RetrieveStudy returns every stored instance of the study (dicomweb.StudyRetriever).
+func (b *dicomwebRetrieve) RetrieveStudy(ctx context.Context, study dicom.UID) ([]dicomweb.RetrievedInstance, error) {
+	return b.retrieveScope(ctx, map[dicom.Tag]string{
+		dicom.TagStudyInstanceUID: string(study),
+	})
+}
+
+// RetrieveSeries returns every stored instance of the series (dicomweb.SeriesRetriever).
+func (b *dicomwebRetrieve) RetrieveSeries(ctx context.Context, study, series dicom.UID) ([]dicomweb.RetrievedInstance, error) {
+	return b.retrieveScope(ctx, map[dicom.Tag]string{
+		dicom.TagStudyInstanceUID:  string(study),
+		dicom.TagSeriesInstanceUID: string(series),
+	})
+}
+
+// retrieveScope enumerates the instances matching the exact-UID scope through the Catalogue at
+// IMAGE level (each row carries the SOP Instance UID the ObjectStore fetch keys on) and fetches
+// each full stored object. An empty scope returns no instances; the DICOMweb server answers 404
+// for it, so an unknown study/series never reads as an empty success.
+func (b *dicomwebRetrieve) retrieveScope(ctx context.Context, match map[dicom.Tag]string) ([]dicomweb.RetrievedInstance, error) {
+	var out []dicomweb.RetrievedInstance
+	cq := CatalogueQuery{Level: dimse.QueryLevelImage, Match: match}
+	for row, err := range b.cat.Query(ctx, cq) {
+		if err != nil {
+			return nil, err
+		}
+		instance, ok := row.GetString(dicom.TagSOPInstanceUID)
+		if !ok || instance == "" {
+			continue
+		}
+		ds, err := b.store.Get(ctx, dicom.SOPInstanceUID(instance))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, dicomweb.RetrievedInstance{DataSet: ds})
+	}
+	return out, nil
+}
+
+// RetrieveMetadata returns the datasets whose DICOM-JSON metadata the server emits at the
+// requested level (dicomweb.MetadataRetriever): the single instance, or every instance of the
+// series/study.
+func (b *dicomwebRetrieve) RetrieveMetadata(ctx context.Context, p dicomweb.ResourcePath) ([]dicomweb.RetrievedInstance, error) {
+	switch p.Level() {
+	case dicomweb.LevelInstance:
+		ds, err := b.RetrieveInstance(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		return []dicomweb.RetrievedInstance{{DataSet: ds}}, nil
+	case dicomweb.LevelSeries:
+		return b.RetrieveSeries(ctx, p.Study, p.Series)
+	default:
+		return b.RetrieveStudy(ctx, p.Study)
+	}
+}
+
+// RetrieveFrames returns the requested 1-based frames of the instance's pixel data as raw octets
+// (dicomweb.FrameRetriever). The stored object is uncompressed (the store persists the default
+// uncompressed syntax), so frames are sliced natively; an instance with no readable pixel data or
+// a frame number outside the instance is ErrNotFound, which the server maps to 404 (PS3.18
+// §10.4.3).
+func (b *dicomwebRetrieve) RetrieveFrames(ctx context.Context, p dicomweb.ResourcePath, frames []int) ([]dicomweb.BulkDataObject, error) {
+	ds, err := b.RetrieveInstance(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	pd, err := dicom.NewPixelData(ds, dicom.ExplicitVRLittleEndian)
+	if err != nil {
+		return nil, fmt.Errorf("%w: instance has no readable pixel data", ErrNotFound)
+	}
+	// Collect only the requested frames, stopping once the highest requested frame is sliced so a
+	// single-frame request of a large multi-frame instance does not buffer every frame.
+	need := make(map[int][]byte, len(frames))
+	maxFrame := 0
+	for _, n := range frames {
+		need[n] = nil
+		if n > maxFrame {
+			maxFrame = n
+		}
+	}
+	for f, ferr := range pd.Frames() {
+		if ferr != nil {
+			return nil, ferr
+		}
+		number := f.Index + 1
+		if _, ok := need[number]; ok {
+			need[number] = f.Pixels
+		}
+		if number >= maxFrame {
+			break
+		}
+	}
+	out := make([]dicomweb.BulkDataObject, 0, len(frames))
+	for _, n := range frames {
+		data := need[n]
+		if data == nil {
+			return nil, fmt.Errorf("%w: frame %d is outside the instance", ErrNotFound, n)
+		}
+		out = append(out, dicomweb.BulkDataObject{Data: data})
+	}
+	return out, nil
+}
+
+// RetrieveBulkData returns the instance's top-level binary (OB/OW/OL/OV/UN) values as ordered
+// octet-stream payloads (dicomweb.BulkDataRetriever) — the values the metadata response emits as
+// BulkDataURI references, pixel data foremost. An instance carrying none returns an empty set,
+// which the server answers 404.
+func (b *dicomwebRetrieve) RetrieveBulkData(ctx context.Context, p dicomweb.ResourcePath) ([]dicomweb.BulkDataObject, error) {
+	ds, err := b.RetrieveInstance(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	var out []dicomweb.BulkDataObject
+	for e := range ds.All() {
+		if v, ok := e.Value.(*dicom.Bytes); ok {
+			out = append(out, dicomweb.BulkDataObject{Data: v.Bytes()})
+		}
+	}
+	return out, nil
 }
 
 // datasetUnderPath reports whether ds's StudyInstanceUID and SeriesInstanceUID match the parent UIDs
