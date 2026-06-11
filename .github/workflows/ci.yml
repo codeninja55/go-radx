@@ -682,6 +682,33 @@ jobs:
             go-1.26.4-${{ runner.os }}-root-
       - name: Run dicom + fhir benchmarks once
         run: mise run bench
+      # ADVISORY benchstat comparison against the committed baselines (PRD 11.3: benchmarks are
+      # "tracked over time ... reviewed per release (not merge-gated)"). continue-on-error keeps
+      # this strictly non-gating - shared-runner noise makes a hard gate on benchmark deltas
+      # flaky - so deltas land in the job summary for human review, never as a merge blocker.
+      # The gating semantics of this job remain exactly the run-once rot check above. The fresh
+      # run mirrors the baselines' recording shape (-benchtime=50x -count=6) so benchstat has
+      # comparable sample sets; benchstat itself is pinned by pseudo-version (x/perf is untagged).
+      - name: Benchstat vs committed baselines (advisory, non-gating)
+        continue-on-error: true
+        run: |
+          go install golang.org/x/perf/cmd/benchstat@v0.0.0-20260512194132-3cf34090a3db
+          go test -bench=. -benchtime=50x -count=6 -run='^$' ./dicom/ > "$RUNNER_TEMP/bench-dicom.txt"
+          go test -bench=. -benchtime=50x -count=6 -run='^$' ./fhir/... > "$RUNNER_TEMP/bench-fhir.txt"
+          benchstat="$(go env GOPATH)/bin/benchstat"
+          {
+            echo "## benchstat vs committed baselines (advisory)"
+            echo ""
+            echo "Pure-Go dicom + fhir benchmarks on a shared runner vs docs/conformance/benchmarks/."
+            echo "Indicative only; baselines are regenerated deliberately on a quiet host."
+            for pair in dicom fhir; do
+              echo ""
+              echo "### ${pair}-baseline.txt"
+              echo '```'
+              "$benchstat" "docs/conformance/benchmarks/${pair}-baseline.txt" "$RUNNER_TEMP/bench-${pair}.txt" 2>&1 || true
+              echo '```'
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
 
   conformance-drift:
     # The conformance-drift check (tools/conformance-drift) fails when a conformance statement under

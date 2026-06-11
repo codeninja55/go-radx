@@ -12,6 +12,13 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Comparative benchmark harness `tools/bench-compare` (PRD §11.3): a uv-pinned Python environment (pydicom
+  3.0.2 + pylibjpeg plugins, pynetdicom 3.0.4, python-hl7 0.4.5, fhir.resources 8.2.0) benchmarked against
+  go-radx over the same vendored fixtures - DICOM decode and per-TS pixel codecs (user-facing path on both
+  sides), DIMSE loopback C-STORE, HL7 v2 parse, FHIR Bundle round-trip. Results publish to
+  `docs/conformance/benchmarks/comparative.md` via `mise run bench:compare`, with a manual-dispatch CI
+  workflow and an advisory (non-gating) benchstat step on the existing benchmark job (#118).
+
 - Reference-library parity matrices under `docs/conformance/parity/` — six audited matrices comparing each
   subsystem against its reference's documented public surface (DICOM vs pydicom + pylibjpeg, DIMSE vs
   pynetdicom, HL7 v2 vs python-hl7 with a HAPI catalogue stretch, FHIR vs fhir.resources + HAPI REST,

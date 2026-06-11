@@ -1,0 +1,133 @@
+# Comparative benchmark harness (PRD section 11.3): go-radx vs the Python reference libraries
+# over the same vendored fixtures. Manual-dispatch ONLY and never merge-gated: comparative
+# numbers are published and reviewed per release, not enforced per merge (the per-merge rot
+# check is ci.yml's benchmark-baseline job). Results are uploaded as an artifact; hosted-runner
+# numbers are indicative - the canonical publishing run is a quiet dedicated host.
+#
+# The three native codec libraries are built from source at the same pins as ci.yml's codecs
+# job (Ubuntu apt ships versions too old for codec_libjpeg.go), so the go-radx cgo codec rows
+# measure instead of being marked unavailable.
+
+name: bench-compare
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Harness mode: full (publishing, median of 7) or smoke (tiny-N validation)"
+        type: choice
+        options: [full, smoke]
+        default: full
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  bench-compare:
+    name: Comparative benchmarks (go-radx vs Python references)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3 # installs Go 1.26 per mise.toml [tools]
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/bench-compare/uv.lock
+      # Pin Go caches to runner-temp via a step (the runner context is invalid in a job-level env).
+      - name: Configure Go caches
+        run: |
+          echo "GOMODCACHE=$RUNNER_TEMP/.gocache/mod" >> "$GITHUB_ENV"
+          echo "GOCACHE=$RUNNER_TEMP/.gocache/build" >> "$GITHUB_ENV"
+      - name: Cache Go modules and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.gocache/mod
+            ${{ runner.temp }}/.gocache/build
+          key: go-1.26.4-${{ runner.os }}-bench-compare-${{ hashFiles('go.sum', 'tools/bench-compare/gobench/go.mod') }}
+          restore-keys: |
+            go-1.26.4-${{ runner.os }}-bench-compare-
+      - name: Install build tooling
+        run: sudo apt-get update && sudo apt-get install -y cmake build-essential pkg-config nasm curl
+      # Same pinned codec sources, checksums, and tarball cache as ci.yml's codecs job.
+      - name: Cache codec source tarballs
+        uses: actions/cache@v4
+        with:
+          path: codec-src
+          key: codec-src-openjpeg-2.5.4-libjpeg-turbo-3.1.4-charls-2.4.3
+      - name: Build & install OpenJPEG 2.5.4
+        env:
+          # SHA-256 of the GitHub source archive, pinned in tools/versions (codec.openjpeg.sha256).
+          OPENJPEG_SHA256: a695fbe19c0165f295a8531b1e4e855cd94d0875d2f88ec4b61080677e27188a
+        run: |
+          mkdir -p codec-src
+          tarball=codec-src/openjpeg-2.5.4.tar.gz
+          if [ ! -f "$tarball" ]; then
+            curl -fsSL --retry 3 --retry-delay 5 -o "$tarball" \
+              https://github.com/uclouvain/openjpeg/archive/refs/tags/v2.5.4.tar.gz
+          fi
+          echo "${OPENJPEG_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball"
+          cmake -S openjpeg-2.5.4 -B openjpeg-2.5.4/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+          cmake --build openjpeg-2.5.4/build -j"$(nproc)"
+          sudo cmake --install openjpeg-2.5.4/build
+      - name: Build & install libjpeg-turbo 3.1.4
+        env:
+          # SHA-256 of the GitHub release asset, pinned in tools/versions (codec.libjpeg-turbo.sha256).
+          LIBJPEG_TURBO_SHA256: e23d3ebb2c6ee4d0e2a5823dbb55b614845df5ea3435c956fed5cf04041a87ad
+        run: |
+          mkdir -p codec-src
+          tarball=codec-src/libjpeg-turbo-3.1.4.tar.gz
+          if [ ! -f "$tarball" ]; then
+            curl -fsSL --retry 3 --retry-delay 5 -o "$tarball" \
+              https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.1.4/libjpeg-turbo-3.1.4.tar.gz
+          fi
+          echo "${LIBJPEG_TURBO_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball"
+          cmake -S libjpeg-turbo-3.1.4 -B libjpeg-turbo-3.1.4/build -DCMAKE_BUILD_TYPE=Release -DENABLE_SHARED=ON -DCMAKE_INSTALL_PREFIX=/usr/local
+          cmake --build libjpeg-turbo-3.1.4/build -j"$(nproc)"
+          sudo cmake --install libjpeg-turbo-3.1.4/build
+      - name: Build & install CharLS 2.4.3
+        env:
+          # SHA-256 of the GitHub source archive, pinned in tools/versions (codec.charls.sha256).
+          CHARLS_SHA256: bbf67d51446a98eb8fc98c9c6de49a2605c709d3a14ba39f09a09f8e57527099
+        run: |
+          mkdir -p codec-src
+          tarball=codec-src/charls-2.4.3.tar.gz
+          if [ ! -f "$tarball" ]; then
+            curl -fsSL --retry 3 --retry-delay 5 -o "$tarball" \
+              https://github.com/team-charls/charls/archive/refs/tags/2.4.3.tar.gz
+          fi
+          echo "${CHARLS_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball"
+          cmake -S charls-2.4.3 -B charls-2.4.3/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+          cmake --build charls-2.4.3/build -j"$(nproc)"
+          sudo cmake --install charls-2.4.3/build
+      - name: Refresh linker cache
+        run: sudo ldconfig
+      - name: Resolve pkg-config and linker paths
+        run: |
+          pc="$(find /usr/local -type d -name pkgconfig 2>/dev/null | sort -u | paste -sd: -)"
+          libs="$(find /usr/local -type f -name 'lib*.so*' -printf '%h\n' 2>/dev/null | sort -u | paste -sd: -)"
+          echo "PKG_CONFIG_PATH=$pc" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$libs" >> "$GITHUB_ENV"
+      - name: Run the comparative harness
+        env:
+          # Routed through env (not inline interpolation) per the workflow-injection guidance;
+          # the value is also constrained to the dispatch choice list.
+          BENCH_MODE: ${{ github.event.inputs.mode || 'full' }}
+        run: mise run bench:compare -- --mode "$BENCH_MODE"
+      - name: Upload comparative results
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-compare-${{ github.run_id }}
+          path: |
+            tools/bench-compare/results/comparative.json
+            tools/bench-compare/results/comparative.md
+            docs/conformance/benchmarks/comparative.md
+          if-no-files-found: error

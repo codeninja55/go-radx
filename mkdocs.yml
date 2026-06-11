@@ -84,6 +84,7 @@ nav:
           - FHIR vs fhir.resources and HAPI: conformance/parity/fhir.md
           - DICOMweb vs dicomweb-client and PS3.18: conformance/parity/dicomweb.md
           - CLI vs dcmtk: conformance/parity/cli.md
+      - Comparative benchmarks: conformance/benchmarks/comparative.md
   - API reference:
       - DICOM: reference/dicom.md
       - DIMSE: reference/dimse.md
