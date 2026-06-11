@@ -36,7 +36,10 @@ func ReadPixelDataFrom(r io.Reader, opts ...ReadOption) (*PixelData, error) {
 // parseEncapsulated to bound-check. The caller (readDataSet's element loop) has
 // already consumed the (7FE0,0010) header, so the reader is positioned at the first
 // item. Each item header is validated against the bytes remaining as it is read, so a
-// hostile length cannot drive an allocation past the source (Codex DCM-006).
+// hostile length cannot drive an allocation past the source (Codex DCM-006). The
+// accumulated stream is one (7FE0,0010) element value, so it is also held to the same
+// per-element cap (WithMaxElementLen) that bounds a native pixel value: per-item
+// bounds alone would let many small fragments grow the retained stream without limit.
 func readEncapsulatedValue(br *boundedReader, ts TransferSyntax) ([]byte, error) {
 	var out []byte
 	for {
@@ -53,6 +56,9 @@ func readEncapsulatedValue(br *boundedReader, ts TransferSyntax) ([]byte, error)
 		}
 		if length == undefinedLength {
 			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "fragment item has undefined length"}
+		}
+		if total := uint64(len(out)) + uint64(length); total > uint64(br.maxLen) {
+			return nil, &LimitExceededError{Tag: TagPixelData, Limit: uint64(br.maxLen), Actual: total, Kind: "element-length"}
 		}
 		body, err := br.readN(length)
 		if err != nil {
