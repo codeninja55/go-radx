@@ -305,9 +305,21 @@ func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resou
 		return
 	}
 	h.logger.Info("fhir create", zap.String("type", resourceType), zap.String("interaction", "create"))
-	location := h.resourceLocation(created.ResourceType(), h.adapter.resourceID(created))
 	h.setVersionHeaders(w, created)
-	h.writeResource(w, r, http.StatusCreated, created, location)
+	h.writeResource(w, r, http.StatusCreated, created, h.createdLocation(created))
+}
+
+// createdLocation builds the Location header for a created resource: the versioned
+// [base]/[type]/[id]/_history/[vid] form FHIR R5 http.html#create specifies for a server that
+// maintains versions, which this role does. A resource with no version metadata (a custom
+// unversioned Repository) falls back to the unversioned [base]/[type]/[id] rather than fabricating
+// a version segment.
+func (h *fhirHandler) createdLocation(created fhir.Resource) string {
+	location := h.resourceLocation(created.ResourceType(), h.adapter.resourceID(created))
+	if versionID, _ := resourceVersionViaJSON(created); versionID != "" {
+		location += "/_history/" + versionID
+	}
+	return location
 }
 
 // setVersionHeaders emits the version headers a read, vread, or create response carries per FHIR R5

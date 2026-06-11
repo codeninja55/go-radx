@@ -261,11 +261,11 @@ func startFHIRDaemonAt(t *testing.T, release fhir.Release, basePath string) (str
 }
 
 // TestFHIRRoleRootMountLocationIsSingleSlash proves a create against a root-mounted ("/") FHIR role
-// returns a Location with a single leading slash ("/Patient/{id}"), not "//Patient/{id}". The
-// double-slash form parses as a network-path reference (host "Patient"), so it is not a valid
-// relative Location; the single-slash form parses as an absolute-path reference with an empty host.
-// A "/fhir"-mounted role keeps its "/fhir/Patient/{id}" Location, so the join is correct at both
-// mount points.
+// returns a Location with a single leading slash ("/Patient/{id}/_history/1"), not
+// "//Patient/{id}/...". The double-slash form parses as a network-path reference (host "Patient"),
+// so it is not a valid relative Location; the single-slash form parses as an absolute-path
+// reference with an empty host. A "/fhir"-mounted role keeps its "/fhir/Patient/{id}/_history/1"
+// Location, so the join is correct at both mount points.
 func TestFHIRRoleRootMountLocationIsSingleSlash(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -293,7 +293,7 @@ func TestFHIRRoleRootMountLocationIsSingleSlash(t *testing.T) {
 				t.Fatalf("create body decode: %v", err)
 			}
 			loc := header.Get("Location")
-			want := tc.wantBase + "/Patient/" + created.ID
+			want := tc.wantBase + "/Patient/" + created.ID + "/_history/1"
 			if loc != want {
 				t.Fatalf("Location = %q, want %q", loc, want)
 			}

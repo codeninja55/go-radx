@@ -475,7 +475,8 @@ version store (`meta.versionId`/`meta.lastUpdated`); `update`, `delete`, and `pa
 those writes (and conditional writes) land by appending versions, not by reshaping the store.
 
 The HTTP status mapping is explicit: `200` on a successful read, vread, history, search, or `$validate` (the
-operation's findings are its result), `201` on create (with a `Location` header), `400` with an `error`-severity
+operation's findings are its result), `201` on create (with a versioned `[base]/[type]/[id]/_history/[vid]`
+`Location` header), `400` with an `error`-severity
 `OperationOutcome` when `fhir.Validate` rejects the body or when a create carries `If-None-Exist` (conditional
 create fails closed; its matching semantics are deferred to the search work), `404` with an `OperationOutcome` on a
 missing resource or

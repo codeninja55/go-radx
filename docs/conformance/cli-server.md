@@ -92,7 +92,10 @@ pluggable `server.Repository`: `read`, `vread`, `history-instance`, `create`, `s
 `$validate` operation over the workflow resource set (`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`,
 `DiagnosticReport`, `Observation`), as `application/fhir+json`. The repository versions every create
 (`meta.versionId`/`meta.lastUpdated`); read, vread, and create responses carry `ETag: W/"versionId"` and
-`Last-Modified`, a vread of an unknown version is a `404` and of a deleted version a `410`, the history Bundle
+`Last-Modified`, a create's `Location` is the versioned `[base]/[type]/[id]/_history/[vid]` (FHIR R5
+`http.html#create`) and a transaction response entry carries the same versioned `response.location` plus
+`response.etag` (`http.html#transaction-response`), a vread of an unknown version is a `404` and of a deleted
+version a `410`, the history Bundle
 carries per-version `entry.request`/`entry.response` per FHIR R5 `http.html#history`, and a write's `If-Match`
 precondition is evaluated against the current version (`412` on a stale version, `http.html#concurrency`). It
 validates inbound resources with the release validator (a resource with error-severity issues is rejected `422`;

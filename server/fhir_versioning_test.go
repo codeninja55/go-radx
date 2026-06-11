@@ -188,6 +188,12 @@ func TestFHIRRoleReadAndCreateEmitVersionHeaders(t *testing.T) {
 			if etag := header.Get("ETag"); etag != `W/"1"` {
 				t.Errorf("create ETag = %q, want %q (http.html#create)", etag, `W/"1"`)
 			}
+			// A versioning server's create Location names the created version:
+			// [base]/[type]/[id]/_history/[vid] (http.html#create).
+			if loc := header.Get("Location"); !strings.HasPrefix(loc, "/fhir/Patient/") ||
+				!strings.HasSuffix(loc, "/_history/1") {
+				t.Errorf("create Location = %q, want /fhir/Patient/{id}/_history/1 (http.html#create)", loc)
+			}
 			if lm := header.Get("Last-Modified"); lm == "" {
 				t.Error("create: no Last-Modified header (http.html#create)")
 			} else if _, err := time.Parse(http.TimeFormat, lm); err != nil {
@@ -603,6 +609,93 @@ func TestFHIRRoleValidateOperation(t *testing.T) {
 				patientJSON(release, "female"))
 			if status != http.StatusUnsupportedMediaType {
 				t.Fatalf("$validate text/plain status = %d, want 415", status)
+			}
+		})
+	}
+}
+
+// TestFHIRRoleTransactionResponseCarriesVersionedLocationAndETag proves the transaction-response
+// entries report the create like the direct create path does (http.html#transaction-response): each
+// POST entry's response carries the versioned location ([type]/[id]/_history/[vid]) and the
+// version's weak ETag, so a transaction client learns the created version exactly as a direct
+// create client does from the Location and ETag headers.
+func TestFHIRRoleTransactionResponseCarriesVersionedLocationAndETag(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			bundleBody, _ := json.Marshal(transactionBundleResource(t, release))
+			status, body, _ := httpDo(t, http.MethodPost, base, "application/fhir+json", bundleBody)
+			if status != http.StatusOK {
+				t.Fatalf("transaction status = %d, want 200; body=%s", status, body)
+			}
+			var resp struct {
+				Entry []struct {
+					Response struct {
+						Status   string `json:"status"`
+						Location string `json:"location"`
+						Etag     string `json:"etag"`
+					} `json:"response"`
+				} `json:"entry"`
+			}
+			if err := json.Unmarshal(body, &resp); err != nil {
+				t.Fatalf("transaction response decode: %v", err)
+			}
+			if len(resp.Entry) != 1 {
+				t.Fatalf("transaction response entries = %d, want 1; body=%s", len(resp.Entry), body)
+			}
+			e := resp.Entry[0].Response
+			if e.Status != "201 Created" {
+				t.Errorf("entry response status = %q, want 201 Created", e.Status)
+			}
+			if !strings.HasPrefix(e.Location, "Patient/") || !strings.HasSuffix(e.Location, "/_history/1") {
+				t.Errorf("entry response location = %q, want Patient/{id}/_history/1 (http.html#transaction-response)", e.Location)
+			}
+			if e.Etag != `W/"1"` {
+				t.Errorf("entry response etag = %q, want %q (http.html#transaction-response)", e.Etag, `W/"1"`)
+			}
+		})
+	}
+}
+
+// TestFHIRRoleClientCreateResolvesVersionedLocation is the cross-component guard for the versioned
+// create Location: the fhir/rest client's Create against the in-process role must resolve the
+// created id from the [base]/[type]/[id]/_history/[vid] Location (idFromLocation strips the
+// _history suffix) and the version from the ETag, so the versioned Location never breaks the
+// shipped client's id parsing.
+func TestFHIRRoleClientCreateResolvesVersionedLocation(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+			client, err := rest.NewClient(release, base)
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+
+			res, err := client.Create(context.Background(), newPatientResource(release), "")
+			if err != nil {
+				t.Fatalf("client.Create against the in-process role: %v", err)
+			}
+			if res.ID == "" {
+				t.Fatal("client.Create resolved no id from the versioned Location")
+			}
+			if !strings.HasSuffix(res.Location, "/Patient/"+res.ID+"/_history/1") {
+				t.Errorf("client.Create Location = %q, want .../Patient/%s/_history/1", res.Location, res.ID)
+			}
+			if res.VersionID != "1" {
+				t.Errorf("client.Create VersionID = %q, want %q", res.VersionID, "1")
+			}
+
+			// The resolved id addresses the created resource: the round trip proves the id is real,
+			// not a mis-parsed "_history" segment.
+			got, err := client.Read(context.Background(), "Patient", res.ID)
+			if err != nil {
+				t.Fatalf("client.Read of the created id: %v", err)
+			}
+			if got.Resource.ResourceType() != "Patient" {
+				t.Errorf("read-back resourceType = %q, want Patient", got.Resource.ResourceType())
 			}
 		})
 	}

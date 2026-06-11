@@ -285,12 +285,12 @@ func (a r5Adapter) processTransaction(ctx context.Context, bundle fhir.Resource,
 	responses := make([]r5.BundleEntry, 0, len(b.Entry))
 	for i := range b.Entry {
 		entry := &b.Entry[i]
-		status, location, err := applyTransactionEntryR5(ctx, entry, repo)
+		status, location, etag, err := applyTransactionEntryR5(ctx, entry, repo)
 		if err != nil {
 			return nil, err
 		}
 		responses = append(responses, r5.BundleEntry{
-			Response: &r5.BundleEntryResponse{Status: strptr(status), Location: optptr(location)},
+			Response: &r5.BundleEntryResponse{Status: strptr(status), Location: optptr(location), Etag: optptr(etag)},
 		})
 	}
 	bt := r5.BundleTypeTransactionResponse
@@ -388,32 +388,48 @@ func (a r5Adapter) capabilityStatement(basePath string) fhir.Resource {
 }
 
 // applyTransactionEntryR5 applies one transaction entry through the repository and returns the
-// response status line and Location. A POST creates the entry's resource; a GET reads the resource
-// the entry's request.url names. An unsupported verb fails the transaction (errUnsupportedTxnVerb),
-// never a silent skip.
-func applyTransactionEntryR5(ctx context.Context, entry *r5.BundleEntry, repo Repository) (status, location string, err error) {
+// response status line, Location, and ETag. A POST creates the entry's resource and reports the
+// versioned location ([type]/[id]/_history/[vid]) and the version's weak ETag, the same version
+// facts a direct create's Location and ETag headers carry (FHIR R5 http.html#transaction-response);
+// a GET reads the resource the entry's request.url names. An unsupported verb fails the transaction
+// (errUnsupportedTxnVerb), never a silent skip.
+func applyTransactionEntryR5(ctx context.Context, entry *r5.BundleEntry, repo Repository) (status, location, etag string, err error) {
 	if entry.Request == nil || entry.Request.Method == nil {
-		return "", "", fmt.Errorf("%w: entry missing request.method", errUnsupportedTxnVerb)
+		return "", "", "", fmt.Errorf("%w: entry missing request.method", errUnsupportedTxnVerb)
 	}
 	switch *entry.Request.Method {
 	case r5.HTTPVerbPOST:
 		if entry.Resource == nil {
-			return "", "", fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
+			return "", "", "", fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
 		created, cerr := repo.Create(ctx, *entry.Resource)
 		if cerr != nil {
-			return "", "", cerr
+			return "", "", "", cerr
 		}
-		return "201 Created", created.ResourceType() + "/" + resourceIDViaJSON(created), nil
+		location, etag = createdEntryResponse(created)
+		return "201 Created", location, etag, nil
 	case r5.HTTPVerbGET:
 		rt, id := splitTypeID(deref(entry.Request.URL))
 		if _, rerr := repo.Read(ctx, rt, id); rerr != nil {
-			return "", "", rerr
+			return "", "", "", rerr
 		}
-		return "200 OK", "", nil
+		return "200 OK", "", "", nil
 	default:
-		return "", "", fmt.Errorf("%w: %s", errUnsupportedTxnVerb, *entry.Request.Method)
+		return "", "", "", fmt.Errorf("%w: %s", errUnsupportedTxnVerb, *entry.Request.Method)
 	}
+}
+
+// createdEntryResponse derives a transaction POST entry's response.location and response.etag from
+// the created resource: the versioned [type]/[id]/_history/[vid] location and the weak version
+// ETag, falling back to the unversioned location and no ETag when a custom Repository stores no
+// version metadata — the transaction twin of the direct create's createdLocation/setVersionHeaders.
+func createdEntryResponse(created fhir.Resource) (location, etag string) {
+	location = created.ResourceType() + "/" + resourceIDViaJSON(created)
+	if versionID, _ := resourceVersionViaJSON(created); versionID != "" {
+		location += "/_history/" + versionID
+		etag = weakETag(versionID)
+	}
+	return location, etag
 }
 
 // ---- R4 adapter ----
@@ -470,12 +486,12 @@ func (a r4Adapter) processTransaction(ctx context.Context, bundle fhir.Resource,
 	responses := make([]r4.BundleEntry, 0, len(b.Entry))
 	for i := range b.Entry {
 		entry := &b.Entry[i]
-		status, location, err := applyTransactionEntryR4(ctx, entry, repo)
+		status, location, etag, err := applyTransactionEntryR4(ctx, entry, repo)
 		if err != nil {
 			return nil, err
 		}
 		responses = append(responses, r4.BundleEntry{
-			Response: &r4.BundleEntryResponse{Status: strptr(status), Location: optptr(location)},
+			Response: &r4.BundleEntryResponse{Status: strptr(status), Location: optptr(location), Etag: optptr(etag)},
 		})
 	}
 	bt := r4.BundleTypeTransactionResponse
@@ -571,29 +587,31 @@ func (a r4Adapter) capabilityStatement(basePath string) fhir.Resource {
 	return cs
 }
 
-// applyTransactionEntryR4 applies one R4 transaction entry, the R4 twin of applyTransactionEntryR5.
-func applyTransactionEntryR4(ctx context.Context, entry *r4.BundleEntry, repo Repository) (status, location string, err error) {
+// applyTransactionEntryR4 applies one R4 transaction entry, the R4 twin of applyTransactionEntryR5
+// (see that function for the versioned location/ETag rationale).
+func applyTransactionEntryR4(ctx context.Context, entry *r4.BundleEntry, repo Repository) (status, location, etag string, err error) {
 	if entry.Request == nil || entry.Request.Method == nil {
-		return "", "", fmt.Errorf("%w: entry missing request.method", errUnsupportedTxnVerb)
+		return "", "", "", fmt.Errorf("%w: entry missing request.method", errUnsupportedTxnVerb)
 	}
 	switch *entry.Request.Method {
 	case r4.HTTPVerbPOST:
 		if entry.Resource == nil {
-			return "", "", fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
+			return "", "", "", fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
 		created, cerr := repo.Create(ctx, *entry.Resource)
 		if cerr != nil {
-			return "", "", cerr
+			return "", "", "", cerr
 		}
-		return "201 Created", created.ResourceType() + "/" + resourceIDViaJSON(created), nil
+		location, etag = createdEntryResponse(created)
+		return "201 Created", location, etag, nil
 	case r4.HTTPVerbGET:
 		rt, id := splitTypeID(deref(entry.Request.URL))
 		if _, rerr := repo.Read(ctx, rt, id); rerr != nil {
-			return "", "", rerr
+			return "", "", "", rerr
 		}
-		return "200 OK", "", nil
+		return "200 OK", "", "", nil
 	default:
-		return "", "", fmt.Errorf("%w: %s", errUnsupportedTxnVerb, *entry.Request.Method)
+		return "", "", "", fmt.Errorf("%w: %s", errUnsupportedTxnVerb, *entry.Request.Method)
 	}
 }
 

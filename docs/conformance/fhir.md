@@ -108,7 +108,9 @@ negotiation — sending and accepting `application/fhir+json` only. A non-2xx re
 `OperationOutcome` error model. The server role serves the conformance subset (`read`, `vread`, `history-instance`,
 `create`, `search-type`, `transaction`, and the `$validate` operation over the workflow resource set) over a
 pluggable versioned repository — every create stores version 1 with `meta.versionId`/`meta.lastUpdated`; read, vread,
-and create emit `ETag`/`Last-Modified`; a write's `If-Match` answers `412` on a stale version — validating inbound
+and create emit `ETag`/`Last-Modified`; a create's `Location` (and a transaction response entry's
+`response.location`/`response.etag`) names the created version (`[type]/[id]/_history/[vid]`); a write's `If-Match`
+answers `412` on a stale version — validating inbound
 resources with the release validator and answering every error with a release `OperationOutcome`. Server-side
 `update`/`patch`/`delete` and their conditional forms stay deferred (`501`); a conditional create (`If-None-Exist`,
 on the direct POST or a transaction entry) is rejected `400` with an `OperationOutcome` rather than silently
