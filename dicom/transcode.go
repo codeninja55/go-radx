@@ -136,6 +136,11 @@ func (f *File) SetPixelData(pd *PixelData) error {
 
 	f.DataSet.Delete(TagExtendedOffsetTable)
 	f.DataSet.Delete(TagExtendedOffsetTableLengths)
+	// (7FE0,0003) Encapsulated Pixel Data Value Total Length describes the previous
+	// stream's byte length and is meaningless for native pixel data. It is optional
+	// (Type 3), so it is deleted rather than recomputed for an encapsulated target:
+	// a stale total would misdescribe the new stream.
+	f.DataSet.Delete(TagEncapsulatedPixelDataValueTotalLength)
 	f.Meta.TransferSyntaxUID = ts
 	return nil
 }

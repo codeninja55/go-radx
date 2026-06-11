@@ -3,6 +3,7 @@ package dicom
 import (
 	"bytes"
 	"errors"
+	"path/filepath"
 	"testing"
 )
 
@@ -201,6 +202,39 @@ func TestEncapsulatedReadAndParseLayersRejectConsistently(t *testing.T) {
 			})
 			if _, err := Read(bytes.NewReader(data)); err == nil {
 				t.Error("Read accepted a stream parseEncapsulated rejects")
+			}
+		})
+	}
+}
+
+// TestSetPixelDataRemovesStaleEncapsulatedTotalLength pins the staleness rule for
+// (7FE0,0003) Encapsulated Pixel Data Value Total Length: it describes the previous
+// stream's byte length, so SetPixelData must drop it for a native target and for an
+// encapsulated target alike.
+func TestSetPixelDataRemovesStaleEncapsulatedTotalLength(t *testing.T) {
+	for _, target := range []TransferSyntax{ExplicitVRLittleEndian, RLELossless} {
+		t.Run(string(target), func(t *testing.T) {
+			f, err := ReadFile(filepath.Join("..", "testdata", "dicom", "MR2_UNCI.dcm"))
+			if err != nil {
+				t.Fatalf("ReadFile: %v", err)
+			}
+			pd, err := NewPixelData(f.DataSet, f.Meta.TransferSyntaxUID)
+			if err != nil {
+				t.Fatalf("NewPixelData: %v", err)
+			}
+			out, err := Transcode(pd, target)
+			if err != nil {
+				t.Fatalf("Transcode: %v", err)
+			}
+			f.DataSet.Set(Element{
+				Tag: TagEncapsulatedPixelDataValueTotalLength,
+				VR:  VRUV, Value: NewInts(VRUV, 12345),
+			})
+			if err := f.SetPixelData(out); err != nil {
+				t.Fatalf("SetPixelData: %v", err)
+			}
+			if _, ok := f.DataSet.Get(TagEncapsulatedPixelDataValueTotalLength); ok {
+				t.Error("stale EncapsulatedPixelDataValueTotalLength survived SetPixelData")
 			}
 		})
 	}
