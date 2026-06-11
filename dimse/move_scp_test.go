@@ -732,6 +732,143 @@ func TestServeMoveTerminalCancelOnInboundCancel(t *testing.T) {
 	_ = assoc.Release(ctx)
 }
 
+// slowDestination is a StoreHandler whose Store parks (up to hold) once entered, signalling entry,
+// so the cancel-latency regression can issue a C-CANCEL while a sub-operation C-STORE is in flight
+// at the destination.
+type slowDestination struct {
+	entered     chan struct{}
+	enteredOnce sync.Once
+	hold        time.Duration
+}
+
+func (d *slowDestination) Store(ctx context.Context, _ *dicom.DataSet, _ OpInfo) Status {
+	d.enteredOnce.Do(func() { close(d.entered) })
+	select {
+	case <-ctx.Done():
+	case <-time.After(d.hold):
+	}
+	return StatusStoreSuccess
+}
+
+// TestServeMoveCancelAbortsInFlightSubOperation is the cancel-latency regression (PS3.4 C.4.2.2.3
+// "as soon as possible"): a C-CANCEL-RQ arriving while a sub-operation C-STORE is in flight at a
+// SLOW destination must abort that store promptly (the store rides the watcher-cancelled handler
+// context), and the next protocol message the SCU receives must be the terminal Cancel (0xFE00)
+// with the accumulated counts — never a Pending after the cancel was issued. The SCU is hand-rolled
+// over the association internals so the test observes the raw response sequence and its timing.
+func TestServeMoveCancelAbortsInFlightSubOperation(t *testing.T) {
+	const destTitle = AETitle("RADX-DEST")
+	destAE, err := NewAE(destTitle)
+	if err != nil {
+		t.Fatalf("NewAE destination: %v", err)
+	}
+	dest := &slowDestination{entered: make(chan struct{}), hold: 2 * time.Second}
+	destSrv := NewServer(destAE, StorageContexts(), dest)
+	destServed := make(chan error, 1)
+	go func() { destServed <- destSrv.ListenAndServe(context.Background(), "127.0.0.1:0") }()
+	waitForAddr(t, destSrv)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = destSrv.Shutdown(ctx)
+		<-destServed
+	})
+
+	handler := &movingFindHandler{instances: []*dicom.DataSet{
+		instanceDataset("1.2.3.1"),
+		instanceDataset("1.2.3.2"),
+	}}
+	moveAddr := startMoveServer(t, handler, map[AETitle]string{destTitle: destSrv.Addr().String()})
+
+	assoc, ctx, cancel := dialMoveServerSCU(t, moveAddr)
+	defer cancel()
+	t.Cleanup(func() { _ = assoc.Abort(context.Background()) })
+
+	pcID, ts, ok := assoc.contextForQuery(studyRootMoveSOPClass)
+	if !ok {
+		t.Fatal("no accepted Study Root MOVE presentation context")
+	}
+	conn := assoc.requestor.Conn()
+	m := assoc.requestor.Machine()
+
+	identifier := dicom.NewDataSet()
+	identifier.SetString(dicom.TagStudyInstanceUID, "1.2.3")
+	identifier.SetString(dicom.TagQueryRetrieveLevel, QueryLevelStudy.String())
+
+	const msgID = uint16(7)
+	rq := CommandSet{
+		CommandField:        CommandCMoveRQ,
+		MessageID:           msgID,
+		AffectedSOPClassUID: dicom.UID(studyRootMoveSOPClass),
+		HasPriority:         true,
+		Priority:            PriorityMedium,
+		MoveDestination:     destTitle,
+		CommandDataSetType:  CommandDataSetPresent,
+	}
+	if err := sendMessage(ctx, conn, m, pcID, rq, identifier, ts, assoc.sendCap()); err != nil {
+		t.Fatalf("send C-MOVE-RQ: %v", err)
+	}
+
+	// Wait until the first sub-operation C-STORE is in flight (parked) at the destination, THEN
+	// cancel. No Pending has been sent yet: the SCP reports a Pending only after each store ends.
+	select {
+	case <-dest.entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the destination never entered the sub-operation store; cannot park the retrieve")
+	}
+
+	cancelRQ := CommandSet{
+		CommandField:              CommandCCancelRQ,
+		MessageIDBeingRespondedTo: msgID,
+		CommandDataSetType:        CommandDataSetNotPresent,
+	}
+	issued := time.Now()
+	if err := sendCommand(ctx, conn, m, pcID, cancelRQ); err != nil {
+		t.Fatalf("send C-CANCEL-RQ: %v", err)
+	}
+
+	var statuses []Status
+	var terminal CommandSet
+	for {
+		rsp, _, _, rerr := receiveMessage(ctx, conn, m, newMessageReassembler(ts))
+		if rerr != nil {
+			t.Fatalf("read C-MOVE-RSP after the cancel: %v", rerr)
+		}
+		if rsp.CommandField != CommandCMoveRSP || !rsp.HasStatus {
+			t.Fatalf("unexpected response after the cancel: command %#04x", uint16(rsp.CommandField))
+		}
+		st := NewStatus(rsp.Status, ServiceClassMove)
+		statuses = append(statuses, st)
+		if !st.IsPending() {
+			terminal = rsp
+			break
+		}
+	}
+	elapsed := time.Since(issued)
+
+	for _, st := range statuses {
+		if st.IsPending() {
+			t.Errorf("a Pending C-MOVE-RSP (%s) arrived after the C-CANCEL was issued; the next message must be the terminal Cancel", st)
+		}
+	}
+	if got := statuses[len(statuses)-1]; got.Code != StatusMoveCancel.Code {
+		t.Errorf("terminal status = %s, want 0xFE00 Cancel", got)
+	}
+	// The in-flight store must be ABORTED, not awaited: the terminal Cancel arrives well before the
+	// destination's 2s hold elapses.
+	if elapsed >= 1500*time.Millisecond {
+		t.Errorf("terminal Cancel took %s after the C-CANCEL; the in-flight sub-operation store was awaited, not aborted", elapsed)
+	}
+	// The interrupted store is neither completed nor a destination failure: the accumulated counts
+	// the Cancel carries report only sub-operations that actually finished.
+	if terminal.CompletedSubOperations != 0 || terminal.FailedSubOperations != 0 || terminal.WarningSubOperations != 0 {
+		t.Errorf("Cancel counts = completed %d / failed %d / warning %d, want all zero (the interrupted store is not counted)",
+			terminal.CompletedSubOperations, terminal.FailedSubOperations, terminal.WarningSubOperations)
+	}
+
+	_ = assoc.Release(ctx)
+}
+
 // TestServeMoveUnsupported is the interface-segregation regression: a C-MOVE-RQ routed to a handler
 // with no Move capability (a store-only handler) is refused with a terminal C-MOVE-RSP carrying
 // StatusSOPClassNotSupported, never a panic.

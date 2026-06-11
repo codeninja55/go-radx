@@ -42,10 +42,12 @@ func (s moveSupport) resolveDestination(dest AETitle) (string, bool) {
 // (which cancels ctx) stops an in-flight move and the destination association is torn down.
 //
 // The dispatcher honours a C-CANCEL-RQ arriving on the inbound association mid-retrieve by cancelling
-// the handler's context (so no further sub-operation is dispatched) and sending the terminal Cancel
-// RSP carrying the counts accumulated so far (PS3.4 C.4.2.3, PS3.7 §9.3.2.3), reusing the C-FIND
-// cancel watcher: the sub-operation C-STOREs ride the separate destination association, so the only
-// valid inbound message while a move is in flight is a C-CANCEL-RQ.
+// the handler's context (so no further sub-operation is dispatched, and an IN-FLIGHT sub-operation
+// C-STORE — which rides that context — is aborted rather than awaited) and sending the terminal
+// Cancel RSP carrying the counts accumulated so far as the next protocol message, never another
+// Pending (PS3.4 C.4.2.2.3, PS3.7 §9.3.2.3). It reuses the C-FIND cancel watcher: the sub-operation
+// C-STOREs ride the separate destination association, so the only valid inbound message while a move
+// is in flight is a C-CANCEL-RQ.
 func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, move moveSupport, cmd CommandSet, ds *dicom.DataSet, pcID uint8, info OpInfo) error {
 	m := acc.Machine()
 	if err := validateMoveContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), m.CurrentState()); err != nil {
@@ -116,8 +118,11 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 	// lifetime of the sub-operation loop. A C-MOVE occupies the inbound association until it
 	// terminates (the sub-operation C-STOREs ride the separate destination association), so the only
 	// valid inbound message is a C-CANCEL-RQ; the watcher's context is the drain's, so ending the
-	// move cancels its blocking read (no dangling goroutine, PRD §9.4).
-	watcher := newFindCancelWatcher(handlerCtx, acc.Conn(), m, cmd.MessageID)
+	// move cancels its blocking read (no dangling goroutine, PRD §9.4). The watcher cancels
+	// handlerCtx the moment a C-CANCEL arrives: the sub-operation C-STORE below rides handlerCtx, so
+	// an IN-FLIGHT store to a slow destination is aborted promptly rather than the cancel waiting for
+	// the store to finish (PS3.4 C.4.2.2.3 "as soon as possible").
+	watcher := newFindCancelWatcher(handlerCtx, acc.Conn(), m, cmd.MessageID, cancel)
 	defer watcher.stop()
 
 	var counts SubOperationCounts
@@ -183,12 +188,32 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 			// propagating the move originator: the AE Title that INVOKED the C-MOVE (the calling AE
 			// of the inbound C-MOVE association) and the original C-MOVE Message ID (PS3.7 §9.1.1;
 			// the originator is the request SCU, not this Move SCP, so destinations attribute the
-			// retrieve to the right AE).
-			subStatus, storeErr := destAssoc.Store(ctx, instance,
+			// retrieve to the right AE). The store rides handlerCtx so the cancel watcher aborts an
+			// in-flight store the moment a C-CANCEL-RQ arrives.
+			subStatus, storeErr := destAssoc.Store(handlerCtx, instance,
 				WithStoreMessageID(destAssoc.nextMessageID()),
 				WithMoveOriginator(info.CallingAETitle, cmd.MessageID),
 			)
+
+			// Re-check the cancel watch BEFORE counting or sending the Pending: a C-CANCEL-RQ that
+			// arrived while the store was in flight queued its result (and cancelled handlerCtx),
+			// and the next message the SCU sees after its cancel must be the terminal Cancel with
+			// the accumulated counts, never another Pending (PS3.4 C.4.2.2.3 "as soon as possible").
+			canceled := false
+			select {
+			case res := <-watcher.result:
+				if res.err != nil {
+					return res.err
+				}
+				canceled = true
+			default:
+			}
+
 			switch {
+			case storeErr != nil && canceled && handlerCtx.Err() != nil:
+				// The store was interrupted by the C-CANCEL (its context was cancelled mid-flight),
+				// not refused by the destination: it is neither completed nor a destination failure,
+				// so it is left out of the counts the terminal Cancel reports.
 			case storeErr != nil:
 				// The sub-operation C-STORE faulted on the wire (the destination association broke);
 				// count it as a failed sub-operation and continue reporting progress.
@@ -199,6 +224,11 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 				counts.Completed++
 			default:
 				counts.Failed++
+			}
+
+			if canceled {
+				matches.stop()
+				return sendMoveResponse(ctx, acc, cmd, pcID, StatusMoveCancel, counts)
 			}
 
 			if perr := sendMoveResponse(ctx, acc, cmd, pcID, StatusMovePending, counts); perr != nil {

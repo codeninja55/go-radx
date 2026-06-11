@@ -67,7 +67,7 @@ func serveFindMessage(ctx context.Context, acc *acse.Acceptor, h FindHandler, cm
 	// of the drain. A C-FIND occupies the association until it terminates, so the only valid inbound
 	// message is a C-CANCEL-RQ; the watcher's context is the drain's, so ending the query cancels its
 	// blocking read (no dangling goroutine, PRD §9.4).
-	watcher := newFindCancelWatcher(handlerCtx, acc.Conn(), m, cmd.MessageID)
+	watcher := newFindCancelWatcher(handlerCtx, acc.Conn(), m, cmd.MessageID, nil)
 	defer watcher.stop()
 
 	for {
@@ -136,7 +136,12 @@ type findCancelWatcher struct {
 }
 
 // newFindCancelWatcher starts the cancel-watch goroutine bound by a context derived from parent.
-func newFindCancelWatcher(parent context.Context, conn *dul.Conn, m *dul.StateMachine, msgID uint16) *findCancelWatcher {
+// A non-nil onCancel is invoked BEFORE the cancel result is delivered, so a dispatcher blocked in a
+// long sub-operation (the C-MOVE destination store) can hang that work off a context onCancel
+// cancels and observe the C-CANCEL promptly, rather than only at its next select (PS3.4 C.4.2.2.3
+// "as soon as possible"). The C-FIND drain passes nil: its select is never blocked outside the
+// watcher.
+func newFindCancelWatcher(parent context.Context, conn *dul.Conn, m *dul.StateMachine, msgID uint16, onCancel func()) *findCancelWatcher {
 	ctx, cancel := context.WithCancel(parent) // #nosec G118 -- cancel is stored on the watcher and invoked via stopOnce in stop()
 	w := &findCancelWatcher{
 		result: make(chan findCancelResult, 1),
@@ -153,6 +158,9 @@ func newFindCancelWatcher(parent context.Context, conn *dul.Conn, m *dul.StateMa
 			return
 		}
 		if cmd.CommandField == CommandCCancelRQ && cmd.MessageIDBeingRespondedTo == msgID {
+			if onCancel != nil {
+				onCancel()
+			}
 			w.result <- findCancelResult{}
 			return
 		}
