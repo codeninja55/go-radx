@@ -473,6 +473,84 @@ func TestFHIRRoleHistoryRendersUpdatesAndDeletes(t *testing.T) {
 	}
 }
 
+// TestFHIRRoleHistoryInstanceHonoursCount proves the _count parameter on history-instance
+// (http.html#history): the Bundle returns at most _count of the newest entries while total still
+// reports the full version count. Paging links are deferred, so _count is a cap, not a page size.
+// The truncation must happen after the per-version interaction derivation: with _count=1 over a
+// three-version history the single entry is the newest version's DELETE — were the version list
+// truncated first, the oldest survivor would be mis-rendered as the create. A _count larger than
+// the history is a no-op, _count=0 returns an empty page with the honest total, and a non-numeric
+// or negative _count is ignored rather than erroring (the parameter is a hint).
+func TestFHIRRoleHistoryInstanceHonoursCount(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+			id := createPatient(t, base, release)
+
+			total, entries := historyTotals(t, base+"/Patient/"+id+"/_history?_count=5")
+			if total != 1 || entries != 1 {
+				t.Errorf("_count=5 over 1 version: total=%d entries=%d, want 1/1", total, entries)
+			}
+		})
+	}
+
+	t.Run("multi-version stub", func(t *testing.T) {
+		repo := &stubVersionRepo{release: fhir.R5}
+		base, cleanup := startFHIRDaemonRepo(t, fhir.R5, repo)
+		defer cleanup()
+
+		status, body, _ := httpDo(t, http.MethodGet, base+"/Patient/p1/_history?_count=1", "", nil)
+		if status != http.StatusOK {
+			t.Fatalf("history _count=1 status = %d, want 200; body=%s", status, body)
+		}
+		var bundle struct {
+			Total int `json:"total"`
+			Entry []struct {
+				Request struct {
+					Method string `json:"method"`
+				} `json:"request"`
+			} `json:"entry"`
+		}
+		if err := json.Unmarshal(body, &bundle); err != nil {
+			t.Fatalf("history bundle decode: %v", err)
+		}
+		if bundle.Total != 3 || len(bundle.Entry) != 1 {
+			t.Fatalf("_count=1 over 3 versions: total=%d entries=%d, want total 3 with 1 entry", bundle.Total, len(bundle.Entry))
+		}
+		// The kept entry is the newest version's DELETE, not a mis-derived create.
+		if got := bundle.Entry[0].Request.Method; got != "DELETE" {
+			t.Errorf("_count=1 kept entry method = %q, want DELETE (the newest version)", got)
+		}
+
+		if total, entries := historyTotals(t, base+"/Patient/p1/_history?_count=0"); total != 3 || entries != 0 {
+			t.Errorf("_count=0: total=%d entries=%d, want total 3 with 0 entries", total, entries)
+		}
+		for _, q := range []string{"_count=abc", "_count=-1"} {
+			if total, entries := historyTotals(t, base+"/Patient/p1/_history?"+q); total != 3 || entries != 3 {
+				t.Errorf("%s: total=%d entries=%d, want the unfiltered 3/3", q, total, entries)
+			}
+		}
+	})
+}
+
+// historyTotals GETs a history URL and returns the Bundle's total and entry count.
+func historyTotals(t *testing.T, url string) (total, entries int) {
+	t.Helper()
+	status, body, _ := httpDo(t, http.MethodGet, url, "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("history status = %d, want 200; body=%s", status, body)
+	}
+	var bundle struct {
+		Total int               `json:"total"`
+		Entry []json.RawMessage `json:"entry"`
+	}
+	if err := json.Unmarshal(body, &bundle); err != nil {
+		t.Fatalf("history bundle decode: %v", err)
+	}
+	return bundle.Total, len(bundle.Entry)
+}
+
 // TestFHIRRoleIfMatchPrecondition proves the If-Match version precondition on the deferred write
 // interactions (http.html#concurrency: a version-aware update quotes the version it is based on in
 // If-Match, and "if the version id given in the If-Match header does not match, the server returns

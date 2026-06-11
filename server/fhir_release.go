@@ -44,9 +44,11 @@ type releaseAdapter interface {
 	newSearchSet(total int32, matches []fhir.Resource) (fhir.Resource, error)
 
 	// newHistoryBundle builds a history Bundle of the release from a resource's version list (newest
-	// first), with total set and each entry carrying the request/response pair FHIR R5 http.html
-	// requires of a history entry (bdl-3 makes entry.request mandatory in a history bundle).
-	newHistoryBundle(entries []historyEntry) (fhir.Resource, error)
+	// first), with each entry carrying the request/response pair FHIR R5 http.html requires of a
+	// history entry (bdl-3 makes entry.request mandatory in a history bundle). total is the full
+	// version count, passed separately because a _count-capped response carries fewer entries than
+	// the total it reports.
+	newHistoryBundle(total int, entries []historyEntry) (fhir.Resource, error)
 
 	// processTransaction applies a transaction Bundle through repo and builds the
 	// transaction-response Bundle of the release. It is on the adapter because both decoding the
@@ -258,13 +260,14 @@ func (r5Adapter) newSearchSet(total int32, matches []fhir.Resource) (fhir.Resour
 }
 
 // newHistoryBundle builds the R5 history Bundle directly (no typed builder exists for history):
-// type "history", total set (bdl-1 permits total on searchset and history), and every entry
-// carrying the request that produced the version and the response facts (status, weak ETag,
-// lastModified), per FHIR R5 http.html#history. A deleted version's entry has no resource.
-func (r5Adapter) newHistoryBundle(entries []historyEntry) (fhir.Resource, error) {
+// type "history", total set to the full version count (bdl-1 permits total on searchset and
+// history; a _count-capped response carries fewer entries than total), and every entry carrying
+// the request that produced the version and the response facts (status, weak ETag, lastModified),
+// per FHIR R5 http.html#history. A deleted version's entry has no resource.
+func (r5Adapter) newHistoryBundle(total int, entries []historyEntry) (fhir.Resource, error) {
 	bt := r5.BundleTypeHistory
-	total := int32(len(entries)) // #nosec G115 -- an in-memory version count is far below int32
-	bundle := &r5.Bundle{Type: &bt, Total: &total}
+	total32 := int32(total) // #nosec G115 -- an in-memory version count is far below int32
+	bundle := &r5.Bundle{Type: &bt, Total: &total32}
 	for _, e := range entries {
 		verb := r5.HTTPVerb(e.method)
 		entry := r5.BundleEntry{
@@ -462,11 +465,11 @@ func (r4Adapter) newSearchSet(total int32, matches []fhir.Resource) (fhir.Resour
 }
 
 // newHistoryBundle builds the R4 history Bundle, the R4 twin of the R5 adapter's (see that method
-// for the bdl-1/http.html#history rationale).
-func (r4Adapter) newHistoryBundle(entries []historyEntry) (fhir.Resource, error) {
+// for the bdl-1/http.html#history and total-vs-_count rationale).
+func (r4Adapter) newHistoryBundle(total int, entries []historyEntry) (fhir.Resource, error) {
 	bt := r4.BundleTypeHistory
-	total := int32(len(entries)) // #nosec G115 -- an in-memory version count is far below int32
-	bundle := &r4.Bundle{Type: &bt, Total: &total}
+	total32 := int32(total) // #nosec G115 -- an in-memory version count is far below int32
+	bundle := &r4.Bundle{Type: &bt, Total: &total32}
 	for _, e := range entries {
 		verb := r4.HTTPVerb(e.method)
 		entry := r4.BundleEntry{

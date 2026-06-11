@@ -6,6 +6,7 @@ import (
 	"mime"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -217,7 +218,10 @@ func (h *fhirHandler) handleVRead(w http.ResponseWriter, r *http.Request, resour
 // handleHistoryInstance serves an instance history (GET {type}/{id}/_history, FHIR R5
 // http.html#history): the repository's version list, newest first, rendered as the release's
 // history Bundle in which every entry carries the request that produced the version and the
-// response facts (status, ETag, lastModified). A resource that has never existed is a 404.
+// response facts (status, ETag, lastModified). A _count parameter caps the response at the newest
+// _count entries while total still reports the full version count; paging links (Bundle.link
+// next/prev) are deferred, so _count is a cap, not a page size. A resource that has never existed
+// is a 404.
 func (h *fhirHandler) handleHistoryInstance(w http.ResponseWriter, r *http.Request, resourceType, id string) {
 	if r.Method != http.MethodGet {
 		h.writeUnsupported(w, r, "the history endpoint supports GET only")
@@ -229,7 +233,13 @@ func (h *fhirHandler) handleHistoryInstance(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	fullURL := h.absoluteResourceURL(r, resourceType, id)
-	bundle, err := h.adapter.newHistoryBundle(h.historyEntries(fullURL, resourceType, id, versions))
+	entries := h.historyEntries(fullURL, resourceType, id, versions)
+	// Truncate AFTER deriving the entries: the create/update derivation keys off the oldest version
+	// in the full list, so truncating the version list first would mis-render the oldest surviving
+	// entry as the create. total stays the full version count.
+	total := len(entries)
+	entries = truncateHistoryEntries(entries, r.URL.Query().Get("_count"))
+	bundle, err := h.adapter.newHistoryBundle(total, entries)
 	if err != nil {
 		h.writeError(w, r, http.StatusInternalServerError, issueTypeException, "the server could not build the history bundle")
 		return
@@ -269,6 +279,22 @@ func (h *fhirHandler) historyEntries(fullURL, resourceType, id string, versions 
 		entries = append(entries, e)
 	}
 	return entries
+}
+
+// truncateHistoryEntries applies the history _count parameter: at most n of the newest entries are
+// kept (the list is already newest first), per FHIR R5 http.html#history. A _count of 0 is an
+// empty page with the honest total; an absent, non-numeric, or negative _count is ignored rather
+// than rejected — _count is a hint, the same lenient stance MemoryRepository.Search documents for
+// unrecognised parameters. Paging links over the truncated history are deferred.
+func truncateHistoryEntries(entries []historyEntry, countParam string) []historyEntry {
+	if countParam == "" {
+		return entries
+	}
+	n, err := strconv.Atoi(countParam)
+	if err != nil || n < 0 || n >= len(entries) {
+		return entries
+	}
+	return entries[:n]
 }
 
 // handleCreate serves a create: it reads and validates the body, then stores it through the

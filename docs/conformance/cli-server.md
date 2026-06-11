@@ -98,7 +98,8 @@ pluggable `server.Repository`: `read`, `vread`, `history-instance`, `create`, `s
 version a `410`, the history Bundle
 carries per-version `entry.request`/`entry.response` per FHIR R5 `http.html#history` and the resource's absolute
 `fullUrl` (`[base]/[type]/[id]`, identical for every version and present on a deleted version's resource-less entry,
-R5 `bundle.html`), and a write's `If-Match`
+R5 `bundle.html`), history honours `_count` as a cap (at most the newest `_count` entries; `total` still reports the
+full version count; paging links over history are deferred), and a write's `If-Match`
 precondition is evaluated against the current version (`412` on a stale version, `http.html#concurrency`). It
 validates inbound resources with the release validator (a resource with error-severity issues is rejected `422`;
 `POST [type]/$validate` runs the same validator and returns the findings as an `OperationOutcome` without
