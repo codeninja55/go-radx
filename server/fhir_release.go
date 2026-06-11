@@ -89,11 +89,14 @@ type transactionPostEntry struct {
 }
 
 // historyEntry is one release-neutral entry of a history Bundle the role hands the adapter to
-// render: the version's resource (nil for a deleted version), the interaction that produced it
-// (request method/url), and the response facts (status line, weak ETag, lastModified instant) FHIR
-// R5 http.html#history says a history entry reports. Every field is structural — ids, version ids,
-// status lines — never a patient value (PRD §9.1).
+// render: the resource's absolute fullUrl (the same [base]/[type]/[id] for every version per R5
+// bundle.html, present even on a deleted version's resource-less entry), the version's resource
+// (nil for a deleted version), the interaction that produced it (request method/url), and the
+// response facts (status line, weak ETag, lastModified instant) FHIR R5 http.html#history says a
+// history entry reports. Every field is structural — ids, version ids, status lines — never a
+// patient value (PRD §9.1).
 type historyEntry struct {
+	fullURL      string
 	resource     fhir.Resource
 	method       string
 	requestURL   string
@@ -265,6 +268,7 @@ func (r5Adapter) newHistoryBundle(entries []historyEntry) (fhir.Resource, error)
 	for _, e := range entries {
 		verb := r5.HTTPVerb(e.method)
 		entry := r5.BundleEntry{
+			FullUrl:  optptr(e.fullURL),
 			Request:  &r5.BundleEntryRequest{Method: &verb, URL: strptr(e.requestURL)},
 			Response: &r5.BundleEntryResponse{Status: strptr(e.status), Etag: optptr(e.etag), LastModified: optptr(e.lastModified)},
 		}
@@ -466,6 +470,7 @@ func (r4Adapter) newHistoryBundle(entries []historyEntry) (fhir.Resource, error)
 	for _, e := range entries {
 		verb := r4.HTTPVerb(e.method)
 		entry := r4.BundleEntry{
+			FullUrl:  optptr(e.fullURL),
 			Request:  &r4.BundleEntryRequest{Method: &verb, URL: strptr(e.requestURL)},
 			Response: &r4.BundleEntryResponse{Status: strptr(e.status), Etag: optptr(e.etag), LastModified: optptr(e.lastModified)},
 		}

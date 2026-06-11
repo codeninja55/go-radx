@@ -337,6 +337,7 @@ func TestFHIRRoleHistoryInstance(t *testing.T) {
 				Type         string `json:"type"`
 				Total        int    `json:"total"`
 				Entry        []struct {
+					FullURL  string `json:"fullUrl"`
 					Resource *struct {
 						ResourceType string `json:"resourceType"`
 						ID           string `json:"id"`
@@ -362,6 +363,11 @@ func TestFHIRRoleHistoryInstance(t *testing.T) {
 				t.Fatalf("history total=%d entries=%d, want 1/1", bundle.Total, len(bundle.Entry))
 			}
 			e := bundle.Entry[0]
+			// Every history entry carries the absolute [base]/[type]/[id] fullUrl (R5 bundle.html:
+			// the same fullUrl for every version of the resource).
+			if want := base + "/Patient/" + id; e.FullURL != want {
+				t.Errorf("history entry.fullUrl = %q, want %q (bundle.html)", e.FullURL, want)
+			}
 			if e.Request == nil || e.Request.Method != "POST" || e.Request.URL != "Patient" {
 				t.Errorf("history entry.request = %+v, want POST Patient (the create that produced version 1)", e.Request)
 			}
@@ -427,6 +433,7 @@ func TestFHIRRoleHistoryRendersUpdatesAndDeletes(t *testing.T) {
 		Type  string `json:"type"`
 		Total int    `json:"total"`
 		Entry []struct {
+			FullURL  string           `json:"fullUrl"`
 			Resource *json.RawMessage `json:"resource"`
 			Request  struct {
 				Method string `json:"method"`
@@ -443,6 +450,13 @@ func TestFHIRRoleHistoryRendersUpdatesAndDeletes(t *testing.T) {
 	}
 	if bundle.Type != "history" || bundle.Total != 3 || len(bundle.Entry) != 3 {
 		t.Fatalf("history bundle type=%q total=%d entries=%d, want history/3/3", bundle.Type, bundle.Total, len(bundle.Entry))
+	}
+	// Every version of the resource carries the same absolute fullUrl (R5 bundle.html), including
+	// the deleted version whose entry has no resource body.
+	for i, e := range bundle.Entry {
+		if want := base + "/Patient/p1"; e.FullURL != want {
+			t.Errorf("entry[%d].fullUrl = %q, want %q (identical across versions, present on deleted entries)", i, e.FullURL, want)
+		}
 	}
 	// Newest first: the delete (version 3), the update (version 2), the create (version 1).
 	if e := bundle.Entry[0]; e.Request.Method != "DELETE" || e.Request.URL != "Patient/p1" ||

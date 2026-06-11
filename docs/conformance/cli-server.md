@@ -96,7 +96,9 @@ pluggable `server.Repository`: `read`, `vread`, `history-instance`, `create`, `s
 `http.html#create`) and a transaction response entry carries the same versioned `response.location` plus
 `response.etag` (`http.html#transaction-response`), a vread of an unknown version is a `404` and of a deleted
 version a `410`, the history Bundle
-carries per-version `entry.request`/`entry.response` per FHIR R5 `http.html#history`, and a write's `If-Match`
+carries per-version `entry.request`/`entry.response` per FHIR R5 `http.html#history` and the resource's absolute
+`fullUrl` (`[base]/[type]/[id]`, identical for every version and present on a deleted version's resource-less entry,
+R5 `bundle.html`), and a write's `If-Match`
 precondition is evaluated against the current version (`412` on a stale version, `http.html#concurrency`). It
 validates inbound resources with the release validator (a resource with error-severity issues is rejected `422`;
 `POST [type]/$validate` runs the same validator and returns the findings as an `OperationOutcome` without

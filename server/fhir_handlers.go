@@ -228,7 +228,8 @@ func (h *fhirHandler) handleHistoryInstance(w http.ResponseWriter, r *http.Reque
 		h.writeRepoError(w, r, err)
 		return
 	}
-	bundle, err := h.adapter.newHistoryBundle(h.historyEntries(resourceType, id, versions))
+	fullURL := h.absoluteResourceURL(r, resourceType, id)
+	bundle, err := h.adapter.newHistoryBundle(h.historyEntries(fullURL, resourceType, id, versions))
 	if err != nil {
 		h.writeError(w, r, http.StatusInternalServerError, issueTypeException, "the server could not build the history bundle")
 		return
@@ -238,15 +239,19 @@ func (h *fhirHandler) handleHistoryInstance(w http.ResponseWriter, r *http.Reque
 }
 
 // historyEntries renders a resource's version list (newest first) into the release-neutral history
-// Bundle entries. The interaction each version reports is derived from the version record: a
+// Bundle entries. fullURL is the resource's absolute [base]/[type]/[id] URL: R5 bundle.html gives
+// every version of a resource the same fullUrl (the version is distinguished by meta.versionId),
+// so each entry carries it — including a deleted version's entry, which has no resource body to
+// name itself. The interaction each version reports is derived from the version record: a
 // deletion is a DELETE against the instance, the resource's first version is the create (a POST
 // against the type, answered 201), and any later non-deleted version is an update (a PUT against
 // the instance, answered 200) — the derivation the deferred update interaction (wave 3) slots into
 // without reshaping the record.
-func (h *fhirHandler) historyEntries(resourceType, id string, versions []ResourceVersion) []historyEntry {
+func (h *fhirHandler) historyEntries(fullURL, resourceType, id string, versions []ResourceVersion) []historyEntry {
 	entries := make([]historyEntry, 0, len(versions))
 	for i, v := range versions {
 		e := historyEntry{
+			fullURL:      fullURL,
 			etag:         weakETag(v.VersionID),
 			lastModified: fhirInstant(v.LastUpdated),
 		}
@@ -367,6 +372,19 @@ func (h *fhirHandler) resourceLocation(resourceType, id string) string {
 // (which a client could populate with an identifier or name, PRD §9.1).
 const conditionalCreateDiagnostics = "conditional create (If-None-Exist) is not supported; " +
 	"retry as an unconditional create"
+
+// absoluteResourceURL builds a resource's absolute [base]/[type]/[id] URL from the request the role
+// is answering: the scheme follows the connection (https when the daemon terminated TLS), the host
+// is the one the client addressed (r.Host), and the path is the role's resourceLocation. It is the
+// fullUrl a history Bundle entry carries — a Bundle travels beyond the requesting connection, so a
+// relative reference would dangle; bundle.html wants the absolute form.
+func (h *fhirHandler) absoluteResourceURL(r *http.Request, resourceType, id string) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host + h.resourceLocation(resourceType, id)
+}
 
 // validateCreate is the one create-validation gate both write paths share: the type-level create POST
 // and every POST entry of a transaction. It enforces, in order, that the target type is a served
