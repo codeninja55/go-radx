@@ -330,10 +330,11 @@ func (b *dicomwebRetrieve) RetrieveFrames(ctx context.Context, p dicomweb.Resour
 	return out, nil
 }
 
-// RetrieveBulkData returns the instance's top-level binary (OB/OW/OL/OV/UN) values as ordered
-// octet-stream payloads (dicomweb.BulkDataRetriever) — the values the metadata response emits as
-// BulkDataURI references, pixel data foremost. An instance carrying none returns an empty set,
-// which the server answers 404.
+// RetrieveBulkData backs the BARE bulkdata sub-resource: it returns the instance's top-level
+// binary (OB/OW/OL/OV/UN) values as ordered octet-stream payloads (dicomweb.BulkDataRetriever).
+// A locator-suffixed BulkDataURI (the per-attribute form the metadata response emits) is resolved
+// by the dicomweb server itself against RetrieveInstance, so each URI returns exactly its own
+// attribute value. An instance carrying none returns an empty set, which the server answers 404.
 func (b *dicomwebRetrieve) RetrieveBulkData(ctx context.Context, p dicomweb.ResourcePath) ([]dicomweb.BulkDataObject, error) {
 	ds, err := b.RetrieveInstance(ctx, p)
 	if err != nil {

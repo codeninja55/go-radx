@@ -87,8 +87,10 @@ A metadata response emits each binary value as a `BulkDataURI` rooted at that in
 a client resolves it through the same origin. The client leaves a `BulkDataURI` unresolved on decode; `BulkDataURIs`
 enumerates the pending references in a returned dataset and `ResolveBulkDataURI` fetches a reference's octets. A
 relative reference is joined to the client's `WithClientBulkDataBaseURL` (or the origin base URL when none is set); an
-absolute reference is fetched as given. The current bulkdata server returns every bulk-data value of the instance for
-any attribute reference under `.../bulkdata`; per-attribute selection is a recorded follow-up.
+absolute reference is fetched as given. The bulkdata server resolves a reference's attribute locator (the
+`{tag}` or `{tag}/{item}/{tag}` path the metadata emitter appends under `.../bulkdata/`) and returns exactly the
+referenced value, top-level and nested sequence paths alike; a locator that names no binary attribute of the
+instance answers `404`. The bare `.../bulkdata` sub-resource returns every bulk-data value of the instance.
 
 ### Errors
 

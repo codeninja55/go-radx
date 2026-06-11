@@ -326,9 +326,14 @@ func (s *Server) handleRetrieveFrames(w http.ResponseWriter, r *http.Request, p 
 }
 
 // handleRetrieveBulkData answers a WADO-RS bulkdata GET with a multipart/related body of
-// application/octet-stream parts, one per bulk-data value of the instance. A backend that
-// does not implement BulkDataRetriever answers 501.
-func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, p ResourcePath) {
+// application/octet-stream parts. A bare ".../bulkdata" target returns every bulk-data value
+// of the instance through the BulkDataRetriever; a ".../bulkdata/{locator}" target — the form
+// the metadata response's BulkDataURI references carry — returns exactly the one attribute
+// value the locator names, resolved against the instance dataset with the same locator scheme
+// the JSON codec emits (a top-level tag, or a tag/item-index/... path into nested sequences).
+// A locator that names no binary attribute of the instance answers 404. A backend that does
+// not implement BulkDataRetriever answers 501.
+func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, p ResourcePath, locator []string) {
 	br, ok := s.retrieve.(BulkDataRetriever)
 	if !ok {
 		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS bulkdata retrieval is not implemented")
@@ -345,12 +350,101 @@ func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, 
 		s.writeProblem(w, r, http.StatusBadRequest, err, "invalid resource path")
 		return
 	}
+	if len(locator) > 0 {
+		s.handleRetrieveBulkDataValue(w, r, p, locator)
+		return
+	}
 	objs, err := br.RetrieveBulkData(r.Context(), p)
 	if err != nil {
 		s.writeRetrieveBackendError(w, r, err, "bulkdata not found")
 		return
 	}
 	s.writeOctetParts(w, r, objs)
+}
+
+// handleRetrieveBulkDataValue answers a locator-suffixed bulkdata GET: it fetches the instance
+// through the base RetrieveBackend and resolves the locator to the one attribute value the
+// metadata BulkDataURI referenced, so each URI returns exactly its own octets — never the whole
+// instance's bulk data under a per-attribute URI (PS3.18 §10.4.4).
+func (s *Server) handleRetrieveBulkDataValue(w http.ResponseWriter, r *http.Request, p ResourcePath, locator []string) {
+	ds, err := s.retrieve.RetrieveInstance(r.Context(), p)
+	if err != nil {
+		s.writeRetrieveBackendError(w, r, err, "bulkdata not found")
+		return
+	}
+	data, ok := resolveBulkDataLocator(ds, locator)
+	if !ok {
+		s.writeProblem(w, r, http.StatusNotFound, ErrNotFound,
+			"the bulkdata reference names no binary attribute of the instance")
+		return
+	}
+	s.writeOctetParts(w, r, []BulkDataObject{{Data: data}})
+}
+
+// resolveBulkDataLocator walks ds along a metadata-emitted BulkDataURI locator — the path the
+// JSON codec appends to the instance's bulkdata base URL: a top-level tag key ("7FE00010"), or
+// a path alternating sequence tag and zero-based item index into nested sequences
+// ("00081199/0/7FE00010"). It returns the exact octets the codec would have referenced for the
+// attribute (the raw bytes of a binary VR; OF/OD float values serialised little-endian, per
+// marshalBinary). ok is false when the locator is malformed or names no binary attribute, so
+// the caller answers 404 rather than wrong bytes.
+func resolveBulkDataLocator(ds *dicom.DataSet, locator []string) ([]byte, bool) {
+	for i := 0; i < len(locator); i += 2 {
+		t, err := parseTagKey(locator[i])
+		if err != nil {
+			return nil, false
+		}
+		e, ok := ds.Get(t)
+		if !ok {
+			return nil, false
+		}
+		if i == len(locator)-1 {
+			return binaryValueBytes(e)
+		}
+		seq, ok := sequenceFromValue(e)
+		if !ok {
+			return nil, false
+		}
+		idx, err := strconv.Atoi(locator[i+1])
+		if err != nil || idx < 0 {
+			return nil, false
+		}
+		item, ok := sequenceItemAt(seq, idx)
+		if !ok {
+			return nil, false
+		}
+		ds = item
+	}
+	return nil, false
+}
+
+// binaryValueBytes returns the octets a binary element's BulkDataURI references: the raw bytes
+// of an OB/OW/OL/OV/UN value, or the little-endian serialisation of an OF/OD value — exactly
+// the payload marshalBinary would have inlined or referenced. A non-binary element resolves to
+// nothing (false): its value is carried in the metadata itself, never as a bulk reference.
+func binaryValueBytes(e dicom.Element) ([]byte, bool) {
+	switch v := e.Value.(type) {
+	case *dicom.Bytes:
+		return v.Bytes(), true
+	case *dicom.Floats:
+		if isOtherFloatVR(e.VR) {
+			return otherFloatBytes(e.VR, v.Floats()), true
+		}
+	}
+	return nil, false
+}
+
+// sequenceItemAt returns the zero-based idx-th item dataset of seq, or false when idx is
+// outside the sequence.
+func sequenceItemAt(seq *dicom.Sequence, idx int) (*dicom.DataSet, bool) {
+	i := 0
+	for item := range seq.Items() {
+		if i == idx {
+			return item.DataSet, true
+		}
+		i++
+	}
+	return nil, false
 }
 
 // writeOctetParts frames the given payloads as a multipart/related body of

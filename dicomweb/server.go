@@ -143,7 +143,7 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodGet && isMetadataRetrieve(segs):
 		s.handleRetrieveMetadata(w, r, retrievePath(segs))
 	case r.Method == http.MethodGet && isBulkDataRetrieve(segs):
-		s.handleRetrieveBulkData(w, r, retrievePath(segs))
+		s.handleRetrieveBulkData(w, r, retrievePath(segs), segs[7:])
 	case r.Method == http.MethodGet && isFrameRetrieve(segs):
 		s.routeFrames(w, r, segs)
 	case r.Method == http.MethodGet && isInstanceRetrieve(segs):

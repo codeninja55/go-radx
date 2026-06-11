@@ -881,3 +881,75 @@ func TestRetrieveBackendFaultIs500Never404(t *testing.T) {
 		t.Errorf("ErrNotFound control status = %d, want 404", resp.StatusCode)
 	}
 }
+
+// TestBulkDataURIReturnsExactlyTheReferencedAttribute is the per-attribute locator regression
+// (PS3.18 §10.4.4): an instance carrying several binary attributes emits one BulkDataURI per
+// attribute in its metadata, and resolving each URI returns exactly ITS OWN octets — never the
+// whole instance's bulk data — including a binary value nested in a sequence item. A bogus
+// attribute path under the bulkdata sub-resource answers 404.
+func TestBulkDataURIReturnsExactlyTheReferencedAttribute(t *testing.T) {
+	const sop = "1.2.3.4.5"
+	pixels := bytes.Repeat([]byte{0xAB}, 64)
+	doc := bytes.Repeat([]byte{0xCD}, 32)
+	nested := bytes.Repeat([]byte{0xEF}, 16)
+
+	ds := sampleInstance("1.2.3", "1.2.3.4", sop)
+	ds.Set(dicom.Element{Tag: dicom.TagPixelData, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, pixels)})
+	ds.Set(dicom.Element{Tag: dicom.TagEncapsulatedDocument, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, doc)})
+	item := dicom.NewDataSet()
+	item.Set(dicom.Element{Tag: dicom.TagEncapsulatedDocument, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, nested)})
+	ds.Set(dicom.Element{
+		Tag: dicom.TagIconImageSequence, VR: dicom.VRSQ,
+		Value: dicom.NewSequenceValue(dicom.NewSequence(item)),
+	})
+
+	store := newWADOStore()
+	store.put(RetrievedInstance{DataSet: ds})
+	c := newWADOServerClient(t, store)
+
+	metas, err := c.RetrieveMetadata(context.Background(), NewInstance("1.2.3", "1.2.3.4", sop))
+	if err != nil {
+		t.Fatalf("RetrieveMetadata: %v", err)
+	}
+	uris := BulkDataURIs(metas[0])
+	if len(uris) != 3 {
+		t.Fatalf("metadata carried %d BulkDataURIs, want 3 (pixel data, document, nested document): %v", len(uris), uris)
+	}
+
+	// Each emitted URI's locator suffix names its attribute; each must resolve to its own bytes.
+	want := map[string][]byte{
+		"/bulkdata/7FE00010":            pixels,
+		"/bulkdata/00420011":            doc,
+		"/bulkdata/00880200/0/00420011": nested,
+	}
+	for _, uri := range uris {
+		var matched bool
+		for suffix, expect := range want {
+			if !strings.HasSuffix(string(uri), suffix) {
+				continue
+			}
+			matched = true
+			got, rerr := c.ResolveBulkDataURI(context.Background(), uri)
+			if rerr != nil {
+				t.Fatalf("ResolveBulkDataURI(%s): %v", suffix, rerr)
+			}
+			if !bytes.Equal(got, expect) {
+				t.Errorf("URI %s resolved to %d bytes that are not the referenced attribute's own value (want %d bytes)",
+					suffix, len(got), len(expect))
+			}
+		}
+		if !matched {
+			t.Errorf("metadata emitted an unexpected BulkDataURI %q", uri)
+		}
+	}
+
+	// A locator naming a non-binary attribute, and a malformed locator, are 404 — never wrong bytes.
+	base := strings.TrimSuffix(string(uris[0]), "/7FE00010")
+	for _, bogus := range []string{base + "/00100010", base + "/ZZZZ"} {
+		_, rerr := c.ResolveBulkDataURI(context.Background(), BulkDataURI(bogus))
+		var he *HTTPError
+		if !errors.As(rerr, &he) || he.StatusCode != http.StatusNotFound {
+			t.Errorf("bogus locator %q error = %v, want HTTPError 404", bogus, rerr)
+		}
+	}
+}

@@ -368,6 +368,57 @@ func TestDaemonDICOMwebRetrievalRoutes(t *testing.T) {
 	}
 }
 
+// TestDaemonDICOMwebBulkDataHonoursAttributeLocator is the per-attribute bulkdata regression
+// (PS3.18 §10.4.4): an instance with two top-level binary attributes serves each metadata-style
+// locator URI with exactly that attribute's own octets, and a locator naming no binary attribute
+// answers 404 — never the whole instance's bulk data under a per-attribute URI.
+func TestDaemonDICOMwebBulkDataHonoursAttributeLocator(t *testing.T) {
+	t.Parallel()
+	store, cat := newTestBackends(t)
+	ctx := context.Background()
+
+	const study, series, inst = "40.1", "40.1.1", "40.1.1.1"
+	pixels := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	doc := []byte{9, 10, 11, 12}
+	ds := newTestObject(study, series, inst)
+	ds.Set(dicom.Element{Tag: dicom.TagPixelData, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, pixels)})
+	ds.Set(dicom.Element{Tag: dicom.TagEncapsulatedDocument, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, doc)})
+	if err := store.Put(ctx, ds); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	if err := cat.Index(ctx, ds); err != nil {
+		t.Fatalf("Index: %v", err)
+	}
+
+	base := startDICOMwebDaemon(t, store, cat)
+	bulkBase := base + "/studies/" + study + "/series/" + series + "/instances/" + inst + "/bulkdata"
+	const acceptOctet = `multipart/related; type="application/octet-stream"`
+
+	for _, tc := range []struct {
+		locator string
+		want    []byte
+	}{
+		{"/7FE00010", pixels},
+		{"/00420011", doc},
+	} {
+		status, ct, body := dicomwebGET(t, bulkBase+tc.locator, acceptOctet)
+		if status != http.StatusOK {
+			t.Fatalf("bulkdata%s status = %d, want 200 (body: %s)", tc.locator, status, body)
+		}
+		parts := multipartParts(t, ct, body)
+		if len(parts) != 1 || !bytes.Equal(parts[0], tc.want) {
+			t.Errorf("bulkdata%s = %d part(s), want exactly the referenced attribute's %d bytes", tc.locator, len(parts), len(tc.want))
+		}
+	}
+
+	// A locator naming a non-binary attribute, and a malformed one, answer 404.
+	for _, bogus := range []string{"/00100010", "/ZZZZ"} {
+		if status, _, _ := dicomwebGET(t, bulkBase+bogus, acceptOctet); status != http.StatusNotFound {
+			t.Errorf("bulkdata%s status = %d, want 404", bogus, status)
+		}
+	}
+}
+
 // faultingCatalogue wraps a Catalogue whose Query always terminates with a backend error,
 // standing in for a broken index (a failed SQLite read, a dropped connection).
 type faultingCatalogue struct {
