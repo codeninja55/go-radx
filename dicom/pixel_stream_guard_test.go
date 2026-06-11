@@ -93,3 +93,115 @@ func TestReadEncapsulatedAggregateCapAcceptsStreamAtCap(t *testing.T) {
 		t.Error("PixelData element was not retained")
 	}
 }
+
+// TestReadEncapsulatedNonZeroDelimiterLength pins the structural rule on the read
+// layer: a Sequence Delimitation Item must carry length zero (PS3.5 A.4). Silent
+// acceptance of a non-zero length would desynchronise the outer element loop, so it
+// is a typed error — never a dataset whose following elements were misparsed.
+func TestReadEncapsulatedNonZeroDelimiterLength(t *testing.T) {
+	data := buildEncapsulatedPart10(RLELossless, func(out *bytes.Buffer) {
+		out.Write(seedItemHeader(4))
+		out.Write([]byte{1, 2, 3, 4})
+		delim := seedSequenceDelimiter()
+		delim[4] = 0x04 // declare a non-zero delimiter length
+		out.Write(delim)
+		// Bytes a desynchronised parser would misread as the next element.
+		out.Write([]byte{0xDE, 0xAD, 0xBE, 0xEF})
+	})
+	_, err := Read(bytes.NewReader(data))
+	var ve *ValueError
+	if !errors.As(err, &ve) {
+		t.Fatalf("Read = %v, want *ValueError for a non-zero Sequence Delimitation Item length", err)
+	}
+	if ve.Tag != tagSequenceDelimit {
+		t.Errorf("ValueError.Tag = %s, want %s", ve.Tag, tagSequenceDelimit)
+	}
+}
+
+// TestReadEncapsulatedOddFragmentLength pins the even-length rule on the read layer:
+// encapsulated item values are even (PS3.5 A.4), so an odd item length is a typed
+// error at Read rather than a stream that parseEncapsulated later rejects.
+func TestReadEncapsulatedOddFragmentLength(t *testing.T) {
+	data := buildEncapsulatedPart10(RLELossless, func(out *bytes.Buffer) {
+		out.Write(seedItemHeader(3))
+		out.Write([]byte{1, 2, 3})
+		out.Write(seedSequenceDelimiter())
+	})
+	_, err := Read(bytes.NewReader(data))
+	var ve *ValueError
+	if !errors.As(err, &ve) {
+		t.Fatalf("Read = %v, want *ValueError for an odd fragment item length", err)
+	}
+}
+
+// TestEncapsulatedReadAndParseLayersRejectConsistently pins the two-layer contract:
+// every malformed fragment stream the read layer rejects must also be rejected by
+// parseEncapsulated (NewPixelData's validator), so a stream can never be accepted on
+// read and then rejected on decode, or vice versa, for these structural classes. The
+// read layer is deliberately laxer only about frame mapping, which needs the
+// dataset's NumberOfFrames and stays in NewPixelData.
+func TestEncapsulatedReadAndParseLayersRejectConsistently(t *testing.T) {
+	cases := []struct {
+		name   string
+		stream func(out *bytes.Buffer) // fragment stream after the (7FE0,0010) header
+	}{
+		{
+			name: "odd item length",
+			stream: func(out *bytes.Buffer) {
+				out.Write(seedItemHeader(0)) // empty Basic Offset Table
+				out.Write(seedItemHeader(3))
+				out.Write([]byte{1, 2, 3})
+				out.Write(seedSequenceDelimiter())
+			},
+		},
+		{
+			name: "non-zero delimiter length",
+			stream: func(out *bytes.Buffer) {
+				out.Write(seedItemHeader(0))
+				out.Write(seedItemHeader(2))
+				out.Write([]byte{1, 2})
+				delim := seedSequenceDelimiter()
+				delim[4] = 0x02
+				out.Write(delim)
+			},
+		},
+		{
+			name: "undefined item length",
+			stream: func(out *bytes.Buffer) {
+				out.Write(seedItemHeader(0))
+				out.Write(seedItemHeader(undefinedLength))
+				out.Write(seedSequenceDelimiter())
+			},
+		},
+		{
+			name: "foreign tag in the stream",
+			stream: func(out *bytes.Buffer) {
+				out.Write(seedItemHeader(0))
+				foreign := make([]byte, 8)
+				copy(foreign, []byte{0x08, 0x00, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00})
+				out.Write(foreign)
+				out.Write(seedSequenceDelimiter())
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var value bytes.Buffer
+			tc.stream(&value)
+			if _, err := parseEncapsulated(value.Bytes(), 0); err == nil {
+				t.Error("parseEncapsulated accepted a stream the read layer must reject")
+			}
+
+			var part10 bytes.Buffer
+			tc.stream(&part10)
+			data := buildEncapsulatedPart10(RLELossless, func(out *bytes.Buffer) {
+				// buildEncapsulatedPart10 already wrote the empty Basic Offset Table
+				// item; skip the stream's own leading BOT item (8 bytes).
+				out.Write(part10.Bytes()[8:])
+			})
+			if _, err := Read(bytes.NewReader(data)); err == nil {
+				t.Error("Read accepted a stream parseEncapsulated rejects")
+			}
+		})
+	}
+}

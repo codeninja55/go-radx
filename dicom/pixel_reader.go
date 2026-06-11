@@ -40,6 +40,14 @@ func ReadPixelDataFrom(r io.Reader, opts ...ReadOption) (*PixelData, error) {
 // accumulated stream is one (7FE0,0010) element value, so it is also held to the same
 // per-element cap (WithMaxElementLen) that bounds a native pixel value: per-item
 // bounds alone would let many small fragments grow the retained stream without limit.
+//
+// Structural validation mirrors parseEncapsulated (NewPixelData's validator): item
+// tags only, defined even item lengths, and a zero-length Sequence Delimitation Item,
+// so the two layers accept and reject the same streams. parseEncapsulated reads the
+// first item as the Basic Offset Table, which is positional — any stream this loop
+// accepts begins with an item, so there is nothing extra to check here. The read
+// layer is laxer only about frame mapping, which needs the dataset's NumberOfFrames
+// and stays in NewPixelData.
 func readEncapsulatedValue(br *boundedReader, ts TransferSyntax) ([]byte, error) {
 	var out []byte
 	for {
@@ -49,6 +57,11 @@ func readEncapsulatedValue(br *boundedReader, ts TransferSyntax) ([]byte, error)
 		}
 		out = appendDelimiterHeader(out, tag, length, ts)
 		if tag == tagSequenceDelimit {
+			if length != 0 {
+				// A non-zero delimiter length must fail here: accepting it would leave
+				// the outer element loop misreading the bytes that follow (PS3.5 A.4).
+				return nil, &ValueError{Tag: tagSequenceDelimit, VR: VROBorOW, Msg: "Sequence Delimitation Item must have zero length"}
+			}
 			return out, nil
 		}
 		if tag != tagItem {
@@ -56,6 +69,9 @@ func readEncapsulatedValue(br *boundedReader, ts TransferSyntax) ([]byte, error)
 		}
 		if length == undefinedLength {
 			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "fragment item has undefined length"}
+		}
+		if length%2 != 0 {
+			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "fragment item length is odd; encapsulated item values must be even"}
 		}
 		if total := uint64(len(out)) + uint64(length); total > uint64(br.maxLen) {
 			return nil, &LimitExceededError{Tag: TagPixelData, Limit: uint64(br.maxLen), Actual: total, Kind: "element-length"}

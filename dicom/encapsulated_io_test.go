@@ -248,9 +248,10 @@ func TestReadEncapsulatedHostileInputs(t *testing.T) {
 			mutate: func(b []byte) []byte {
 				out := bytes.Clone(b)
 				// First item after the BOT item (8-byte header + 0-byte value): set its
-				// declared length far past the bytes present.
+				// declared length far past the bytes present. The length stays even so
+				// the structural even-length check does not fire before the EOF guard.
 				fragHeader := streamOff + 8
-				out[fragHeader+4] = 0xFF
+				out[fragHeader+4] = 0xFE
 				out[fragHeader+5] = 0xFF
 				out[fragHeader+6] = 0x00
 				out[fragHeader+7] = 0x00
