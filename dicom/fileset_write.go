@@ -1,6 +1,7 @@
 package dicom
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -109,6 +110,13 @@ var fileSetIDRE = regexp.MustCompile(`^[0-9A-Z_]{0,16}$`)
 // layout and the DICOMDIR with offset-linked directory records (PS3.10 Table 8.1-1).
 // It returns the written file-set re-opened through OpenFileSet, so every offset link
 // in the DICOMDIR has been resolved before Write returns.
+//
+// Write is non-destructive for the DICOMDIR: members are written first, then the
+// DICOMDIR is committed through a temp file and an atomic rename, so an existing
+// DICOMDIR at root is either replaced whole or left byte-for-byte untouched — a
+// failed Write never truncates it or leaves a half-written one. Member files carry
+// no such guarantee: a Write that fails midway may leave partial or already-written
+// member files under root.
 func (b *FileSetBuilder) Write(root string) (*FileSet, error) {
 	if !fileSetIDRE.MatchString(b.id) {
 		return nil, &ValueError{Tag: TagFileSetID, VR: VRCS,
@@ -138,10 +146,54 @@ func (b *FileSetBuilder) Write(root string) (*FileSet, error) {
 		}
 	}
 	dicomdirPath := filepath.Join(root, "DICOMDIR")
-	if err := WriteFile(dicomdirPath, &File{Meta: meta, DataSet: main}); err != nil {
+	if err := writeDICOMDIRAtomic(dicomdirPath, &File{Meta: meta, DataSet: main}); err != nil {
 		return nil, err
 	}
 	return OpenFileSet(dicomdirPath)
+}
+
+// writeDICOMDIRAtomic encodes f to a temp file beside dest, fsyncs and closes it, and
+// renames it over dest only once the whole file is durable — the same temp-and-rename
+// idiom as the radx CLI's writeDataSetAtomic. WriteFile truncates its target with
+// os.Create before writing, so a failed write there would destroy an existing
+// DICOMDIR (the file-set's only index — a clinical-data-safety defect); here any
+// failure removes the temp file and leaves dest untouched. The rename is atomic on
+// the same filesystem (the temp lives in dest's directory, so it never crosses a
+// device boundary).
+func writeDICOMDIRAtomic(dest string, f *File) error {
+	tmp, err := os.CreateTemp(filepath.Dir(dest), "."+filepath.Base(dest)+".radx-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	// Any path out of this function that has not renamed the temp into place removes
+	// it, so a failure never leaves a stray partial file beside the original.
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tmp.Close()
+			_ = os.Remove(tmpName)
+		}
+	}()
+
+	bw := bufio.NewWriter(tmp)
+	if err := Write(bw, f); err != nil {
+		return err
+	}
+	if err := bw.Flush(); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpName, dest); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 // recordNode is one directory record being assembled, with its position in the

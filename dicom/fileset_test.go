@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -166,6 +167,56 @@ func TestFileSetBuildWriteOpenRoundTrip(t *testing.T) {
 	}
 	if got := fs.Find(map[Tag]string{TagPatientID: "5MR2", TagInstanceNumber: "3"}); len(got) != 1 {
 		t.Errorf("Find(PatientID+InstanceNumber) = %d, want 1", len(got))
+	}
+}
+
+func TestFileSetWriteFailureLeavesExistingDICOMDIRUntouched(t *testing.T) {
+	root := t.TempDir()
+	a := NewFileSetBuilder()
+	if err := a.AddFile(fileSetSample("P1", "1.2.3.1", "1.2.3.1.1", "1.2.3.1.1.1", "1")); err != nil {
+		t.Fatal(err)
+	}
+	fs, err := a.Write(root)
+	if err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	before, err := os.ReadFile(fs.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Same hierarchy shape, so the member directories already exist and the member
+	// write (a truncate of an existing file) succeeds without needing directory write
+	// permission. The read-only root then fails the DICOMDIR write itself — the
+	// injected failure point after the members are staged.
+	b := NewFileSetBuilder()
+	if err := b.AddFile(fileSetSample("P1", "1.2.3.1", "1.2.3.1.1", "1.2.3.1.1.2", "2")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(root, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(root, 0o755) })
+
+	if _, err := b.Write(root); err == nil {
+		t.Fatal("Write succeeded with an unwritable DICOMDIR path")
+	}
+	after, err := os.ReadFile(fs.Path())
+	if err != nil {
+		t.Fatalf("existing DICOMDIR unreadable after failed Write: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Error("failed Write modified the existing DICOMDIR")
+	}
+	// A failed write must not strand a half-written temp DICOMDIR beside it.
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".DICOMDIR") {
+			t.Errorf("failed Write left temp file %q behind", e.Name())
+		}
 	}
 }
 
