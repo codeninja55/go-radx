@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -39,7 +40,7 @@ func (m *wadoStore) put(si RetrievedInstance) {
 func (m *wadoStore) RetrieveInstance(_ context.Context, p ResourcePath) (*dicom.DataSet, error) {
 	si, ok := m.instances[string(p.Instance)]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, ErrNotFound
 	}
 	return si.DataSet, nil
 }
@@ -47,7 +48,7 @@ func (m *wadoStore) RetrieveInstance(_ context.Context, p ResourcePath) (*dicom.
 func (m *wadoStore) RetrieveStoredInstance(_ context.Context, p ResourcePath) (RetrievedInstance, error) {
 	si, ok := m.instances[string(p.Instance)]
 	if !ok {
-		return RetrievedInstance{}, errors.New("not found")
+		return RetrievedInstance{}, ErrNotFound
 	}
 	return si, nil
 }
@@ -79,7 +80,7 @@ func (m *wadoStore) RetrieveMetadata(_ context.Context, p ResourcePath) ([]Retri
 	case LevelInstance:
 		si, ok := m.instances[string(p.Instance)]
 		if !ok {
-			return nil, errors.New("not found")
+			return nil, ErrNotFound
 		}
 		return []RetrievedInstance{si}, nil
 	case LevelSeries:
@@ -92,12 +93,12 @@ func (m *wadoStore) RetrieveMetadata(_ context.Context, p ResourcePath) ([]Retri
 func (m *wadoStore) RetrieveFrames(_ context.Context, p ResourcePath, frames []int) ([]BulkDataObject, error) {
 	all, ok := m.frames[string(p.Instance)]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, ErrNotFound
 	}
 	out := make([]BulkDataObject, 0, len(frames))
 	for _, f := range frames {
 		if f < 1 || f > len(all) {
-			return nil, errors.New("frame out of range")
+			return nil, fmt.Errorf("%w: frame out of range", ErrNotFound)
 		}
 		out = append(out, BulkDataObject{Data: all[f-1]})
 	}
@@ -107,7 +108,7 @@ func (m *wadoStore) RetrieveFrames(_ context.Context, p ResourcePath, frames []i
 func (m *wadoStore) RetrieveBulkData(_ context.Context, p ResourcePath) ([]BulkDataObject, error) {
 	all, ok := m.bulk[string(p.Instance)]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, ErrNotFound
 	}
 	out := make([]BulkDataObject, 0, len(all))
 	for _, b := range all {
@@ -578,7 +579,7 @@ func TestRetrieveStudyNotImplementedWhenBaseBackend(t *testing.T) {
 type baseOnlyBackend struct{}
 
 func (baseOnlyBackend) RetrieveInstance(context.Context, ResourcePath) (*dicom.DataSet, error) {
-	return nil, errors.New("not found")
+	return nil, ErrNotFound
 }
 
 // TestParseFrameListRejectsMalformed asserts a malformed frame list is rejected and the
@@ -803,4 +804,80 @@ func TestResolveBulkDataURICrossOriginRefusedByDefault(t *testing.T) {
 			t.Fatalf("resolved bulk data does not match the payload")
 		}
 	})
+}
+
+// faultingRetrieveBackend returns a NON-sentinel error from every retriever method, standing in
+// for a broken catalogue or object store behind the backend.
+type faultingRetrieveBackend struct{}
+
+func (faultingRetrieveBackend) RetrieveInstance(context.Context, ResourcePath) (*dicom.DataSet, error) {
+	return nil, errors.New("backend fault")
+}
+
+func (faultingRetrieveBackend) RetrieveStudy(context.Context, dicom.UID) ([]RetrievedInstance, error) {
+	return nil, errors.New("backend fault")
+}
+
+func (faultingRetrieveBackend) RetrieveMetadata(context.Context, ResourcePath) ([]RetrievedInstance, error) {
+	return nil, errors.New("backend fault")
+}
+
+// TestRetrieveBackendFaultIs500Never404 is the seam regression for the retriever error contract:
+// only an error wrapping ErrNotFound answers 404; any other backend error is an internal fault
+// answered 500, so a catalogue/store failure is never disguised as an absent resource (PRD §9.2).
+func TestRetrieveBackendFaultIs500Never404(t *testing.T) {
+	srv, err := NewServer(WithRetrieveBackend(faultingRetrieveBackend{}))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	cases := []struct {
+		name   string
+		path   string
+		accept string
+	}{
+		{"study", "/studies/1.2.3", `multipart/related; type="application/dicom"`},
+		{"instance", "/studies/1.2.3/series/1.2.3.4/instances/1.2.3.4.5", `multipart/related; type="application/dicom"`},
+		{"metadata", "/studies/1.2.3/metadata", "application/dicom+json"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, hs.URL+tc.path, nil)
+			if err != nil {
+				t.Fatalf("NewRequest: %v", err)
+			}
+			req.Header.Set("Accept", tc.accept)
+			resp, err := hs.Client().Do(req)
+			if err != nil {
+				t.Fatalf("GET %s: %v", tc.path, err)
+			}
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusInternalServerError {
+				t.Errorf("%s backend fault status = %d, want 500 (never a 404 that hides the fault)", tc.name, resp.StatusCode)
+			}
+		})
+	}
+
+	// Control: the sentinel still answers 404 (the wadoStore fakes return ErrNotFound).
+	notFoundSrv, err := NewServer(WithRetrieveBackend(newWADOStore()))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	nfs := httptest.NewServer(notFoundSrv.Handler())
+	t.Cleanup(nfs.Close)
+	req, err := http.NewRequest(http.MethodGet, nfs.URL+"/studies/9.9.9/series/9.9.9.1/instances/9.9.9.1.1", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Accept", `multipart/related; type="application/dicom"`)
+	resp, err := nfs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("GET control: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("ErrNotFound control status = %d, want 404", resp.StatusCode)
+	}
 }

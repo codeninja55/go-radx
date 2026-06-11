@@ -53,6 +53,10 @@ type BulkDataObject struct {
 // StudyRetriever is the optional WADO-RS study-level retrieval backend. A backend that does
 // not implement it makes /studies/{study} retrieval answer 501; the base RetrieveBackend
 // only mandates instance retrieval (ISP, PRD §8.2).
+//
+// Every retriever interface shares one error contract: return an error wrapping ErrNotFound
+// when the addressed resource does not exist (the server answers 404); any other error is a
+// backend fault the server answers 500, never disguised as an absent resource (PRD §9.2).
 type StudyRetriever interface {
 	RetrieveStudy(ctx context.Context, study dicom.UID) ([]RetrievedInstance, error)
 }
@@ -79,7 +83,8 @@ type MetadataRetriever interface {
 
 // FrameRetriever is the optional WADO-RS frame backend. It returns the requested 1-based
 // frames as raw octet-stream payloads, in the order requested. A frame number outside the
-// instance is a typed error mapped to 404 (PS3.18 §10.4.3).
+// instance is an error wrapping ErrNotFound, mapped to 404 (PS3.18 §10.4.3); any other
+// error is a backend fault answered 500 (the StudyRetriever error contract).
 type FrameRetriever interface {
 	RetrieveFrames(ctx context.Context, p ResourcePath, frames []int) ([]BulkDataObject, error)
 }
@@ -88,6 +93,18 @@ type FrameRetriever interface {
 // value of the instance as ordered octet-stream payloads.
 type BulkDataRetriever interface {
 	RetrieveBulkData(ctx context.Context, p ResourcePath) ([]BulkDataObject, error)
+}
+
+// writeRetrieveBackendError maps a retrieval-backend error to its HTTP answer per the
+// StudyRetriever error contract: an error wrapping ErrNotFound is the absent-resource
+// answer (404, with the caller's detail); any other error is a backend fault answered 500,
+// never disguised as a 404 (PRD §9.2).
+func (s *Server) writeRetrieveBackendError(w http.ResponseWriter, r *http.Request, err error, notFoundDetail string) {
+	if errors.Is(err, ErrNotFound) {
+		s.writeProblem(w, r, http.StatusNotFound, err, notFoundDetail)
+		return
+	}
+	s.writeProblem(w, r, http.StatusInternalServerError, err, "the retrieval backend faulted")
 }
 
 // handleRetrieveStudy answers a WADO-RS study GET with a multipart/related body of
@@ -112,7 +129,7 @@ func (s *Server) handleRetrieveStudy(w http.ResponseWriter, r *http.Request, stu
 	}
 	instances, err := br.RetrieveStudy(r.Context(), study)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "study not found")
+		s.writeRetrieveBackendError(w, r, err, "study not found")
 		return
 	}
 	s.writeInstanceParts(w, r, instances)
@@ -141,7 +158,7 @@ func (s *Server) handleRetrieveSeries(w http.ResponseWriter, r *http.Request, st
 	}
 	instances, err := br.RetrieveSeries(r.Context(), study, series)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "series not found")
+		s.writeRetrieveBackendError(w, r, err, "series not found")
 		return
 	}
 	s.writeInstanceParts(w, r, instances)
@@ -223,7 +240,7 @@ func (s *Server) handleRetrieveMetadata(w http.ResponseWriter, r *http.Request, 
 
 	instances, err := br.RetrieveMetadata(r.Context(), p)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "resource not found")
+		s.writeRetrieveBackendError(w, r, err, "resource not found")
 		return
 	}
 	if len(instances) == 0 {
@@ -302,7 +319,7 @@ func (s *Server) handleRetrieveFrames(w http.ResponseWriter, r *http.Request, p 
 	}
 	objs, err := br.RetrieveFrames(r.Context(), p, frames)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "frames not found")
+		s.writeRetrieveBackendError(w, r, err, "frames not found")
 		return
 	}
 	s.writeOctetParts(w, r, objs)
@@ -330,7 +347,7 @@ func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, 
 	}
 	objs, err := br.RetrieveBulkData(r.Context(), p)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "bulkdata not found")
+		s.writeRetrieveBackendError(w, r, err, "bulkdata not found")
 		return
 	}
 	s.writeOctetParts(w, r, objs)

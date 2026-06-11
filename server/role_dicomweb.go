@@ -202,15 +202,20 @@ type dicomwebRetrieve struct {
 // study and series the request path names. The object store keys only on SOP Instance UID, so a
 // fetch alone would return the instance regardless of the path's parent UIDs; a request for a valid
 // SOP UID under the WRONG study/series must answer not-found, not return the instance under a path it
-// does not belong to. A parent-UID mismatch is therefore mapped to ErrNotFound (the server answers
-// 404), preserving the resource hierarchy WADO-RS addresses by.
+// does not belong to. A parent-UID mismatch and a store miss are therefore mapped to the dicomweb
+// not-found sentinel (the server answers 404), preserving the resource hierarchy WADO-RS addresses
+// by; any other store error is a backend fault the server answers 500 (the dicomweb retriever error
+// contract).
 func (b *dicomwebRetrieve) RetrieveInstance(ctx context.Context, p dicomweb.ResourcePath) (*dicom.DataSet, error) {
 	ds, err := b.store.Get(ctx, dicom.SOPInstanceUID(p.Instance))
+	if errors.Is(err, ErrNotFound) {
+		return nil, fmt.Errorf("%w: instance not stored", dicomweb.ErrNotFound)
+	}
 	if err != nil {
 		return nil, err
 	}
 	if !datasetUnderPath(ds, p) {
-		return nil, fmt.Errorf("%w: instance not under the requested study/series", ErrNotFound)
+		return nil, fmt.Errorf("%w: instance not under the requested study/series", dicomweb.ErrNotFound)
 	}
 	return ds, nil
 }
@@ -233,7 +238,10 @@ func (b *dicomwebRetrieve) RetrieveSeries(ctx context.Context, study, series dic
 // retrieveScope enumerates the instances matching the exact-UID scope through the Catalogue at
 // IMAGE level (each row carries the SOP Instance UID the ObjectStore fetch keys on) and fetches
 // each full stored object. An empty scope returns no instances; the DICOMweb server answers 404
-// for it, so an unknown study/series never reads as an empty success.
+// for it, so an unknown study/series never reads as an empty success. A catalogue fault, and a
+// CATALOGUED instance the object store cannot produce (a store/catalogue inconsistency, the
+// TOCTOU window), are backend faults the server answers 500 — never the dicomweb not-found
+// sentinel, which is reserved for a genuinely empty catalogue result (PRD §9.2).
 func (b *dicomwebRetrieve) retrieveScope(ctx context.Context, match map[dicom.Tag]string) ([]dicomweb.RetrievedInstance, error) {
 	var out []dicomweb.RetrievedInstance
 	cq := CatalogueQuery{Level: dimse.QueryLevelImage, Match: match}
@@ -246,6 +254,9 @@ func (b *dicomwebRetrieve) retrieveScope(ctx context.Context, match map[dicom.Ta
 			continue
 		}
 		ds, err := b.store.Get(ctx, dicom.SOPInstanceUID(instance))
+		if errors.Is(err, ErrNotFound) {
+			return nil, fmt.Errorf("server: catalogued instance is missing from the object store: %w", err)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -275,8 +286,8 @@ func (b *dicomwebRetrieve) RetrieveMetadata(ctx context.Context, p dicomweb.Reso
 // RetrieveFrames returns the requested 1-based frames of the instance's pixel data as raw octets
 // (dicomweb.FrameRetriever). The stored object is uncompressed (the store persists the default
 // uncompressed syntax), so frames are sliced natively; an instance with no readable pixel data or
-// a frame number outside the instance is ErrNotFound, which the server maps to 404 (PS3.18
-// §10.4.3).
+// a frame number outside the instance is the dicomweb not-found sentinel, which the server maps
+// to 404 (PS3.18 §10.4.3).
 func (b *dicomwebRetrieve) RetrieveFrames(ctx context.Context, p dicomweb.ResourcePath, frames []int) ([]dicomweb.BulkDataObject, error) {
 	ds, err := b.RetrieveInstance(ctx, p)
 	if err != nil {
@@ -284,7 +295,7 @@ func (b *dicomwebRetrieve) RetrieveFrames(ctx context.Context, p dicomweb.Resour
 	}
 	pd, err := dicom.NewPixelData(ds, dicom.ExplicitVRLittleEndian)
 	if err != nil {
-		return nil, fmt.Errorf("%w: instance has no readable pixel data", ErrNotFound)
+		return nil, fmt.Errorf("%w: instance has no readable pixel data", dicomweb.ErrNotFound)
 	}
 	// Collect only the requested frames, stopping once the highest requested frame is sliced so a
 	// single-frame request of a large multi-frame instance does not buffer every frame.
@@ -312,7 +323,7 @@ func (b *dicomwebRetrieve) RetrieveFrames(ctx context.Context, p dicomweb.Resour
 	for _, n := range frames {
 		data := need[n]
 		if data == nil {
-			return nil, fmt.Errorf("%w: frame %d is outside the instance", ErrNotFound, n)
+			return nil, fmt.Errorf("%w: frame %d is outside the instance", dicomweb.ErrNotFound, n)
 		}
 		out = append(out, dicomweb.BulkDataObject{Data: data})
 	}

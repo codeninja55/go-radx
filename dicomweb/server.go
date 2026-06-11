@@ -25,6 +25,9 @@ type StoreBackend interface {
 
 // RetrieveBackend resolves a ResourcePath to instances, metadata, frames, and bulk data
 // (used by WADO-RS). A retrieve-only deployment implements only this interface.
+// RetrieveInstance returns an error wrapping ErrNotFound when the instance does not exist
+// (answered 404); any other error is a backend fault answered 500 (the retriever error
+// contract documented on StudyRetriever).
 type RetrieveBackend interface {
 	RetrieveInstance(ctx context.Context, p ResourcePath) (*dicom.DataSet, error)
 }
@@ -530,7 +533,7 @@ func (s *Server) handleRetrieveInstance(w http.ResponseWriter, r *http.Request, 
 
 	si, err := s.retrieveStoredInstance(r.Context(), p)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "instance not found")
+		s.writeRetrieveBackendError(w, r, err, "instance not found")
 		return
 	}
 
@@ -679,6 +682,8 @@ func sentinelTitle(err error) string {
 		return ErrLimitExceeded.Error()
 	case errors.Is(err, ErrInvalidResource):
 		return ErrInvalidResource.Error()
+	case errors.Is(err, ErrNotFound):
+		return ErrNotFound.Error()
 	default:
 		return "dicomweb: request could not be processed"
 	}

@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"iter"
 	"math/big"
 	"mime"
 	"mime/multipart"
@@ -364,6 +365,55 @@ func TestDaemonDICOMwebRetrievalRoutes(t *testing.T) {
 	}
 	if parts := multipartParts(t, ct, body); len(parts) != 1 || !bytes.Equal(parts[0], pixels) {
 		t.Errorf("bulkdata parts = %v, want one part carrying the pixel data", parts)
+	}
+}
+
+// faultingCatalogue wraps a Catalogue whose Query always terminates with a backend error,
+// standing in for a broken index (a failed SQLite read, a dropped connection).
+type faultingCatalogue struct {
+	Catalogue
+}
+
+func (f faultingCatalogue) Query(context.Context, CatalogueQuery) iter.Seq2[*dicom.DataSet, error] {
+	return func(yield func(*dicom.DataSet, error) bool) {
+		yield(nil, errors.New("catalogue fault"))
+	}
+}
+
+// TestDaemonDICOMwebBackendFaultsAre500 is the fault-vs-absent regression for the WADO-RS
+// retrieval surface: only a genuinely empty catalogue result answers 404. A catalogue fault, and
+// a CATALOGUED instance the object store cannot produce (the store/catalogue inconsistency, the
+// TOCTOU window), are backend faults answered 500 — never disguised as an absent resource
+// (PRD §9.2).
+func TestDaemonDICOMwebBackendFaultsAre500(t *testing.T) {
+	t.Parallel()
+	const acceptDICOM = `multipart/related; type="application/dicom"`
+
+	// A catalogue fault during a study retrieval is 500.
+	store, cat := newTestBackends(t)
+	base := startDICOMwebDaemon(t, store, faultingCatalogue{Catalogue: cat})
+	if status, _, body := dicomwebGET(t, base+"/studies/30.1", acceptDICOM); status != http.StatusInternalServerError {
+		t.Errorf("catalogue-fault study retrieval status = %d, want 500 (body: %s)", status, body)
+	}
+
+	// A catalogued instance missing from the object store is an inconsistency, not a 404.
+	store2, cat2 := newTestBackends(t)
+	orphan := newTestObject("30.2", "30.2.1", "30.2.1.1")
+	if err := cat2.Index(context.Background(), orphan); err != nil {
+		t.Fatalf("Index: %v", err)
+	}
+	base2 := startDICOMwebDaemon(t, store2, cat2)
+	if status, _, body := dicomwebGET(t, base2+"/studies/30.2", acceptDICOM); status != http.StatusInternalServerError {
+		t.Errorf("catalogued-but-missing-object study retrieval status = %d, want 500 (body: %s)", status, body)
+	}
+
+	// Control: a study the catalogue genuinely knows nothing about stays 404.
+	if status, _, body := dicomwebGET(t, base2+"/studies/30.999", acceptDICOM); status != http.StatusNotFound {
+		t.Errorf("unknown-study retrieval status = %d, want 404 (body: %s)", status, body)
+	}
+	// Control: an unknown instance stays 404 (the store miss maps to the not-found sentinel).
+	if status, _, body := dicomwebGET(t, base2+"/studies/30.999/series/30.999.1/instances/30.999.1.1", acceptDICOM); status != http.StatusNotFound {
+		t.Errorf("unknown-instance retrieval status = %d, want 404 (body: %s)", status, body)
 	}
 }
 
