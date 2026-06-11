@@ -316,8 +316,11 @@ func (c *StoreCmd) runWorker(
 
 // prepareForStore makes f sendable over the negotiated uncompressed transfer syntaxes. With a
 // --transcode-to target, a compressed object is decoded and re-encoded through the library's
-// dataset-level seam (NewPixelData -> Transcode -> SetPixelData); a pixel-less object and an
-// already-uncompressed object pass through unchanged, so nothing is silently altered. Without a
+// dataset-level seam (NewPixelData -> Transcode -> SetPixelData), which also reconciles the
+// Image Pixel attributes with the decoded bytes (interleaved layout, decoded colour model,
+// frame count) and keeps the lossy bookkeeping (0028,2110) for a lossy source; a pixel-less
+// object and an already-uncompressed object pass through unchanged, so nothing is silently
+// altered. Without a
 // target, a compressed pixel-bearing object is a per-file failure naming the flag: the transport
 // cannot carry encapsulated pixel data and never silently decompresses it (RADX-011).
 func prepareForStore(f *dicom.File, target dicom.TransferSyntax) error {

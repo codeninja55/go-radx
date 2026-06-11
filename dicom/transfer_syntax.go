@@ -57,6 +57,19 @@ func (ts TransferSyntax) IsEncapsulated() bool {
 	}
 }
 
+// IsLossy reports whether the syntax permits lossy compression: JPEG Baseline (.50)
+// and Extended (.51), JPEG-LS Near-Lossless (.81), JPEG 2000 (.91), and HTJ2K
+// (.203). A .91 or .203 codestream may individually be lossless, but the syntax does
+// not guarantee it, so lossy bookkeeping (PS3.3 C.7.6.1.1.5) treats both as lossy.
+func (ts TransferSyntax) IsLossy() bool {
+	switch ts {
+	case JPEGBaseline8Bit, JPEGExtended12Bit, JPEGLSNearLossless, JPEG2000, HTJ2K:
+		return true
+	default:
+		return false
+	}
+}
+
 // Name returns the registered name for a known transfer syntax or the raw UID if
 // unregistered.
 func (ts TransferSyntax) Name() string {
