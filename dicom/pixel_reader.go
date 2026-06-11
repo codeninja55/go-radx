@@ -23,6 +23,12 @@ func ReadPixelData(path string, opts ...ReadOption) (*PixelData, error) {
 // ReadPixelDataFrom reads a Part 10 stream and returns its PixelData. It shares the
 // Read path: the full dataset is parsed (an encapsulated transfer syntax retains the
 // verbatim fragment stream) and NewPixelData binds it to its geometry.
+//
+// Because the whole dataset is parsed, the call fails on a malformed element
+// anywhere in the stream — including elements after (7FE0,0010) — and holds the
+// full dataset in memory for the duration of the call, not just the elements up to
+// the pixel data. Memory stays bounded by the read limits (WithMaxElementLen and
+// friends), which also cap the retained encapsulated stream.
 func ReadPixelDataFrom(r io.Reader, opts ...ReadOption) (*PixelData, error) {
 	f, err := Read(r, opts...)
 	if err != nil {

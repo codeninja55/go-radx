@@ -35,7 +35,9 @@ In scope for v1, seeded from the `pydicom` parity floor (`docs/prd/go-radx-prd.m
 - The pixel pipeline: native (contiguous `OB`/`OW`), RLE, and encapsulated fragmented frames; decoding for every
   supported compressed transfer syntax and transcoding/encoding where a codec exists (RLE in pure Go, the JPEG
   families behind the optional-CGo build tags), with transcoding off by default. `File.SetPixelData` puts a
-  `Transcode` result back on the dataset so decode -> re-encode -> write works end to end.
+  `Transcode` result back on the dataset so decode -> re-encode -> write works end to end, reconciling the Image
+  Pixel attributes (planar configuration, photometric interpretation, frame count) and the PS3.3 C.7.6.1.1.5 lossy
+  bookkeeping with the bytes it writes.
 - The DICOM Structured Report content-item model: `ContentItem`, `ConceptNameCode`, the SR value-type and
   relationship-type vocabularies, and SR document read and build. This is the data layer the `convert` SR-to-FHIR leg
   reads (PRD §5.1 step 6); the supported SR SOP classes are declared in `docs/conformance/dicom.md`.
