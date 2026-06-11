@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 )
 
@@ -216,6 +217,54 @@ func TestFileSetBuilderAddFileGroupsHierarchy(t *testing.T) {
 	}
 	if n, ok := loaded.DataSet.GetInt(TagInstanceNumber); !ok || n != 2 {
 		t.Errorf("loaded InstanceNumber = %d,%v want 2", n, ok)
+	}
+}
+
+// conformantFileIDComponent is the strict PS3.10 §8.2/§8.5 File ID component
+// repertoire: 1-8 characters from 0-9, A-Z, and underscore.
+var conformantFileIDComponent = regexp.MustCompile(`^[0-9A-Z_]{1,8}$`)
+
+func TestFileSetBuilderGeneratesConformantFileIDs(t *testing.T) {
+	// The read side deliberately tolerates legacy non-conformant Referenced File IDs;
+	// this pins that the WRITE side never produces one. Generated IDs are positional
+	// (PT/ST/SE/IM + zero-padded index), so there is no truncation or uniquing logic
+	// to exercise beyond the format itself.
+	b := NewFileSetBuilder()
+	for i := range 3 {
+		f := fileSetSample("P1", "1.2.3.1", "1.2.3.1.1", fmt.Sprintf("1.2.3.1.1.%d", i+1), fmt.Sprintf("%d", i+1))
+		if err := b.AddFile(f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := b.AddFile(fileSetSample("P2", "1.2.3.2", "1.2.3.2.1", "1.2.3.2.1.1", "1")); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	fs, err := b.Write(root)
+	if err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if len(fs.Instances()) != 4 {
+		t.Fatalf("Instances = %d, want 4", len(fs.Instances()))
+	}
+	for _, fi := range fs.Instances() {
+		comps := fi.FileID()
+		if len(comps) < 1 || len(comps) > 8 {
+			t.Errorf("File ID %v has %d components, want 1-8 (PS3.10 §8.2)", comps, len(comps))
+		}
+		for _, c := range comps {
+			if !conformantFileIDComponent.MatchString(c) {
+				t.Errorf("File ID component %q is not 1-8 characters of 0-9, A-Z, underscore (PS3.10 §8.5)", c)
+			}
+		}
+		// The member exists on disk at exactly the File ID path under the root.
+		want := filepath.Join(append([]string{root}, comps...)...)
+		if fi.Path() != want {
+			t.Errorf("Path = %q, want %q", fi.Path(), want)
+		}
+		if _, err := os.Stat(fi.Path()); err != nil {
+			t.Errorf("member file missing at File ID path: %v", err)
+		}
 	}
 }
 

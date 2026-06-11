@@ -169,7 +169,7 @@ so this area exceeds the pydicom reference surface.
 
 | Feature | pydicom anchor | Status | go-radx evidence | Size | Notes |
 |---------|---------------|--------|------------------|------|-------|
-| Load, iterate, and query an existing file-set | `fileset.FileSet`, `find` | MET | dicom/fileset.go OpenFileSet/Roots/Records/Instances/Find/FindValues; fileset_test.go, fileset_hostile_test.go | - | Offset links resolved with cycle/range checks (typed errors, bounded walk); cross-read against a dcmtk `dcmmkdir` DICOMDIR |
+| Load, iterate, and query an existing file-set | `fileset.FileSet`, `find` | MET | dicom/fileset.go OpenFileSet/Roots/Records/Instances/Find/FindValues; fileset_test.go, fileset_hostile_test.go | - | Offset links resolved with cycle/range checks (typed errors, bounded walk); DICOMDIR must be Explicit VR LE (PS3.10 §8.6, typed error otherwise); Referenced File IDs read permissively but traversal-safe — lowercase/over-long components accepted as pydicom does, strict §8.2/§8.5 IDs enforced on write only; cross-read against a dcmtk `dcmmkdir` DICOMDIR |
 | Create, write, add, and remove instances | `FileSet.add/remove/write` | PARTIAL | dicom/fileset_write.go FileSetBuilder Add/AddFile/SetID/Write; fileset_test.go round-trip; dcmtk `dcmmkdir --append` re-links the written DICOMDIR | S | Create-from-scratch only: no remove, no staged mutation of an existing file-set; leaf records are IMAGE or SR DOCUMENT (not pydicom's full DIRECTORY_RECORDERS table); PS3.11 media application profiles not enforced |
 
 ## UIDs

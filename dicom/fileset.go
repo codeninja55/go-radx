@@ -346,9 +346,15 @@ func recordOffset(ds *DataSet, t Tag) int64 {
 // resolveFileID joins the Referenced File ID components under the file-set root.
 // Components are validated before joining: an empty, dot, dot-dot, or
 // separator-bearing component could escape the root, so it is rejected as a
-// *ValueError without echoing the value (PRD §9.1). Legacy file-sets with lowercase
-// or over-long components are accepted on read; conformant IDs (PS3.10 §8.5) are
-// enforced on write.
+// *ValueError without echoing the value (PRD §9.1).
+//
+// Read posture: permissive but traversal-safe, deliberately. Strict PS3.10 §8.2/§8.5
+// conformance (1-8 components of 1-8 characters from 0-9, A-Z, underscore) is NOT
+// enforced here because real-world DICOMDIRs commonly carry lowercase or over-long
+// components and pydicom reads them; rejecting those would fail working archives.
+// Only the traversal-relevant violations above fail closed. Strictly conformant File
+// IDs are enforced on the write side (FileSetBuilder generates them; see
+// assignFileIDs).
 func resolveFileID(root string, comps []string) (string, error) {
 	for _, c := range comps {
 		if c == "" || c == "." || c == ".." ||

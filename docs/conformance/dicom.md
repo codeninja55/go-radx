@@ -43,8 +43,11 @@ In scope for v1:
 - **DICOMDIR file-sets** (PS3.10 §8; PS3.3 Annex F): load and query an existing file-set through the glossary-named
   `dicom.FileSet` (`OpenFileSet`, record hierarchy, `Find`/`FindValues`, member `Load`), and create and write a new
   one from Part 10 files with `dicom.FileSetBuilder` (Patient/Study/Series/Instance records, conformant generated
-  File IDs, offset-linked Directory Record Sequence). Cyclic or out-of-range record offsets and root-escaping
-  Referenced File IDs fail closed with typed errors.
+  File IDs, offset-linked Directory Record Sequence). The DICOMDIR must be encoded in Explicit VR Little Endian
+  (PS3.10 §8.6); any other transfer syntax, cyclic or out-of-range record offsets, and root-escaping Referenced File
+  IDs fail closed with typed errors. Referenced File IDs are read permissively but traversal-safe: lowercase or
+  over-long components common in real-world file-sets are accepted (matching pydicom's read behaviour), while
+  strictly conformant PS3.10 §8.2/§8.5 File IDs are enforced on write.
 - Association negotiation: presentation-context negotiation, maximum PDU length, SCP/SCU role selection, the
   asynchronous operations window, user identity (types 1–5), SOP Class extended and common extended negotiation, and
   DIMSE-TLS (TLS 1.2+ with peer verification and optional mutual-TLS). The asynchronous-operations window is negotiated
