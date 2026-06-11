@@ -78,11 +78,14 @@ type releaseAdapter interface {
 // type the entry's request.url names, the transaction analogue of the create endpoint's {type}.
 // targetID is the id segment of that request.url when one is present; a create must target the type
 // endpoint ("Patient"), so a POST entry whose url carries an id ("Patient/123") is malformed and is
-// rejected before commit.
+// rejected before commit. ifNoneExist carries the entry's request.ifNoneExist verbatim; a non-empty
+// value makes the entry a conditional create, which the role rejects fail-closed exactly like the
+// direct create's If-None-Exist header.
 type transactionPostEntry struct {
-	resource   fhir.Resource
-	targetType string
-	targetID   string
+	resource    fhir.Resource
+	targetType  string
+	targetID    string
+	ifNoneExist string
 }
 
 // historyEntry is one release-neutral entry of a history Bundle the role hands the adapter to
@@ -309,7 +312,12 @@ func (a r5Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPo
 			return nil, fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
 		targetType, targetID := splitTypeID(deref(entry.Request.URL))
-		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType, targetID: targetID})
+		writes = append(writes, transactionPostEntry{
+			resource:    *entry.Resource,
+			targetType:  targetType,
+			targetID:    targetID,
+			ifNoneExist: deref(entry.Request.IfNoneExist),
+		})
 	}
 	return writes, nil
 }
@@ -489,7 +497,12 @@ func (a r4Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPo
 			return nil, fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
 		targetType, targetID := splitTypeID(deref(entry.Request.URL))
-		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType, targetID: targetID})
+		writes = append(writes, transactionPostEntry{
+			resource:    *entry.Resource,
+			targetType:  targetType,
+			targetID:    targetID,
+			ifNoneExist: deref(entry.Request.IfNoneExist),
+		})
 	}
 	return writes, nil
 }

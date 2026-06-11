@@ -476,7 +476,9 @@ those writes (and conditional writes) land by appending versions, not by reshapi
 
 The HTTP status mapping is explicit: `200` on a successful read, vread, history, search, or `$validate` (the
 operation's findings are its result), `201` on create (with a `Location` header), `400` with an `error`-severity
-`OperationOutcome` when `fhir.Validate` rejects the body, `404` with an `OperationOutcome` on a missing resource or
+`OperationOutcome` when `fhir.Validate` rejects the body or when a create carries `If-None-Exist` (conditional
+create fails closed; its matching semantics are deferred to the search work), `404` with an `OperationOutcome` on a
+missing resource or
 version, `410` on a vread of a deleted version (`ErrGone`), `412` when a write's `If-Match` names a stale version
 (FHIR R5 http.html#concurrency; read, vread, and create responses carry `ETag: W/"versionId"` and `Last-Modified`),
 `422` for a well-formed but unprocessable resource, and `401`/`403` from the `Authenticator`. The base path defaults

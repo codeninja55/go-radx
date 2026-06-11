@@ -271,7 +271,17 @@ func (h *fhirHandler) historyEntries(resourceType, id string, versions []Resourc
 // fails structural validation is rejected with the appropriate OperationOutcome (400 for malformed,
 // 422 for an unprocessable but well-formed resource). On success it answers 201 with a Location
 // header naming the created resource.
+//
+// A create carrying If-None-Exist (a conditional create, FHIR R5 http.html#cond-create) fails
+// closed with a 400 OperationOutcome before anything is read or stored: the role has no search
+// matching yet (the matching semantics are deferred to the search work), and silently ignoring the
+// precondition would create the very duplicate the client asked the server to prevent — the
+// fhir/rest client sends this header, so the role must answer it honestly, never drop it.
 func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resourceType string) {
+	if r.Header.Get("If-None-Exist") != "" {
+		h.writeError(w, r, http.StatusBadRequest, issueTypeNotSupported, conditionalCreateDiagnostics)
+		return
+	}
 	if !h.requireFHIRWriteMedia(w, r) {
 		return
 	}
@@ -339,6 +349,12 @@ func etagVersionID(etag string) string {
 func (h *fhirHandler) resourceLocation(resourceType, id string) string {
 	return "/" + path.Join(strings.Trim(h.basePath, "/"), resourceType, id)
 }
+
+// conditionalCreateDiagnostics is the PHI-free diagnostic both write paths answer a conditional
+// create with: it names the unsupported precondition, never the search query the header carries
+// (which a client could populate with an identifier or name, PRD §9.1).
+const conditionalCreateDiagnostics = "conditional create (If-None-Exist) is not supported; " +
+	"retry as an unconditional create"
 
 // validateCreate is the one create-validation gate both write paths share: the type-level create POST
 // and every POST entry of a transaction. It enforces, in order, that the target type is a served
@@ -498,6 +514,12 @@ func (h *fhirHandler) validateTransactionWrites(bundle fhir.Resource) (int, fhir
 		return http.StatusBadRequest, h.singleIssueOutcome(fhir.IssueTypeInvalid, sanitizeRepoMessage(err)), false
 	}
 	for _, wr := range writes {
+		// A POST entry carrying request.ifNoneExist is a conditional create; it fails closed exactly
+		// like the direct create's If-None-Exist header (see handleCreate) so the transaction path
+		// cannot silently create the duplicate the precondition was meant to prevent.
+		if wr.ifNoneExist != "" {
+			return http.StatusBadRequest, h.singleIssueOutcome(issueTypeNotSupported, conditionalCreateDiagnostics), false
+		}
 		// A transaction CREATE must target the type endpoint ("Patient"), never an instance URL
 		// ("Patient/123"). splitTypeID surfaces the id segment when the request.url carries one; a
 		// non-empty id is a malformed create that would otherwise be silently created against the type,

@@ -110,8 +110,10 @@ negotiation — sending and accepting `application/fhir+json` only. A non-2xx re
 pluggable versioned repository — every create stores version 1 with `meta.versionId`/`meta.lastUpdated`; read, vread,
 and create emit `ETag`/`Last-Modified`; a write's `If-Match` answers `412` on a stale version — validating inbound
 resources with the release validator and answering every error with a release `OperationOutcome`. Server-side
-`update`/`patch`/`delete` and conditional writes stay deferred (`501`); the version store appends versions, so they
-extend it without reshaping. Deep multi-hop search chaining beyond a
+`update`/`patch`/`delete` and their conditional forms stay deferred (`501`); a conditional create (`If-None-Exist`,
+on the direct POST or a transaction entry) is rejected `400` with an `OperationOutcome` rather than silently
+ignored — its matching semantics are deferred to the search work. The version store appends versions, so the
+deferred writes extend it without reshaping. Deep multi-hop search chaining beyond a
 server's `SearchParameter` definitions and every `_include`/`_revinclude` form are the server's concern; the client
 transmits whatever chained or include parameter the caller supplies rather than validating the chain itself.
 

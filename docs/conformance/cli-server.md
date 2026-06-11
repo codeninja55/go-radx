@@ -100,7 +100,10 @@ validates inbound resources with the release validator (a resource with error-se
 persisting), returns a release `OperationOutcome` for every error (a `404` read miss, a `400` malformed body, a
 `405`/`501` deferred interaction — `update`/`delete`/`patch` are answered with a `501` `OperationOutcome`, never a
 silent no-op), and serves a `CapabilityStatement` at `[base]/metadata` advertising exactly the supported
-interactions. The version store is interaction-shaped (one record per version, newest first), so the deferred
+interactions. A conditional create (FHIR R5 `http.html` conditional create) fails closed: a create carrying
+`If-None-Exist` — on the direct POST or as a transaction entry's `request.ifNoneExist` — is rejected `400` with a
+`not-supported` `OperationOutcome` and persists nothing, never silently ignored into a duplicate; the matching
+semantics are deferred to the search work. The version store is interaction-shaped (one record per version, newest first), so the deferred
 update/patch/delete and conditional writes extend it by appending versions rather than reshaping it. The release is
 fixed with `WithFHIRRelease` (default R5); to serve both releases from one process, mount two roles on different base
 paths (for example `/fhir/r4` and `/fhir/r5`). A default in-memory `server.MemoryRepository` makes the role runnable

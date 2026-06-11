@@ -157,7 +157,7 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
 | delete | http.html#delete | NOT-MET | 501 (same arm) | M | |
 | Conditional update / patch / delete | http.html#cond-update etc. | NOT-MET | follows the missing base interactions | M | Blocked on update/delete |
 | create | http.html#create | MET | `fhir_handlers.go:handleCreate`; server-mints id, ignores client id (`fhir_repository.go:createLocked`) | — | Inbound resource gated by release validator; error-severity issues → 422 |
-| Conditional create (If-None-Exist) | http.html#ccreate | NOT-MET | header not read in `handleCreate` | S | Client sends it; the role ignores it (created anyway) — interop sharp edge worth a row in #114 |
+| Conditional create (If-None-Exist) | http.html#ccreate | NOT-MET | fails closed: `handleCreate` and `validateTransactionWrites` answer `400` not-supported `OperationOutcome`, nothing persisted (`TestFHIRRoleConditionalCreateFailsClosed`; client interop `TestFHIRRoleClientConditionalCreateSurfacesTypedError`) | S | Matching semantics deferred to the search work; the client-sent header is answered honestly now — the silent-duplicate interop sharp edge is closed |
 | search-type (GET `[type]?`) | http.html#search | PARTIAL | `fhir_handlers.go:handleSearch` forwards raw params; `MemoryRepository.Search` matches `_id` only, else all-of-type | M | Handler seam is correct; depth is the Repository's. Unrecognised params ignored, not rejected — documented |
 | Search via POST `_search` | http.html#search | NOT-MET | GET-only on the type route | S | |
 | search-system | http.html#search | NOT-MET | — | S | |

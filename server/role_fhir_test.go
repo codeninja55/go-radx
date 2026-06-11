@@ -506,6 +506,142 @@ func TestFHIRRoleTransactionCreateNeverOverwrites(t *testing.T) {
 	}
 }
 
+// TestFHIRRoleConditionalCreateFailsClosed proves a create carrying If-None-Exist (a conditional
+// create, FHIR R5 http.html#ccreate) is rejected with a 400 not-supported OperationOutcome and
+// persists nothing: silently ignoring the header would create a duplicate the client believed the
+// precondition prevented. The same fail-closed gate covers a transaction POST entry carrying
+// request.ifNoneExist, so the transaction path cannot bypass the check the direct create enforces.
+func TestFHIRRoleConditionalCreateFailsClosed(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			req, err := http.NewRequest(http.MethodPost, base+"/Patient",
+				bytes.NewReader(patientJSON(release, "female")))
+			if err != nil {
+				t.Fatalf("NewRequest: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/fhir+json")
+			req.Header.Set("If-None-Exist", "identifier=urn:example-system|12345")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("Do: %v", err)
+			}
+			body, _ := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Fatalf("conditional create status = %d, want 400; body=%s", resp.StatusCode, body)
+			}
+			assertOperationOutcome(t, body, "error")
+			var oo struct {
+				Issue []struct {
+					Code string `json:"code"`
+				} `json:"issue"`
+			}
+			if err := json.Unmarshal(body, &oo); err != nil || len(oo.Issue) == 0 {
+				t.Fatalf("400 body decode (%v): %s", err, body)
+			}
+			if oo.Issue[0].Code != "not-supported" {
+				t.Errorf("400 issue code = %q, want %q", oo.Issue[0].Code, "not-supported")
+			}
+			// Fail closed: the rejected conditional create persisted nothing.
+			assertWorkflowCount(t, base, "Patient", 0)
+
+			// A transaction POST entry carrying request.ifNoneExist is rejected the same way, atomically.
+			status, body, _ := httpDo(t, http.MethodPost, base, "application/fhir+json",
+				conditionalCreateTransactionBundle(t, release))
+			if status != http.StatusBadRequest {
+				t.Fatalf("conditional-create transaction status = %d, want 400; body=%s", status, body)
+			}
+			assertOperationOutcome(t, body, "error")
+			assertWorkflowCount(t, base, "Patient", 0)
+		})
+	}
+}
+
+// TestFHIRRoleClientConditionalCreateSurfacesTypedError pins the cross-component behaviour the
+// client/server parity audit flagged: the fhir/rest client SENDS If-None-Exist on a conditional
+// Create, so the role's 400 rejection must surface through the client as the typed
+// *rest.OperationOutcomeError (status 400, the not-supported issue readable on Outcome) rather
+// than a silent duplicate creation. An unconditional Create against the same role still succeeds,
+// proving the rejection is the precondition, not the create path.
+func TestFHIRRoleClientConditionalCreateSurfacesTypedError(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+			client, err := rest.NewClient(release, base)
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+			ctx := context.Background()
+
+			_, cerr := client.Create(ctx, newPatientResource(release), "identifier=urn:example-system|12345")
+			if cerr == nil {
+				t.Fatal("conditional Create returned nil error, want the 400 typed error")
+			}
+			var ooErr *rest.OperationOutcomeError
+			if !errors.As(cerr, &ooErr) {
+				t.Fatalf("conditional Create error = %T (%v), want *rest.OperationOutcomeError", cerr, cerr)
+			}
+			if ooErr.StatusCode != http.StatusBadRequest {
+				t.Errorf("typed error status = %d, want 400", ooErr.StatusCode)
+			}
+			if ooErr.Outcome == nil || len(ooErr.Outcome.Issue) == 0 {
+				t.Fatalf("typed error carries no parsed OperationOutcome: %v", cerr)
+			}
+			if code := ooErr.Outcome.Issue[0].Code; code != fhir.IssueType("not-supported") {
+				t.Errorf("typed error issue code = %q, want not-supported", code)
+			}
+			assertWorkflowCount(t, base, "Patient", 0)
+
+			// The unconditional create path is untouched.
+			res, err := client.Create(ctx, newPatientResource(release), "")
+			if err != nil {
+				t.Fatalf("unconditional Create: %v", err)
+			}
+			if res.ID == "" {
+				t.Error("unconditional Create returned no id")
+			}
+		})
+	}
+}
+
+// conditionalCreateTransactionBundle builds a transaction whose single POST entry carries
+// request.ifNoneExist, the transaction form of a conditional create the role rejects fail-closed.
+func conditionalCreateTransactionBundle(t *testing.T, release fhir.Release) []byte {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		g := r4.AdministrativeGender("female")
+		b, err := r4.NewTransaction(r4.TransactionEntry{
+			Resource:    &r4.Patient{Gender: &g},
+			Method:      r4.HTTPVerbPOST,
+			URL:         "Patient",
+			IfNoneExist: "identifier=urn:example-system|12345",
+		})
+		if err != nil {
+			t.Fatalf("r4 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	default:
+		g := r5.AdministrativeGender("female")
+		b, err := r5.NewTransaction(r5.TransactionEntry{
+			Resource:    &r5.Patient{Gender: &g},
+			Method:      r5.HTTPVerbPOST,
+			URL:         "Patient",
+			IfNoneExist: "identifier=urn:example-system|12345",
+		})
+		if err != nil {
+			t.Fatalf("r5 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	}
+}
+
 func TestFHIRRoleReadNotFoundIsOperationOutcome(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
