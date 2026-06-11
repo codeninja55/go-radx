@@ -171,6 +171,39 @@ func TestOpenFileSetRejectsSeparatorFileID(t *testing.T) {
 	assertFileSetValueError(t, path, "escape")
 }
 
+func TestOpenFileSetRejectsNonExplicitVRLETransferSyntax(t *testing.T) {
+	// PS3.10 §8.6: a DICOMDIR is always encoded in Explicit VR Little Endian. Any
+	// other syntax must fail closed before offset resolution — for Deflated Explicit
+	// VR LE the captured item offsets are relative to the inflated stream, not the
+	// file, so resolving them would be wrong even when parsing succeeds.
+	for _, ts := range []TransferSyntax{ImplicitVRLittleEndian, DeflatedExplicitVRLittleEndian} {
+		t.Run(ts.Name(), func(t *testing.T) {
+			path := writeHostileFixtureSet(t)
+			f, err := ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.Meta.TransferSyntaxUID = ts
+			if err := WriteFile(path, f); err != nil {
+				t.Fatal(err)
+			}
+			_, err = OpenFileSet(path)
+			var verr *ValueError
+			if !errors.As(err, &verr) {
+				t.Fatalf("OpenFileSet(%s DICOMDIR) = %v, want *ValueError", ts.Name(), err)
+			}
+			if verr.Tag != tagTransferSyntax {
+				t.Errorf("error tag = %s, want Transfer Syntax UID", verr.Tag)
+			}
+			// The re-encode invalidates every captured offset, so an offset-resolution
+			// error here would prove the transfer-syntax gate did not fire first.
+			if !strings.Contains(verr.Error(), "Explicit VR Little Endian") {
+				t.Errorf("error %q does not name the Explicit VR Little Endian requirement", verr.Error())
+			}
+		})
+	}
+}
+
 func TestOpenFileSetTruncatedDICOMDIR(t *testing.T) {
 	path := writeHostileFixtureSet(t)
 	raw, err := os.ReadFile(path)

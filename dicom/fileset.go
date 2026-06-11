@@ -72,11 +72,15 @@ func (fi *FileInstance) Load(opts ...ReadOption) (*File, error) {
 
 // OpenFileSet opens a File-set from its DICOMDIR. path names the DICOMDIR file or the
 // directory that contains one. The DICOMDIR is parsed as a normal Part 10 file, its
-// SOP Class is checked, and the Directory Record Sequence is resolved into a typed
-// hierarchy by following the offset links (PS3.10 Table 8.1-1). An offset that does
-// not land on a directory record, or a link chain that revisits a record (a cycle),
-// is a *ValueError: the walk is bounded by the record count, so hostile offsets fail
-// fast instead of looping (PRD §9.3).
+// SOP Class is checked, and its transfer syntax must be Explicit VR Little Endian as
+// PS3.10 §8.6 requires — any other syntax is a *ValueError before any offset is
+// resolved. The gate is also load-bearing for Deflated Explicit VR LE: there the
+// captured item offsets are relative to the inflated stream, not the file, so
+// resolving them would silently mislink records. The Directory Record Sequence is
+// then resolved into a typed hierarchy by following the offset links (PS3.10 Table
+// 8.1-1). An offset that does not land on a directory record, or a link chain that
+// revisits a record (a cycle), is a *ValueError: the walk is bounded by the record
+// count, so hostile offsets fail fast instead of looping (PRD §9.3).
 func OpenFileSet(path string, opts ...ReadOption) (*FileSet, error) {
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
 		path = filepath.Join(path, "DICOMDIR")
@@ -89,6 +93,10 @@ func OpenFileSet(path string, opts ...ReadOption) (*FileSet, error) {
 	if f.Meta.MediaStorageSOPClassUID != MediaStorageDirectoryStorage {
 		return nil, &ValueError{Tag: tagMediaStorageSOPClass, VR: VRUI,
 			Msg: "not a DICOMDIR: Media Storage SOP Class is not Media Storage Directory Storage"}
+	}
+	if f.Meta.TransferSyntaxUID != ExplicitVRLittleEndian {
+		return nil, &ValueError{Tag: tagTransferSyntax, VR: VRUI,
+			Msg: "DICOMDIR must be encoded in Explicit VR Little Endian (PS3.10 §8.6)"}
 	}
 	seq, ok := f.DataSet.GetSequence(TagDirectoryRecordSequence)
 	if !ok {
