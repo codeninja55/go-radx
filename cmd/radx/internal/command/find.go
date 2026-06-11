@@ -60,12 +60,13 @@ func (c *FindCmd) Run(rc *RunContext) error {
 	}
 	if c.Worklist {
 		// A worklist identifier starts from the SPS-sequence skeleton (PS3.4 K.6.1.2): the empty
-		// Scheduled Procedure Step Sequence item universal-matches every scheduled step, and the
-		// --match keys are applied at the top level (nested sequence match keys are not expressible
-		// through --match).
+		// Scheduled Procedure Step Sequence item universal-matches every scheduled step. Each
+		// --match key is routed where the worklist model defines it (PS3.4 Table K.6-1): an SPS
+		// requirement key (Modality, ScheduledStationAETitle, the SPS start date/time, ...) goes
+		// inside the sequence item — where an SCP matches it — and everything else stays top level.
 		wl := dimse.NewWorklistQuery()
 		for e := range identifier.All() {
-			wl.Set(e)
+			dimse.SetWorklistMatch(wl, e)
 		}
 		identifier = wl
 	}

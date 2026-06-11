@@ -228,6 +228,45 @@ func TestFindWorklistFlagStreamsScheduledSteps(t *testing.T) {
 	}
 }
 
+// TestFindWorklistRoutesSPSMatchKeysIntoSequence is the PS3.4 Table K.6-1 routing golden for
+// find -W: an SPS requirement key (--match Modality=MR) must land INSIDE the Scheduled Procedure
+// Step Sequence item — where an MWL SCP matches it — while a non-SPS key (--match PatientName=X)
+// stays at the identifier's top level. A top-level Modality would never constrain the query.
+func TestFindWorklistRoutesSPSMatchKeysIntoSequence(t *testing.T) {
+	handler := &cannedWorklistHandler{accessions: []string{"ACC-2001"}}
+	host, port := startWorklistServer(t, handler)
+
+	stdout, stderr, code := runRadx(t, "find", "--format", "json",
+		"--host", host, "--port", strconv.Itoa(port), "--called-ae", "MWLSCP",
+		"-W", "--match", "Modality=MR", "--match", "PatientName=X")
+	if code != exitcode.Success {
+		t.Fatalf("find -W exit = %d, want %d\nstdout=%q\nstderr=%q", code, exitcode.Success, stdout, stderr)
+	}
+
+	query := handler.receivedQuery()
+	if query == nil {
+		t.Fatal("worklist SCP recorded no query identifier")
+	}
+	if _, topLevel := query.Get(dicom.TagModality); topLevel {
+		t.Error("--match Modality landed at the identifier's top level; Table K.6-1 scopes it to the SPS item")
+	}
+	if name, ok := query.GetString(dicom.TagPatientName); !ok || name != "X" {
+		t.Errorf("top-level PatientName = %q (ok=%v), want X at the top level", name, ok)
+	}
+	seq, ok := query.GetSequence(dicom.TagScheduledProcedureStepSequence)
+	if !ok || seq.Len() != 1 {
+		t.Fatalf("worklist identifier SPS sequence missing or not single-item (ok=%v)", ok)
+	}
+	for item := range seq.Items() {
+		if modality, mok := item.DataSet.GetString(dicom.TagModality); !mok || modality != "MR" {
+			t.Errorf("SPS item Modality = %q (ok=%v), want MR inside the sequence item", modality, mok)
+		}
+		if _, pok := item.DataSet.Get(dicom.TagPatientName); pok {
+			t.Error("--match PatientName leaked into the SPS item; it is not a Table K.6-1 SPS key")
+		}
+	}
+}
+
 // TestFindBadMatchKeyIsUsageError confirms an unparseable --match key is a usage error (exit 2),
 // rejected before any network call.
 func TestFindBadMatchKeyIsUsageError(t *testing.T) {

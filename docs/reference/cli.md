@@ -284,8 +284,12 @@ and `find` returns one match per JSON Line, mirroring the streaming multi-respon
 
 `find -W` (`--worklist`) queries the Modality Worklist Information Model instead of the Patient/Study Root models,
 matching dcmtk's `findscu -W`: it negotiates the worklist context and sends the Scheduled Procedure Step Sequence
-query skeleton (`dimse.NewWorklistQuery`) with the `--match` keys applied at the top level. The worklist model is
-flat, so `--level` is ignored and no Query/Retrieve Level is sent (PS3.4 K.6.1.2.1).
+query skeleton (`dimse.NewWorklistQuery`). Each `--match` key is routed where the worklist model defines it
+(`dimse.SetWorklistMatch`, PS3.4 Table K.6-1): a Scheduled Procedure Step requirement key (`Modality`,
+`ScheduledStationAETitle`, the SPS start date/time, `ScheduledPerformingPhysicianName`, the SPS description/ID,
+and the other Table K.6-1 SPS keys) goes inside the sequence item, where an SCP matches it; every other key
+stays at the top level. The worklist model is flat, so `--level` is ignored and no Query/Retrieve Level is sent
+(PS3.4 K.6.1.2.1).
 
 ### scp — receive objects (Storage / Verification SCP)
 

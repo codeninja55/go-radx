@@ -65,3 +65,50 @@ func NewWorklistQuery() *dicom.DataSet {
 	})
 	return query
 }
+
+// worklistSPSTags is the SetWorklistMatch routing set: the Scheduled Procedure Step requirement
+// keys of PS3.4 Table K.6-1, which the Modality Worklist information model defines INSIDE the
+// Scheduled Procedure Step Sequence (0040,0100) item, not at the query's top level. An SCP
+// matches these keys against the sequence item, so one placed at the top level would never
+// constrain the query.
+var worklistSPSTags = map[dicom.Tag]struct{}{
+	dicom.TagModality:                          {}, // (0008,0060)
+	dicom.TagScheduledStationAETitle:           {}, // (0040,0001)
+	dicom.TagScheduledProcedureStepStartDate:   {}, // (0040,0002)
+	dicom.TagScheduledProcedureStepStartTime:   {}, // (0040,0003)
+	dicom.TagScheduledPerformingPhysicianName:  {}, // (0040,0006)
+	dicom.TagScheduledProcedureStepDescription: {}, // (0040,0007)
+	dicom.TagScheduledProtocolCodeSequence:     {}, // (0040,0008)
+	dicom.TagScheduledProcedureStepID:          {}, // (0040,0009)
+	dicom.TagScheduledStationName:              {}, // (0040,0010)
+	dicom.TagScheduledProcedureStepLocation:    {}, // (0040,0011)
+	dicom.TagPreMedication:                     {}, // (0040,0012)
+	dicom.TagScheduledProcedureStepStatus:      {}, // (0040,0020)
+}
+
+// SetWorklistMatch sets one match/return key on a Modality Worklist query identifier where the
+// information model defines it (PS3.4 Table K.6-1): a Scheduled Procedure Step attribute
+// (Modality, Scheduled Station AE Title, the SPS start date/time, performing physician, SPS
+// description/ID, ...) is set inside the FIRST Scheduled Procedure Step Sequence (0040,0100)
+// item — the universal-match item NewWorklistQuery seeds — and every other attribute is set at
+// the query's top level. A query with no sequence item yet (a caller that did not start from
+// NewWorklistQuery) has one seeded so the SPS key still lands where the SCP matches it.
+func SetWorklistMatch(query *dicom.DataSet, e dicom.Element) {
+	if _, sps := worklistSPSTags[e.Tag]; !sps {
+		query.Set(e)
+		return
+	}
+	if seq, ok := query.GetSequence(dicom.TagScheduledProcedureStepSequence); ok {
+		for item := range seq.Items() {
+			item.DataSet.Set(e)
+			return
+		}
+	}
+	step := dicom.NewDataSet()
+	step.Set(e)
+	query.Set(dicom.Element{
+		Tag:   dicom.TagScheduledProcedureStepSequence,
+		VR:    dicom.VRSQ,
+		Value: dicom.NewSequenceValue(dicom.NewSequence(step)),
+	})
+}
