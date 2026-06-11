@@ -40,8 +40,8 @@ func NewFileSetBuilder() *FileSetBuilder {
 }
 
 // SetID sets the File-set ID (0004,1130), validated at Write: at most 16 characters
-// from 0-9, A-Z, space, and underscore (PS3.10 §8.4). Empty (the default) writes a
-// zero-length Type 2 element.
+// from 0-9, A-Z, and underscore (the PS3.10 §8.5 repertoire, which excludes SPACE).
+// Empty (the default) writes a zero-length Type 2 element.
 func (b *FileSetBuilder) SetID(id string) { b.id = id }
 
 // Add stages the Part 10 file at path as a file-set member. The file is parsed to
@@ -102,8 +102,8 @@ func (b *FileSetBuilder) stage(f *File, srcPath string) error {
 }
 
 // fileSetIDRE is the conformant File-set ID repertoire: at most 16 characters from
-// 0-9, A-Z, space, and underscore (PS3.10 §8.4).
-var fileSetIDRE = regexp.MustCompile(`^[0-9A-Z_ ]{0,16}$`)
+// 0-9, A-Z, and underscore (PS3.10 §8.4 with the §8.5 character set, no SPACE).
+var fileSetIDRE = regexp.MustCompile(`^[0-9A-Z_]{0,16}$`)
 
 // Write creates the file-set under root: the member files in their generated File ID
 // layout and the DICOMDIR with offset-linked directory records (PS3.10 Table 8.1-1).
@@ -112,7 +112,7 @@ var fileSetIDRE = regexp.MustCompile(`^[0-9A-Z_ ]{0,16}$`)
 func (b *FileSetBuilder) Write(root string) (*FileSet, error) {
 	if !fileSetIDRE.MatchString(b.id) {
 		return nil, &ValueError{Tag: TagFileSetID, VR: VRCS,
-			Msg: "File-set ID must be at most 16 characters from 0-9, A-Z, space, and underscore"}
+			Msg: "File-set ID must be at most 16 characters from 0-9, A-Z, and underscore"}
 	}
 
 	patients := groupRecords(b.staged)

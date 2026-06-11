@@ -60,7 +60,7 @@ func fixturePath(name string) string {
 
 func TestFileSetBuildWriteOpenRoundTrip(t *testing.T) {
 	b := NewFileSetBuilder()
-	b.SetID("GO RADX TEST")
+	b.SetID("GO_RADX_TEST")
 	fixtures := []string{"liver.dcm", "MR2_UNCI.dcm", "SC_rgb_expb.dcm"}
 	for _, name := range fixtures {
 		if err := b.Add(fixturePath(name)); err != nil {
@@ -74,8 +74,8 @@ func TestFileSetBuildWriteOpenRoundTrip(t *testing.T) {
 		t.Fatalf("Write: %v", err)
 	}
 
-	if fs.ID() != "GO RADX TEST" {
-		t.Errorf("ID = %q, want %q", fs.ID(), "GO RADX TEST")
+	if fs.ID() != "GO_RADX_TEST" {
+		t.Errorf("ID = %q, want %q", fs.ID(), "GO_RADX_TEST")
 	}
 	if fs.UID() == "" {
 		t.Error("UID is empty")
@@ -273,7 +273,8 @@ func TestFileSetBuilderDuplicateInstance(t *testing.T) {
 }
 
 func TestFileSetBuilderIDValidation(t *testing.T) {
-	for _, id := range []string{"lowercase", "SEVENTEEN_CHARS17", "BAD*CHAR"} {
+	// SPACE is excluded by the PS3.10 §8.5 repertoire (0-9, A-Z, underscore).
+	for _, id := range []string{"lowercase", "SEVENTEEN_CHARS17", "BAD*CHAR", "GO RADX"} {
 		b := NewFileSetBuilder()
 		b.SetID(id)
 		if _, err := b.Write(t.TempDir()); err == nil {
