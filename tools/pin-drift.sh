@@ -156,6 +156,45 @@ scan_unpinned_apt() {
   done
 }
 
+# scan_sshd_sidecar verifies the testcontainers host-access sshd sidecar image. Enabling
+# HostAccessPorts (the MLLP interop reverse direction) makes testcontainers-go start an sshd tunnel
+# container from a reference hardcoded in the module (port_forwarding.go const sshdImage), with no
+# public override to pin it by digest, so the pin is transitive: go.sum fixes the module version,
+# which fixes the tag. Unlike the shape checks above, this check compares exact values — the live
+# reference lives in the dependency, not this tree, so lockstep with tools/versions is the only
+# enforceable invariant: a testcontainers-go bump that floats the sidecar to a different reference
+# fails here until tools/versions moves with it.
+scan_sshd_sidecar() {
+  local recorded module_dir live
+  # `|| true` rescues the no-match case under `set -e -o pipefail` so the report path below runs
+  # instead of the script dying without a diagnostic.
+  recorded="$(grep -E '^mllp-peer\.sshd\.image=' tools/versions 2>/dev/null | head -n1 | cut -d= -f2- || true)"
+  if [ -z "$recorded" ]; then
+    report "tools/versions" "0" "missing mllp-peer.sshd.image entry for the testcontainers host-access sshd sidecar"
+    return
+  fi
+  module_dir="$(go list -m -f '{{.Dir}}' github.com/testcontainers/testcontainers-go 2>/dev/null || true)"
+  if [ -z "$module_dir" ]; then
+    # The module source is not in the local cache yet (this gate can run before any build step);
+    # fetch exactly the go.sum-pinned version and resolve again.
+    go mod download github.com/testcontainers/testcontainers-go >/dev/null 2>&1 || true
+    module_dir="$(go list -m -f '{{.Dir}}' github.com/testcontainers/testcontainers-go 2>/dev/null || true)"
+  fi
+  if [ -z "$module_dir" ] || [ ! -f "$module_dir/port_forwarding.go" ]; then
+    report "go.mod" "0" "cannot resolve testcontainers-go's port_forwarding.go to verify the sshd sidecar pin"
+    return
+  fi
+  live="$(grep -E 'sshdImage[[:space:]]+string[[:space:]]*=' "$module_dir/port_forwarding.go" 2>/dev/null \
+            | sed -E 's/.*"([^"]+)".*/\1/' | head -n1 || true)"
+  if [ -z "$live" ]; then
+    report "$module_dir/port_forwarding.go" "0" "cannot find the hardcoded sshd sidecar image reference in testcontainers-go"
+    return
+  fi
+  if [ "$live" != "$recorded" ]; then
+    report "tools/versions" "0" "sshd sidecar pin drift: testcontainers-go uses \"$live\" but tools/versions records \"$recorded\""
+  fi
+}
+
 for helper in "${HELPER_GLOBS[@]}"; do
   scan_floating_image "$helper"
   scan_latest_tag "$helper"
@@ -163,6 +202,8 @@ for helper in "${HELPER_GLOBS[@]}"; do
   # `==` pin rule that governs workflow installs applies to an install embedded in a helper.
   scan_unpinned_pip "$helper"
 done
+
+scan_sshd_sidecar
 
 # Scan every workflow file (not just ci.yml) so a pin added in a future workflow is covered too. The
 # glob is unquoted so the shell expands it; `nullglob` makes a no-match expand to nothing rather than
