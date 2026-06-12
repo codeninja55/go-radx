@@ -196,9 +196,12 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 			)
 
 			// Re-check the cancel watch BEFORE counting or sending the Pending: a C-CANCEL-RQ that
-			// arrived while the store was in flight queued its result (and cancelled handlerCtx),
-			// and the next message the SCU sees after its cancel must be the terminal Cancel with
-			// the accumulated counts, never another Pending (PS3.4 C.4.2.2.3 "as soon as possible").
+			// arrived while the store was in flight queued its result and only THEN cancelled
+			// handlerCtx (the watcher's queue-then-cancel order), so a store the cancellation
+			// unblocked always finds the result already queued here — never miscounted as a
+			// destination failure — and the next message the SCU sees after its cancel is the
+			// terminal Cancel with the accumulated counts, never another Pending (PS3.4 C.4.2.2.3
+			// "as soon as possible").
 			canceled := false
 			select {
 			case res := <-watcher.result:

@@ -859,11 +859,18 @@ func TestServeMoveCancelAbortsInFlightSubOperation(t *testing.T) {
 	if elapsed >= 1500*time.Millisecond {
 		t.Errorf("terminal Cancel took %s after the C-CANCEL; the in-flight sub-operation store was awaited, not aborted", elapsed)
 	}
-	// The interrupted store is neither completed nor a destination failure: the accumulated counts
-	// the Cancel carries report only sub-operations that actually finished.
-	if terminal.CompletedSubOperations != 0 || terminal.FailedSubOperations != 0 || terminal.WarningSubOperations != 0 {
-		t.Errorf("Cancel counts = completed %d / failed %d / warning %d, want all zero (the interrupted store is not counted)",
-			terminal.CompletedSubOperations, terminal.FailedSubOperations, terminal.WarningSubOperations)
+	// The cancel-signal race regression: the watcher queues its result BEFORE cancelling the
+	// store's context, so the drain's re-check always observes the cancel when the interrupted
+	// store returns — a cancel-interrupted store is NEVER miscounted as a destination failure.
+	if terminal.FailedSubOperations != 0 {
+		t.Errorf("Cancel reported %d failed sub-operation(s); the cancel-interrupted store was miscounted as a destination failure",
+			terminal.FailedSubOperations)
+	}
+	// It is not a completed or warned sub-operation either: the counts report only stores that
+	// actually finished before the cancel.
+	if terminal.CompletedSubOperations != 0 || terminal.WarningSubOperations != 0 {
+		t.Errorf("Cancel counts = completed %d / warning %d, want zero (no store finished before the cancel)",
+			terminal.CompletedSubOperations, terminal.WarningSubOperations)
 	}
 
 	_ = assoc.Release(ctx)
