@@ -208,8 +208,11 @@ jobs:
         # Each leg names the mise task that runs it, so CI and `mise run interop:*` stay in
         # agreement. dimse is the C-STORE/C-FIND/C-GET/C-MOVE net against Orthanc + dcm4chee-arc;
         # dicomweb is the STOW/WADO round-trip against Orthanc; convert is the cross-standard
-        # walking-skeleton end-to-end proof, whose DIMSE and DICOMweb legs run against Orthanc.
-        leg: [dimse, dicomweb, convert]
+        # walking-skeleton end-to-end proof, whose DIMSE and DICOMweb legs run against Orthanc;
+        # mllp is the cross-implementation MLLP send/receive gate against the python-hl7 peer
+        # container; fhir-hapi is the FHIR REST client CRUD/capability gate against the HAPI
+        # FHIR server container (issue #114).
+        leg: [dimse, dicomweb, convert, mllp, fhir-hapi]
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
@@ -233,10 +236,11 @@ jobs:
           restore-keys: |
             go-1.26.4-${{ runner.os }}-interop-${{ matrix.leg }}-
       - name: ${{ matrix.leg }} interop tests
-        # GitHub-hosted ubuntu runners ship Docker; testcontainers manages the Orthanc and
-        # dcm4chee-arc stacks behind the pinned image digests. The dcm4chee-arc stack the dimse
-        # leg starts is memory-heavy for a standard runner — watch that leg if the runner is
-        # resource-constrained.
+        # GitHub-hosted ubuntu runners ship Docker; testcontainers manages the Orthanc,
+        # dcm4chee-arc, python-hl7 MLLP peer, and HAPI FHIR stacks behind the pinned image
+        # digests. The dcm4chee-arc stack the dimse leg starts is memory-heavy for a standard
+        # runner — watch that leg if the runner is resource-constrained; the fhir-hapi leg's
+        # HAPI boot is slow (a full Spring/JPA stack), covered by a generous readiness wait.
         run: mise run interop:${{ matrix.leg }}
 
   govulncheck:

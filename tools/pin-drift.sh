@@ -32,6 +32,8 @@ HELPER_GLOBS=(
   "dimse/integration/orthanc/orthanc.go"
   "dicomweb/integration/orthanc/orthanc.go"
   "dimse/integration/dcm4chee/dcm4chee.go"
+  "hl7v2/integration/hl7peer/hl7peer.go"
+  "fhir/rest/integration/hapi/hapi.go"
 )
 
 violations=0
@@ -69,7 +71,7 @@ scan_floating_image() {
     esac
     report "$file" "$lineno" "image reference without an @sha256: digest pin -> $(echo "$line" | sed 's/^[[:space:]]*//')"
   done < <(grep -nE '"[A-Za-z0-9._/-]+/[A-Za-z0-9._-]+:[A-Za-z0-9._-]+"' "$file" 2>/dev/null \
-            | grep -E 'orthancteam/|dcm4che/' || true)
+            | grep -E 'orthancteam/|dcm4che/|hapiproject/|library/python' || true)
 }
 
 # scan_latest_tag flags an explicit `:latest` image tag anywhere in a file (defence in depth: catches
@@ -157,6 +159,9 @@ scan_unpinned_apt() {
 for helper in "${HELPER_GLOBS[@]}"; do
   scan_floating_image "$helper"
   scan_latest_tag "$helper"
+  # The MLLP peer helper pip-installs python-hl7 inside its container at start; the same exact
+  # `==` pin rule that governs workflow installs applies to an install embedded in a helper.
+  scan_unpinned_pip "$helper"
 done
 
 # Scan every workflow file (not just ci.yml) so a pin added in a future workflow is covered too. The
