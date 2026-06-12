@@ -270,3 +270,63 @@ func worklistMatch(stepID, modality string) *dicom.DataSet {
 	})
 	return match
 }
+
+// TestSetWorklistMatchRoutesSPSKeys asserts the PS3.4 Table K.6-1 routing: an SPS requirement key
+// (Modality here) is set inside the Scheduled Procedure Step Sequence item — where an MWL SCP
+// matches it — while a non-SPS key (PatientName) stays at the query's top level, and a query with
+// no skeleton item has one seeded rather than the SPS key landing top-level.
+func TestSetWorklistMatchRoutesSPSKeys(t *testing.T) {
+	query := NewWorklistQuery()
+	SetWorklistMatch(query, dicom.Element{
+		Tag: dicom.TagModality, VR: dicom.VRCS, Value: dicom.NewStrings(dicom.VRCS, "MR"),
+	})
+	SetWorklistMatch(query, dicom.Element{
+		Tag: dicom.TagRequestedContrastAgent, VR: dicom.VRLO, Value: dicom.NewStrings(dicom.VRLO, "GADOLINIUM"),
+	})
+	SetWorklistMatch(query, dicom.Element{
+		Tag: dicom.TagPatientName, VR: dicom.VRPN, Value: dicom.NewStrings(dicom.VRPN, "X"),
+	})
+
+	if _, topLevel := query.Get(dicom.TagModality); topLevel {
+		t.Error("Modality (0008,0060) was set at the top level; Table K.6-1 scopes it to the SPS item")
+	}
+	if _, topLevel := query.Get(dicom.TagRequestedContrastAgent); topLevel {
+		t.Error("RequestedContrastAgent (0032,1070) was set at the top level; Table K.6-1 scopes it to the SPS item")
+	}
+	if name, ok := query.GetString(dicom.TagPatientName); !ok || name != "X" {
+		t.Errorf("top-level PatientName = %q (ok=%v), want X at the top level", name, ok)
+	}
+	seq, ok := query.GetSequence(dicom.TagScheduledProcedureStepSequence)
+	if !ok || seq.Len() != 1 {
+		t.Fatalf("SPS sequence missing or not single-item (ok=%v)", ok)
+	}
+	for item := range seq.Items() {
+		if modality, ok := item.DataSet.GetString(dicom.TagModality); !ok || modality != "MR" {
+			t.Errorf("SPS item Modality = %q (ok=%v), want MR inside the sequence item", modality, ok)
+		}
+		if agent, ok := item.DataSet.GetString(dicom.TagRequestedContrastAgent); !ok || agent != "GADOLINIUM" {
+			t.Errorf("SPS item RequestedContrastAgent = %q (ok=%v), want GADOLINIUM inside the sequence item", agent, ok)
+		}
+		if _, ok := item.DataSet.Get(dicom.TagPatientName); ok {
+			t.Error("PatientName leaked into the SPS item; it is not a Table K.6-1 SPS key")
+		}
+	}
+
+	// A query with no skeleton: the SPS key seeds the sequence rather than landing top-level.
+	bare := dicom.NewDataSet()
+	SetWorklistMatch(bare, dicom.Element{
+		Tag: dicom.TagScheduledStationAETitle, VR: dicom.VRAE, Value: dicom.NewStrings(dicom.VRAE, "CT01"),
+	})
+	if _, topLevel := bare.Get(dicom.TagScheduledStationAETitle); topLevel {
+		t.Error("ScheduledStationAETitle was set at the top level of a skeleton-less query")
+	}
+	seq, ok = bare.GetSequence(dicom.TagScheduledProcedureStepSequence)
+	if !ok || seq.Len() != 1 {
+		t.Fatalf("skeleton-less query did not seed the SPS sequence (ok=%v)", ok)
+	}
+	for item := range seq.Items() {
+		if aet, ok := item.DataSet.GetString(dicom.TagScheduledStationAETitle); !ok || aet != "CT01" {
+			t.Errorf("seeded SPS item ScheduledStationAETitle = %q (ok=%v), want CT01", aet, ok)
+		}
+	}
+}

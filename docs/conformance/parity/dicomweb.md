@@ -12,7 +12,7 @@ NOT-MET (absent), N-A (not applicable). Size estimates for non-MET rows: S (days
 
 ## Summary
 
-Across 75 rows: 38 MET, 8 PARTIAL, 27 NOT-MET, 2 N-A.
+Across 75 rows: 42 MET, 4 PARTIAL, 27 NOT-MET, 2 N-A.
 
 The shipped core — QIDO-RS search (all six resource paths, full PS3.4 matching semantics), WADO-RS retrieval
 (study/series/instance/metadata/frames/bulkdata), and STOW-RS storage (both body variants server-side) — is at
@@ -31,8 +31,6 @@ rendered/consumer-format surface:
 9. WADO-URI legacy URI service (PS3.18 §9) — M
 10. Capabilities discovery (`OPTIONS /`, PS3.18 §8.9) — M
 11. STOW-RS metadata + bulkdata variant on the client (server accepts it; client posts whole objects) — M
-12. radx daemon does not wire the optional WADO retrievers: study/series/metadata/frames/bulkdata answer 501
-    at the daemon even though the library server implements them — S
 
 ## dicomweb-client parity (client-side)
 
@@ -116,11 +114,11 @@ they differ, status reflects the library and the daemon gap is noted.
 | `includefield` + default return attributes | §10.6, Tables 10.6.1-5/-5a/-5b | MET | `qido.go:114,196` | - | Unresolvable attribute rejected, not dropped |
 | `limit`/`offset` + Warning 299 on truncation | §10.6.1.4 | MET | `qido_server.go:113,131`; cap via `WithMaxQueryResults` (`server.go:74`) | - | |
 | Retrieve instance | §10.4 | MET | `server.go:513` `handleRetrieveInstance`; daemon: `role_dicomweb.go:193` | - | |
-| Retrieve study | §10.4 | PARTIAL | library: `retrieve.go:98` via optional `StudyRetriever` (:56) | S | Daemon does not wire `StudyRetriever` -> 501 at the daemon |
-| Retrieve series | §10.4 | PARTIAL | library: `retrieve.go:123` via `SeriesRetriever` (:61) | S | Daemon not wired -> 501 |
-| Retrieve metadata | §10.4.1.1.5 | PARTIAL | library: `retrieve.go:208` via `MetadataRetriever` (:76); BulkDataURI emission per instance | S | Daemon not wired -> 501; JSON only |
-| Retrieve frames | §10.4 | PARTIAL | library: `retrieve.go:292` via `FrameRetriever` (:83) | S | Daemon not wired -> 501 |
-| Retrieve bulkdata | §10.4 | PARTIAL | library: `retrieve.go:314` via `BulkDataRetriever` (:89) | S/M | Daemon not wired; per-attribute selection missing (whole-instance bulkdata returned) |
+| Retrieve study | §10.4 | MET | library: `retrieve.go:98` via optional `StudyRetriever` (:56); daemon: `role_dicomweb.go:219` `RetrieveStudy`; `TestDaemonDICOMwebRetrievalRoutes` (`daemon_roles_test.go`) | - | Daemon enumerates the study through the Catalogue and fetches from the ObjectStore |
+| Retrieve series | §10.4 | MET | library: `retrieve.go:123` via `SeriesRetriever` (:61); daemon: `role_dicomweb.go:226` `RetrieveSeries` | - | |
+| Retrieve metadata | §10.4.1.1.5 | MET | library: `retrieve.go:208` via `MetadataRetriever` (:76); BulkDataURI emission per instance; daemon: `role_dicomweb.go:260` `RetrieveMetadata` | - | JSON only |
+| Retrieve frames | §10.4 | MET | library: `retrieve.go:292` via `FrameRetriever` (:83); daemon: `role_dicomweb.go:280` `RetrieveFrames` (native frame slicing via `dicom.PixelData`) | - | |
+| Retrieve bulkdata | §10.4 | MET | library: `retrieve.go:340` `handleRetrieveBulkData` plus `resolveBulkDataLocator` (:399); daemon: `role_dicomweb.go:337` `RetrieveBulkData` | - | A locator-suffixed URI (the form metadata emits) returns exactly the referenced attribute, top-level and nested sequence paths alike, via the base `RetrieveBackend` (no optional interface needed); the bare `.../bulkdata` sub-resource returns every binary value through `BulkDataRetriever` (:97); an unresolvable locator answers 404, never wrong bytes |
 | Transfer-syntax negotiation (passthrough / transcode / 406) | §8.7.3.3 | MET | `negotiation.go:168` `negotiateRetrieveTransferSyntax`; `StoredInstanceRetriever` (`retrieve.go:69`); tests `negotiation_test.go` | - | Wildcard never transcodes; unservable syntax answers 406 |
 | Pixel-data transcoding (shipped transcoders) | §8.7.3.5.2 | NOT-MET | seam exists; no transcoders registered (`instance.go:55`, `../dicomweb.md`) | L | Honest 406 today; a deployment may supply transcoders |
 | Store whole-object (`type="application/dicom"`) | §10.5 | MET | `server.go:356` `storeDICOMParts`; daemon: `role_dicomweb.go:101` | - | Study-constrained target enforced (0xC120 rejection) |

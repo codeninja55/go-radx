@@ -19,6 +19,11 @@ var (
 	ErrUnsupported = errors.New("dicomweb: service or media type not supported in v1")
 	// ErrInvalidResource is returned for an invalid resource path or UID.
 	ErrInvalidResource = errors.New("dicomweb: invalid resource path or UID")
+	// ErrNotFound is the sentinel a retrieval backend returns (wrapped) when the addressed
+	// resource genuinely does not exist. The server maps it to HTTP 404; any OTHER backend
+	// error is an internal fault answered 500, so a catalogue or store failure is never
+	// disguised as an absent resource (PRD §9.2).
+	ErrNotFound = errors.New("dicomweb: resource not found")
 	// ErrCrossOriginBulkData is returned when an absolute BulkDataURI from server metadata
 	// points at an origin other than the configured one and cross-origin fetching is not
 	// opted in. Refusing by default prevents an SSRF where a hostile or compromised origin

@@ -67,7 +67,7 @@ func serveFindMessage(ctx context.Context, acc *acse.Acceptor, h FindHandler, cm
 	// of the drain. A C-FIND occupies the association until it terminates, so the only valid inbound
 	// message is a C-CANCEL-RQ; the watcher's context is the drain's, so ending the query cancels its
 	// blocking read (no dangling goroutine, PRD §9.4).
-	watcher := newFindCancelWatcher(handlerCtx, acc.Conn(), m, cmd.MessageID)
+	watcher := newFindCancelWatcher(handlerCtx, acc.Conn(), m, cmd.MessageID, nil)
 	defer watcher.stop()
 
 	for {
@@ -136,7 +136,17 @@ type findCancelWatcher struct {
 }
 
 // newFindCancelWatcher starts the cancel-watch goroutine bound by a context derived from parent.
-func newFindCancelWatcher(parent context.Context, conn *dul.Conn, m *dul.StateMachine, msgID uint16) *findCancelWatcher {
+// A non-nil onCancel is invoked when a matching C-CANCEL-RQ arrives, AFTER the cancel result has
+// been queued on the buffered result channel: a dispatcher blocked in a long sub-operation (the
+// C-MOVE destination store) hangs that work off a context onCancel cancels, so it observes the
+// C-CANCEL promptly rather than only at its next select (PS3.4 C.4.2.2.3 "as soon as possible").
+// The queue-then-cancel order is load-bearing: the cancellation is what unblocks the in-flight
+// work, so by the time the dispatcher re-checks the result channel the cancel is already visible
+// — were onCancel invoked first, the interrupted work could observe its cancelled context and be
+// re-checked before the result was queued, miscounting the interruption as a peer failure and
+// letting a Pending follow the cancel. The C-FIND drain passes nil: its select is never blocked
+// outside the watcher.
+func newFindCancelWatcher(parent context.Context, conn *dul.Conn, m *dul.StateMachine, msgID uint16, onCancel func()) *findCancelWatcher {
 	ctx, cancel := context.WithCancel(parent) // #nosec G118 -- cancel is stored on the watcher and invoked via stopOnce in stop()
 	w := &findCancelWatcher{
 		result: make(chan findCancelResult, 1),
@@ -153,7 +163,13 @@ func newFindCancelWatcher(parent context.Context, conn *dul.Conn, m *dul.StateMa
 			return
 		}
 		if cmd.CommandField == CommandCCancelRQ && cmd.MessageIDBeingRespondedTo == msgID {
+			// Queue the result BEFORE invoking onCancel (see the constructor comment): the buffered
+			// send cannot block, and it must be visible to the dispatcher's non-blocking re-check by
+			// the time the context cancellation unblocks any in-flight sub-operation.
 			w.result <- findCancelResult{}
+			if onCancel != nil {
+				onCancel()
+			}
 			return
 		}
 		// Any other inbound message mid-query is unexpected on this association (a single C-FIND

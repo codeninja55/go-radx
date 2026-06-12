@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"context"
+	"errors"
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/acse"
@@ -40,6 +41,14 @@ func (s moveSupport) resolveDestination(dest AETitle) (string, bool) {
 // the move ends (success, failure, or fault), and never left dangling (PRD §9.4); a failure to open
 // it is a terminal 0xA702, not a panic. The handler's context is derived from ctx, so Server.Shutdown
 // (which cancels ctx) stops an in-flight move and the destination association is torn down.
+//
+// The dispatcher honours a C-CANCEL-RQ arriving on the inbound association mid-retrieve by cancelling
+// the handler's context (so no further sub-operation is dispatched, and an IN-FLIGHT sub-operation
+// C-STORE — which rides that context — is aborted rather than awaited) and sending the terminal
+// Cancel RSP carrying the counts accumulated so far as the next protocol message, never another
+// Pending (PS3.4 C.4.2.2.3, PS3.7 §9.3.2.3). It reuses the C-FIND cancel watcher: the sub-operation
+// C-STOREs ride the separate destination association, so the only valid inbound message while a move
+// is in flight is a C-CANCEL-RQ.
 func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, move moveSupport, cmd CommandSet, ds *dicom.DataSet, pcID uint8, info OpInfo) error {
 	m := acc.Machine()
 	if err := validateMoveContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), m.CurrentState()); err != nil {
@@ -98,86 +107,141 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 		_ = destAssoc.Release(releaseCtx)
 	}()
 
-	// Derive a cancellable context for the handler so Server.Shutdown stops its iterator.
-	//
-	// TODO(M8): honor an interleaved inbound C-CANCEL-RQ during the sub-operation store loop, mirroring
-	// the C-FIND cancel watcher (newFindCancelWatcher). Today the SCP honors cooperative cancellation
-	// via the dispatch context (Server.Shutdown) but does not read the association for a C-CANCEL-RQ
-	// while storing, so an SCU that breaks its Move iterator mid-retrieve only sees the cancel take
-	// effect after the move completes (its cancel-drain reaches the terminal RSP, never wedging — the
-	// association stays clean — but cancellation is not prompt). Deferred per the M3 plan scope.
+	// Derive a cancellable context for the handler so a C-CANCEL-RQ (or Server.Shutdown) stops its
+	// iterator.
 	handlerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	matches := newFindMatchPump(handlerCtx, h.Move(handlerCtx, query, level, dest, info))
+	defer matches.stop()
+
+	// A single inbound watcher reads the inbound association for an interleaved C-CANCEL-RQ for the
+	// lifetime of the sub-operation loop. A C-MOVE occupies the inbound association until it
+	// terminates (the sub-operation C-STOREs ride the separate destination association), so the only
+	// valid inbound message is a C-CANCEL-RQ; the watcher's context is the drain's, so ending the
+	// move cancels its blocking read (no dangling goroutine, PRD §9.4). The watcher cancels
+	// handlerCtx the moment a C-CANCEL arrives: the sub-operation C-STORE below rides handlerCtx, so
+	// an IN-FLIGHT store to a slow destination is aborted promptly rather than the cancel waiting for
+	// the store to finish (PS3.4 C.4.2.2.3 "as soon as possible").
+	watcher := newFindCancelWatcher(handlerCtx, acc.Conn(), m, cmd.MessageID, cancel)
+	defer watcher.stop()
+
 	var counts SubOperationCounts
-	for status, instance := range h.Move(handlerCtx, query, level, dest, info) {
-		// Cooperative shutdown: if the dispatch context ended (Server.Shutdown) while the handler was
-		// producing matches, stop promptly and return the context error rather than sending more RSPs
-		// over a connection that is being torn down (DIMSE-014 applied to the C-MOVE drain). The
-		// deferred teardown releases the destination association.
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		// A non-Pending yield signals the handler's matches are done. A handler-level FAILURE (e.g.
-		// out-of-resources resolving the matches) propagates as the terminal status — the handler
-		// could not produce the instances. A handler-level Success/Warning is NOT forwarded verbatim:
-		// the handler does not know the sub-operation store outcomes, so the runtime computes the real
-		// terminal from the accumulated counts (a partial store failure must surface as 0xB000, never
-		// be laundered into the handler's Success — PRD §9.2).
-		if !status.IsPending() {
-			if status.IsFailure() {
-				return sendMoveResponse(ctx, acc, cmd, pcID, status, counts)
+	for {
+		// Block on the next match from the handler OR an inbound C-CANCEL-RQ. A handler that blocks
+		// awaiting more matches must not wedge the SCP: the cancel watch runs in parallel, so a
+		// C-CANCEL stops the retrieve promptly (PS3.7 §9.3.2.3).
+		select {
+		case <-ctx.Done():
+			// The parent context ended (Server.Shutdown) while the drain was waiting between events.
+			// Neither helper is guaranteed to send in that case, so without this arm the select would
+			// block forever (DIMSE-014 cooperative shutdown applied to the C-MOVE drain). Returning
+			// promptly lets the deferred teardown stop both helpers and release the destination
+			// association.
+			return ctx.Err()
+		case res := <-watcher.result:
+			if res.err != nil {
+				return res.err
 			}
-			return sendMoveResponse(ctx, acc, cmd, pcID, moveTerminalStatus(counts), counts)
-		}
-		if instance == nil {
-			// A Pending match must carry an instance to store; a nil instance is a handler bug. Count
-			// it as a failed sub-operation rather than panicking (fail-closed).
-			counts.Failed++
+			// A C-CANCEL-RQ for this move: stop the handler (no further sub-operation is dispatched)
+			// and send the terminal Cancel RSP carrying the counts accumulated so far (PS3.4 C.4.2.3).
+			cancel()
+			matches.stop()
+			return sendMoveResponse(ctx, acc, cmd, pcID, StatusMoveCancel, counts)
+		case match := <-matches.ch:
+			if !match.ok {
+				// All matches exhausted: send the terminal C-MOVE-RSP carrying the final counts. The
+				// status is faithful — Success only when nothing failed, the all-failed 0xA702 when
+				// every sub-operation failed, otherwise the 0xB000 partial-failure Warning (PRD §9.2
+				// fail-closed). Stop the cancel watcher's blocking read FIRST so the PDU the SCU sends
+				// next (an A-RELEASE-RQ or its next request) is not consumed by the watcher and lost
+				// from the main dispatch loop.
+				watcher.stop()
+				return sendMoveResponse(ctx, acc, cmd, pcID, moveTerminalStatus(counts), counts)
+			}
+			// A non-Pending yield signals the handler's matches are done. A handler-level FAILURE
+			// (e.g. out-of-resources resolving the matches) propagates as the terminal status — the
+			// handler could not produce the instances. A handler-level Success/Warning is NOT
+			// forwarded verbatim: the handler does not know the sub-operation store outcomes, so the
+			// runtime computes the real terminal from the accumulated counts (a partial store failure
+			// must surface as 0xB000, never be laundered into the handler's Success — PRD §9.2). Stop
+			// the watcher before sending so the SCU's next PDU reaches the main dispatch loop.
+			if !match.status.IsPending() {
+				watcher.stop()
+				if match.status.IsFailure() {
+					return sendMoveResponse(ctx, acc, cmd, pcID, match.status, counts)
+				}
+				return sendMoveResponse(ctx, acc, cmd, pcID, moveTerminalStatus(counts), counts)
+			}
+			instance := match.identifier
+			if instance == nil {
+				// A Pending match must carry an instance to store; a nil instance is a handler bug.
+				// Count it as a failed sub-operation rather than panicking (fail-closed).
+				counts.Failed++
+				if perr := sendMoveResponse(ctx, acc, cmd, pcID, StatusMovePending, counts); perr != nil {
+					return perr
+				}
+				continue
+			}
+
+			// C-STORE the matched instance to the destination as a sub-operation, with a distinct
+			// non-zero Message ID from the destination association's allocator (DIMSE-016),
+			// propagating the move originator: the AE Title that INVOKED the C-MOVE (the calling AE
+			// of the inbound C-MOVE association) and the original C-MOVE Message ID (PS3.7 §9.1.1;
+			// the originator is the request SCU, not this Move SCP, so destinations attribute the
+			// retrieve to the right AE). The store rides handlerCtx so the cancel watcher aborts an
+			// in-flight store the moment a C-CANCEL-RQ arrives.
+			subStatus, storeErr := destAssoc.Store(handlerCtx, instance,
+				WithStoreMessageID(destAssoc.nextMessageID()),
+				WithMoveOriginator(info.CallingAETitle, cmd.MessageID),
+			)
+
+			// Re-check the cancel watch BEFORE counting or sending the Pending: a C-CANCEL-RQ that
+			// arrived while the store was in flight queued its result and only THEN cancelled
+			// handlerCtx (the watcher's queue-then-cancel order), so a store the cancellation
+			// unblocked always finds the result already queued here — never miscounted as a
+			// destination failure — and the next message the SCU sees after its cancel is the
+			// terminal Cancel with the accumulated counts, never another Pending (PS3.4 C.4.2.2.3
+			// "as soon as possible").
+			canceled := false
+			select {
+			case res := <-watcher.result:
+				if res.err != nil {
+					return res.err
+				}
+				canceled = true
+			default:
+			}
+
+			switch {
+			case storeErr != nil && canceled && errors.Is(storeErr, context.Canceled):
+				// The store was interrupted by the C-CANCEL (it unwound from the context
+				// cancellation), not refused by the destination: it is neither completed nor a
+				// destination failure, so it is left out of the counts the terminal Cancel
+				// reports. A genuine wire fault that merely raced the cancel does not satisfy
+				// errors.Is(context.Canceled) and still counts as failed below.
+			case storeErr != nil:
+				// The sub-operation C-STORE faulted on the wire (the destination association broke);
+				// count it as a failed sub-operation and continue reporting progress.
+				counts.Failed++
+			case subStatus.IsWarning():
+				counts.Warning++
+			case subStatus.IsSuccess():
+				counts.Completed++
+			default:
+				counts.Failed++
+			}
+
+			if canceled {
+				matches.stop()
+				return sendMoveResponse(ctx, acc, cmd, pcID, StatusMoveCancel, counts)
+			}
+
 			if perr := sendMoveResponse(ctx, acc, cmd, pcID, StatusMovePending, counts); perr != nil {
 				return perr
 			}
-			continue
-		}
-
-		// C-STORE the matched instance to the destination as a sub-operation, with a distinct non-zero
-		// Message ID from the destination association's allocator (DIMSE-016), propagating the move
-		// originator: the AE Title that INVOKED the C-MOVE (the calling AE of the inbound C-MOVE
-		// association) and the original C-MOVE Message ID (PS3.7 §9.1.1; the originator is the request
-		// SCU, not this Move SCP, so destinations attribute the retrieve to the right AE).
-		subStatus, storeErr := destAssoc.Store(ctx, instance,
-			WithStoreMessageID(destAssoc.nextMessageID()),
-			WithMoveOriginator(info.CallingAETitle, cmd.MessageID),
-		)
-		switch {
-		case storeErr != nil:
-			// The sub-operation C-STORE faulted on the wire (the destination association broke); count
-			// it as a failed sub-operation and continue reporting progress.
-			counts.Failed++
-		case subStatus.IsWarning():
-			counts.Warning++
-		case subStatus.IsSuccess():
-			counts.Completed++
-		default:
-			counts.Failed++
-		}
-
-		if perr := sendMoveResponse(ctx, acc, cmd, pcID, StatusMovePending, counts); perr != nil {
-			return perr
 		}
 	}
-
-	// The handler may have ended only because its context was cancelled (Server.Shutdown woke it
-	// between yields). Return the context error rather than sending a terminal over a connection being
-	// torn down, so a cooperatively-shut-down move does not race a final RSP against the close.
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	// All matches exhausted: send the terminal C-MOVE-RSP carrying the final counts. The status is
-	// faithful — Success only when nothing failed, the all-failed 0xA702 when every sub-operation
-	// failed, otherwise the 0xB000 partial-failure Warning (PRD §9.2 fail-closed).
-	return sendMoveResponse(ctx, acc, cmd, pcID, moveTerminalStatus(counts), counts)
 }
 
 // moveTerminalStatus resolves the terminal C-MOVE-RSP status from the accumulated sub-operation

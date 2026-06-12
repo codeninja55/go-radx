@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -8,13 +9,20 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"errors"
+	"io"
+	"iter"
 	"math/big"
+	"mime"
+	"mime/multipart"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/hl7v2"
 )
@@ -190,6 +198,273 @@ func TestDaemonDICOMwebServes(t *testing.T) {
 	cancelRun()
 	if err := <-runErr; err != nil {
 		t.Fatalf("Run returned %v on clean shutdown, want nil", err)
+	}
+}
+
+// startDICOMwebDaemon starts a daemon hosting the DICOMweb role over the given backends on loopback
+// and returns the role's base URL. The daemon is shut down on test cleanup.
+func startDICOMwebDaemon(t *testing.T, store ObjectStore, cat Catalogue) string {
+	t.Helper()
+	webRole, err := NewDICOMwebRole(store, cat, WithDICOMwebPort(0))
+	if err != nil {
+		t.Fatalf("NewDICOMwebRole: %v", err)
+	}
+	d, err := New(WithDICOMweb(webRole))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(runCtx) }()
+	waitForAddrs(t, d, "dicomweb")
+	t.Cleanup(func() {
+		cancelRun()
+		if err := <-runErr; err != nil {
+			t.Errorf("Run returned %v on clean shutdown, want nil", err)
+		}
+	})
+	return "http://" + d.Addrs()["dicomweb"].String() + "/dicom-web"
+}
+
+// dicomwebGET issues a GET with the given Accept header and returns the status and body.
+func dicomwebGET(t *testing.T, url, accept string) (int, string, []byte) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatalf("NewRequest %s: %v", url, err)
+	}
+	req.Header.Set("Accept", accept)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body of %s: %v", url, err)
+	}
+	return resp.StatusCode, resp.Header.Get("Content-Type"), body
+}
+
+// multipartParts splits a multipart/related response body into its raw parts.
+func multipartParts(t *testing.T, contentType string, body []byte) [][]byte {
+	t.Helper()
+	mt, params, err := mime.ParseMediaType(contentType)
+	if err != nil || !strings.HasPrefix(mt, "multipart/") {
+		t.Fatalf("response Content-Type = %q, want multipart/related", contentType)
+	}
+	mr := multipart.NewReader(bytes.NewReader(body), params["boundary"])
+	var parts [][]byte
+	for {
+		p, err := mr.NextPart()
+		if errors.Is(err, io.EOF) {
+			return parts
+		}
+		if err != nil {
+			t.Fatalf("NextPart: %v", err)
+		}
+		data, err := io.ReadAll(p)
+		if err != nil {
+			t.Fatalf("read part: %v", err)
+		}
+		parts = append(parts, data)
+	}
+}
+
+// TestDaemonDICOMwebRetrievalRoutes is the daemon retrieval-wiring regression: the library DICOMweb
+// server implements study/series/metadata/frames/bulkdata retrieval through optional retriever
+// interfaces, but the daemon role only mounted instance retrieval, so these routes answered 501.
+// Each route must now serve from the daemon's shared ObjectStore/Catalogue backends.
+func TestDaemonDICOMwebRetrievalRoutes(t *testing.T) {
+	t.Parallel()
+	store, cat := newTestBackends(t)
+	ctx := context.Background()
+
+	const study = "20.1"
+	const series1 = "20.1.1"
+	const series2 = "20.1.2"
+	const inst1 = "20.1.1.1"
+	const inst2 = "20.1.2.1"
+
+	// inst1 carries two 4-byte frames of native 8-bit pixel data; inst2 is a second series of the
+	// same study with no pixel data.
+	pixels := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	withPixels := newTestObject(study, series1, inst1)
+	withPixels.Set(dicom.Element{Tag: dicom.TagRows, VR: dicom.VRUS, Value: dicom.NewInts(dicom.VRUS, 2)})
+	withPixels.Set(dicom.Element{Tag: dicom.TagColumns, VR: dicom.VRUS, Value: dicom.NewInts(dicom.VRUS, 2)})
+	withPixels.Set(dicom.Element{Tag: dicom.TagBitsAllocated, VR: dicom.VRUS, Value: dicom.NewInts(dicom.VRUS, 8)})
+	withPixels.SetString(dicom.TagNumberOfFrames, "2")
+	withPixels.Set(dicom.Element{Tag: dicom.TagPixelData, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, pixels)})
+	other := newTestObject(study, series2, inst2)
+
+	for _, ds := range []*dicom.DataSet{withPixels, other} {
+		if err := store.Put(ctx, ds); err != nil {
+			t.Fatalf("Put: %v", err)
+		}
+		if err := cat.Index(ctx, ds); err != nil {
+			t.Fatalf("Index: %v", err)
+		}
+	}
+
+	base := startDICOMwebDaemon(t, store, cat)
+	const acceptDICOM = `multipart/related; type="application/dicom"`
+	const acceptOctet = `multipart/related; type="application/octet-stream"`
+
+	// WADO-RS study retrieval returns one application/dicom part per instance in the study.
+	status, ct, body := dicomwebGET(t, base+"/studies/"+study, acceptDICOM)
+	if status != http.StatusOK {
+		t.Fatalf("study retrieval status = %d, want 200 (body: %s)", status, body)
+	}
+	if parts := multipartParts(t, ct, body); len(parts) != 2 {
+		t.Errorf("study retrieval returned %d parts, want 2 (both instances)", len(parts))
+	}
+
+	// WADO-RS series retrieval scopes to the series.
+	status, ct, body = dicomwebGET(t, base+"/studies/"+study+"/series/"+series1, acceptDICOM)
+	if status != http.StatusOK {
+		t.Fatalf("series retrieval status = %d, want 200 (body: %s)", status, body)
+	}
+	if parts := multipartParts(t, ct, body); len(parts) != 1 {
+		t.Errorf("series retrieval returned %d parts, want 1", len(parts))
+	}
+
+	// WADO-RS metadata returns one DICOM-JSON object per instance at the requested level.
+	status, _, body = dicomwebGET(t, base+"/studies/"+study+"/metadata", "application/dicom+json")
+	if status != http.StatusOK {
+		t.Fatalf("metadata retrieval status = %d, want 200 (body: %s)", status, body)
+	}
+	var metas []map[string]any
+	if err := json.Unmarshal(body, &metas); err != nil {
+		t.Fatalf("metadata body is not a JSON array: %v", err)
+	}
+	if len(metas) != 2 {
+		t.Errorf("study metadata returned %d objects, want 2", len(metas))
+	}
+
+	// WADO-RS frames returns the requested 1-based frame's octets.
+	instancePath := base + "/studies/" + study + "/series/" + series1 + "/instances/" + inst1
+	status, ct, body = dicomwebGET(t, instancePath+"/frames/2", acceptOctet)
+	if status != http.StatusOK {
+		t.Fatalf("frame retrieval status = %d, want 200 (body: %s)", status, body)
+	}
+	if parts := multipartParts(t, ct, body); len(parts) != 1 || !bytes.Equal(parts[0], pixels[4:]) {
+		t.Errorf("frame 2 parts = %v, want one part carrying the second frame %v", parts, pixels[4:])
+	}
+
+	// A frame outside the instance is 404, never a truncated payload.
+	if status, _, _ = dicomwebGET(t, instancePath+"/frames/3", acceptOctet); status != http.StatusNotFound {
+		t.Errorf("out-of-range frame status = %d, want 404", status)
+	}
+
+	// WADO-RS bulkdata returns the instance's binary values (here the pixel data).
+	status, ct, body = dicomwebGET(t, instancePath+"/bulkdata", acceptOctet)
+	if status != http.StatusOK {
+		t.Fatalf("bulkdata retrieval status = %d, want 200 (body: %s)", status, body)
+	}
+	if parts := multipartParts(t, ct, body); len(parts) != 1 || !bytes.Equal(parts[0], pixels) {
+		t.Errorf("bulkdata parts = %v, want one part carrying the pixel data", parts)
+	}
+}
+
+// TestDaemonDICOMwebBulkDataHonoursAttributeLocator is the per-attribute bulkdata regression
+// (PS3.18 §10.4.4): an instance with two top-level binary attributes serves each metadata-style
+// locator URI with exactly that attribute's own octets, and a locator naming no binary attribute
+// answers 404 — never the whole instance's bulk data under a per-attribute URI.
+func TestDaemonDICOMwebBulkDataHonoursAttributeLocator(t *testing.T) {
+	t.Parallel()
+	store, cat := newTestBackends(t)
+	ctx := context.Background()
+
+	const study, series, inst = "40.1", "40.1.1", "40.1.1.1"
+	pixels := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	doc := []byte{9, 10, 11, 12}
+	ds := newTestObject(study, series, inst)
+	ds.Set(dicom.Element{Tag: dicom.TagPixelData, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, pixels)})
+	ds.Set(dicom.Element{Tag: dicom.TagEncapsulatedDocument, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, doc)})
+	if err := store.Put(ctx, ds); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	if err := cat.Index(ctx, ds); err != nil {
+		t.Fatalf("Index: %v", err)
+	}
+
+	base := startDICOMwebDaemon(t, store, cat)
+	bulkBase := base + "/studies/" + study + "/series/" + series + "/instances/" + inst + "/bulkdata"
+	const acceptOctet = `multipart/related; type="application/octet-stream"`
+
+	for _, tc := range []struct {
+		locator string
+		want    []byte
+	}{
+		{"/7FE00010", pixels},
+		{"/00420011", doc},
+	} {
+		status, ct, body := dicomwebGET(t, bulkBase+tc.locator, acceptOctet)
+		if status != http.StatusOK {
+			t.Fatalf("bulkdata%s status = %d, want 200 (body: %s)", tc.locator, status, body)
+		}
+		parts := multipartParts(t, ct, body)
+		if len(parts) != 1 || !bytes.Equal(parts[0], tc.want) {
+			t.Errorf("bulkdata%s = %d part(s), want exactly the referenced attribute's %d bytes", tc.locator, len(parts), len(tc.want))
+		}
+	}
+
+	// A locator naming a non-binary attribute, and a malformed one, answer 404.
+	for _, bogus := range []string{"/00100010", "/ZZZZ"} {
+		if status, _, _ := dicomwebGET(t, bulkBase+bogus, acceptOctet); status != http.StatusNotFound {
+			t.Errorf("bulkdata%s status = %d, want 404", bogus, status)
+		}
+	}
+}
+
+// faultingCatalogue wraps a Catalogue whose Query always terminates with a backend error,
+// standing in for a broken index (a failed SQLite read, a dropped connection).
+type faultingCatalogue struct {
+	Catalogue
+}
+
+func (f faultingCatalogue) Query(context.Context, CatalogueQuery) iter.Seq2[*dicom.DataSet, error] {
+	return func(yield func(*dicom.DataSet, error) bool) {
+		yield(nil, errors.New("catalogue fault"))
+	}
+}
+
+// TestDaemonDICOMwebBackendFaultsAre500 is the fault-vs-absent regression for the WADO-RS
+// retrieval surface: only a genuinely empty catalogue result answers 404. A catalogue fault, and
+// a CATALOGUED instance the object store cannot produce (the store/catalogue inconsistency, the
+// TOCTOU window), are backend faults answered 500 — never disguised as an absent resource
+// (PRD §9.2).
+func TestDaemonDICOMwebBackendFaultsAre500(t *testing.T) {
+	t.Parallel()
+	const acceptDICOM = `multipart/related; type="application/dicom"`
+
+	// A catalogue fault during a study retrieval is 500.
+	store, cat := newTestBackends(t)
+	base := startDICOMwebDaemon(t, store, faultingCatalogue{Catalogue: cat})
+	if status, _, body := dicomwebGET(t, base+"/studies/30.1", acceptDICOM); status != http.StatusInternalServerError {
+		t.Errorf("catalogue-fault study retrieval status = %d, want 500 (body: %s)", status, body)
+	}
+
+	// A catalogued instance missing from the object store is an inconsistency, not a 404.
+	store2, cat2 := newTestBackends(t)
+	orphan := newTestObject("30.2", "30.2.1", "30.2.1.1")
+	if err := cat2.Index(context.Background(), orphan); err != nil {
+		t.Fatalf("Index: %v", err)
+	}
+	base2 := startDICOMwebDaemon(t, store2, cat2)
+	if status, _, body := dicomwebGET(t, base2+"/studies/30.2", acceptDICOM); status != http.StatusInternalServerError {
+		t.Errorf("catalogued-but-missing-object study retrieval status = %d, want 500 (body: %s)", status, body)
+	}
+
+	// Control: a study the catalogue genuinely knows nothing about stays 404.
+	if status, _, body := dicomwebGET(t, base2+"/studies/30.999", acceptDICOM); status != http.StatusNotFound {
+		t.Errorf("unknown-study retrieval status = %d, want 404 (body: %s)", status, body)
+	}
+	// Control: an unknown instance stays 404 (the store miss maps to the not-found sentinel).
+	if status, _, body := dicomwebGET(t, base2+"/studies/30.999/series/30.999.1/instances/30.999.1.1", acceptDICOM); status != http.StatusNotFound {
+		t.Errorf("unknown-instance retrieval status = %d, want 404 (body: %s)", status, body)
 	}
 }
 

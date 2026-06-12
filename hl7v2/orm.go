@@ -28,6 +28,27 @@ func AsORM(m *Message) (ORM, bool) {
 	}
 }
 
+// OMG is a general clinical order message (OMG^O19, the imaging-order variant
+// of ORM introduced in v2.4), a typed lens over a *Message. It does not copy
+// the tree. AsORM also admits OMG codes; this dedicated lens is for callers
+// that must distinguish the OMG variant from a classic ORM.
+type OMG struct{ *Message }
+
+// AsOMG verifies MSH-9.1 is "OMG" and returns the typed view; the bool is
+// false when MSH-9.1 does not match or the message has no MSH.
+func AsOMG(m *Message) (OMG, bool) {
+	h, ok := m.MSH()
+	if !ok || h.MessageType.Code != "OMG" {
+		return OMG{}, false
+	}
+	return OMG{m}, true
+}
+
+// Orders yields each ORC with the OBR requests that follow it in segment
+// order, the same grouping ORM.Orders applies: an OMG expresses its orders
+// through the identical ORC+OBR segment structure.
+func (o OMG) Orders() iter.Seq[OrderGroup] { return ORM(o).Orders() }
+
 // Orders yields each ORC with the OBR requests that follow it in segment order.
 // A trailing ORC with no following OBR yields an OrderGroup with an empty
 // Requests slice; OBR segments before the first ORC are not yielded (a

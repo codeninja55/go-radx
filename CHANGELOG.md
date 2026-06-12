@@ -12,6 +12,12 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Wave 0 quick wins: C-CANCEL honoured during C-MOVE sub-operations (prompt terminal Cancel, in-flight
+  store aborted, races classified honestly); the DICOMweb daemon role mounts the full WADO-RS retrieval
+  surface (study/series/metadata/frames/bulkdata, backend faults 500 never 404, BulkDataURI attribute
+  locators resolve exactly); HL7 `AsOMG` typed accessor; `radx find -W` Modality Worklist queries with
+  PS3.4 K.6-1 SPS match-key routing (#122).
+
 - FHIR server versioning: a version store behind the repository seam, vread and history-instance with
   correct entry request/response, absolute fullUrl, _count, ETag W/"versionId" + Last-Modified, If-Match
   preconditions (412/404), versioned create Location on the direct and transaction paths, server-side

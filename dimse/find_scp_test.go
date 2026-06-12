@@ -849,3 +849,113 @@ func TestServeFindReturnsOnContextCancelWhileHandlerBlocked(t *testing.T) {
 		t.Error("the parked C-FIND handler never observed its cancelled context")
 	}
 }
+
+// TestFindCancelWatcherQueuesResultBeforeOnCancel deterministically pins the watcher's
+// queue-then-cancel ordering contract (the cancel-signal race): at the moment onCancel is
+// invoked for a matching C-CANCEL-RQ, the cancel result must ALREADY be queued on the buffered
+// result channel. onCancel is what cancels the C-MOVE drain's handler context and thereby
+// unblocks an in-flight sub-operation store; were the result queued after, the drain's
+// non-blocking re-check could miss the cancel, miscount the interrupted store as a destination
+// failure, and emit a Pending after the cancel. The natural interleaving almost never exposes
+// this (the store's cancellation unwind is far slower than the watcher's next instruction), so
+// the ordering is asserted directly.
+func TestFindCancelWatcherQueuesResultBeforeOnCancel(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+
+	accepted := make(chan *acse.Acceptor, 1)
+	acceptErr := make(chan error, 1)
+	go func() {
+		nc, aerr := ln.Accept()
+		if aerr != nil {
+			acceptErr <- aerr
+			return
+		}
+		conn := dul.NewConn(nc, 0)
+		acceptCtx, acceptCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer acceptCancel()
+		acc, perr := acse.Accept(acceptCtx, conn, acse.AcceptParams{
+			CalledAETitle: "RADX-SCP",
+			MaxPDULength:  16382,
+			Supported: []acse.SupportedContext{{
+				AbstractSyntax:   string(studyRootFindSOPClass),
+				TransferSyntaxes: []string{"1.2.840.10008.1.2.1", "1.2.840.10008.1.2"},
+			}},
+		})
+		if perr != nil {
+			_ = nc.Close()
+			acceptErr <- perr
+			return
+		}
+		accepted <- acc
+	}()
+
+	scuAE, err := NewAE(AETitle("CANCELSCU"), WithDIMSETimeout(5*time.Second))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	assoc, err := scuAE.Associate(ctx, ln.Addr().String(), AETitle("RADX-SCP"), QueryRetrieveContexts())
+	if err != nil {
+		t.Fatalf("Associate: %v", err)
+	}
+	t.Cleanup(func() { _ = assoc.Abort(context.Background()) })
+
+	var acc *acse.Acceptor
+	select {
+	case acc = <-accepted:
+	case aerr := <-acceptErr:
+		t.Fatalf("accept: %v", aerr)
+	case <-time.After(5 * time.Second):
+		t.Fatal("acceptor never established")
+	}
+
+	const msgID = uint16(7)
+	var w *findCancelWatcher
+	ready := make(chan struct{})
+	queuedAtCancel := make(chan int, 1)
+	w = newFindCancelWatcher(context.Background(), acc.Conn(), acc.Machine(), msgID, func() {
+		// ready orders the test goroutine's write of w before this read; the watcher goroutine
+		// blocks here until the constructor's return value has been assigned.
+		<-ready
+		queuedAtCancel <- len(w.result)
+	})
+	close(ready)
+	t.Cleanup(w.stop)
+
+	pcID, _, ok := assoc.contextForQuery(studyRootFindSOPClass)
+	if !ok {
+		t.Fatal("no accepted Study Root FIND presentation context")
+	}
+	cancelRQ := CommandSet{
+		CommandField:              CommandCCancelRQ,
+		MessageIDBeingRespondedTo: msgID,
+		CommandDataSetType:        CommandDataSetNotPresent,
+	}
+	if err := sendCommand(ctx, assoc.requestor.Conn(), assoc.requestor.Machine(), pcID, cancelRQ); err != nil {
+		t.Fatalf("send C-CANCEL-RQ: %v", err)
+	}
+
+	select {
+	case n := <-queuedAtCancel:
+		if n != 1 {
+			t.Fatalf("at onCancel time the watcher held %d queued result(s), want 1: the cancel must be visible before the context is cancelled", n)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("onCancel was never invoked for the matching C-CANCEL-RQ")
+	}
+
+	// The queued result is still consumable by the drain afterwards.
+	select {
+	case res := <-w.result:
+		if res.err != nil {
+			t.Fatalf("cancel result carried error %v, want a clean cancel", res.err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("the cancel result was never delivered on the result channel")
+	}
+}

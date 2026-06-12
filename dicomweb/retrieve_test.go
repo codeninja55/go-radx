@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -39,7 +40,7 @@ func (m *wadoStore) put(si RetrievedInstance) {
 func (m *wadoStore) RetrieveInstance(_ context.Context, p ResourcePath) (*dicom.DataSet, error) {
 	si, ok := m.instances[string(p.Instance)]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, ErrNotFound
 	}
 	return si.DataSet, nil
 }
@@ -47,7 +48,7 @@ func (m *wadoStore) RetrieveInstance(_ context.Context, p ResourcePath) (*dicom.
 func (m *wadoStore) RetrieveStoredInstance(_ context.Context, p ResourcePath) (RetrievedInstance, error) {
 	si, ok := m.instances[string(p.Instance)]
 	if !ok {
-		return RetrievedInstance{}, errors.New("not found")
+		return RetrievedInstance{}, ErrNotFound
 	}
 	return si, nil
 }
@@ -79,7 +80,7 @@ func (m *wadoStore) RetrieveMetadata(_ context.Context, p ResourcePath) ([]Retri
 	case LevelInstance:
 		si, ok := m.instances[string(p.Instance)]
 		if !ok {
-			return nil, errors.New("not found")
+			return nil, ErrNotFound
 		}
 		return []RetrievedInstance{si}, nil
 	case LevelSeries:
@@ -92,12 +93,12 @@ func (m *wadoStore) RetrieveMetadata(_ context.Context, p ResourcePath) ([]Retri
 func (m *wadoStore) RetrieveFrames(_ context.Context, p ResourcePath, frames []int) ([]BulkDataObject, error) {
 	all, ok := m.frames[string(p.Instance)]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, ErrNotFound
 	}
 	out := make([]BulkDataObject, 0, len(frames))
 	for _, f := range frames {
 		if f < 1 || f > len(all) {
-			return nil, errors.New("frame out of range")
+			return nil, fmt.Errorf("%w: frame out of range", ErrNotFound)
 		}
 		out = append(out, BulkDataObject{Data: all[f-1]})
 	}
@@ -107,7 +108,7 @@ func (m *wadoStore) RetrieveFrames(_ context.Context, p ResourcePath, frames []i
 func (m *wadoStore) RetrieveBulkData(_ context.Context, p ResourcePath) ([]BulkDataObject, error) {
 	all, ok := m.bulk[string(p.Instance)]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, ErrNotFound
 	}
 	out := make([]BulkDataObject, 0, len(all))
 	for _, b := range all {
@@ -578,7 +579,7 @@ func TestRetrieveStudyNotImplementedWhenBaseBackend(t *testing.T) {
 type baseOnlyBackend struct{}
 
 func (baseOnlyBackend) RetrieveInstance(context.Context, ResourcePath) (*dicom.DataSet, error) {
-	return nil, errors.New("not found")
+	return nil, ErrNotFound
 }
 
 // TestParseFrameListRejectsMalformed asserts a malformed frame list is rejected and the
@@ -803,4 +804,228 @@ func TestResolveBulkDataURICrossOriginRefusedByDefault(t *testing.T) {
 			t.Fatalf("resolved bulk data does not match the payload")
 		}
 	})
+}
+
+// faultingRetrieveBackend returns a NON-sentinel error from every retriever method, standing in
+// for a broken catalogue or object store behind the backend.
+type faultingRetrieveBackend struct{}
+
+func (faultingRetrieveBackend) RetrieveInstance(context.Context, ResourcePath) (*dicom.DataSet, error) {
+	return nil, errors.New("backend fault")
+}
+
+func (faultingRetrieveBackend) RetrieveStudy(context.Context, dicom.UID) ([]RetrievedInstance, error) {
+	return nil, errors.New("backend fault")
+}
+
+func (faultingRetrieveBackend) RetrieveMetadata(context.Context, ResourcePath) ([]RetrievedInstance, error) {
+	return nil, errors.New("backend fault")
+}
+
+// TestRetrieveBackendFaultIs500Never404 is the seam regression for the retriever error contract:
+// only an error wrapping ErrNotFound answers 404; any other backend error is an internal fault
+// answered 500, so a catalogue/store failure is never disguised as an absent resource (PRD §9.2).
+func TestRetrieveBackendFaultIs500Never404(t *testing.T) {
+	srv, err := NewServer(WithRetrieveBackend(faultingRetrieveBackend{}))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	cases := []struct {
+		name   string
+		path   string
+		accept string
+	}{
+		{"study", "/studies/1.2.3", `multipart/related; type="application/dicom"`},
+		{"instance", "/studies/1.2.3/series/1.2.3.4/instances/1.2.3.4.5", `multipart/related; type="application/dicom"`},
+		{"metadata", "/studies/1.2.3/metadata", "application/dicom+json"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, hs.URL+tc.path, nil)
+			if err != nil {
+				t.Fatalf("NewRequest: %v", err)
+			}
+			req.Header.Set("Accept", tc.accept)
+			resp, err := hs.Client().Do(req)
+			if err != nil {
+				t.Fatalf("GET %s: %v", tc.path, err)
+			}
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusInternalServerError {
+				t.Errorf("%s backend fault status = %d, want 500 (never a 404 that hides the fault)", tc.name, resp.StatusCode)
+			}
+		})
+	}
+
+	// Control: the sentinel still answers 404 (the wadoStore fakes return ErrNotFound).
+	notFoundSrv, err := NewServer(WithRetrieveBackend(newWADOStore()))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	nfs := httptest.NewServer(notFoundSrv.Handler())
+	t.Cleanup(nfs.Close)
+	req, err := http.NewRequest(http.MethodGet, nfs.URL+"/studies/9.9.9/series/9.9.9.1/instances/9.9.9.1.1", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Accept", `multipart/related; type="application/dicom"`)
+	resp, err := nfs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("GET control: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("ErrNotFound control status = %d, want 404", resp.StatusCode)
+	}
+}
+
+// TestBulkDataURIReturnsExactlyTheReferencedAttribute is the per-attribute locator regression
+// (PS3.18 §10.4.4): an instance carrying several binary attributes emits one BulkDataURI per
+// attribute in its metadata, and resolving each URI returns exactly ITS OWN octets — never the
+// whole instance's bulk data — including a binary value nested in a sequence item. A bogus
+// attribute path under the bulkdata sub-resource answers 404.
+func TestBulkDataURIReturnsExactlyTheReferencedAttribute(t *testing.T) {
+	const sop = "1.2.3.4.5"
+	pixels := bytes.Repeat([]byte{0xAB}, 64)
+	doc := bytes.Repeat([]byte{0xCD}, 32)
+	nested := bytes.Repeat([]byte{0xEF}, 16)
+
+	ds := sampleInstance("1.2.3", "1.2.3.4", sop)
+	ds.Set(dicom.Element{Tag: dicom.TagPixelData, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, pixels)})
+	ds.Set(dicom.Element{Tag: dicom.TagEncapsulatedDocument, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, doc)})
+	item := dicom.NewDataSet()
+	item.Set(dicom.Element{Tag: dicom.TagEncapsulatedDocument, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, nested)})
+	ds.Set(dicom.Element{
+		Tag: dicom.TagIconImageSequence, VR: dicom.VRSQ,
+		Value: dicom.NewSequenceValue(dicom.NewSequence(item)),
+	})
+
+	store := newWADOStore()
+	store.put(RetrievedInstance{DataSet: ds})
+	c := newWADOServerClient(t, store)
+
+	metas, err := c.RetrieveMetadata(context.Background(), NewInstance("1.2.3", "1.2.3.4", sop))
+	if err != nil {
+		t.Fatalf("RetrieveMetadata: %v", err)
+	}
+	uris := BulkDataURIs(metas[0])
+	if len(uris) != 3 {
+		t.Fatalf("metadata carried %d BulkDataURIs, want 3 (pixel data, document, nested document): %v", len(uris), uris)
+	}
+
+	// Each emitted URI's locator suffix names its attribute; each must resolve to its own bytes.
+	want := map[string][]byte{
+		"/bulkdata/7FE00010":            pixels,
+		"/bulkdata/00420011":            doc,
+		"/bulkdata/00880200/0/00420011": nested,
+	}
+	for _, uri := range uris {
+		var matched bool
+		for suffix, expect := range want {
+			if !strings.HasSuffix(string(uri), suffix) {
+				continue
+			}
+			matched = true
+			got, rerr := c.ResolveBulkDataURI(context.Background(), uri)
+			if rerr != nil {
+				t.Fatalf("ResolveBulkDataURI(%s): %v", suffix, rerr)
+			}
+			if !bytes.Equal(got, expect) {
+				t.Errorf("URI %s resolved to %d bytes that are not the referenced attribute's own value (want %d bytes)",
+					suffix, len(got), len(expect))
+			}
+		}
+		if !matched {
+			t.Errorf("metadata emitted an unexpected BulkDataURI %q", uri)
+		}
+	}
+
+	// A locator naming a non-binary attribute, and a malformed locator, are 404 — never wrong bytes.
+	base := strings.TrimSuffix(string(uris[0]), "/7FE00010")
+	for _, bogus := range []string{base + "/00100010", base + "/ZZZZ"} {
+		_, rerr := c.ResolveBulkDataURI(context.Background(), BulkDataURI(bogus))
+		var he *HTTPError
+		if !errors.As(rerr, &he) || he.StatusCode != http.StatusNotFound {
+			t.Errorf("bogus locator %q error = %v, want HTTPError 404", bogus, rerr)
+		}
+	}
+}
+
+// metadataOnlyBackend implements the base RetrieveBackend and MetadataRetriever but NOT
+// BulkDataRetriever, so the per-attribute locator regression can prove the URIs metadata emits
+// are resolvable without the optional return-all interface.
+type metadataOnlyBackend struct {
+	ds *dicom.DataSet
+}
+
+func (b metadataOnlyBackend) RetrieveInstance(_ context.Context, p ResourcePath) (*dicom.DataSet, error) {
+	if uid, _ := b.ds.GetString(dicom.TagSOPInstanceUID); uid != string(p.Instance) {
+		return nil, ErrNotFound
+	}
+	return b.ds, nil
+}
+
+func (b metadataOnlyBackend) RetrieveMetadata(_ context.Context, p ResourcePath) ([]RetrievedInstance, error) {
+	if _, err := b.RetrieveInstance(context.Background(), p); err != nil {
+		return nil, err
+	}
+	return []RetrievedInstance{{DataSet: b.ds}}, nil
+}
+
+// TestBulkDataLocatorServedWithoutBulkDataRetriever asserts a locator-suffixed bulkdata target
+// needs only the base RetrieveBackend: a backend implementing MetadataRetriever but not
+// BulkDataRetriever still serves the per-attribute URIs its own metadata emits (200 with the
+// referenced octets), while the bare return-all ".../bulkdata" stays gated on BulkDataRetriever
+// and answers 501.
+func TestBulkDataLocatorServedWithoutBulkDataRetriever(t *testing.T) {
+	const sop = "1.2.3.4.5"
+	pixels := bytes.Repeat([]byte{0xAB}, 64)
+	ds := sampleInstance("1.2.3", "1.2.3.4", sop)
+	ds.Set(dicom.Element{Tag: dicom.TagPixelData, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, pixels)})
+
+	srv, err := NewServer(WithRetrieveBackend(metadataOnlyBackend{ds: ds}))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+	c, err := NewClient(hs.URL, WithHTTPClient(hs.Client()))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	metas, err := c.RetrieveMetadata(context.Background(), NewInstance("1.2.3", "1.2.3.4", sop))
+	if err != nil {
+		t.Fatalf("RetrieveMetadata: %v", err)
+	}
+	uris := BulkDataURIs(metas[0])
+	if len(uris) != 1 {
+		t.Fatalf("metadata carried %d BulkDataURIs, want 1 (the pixel data): %v", len(uris), uris)
+	}
+	got, err := c.ResolveBulkDataURI(context.Background(), uris[0])
+	if err != nil {
+		t.Fatalf("ResolveBulkDataURI without BulkDataRetriever: %v", err)
+	}
+	if !bytes.Equal(got, pixels) {
+		t.Errorf("locator URI resolved %d bytes, want the %d referenced pixel bytes", len(got), len(pixels))
+	}
+
+	// The bare return-all sub-resource still requires the optional BulkDataRetriever.
+	req, err := http.NewRequest(http.MethodGet,
+		hs.URL+"/studies/1.2.3/series/1.2.3.4/instances/"+sop+"/bulkdata", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Accept", `multipart/related; type="application/octet-stream"`)
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("GET bare bulkdata: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusNotImplemented {
+		t.Errorf("bare bulkdata without BulkDataRetriever status = %d, want 501", resp.StatusCode)
+	}
 }

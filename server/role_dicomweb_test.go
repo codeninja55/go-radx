@@ -36,16 +36,17 @@ func TestDICOMwebRetrieveValidatesParentUIDs(t *testing.T) {
 		t.Errorf("retrieved SOPInstanceUID = %q, want %q", v, instance)
 	}
 
-	// A valid SOP UID under the wrong study is not-found.
+	// A valid SOP UID under the wrong study is not-found (the dicomweb sentinel, so the server
+	// answers 404 rather than treating the mismatch as a backend fault).
 	_, err = b.RetrieveInstance(ctx, dicomweb.NewInstance("9.9.9", dicom.UID(series), dicom.UID(instance)))
-	if !errors.Is(err, ErrNotFound) {
-		t.Errorf("RetrieveInstance under wrong study = %v, want ErrNotFound", err)
+	if !errors.Is(err, dicomweb.ErrNotFound) {
+		t.Errorf("RetrieveInstance under wrong study = %v, want dicomweb.ErrNotFound", err)
 	}
 
 	// A valid SOP UID under the wrong series is not-found.
 	_, err = b.RetrieveInstance(ctx, dicomweb.NewInstance(dicom.UID(study), "9.9.9.9", dicom.UID(instance)))
-	if !errors.Is(err, ErrNotFound) {
-		t.Errorf("RetrieveInstance under wrong series = %v, want ErrNotFound", err)
+	if !errors.Is(err, dicomweb.ErrNotFound) {
+		t.Errorf("RetrieveInstance under wrong series = %v, want dicomweb.ErrNotFound", err)
 	}
 }
 

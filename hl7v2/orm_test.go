@@ -15,6 +15,57 @@ func TestAsORM(t *testing.T) {
 	}
 }
 
+// TestAsOMG drives the dedicated OMG accessor against the OMG^O19 imaging-order
+// fixture: it accepts an OMG message and exposes the same ORC+OBR grouping as
+// ORM, while rejecting ORM and ORU codes (unlike AsORM, which also admits OMG,
+// the dedicated lens distinguishes the imaging-order variant).
+func TestAsOMG(t *testing.T) {
+	msg := corpusMessage(t, "omg-o19")
+	omg, ok := AsOMG(msg)
+	if !ok {
+		t.Fatal("AsOMG(omg-o19 fixture) = false, want true")
+	}
+
+	var groups []OrderGroup
+	for g := range omg.Orders() {
+		groups = append(groups, g)
+	}
+	if len(groups) != 1 {
+		t.Fatalf("Orders() yielded %d groups, want 1", len(groups))
+	}
+	g := groups[0]
+	if g.Common.OrderControl != "NW" {
+		t.Errorf("group.Common.OrderControl = %q, want NW", g.Common.OrderControl)
+	}
+	if len(g.Requests) != 1 {
+		t.Fatalf("group.Requests = %d, want 1", len(g.Requests))
+	}
+	if g.Requests[0].UniversalServiceID.Code != "30746-2" {
+		t.Errorf("group OBR-4 = %q, want 30746-2", g.Requests[0].UniversalServiceID.Code)
+	}
+
+	// An ORM-coded message is not an OMG: the dedicated lens is stricter than AsORM.
+	orm, _ := Parse([]byte(canonicalORM))
+	if _, ok := AsOMG(orm); ok {
+		t.Error("AsOMG(ORM) = true, want false")
+	}
+
+	// A non-order message type is not an OMG.
+	oru, _ := Parse([]byte("MSH|^~\\&|A|B|C|D|202605311230||ORU^R01|M1|P|2.4\r"))
+	if _, ok := AsOMG(oru); ok {
+		t.Error("AsOMG(ORU) = true, want false")
+	}
+}
+
+// TestAsORMAcceptsOMG pins the documented AsORM behaviour the dedicated lens
+// complements: the ORM accessor admits the OMG imaging-order variant.
+func TestAsORMAcceptsOMG(t *testing.T) {
+	msg := corpusMessage(t, "omg-o19")
+	if _, ok := AsORM(msg); !ok {
+		t.Fatal("AsORM(omg-o19 fixture) = false, want true (AsORM admits OMG codes)")
+	}
+}
+
 func TestOrdersOneGroup(t *testing.T) {
 	msg, _ := Parse([]byte(canonicalORM))
 	orm, ok := AsORM(msg)
