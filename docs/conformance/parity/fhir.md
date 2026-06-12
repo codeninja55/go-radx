@@ -137,7 +137,7 @@ go-radx client is `fhir/rest.Client`, release-fixed, `application/fhir+json` onl
 | Auth: bearer token, same-origin confinement | HAPI BearerTokenAuthInterceptor | MET | `fhir/rest/auth.go:bearerAuthLayer`, `requestSameOrigin` | — | Token never sent cross-origin |
 | SMART on FHIR | HAPI SMART support | NOT-MET | documented deferral (`docs/conformance/fhir.md`, `cli-server.md`) | L | A SMART-obtained token can be injected via `WithBearerToken` today |
 | Response-size bounding / hostile-response safety | (go-radx-specific) | MET | `request.go:boundedBody`/`cappedReader`, `WithMaxResponseBytes`; PHI-redacting transport errors (`redactURL`) | — | Exceeds both references |
-| Cross-implementation interop test vs HAPI | HAPI reference server | PARTIAL | `fhir/rest/interop_test.go:TestInteropHAPIServer` (build tag `interop`, skips unless `RADX_FHIR_HAPI_BASE` set) | S | Open issue #114 plans a FHIR–HAPI interop CI leg; today the test only runs when a server is supplied |
+| Cross-implementation interop test vs HAPI | HAPI reference server | MET | `interop:fhir-hapi` CI leg: `fhir/rest/hapi_main_test.go` provisions the pinned HAPI container; `fhir/rest/interop_test.go:TestInteropHAPIServer` runs against it | - | Wired by issue #114; `RADX_FHIR_HAPI_BASE` substitutes an external server |
 
 ## Server FHIR role surface
 
@@ -175,7 +175,7 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
 | Pluggable storage backend | HAPI JPA/plain provider seam | MET | `server/fhir_repository.go:Repository` interface; `MemoryRepository` dev default | — | Concurrency-safe contract; transaction atomicity proven against concurrent writes |
 | Auth on the role | HAPI server interceptors | MET | `server/auth_middleware.go` via `role_fhir.go:authMiddleware`; non-loopback bind guarded | — | |
 | CLI `radx serve fhir` | (operational expectation) | MET | `cmd/radx/internal/command/serve.go:ServeFHIRCmd` (loopback default, `--release r4\|r5`, in-memory repository, ErrInsecureBind usage-error mapping); round-trip test `serve_test.go:TestServeFHIRLoopbackRoundTrip` (create + vread + SIGINT drain) | — | Memory-only repository: a production deployment embeds the role with its own `Repository` |
-| HAPI interop CI leg | (project plan) | NOT-MET | open issue #114 includes a FHIR–HAPI interop CI leg (planned) | M | Server-side counterpart of the client interop test |
+| HAPI interop CI leg (server side) | (project plan) | NOT-MET | issue #114 shipped the client-side leg (`interop:fhir-hapi`: go-radx client vs pinned HAPI container); no foreign client drives the go-radx server role in CI | M | Server-side counterpart of the now-wired client interop leg |
 
 ## Methodology
 
@@ -205,5 +205,5 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
   statement and mise task definitions, not re-run (no tests were executed for this audit). fhir.resources
   exact resource counts per release were not enumerated; both libraries claim full-spec coverage and the
   go-radx registry counts are consistent with the official release resource lists. HAPI server behaviour was
-  taken from its documentation, not from a live server. Issue #114's interop-leg status is per the audit
-  brief, not re-read from GitHub.
+  taken from its documentation, not from a live server. The client-side HAPI interop rows were updated
+  2026-06-13 when issue #114 wired the `interop:fhir-hapi` CI leg.

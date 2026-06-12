@@ -51,7 +51,6 @@ updated in the same PR.
 | Deferred/lazy large-element reads (PRD 6.2 `defer_size` analogue) | dicom.md #6 | M |
 | C-CANCEL during C-MOVE (move_scp.go:103 TODO) | dimse.md #9 | S |
 | Issue #113 audit hook | tracked issue | S |
-| Issue #114 MLLP + FHIR-HAPI interop CI legs | tracked issue | M |
 | `radx serve fhir` stub to real subcommand | fhir.md / cli.md | M |
 | FHIR server vread/history 501s implemented (needs version store) | fhir.md #1-2 | L |
 | DICOMweb daemon retrieval wiring (role mounts study/series/metadata/frames/bulkdata) | dicomweb.md #10 | S |

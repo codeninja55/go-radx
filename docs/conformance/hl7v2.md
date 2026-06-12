@@ -227,10 +227,15 @@ tests in `mllp_conn_test.go` prove a TLS 1.1-limited peer cannot complete the ha
 payload buffer can grow without limit, so a peer that never sends an end block cannot drive an unbounded allocation.
 Type and option signatures are in the API reference.
 
-Cross-implementation framing against an external `python-hl7`/`hl7apy` MLLP peer is exercised by a build-tagged
-(`//go:build interop`) test that runs only when `RADX_HL7_MLLP_PEER` names a reachable listener; no such peer is
-provisioned in CI, so it skips by default. The go-radx client-to-server round-trip over real loopback TCP (which needs
-no external peer) is the hard correctness gate.
+Cross-implementation framing against a `python-hl7` MLLP peer is wired into CI: the `interop:mllp` leg (build tag
+`interop`) provisions a pinned-by-digest Python container that pip-installs the exact `python-hl7` release recorded in
+`tools/versions` and exercises both directions — the go-radx client sends to the peer's asyncio MLLP listener and
+parses the acknowledgement the foreign library builds (`TestInteropMLLPPeer`), and the peer's `mllp_send` CLI sends to
+a go-radx `Server`, which must read the foreign frame and have its acknowledgement frame read back by the foreign
+client (`TestInteropMLLPPeerSender`). Setting `RADX_HL7_MLLP_PEER` to a reachable listener substitutes an external
+peer for the container (the reverse-direction test then skips, since `mllp_send` runs inside the container). The
+go-radx client-to-server round-trip over real loopback TCP remains a standing correctness gate that needs no
+container.
 
 ### Batch and file containers in scope
 
