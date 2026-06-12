@@ -16,9 +16,9 @@ Row counts across all tables:
 
 | Status | Count |
 |--------|-------|
-| MET | 50 |
-| PARTIAL | 8 |
-| NOT-MET | 24 |
+| MET | 51 |
+| PARTIAL | 9 |
+| NOT-MET | 22 |
 | N-A | 6 |
 | Total | 88 |
 
@@ -33,19 +33,17 @@ Top NOT-MET/PARTIAL items by impact:
    uncompressed syntaxes; there is no public encapsulated-pixel-data element writer (BOT or extended offsets).
 3. **Dataset-level compress/decompress round-trip (NOT-MET, M).** `Transcode` works at the `PixelData` layer
    only; the result cannot be written back into a `DataSet`/`File`. `radx store --transcode-to` fails closed.
-4. **DICOMDIR file-sets (NOT-MET, L + L).** Known, documented v1 deferral (`docs/conformance/dicom.md`
-   lines 59 and 746). No `FileSet` type exists; only the directory-record tag constants are present.
-5. **Deferred/partial reads of large elements (NOT-MET, M).** PRD section 6.2's `defer_size`-equivalent lazy
+4. **Deferred/partial reads of large elements (NOT-MET, M).** PRD section 6.2's `defer_size`-equivalent lazy
    loading is confirmed absent; `Read` materialises every value (the closest knob is `WithStopAtPixelData`).
-6. **VOI/modality LUT and windowing (NOT-MET, M).** No `apply_voi_lut`/`apply_modality_lut` equivalents.
-7. **Palette colour and colour-space conversion utilities (NOT-MET, M each).** Decoders preserve the colour
+5. **VOI/modality LUT and windowing (NOT-MET, M).** No `apply_voi_lut`/`apply_modality_lut` equivalents.
+6. **Palette colour and colour-space conversion utilities (NOT-MET, M each).** Decoders preserve the colour
    model correctly, but no `convert_color_space` or palette-expansion helpers exist.
-8. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
+7. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
    but there is no `private_block`/`get_private_item` equivalent and no private-creator dictionary.
-9. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
+8. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
    the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family, UTF-8, GB18030, and GBK,
    but not ISO 2022 IR 149, ISO 2022 IR 58, ISO_IR 166, or bare ISO_IR 13.
-10. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
+9. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
 
 Where go-radx exceeds pydicom: a full PS3.15 Table E.1-1 de-identification engine (pydicom core ships only
 `remove_private_tags` and guidance), typed fail-closed errors, bounded hostile-input reading with fuzz targets
@@ -171,8 +169,8 @@ so this area exceeds the pydicom reference surface.
 
 | Feature | pydicom anchor | Status | go-radx evidence | Size | Notes |
 |---------|---------------|--------|------------------|------|-------|
-| Load, iterate, and query an existing file-set | `fileset.FileSet`, `find` | NOT-MET | no FileSet type in dicom/; documented deferral docs/conformance/dicom.md:59,746 | L | Directory-record tag constants exist (tag_values.go:56-61) |
-| Create, write, add, and remove instances | `FileSet.add/remove/write` | NOT-MET | same | L | Depends on the read side plus directory-record builders |
+| Load, iterate, and query an existing file-set | `fileset.FileSet`, `find` | MET | dicom/fileset.go OpenFileSet/Roots/Records/Instances/Find/FindValues; fileset_test.go, fileset_hostile_test.go | - | Offset links resolved with cycle/range checks (typed errors, bounded walk); DICOMDIR must be Explicit VR LE (PS3.10 §8.6, typed error otherwise); Referenced File IDs read permissively but traversal-safe — lowercase/over-long components accepted as pydicom does, strict §8.2/§8.5 IDs enforced on write only; cross-read against a dcmtk `dcmmkdir` DICOMDIR |
+| Create, write, add, and remove instances | `FileSet.add/remove/write` | PARTIAL | dicom/fileset_write.go FileSetBuilder Add/AddFile/SetID/Write; fileset_test.go round-trip; dcmtk `dcmmkdir --append` re-links the written DICOMDIR | S | Create-from-scratch only: no remove, no staged mutation of an existing file-set; leaf records are IMAGE or SR DOCUMENT (not pydicom's full DIRECTORY_RECORDERS table); PS3.11 media application profiles not enforced |
 
 ## UIDs
 

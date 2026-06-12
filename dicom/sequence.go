@@ -16,6 +16,15 @@ type Item struct {
 	// undefinedLength is true when the item was read (or is to be written) with the
 	// 0xFFFFFFFF length sentinel terminated by an Item Delimitation Item (FFFE,E00D).
 	undefinedLength bool
+
+	// fileOffset is the byte offset of this item's (FFFE,E000) tag from the start of
+	// the stream the enclosing dataset was read from. For a Part 10 file read through
+	// Read/ReadFile that origin is byte 0 of the file (the preamble), which is exactly
+	// the reference point of the DICOMDIR offset elements (PS3.10 Table 8.1-1), so the
+	// file-set loader can resolve offset-linked directory records without re-scanning.
+	// It is a read artifact: programmatically built items carry 0 and a clone does not
+	// preserve it.
+	fileOffset int64
 }
 
 // Sequence is VR SQ: an ordered list of Item values, each a nested DataSet (PS3.5

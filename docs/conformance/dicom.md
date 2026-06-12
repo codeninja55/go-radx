@@ -40,6 +40,14 @@ In scope for v1:
 - **Storage Commitment Push Model** as SCU only (N-ACTION, N-EVENT-REPORT).
 - Uncompressed transfer syntaxes for read and write; compressed transfer syntaxes for transport always, and for pixel
   decode/encode only where a pure-Go or optional-CGo codec is built in.
+- **DICOMDIR file-sets** (PS3.10 §8; PS3.3 Annex F): load and query an existing file-set through the glossary-named
+  `dicom.FileSet` (`OpenFileSet`, record hierarchy, `Find`/`FindValues`, member `Load`), and create and write a new
+  one from Part 10 files with `dicom.FileSetBuilder` (Patient/Study/Series/Instance records, conformant generated
+  File IDs, offset-linked Directory Record Sequence). The DICOMDIR must be encoded in Explicit VR Little Endian
+  (PS3.10 §8.6); any other transfer syntax, cyclic or out-of-range record offsets, and root-escaping Referenced File
+  IDs fail closed with typed errors. Referenced File IDs are read permissively but traversal-safe: lowercase or
+  over-long components common in real-world file-sets are accepted (matching pydicom's read behaviour), while
+  strictly conformant PS3.10 §8.2/§8.5 File IDs are enforced on write.
 - Association negotiation: presentation-context negotiation, maximum PDU length, SCP/SCU role selection, the
   asynchronous operations window, user identity (types 1–5), SOP Class extended and common extended negotiation, and
   DIMSE-TLS (TLS 1.2+ with peer verification and optional mutual-TLS). The asynchronous-operations window is negotiated
@@ -56,8 +64,9 @@ Out of scope for v1 (deferred, designed-for but not implemented — PRD §3.2, �
 - Non-radiology Query/Retrieve models: Color Palette, Hanging Protocol, Defined Procedure Protocol, Implant Template,
   Protocol Approval, Relevant Patient Information, Repository Query, and the Composite Instance Root / without-bulkdata
   retrieve variants.
-- DICOMDIR file-sets (the `dicom.FileSet` type is named but not implemented in v1).
 - Compressed-codec encode where no codec exists; the request returns a typed `dicom.ErrCodecUnavailable`.
+- Updating an existing DICOMDIR file-set in place: removing or re-staging instances and PS3.11 media application
+  profile enforcement are deferred; v1 file-set writing is create-from-scratch.
 
 ## Go API entry points
 
@@ -743,7 +752,10 @@ This statement is the v1 DICOM scope contract. To restate the boundaries precise
 - **Compressed pixel decode/encode is optional and codec-gated.** Without the CGo build tag, JPEG-family pixel access
   returns `dicom.ErrCodecUnavailable`; transport and dataset parsing of those instances still work. The exact built-in
   codec set is finalised at M8 and reflected here.
-- **DICOMDIR file-sets are not implemented in v1.** The `dicom.FileSet` type is named in the glossary but deferred.
+- **DICOMDIR file-sets are create-and-read, not update-in-place.** `OpenFileSet` loads and queries an existing
+  file-set; `FileSetBuilder` builds and writes a new one. Removing or re-staging instances in an existing file-set is
+  not implemented, leaf records are typed IMAGE or SR DOCUMENT only, and PS3.11 media application profiles are not
+  enforced on members.
 - **Async operations are negotiated, not delivered.** Like `pynetdicom`, go-radx negotiates the async-ops window but
   the acceptor windows to (1,1); concurrency is delivered through Go goroutines and `context.Context`, not the DICOM
   async-ops mechanism.
