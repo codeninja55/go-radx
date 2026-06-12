@@ -66,24 +66,32 @@ func NewWorklistQuery() *dicom.DataSet {
 	return query
 }
 
-// worklistSPSTags is the SetWorklistMatch routing set: the Scheduled Procedure Step requirement
-// keys of PS3.4 Table K.6-1, which the Modality Worklist information model defines INSIDE the
-// Scheduled Procedure Step Sequence (0040,0100) item, not at the query's top level. An SCP
-// matches these keys against the sequence item, so one placed at the top level would never
-// constrain the query.
+// worklistSPSTags is the SetWorklistMatch routing set: every attribute the current PS3.4
+// Table K.6-1 names as a DIRECT child of the Scheduled Procedure Step Sequence (0040,0100).
+// The Modality Worklist information model defines these inside the sequence item, not at the
+// query's top level, so an SCP matches them against the item and one placed top-level would
+// never constrain the query. Children of the nested protocol sequences (the table's ">>" rows
+// under the Scheduled Protocol Code Sequence and the referenced protocol sequences) are NOT
+// routed individually: a caller supplies those sequences whole and their items travel with
+// them. The table's residual "All other Attributes of the Scheduled Procedure Step Sequence"
+// row is deliberately not expressible here - an unlisted tag cannot be told apart from a
+// top-level worklist key by tag alone, so unlisted keys stay top-level.
 var worklistSPSTags = map[dicom.Tag]struct{}{
-	dicom.TagModality:                          {}, // (0008,0060)
-	dicom.TagScheduledStationAETitle:           {}, // (0040,0001)
-	dicom.TagScheduledProcedureStepStartDate:   {}, // (0040,0002)
-	dicom.TagScheduledProcedureStepStartTime:   {}, // (0040,0003)
-	dicom.TagScheduledPerformingPhysicianName:  {}, // (0040,0006)
-	dicom.TagScheduledProcedureStepDescription: {}, // (0040,0007)
-	dicom.TagScheduledProtocolCodeSequence:     {}, // (0040,0008)
-	dicom.TagScheduledProcedureStepID:          {}, // (0040,0009)
-	dicom.TagScheduledStationName:              {}, // (0040,0010)
-	dicom.TagScheduledProcedureStepLocation:    {}, // (0040,0011)
-	dicom.TagPreMedication:                     {}, // (0040,0012)
-	dicom.TagScheduledProcedureStepStatus:      {}, // (0040,0020)
+	dicom.TagModality:                            {}, // (0008,0060)
+	dicom.TagReferencedDefinedProtocolSequence:   {}, // (0018,990C)
+	dicom.TagReferencedPerformedProtocolSequence: {}, // (0018,990D)
+	dicom.TagRequestedContrastAgent:              {}, // (0032,1070)
+	dicom.TagScheduledStationAETitle:             {}, // (0040,0001)
+	dicom.TagScheduledProcedureStepStartDate:     {}, // (0040,0002)
+	dicom.TagScheduledProcedureStepStartTime:     {}, // (0040,0003)
+	dicom.TagScheduledPerformingPhysicianName:    {}, // (0040,0006)
+	dicom.TagScheduledProcedureStepDescription:   {}, // (0040,0007)
+	dicom.TagScheduledProtocolCodeSequence:       {}, // (0040,0008)
+	dicom.TagScheduledProcedureStepID:            {}, // (0040,0009)
+	dicom.TagScheduledStationName:                {}, // (0040,0010)
+	dicom.TagScheduledProcedureStepLocation:      {}, // (0040,0011)
+	dicom.TagPreMedication:                       {}, // (0040,0012)
+	dicom.TagScheduledProcedureStepStatus:        {}, // (0040,0020)
 }
 
 // SetWorklistMatch sets one match/return key on a Modality Worklist query identifier where the

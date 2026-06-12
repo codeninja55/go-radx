@@ -281,11 +281,17 @@ func TestSetWorklistMatchRoutesSPSKeys(t *testing.T) {
 		Tag: dicom.TagModality, VR: dicom.VRCS, Value: dicom.NewStrings(dicom.VRCS, "MR"),
 	})
 	SetWorklistMatch(query, dicom.Element{
+		Tag: dicom.TagRequestedContrastAgent, VR: dicom.VRLO, Value: dicom.NewStrings(dicom.VRLO, "GADOLINIUM"),
+	})
+	SetWorklistMatch(query, dicom.Element{
 		Tag: dicom.TagPatientName, VR: dicom.VRPN, Value: dicom.NewStrings(dicom.VRPN, "X"),
 	})
 
 	if _, topLevel := query.Get(dicom.TagModality); topLevel {
 		t.Error("Modality (0008,0060) was set at the top level; Table K.6-1 scopes it to the SPS item")
+	}
+	if _, topLevel := query.Get(dicom.TagRequestedContrastAgent); topLevel {
+		t.Error("RequestedContrastAgent (0032,1070) was set at the top level; Table K.6-1 scopes it to the SPS item")
 	}
 	if name, ok := query.GetString(dicom.TagPatientName); !ok || name != "X" {
 		t.Errorf("top-level PatientName = %q (ok=%v), want X at the top level", name, ok)
@@ -297,6 +303,9 @@ func TestSetWorklistMatchRoutesSPSKeys(t *testing.T) {
 	for item := range seq.Items() {
 		if modality, ok := item.DataSet.GetString(dicom.TagModality); !ok || modality != "MR" {
 			t.Errorf("SPS item Modality = %q (ok=%v), want MR inside the sequence item", modality, ok)
+		}
+		if agent, ok := item.DataSet.GetString(dicom.TagRequestedContrastAgent); !ok || agent != "GADOLINIUM" {
+			t.Errorf("SPS item RequestedContrastAgent = %q (ok=%v), want GADOLINIUM inside the sequence item", agent, ok)
 		}
 		if _, ok := item.DataSet.Get(dicom.TagPatientName); ok {
 			t.Error("PatientName leaked into the SPS item; it is not a Table K.6-1 SPS key")
