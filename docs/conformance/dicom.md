@@ -617,6 +617,11 @@ de-identification, and selecting it appends the matching PS3.15 Context Group 70
 The Basic Profile code `113100` ("Basic Application Confidentiality Profile") is always written; the sub-option codes
 are appended only when the matching option is set.
 
+In addition to the PS3.15 sub-options, `WithAudit(f dicom.AuditFunc)` registers the optional data-modification audit
+hook (PRD §9.5): each successful `Deidentify` emits one `dicom.AuditEvent` listing the applied changes as
+(tag, action) pairs — structural facts only, never attribute values, a contract a PHI-sentinel test enforces. The
+default is no hook, and the disabled cost is a nil comparison; the consumer owns the sink and retention.
+
 ### Documented limits
 
 - **Burned-in pixel data is fail-closed.** If a dataset declares `BurnedInAnnotation` (0028,0301) = `YES`, `Deidentify`

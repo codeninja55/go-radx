@@ -649,10 +649,43 @@ The `server` package is where PHI most concentrates, so the §9.1 defaults are s
 - **Loopback by default.** A non-loopback `--bind` is explicit and, without an `Authenticator`, fails closed
   (`ErrInsecureBind`).
 - **Governance is the consumer's.** Encryption at rest, retention/erasure, access control, and audit storage are the
-  integrating consumer's responsibility (PRD §9.1, §9.5). The data-modification audit hook envisaged in PRD §9.5 is
-  **not yet implemented**: the package exposes no audit or modification-callback seam, so a consumer cannot currently
-  wire one. Its shape is deferred and tracked in issue
-  [#113](https://github.com/codeninja55/go-radx/issues/113).
+  integrating consumer's responsibility (PRD §9.1, §9.5). For consumers who want an audit trail, the PRD §9.5
+  data-modification hook is the seam: `WithAudit(f AuditFunc)` registers a callback the daemon threads to every role,
+  and each committed server-side write — a DIMSE C-STORE, a STOW-RS stored instance, a FHIR create — emits one
+  `AuditEvent` carrying **structural facts only**: the operation kind, a UTC timestamp, the stored object's SOP Class
+  and Study/Series/SOP Instance UIDs (the same identifiers the logs carry), or the FHIR resource type plus the
+  server-assigned id and version. Never an attribute or element value; a sentinel test enforces the contract. The
+  default is no hook, and the disabled cost on the write path is a nil comparison. go-radx provides the seam, not the
+  sink: durable storage, retention, and schema beyond `AuditEvent` are the consumer's policy. Known limit: creates
+  applied inside a `transaction` Bundle commit in `Repository.Transaction` and are not individually audited in v1. The
+  `dicom` package exposes the matching seam for dataset mutation: `dicom.WithAudit` on the PS3.15 de-identification
+  profile (see [DICOM](dicom.md)).
+
+```go
+// AuditEvent reports one committed server-side write. Structural facts only — operation kind,
+// timestamp, identifiers the server already treats as loggable, server-assigned FHIR id/version.
+// No field carries an attribute or element value.
+type AuditEvent struct {
+    Op   AuditOp   // "dimse.c-store", "dicomweb.stow-rs", "fhir.create"
+    Time time.Time // commit time, UTC
+
+    SOPClassUID       string // DICOM writes
+    StudyInstanceUID  string
+    SeriesInstanceUID string
+    SOPInstanceUID    string
+
+    ResourceType string // FHIR create; ResourceID and VersionID are server-assigned
+    ResourceID   string
+    VersionID    string
+}
+
+// AuditFunc receives one AuditEvent per committed write, synchronously, from concurrent
+// request handlers; it must be safe for concurrent use.
+type AuditFunc func(AuditEvent)
+
+// WithAudit registers the daemon's data-modification audit hook (PRD §9.5). Default: none.
+func WithAudit(f AuditFunc) Option
+```
 
 ## Conformance scope and limits
 
@@ -662,8 +695,8 @@ states the v1 server boundary so the API contract is self-contained.
 What v1 provides:
 
 - Pluggable `ObjectStore`, `Catalogue`, `WorklistSource`, and `Authenticator` backends shared across the server roles.
-- A `Daemon` composition root with loopback-bind defaults, the `WithBind` opt-in, graceful shutdown, and zap + OTel
-  observability honouring the no-PHI rule.
+- A `Daemon` composition root with loopback-bind defaults, the `WithBind` opt-in, graceful shutdown, zap + OTel
+  observability honouring the no-PHI rule, and the optional `WithAudit` data-modification hook (PRD §9.5).
 - A DIMSE SCP role (C-ECHO, C-STORE, C-FIND, C-GET, C-MOVE) with an optional Modality Worklist SCP, a DICOMweb role
   (STOW-RS, QIDO-RS, WADO-RS), an HL7 v2 MLLP role, and a FHIR REST role serving the conformance-subset interactions.
 - Reference daemons wired to a filesystem object store and a SQLite catalogue, deployable for development and the CLI,

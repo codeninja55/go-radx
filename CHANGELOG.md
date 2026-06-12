@@ -30,6 +30,12 @@ legacy codebase (`legacy-main`) and are not continued here.
   PlanarConfiguration, PhotometricInterpretation, NumberOfFrames, and lossy-compression bookkeeping with
   the decoded bytes; `radx store --transcode-to` decompress-on-send works, and `radx dump`/`radx modify`
   read compressed objects (#121).
+- Optional no-PHI data-modification audit hook (PRD §9.5, closes the issue #113 gap): `dicom.WithAudit` on the
+  PS3.15 de-identification profile emits one `dicom.AuditEvent` per successful `Deidentify` listing the applied
+  (tag, action) changes, and `server.WithAudit` on the daemon emits one `server.AuditEvent` per committed
+  server-side write (DIMSE C-STORE, STOW-RS stored instance, FHIR create) carrying operation kind, timestamp,
+  and identifiers only. Events carry structural facts, never attribute values (sentinel-tested); the default is
+  no hook with a nil-comparison disabled cost.
 
 - Comparative benchmark harness `tools/bench-compare` (PRD §11.3): a uv-pinned Python environment (pydicom
   3.0.2 + pylibjpeg plugins, pynetdicom 3.0.4, python-hl7 0.4.5, fhir.resources 8.2.0) benchmarked against

@@ -150,7 +150,11 @@ The contract has two parts, both following the PRD's observability and PHI rules
 
 PHI governance beyond these safe defaults — encryption at rest, retention and erasure, access control, and audit — is
 the integrating consumer's responsibility (PRD §9.1). The library ships the safe defaults and the structural field
-vocabulary, not a compliance regime.
+vocabulary, not a compliance regime. For consumers who want an audit trail, the PRD §9.5 data-modification hook is the
+seam: `server.WithAudit` emits one structural `server.AuditEvent` per committed server-side write (DIMSE C-STORE,
+STOW-RS stored instance, FHIR create), and `dicom.WithAudit` does the same per de-identification run — operation
+kinds, identifiers, and timestamps only, never patient values, with the no-PHI contract sentinel-tested. The default
+is no hook; the sink, retention, and any schema beyond the event type are the consumer's policy.
 
 ### PHI-default sanity sweep
 
