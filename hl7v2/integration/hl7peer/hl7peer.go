@@ -81,8 +81,13 @@ type Container struct {
 // Start launches the python-hl7 peer container and blocks until its MLLP listener is accepting
 // connections. hostAccessPort names a host (test-process) TCP port the container may dial back at
 // testcontainers.HostInternal — the reverse-direction tunnel SendToHost sends through; pass 0 to
-// start a receive-only peer. The pip install runs at container start against the exact pinned
-// release, so the wait allows for the index round-trip as well as the image pull.
+// start a receive-only peer. Per the testcontainers HostAccessPorts contract the host service
+// MUST already be listening on hostAccessPort when Start is called (the caller binds the go-radx
+// server first); the host-access tunnel rides a testcontainers-managed sshd sidecar whose image
+// reference is hardcoded in the pinned testcontainers-go module and recorded in tools/versions
+// (mllp-peer.sshd.image), where tools/pin-drift.sh holds the two in lockstep. The pip install
+// runs at container start against the exact pinned release, so the wait allows for the index
+// round-trip as well as the image pull.
 func Start(ctx context.Context, hostAccessPort int) (*Container, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        image,
@@ -94,10 +99,19 @@ func Start(ctx context.Context, hostAccessPort int) (*Container, error) {
 		}},
 		// The exact `==` pin of python-hl7 (PyPI distribution name `hl7`) is recorded in
 		// tools/versions and enforced on this line by tools/pin-drift.sh; bumping it is a
-		// deliberate, reviewed change made in both places together.
+		// deliberate, reviewed change made in both places together. The install is a runtime
+		// PyPI dependency the other interop legs avoid, so it retries fail-closed: pip's own
+		// --retries covers per-request network blips and the shell loop covers whole-install
+		// failures, after which the container exits non-zero and the gate fails loudly. The
+		// stronger fix — a digest-pinned prebaked peer image — is deferred deliberately:
+		// building and publishing an image is outside this repo's CI scope today.
 		Cmd: []string{
 			"sh", "-c",
-			"pip install --no-cache-dir hl7==0.4.5 && exec python /peer/mllp_peer.py",
+			"for attempt in 1 2 3; do" +
+				" pip install --no-cache-dir --retries 5 hl7==0.4.5 && break;" +
+				" [ \"$attempt\" = 3 ] && exit 1;" +
+				" sleep 5;" +
+				" done && exec python /peer/mllp_peer.py",
 		},
 		WaitingFor: wait.ForLog(readyLogLine).WithStartupTimeout(5 * time.Minute),
 	}
