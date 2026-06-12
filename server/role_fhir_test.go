@@ -261,11 +261,11 @@ func startFHIRDaemonAt(t *testing.T, release fhir.Release, basePath string) (str
 }
 
 // TestFHIRRoleRootMountLocationIsSingleSlash proves a create against a root-mounted ("/") FHIR role
-// returns a Location with a single leading slash ("/Patient/{id}"), not "//Patient/{id}". The
-// double-slash form parses as a network-path reference (host "Patient"), so it is not a valid
-// relative Location; the single-slash form parses as an absolute-path reference with an empty host.
-// A "/fhir"-mounted role keeps its "/fhir/Patient/{id}" Location, so the join is correct at both
-// mount points.
+// returns a Location with a single leading slash ("/Patient/{id}/_history/1"), not
+// "//Patient/{id}/...". The double-slash form parses as a network-path reference (host "Patient"),
+// so it is not a valid relative Location; the single-slash form parses as an absolute-path
+// reference with an empty host. A "/fhir"-mounted role keeps its "/fhir/Patient/{id}/_history/1"
+// Location, so the join is correct at both mount points.
 func TestFHIRRoleRootMountLocationIsSingleSlash(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -293,7 +293,7 @@ func TestFHIRRoleRootMountLocationIsSingleSlash(t *testing.T) {
 				t.Fatalf("create body decode: %v", err)
 			}
 			loc := header.Get("Location")
-			want := tc.wantBase + "/Patient/" + created.ID
+			want := tc.wantBase + "/Patient/" + created.ID + "/_history/1"
 			if loc != want {
 				t.Fatalf("Location = %q, want %q", loc, want)
 			}
@@ -506,6 +506,142 @@ func TestFHIRRoleTransactionCreateNeverOverwrites(t *testing.T) {
 	}
 }
 
+// TestFHIRRoleConditionalCreateFailsClosed proves a create carrying If-None-Exist (a conditional
+// create, FHIR R5 http.html#ccreate) is rejected with a 400 not-supported OperationOutcome and
+// persists nothing: silently ignoring the header would create a duplicate the client believed the
+// precondition prevented. The same fail-closed gate covers a transaction POST entry carrying
+// request.ifNoneExist, so the transaction path cannot bypass the check the direct create enforces.
+func TestFHIRRoleConditionalCreateFailsClosed(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			req, err := http.NewRequest(http.MethodPost, base+"/Patient",
+				bytes.NewReader(patientJSON(release, "female")))
+			if err != nil {
+				t.Fatalf("NewRequest: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/fhir+json")
+			req.Header.Set("If-None-Exist", "identifier=urn:example-system|12345")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("Do: %v", err)
+			}
+			body, _ := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Fatalf("conditional create status = %d, want 400; body=%s", resp.StatusCode, body)
+			}
+			assertOperationOutcome(t, body, "error")
+			var oo struct {
+				Issue []struct {
+					Code string `json:"code"`
+				} `json:"issue"`
+			}
+			if err := json.Unmarshal(body, &oo); err != nil || len(oo.Issue) == 0 {
+				t.Fatalf("400 body decode (%v): %s", err, body)
+			}
+			if oo.Issue[0].Code != "not-supported" {
+				t.Errorf("400 issue code = %q, want %q", oo.Issue[0].Code, "not-supported")
+			}
+			// Fail closed: the rejected conditional create persisted nothing.
+			assertWorkflowCount(t, base, "Patient", 0)
+
+			// A transaction POST entry carrying request.ifNoneExist is rejected the same way, atomically.
+			status, body, _ := httpDo(t, http.MethodPost, base, "application/fhir+json",
+				conditionalCreateTransactionBundle(t, release))
+			if status != http.StatusBadRequest {
+				t.Fatalf("conditional-create transaction status = %d, want 400; body=%s", status, body)
+			}
+			assertOperationOutcome(t, body, "error")
+			assertWorkflowCount(t, base, "Patient", 0)
+		})
+	}
+}
+
+// TestFHIRRoleClientConditionalCreateSurfacesTypedError pins the cross-component behaviour the
+// client/server parity audit flagged: the fhir/rest client SENDS If-None-Exist on a conditional
+// Create, so the role's 400 rejection must surface through the client as the typed
+// *rest.OperationOutcomeError (status 400, the not-supported issue readable on Outcome) rather
+// than a silent duplicate creation. An unconditional Create against the same role still succeeds,
+// proving the rejection is the precondition, not the create path.
+func TestFHIRRoleClientConditionalCreateSurfacesTypedError(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+			client, err := rest.NewClient(release, base)
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+			ctx := context.Background()
+
+			_, cerr := client.Create(ctx, newPatientResource(release), "identifier=urn:example-system|12345")
+			if cerr == nil {
+				t.Fatal("conditional Create returned nil error, want the 400 typed error")
+			}
+			var ooErr *rest.OperationOutcomeError
+			if !errors.As(cerr, &ooErr) {
+				t.Fatalf("conditional Create error = %T (%v), want *rest.OperationOutcomeError", cerr, cerr)
+			}
+			if ooErr.StatusCode != http.StatusBadRequest {
+				t.Errorf("typed error status = %d, want 400", ooErr.StatusCode)
+			}
+			if ooErr.Outcome == nil || len(ooErr.Outcome.Issue) == 0 {
+				t.Fatalf("typed error carries no parsed OperationOutcome: %v", cerr)
+			}
+			if code := ooErr.Outcome.Issue[0].Code; code != fhir.IssueType("not-supported") {
+				t.Errorf("typed error issue code = %q, want not-supported", code)
+			}
+			assertWorkflowCount(t, base, "Patient", 0)
+
+			// The unconditional create path is untouched.
+			res, err := client.Create(ctx, newPatientResource(release), "")
+			if err != nil {
+				t.Fatalf("unconditional Create: %v", err)
+			}
+			if res.ID == "" {
+				t.Error("unconditional Create returned no id")
+			}
+		})
+	}
+}
+
+// conditionalCreateTransactionBundle builds a transaction whose single POST entry carries
+// request.ifNoneExist, the transaction form of a conditional create the role rejects fail-closed.
+func conditionalCreateTransactionBundle(t *testing.T, release fhir.Release) []byte {
+	t.Helper()
+	switch release {
+	case fhir.R4:
+		g := r4.AdministrativeGender("female")
+		b, err := r4.NewTransaction(r4.TransactionEntry{
+			Resource:    &r4.Patient{Gender: &g},
+			Method:      r4.HTTPVerbPOST,
+			URL:         "Patient",
+			IfNoneExist: "identifier=urn:example-system|12345",
+		})
+		if err != nil {
+			t.Fatalf("r4 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	default:
+		g := r5.AdministrativeGender("female")
+		b, err := r5.NewTransaction(r5.TransactionEntry{
+			Resource:    &r5.Patient{Gender: &g},
+			Method:      r5.HTTPVerbPOST,
+			URL:         "Patient",
+			IfNoneExist: "identifier=urn:example-system|12345",
+		})
+		if err != nil {
+			t.Fatalf("r5 NewTransaction: %v", err)
+		}
+		out, _ := json.Marshal(b)
+		return out
+	}
+}
+
 func TestFHIRRoleReadNotFoundIsOperationOutcome(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -548,22 +684,13 @@ func TestFHIRRoleDeferredInteractionIsNotImplemented(t *testing.T) {
 	base, cleanup := startFHIRDaemon(t, fhir.R5)
 	defer cleanup()
 	// A PUT (update) is a deferred interaction: a 501 OperationOutcome, never a silent no-op.
+	// (vread and history-instance are implemented interactions now — see fhir_versioning_test.go.)
 	status, body, _ := httpDo(t, http.MethodPut, base+"/Patient/1", "application/fhir+json",
 		patientJSON(fhir.R5, "female"))
 	if status != http.StatusNotImplemented {
 		t.Fatalf("update status = %d, want 501; body=%s", status, body)
 	}
 	assertOperationOutcome(t, body, "error")
-
-	// history and vread are recognized FHIR interactions this role defers; per the contract they
-	// answer 501 (deferred), not the 405 used for an unknown route.
-	for _, path := range []string{"/Patient/1/_history", "/Patient/1/_history/2"} {
-		status, body, _ := httpDo(t, http.MethodGet, base+path, "", nil)
-		if status != http.StatusNotImplemented {
-			t.Errorf("GET %s status = %d, want 501; body=%s", path, status, body)
-		}
-		assertOperationOutcome(t, body, "error")
-	}
 }
 
 func TestFHIRRoleUnservedResourceType(t *testing.T) {
@@ -1092,11 +1219,45 @@ func TestFHIRRoleCapabilityStatement(t *testing.T) {
 			if len(cs.Rest) == 0 || cs.Rest[0].Mode != "server" {
 				t.Fatalf("metadata rest = %+v, want one server-mode rest", cs.Rest)
 			}
-			if !advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", "read") {
-				t.Error("metadata: expected Patient read to be advertised")
+			for _, interaction := range []string{"read", "vread", "history-instance", "create", "search-type"} {
+				if !advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", interaction) {
+					t.Errorf("metadata: expected Patient %s to be advertised", interaction)
+				}
 			}
-			if !advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", "create") {
-				t.Error("metadata: expected Patient create to be advertised")
+			// Deferred interactions must not be over-advertised.
+			for _, interaction := range []string{"update", "patch", "delete"} {
+				if advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", interaction) {
+					t.Errorf("metadata: %s is advertised but the handler answers it 501", interaction)
+				}
+			}
+			// The $validate operation is advertised with its canonical definition.
+			var rawCS struct {
+				Rest []struct {
+					Resource []struct {
+						Type      string `json:"type"`
+						Operation []struct {
+							Name       string `json:"name"`
+							Definition string `json:"definition"`
+						} `json:"operation"`
+					} `json:"resource"`
+				} `json:"rest"`
+			}
+			if err := json.Unmarshal(body, &rawCS); err != nil {
+				t.Fatalf("metadata operation decode: %v", err)
+			}
+			foundValidate := false
+			for _, res := range rawCS.Rest[0].Resource {
+				if res.Type != "Patient" {
+					continue
+				}
+				for _, op := range res.Operation {
+					if op.Name == "validate" && op.Definition == "http://hl7.org/fhir/OperationDefinition/Resource-validate" {
+						foundValidate = true
+					}
+				}
+			}
+			if !foundValidate {
+				t.Error("metadata: expected the Patient $validate operation to be advertised with its canonical definition")
 			}
 			// The served metadata must list only the system interactions the handler implements:
 			// transaction (the base POST) and nothing else. The handler does not return a batch-response

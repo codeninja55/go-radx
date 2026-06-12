@@ -74,23 +74,7 @@ func TestVersionFlagCoherent(t *testing.T) {
 	}
 }
 
-// TestStubFailsClosed confirms a committed-but-unbuilt command fails closed: it exits 1 (not
-// 0) and writes nothing to machine stdout, never a no-op success (docs/reference/cli.md
-// "Honest-failure rules"; closes RADX-001/002). `serve fhir` is the canonical example: the FHIR
-// server role is a separate increment, so it stays a typed not-implemented error rather than a
-// stub that reports success.
-func TestStubFailsClosed(t *testing.T) {
-	for _, args := range [][]string{
-		{"serve", "fhir"},
-	} {
-		t.Run(strings.Join(args, " "), func(t *testing.T) {
-			stdout, _, code := runRadx(t, args...)
-			if code != exitcode.GeneralFailure {
-				t.Errorf("stub %v exit = %d, want %d (fail-closed)", args, code, exitcode.GeneralFailure)
-			}
-			if stdout != "" {
-				t.Errorf("stub %v wrote to machine stdout: %q (must write nothing)", args, stdout)
-			}
-		})
-	}
-}
+// The fail-closed stub contract (a committed-but-unbuilt command exits 1 and writes nothing —
+// docs/reference/cli.md "Honest-failure rules"; RADX-001/002) has no remaining subject: `serve
+// fhir`, the last registered stub, is wired end to end (serve.go; round-trip proof in
+// serve_test.go). The rule still binds any future stub; its test returns with the next one.

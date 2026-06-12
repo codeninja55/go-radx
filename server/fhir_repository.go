@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/codeninja55/go-radx/fhir"
 )
@@ -32,8 +33,21 @@ import (
 // for cancellation and deadline propagation. No method logs PHI (PRD §9.1).
 type Repository interface {
 	// Read returns the current version of one resource by type and id, or ErrNotFound when absent.
-	// The returned fhir.Resource is a concrete resource of the role's release.
+	// The returned fhir.Resource is a concrete resource of the role's release. The returned resource
+	// carries its version metadata (meta.versionId, meta.lastUpdated), so the role can emit the ETag
+	// and Last-Modified headers FHIR R5 http.html#read calls for.
 	Read(ctx context.Context, resourceType, id string) (fhir.Resource, error)
+
+	// VRead returns one specific version of a resource (the vread interaction, FHIR R5
+	// http.html#vread): ErrNotFound when the resource or the named version is absent, ErrGone when
+	// the named version exists but records a deletion (the spec's 410 path).
+	VRead(ctx context.Context, resourceType, id, versionID string) (fhir.Resource, error)
+
+	// History returns every stored version of one resource, newest first (the order a history
+	// Bundle presents per FHIR R5 http.html#history), or ErrNotFound when the resource has never
+	// existed. The role renders the versions into the release's history Bundle; the Repository owns
+	// only the version record.
+	History(ctx context.Context, resourceType, id string) ([]ResourceVersion, error)
 
 	// Create stores a new resource under a server-assigned id and returns the stored resource. The
 	// server always mints the id and ignores any client-supplied id, because FHIR create makes a new
@@ -53,6 +67,19 @@ type Repository interface {
 	Transaction(ctx context.Context, bundle fhir.Resource) (fhir.Resource, error)
 }
 
+// ResourceVersion is one version of a resource as the Repository's history records it: the stored
+// resource (already carrying its meta.versionId/meta.lastUpdated), the version id, the instant the
+// version was written, and whether the version records a deletion. A deleted version carries a nil
+// Resource — the history Bundle entry for it has request/response but no resource body. The record
+// is deliberately interaction-shaped so the deferred update/patch/delete interactions (wave 3)
+// extend it by appending versions, never by reshaping it.
+type ResourceVersion struct {
+	Resource    fhir.Resource
+	VersionID   string
+	LastUpdated time.Time
+	Deleted     bool
+}
+
 // MemoryRepository is a simple in-memory Repository so the FHIR role is runnable out of the box, the
 // FHIR counterpart of the filesystem object store and SQLite catalogue. It stores resources keyed by
 // (resourceType, id) in a map guarded by a mutex, assigns a monotonic server id on create, and
@@ -69,8 +96,14 @@ type MemoryRepository struct {
 	adapter releaseAdapter
 
 	mu      sync.RWMutex
-	byKey   map[string]fhir.Resource // "ResourceType/id" -> resource
+	byKey   map[string]fhir.Resource     // "ResourceType/id" -> current version
+	byVer   map[string][]ResourceVersion // "ResourceType/id" -> all versions, oldest first
 	counter atomic.Uint64
+
+	// now supplies the version timestamps; it is the field (defaulting to time.Now) so tests can
+	// pin a deterministic clock. It must return a time with a location (UTC) so the FHIR instant
+	// and the Last-Modified header are stable.
+	now func() time.Time
 }
 
 // NewMemoryRepository returns an empty in-memory repository bound to the given release. An
@@ -85,6 +118,8 @@ func NewMemoryRepository(release fhir.Release) (*MemoryRepository, error) {
 		release: release,
 		adapter: adapter,
 		byKey:   map[string]fhir.Resource{},
+		byVer:   map[string][]ResourceVersion{},
+		now:     func() time.Time { return time.Now().UTC() },
 	}, nil
 }
 
@@ -129,14 +164,66 @@ func (m *MemoryRepository) Create(_ context.Context, r fhir.Resource) (fhir.Reso
 // let a second create with the same id silently clobber the first (bypassing concurrency control), so
 // every create instead gets a fresh unique id and the new id is set on the stored resource through the
 // release adapter. Because nextID is monotonic, the minted id never collides with an existing entry.
+//
+// The create is version 1 of the resource: the stored resource carries meta.versionId "1" and
+// meta.lastUpdated, and the version is appended to the resource's history. A future update appends
+// version n+1 the same way (the version store is interaction-shaped — see ResourceVersion); only
+// create writes versions today because update/patch/delete are deferred.
 func (m *MemoryRepository) createLocked(r fhir.Resource) (fhir.Resource, error) {
 	id := m.nextID()
-	r, err := m.adapter.withResourceID(r, id)
+	at := m.now()
+	r, err := m.adapter.withResourceVersion(r, id, initialVersionID, fhirInstant(at))
 	if err != nil {
 		return nil, err
 	}
-	m.byKey[storeKey(r.ResourceType(), id)] = r
+	key := storeKey(r.ResourceType(), id)
+	m.byKey[key] = r
+	m.byVer[key] = append(m.byVer[key], ResourceVersion{
+		Resource:    r,
+		VersionID:   initialVersionID,
+		LastUpdated: at,
+	})
 	return r, nil
+}
+
+// VRead returns the stored version of (resourceType, id) named by versionID: ErrNotFound when the
+// resource or the version is absent, ErrGone when the version records a deletion (FHIR R5
+// http.html#vread's 410 path; the in-memory repository writes no deletions yet, but the check keeps
+// the contract honest for the version store's future delete support).
+func (m *MemoryRepository) VRead(_ context.Context, resourceType, id, versionID string) (fhir.Resource, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	versions, ok := m.byVer[storeKey(resourceType, id)]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s/%s", ErrNotFound, resourceType, id)
+	}
+	for i := range versions {
+		v := &versions[i]
+		if v.VersionID != versionID {
+			continue
+		}
+		if v.Deleted {
+			return nil, fmt.Errorf("%w: %s/%s/_history/%s", ErrGone, resourceType, id, versionID)
+		}
+		return v.Resource, nil
+	}
+	return nil, fmt.Errorf("%w: %s/%s/_history/%s", ErrNotFound, resourceType, id, versionID)
+}
+
+// History returns every stored version of (resourceType, id), newest first, or ErrNotFound when the
+// resource has never existed. The slice is a copy, so a caller cannot mutate the store's history.
+func (m *MemoryRepository) History(_ context.Context, resourceType, id string) ([]ResourceVersion, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	versions, ok := m.byVer[storeKey(resourceType, id)]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s/%s", ErrNotFound, resourceType, id)
+	}
+	out := make([]ResourceVersion, 0, len(versions))
+	for i := len(versions) - 1; i >= 0; i-- {
+		out = append(out, versions[i])
+	}
+	return out, nil
 }
 
 // Search implements the small search the development repository supports: an exact match on _id
@@ -193,25 +280,35 @@ func (m *MemoryRepository) Transaction(ctx context.Context, bundle fhir.Resource
 	for k, v := range live {
 		staging[k] = v
 	}
+	// The version store is staged alongside the current-version map for the same atomicity: a failed
+	// transaction must leave no orphan history entries behind. The per-key version slices are copied
+	// (not just the map) because createLocked appends to them in place.
+	liveVer := m.byVer
+	stagingVer := make(map[string][]ResourceVersion, len(liveVer))
+	for k, vs := range liveVer {
+		stagingVer[k] = append([]ResourceVersion(nil), vs...)
+	}
 
-	// Apply the entries against the staging copy via a lockedView, so the adapter's repo.Create /
+	// Apply the entries against the staging copies via a lockedView, so the adapter's repo.Create /
 	// repo.Read route to the unlocked helpers and never re-take the held write lock.
 	m.byKey = staging
+	m.byVer = stagingVer
 	resp, err := m.adapter.processTransaction(ctx, bundle, lockedView{repo: m})
 	if err != nil {
-		// Failure: discard the staging copy and restore the live store, keeping every concurrent write
-		// that committed before this transaction took the lock.
+		// Failure: discard the staging copies and restore the live store, keeping every concurrent
+		// write that committed before this transaction took the lock.
 		m.byKey = live
+		m.byVer = liveVer
 		return nil, err
 	}
-	// Success: the staging copy (already installed) becomes the live store, committing every entry.
+	// Success: the staging copies (already installed) become the live store, committing every entry.
 	return resp, nil
 }
 
 // lockedView adapts a MemoryRepository whose write lock the caller already holds into a Repository
 // whose Create/Read use the unlocked helpers, so a transaction can drive the release adapter's
-// per-entry callbacks without the adapter re-acquiring the lock. Search and Transaction are not used
-// inside a transaction and are not supported on the view.
+// per-entry callbacks without the adapter re-acquiring the lock. Search, VRead, History, and
+// Transaction are not used inside a transaction and are not supported on the view.
 type lockedView struct {
 	repo *MemoryRepository
 }
@@ -228,6 +325,14 @@ func (v lockedView) Search(context.Context, string, url.Values) (fhir.Resource, 
 	return nil, fmt.Errorf("server: search is not supported inside a transaction")
 }
 
+func (v lockedView) VRead(context.Context, string, string, string) (fhir.Resource, error) {
+	return nil, fmt.Errorf("server: vread is not supported inside a transaction")
+}
+
+func (v lockedView) History(context.Context, string, string) ([]ResourceVersion, error) {
+	return nil, fmt.Errorf("server: history is not supported inside a transaction")
+}
+
 func (v lockedView) Transaction(context.Context, fhir.Resource) (fhir.Resource, error) {
 	return nil, fmt.Errorf("server: nested transactions are not supported")
 }
@@ -240,6 +345,17 @@ func (m *MemoryRepository) nextID() string {
 
 // storeKey composes the map key for a (resourceType, id) pair.
 func storeKey(resourceType, id string) string { return resourceType + "/" + id }
+
+// initialVersionID is the meta.versionId a create writes. Versions are small monotonic integers per
+// resource ("1", "2", ...), the convention FHIR's examples use; a future update mints the next one.
+const initialVersionID = "1"
+
+// fhirInstant renders a time as a FHIR instant (RFC 3339 with millisecond precision and an explicit
+// offset), the lexical form meta.lastUpdated carries. The time is normalised to UTC so the stored
+// instant and the Last-Modified header derived from it agree run to run.
+func fhirInstant(t time.Time) string {
+	return t.UTC().Format("2006-01-02T15:04:05.000Z07:00")
+}
 
 // errUnsupportedTxnVerb is returned by the development repository's transaction processing for a verb
 // it does not handle, so an unsupported entry fails the transaction rather than being silently

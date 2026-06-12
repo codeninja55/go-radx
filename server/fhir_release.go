@@ -33,14 +33,22 @@ type releaseAdapter interface {
 	// resourceID returns a resource's logical id, or "" when it has none.
 	resourceID(r fhir.Resource) string
 
-	// withResourceID returns the resource with its logical id set to id, so a create can assign a
-	// server id. It re-decodes through the release registry, returning a fresh concrete resource of
-	// the release rather than mutating r in place.
-	withResourceID(r fhir.Resource, id string) (fhir.Resource, error)
+	// withResourceVersion returns the resource with its logical id and version metadata
+	// (meta.versionId, meta.lastUpdated) set, so a create can assign the server id and stamp the
+	// stored version in one pass. It re-decodes through the release registry, returning a fresh
+	// concrete resource of the release rather than mutating r in place.
+	withResourceVersion(r fhir.Resource, id, versionID, lastUpdated string) (fhir.Resource, error)
 
 	// newSearchSet builds a searchset Bundle of the release carrying the matched resources, with
 	// total set to the match count. It returns the Bundle behind the fhir.Resource interface.
 	newSearchSet(total int32, matches []fhir.Resource) (fhir.Resource, error)
+
+	// newHistoryBundle builds a history Bundle of the release from a resource's version list (newest
+	// first), with each entry carrying the request/response pair FHIR R5 http.html requires of a
+	// history entry (bdl-3 makes entry.request mandatory in a history bundle). total is the full
+	// version count, passed separately because a _count-capped response carries fewer entries than
+	// the total it reports.
+	newHistoryBundle(total int, entries []historyEntry) (fhir.Resource, error)
 
 	// processTransaction applies a transaction Bundle through repo and builds the
 	// transaction-response Bundle of the release. It is on the adapter because both decoding the
@@ -72,11 +80,31 @@ type releaseAdapter interface {
 // type the entry's request.url names, the transaction analogue of the create endpoint's {type}.
 // targetID is the id segment of that request.url when one is present; a create must target the type
 // endpoint ("Patient"), so a POST entry whose url carries an id ("Patient/123") is malformed and is
-// rejected before commit.
+// rejected before commit. ifNoneExist carries the entry's request.ifNoneExist verbatim; a non-empty
+// value makes the entry a conditional create, which the role rejects fail-closed exactly like the
+// direct create's If-None-Exist header.
 type transactionPostEntry struct {
-	resource   fhir.Resource
-	targetType string
-	targetID   string
+	resource    fhir.Resource
+	targetType  string
+	targetID    string
+	ifNoneExist string
+}
+
+// historyEntry is one release-neutral entry of a history Bundle the role hands the adapter to
+// render: the resource's absolute fullUrl (the same [base]/[type]/[id] for every version per R5
+// bundle.html, present even on a deleted version's resource-less entry), the version's resource
+// (nil for a deleted version), the interaction that produced it (request method/url), and the
+// response facts (status line, weak ETag, lastModified instant) FHIR R5 http.html#history says a
+// history entry reports. Every field is structural — ids, version ids, status lines — never a
+// patient value (PRD §9.1).
+type historyEntry struct {
+	fullURL      string
+	resource     fhir.Resource
+	method       string
+	requestURL   string
+	status       string
+	etag         string
+	lastModified string
 }
 
 // outcomeIssue is the release-neutral issue the role hands an adapter to render into a release
@@ -135,30 +163,75 @@ func resourceIDViaJSON(r fhir.Resource) string {
 	return env.ID
 }
 
-// withResourceIDViaJSON sets a resource's id by marshalling it to a JSON object, splicing in the
-// "id" key, and re-decoding through decode (the release registry's UnmarshalResource), so id
-// assignment works over any release's concrete type without reflection. It returns a fresh resource
-// of the release with the id set; the original is left untouched, matching the build-once,
-// immutable-after discipline.
-func withResourceIDViaJSON(r fhir.Resource, id string, decode func([]byte) (fhir.Resource, error)) (fhir.Resource, error) {
+// withResourceVersionViaJSON sets a resource's id and version metadata by marshalling it to a JSON
+// object, splicing in the "id" key and the "meta" versionId/lastUpdated keys (merging with any meta
+// the resource already carries), and re-decoding through decode (the release registry's
+// UnmarshalResource), so version assignment works over any release's concrete type without
+// reflection. It returns a fresh resource of the release with the version set; the original is left
+// untouched, matching the build-once, immutable-after discipline.
+func withResourceVersionViaJSON(r fhir.Resource, id, versionID, lastUpdated string, decode func([]byte) (fhir.Resource, error)) (fhir.Resource, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return nil, fmt.Errorf("server: encode resource to assign id: %w", err)
+		return nil, fmt.Errorf("server: encode resource to assign version: %w", err)
 	}
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(data, &obj); err != nil {
-		return nil, fmt.Errorf("server: decode resource to assign id: %w", err)
+		return nil, fmt.Errorf("server: decode resource to assign version: %w", err)
 	}
 	idBytes, err := json.Marshal(id)
 	if err != nil {
 		return nil, err
 	}
 	obj["id"] = idBytes
+
+	meta := map[string]json.RawMessage{}
+	if raw, ok := obj["meta"]; ok {
+		if err := json.Unmarshal(raw, &meta); err != nil {
+			return nil, fmt.Errorf("server: decode resource meta to assign version: %w", err)
+		}
+	}
+	vidBytes, err := json.Marshal(versionID)
+	if err != nil {
+		return nil, err
+	}
+	luBytes, err := json.Marshal(lastUpdated)
+	if err != nil {
+		return nil, err
+	}
+	meta["versionId"] = vidBytes
+	meta["lastUpdated"] = luBytes
+	metaBytes, err := json.Marshal(meta)
+	if err != nil {
+		return nil, err
+	}
+	obj["meta"] = metaBytes
+
 	merged, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
 	}
 	return decode(merged)
+}
+
+// resourceVersionViaJSON reads a resource's meta.versionId and meta.lastUpdated by marshalling it
+// and peeking the "meta" key, the version twin of resourceIDViaJSON. A resource with no meta (or an
+// unversioned one from a custom Repository) yields empty strings, which the handlers treat as
+// "emit no version headers" rather than an error.
+func resourceVersionViaJSON(r fhir.Resource) (versionID, lastUpdated string) {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return "", ""
+	}
+	var env struct {
+		Meta struct {
+			VersionID   string `json:"versionId"`
+			LastUpdated string `json:"lastUpdated"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		return "", ""
+	}
+	return env.Meta.VersionID, env.Meta.LastUpdated
 }
 
 // ---- R5 adapter ----
@@ -173,8 +246,8 @@ func (r5Adapter) validate(r fhir.Resource) *fhir.OperationOutcome { return r5.Va
 
 func (r5Adapter) resourceID(r fhir.Resource) string { return resourceIDViaJSON(r) }
 
-func (r5Adapter) withResourceID(r fhir.Resource, id string) (fhir.Resource, error) {
-	return withResourceIDViaJSON(r, id, r5.UnmarshalResource)
+func (r5Adapter) withResourceVersion(r fhir.Resource, id, versionID, lastUpdated string) (fhir.Resource, error) {
+	return withResourceVersionViaJSON(r, id, versionID, lastUpdated, r5.UnmarshalResource)
 }
 
 func (r5Adapter) newSearchSet(total int32, matches []fhir.Resource) (fhir.Resource, error) {
@@ -186,6 +259,31 @@ func (r5Adapter) newSearchSet(total int32, matches []fhir.Resource) (fhir.Resour
 	return r5.NewSearchSet(total, entries...)
 }
 
+// newHistoryBundle builds the R5 history Bundle directly (no typed builder exists for history):
+// type "history", total set to the full version count (bdl-1 permits total on searchset and
+// history; a _count-capped response carries fewer entries than total), and every entry carrying
+// the request that produced the version and the response facts (status, weak ETag, lastModified),
+// per FHIR R5 http.html#history. A deleted version's entry has no resource.
+func (r5Adapter) newHistoryBundle(total int, entries []historyEntry) (fhir.Resource, error) {
+	bt := r5.BundleTypeHistory
+	total32 := int32(total) // #nosec G115 -- an in-memory version count is far below int32
+	bundle := &r5.Bundle{Type: &bt, Total: &total32}
+	for _, e := range entries {
+		verb := r5.HTTPVerb(e.method)
+		entry := r5.BundleEntry{
+			FullUrl:  optptr(e.fullURL),
+			Request:  &r5.BundleEntryRequest{Method: &verb, URL: strptr(e.requestURL)},
+			Response: &r5.BundleEntryResponse{Status: strptr(e.status), Etag: optptr(e.etag), LastModified: optptr(e.lastModified)},
+		}
+		if e.resource != nil {
+			res := e.resource
+			entry.Resource = &res
+		}
+		bundle.Entry = append(bundle.Entry, entry)
+	}
+	return bundle, nil
+}
+
 func (a r5Adapter) processTransaction(ctx context.Context, bundle fhir.Resource, repo Repository) (fhir.Resource, error) {
 	b, ok := bundle.(*r5.Bundle)
 	if !ok {
@@ -194,12 +292,12 @@ func (a r5Adapter) processTransaction(ctx context.Context, bundle fhir.Resource,
 	responses := make([]r5.BundleEntry, 0, len(b.Entry))
 	for i := range b.Entry {
 		entry := &b.Entry[i]
-		status, location, err := applyTransactionEntryR5(ctx, entry, repo)
+		status, location, etag, err := applyTransactionEntryR5(ctx, entry, repo)
 		if err != nil {
 			return nil, err
 		}
 		responses = append(responses, r5.BundleEntry{
-			Response: &r5.BundleEntryResponse{Status: strptr(status), Location: optptr(location)},
+			Response: &r5.BundleEntryResponse{Status: strptr(status), Location: optptr(location), Etag: optptr(etag)},
 		})
 	}
 	bt := r5.BundleTypeTransactionResponse
@@ -221,7 +319,12 @@ func (a r5Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPo
 			return nil, fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
 		targetType, targetID := splitTypeID(deref(entry.Request.URL))
-		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType, targetID: targetID})
+		writes = append(writes, transactionPostEntry{
+			resource:    *entry.Resource,
+			targetType:  targetType,
+			targetID:    targetID,
+			ifNoneExist: deref(entry.Request.IfNoneExist),
+		})
 	}
 	return writes, nil
 }
@@ -273,12 +376,17 @@ func (a r5Adapter) capabilityStatement(basePath string) fhir.Resource {
 			continue
 		}
 		read := r5.TypeRestfulInteractionRead
+		vread := r5.TypeRestfulInteractionVread
+		historyInstance := r5.TypeRestfulInteractionHistoryInstance
 		create := r5.TypeRestfulInteractionCreate
 		searchType := r5.TypeRestfulInteractionSearchType
 		rest.Resource = append(rest.Resource, r5.CapabilityStatementRestResource{
 			Type: &typ,
 			Interaction: []r5.CapabilityStatementRestResourceInteraction{
-				{Code: &read}, {Code: &create}, {Code: &searchType},
+				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create}, {Code: &searchType},
+			},
+			Operation: []r5.CapabilityStatementRestResourceOperation{
+				{Name: strptr(validateOperationName), Definition: strptr(validateOperationDefinition)},
 			},
 		})
 	}
@@ -287,32 +395,48 @@ func (a r5Adapter) capabilityStatement(basePath string) fhir.Resource {
 }
 
 // applyTransactionEntryR5 applies one transaction entry through the repository and returns the
-// response status line and Location. A POST creates the entry's resource; a GET reads the resource
-// the entry's request.url names. An unsupported verb fails the transaction (errUnsupportedTxnVerb),
-// never a silent skip.
-func applyTransactionEntryR5(ctx context.Context, entry *r5.BundleEntry, repo Repository) (status, location string, err error) {
+// response status line, Location, and ETag. A POST creates the entry's resource and reports the
+// versioned location ([type]/[id]/_history/[vid]) and the version's weak ETag, the same version
+// facts a direct create's Location and ETag headers carry (FHIR R5 http.html#transaction-response);
+// a GET reads the resource the entry's request.url names. An unsupported verb fails the transaction
+// (errUnsupportedTxnVerb), never a silent skip.
+func applyTransactionEntryR5(ctx context.Context, entry *r5.BundleEntry, repo Repository) (status, location, etag string, err error) {
 	if entry.Request == nil || entry.Request.Method == nil {
-		return "", "", fmt.Errorf("%w: entry missing request.method", errUnsupportedTxnVerb)
+		return "", "", "", fmt.Errorf("%w: entry missing request.method", errUnsupportedTxnVerb)
 	}
 	switch *entry.Request.Method {
 	case r5.HTTPVerbPOST:
 		if entry.Resource == nil {
-			return "", "", fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
+			return "", "", "", fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
 		created, cerr := repo.Create(ctx, *entry.Resource)
 		if cerr != nil {
-			return "", "", cerr
+			return "", "", "", cerr
 		}
-		return "201 Created", created.ResourceType() + "/" + resourceIDViaJSON(created), nil
+		location, etag = createdEntryResponse(created)
+		return "201 Created", location, etag, nil
 	case r5.HTTPVerbGET:
 		rt, id := splitTypeID(deref(entry.Request.URL))
 		if _, rerr := repo.Read(ctx, rt, id); rerr != nil {
-			return "", "", rerr
+			return "", "", "", rerr
 		}
-		return "200 OK", "", nil
+		return "200 OK", "", "", nil
 	default:
-		return "", "", fmt.Errorf("%w: %s", errUnsupportedTxnVerb, *entry.Request.Method)
+		return "", "", "", fmt.Errorf("%w: %s", errUnsupportedTxnVerb, *entry.Request.Method)
 	}
+}
+
+// createdEntryResponse derives a transaction POST entry's response.location and response.etag from
+// the created resource: the versioned [type]/[id]/_history/[vid] location and the weak version
+// ETag, falling back to the unversioned location and no ETag when a custom Repository stores no
+// version metadata — the transaction twin of the direct create's createdLocation/setVersionHeaders.
+func createdEntryResponse(created fhir.Resource) (location, etag string) {
+	location = created.ResourceType() + "/" + resourceIDViaJSON(created)
+	if versionID, _ := resourceVersionViaJSON(created); versionID != "" {
+		location += "/_history/" + versionID
+		etag = weakETag(versionID)
+	}
+	return location, etag
 }
 
 // ---- R4 adapter ----
@@ -327,8 +451,8 @@ func (r4Adapter) validate(r fhir.Resource) *fhir.OperationOutcome { return r4.Va
 
 func (r4Adapter) resourceID(r fhir.Resource) string { return resourceIDViaJSON(r) }
 
-func (r4Adapter) withResourceID(r fhir.Resource, id string) (fhir.Resource, error) {
-	return withResourceIDViaJSON(r, id, r4.UnmarshalResource)
+func (r4Adapter) withResourceVersion(r fhir.Resource, id, versionID, lastUpdated string) (fhir.Resource, error) {
+	return withResourceVersionViaJSON(r, id, versionID, lastUpdated, r4.UnmarshalResource)
 }
 
 func (r4Adapter) newSearchSet(total int32, matches []fhir.Resource) (fhir.Resource, error) {
@@ -340,6 +464,28 @@ func (r4Adapter) newSearchSet(total int32, matches []fhir.Resource) (fhir.Resour
 	return r4.NewSearchSet(total, entries...)
 }
 
+// newHistoryBundle builds the R4 history Bundle, the R4 twin of the R5 adapter's (see that method
+// for the bdl-1/http.html#history and total-vs-_count rationale).
+func (r4Adapter) newHistoryBundle(total int, entries []historyEntry) (fhir.Resource, error) {
+	bt := r4.BundleTypeHistory
+	total32 := int32(total) // #nosec G115 -- an in-memory version count is far below int32
+	bundle := &r4.Bundle{Type: &bt, Total: &total32}
+	for _, e := range entries {
+		verb := r4.HTTPVerb(e.method)
+		entry := r4.BundleEntry{
+			FullUrl:  optptr(e.fullURL),
+			Request:  &r4.BundleEntryRequest{Method: &verb, URL: strptr(e.requestURL)},
+			Response: &r4.BundleEntryResponse{Status: strptr(e.status), Etag: optptr(e.etag), LastModified: optptr(e.lastModified)},
+		}
+		if e.resource != nil {
+			res := e.resource
+			entry.Resource = &res
+		}
+		bundle.Entry = append(bundle.Entry, entry)
+	}
+	return bundle, nil
+}
+
 func (a r4Adapter) processTransaction(ctx context.Context, bundle fhir.Resource, repo Repository) (fhir.Resource, error) {
 	b, ok := bundle.(*r4.Bundle)
 	if !ok {
@@ -348,12 +494,12 @@ func (a r4Adapter) processTransaction(ctx context.Context, bundle fhir.Resource,
 	responses := make([]r4.BundleEntry, 0, len(b.Entry))
 	for i := range b.Entry {
 		entry := &b.Entry[i]
-		status, location, err := applyTransactionEntryR4(ctx, entry, repo)
+		status, location, etag, err := applyTransactionEntryR4(ctx, entry, repo)
 		if err != nil {
 			return nil, err
 		}
 		responses = append(responses, r4.BundleEntry{
-			Response: &r4.BundleEntryResponse{Status: strptr(status), Location: optptr(location)},
+			Response: &r4.BundleEntryResponse{Status: strptr(status), Location: optptr(location), Etag: optptr(etag)},
 		})
 	}
 	bt := r4.BundleTypeTransactionResponse
@@ -375,7 +521,12 @@ func (a r4Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPo
 			return nil, fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
 		targetType, targetID := splitTypeID(deref(entry.Request.URL))
-		writes = append(writes, transactionPostEntry{resource: *entry.Resource, targetType: targetType, targetID: targetID})
+		writes = append(writes, transactionPostEntry{
+			resource:    *entry.Resource,
+			targetType:  targetType,
+			targetID:    targetID,
+			ifNoneExist: deref(entry.Request.IfNoneExist),
+		})
 	}
 	return writes, nil
 }
@@ -426,12 +577,17 @@ func (a r4Adapter) capabilityStatement(basePath string) fhir.Resource {
 			continue
 		}
 		read := r4.TypeRestfulInteractionRead
+		vread := r4.TypeRestfulInteractionVread
+		historyInstance := r4.TypeRestfulInteractionHistoryInstance
 		create := r4.TypeRestfulInteractionCreate
 		searchType := r4.TypeRestfulInteractionSearchType
 		rest.Resource = append(rest.Resource, r4.CapabilityStatementRestResource{
 			Type: &typ,
 			Interaction: []r4.CapabilityStatementRestResourceInteraction{
-				{Code: &read}, {Code: &create}, {Code: &searchType},
+				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create}, {Code: &searchType},
+			},
+			Operation: []r4.CapabilityStatementRestResourceOperation{
+				{Name: strptr(validateOperationName), Definition: strptr(validateOperationDefinition)},
 			},
 		})
 	}
@@ -439,29 +595,31 @@ func (a r4Adapter) capabilityStatement(basePath string) fhir.Resource {
 	return cs
 }
 
-// applyTransactionEntryR4 applies one R4 transaction entry, the R4 twin of applyTransactionEntryR5.
-func applyTransactionEntryR4(ctx context.Context, entry *r4.BundleEntry, repo Repository) (status, location string, err error) {
+// applyTransactionEntryR4 applies one R4 transaction entry, the R4 twin of applyTransactionEntryR5
+// (see that function for the versioned location/ETag rationale).
+func applyTransactionEntryR4(ctx context.Context, entry *r4.BundleEntry, repo Repository) (status, location, etag string, err error) {
 	if entry.Request == nil || entry.Request.Method == nil {
-		return "", "", fmt.Errorf("%w: entry missing request.method", errUnsupportedTxnVerb)
+		return "", "", "", fmt.Errorf("%w: entry missing request.method", errUnsupportedTxnVerb)
 	}
 	switch *entry.Request.Method {
 	case r4.HTTPVerbPOST:
 		if entry.Resource == nil {
-			return "", "", fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
+			return "", "", "", fmt.Errorf("%w: POST entry missing resource", errUnsupportedTxnVerb)
 		}
 		created, cerr := repo.Create(ctx, *entry.Resource)
 		if cerr != nil {
-			return "", "", cerr
+			return "", "", "", cerr
 		}
-		return "201 Created", created.ResourceType() + "/" + resourceIDViaJSON(created), nil
+		location, etag = createdEntryResponse(created)
+		return "201 Created", location, etag, nil
 	case r4.HTTPVerbGET:
 		rt, id := splitTypeID(deref(entry.Request.URL))
 		if _, rerr := repo.Read(ctx, rt, id); rerr != nil {
-			return "", "", rerr
+			return "", "", "", rerr
 		}
-		return "200 OK", "", nil
+		return "200 OK", "", "", nil
 	default:
-		return "", "", fmt.Errorf("%w: %s", errUnsupportedTxnVerb, *entry.Request.Method)
+		return "", "", "", fmt.Errorf("%w: %s", errUnsupportedTxnVerb, *entry.Request.Method)
 	}
 }
 
@@ -474,7 +632,15 @@ const capabilitySoftwareName = "go-radx"
 // validate. It is a fixed value rather than the current time so the served metadata is deterministic
 // and golden-testable (the role serves the same statement every run); it advances when the served
 // capability surface changes.
-const capabilityStatementDate = "2026-06-08"
+const capabilityStatementDate = "2026-06-11"
+
+// validateOperationName and validateOperationDefinition advertise the server-side $validate
+// operation in the CapabilityStatement; the definition is the canonical HL7 OperationDefinition for
+// Resource/$validate, the same canonical across R4 and R5.
+const (
+	validateOperationName       = "validate"
+	validateOperationDefinition = "http://hl7.org/fhir/OperationDefinition/Resource-validate"
+)
 
 // strptr returns a pointer to s, the local helper for the non-empty optional string fields the
 // release Bundle and OperationOutcome builders take.

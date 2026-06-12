@@ -6,7 +6,9 @@ import (
 	"mime"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -24,14 +26,27 @@ const (
 	// issueTypeSecurity is the FHIR issue-type code for an authentication/authorization failure, the
 	// code a 401 OperationOutcome carries (the same code across R4 and R5).
 	issueTypeSecurity fhir.IssueType = "security"
+	// issueTypeConflict is the FHIR issue-type code for an edit-version conflict, the code a 412
+	// Precondition Failed OperationOutcome carries when an If-Match version check fails (FHIR R5
+	// http.html#concurrency).
+	issueTypeConflict fhir.IssueType = "conflict"
+	// issueTypeDeleted is the FHIR issue-type code for content that has been deleted, the code a 410
+	// Gone OperationOutcome carries on a vread of a deleted version (FHIR R5 http.html#vread).
+	issueTypeDeleted fhir.IssueType = "deleted"
+	// issueTypeInformational is the FHIR issue-type code for a purely informational message, the
+	// code a successful $validate's all-clear issue carries (OperationOutcome.issue is 1..*, so a
+	// validation with no findings still reports one issue).
+	issueTypeInformational fhir.IssueType = "informational"
 )
 
 // ServeHTTP routes a FHIR REST request to its interaction handler. The path arrives already stripped
 // of the base prefix, so it is one of: "" / "/" (the system root, for a transaction POST),
-// "/metadata" (the CapabilityStatement), "/{type}" (a create POST or a search-type GET), or
-// "/{type}/{id}" (a read GET). An unrecognised method or path is answered with an OperationOutcome,
-// never a bare body, so the FHIR-native error channel is uniform (servers.md). The handler logs the
-// method and the interaction class only — never the query string, which can carry PHI (PRD §9.1).
+// "/metadata" (the CapabilityStatement), "/{type}" (a create POST or a search-type GET),
+// "/{type}/$validate" (the validate operation POST), "/{type}/{id}" (a read GET),
+// "/{type}/{id}/_history" (history-instance GET), or "/{type}/{id}/_history/{vid}" (vread GET). An
+// unrecognised method or path is answered with an OperationOutcome, never a bare body, so the
+// FHIR-native error channel is uniform (servers.md). The handler logs the method and the
+// interaction class only — never the query string, which can carry PHI (PRD §9.1).
 func (h *fhirHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.Trim(r.URL.Path, "/")
 
@@ -49,18 +64,18 @@ func (h *fhirHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case 1:
 		h.handleType(w, r, segs[0])
 	case 2:
+		if segs[1] == "$validate" {
+			h.handleValidate(w, r, segs[0])
+			return
+		}
 		h.handleInstance(w, r, segs[0], segs[1])
 	case 3, 4:
-		// "{type}/{id}/_history" (history) and "{type}/{id}/_history/{vid}" (vread) are recognized FHIR
-		// interactions this role defers; the contract answers a deferred-but-recognized interaction with
-		// 501, matching the deferred update/delete/patch path, not the 405 used for an unknown route.
 		if isWorkflowResourceType(segs[0]) && segs[2] == "_history" {
-			interaction := "history"
 			if len(segs) == 4 {
-				interaction = "vread"
+				h.handleVRead(w, r, segs[0], segs[1], segs[3])
+				return
 			}
-			h.writeError(w, r, http.StatusNotImplemented, issueTypeNotSupported,
-				"the "+interaction+" interaction is not implemented in v1")
+			h.handleHistoryInstance(w, r, segs[0], segs[1])
 			return
 		}
 		h.writeUnsupported(w, r, "the requested interaction is not supported")
@@ -110,8 +125,11 @@ func (h *fhirHandler) handleType(w http.ResponseWriter, r *http.Request, resourc
 }
 
 // handleInstance serves the instance-level interactions: a read GET on a resource by type and id.
-// update, delete, vread, history, and patch are deferred and answered with a 501 OperationOutcome,
-// never a silent no-op (servers.md, PRD §9.2).
+// update, delete, and patch are deferred and answered with a 501 OperationOutcome, never a silent
+// no-op (servers.md, PRD §9.2) — but the If-Match version precondition is evaluated first, so a
+// version-aware client gets the honest 412 the spec defines for a stale version (FHIR R5
+// http.html#concurrency) rather than a 501 that hides the conflict. The mutation itself stays
+// deferred: a write whose precondition holds still answers 501.
 func (h *fhirHandler) handleInstance(w http.ResponseWriter, r *http.Request, resourceType, id string) {
 	if !isWorkflowResourceType(resourceType) {
 		h.writeError(w, r, http.StatusNotFound, issueTypeNotSupported,
@@ -122,6 +140,9 @@ func (h *fhirHandler) handleInstance(w http.ResponseWriter, r *http.Request, res
 	case http.MethodGet:
 		h.handleRead(w, r, resourceType, id)
 	case http.MethodPut, http.MethodDelete, http.MethodPatch:
+		if !h.checkIfMatch(w, r, resourceType, id) {
+			return
+		}
 		h.writeError(w, r, http.StatusNotImplemented, issueTypeNotSupported,
 			"the "+strings.ToLower(r.Method)+" interaction is not implemented in v1")
 	default:
@@ -129,7 +150,35 @@ func (h *fhirHandler) handleInstance(w http.ResponseWriter, r *http.Request, res
 	}
 }
 
-// handleRead serves a read: it fetches the resource from the repository and writes it, mapping a
+// checkIfMatch evaluates a write's If-Match version precondition against the current version of the
+// target resource, per FHIR R5 http.html#concurrency: a version-aware write names the version it
+// was based on, and "if the version id given in the If-Match header does not match, the server
+// returns a 412 Precondition Failed status code instead of updating the resource". A request with
+// no If-Match passes through (the deferred interaction answers for itself); an If-Match against a
+// resource that does not exist is a 404 (there is no version to match); a stale If-Match is the 412
+// with a conflict OperationOutcome. It reports true to proceed, false when it has already written
+// the error.
+func (h *fhirHandler) checkIfMatch(w http.ResponseWriter, r *http.Request, resourceType, id string) bool {
+	ifMatch := r.Header.Get("If-Match")
+	if ifMatch == "" {
+		return true
+	}
+	current, err := h.repo.Read(r.Context(), resourceType, id)
+	if err != nil {
+		h.writeRepoError(w, r, err)
+		return false
+	}
+	versionID, _ := resourceVersionViaJSON(current)
+	if etagVersionID(ifMatch) != versionID {
+		h.writeError(w, r, http.StatusPreconditionFailed, issueTypeConflict,
+			"the If-Match version does not match the current version of "+resourceType+"/"+id)
+		return false
+	}
+	return true
+}
+
+// handleRead serves a read: it fetches the resource from the repository and writes it with the
+// version headers (ETag W/"versionId" and Last-Modified, FHIR R5 http.html#read), mapping a
 // repository ErrNotFound to a 404 OperationOutcome so an absent resource is a structured FHIR error,
 // not a bare 404 body.
 func (h *fhirHandler) handleRead(w http.ResponseWriter, r *http.Request, resourceType, id string) {
@@ -138,8 +187,114 @@ func (h *fhirHandler) handleRead(w http.ResponseWriter, r *http.Request, resourc
 		h.writeRepoError(w, r, err)
 		return
 	}
+	h.setVersionHeaders(w, resource)
 	h.logger.Info("fhir read", zap.String("type", resourceType), zap.String("interaction", "read"))
 	h.writeResource(w, r, http.StatusOK, resource, "")
+}
+
+// handleVRead serves a vread (GET {type}/{id}/_history/{vid}, FHIR R5 http.html#vread): the named
+// version is returned with its version headers; an unknown resource or version is a 404; a version
+// that records a deletion is a 410 Gone with a deleted-coded OperationOutcome, the spec's
+// distinct answer for "this version existed and was removed".
+func (h *fhirHandler) handleVRead(w http.ResponseWriter, r *http.Request, resourceType, id, versionID string) {
+	if r.Method != http.MethodGet {
+		h.writeUnsupported(w, r, "the vread endpoint supports GET only")
+		return
+	}
+	resource, err := h.repo.VRead(r.Context(), resourceType, id, versionID)
+	if err != nil {
+		if errors.Is(err, ErrGone) {
+			h.writeError(w, r, http.StatusGone, issueTypeDeleted, "the requested version of the resource is deleted")
+			return
+		}
+		h.writeRepoError(w, r, err)
+		return
+	}
+	h.setVersionHeaders(w, resource)
+	h.logger.Info("fhir vread", zap.String("type", resourceType), zap.String("interaction", "vread"))
+	h.writeResource(w, r, http.StatusOK, resource, "")
+}
+
+// handleHistoryInstance serves an instance history (GET {type}/{id}/_history, FHIR R5
+// http.html#history): the repository's version list, newest first, rendered as the release's
+// history Bundle in which every entry carries the request that produced the version and the
+// response facts (status, ETag, lastModified). A _count parameter caps the response at the newest
+// _count entries while total still reports the full version count; paging links (Bundle.link
+// next/prev) are deferred, so _count is a cap, not a page size. A resource that has never existed
+// is a 404.
+func (h *fhirHandler) handleHistoryInstance(w http.ResponseWriter, r *http.Request, resourceType, id string) {
+	if r.Method != http.MethodGet {
+		h.writeUnsupported(w, r, "the history endpoint supports GET only")
+		return
+	}
+	versions, err := h.repo.History(r.Context(), resourceType, id)
+	if err != nil {
+		h.writeRepoError(w, r, err)
+		return
+	}
+	fullURL := h.absoluteResourceURL(r, resourceType, id)
+	entries := h.historyEntries(fullURL, resourceType, id, versions)
+	// Truncate AFTER deriving the entries: the create/update derivation keys off the oldest version
+	// in the full list, so truncating the version list first would mis-render the oldest surviving
+	// entry as the create. total stays the full version count.
+	total := len(entries)
+	entries = truncateHistoryEntries(entries, r.URL.Query().Get("_count"))
+	bundle, err := h.adapter.newHistoryBundle(total, entries)
+	if err != nil {
+		h.writeError(w, r, http.StatusInternalServerError, issueTypeException, "the server could not build the history bundle")
+		return
+	}
+	h.logger.Info("fhir history", zap.String("type", resourceType), zap.String("interaction", "history-instance"))
+	h.writeResource(w, r, http.StatusOK, bundle, "")
+}
+
+// historyEntries renders a resource's version list (newest first) into the release-neutral history
+// Bundle entries. fullURL is the resource's absolute [base]/[type]/[id] URL: R5 bundle.html gives
+// every version of a resource the same fullUrl (the version is distinguished by meta.versionId),
+// so each entry carries it — including a deleted version's entry, which has no resource body to
+// name itself. The interaction each version reports is derived from the version record: a
+// deletion is a DELETE against the instance, the resource's first version is the create (a POST
+// against the type, answered 201), and any later non-deleted version is an update (a PUT against
+// the instance, answered 200) — the derivation the deferred update interaction (wave 3) slots into
+// without reshaping the record.
+func (h *fhirHandler) historyEntries(fullURL, resourceType, id string, versions []ResourceVersion) []historyEntry {
+	entries := make([]historyEntry, 0, len(versions))
+	for i, v := range versions {
+		e := historyEntry{
+			fullURL:      fullURL,
+			etag:         weakETag(v.VersionID),
+			lastModified: fhirInstant(v.LastUpdated),
+		}
+		switch {
+		case v.Deleted:
+			e.method, e.requestURL, e.status = http.MethodDelete, resourceType+"/"+id, "204 No Content"
+		case i == len(versions)-1:
+			// The oldest version (the list is newest first) is the create.
+			e.method, e.requestURL, e.status = http.MethodPost, resourceType, "201 Created"
+			e.resource = v.Resource
+		default:
+			e.method, e.requestURL, e.status = http.MethodPut, resourceType+"/"+id, "200 OK"
+			e.resource = v.Resource
+		}
+		entries = append(entries, e)
+	}
+	return entries
+}
+
+// truncateHistoryEntries applies the history _count parameter: at most n of the newest entries are
+// kept (the list is already newest first), per FHIR R5 http.html#history. A _count of 0 is an
+// empty page with the honest total; an absent, non-numeric, or negative _count is ignored rather
+// than rejected — _count is a hint, the same lenient stance MemoryRepository.Search documents for
+// unrecognised parameters. Paging links over the truncated history are deferred.
+func truncateHistoryEntries(entries []historyEntry, countParam string) []historyEntry {
+	if countParam == "" {
+		return entries
+	}
+	n, err := strconv.Atoi(countParam)
+	if err != nil || n < 0 || n >= len(entries) {
+		return entries
+	}
+	return entries[:n]
 }
 
 // handleCreate serves a create: it reads and validates the body, then stores it through the
@@ -147,7 +302,17 @@ func (h *fhirHandler) handleRead(w http.ResponseWriter, r *http.Request, resourc
 // fails structural validation is rejected with the appropriate OperationOutcome (400 for malformed,
 // 422 for an unprocessable but well-formed resource). On success it answers 201 with a Location
 // header naming the created resource.
+//
+// A create carrying If-None-Exist (a conditional create, FHIR R5 http.html#cond-create) fails
+// closed with a 400 OperationOutcome before anything is read or stored: the role has no search
+// matching yet (the matching semantics are deferred to the search work), and silently ignoring the
+// precondition would create the very duplicate the client asked the server to prevent — the
+// fhir/rest client sends this header, so the role must answer it honestly, never drop it.
 func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resourceType string) {
+	if r.Header.Get("If-None-Exist") != "" {
+		h.writeError(w, r, http.StatusBadRequest, issueTypeNotSupported, conditionalCreateDiagnostics)
+		return
+	}
 	if !h.requireFHIRWriteMedia(w, r) {
 		return
 	}
@@ -171,8 +336,51 @@ func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resou
 		return
 	}
 	h.logger.Info("fhir create", zap.String("type", resourceType), zap.String("interaction", "create"))
+	h.setVersionHeaders(w, created)
+	h.writeResource(w, r, http.StatusCreated, created, h.createdLocation(created))
+}
+
+// createdLocation builds the Location header for a created resource: the versioned
+// [base]/[type]/[id]/_history/[vid] form FHIR R5 http.html#create specifies for a server that
+// maintains versions, which this role does. A resource with no version metadata (a custom
+// unversioned Repository) falls back to the unversioned [base]/[type]/[id] rather than fabricating
+// a version segment.
+func (h *fhirHandler) createdLocation(created fhir.Resource) string {
 	location := h.resourceLocation(created.ResourceType(), h.adapter.resourceID(created))
-	h.writeResource(w, r, http.StatusCreated, created, location)
+	if versionID, _ := resourceVersionViaJSON(created); versionID != "" {
+		location += "/_history/" + versionID
+	}
+	return location
+}
+
+// setVersionHeaders emits the version headers a read, vread, or create response carries per FHIR R5
+// http.html#read / #create: ETag as the weak form W/"versionId" and Last-Modified as the HTTP date
+// of meta.lastUpdated. A resource with no version metadata (a custom unversioned Repository) emits
+// neither header rather than fabricating a version.
+func (h *fhirHandler) setVersionHeaders(w http.ResponseWriter, resource fhir.Resource) {
+	versionID, lastUpdated := resourceVersionViaJSON(resource)
+	if versionID != "" {
+		w.Header().Set("ETag", weakETag(versionID))
+	}
+	if lastUpdated != "" {
+		if t, err := time.Parse(time.RFC3339Nano, lastUpdated); err == nil {
+			w.Header().Set("Last-Modified", t.UTC().Format(http.TimeFormat))
+		}
+	}
+}
+
+// weakETag renders a versionId as the weak entity tag FHIR mandates (http.html#concurrency: ETags
+// are weak because a resource may have semantically equal but byte-different renderings).
+func weakETag(versionID string) string { return `W/"` + versionID + `"` }
+
+// etagVersionID extracts the versionId from an If-Match entity tag, accepting the weak form
+// (W/"1"), the strong form ("1") a non-FHIR-aware client may send, and a bare version id. An
+// unparseable header yields the raw string, which then simply fails the version comparison — a
+// malformed precondition is a failed precondition, never a bypassed one.
+func etagVersionID(etag string) string {
+	v := strings.TrimSpace(etag)
+	v = strings.TrimPrefix(v, "W/")
+	return strings.Trim(v, `"`)
 }
 
 // resourceLocation builds the Location header for a created resource by joining the role's base path
@@ -183,6 +391,25 @@ func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resou
 // slash, so it is re-prefixed to keep the Location an absolute-path reference.
 func (h *fhirHandler) resourceLocation(resourceType, id string) string {
 	return "/" + path.Join(strings.Trim(h.basePath, "/"), resourceType, id)
+}
+
+// conditionalCreateDiagnostics is the PHI-free diagnostic both write paths answer a conditional
+// create with: it names the unsupported precondition, never the search query the header carries
+// (which a client could populate with an identifier or name, PRD §9.1).
+const conditionalCreateDiagnostics = "conditional create (If-None-Exist) is not supported; " +
+	"retry as an unconditional create"
+
+// absoluteResourceURL builds a resource's absolute [base]/[type]/[id] URL from the request the role
+// is answering: the scheme follows the connection (https when the daemon terminated TLS), the host
+// is the one the client addressed (r.Host), and the path is the role's resourceLocation. It is the
+// fullUrl a history Bundle entry carries — a Bundle travels beyond the requesting connection, so a
+// relative reference would dangle; bundle.html wants the absolute form.
+func (h *fhirHandler) absoluteResourceURL(r *http.Request, resourceType, id string) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host + h.resourceLocation(resourceType, id)
 }
 
 // validateCreate is the one create-validation gate both write paths share: the type-level create POST
@@ -219,6 +446,53 @@ func (h *fhirHandler) singleIssueOutcome(code fhir.IssueType, diagnostics string
 		Code:        code,
 		Diagnostics: diagnostics,
 	}})
+}
+
+// handleValidate serves the type-level $validate operation (POST {type}/$validate, FHIR R5
+// operation-resource-validate): the body is decoded and run through the same release validator that
+// gates create, and the findings are returned as an OperationOutcome — nothing is persisted. A
+// validation that executed answers 200 whatever it found (the operation succeeded; the findings are
+// its result); a validation with no findings still carries one informational issue because
+// OperationOutcome.issue is 1..*. A body that does not decode, or whose resourceType does not match
+// the endpoint, is a 400 — the operation could not be performed at all.
+func (h *fhirHandler) handleValidate(w http.ResponseWriter, r *http.Request, resourceType string) {
+	if !isWorkflowResourceType(resourceType) {
+		h.writeError(w, r, http.StatusNotFound, issueTypeNotSupported,
+			"resource type "+resourceType+" is not served by this endpoint")
+		return
+	}
+	if r.Method != http.MethodPost {
+		h.writeUnsupported(w, r, "the $validate operation supports POST only")
+		return
+	}
+	if !h.requireFHIRWriteMedia(w, r) {
+		return
+	}
+	body, err := h.readBody(r)
+	if err != nil {
+		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body could not be read or exceeds the size limit")
+		return
+	}
+	resource, decErr := h.adapter.unmarshalResource(body)
+	if decErr != nil {
+		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body is not a valid FHIR resource")
+		return
+	}
+	if resource.ResourceType() != resourceType {
+		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeInvalid,
+			"resource type "+resource.ResourceType()+" does not match the "+resourceType+" endpoint")
+		return
+	}
+	issues := toOutcomeIssues(h.adapter.validate(resource))
+	if len(issues) == 0 {
+		issues = []outcomeIssue{{
+			Severity:    fhir.SeverityInformation,
+			Code:        issueTypeInformational,
+			Diagnostics: "validation succeeded: no issues found",
+		}}
+	}
+	h.logger.Info("fhir validate", zap.String("type", resourceType), zap.String("interaction", "$validate"))
+	h.writeOutcome(w, r, http.StatusOK, h.adapter.operationOutcome(issues))
 }
 
 // handleSearch serves a type-level search: it forwards the raw query parameters to the repository
@@ -296,6 +570,12 @@ func (h *fhirHandler) validateTransactionWrites(bundle fhir.Resource) (int, fhir
 		return http.StatusBadRequest, h.singleIssueOutcome(fhir.IssueTypeInvalid, sanitizeRepoMessage(err)), false
 	}
 	for _, wr := range writes {
+		// A POST entry carrying request.ifNoneExist is a conditional create; it fails closed exactly
+		// like the direct create's If-None-Exist header (see handleCreate) so the transaction path
+		// cannot silently create the duplicate the precondition was meant to prevent.
+		if wr.ifNoneExist != "" {
+			return http.StatusBadRequest, h.singleIssueOutcome(issueTypeNotSupported, conditionalCreateDiagnostics), false
+		}
 		// A transaction CREATE must target the type endpoint ("Patient"), never an instance URL
 		// ("Patient/123"). splitTypeID surfaces the id segment when the request.url carries one; a
 		// non-empty id is a malformed create that would otherwise be silently created against the type,

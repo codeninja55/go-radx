@@ -11,8 +11,7 @@
 This document declares the conformance scope of the operator-facing surface: the `radx` command groups, their flags
 and exit codes, and the behaviour of the DICOM, DICOMweb, MLLP, and FHIR servers when invoked through the CLI. The
 command reference is `docs/reference/cli.md` and the server design is `docs/reference/servers.md`; where this statement
-and the reference docs disagree on scope, this statement wins. The behaviour below is shipped, not planned; one
-subcommand remains a documented fail-closed stub, called out where it applies.
+and the reference docs disagree on scope, this statement wins. The behaviour below is shipped, not planned.
 
 ## Command surface
 
@@ -26,11 +25,10 @@ UIDs), `organize` (reorganise files by Study/Series/SOP UID), `lookup` (resolve 
 
 Every command fails closed and never reports a false success: a command that cannot perform its requested operation
 returns a typed error that classifies to a non-zero exit code and writes nothing to stdout, rather than no-opping and
-exiting 0 (the prototype defect the honest-failure rules — RADX-001/002 — exist to prevent). One subcommand is a
-deliberate, registered fail-closed stub today: `radx serve fhir` returns a typed not-implemented error (exit 1) because
-the CLI wiring for the FHIR server role is a separate increment. The FHIR server *role* itself ships in the `server`
-package (`server.NewFHIRRole`, mounted with `server.WithFHIR`); only its dedicated `serve fhir` subcommand is deferred.
-The DICOMweb serve daemon is wired (`radx serve dicomweb`), and the DIMSE SCP serves through `radx scp`.
+exiting 0 (the prototype defect the honest-failure rules — RADX-001/002 — exist to prevent). No registered stub
+remains: `radx serve fhir` is wired end to end over the FHIR server role (`server.NewFHIRRole` over the in-memory
+development repository), the DICOMweb serve daemon is wired (`radx serve dicomweb`), and the DIMSE SCP serves through
+`radx scp`. The honest-failure rule still binds any future committed-but-unbuilt subcommand.
 
 ## Embeddable server composition layer
 
@@ -90,17 +88,34 @@ never sent cross-origin, mirroring the DICOMweb client's auth seam. **SMART on F
 is supplied through the bearer/round-tripper seam, but the SMART authorization flow itself is not implemented.
 
 The **server role** (`server.NewFHIRRole`, mounted with `server.WithFHIR`) serves the conformance subset over a
-pluggable `server.Repository`: `read`, `create`, `search-type`, and `transaction` over the workflow resource set
-(`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`, `DiagnosticReport`, `Observation`), as
-`application/fhir+json`. It validates inbound resources with the release validator (a resource with error-severity
-issues is rejected `422`), returns a release `OperationOutcome` for every error (a `404` read miss, a `400` malformed
-body, a `405`/`501` deferred interaction — `update`/`delete`/`vread`/`history`/`patch` are answered with a `501`
-`OperationOutcome`, never a silent no-op), and serves a `CapabilityStatement` at `[base]/metadata` advertising the
-supported interactions. The release is fixed with `WithFHIRRelease` (default R5); to serve both releases from one
-process, mount two roles on different base paths (for example `/fhir/r4` and `/fhir/r5`). A default in-memory
-`server.MemoryRepository` makes the role runnable out of the box; a production deployment supplies its own `Repository`.
-The role plugs into the `Daemon` exactly like the others: it honours the loopback-default bind, and a non-loopback FHIR
-bind without an `Authenticator` fails closed with `ErrInsecureBind`.
+pluggable `server.Repository`: `read`, `vread`, `history-instance`, `create`, `search-type`, `transaction`, and the
+`$validate` operation over the workflow resource set (`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`,
+`DiagnosticReport`, `Observation`), as `application/fhir+json`. The repository versions every create
+(`meta.versionId`/`meta.lastUpdated`); read, vread, and create responses carry `ETag: W/"versionId"` and
+`Last-Modified`, a create's `Location` is the versioned `[base]/[type]/[id]/_history/[vid]` (FHIR R5
+`http.html#create`) and a transaction response entry carries the same versioned `response.location` plus
+`response.etag` (`http.html#transaction-response`), a vread of an unknown version is a `404` and of a deleted
+version a `410`, the history Bundle
+carries per-version `entry.request`/`entry.response` per FHIR R5 `http.html#history` and the resource's absolute
+`fullUrl` (`[base]/[type]/[id]`, identical for every version and present on a deleted version's resource-less entry,
+R5 `bundle.html`), history honours `_count` as a cap (at most the newest `_count` entries; `total` still reports the
+full version count; paging links over history are deferred), and a write's `If-Match`
+precondition is evaluated against the current version (`412` on a stale version, `http.html#concurrency`). It
+validates inbound resources with the release validator (a resource with error-severity issues is rejected `422`;
+`POST [type]/$validate` runs the same validator and returns the findings as an `OperationOutcome` without
+persisting), returns a release `OperationOutcome` for every error (a `404` read miss, a `400` malformed body, a
+`405`/`501` deferred interaction — `update`/`delete`/`patch` are answered with a `501` `OperationOutcome`, never a
+silent no-op), and serves a `CapabilityStatement` at `[base]/metadata` advertising exactly the supported
+interactions. A conditional create (FHIR R5 `http.html` conditional create) fails closed: a create carrying
+`If-None-Exist` — on the direct POST or as a transaction entry's `request.ifNoneExist` — is rejected `400` with a
+`not-supported` `OperationOutcome` and persists nothing, never silently ignored into a duplicate; the matching
+semantics are deferred to the search work. The version store is interaction-shaped (one record per version, newest first), so the deferred
+update/patch/delete and conditional writes extend it by appending versions rather than reshaping it. The release is
+fixed with `WithFHIRRelease` (default R5); to serve both releases from one process, mount two roles on different base
+paths (for example `/fhir/r4` and `/fhir/r5`). A default in-memory `server.MemoryRepository` makes the role runnable
+out of the box; a production deployment supplies its own `Repository`. The role plugs into the `Daemon` exactly like
+the others: it honours the loopback-default bind, and a non-loopback FHIR bind without an `Authenticator` fails
+closed with `ErrInsecureBind`.
 
 ## Structured logging and PHI policy
 
