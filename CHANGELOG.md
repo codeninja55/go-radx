@@ -24,7 +24,7 @@ legacy codebase (`legacy-main`) and are not continued here.
   query (`Find`/`FindValues`) and member loading; `FileSetBuilder` builds and writes a new file-set (DICOMDIR plus
   members under conformant generated File IDs) from Part 10 files or in-memory datasets. Hostile offset links
   (cycles, out-of-range, misaligned) and root-escaping Referenced File IDs fail closed with typed errors;
-  cross-validated both directions against dcmtk's `dcmmkdir`.
+  cross-validated both directions against dcmtk's `dcmmkdir` (#119).
 - Reference-library parity matrices under `docs/conformance/parity/` — six audited matrices comparing each
   subsystem against its reference's documented public surface (DICOM vs pydicom + pylibjpeg, DIMSE vs
   pynetdicom, HL7 v2 vs python-hl7 with a HAPI catalogue stretch, FHIR vs fhir.resources + HAPI REST,
