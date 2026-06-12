@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"context"
+	"errors"
 
 	"github.com/codeninja55/go-radx/dicom"
 	"github.com/codeninja55/go-radx/dimse/acse"
@@ -213,10 +214,12 @@ func serveMoveMessage(ctx context.Context, acc *acse.Acceptor, h MoveHandler, mo
 			}
 
 			switch {
-			case storeErr != nil && canceled && handlerCtx.Err() != nil:
-				// The store was interrupted by the C-CANCEL (its context was cancelled mid-flight),
-				// not refused by the destination: it is neither completed nor a destination failure,
-				// so it is left out of the counts the terminal Cancel reports.
+			case storeErr != nil && canceled && errors.Is(storeErr, context.Canceled):
+				// The store was interrupted by the C-CANCEL (it unwound from the context
+				// cancellation), not refused by the destination: it is neither completed nor a
+				// destination failure, so it is left out of the counts the terminal Cancel
+				// reports. A genuine wire fault that merely raced the cancel does not satisfy
+				// errors.Is(context.Canceled) and still counts as failed below.
 			case storeErr != nil:
 				// The sub-operation C-STORE faulted on the wire (the destination association broke);
 				// count it as a failed sub-operation and continue reporting progress.
