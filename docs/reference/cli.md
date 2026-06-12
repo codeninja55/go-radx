@@ -251,10 +251,12 @@ in `human`, a progress bar on stderr and a final tally.
 Three behaviours diverge deliberately from the prototype. First, transcoding is **off by default and is an explicit
 opt-in**: objects are sent as stored, matching `storescu`, and `--transcode-to` names the target transfer syntax rather
 than the prototype's silent default-on transcode to JPEG 2000 (RADX-011) — medical-image fidelity is not altered
-without an explicit instruction. Transcoding (the encode side) is available only in a build that includes the optional
-CGo codec tag and only for the syntaxes a codec exists for (RLE and JPEG 2000 lossless first, per `dicom.md` and
-`conformance/dicom.md`); a `--transcode-to` request against a syntax this build cannot encode is a usage error, not a
-silent passthrough. Decoding compressed input for storage is always available; only encode/transcode is gated.
+without an explicit instruction. The store transport encodes each dataset in the negotiated uncompressed transfer
+syntax, so the honourable targets are the four uncompressed syntaxes (decompress-before-send); an encapsulated or
+malformed `--transcode-to` target is a usage error, not a silent passthrough, and a compressed object sent without
+`--transcode-to` is a per-file failure naming the flag rather than a silent decompress. Decoding the compressed source
+needs a codec for its transfer syntax: RLE is always built in, the JPEG families need the optional CGo codec tags
+(per `conformance/dicom.md`); a missing decoder is a typed per-file failure.
 Second, any failed transfer makes the command exit non-zero; `--continue-on-error` changes only whether the batch stops,
 not the final status (RADX-003). Third, each worker owns its association lifecycle, so a reconnect replaces the worker's
 client cleanly rather than leaking the original (RADX-009). A study with files larger than the PDU is streamed in PDV

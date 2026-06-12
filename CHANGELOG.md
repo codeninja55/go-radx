@@ -12,6 +12,19 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- FHIR server versioning: a version store behind the repository seam, vread and history-instance with
+  correct entry request/response, absolute fullUrl, _count, ETag W/"versionId" + Last-Modified, If-Match
+  preconditions (412/404), versioned create Location on the direct and transaction paths, server-side
+  $validate, and a real `radx serve fhir` subcommand replacing the fail-closed stub. Conditional create
+  (If-None-Exist) fails closed with a 400 not-supported OperationOutcome on both paths, closing the
+  audit-flagged client-vs-own-server duplicate-create asymmetry (#120).
+- Compressed Part 10 IO: `dicom.Read`/`ReadFile`/`DecodeDataSet` accept the recognised encapsulated
+  transfer syntaxes, retaining the pixel stream verbatim (aggregate-capped, structurally validated) for
+  byte-identical re-write; `File.SetPixelData` closes the dataset-level transcode loop, reconciling
+  PlanarConfiguration, PhotometricInterpretation, NumberOfFrames, and lossy-compression bookkeeping with
+  the decoded bytes; `radx store --transcode-to` decompress-on-send works, and `radx dump`/`radx modify`
+  read compressed objects (#121).
+
 - Comparative benchmark harness `tools/bench-compare` (PRD §11.3): a uv-pinned Python environment (pydicom
   3.0.2 + pylibjpeg plugins, pynetdicom 3.0.4, python-hl7 0.4.5, fhir.resources 8.2.0) benchmarked against
   go-radx over the same vendored fixtures - DICOM decode and per-TS pixel codecs (user-facing path on both

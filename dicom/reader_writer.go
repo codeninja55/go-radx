@@ -119,23 +119,43 @@ func Write(w io.Writer, f *File, opts ...WriteOption) error {
 	return err
 }
 
+// supportedEncapsulated reports whether ts is an encapsulated syntax whose Part 10
+// layout go-radx reads and writes: the main dataset is Explicit VR Little Endian
+// and (7FE0,0010) is an undefined-length fragment stream (PS3.5 A.4). Pixel decode
+// stays a separate, codec-gated concern (Frames returns ErrCodecUnavailable when no
+// codec is built in). An unknown or private syntax is NOT in this set: its dataset
+// encoding cannot be assumed, so reads and writes of it stay rejected.
+func supportedEncapsulated(ts TransferSyntax) bool {
+	switch ts {
+	case RLELossless,
+		JPEGBaseline8Bit, JPEGExtended12Bit, JPEGLossless, JPEGLosslessSV1,
+		JPEGLSLossless, JPEGLSNearLossless,
+		JPEG2000Lossless, JPEG2000,
+		HTJ2KLossless, HTJ2KLosslessRPCL, HTJ2K:
+		return true
+	default:
+		return false
+	}
+}
+
 // checkReadableTransferSyntax rejects a syntax whose main dataset go-radx cannot
-// decode. v1 reads the four uncompressed syntaxes; the pixel data of an
-// encapsulated syntax is handled by the pixel pipeline, not the dataset reader, so
-// an encapsulated syntax has no readable main-dataset encoding here.
+// decode: the four uncompressed syntaxes and the recognised encapsulated syntaxes
+// are readable; an unrecognised syntax has no assumable main-dataset encoding.
 func checkReadableTransferSyntax(ts TransferSyntax) error {
 	if ts == "" {
 		return fmt.Errorf("dicom: empty transfer syntax")
 	}
-	if ts.IsEncapsulated() {
-		return fmt.Errorf("dicom: transfer syntax %s (%s) is encapsulated; v1 reads only the four uncompressed syntaxes",
+	if ts.IsEncapsulated() && !supportedEncapsulated(ts) {
+		return fmt.Errorf("dicom: transfer syntax %s (%s) is not readable; the dataset encoding of an unrecognised syntax cannot be assumed",
 			ts.Name(), string(ts))
 	}
 	return nil
 }
 
 // checkWritableTransferSyntax rejects any syntax other than the four uncompressed
-// ones; the main dataset is never written compressed (Codex DCM-002).
+// ones and the recognised encapsulated syntaxes. Under an encapsulated syntax the
+// main dataset is still written Explicit VR LE; only the retained (7FE0,0010)
+// fragment stream is compressed (PS3.5 A.4).
 func checkWritableTransferSyntax(ts TransferSyntax) error {
 	switch ts {
 	case ImplicitVRLittleEndian, ExplicitVRLittleEndian,
@@ -144,7 +164,10 @@ func checkWritableTransferSyntax(ts TransferSyntax) error {
 	case "":
 		return fmt.Errorf("dicom: cannot write with an empty transfer syntax")
 	default:
-		return fmt.Errorf("dicom: transfer syntax %s (%s) is not writable; v1 writes only the four uncompressed syntaxes",
+		if supportedEncapsulated(ts) {
+			return nil
+		}
+		return fmt.Errorf("dicom: transfer syntax %s (%s) is not writable; the dataset encoding of an unrecognised syntax cannot be assumed",
 			ts.Name(), string(ts))
 	}
 }

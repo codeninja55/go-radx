@@ -13,13 +13,13 @@ NOT-MET (absent), N-A (no sensible Go equivalent). Sizes: S (under 1 day), M (1-
 
 | Subsystem | Reference(s) | Matrix | Rows | MET | PARTIAL | NOT-MET | N-A |
 |---|---|---|---|---|---|---|---|
-| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 50 | 8 | 24 | 6 |
+| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 53 | 7 | 22 | 6 |
 | DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 59 | 9 | 24 | 1 |
 | HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 29 | 24 | 4 | 0 | 1 |
 | FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 46 | 7 | 40 | 5 |
 | DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 38 | 8 | 27 | 2 |
 | radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 7 | 11 | 10 | 0 |
-| Total | | | 411 | 224 | 47 | 125 | 15 |
+| Total | | | 411 | 227 | 46 | 123 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in
@@ -30,9 +30,9 @@ The HL7 matrix additionally carries a clearly-labelled stretch section against t
 The python-hl7 floor is effectively met (zero NOT-MET). The DIMSE association plane and DIMSE-C services are
 at full pynetdicom parity; gaps concentrate in DIMSE-N SCP sides and UPS. FHIR models and the REST client are
 near parity; roughly two thirds of FHIR gaps sit in the server role's write side. The DICOM data layer's
-headline finding is that `dicom.Read` rejects every encapsulated transfer syntax, so compressed Part 10
-metadata is unreachable through the public API - a floor violation that also gates `radx dump`, `radx modify`
-and `radx store` on compressed files.
+former headline finding - `dicom.Read` rejecting every encapsulated transfer syntax - is resolved: compressed
+Part 10 files read with the dataset retained, write back byte-identically, and transcode at the dataset level,
+which also unblocked `radx dump`, `radx modify` and `radx store --transcode-to` on compressed files.
 
 ## Wave plan
 

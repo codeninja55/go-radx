@@ -29,10 +29,15 @@ In scope for v1, seeded from the `pydicom` parity floor (`docs/prd/go-radx-prd.m
 - Part 10 read and write: the 128-byte preamble, the `DICM` prefix, `FileMeta` (Explicit VR Little Endian) with an
   auto-recomputed group length, and the main dataset.
 - The four uncompressed transfer syntaxes, read and write: Implicit VR LE, Explicit VR LE, Explicit VR BE (retired),
-  and Deflated Explicit VR LE.
+  and Deflated Explicit VR LE. The recognised encapsulated transfer syntaxes (RLE, the JPEG families, JPEG 2000,
+  HTJ2K) also read and write: the main dataset parses in full and the `(7FE0,0010)` fragment stream is retained
+  verbatim on the dataset and re-emitted byte-identically, with no decode on the read path.
 - The pixel pipeline: native (contiguous `OB`/`OW`), RLE, and encapsulated fragmented frames; decoding for every
-  supported compressed transfer syntax and transcoding/encoding where a codec exists, behind the optional-CGo build
-  tag (RLE and JPEG 2000 lossless first), with transcoding off by default.
+  supported compressed transfer syntax and transcoding/encoding where a codec exists (RLE in pure Go, the JPEG
+  families behind the optional-CGo build tags), with transcoding off by default. `File.SetPixelData` puts a
+  `Transcode` result back on the dataset so decode -> re-encode -> write works end to end, reconciling the Image
+  Pixel attributes (planar configuration, photometric interpretation, frame count) and the PS3.3 C.7.6.1.1.5 lossy
+  bookkeeping with the bytes it writes.
 - The DICOM Structured Report content-item model: `ContentItem`, `ConceptNameCode`, the SR value-type and
   relationship-type vocabularies, and SR document read and build. This is the data layer the `convert` SR-to-FHIR leg
   reads (PRD §5.1 step 6); the supported SR SOP classes are declared in `docs/conformance/dicom.md`.
@@ -730,9 +735,11 @@ never wrote the group length at all (Codex DCM-001), producing files that strict
 ## Transfer syntaxes
 
 `TransferSyntax` is the UID-identified encoding: byte order, implicit-versus-explicit VR, and compression. It is the
-single `dicom.TransferSyntax` type reused by `dimse` and `dicomweb` (glossary). v1 reads and writes the four
-uncompressed transfer syntaxes; compressed syntaxes are recognised for transport and pixel decoding but the main dataset
-is never written in a compressed syntax (compression applies only to the pixel-data element).
+single `dicom.TransferSyntax` type reused by `dimse` and `dicomweb` (glossary). The reader and writer handle the four
+uncompressed transfer syntaxes and the recognised encapsulated syntaxes: under an encapsulated syntax the main dataset
+is still encoded Explicit VR LE (PS3.5 A.4) and only the pixel-data element carries compressed fragments, which the
+reader retains verbatim. An unrecognised or private transfer syntax is rejected fail-closed, because its dataset
+encoding cannot be assumed.
 
 ```go
 type TransferSyntax UID
@@ -1061,6 +1068,8 @@ implement all of DICOM. For the `dicom` package, v1 conformance is:
 
 - **Encoding.** Read and write the four uncompressed transfer syntaxes: Implicit VR LE, Explicit VR LE, Explicit VR BE
   (retired), and Deflated Explicit VR LE. Defined- and undefined-length sequences and items round-trip without loss.
+  Read and write the recognised encapsulated transfer syntaxes, retaining the `(7FE0,0010)` fragment stream verbatim
+  so a compressed file round-trips byte-identically; unrecognised transfer syntaxes are rejected.
 - **Value representations.** The 34 standard VRs plus the 4 ambiguous parse-time placeholders, with VR-correct padding
   and length, including the 64-bit `OD`/`OL`/`OV`/`SV`/`UV` and the `UC`/`UR` string VRs.
 - **Part 10.** 128-byte preamble, `DICM` prefix, Explicit-VR-LE file-meta with an auto-recomputed group length, and

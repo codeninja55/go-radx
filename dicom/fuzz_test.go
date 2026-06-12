@@ -36,12 +36,11 @@ func seedPart10(ts TransferSyntax) []byte {
 
 // seedEncapsulatedPart10 returns a minimal Part 10 stream whose pixel data is an
 // encapsulated fragment stream (empty Basic Offset Table, one fragment, Sequence
-// Delimitation Item) under ts, an encapsulated transfer syntax. Write only emits the
-// four uncompressed syntaxes, so the file-meta group is built through the library's own
-// writeFileMeta (so the seed's group-0002 matches a Write-produced object), and the
-// geometry elements pixel resolution needs plus the undefined-length (7FE0,0010) header
-// are appended so the seed reaches ReadPixelDataFrom's encapsulated fragment-parsing
-// path.
+// Delimitation Item) under ts, an encapsulated transfer syntax. The file-meta group is
+// built through the library's own writeFileMeta (so the seed's group-0002 matches a
+// Write-produced object), and the geometry elements pixel resolution needs plus the
+// undefined-length (7FE0,0010) header are appended so the seed reaches the
+// fragment-stream capture path shared by Read and ReadPixelDataFrom.
 func seedEncapsulatedPart10(ts TransferSyntax) []byte {
 	meta := &FileMeta{
 		MediaStorageSOPClassUID:    "1.2.840.10008.5.1.4.1.1.7",
@@ -136,7 +135,12 @@ func FuzzRead(f *testing.F) {
 	f.Add(seedPart10(ImplicitVRLittleEndian))
 	f.Add(seedPart10(ExplicitVRBigEndian))
 	f.Add(seedPart10(DeflatedExplicitVRLittleEndian))
-	f.Add(seedDeflateBomb())                    // tiny DEFLATE stream that inflates into a long run
+	f.Add(seedDeflateBomb()) // tiny DEFLATE stream that inflates into a long run
+	// Read now retains encapsulated pixel data, so the fragment-stream capture path is
+	// reachable from FuzzRead; seed it with the encapsulated layouts it must survive.
+	f.Add(seedEncapsulatedPart10(RLELossless))
+	f.Add(seedEncapsulatedPart10(JPEGBaseline8Bit))
+	f.Add(seedEncapsulatedPart10(JPEG2000Lossless))
 	f.Add([]byte{})                             // empty stream: short preamble
 	f.Add(append(make([]byte, 128), "DICM"...)) // preamble + magic, no file-meta group
 	f.Add([]byte("DICM"))                       // magic without the 128-byte preamble

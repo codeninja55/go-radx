@@ -73,11 +73,11 @@ func TestEncodeDataSetNilReturnsError(t *testing.T) {
 	}
 }
 
-// TestDecodeDataSetRejectsEncapsulatedSyntax confirms the codec rejects an encapsulated syntax: v1
-// reads only the four uncompressed syntaxes as a bare element stream (the pixel pipeline handles
-// encapsulated pixel data separately).
-func TestDecodeDataSetRejectsEncapsulatedSyntax(t *testing.T) {
-	if _, err := DecodeDataSet(bytes.NewReader(nil), TransferSyntax("1.2.840.10008.1.2.4.90")); err == nil {
-		t.Error("DecodeDataSet should reject an encapsulated transfer syntax")
+// TestDecodeDataSetRejectsUnrecognisedSyntax confirms the codec rejects a transfer
+// syntax it does not recognise: the element encoding of an unknown or private
+// syntax cannot be assumed, so the decode fails closed.
+func TestDecodeDataSetRejectsUnrecognisedSyntax(t *testing.T) {
+	if _, err := DecodeDataSet(bytes.NewReader(nil), TransferSyntax("1.2.840.113619.5.2")); err == nil {
+		t.Error("DecodeDataSet should reject an unrecognised transfer syntax")
 	}
 }
