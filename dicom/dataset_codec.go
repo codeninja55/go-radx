@@ -42,12 +42,23 @@ func readDataSet(br *boundedReader, ts TransferSyntax, cfg readConfig) (*DataSet
 			// Encapsulated pixel data: retain the verbatim fragment stream on the
 			// dataset, byte-for-byte and undecoded, so metadata of a compressed file is
 			// reachable and a round-trip re-emits an identical pixel stream. Decoding
-			// stays in the PixelData/Frames pipeline (Codex DCM-006).
-			stream, err := readEncapsulatedValue(br, ts)
-			if err != nil {
-				return nil, err
+			// stays in the PixelData/Frames pipeline (Codex DCM-006). Under
+			// WithDeferredValues only the stream's validated byte window is recorded;
+			// the delimited length is unknown until scanned, so the threshold does not
+			// apply (see the option's doc).
+			if cfg.deferralEnabled() {
+				dv, err := deferEncapsulatedValue(br, ts, cfg)
+				if err != nil {
+					return nil, err
+				}
+				v = dv
+			} else {
+				stream, err := readEncapsulatedValue(br, ts)
+				if err != nil {
+					return nil, err
+				}
+				v = &encapsulatedValue{stream: stream}
 			}
-			v = &encapsulatedValue{stream: stream}
 		} else if h.vr == VRSQ || h.length == undefinedLength {
 			// An SQ (by VR) or any other undefined-length value is a sequence delimited
 			// by a Sequence Delimitation Item, parsed structurally into nested datasets
@@ -58,6 +69,12 @@ func readDataSet(br *boundedReader, ts TransferSyntax, cfg readConfig) (*DataSet
 			}
 			v = &sequenceValue{seq: seq}
 			h.vr = VRSQ
+		} else if cfg.shouldDefer(h) {
+			dv, err := deferElementValue(br, h, ts, cfg)
+			if err != nil {
+				return nil, err
+			}
+			v = dv
 		} else {
 			v, err = decodeValue(br, h, encodingFor(ts), cfg.activeCharset)
 			if err != nil {
@@ -95,6 +112,17 @@ func writeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error {
 	for e := range ds.All() {
 		if e.Value == nil {
 			return &ValueError{Tag: e.Tag, VR: e.VR, Msg: "element has no value"}
+		}
+
+		if dv, ok := e.Value.(*DeferredValue); ok {
+			// A still-deferred value is loaded before encoding so the emitted header
+			// length always agrees with the bytes that follow it; a load failure fails
+			// the write with the typed error, never a wrong length.
+			loaded, err := dv.Load()
+			if err != nil {
+				return err
+			}
+			e.Value = loaded
 		}
 
 		if sv, ok := e.Value.(*sequenceValue); ok {

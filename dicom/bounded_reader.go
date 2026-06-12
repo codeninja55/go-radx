@@ -99,6 +99,30 @@ func (br *boundedReader) readN(n uint32) ([]byte, error) {
 	return buf, nil
 }
 
+// discardN skips exactly n bytes after the same bounds checks readN applies,
+// without retaining them: the deferred-read path records a value's byte window and
+// skips it, so memory stays bounded by the copy buffer rather than the value
+// length. A short skip is io.ErrUnexpectedEOF, never a truncated success (Codex
+// DCM-003, DCM-004). tag is included in a limit error for diagnostics (0 if
+// unknown).
+func (br *boundedReader) discardN(n uint32, tag Tag) error {
+	if err := br.checkLen(n, tag); err != nil {
+		return err
+	}
+	if n == 0 {
+		return nil
+	}
+	got, err := io.CopyN(io.Discard, br.r, int64(n))
+	br.pos += got
+	if err != nil {
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			return io.ErrUnexpectedEOF
+		}
+		return err
+	}
+	return nil
+}
+
 // readExact reads exactly n bytes that are NOT subject to the element cap (used for
 // fixed-size headers like the preamble and element headers). A short read is
 // io.ErrUnexpectedEOF; a zero-byte read at the very start returns io.EOF so a clean

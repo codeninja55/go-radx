@@ -41,8 +41,17 @@ func NewPixelData(ds *DataSet, ts TransferSyntax) (*PixelData, error) {
 		return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "dataset has no Pixel Data element"}
 	}
 
+	val := e.Value
+	if dv, isDeferred := val.(*DeferredValue); isDeferred {
+		loaded, err := dv.Load()
+		if err != nil {
+			return nil, err
+		}
+		val = loaded
+	}
+
 	if ts.IsEncapsulated() {
-		ev, ok := e.Value.(*encapsulatedValue)
+		ev, ok := val.(*encapsulatedValue)
 		if !ok {
 			return nil, &ValueError{
 				Tag: TagPixelData, VR: e.VR,
@@ -56,7 +65,7 @@ func NewPixelData(ds *DataSet, ts TransferSyntax) (*PixelData, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, ok := e.Value.(*Bytes)
+	b, ok := val.(*Bytes)
 	if !ok {
 		return nil, &ValueError{Tag: TagPixelData, VR: e.VR, Msg: "native Pixel Data is not an OB/OW byte value"}
 	}

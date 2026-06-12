@@ -150,7 +150,15 @@ func (w *deidWalk) applyAction(ds *DataSet, e Element, action deidAction) {
 // repeated source UID always maps to the same replacement, preserving the reference
 // graph (Codex DCM-013: referential integrity after remap).
 func (w *deidWalk) applyUID(ds *DataSet, e Element) {
-	sv, ok := e.Value.(*Strings)
+	v, ok := materialise(e.Value)
+	if !ok {
+		// A deferred UID whose source can no longer be read cannot be remapped;
+		// leaving the original would leak the identifying reference graph, so the
+		// element is removed (fail-closed, same direction as the R action).
+		ds.Delete(e.Tag)
+		return
+	}
+	sv, ok := v.(*Strings)
 	if !ok {
 		// A UID-action attribute that is not a string value is left as-is; the table
 		// only lists UI-VR attributes for U, so this is unreachable for valid input.
@@ -185,7 +193,15 @@ func (w *deidWalk) applyDate(ds *DataSet, e Element) {
 	if w.profile.options.temporalMode == DateModeKeep {
 		return
 	}
-	sv, ok := e.Value.(*Strings)
+	v, ok := materialise(e.Value)
+	if !ok {
+		// A deferred date whose source can no longer be read cannot be shifted;
+		// keeping the original would retain identifying temporal data, so the
+		// element is removed (fail-closed).
+		ds.Delete(e.Tag)
+		return
+	}
+	sv, ok := v.(*Strings)
 	if !ok {
 		return
 	}
