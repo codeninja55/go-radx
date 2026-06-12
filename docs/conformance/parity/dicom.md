@@ -16,25 +16,23 @@ Row counts across all tables:
 
 | Status | Count |
 |--------|-------|
-| MET | 54 |
+| MET | 55 |
 | PARTIAL | 8 |
-| NOT-MET | 20 |
+| NOT-MET | 19 |
 | N-A | 6 |
 | Total | 88 |
 
 Top NOT-MET/PARTIAL items by impact:
 
-1. **Deferred/partial reads of large elements (NOT-MET, M).** PRD section 6.2's `defer_size`-equivalent lazy
-   loading is confirmed absent; `Read` materialises every value (the closest knob is `WithStopAtPixelData`).
-2. **VOI/modality LUT and windowing (NOT-MET, M).** No `apply_voi_lut`/`apply_modality_lut` equivalents.
-3. **Palette colour and colour-space conversion utilities (NOT-MET, M each).** Decoders preserve the colour
+1. **VOI/modality LUT and windowing (NOT-MET, M).** No `apply_voi_lut`/`apply_modality_lut` equivalents.
+2. **Palette colour and colour-space conversion utilities (NOT-MET, M each).** Decoders preserve the colour
    model correctly, but no `convert_color_space` or palette-expansion helpers exist.
-4. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
+3. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
    but there is no `private_block`/`get_private_item` equivalent and no private-creator dictionary.
-5. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
+4. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
    the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family, UTF-8, GB18030, and GBK,
    but not ISO 2022 IR 149, ISO 2022 IR 58, ISO_IR 166, or bare ISO_IR 13.
-6. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
+5. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
 
 Where go-radx exceeds pydicom: a full PS3.15 Table E.1-1 de-identification engine (pydicom core ships only
 `remove_private_tags` and guidance), typed fail-closed errors, bounded hostile-input reading with fuzz targets
@@ -51,7 +49,7 @@ baselines.
 | Write compressed Part 10 (encapsulated pixel data) | `dcmwrite` with compressed TS | MET | dicom/dataset_codec.go:writeEncapsulatedElement; encapsulated_io_test.go TestEncapsulatedFixtureMainDataSetByteIdentical | - | Undefined-length element with Basic Offset Table (PS3.5 A.4); byte-identical round-trip on the compressed fixtures |
 | Deflated Explicit VR LE read/write | Deflated TS support | MET | dicom/reader_writer.go:44-52,107-116; dicom/deflate_bomb_test.go | - | Inflate cap defends against decompression bombs (`WithMaxInflatedBytes`) |
 | Stop before pixel data | `stop_before_pixels` | MET | dicom/file.go:98 WithStopAtPixelData; dicom/dataset_codec_test.go:114 | - | |
-| Deferred loading of large elements | `defer_size` | NOT-MET | verified absent; dicom/dataset_codec.go:17 materialises all values | M | PRD section 6.2 item, confirmed unimplemented |
+| Deferred loading of large elements | `defer_size` | MET | dicom/file.go WithDeferredValues; dicom/deferred.go DeferredValue.Load; deferred_test.go TestReadFileDefersLargeValues, TestDeferredRoundTripByteIdentical; deferred_hostile_test.go | - | ReadFile-only (the path is re-opened on demand); Read/DecodeDataSet and deflated TS reject the option fail-closed; loads re-validate the recorded window (typed *DeferredLoadError) |
 | Selective-tag read | `specific_tags` | NOT-MET | no equivalent option in dicom/file.go readConfig | S | |
 | Read without preamble / missing file meta | `force=True` | PARTIAL | dicom/dataset_stream.go:43 DecodeDataSet(r, ts) | S | Bare datasets readable when the caller supplies the TS; no preamble-less sniffing |
 | Bare dataset stream encode/decode | `read_dataset` internals | MET | dicom/dataset_stream.go:17 EncodeDataSet, :43 DecodeDataSet; dataset_stream_test.go | - | |
