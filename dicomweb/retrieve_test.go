@@ -953,3 +953,79 @@ func TestBulkDataURIReturnsExactlyTheReferencedAttribute(t *testing.T) {
 		}
 	}
 }
+
+// metadataOnlyBackend implements the base RetrieveBackend and MetadataRetriever but NOT
+// BulkDataRetriever, so the per-attribute locator regression can prove the URIs metadata emits
+// are resolvable without the optional return-all interface.
+type metadataOnlyBackend struct {
+	ds *dicom.DataSet
+}
+
+func (b metadataOnlyBackend) RetrieveInstance(_ context.Context, p ResourcePath) (*dicom.DataSet, error) {
+	if uid, _ := b.ds.GetString(dicom.TagSOPInstanceUID); uid != string(p.Instance) {
+		return nil, ErrNotFound
+	}
+	return b.ds, nil
+}
+
+func (b metadataOnlyBackend) RetrieveMetadata(_ context.Context, p ResourcePath) ([]RetrievedInstance, error) {
+	if _, err := b.RetrieveInstance(context.Background(), p); err != nil {
+		return nil, err
+	}
+	return []RetrievedInstance{{DataSet: b.ds}}, nil
+}
+
+// TestBulkDataLocatorServedWithoutBulkDataRetriever asserts a locator-suffixed bulkdata target
+// needs only the base RetrieveBackend: a backend implementing MetadataRetriever but not
+// BulkDataRetriever still serves the per-attribute URIs its own metadata emits (200 with the
+// referenced octets), while the bare return-all ".../bulkdata" stays gated on BulkDataRetriever
+// and answers 501.
+func TestBulkDataLocatorServedWithoutBulkDataRetriever(t *testing.T) {
+	const sop = "1.2.3.4.5"
+	pixels := bytes.Repeat([]byte{0xAB}, 64)
+	ds := sampleInstance("1.2.3", "1.2.3.4", sop)
+	ds.Set(dicom.Element{Tag: dicom.TagPixelData, VR: dicom.VROB, Value: dicom.NewBytes(dicom.VROB, pixels)})
+
+	srv, err := NewServer(WithRetrieveBackend(metadataOnlyBackend{ds: ds}))
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+	c, err := NewClient(hs.URL, WithHTTPClient(hs.Client()))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	metas, err := c.RetrieveMetadata(context.Background(), NewInstance("1.2.3", "1.2.3.4", sop))
+	if err != nil {
+		t.Fatalf("RetrieveMetadata: %v", err)
+	}
+	uris := BulkDataURIs(metas[0])
+	if len(uris) != 1 {
+		t.Fatalf("metadata carried %d BulkDataURIs, want 1 (the pixel data): %v", len(uris), uris)
+	}
+	got, err := c.ResolveBulkDataURI(context.Background(), uris[0])
+	if err != nil {
+		t.Fatalf("ResolveBulkDataURI without BulkDataRetriever: %v", err)
+	}
+	if !bytes.Equal(got, pixels) {
+		t.Errorf("locator URI resolved %d bytes, want the %d referenced pixel bytes", len(got), len(pixels))
+	}
+
+	// The bare return-all sub-resource still requires the optional BulkDataRetriever.
+	req, err := http.NewRequest(http.MethodGet,
+		hs.URL+"/studies/1.2.3/series/1.2.3.4/instances/"+sop+"/bulkdata", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Accept", `multipart/related; type="application/octet-stream"`)
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("GET bare bulkdata: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusNotImplemented {
+		t.Errorf("bare bulkdata without BulkDataRetriever status = %d, want 501", resp.StatusCode)
+	}
+}

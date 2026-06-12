@@ -90,7 +90,10 @@ type FrameRetriever interface {
 }
 
 // BulkDataRetriever is the optional WADO-RS bulkdata backend. It returns every bulk-data
-// value of the instance as ordered octet-stream payloads.
+// value of the instance as ordered octet-stream payloads and backs only the BARE
+// ".../bulkdata" return-all target; a locator-suffixed bulk-data reference (the form the
+// metadata response emits) is resolved by the server itself through the base
+// RetrieveBackend's RetrieveInstance, so those URIs never require this interface.
 type BulkDataRetriever interface {
 	RetrieveBulkData(ctx context.Context, p ResourcePath) ([]BulkDataObject, error)
 }
@@ -326,17 +329,17 @@ func (s *Server) handleRetrieveFrames(w http.ResponseWriter, r *http.Request, p 
 }
 
 // handleRetrieveBulkData answers a WADO-RS bulkdata GET with a multipart/related body of
-// application/octet-stream parts. A bare ".../bulkdata" target returns every bulk-data value
-// of the instance through the BulkDataRetriever; a ".../bulkdata/{locator}" target — the form
-// the metadata response's BulkDataURI references carry — returns exactly the one attribute
-// value the locator names, resolved against the instance dataset with the same locator scheme
-// the JSON codec emits (a top-level tag, or a tag/item-index/... path into nested sequences).
-// A locator that names no binary attribute of the instance answers 404. A backend that does
-// not implement BulkDataRetriever answers 501.
+// application/octet-stream parts. A ".../bulkdata/{locator}" target — the form the metadata
+// response's BulkDataURI references carry — returns exactly the one attribute value the
+// locator names, resolved against the instance dataset with the same locator scheme the JSON
+// codec emits (a top-level tag, or a tag/item-index/... path into nested sequences); it needs
+// only the base RetrieveBackend, so the URIs metadata emits are always resolvable when
+// retrieval is mounted at all. A locator that names no binary attribute of the instance
+// answers 404. The bare ".../bulkdata" target returns every bulk-data value of the instance
+// and is the only form gated on the optional BulkDataRetriever (501 when unimplemented).
 func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, p ResourcePath, locator []string) {
-	br, ok := s.retrieve.(BulkDataRetriever)
-	if !ok {
-		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS bulkdata retrieval is not implemented")
+	if s.retrieve == nil {
+		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS retrieval is not implemented")
 		return
 	}
 	// Bulk-data octets carry no transfer syntax of their own, so a concrete transfer-syntax
@@ -352,6 +355,11 @@ func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, 
 	}
 	if len(locator) > 0 {
 		s.handleRetrieveBulkDataValue(w, r, p, locator)
+		return
+	}
+	br, ok := s.retrieve.(BulkDataRetriever)
+	if !ok {
+		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS bulkdata retrieval is not implemented")
 		return
 	}
 	objs, err := br.RetrieveBulkData(r.Context(), p)
