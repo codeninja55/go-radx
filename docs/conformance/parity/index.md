@@ -13,13 +13,13 @@ NOT-MET (absent), N-A (no sensible Go equivalent). Sizes: S (under 1 day), M (1-
 
 | Subsystem | Reference(s) | Matrix | Rows | MET | PARTIAL | NOT-MET | N-A |
 |---|---|---|---|---|---|---|---|
-| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 53 | 7 | 22 | 6 |
-| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 59 | 9 | 24 | 1 |
+| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 54 | 8 | 20 | 6 |
+| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 60 | 9 | 23 | 1 |
 | HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 29 | 24 | 4 | 0 | 1 |
-| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 46 | 7 | 40 | 5 |
-| DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 38 | 8 | 27 | 2 |
-| radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 7 | 11 | 10 | 0 |
-| Total | | | 411 | 227 | 46 | 123 | 15 |
+| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 50 | 8 | 35 | 5 |
+| DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 42 | 4 | 27 | 2 |
+| radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 8 | 10 | 10 | 0 |
+| Total | | | 411 | 238 | 43 | 115 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in

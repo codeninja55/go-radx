@@ -18,7 +18,7 @@ Row counts across all tables:
 |--------|-------|
 | MET | 54 |
 | PARTIAL | 8 |
-| NOT-MET | 22 |
+| NOT-MET | 20 |
 | N-A | 6 |
 | Total | 88 |
 
