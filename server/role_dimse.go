@@ -126,6 +126,7 @@ func (r *DIMSERole) start(ctx context.Context, host string, env roleEnv) error {
 		cat:      r.cat,
 		worklist: r.cfg.worklist,
 		logger:   env.logger,
+		audit:    env.audit,
 	}
 
 	var srvOpts []dimse.ServerOption
@@ -188,6 +189,7 @@ type dimseHandler struct {
 	cat      Catalogue
 	worklist WorklistSource
 	logger   *zap.Logger
+	audit    AuditFunc
 }
 
 // Echo answers a C-ECHO with success unless the SCP is degraded.
@@ -217,6 +219,9 @@ func (h *dimseHandler) Store(ctx context.Context, ds *dicom.DataSet, info dimse.
 		// so the peer is not told the catalogue is consistent when it is not (PRD §9.2 fail-closed).
 		h.logger.Warn("c-store catalogue index failed", zap.String("sop_class", string(info.SOPClassUID)))
 		return dimse.StatusStoreElementDiscarded
+	}
+	if h.audit != nil {
+		h.audit(dicomAuditEvent(AuditOpDIMSEStore, ds))
 	}
 	return dimse.StatusStoreSuccess
 }

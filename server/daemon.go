@@ -50,14 +50,16 @@ type role interface {
 }
 
 // roleEnv carries the shared cross-cutting wiring the daemon hands every role at start: the logger,
-// the tracer and meter providers, the TLS config, and the resolved authenticator. A role reads only
-// what it needs (a DIMSE role ignores the HTTP authenticator path). None of these ever carries PHI.
+// the tracer and meter providers, the TLS config, the resolved authenticator, and the audit hook. A
+// role reads only what it needs (a DIMSE role ignores the HTTP authenticator path). None of these
+// ever carries PHI.
 type roleEnv struct {
 	logger    *zap.Logger
 	tracer    trace.TracerProvider
 	meter     metric.MeterProvider
 	tlsConfig *tls.Config
 	auth      Authenticator
+	audit     AuditFunc
 }
 
 // config holds the resolved Daemon options. There is no global mutable state (PRD §9.4); every knob
@@ -72,6 +74,7 @@ type config struct {
 	shutdown  time.Duration
 	auth      Authenticator
 	authSet   bool
+	audit     AuditFunc
 	roles     []role
 }
 
@@ -266,6 +269,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		meter:     d.cfg.meter,
 		tlsConfig: d.cfg.tlsConfig,
 		auth:      d.cfg.auth,
+		audit:     d.cfg.audit,
 	}
 
 	started := make([]role, 0, len(d.cfg.roles))

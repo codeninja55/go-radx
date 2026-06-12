@@ -3,6 +3,7 @@ package dicom
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 // ErrBurnedInPixelData reports that a dataset declares burned-in identifying pixel
@@ -35,6 +36,9 @@ const codingSchemeDCM = "DCM"
 type Profile struct {
 	gen     *UIDGenerator
 	options profileOptions
+	// audit is the optional data-modification hook (WithAudit); nil means no events
+	// and no recording cost beyond a nil comparison.
+	audit AuditFunc
 	// dummies overrides the default replacement value for a D-action attribute.
 	dummies map[Tag]string
 	// safePrivateCreators is the allow-list of private creators preserved when
@@ -172,6 +176,9 @@ func (p *Profile) Deidentify(ds *DataSet) (*DataSet, error) {
 	}
 	w.walk(out)
 	p.setMetadata(out)
+	if p.audit != nil {
+		p.audit(AuditEvent{Op: AuditOpDeidentify, Time: time.Now().UTC(), Changes: w.changes})
+	}
 	return out, nil
 }
 

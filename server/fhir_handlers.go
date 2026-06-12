@@ -335,6 +335,18 @@ func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resou
 		h.writeRepoError(w, r, cerr)
 		return
 	}
+	if h.audit != nil {
+		// Structural identifiers only: the resource type plus the id and version the server minted
+		// itself (Create always assigns the id), never a value from the resource body (PRD §9.5).
+		versionID, _ := resourceVersionViaJSON(created)
+		h.audit(AuditEvent{
+			Op:           AuditOpFHIRCreate,
+			Time:         time.Now().UTC(),
+			ResourceType: created.ResourceType(),
+			ResourceID:   h.adapter.resourceID(created),
+			VersionID:    versionID,
+		})
+	}
 	h.logger.Info("fhir create", zap.String("type", resourceType), zap.String("interaction", "create"))
 	h.setVersionHeaders(w, created)
 	h.writeResource(w, r, http.StatusCreated, created, h.createdLocation(created))
