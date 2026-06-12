@@ -891,8 +891,10 @@ func WithAllowBurnedInPixelData() ProfileOption
 
 // WithAudit registers the optional data-modification audit hook (PRD §9.5): each
 // successful Deidentify emits one AuditEvent listing the (tag, action) changes it
-// applied — structural facts only, never attribute values. Default: no hook; the
-// disabled cost is a nil comparison. The consumer owns the sink and retention.
+// applied — tag coordinates and action names only, never attribute values and,
+// unlike the server-side audit events, never UIDs (original or replacement).
+// Default: no hook; the disabled cost is a nil comparison. The consumer owns the
+// sink and retention.
 func WithAudit(f AuditFunc) ProfileOption
 
 // NewProfile builds the Basic Profile with the given options. The UID remap is

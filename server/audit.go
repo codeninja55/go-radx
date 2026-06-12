@@ -39,15 +39,19 @@ const (
 
 // AuditEvent reports one committed server-side write.
 //
-// No-PHI contract: every field is a structural fact — the operation kind, a
-// timestamp, and identifiers. The DICOM fields are SOP Class and Study/Series/SOP
-// Instance UIDs, the same identifiers the role logs at default verbosity (the §9.1
-// posture in servers.md: identifiers and structure, never patient values). The FHIR
-// fields are the resource type and the id/version the server minted itself — the
-// repository always assigns the id and ignores any client-supplied one, so ResourceID
-// is a server artifact, never a patient identifier supplied in the resource body. No
-// field carries an attribute or element value, and no field that does may ever be
-// added; the sentinel test (audit_test.go) enforces this.
+// Contract — values never, object identity always. No field carries an attribute or
+// element VALUE (a patient name, an identifier value from the resource or dataset
+// body, a birth date, free text), and no field that does may ever be added; the
+// sentinel test (audit_test.go) enforces value absence. The event DOES carry
+// object-identity UIDs (SOP Class and Study/Series/SOP Instance) — an audit trail
+// that cannot name the object it audits is useless. Those UIDs are PHI-adjacent
+// under PS3.15: the de-identification profile remaps them precisely because they
+// identify a study's reference graph. The hook is therefore an explicit,
+// operator-wired surface, not ambient diagnostics — route the audit sink with the
+// same access control as the archive itself. The FHIR fields are the resource type
+// and the id/version the server minted itself — the repository always assigns the
+// id and ignores any client-supplied one, so ResourceID is a server artifact, never
+// a patient identifier supplied in the resource body.
 type AuditEvent struct {
 	// Op identifies the write that produced the event.
 	Op AuditOp
@@ -83,7 +87,10 @@ type AuditFunc func(AuditEvent)
 // STOW-RS per stored instance, and the FHIR create interaction (a transaction's
 // creates commit inside Repository.Transaction and are not individually audited in
 // v1). The default is no hook; with none configured the cost on the write path is a
-// nil comparison — no allocation, no event. go-radx provides the seam, not the sink:
+// nil comparison — no allocation, no event. The events never carry attribute values
+// but do carry object-identity UIDs (see AuditEvent), which are PHI-adjacent under
+// PS3.15: wiring the hook is an explicit opt-in, and the sink warrants the same
+// access control as the archive itself. go-radx provides the seam, not the sink:
 // durable audit storage, retention, and schema beyond AuditEvent are the consumer's
 // policy (PRD §9.1, §9.5).
 func WithAudit(f AuditFunc) Option {

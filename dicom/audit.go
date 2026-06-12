@@ -42,12 +42,15 @@ type AuditChange struct {
 
 // AuditEvent reports one completed dataset-mutation operation.
 //
-// No-PHI contract: every field is a structural fact — the operation kind, a
-// timestamp, tag coordinates, action names. No field carries an attribute value,
-// and no field that does may ever be added; the §11.2-style sentinel test
-// (deidentify_audit_test.go) enforces this. The fixed de-identification metadata the
-// profile itself writes (PatientIdentityRemoved, DeidentificationMethod and its code
-// sequence) is a documented output of every run and is not listed in Changes.
+// Contract: every field is structure — the operation kind, a timestamp, tag
+// coordinates, action names. Unlike the server-side audit event (package server),
+// which carries object-identity UIDs because a server must name the object it
+// stored, this event carries tag coordinates only: no attribute value and no UID —
+// original or replacement — ever appears, and no field carrying one may be added;
+// the §11.2-style sentinel test (deidentify_audit_test.go) enforces this. The fixed
+// de-identification metadata the profile itself writes (PatientIdentityRemoved,
+// DeidentificationMethod and its code sequence) is a documented output of every run
+// and is not listed in Changes.
 type AuditEvent struct {
 	// Op identifies the operation that produced the event.
 	Op AuditOp

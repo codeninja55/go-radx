@@ -619,8 +619,10 @@ are appended only when the matching option is set.
 
 In addition to the PS3.15 sub-options, `WithAudit(f dicom.AuditFunc)` registers the optional data-modification audit
 hook (PRD §9.5): each successful `Deidentify` emits one `dicom.AuditEvent` listing the applied changes as
-(tag, action) pairs — structural facts only, never attribute values, a contract a PHI-sentinel test enforces. The
-default is no hook, and the disabled cost is a nil comparison; the consumer owns the sink and retention.
+(tag, action) pairs. The event carries tag coordinates and action names only — no attribute values and, unlike the
+server-side audit events (which name stored objects by their PHI-adjacent UIDs), no UIDs, original or replacement; a
+PHI-sentinel test enforces value absence. The default is no hook, and the disabled cost is a nil comparison; the
+consumer owns the sink and retention.
 
 ### Documented limits
 

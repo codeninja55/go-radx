@@ -48,7 +48,10 @@ func (c *auditCollector) all() []AuditEvent {
 }
 
 // assertNoSentinel scans an event's full rendered form for the PHI sentinels, so a
-// value smuggled into any current or future field is caught.
+// value smuggled into any current or future field is caught. Object-identity UIDs
+// are permitted event fields by contract (see AuditEvent — values never, object
+// identity always); the fixture UIDs are plain numeric dotted strings ("7.1.1.1",
+// "1.2.840...") that embed no sentinel, so any hit is a genuine value leak.
 func assertNoSentinel(t *testing.T, ev AuditEvent) {
 	t.Helper()
 	rendered := fmt.Sprintf("%+v", ev)
@@ -69,8 +72,9 @@ func newAuditTestObject(study, series, instance string) *dicom.DataSet {
 }
 
 // TestDIMSEStoreAuditEvent asserts the C-STORE write path emits one structural
-// AuditEvent per committed store — operation, timestamp, and the object's hierarchy
-// identifiers — and that no patient value leaks through any event field.
+// AuditEvent per committed store — operation, outcome, timestamp, and the object's
+// hierarchy UIDs (carried by contract) — and that no attribute value leaks through
+// any event field.
 func TestDIMSEStoreAuditEvent(t *testing.T) {
 	t.Parallel()
 	store, cat := newTestBackends(t)
@@ -195,7 +199,8 @@ func TestStoreAuditEmittedOnIndexFailure(t *testing.T) {
 }
 
 // TestSTOWStoreAuditEvent asserts the STOW-RS write path emits one structural
-// AuditEvent per stored instance, with no patient value in any field.
+// AuditEvent per stored instance — object-identity UIDs carried by contract, no
+// attribute value in any field.
 func TestSTOWStoreAuditEvent(t *testing.T) {
 	t.Parallel()
 	store, cat := newTestBackends(t)

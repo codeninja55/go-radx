@@ -651,23 +651,32 @@ The `server` package is where PHI most concentrates, so the §9.1 defaults are s
 - **Governance is the consumer's.** Encryption at rest, retention/erasure, access control, and audit storage are the
   integrating consumer's responsibility (PRD §9.1, §9.5). For consumers who want an audit trail, the PRD §9.5
   data-modification hook is the seam: `WithAudit(f AuditFunc)` registers a callback the daemon threads to every role,
-  and each committed server-side write — a DIMSE C-STORE, a STOW-RS stored instance, a FHIR create — emits one
-  `AuditEvent` carrying **structural facts only**: the operation kind, a UTC timestamp, the stored object's SOP Class
-  and Study/Series/SOP Instance UIDs (the same identifiers the logs carry), or the FHIR resource type plus the
-  server-assigned id and version. Never an attribute or element value; a sentinel test enforces the contract. The
-  default is no hook, and the disabled cost on the write path is a nil comparison. go-radx provides the seam, not the
-  sink: durable storage, retention, and schema beyond `AuditEvent` are the consumer's policy. Known limit: creates
-  applied inside a `transaction` Bundle commit in `Repository.Transaction` and are not individually audited in v1. The
-  `dicom` package exposes the matching seam for dataset mutation: `dicom.WithAudit` on the PS3.15 de-identification
-  profile (see [DICOM](dicom.md)).
+  and each durably committed server-side write — a DIMSE C-STORE, a STOW-RS stored instance, a FHIR create — emits
+  one `AuditEvent`. The contract is **values never, object identity always**: no field carries an attribute or
+  element value (a patient name, an identifier value from the body, a date, free text) — a sentinel test enforces
+  that — but the event does carry the stored object's SOP Class and Study/Series/SOP Instance UIDs, because an audit
+  trail that cannot name the object it audits is useless. Those UIDs are **PHI-adjacent under PS3.15** (the
+  de-identification profile remaps them precisely because they identify a study's reference graph), so the hook is an
+  explicit, operator-wired surface, not ambient diagnostics: **route the audit sink with the same access control as
+  the archive itself**. The FHIR fields are the resource type plus the server-assigned id and version. The event
+  fires once the object store has committed — `Outcome` distinguishes `stored-indexed` from `stored-unindexed`
+  (durably stored, but the catalogue index failed: the C-STORE warning state) so a durable write is never unaudited;
+  a failed `Put` writes nothing durable and emits nothing. The default is no hook, and the disabled cost on the write
+  path is a nil comparison. go-radx provides the seam, not the sink: durable storage, retention, and schema beyond
+  `AuditEvent` are the consumer's policy. Known limit: creates applied inside a `transaction` Bundle commit in
+  `Repository.Transaction` and are not individually audited in v1. The `dicom` package exposes the matching seam for
+  dataset mutation — `dicom.WithAudit` on the PS3.15 de-identification profile — whose events carry tag coordinates
+  and action names only, no UIDs and no values (see [DICOM](dicom.md)).
 
 ```go
-// AuditEvent reports one committed server-side write. Structural facts only — operation kind,
-// timestamp, identifiers the server already treats as loggable, server-assigned FHIR id/version.
-// No field carries an attribute or element value.
+// AuditEvent reports one committed server-side write. Values never, object identity always:
+// no field carries an attribute or element value, but the event names the stored object by its
+// UIDs (PHI-adjacent under PS3.15 — give the sink archive-grade access control) and a created
+// FHIR resource by its server-assigned id/version.
 type AuditEvent struct {
-    Op   AuditOp   // "dimse.c-store", "dicomweb.stow-rs", "fhir.create"
-    Time time.Time // commit time, UTC
+    Op      AuditOp      // "dimse.c-store", "dicomweb.stow-rs", "fhir.create"
+    Time    time.Time    // commit time, UTC
+    Outcome AuditOutcome // "stored-indexed", or "stored-unindexed" when the catalogue index failed
 
     SOPClassUID       string // DICOM writes
     StudyInstanceUID  string

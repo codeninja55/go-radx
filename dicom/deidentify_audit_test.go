@@ -93,10 +93,12 @@ func TestDeidentifyAuditEvent(t *testing.T) {
 	}
 }
 
-// TestDeidentifyAuditEventCarriesNoValues is the no-PHI contract test: sentinel
-// values planted in every patient attribute (and a private tag) must not surface
-// through any field of the emitted event, scanned over the event's full rendered
-// form so a value smuggled into any current or future field is caught.
+// TestDeidentifyAuditEventCarriesNoValues is the value-absence contract test:
+// sentinel values planted in every patient attribute (and a private tag) must not
+// surface through any field of the emitted event, scanned over the event's full
+// rendered form so a value smuggled into any current or future field is caught.
+// Unlike the server-side events, the dicom event carries no UIDs either — tag
+// coordinates and action names are its only identifiers.
 func TestDeidentifyAuditEventCarriesNoValues(t *testing.T) {
 	var events []AuditEvent
 	prof := NewProfile(testGenerator(t), WithAudit(func(ev AuditEvent) {
