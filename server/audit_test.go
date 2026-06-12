@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net/http"
 	"strings"
 	"sync"
@@ -101,6 +102,9 @@ func TestDIMSEStoreAuditEvent(t *testing.T) {
 	if ev.SOPClassUID == "" {
 		t.Error("SOPClassUID is empty, want the stored object's SOP Class")
 	}
+	if ev.Outcome != AuditOutcomeStoredIndexed {
+		t.Errorf("Outcome = %q, want %q", ev.Outcome, AuditOutcomeStoredIndexed)
+	}
 	assertNoSentinel(t, ev)
 }
 
@@ -141,6 +145,55 @@ func TestStoreAuditNotEmittedOnFailure(t *testing.T) {
 	}
 }
 
+// failingCatalogue is a Catalogue whose Index always fails, so the stored-but-
+// un-indexed path of the store handlers can be exercised.
+type failingCatalogue struct{}
+
+var errIndexFailed = errors.New("index failed")
+
+func (failingCatalogue) Index(context.Context, *dicom.DataSet) error { return errIndexFailed }
+func (failingCatalogue) Query(context.Context, CatalogueQuery) iter.Seq2[*dicom.DataSet, error] {
+	return func(func(*dicom.DataSet, error) bool) {}
+}
+func (failingCatalogue) Remove(context.Context, dicom.SOPInstanceUID) error { return ErrNotFound }
+
+// TestStoreAuditEmittedOnIndexFailure asserts the durable write is the audited
+// modification: when ObjectStore.Put commits but Catalogue.Index fails, the object
+// is durably stored, so the event must still fire — with the un-indexed outcome —
+// for both the DIMSE C-STORE and STOW-RS paths. A silent gap here would be a
+// durable, unaudited modification.
+func TestStoreAuditEmittedOnIndexFailure(t *testing.T) {
+	t.Parallel()
+	store, _ := newTestBackends(t)
+	collector := &auditCollector{}
+	const study, series, instance = "10.1", "10.1.1", "10.1.1.1"
+
+	h := &dimseHandler{store: store, cat: failingCatalogue{}, logger: zap.NewNop(), audit: collector.fn()}
+	ds := newAuditTestObject(study, series, instance)
+	if status := h.Store(context.Background(), ds, dimse.OpInfo{}); status == dimse.StatusStoreSuccess {
+		t.Fatal("Store with a failing Catalogue should not report clean success")
+	}
+
+	b := &dicomwebStore{store: store, cat: failingCatalogue{}, logger: zap.NewNop(), audit: collector.fn()}
+	if err := b.Store(context.Background(), newAuditTestObject(study, series, instance)); err == nil {
+		t.Fatal("STOW Store with a failing Catalogue should return the index error")
+	}
+
+	events := collector.all()
+	if len(events) != 2 {
+		t.Fatalf("audit events = %d, want 2 (one per durably stored object)", len(events))
+	}
+	for _, ev := range events {
+		if ev.Outcome != AuditOutcomeStoredUnindexed {
+			t.Errorf("%s Outcome = %q, want %q", ev.Op, ev.Outcome, AuditOutcomeStoredUnindexed)
+		}
+		if ev.SOPInstanceUID != instance {
+			t.Errorf("%s SOPInstanceUID = %q, want %q", ev.Op, ev.SOPInstanceUID, instance)
+		}
+		assertNoSentinel(t, ev)
+	}
+}
+
 // TestSTOWStoreAuditEvent asserts the STOW-RS write path emits one structural
 // AuditEvent per stored instance, with no patient value in any field.
 func TestSTOWStoreAuditEvent(t *testing.T) {
@@ -164,6 +217,9 @@ func TestSTOWStoreAuditEvent(t *testing.T) {
 	}
 	if ev.SOPInstanceUID != instance {
 		t.Errorf("SOPInstanceUID = %q, want %q", ev.SOPInstanceUID, instance)
+	}
+	if ev.Outcome != AuditOutcomeStoredIndexed {
+		t.Errorf("Outcome = %q, want %q", ev.Outcome, AuditOutcomeStoredIndexed)
 	}
 	assertNoSentinel(t, ev)
 }
@@ -241,6 +297,9 @@ func TestFHIRCreateAuditEvent(t *testing.T) {
 	}
 	if ev.VersionID != "1" {
 		t.Errorf("VersionID = %q, want 1 (a create is version 1)", ev.VersionID)
+	}
+	if ev.Outcome != AuditOutcomeStoredIndexed {
+		t.Errorf("Outcome = %q, want %q (a repository create is atomic)", ev.Outcome, AuditOutcomeStoredIndexed)
 	}
 	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "Patient/"+ev.ResourceID) {
 		t.Errorf("Location %q does not name the audited resource id %q", loc, ev.ResourceID)

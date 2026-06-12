@@ -185,10 +185,16 @@ func (b *dicomwebStore) Store(ctx context.Context, ds *dicom.DataSet) error {
 		return err
 	}
 	if err := b.cat.Index(ctx, ds); err != nil {
+		// Durably stored but un-indexed: the error still propagates to the per-instance STOW
+		// failure reason, but the durable store IS the modification, so the audit event fires
+		// with the un-indexed outcome — a stored object must never be an unaudited one.
+		if b.audit != nil {
+			b.audit(dicomAuditEvent(AuditOpSTOWStore, AuditOutcomeStoredUnindexed, ds))
+		}
 		return err
 	}
 	if b.audit != nil {
-		b.audit(dicomAuditEvent(AuditOpSTOWStore, ds))
+		b.audit(dicomAuditEvent(AuditOpSTOWStore, AuditOutcomeStoredIndexed, ds))
 	}
 	return nil
 }

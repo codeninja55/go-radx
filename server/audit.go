@@ -10,12 +10,31 @@ import (
 type AuditOp string
 
 const (
-	// AuditOpDIMSEStore is one DIMSE C-STORE accepted, durably stored, and indexed.
+	// AuditOpDIMSEStore is one DIMSE C-STORE durably stored (see Outcome for whether
+	// the catalogue index also succeeded).
 	AuditOpDIMSEStore AuditOp = "dimse.c-store"
-	// AuditOpSTOWStore is one STOW-RS instance durably stored and indexed.
+	// AuditOpSTOWStore is one STOW-RS instance durably stored (see Outcome).
 	AuditOpSTOWStore AuditOp = "dicomweb.stow-rs"
 	// AuditOpFHIRCreate is one FHIR create interaction committed by the repository.
 	AuditOpFHIRCreate AuditOp = "fhir.create"
+)
+
+// AuditOutcome records how far a committed write got. The durable write is the
+// audited modification, so an event fires as soon as the object store has committed —
+// including when the catalogue index then fails (the partial state the C-STORE
+// warning status reports), which would otherwise be a durable, unaudited
+// modification. A failed Put writes nothing durable and emits nothing.
+type AuditOutcome string
+
+const (
+	// AuditOutcomeStoredIndexed is the clean write: durably stored and indexed. It is
+	// also the FHIR create's single value — the repository create is atomic, so a
+	// committed create is always fully visible.
+	AuditOutcomeStoredIndexed AuditOutcome = "stored-indexed"
+	// AuditOutcomeStoredUnindexed is the partial write: the object is durably stored
+	// but un-indexed because the catalogue index failed — the state the DIMSE handler
+	// reports as a Storage warning status and STOW-RS as the per-instance failure.
+	AuditOutcomeStoredUnindexed AuditOutcome = "stored-unindexed"
 )
 
 // AuditEvent reports one committed server-side write.
@@ -34,6 +53,9 @@ type AuditEvent struct {
 	Op AuditOp
 	// Time is when the write committed, in UTC.
 	Time time.Time
+	// Outcome records how far the write got: stored-indexed (clean) or
+	// stored-unindexed (durably stored, catalogue index failed).
+	Outcome AuditOutcome
 
 	// SOPClassUID, StudyInstanceUID, SeriesInstanceUID, and SOPInstanceUID identify a
 	// stored DICOM object (AuditOpDIMSEStore, AuditOpSTOWStore); empty for FHIR writes.
@@ -69,10 +91,10 @@ func WithAudit(f AuditFunc) Option {
 }
 
 // dicomAuditEvent builds the structural event for one stored DICOM object: the
-// operation, a UTC timestamp, and the object's hierarchy identifiers. It reads
-// identifier attributes only, never patient values.
-func dicomAuditEvent(op AuditOp, ds *dicom.DataSet) AuditEvent {
-	ev := AuditEvent{Op: op, Time: time.Now().UTC()}
+// operation, the outcome, a UTC timestamp, and the object's hierarchy identifiers.
+// It reads identifier attributes only, never patient values.
+func dicomAuditEvent(op AuditOp, outcome AuditOutcome, ds *dicom.DataSet) AuditEvent {
+	ev := AuditEvent{Op: op, Time: time.Now().UTC(), Outcome: outcome}
 	ev.SOPClassUID, _ = ds.GetString(dicom.TagSOPClassUID)
 	ev.StudyInstanceUID, _ = ds.GetString(dicom.TagStudyInstanceUID)
 	ev.SeriesInstanceUID, _ = ds.GetString(dicom.TagSeriesInstanceUID)

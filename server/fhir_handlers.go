@@ -342,6 +342,7 @@ func (h *fhirHandler) handleCreate(w http.ResponseWriter, r *http.Request, resou
 		h.audit(AuditEvent{
 			Op:           AuditOpFHIRCreate,
 			Time:         time.Now().UTC(),
+			Outcome:      AuditOutcomeStoredIndexed,
 			ResourceType: created.ResourceType(),
 			ResourceID:   h.adapter.resourceID(created),
 			VersionID:    versionID,
