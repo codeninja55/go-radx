@@ -889,6 +889,14 @@ func WithRetainSafePrivate(creators ...string) ProfileOption
 // itself removes burned-in pixel text in v1.
 func WithAllowBurnedInPixelData() ProfileOption
 
+// WithAudit registers the optional data-modification audit hook (PRD §9.5): each
+// successful Deidentify emits one AuditEvent listing the (tag, action) changes it
+// applied — tag coordinates and action names only, never attribute values and,
+// unlike the server-side audit events, never UIDs (original or replacement).
+// Default: no hook; the disabled cost is a nil comparison. The consumer owns the
+// sink and retention.
+func WithAudit(f AuditFunc) ProfileOption
+
 // NewProfile builds the Basic Profile with the given options. The UID remap is
 // seeded from g so Study/Series/SOP UIDs are rewritten consistently and a given
 // source UID always maps to the same replacement within one run.

@@ -150,7 +150,15 @@ The contract has two parts, both following the PRD's observability and PHI rules
 
 PHI governance beyond these safe defaults — encryption at rest, retention and erasure, access control, and audit — is
 the integrating consumer's responsibility (PRD §9.1). The library ships the safe defaults and the structural field
-vocabulary, not a compliance regime.
+vocabulary, not a compliance regime. For consumers who want an audit trail, the PRD §9.5 data-modification hook is the
+seam: `server.WithAudit` emits one `server.AuditEvent` per durably committed server-side write (DIMSE C-STORE, STOW-RS
+stored instance, FHIR create), with an `Outcome` field separating the clean stored-and-indexed write from the
+durably-stored-but-un-indexed warning state, and `dicom.WithAudit` does the same per de-identification run. The
+contract is values never, object identity always: no event field carries an attribute or element value (a sentinel
+test enforces value absence), but the server-side events do carry object-identity Study/Series/SOP Instance UIDs,
+which are PHI-adjacent under PS3.15 — wiring the hook is an explicit opt-in, and the sink warrants the same access
+control as the archive itself. The `dicom`-side events carry tag coordinates and action names only, no UIDs and no
+values. The default is no hook; the sink, retention, and any schema beyond the event type are the consumer's policy.
 
 ### PHI-default sanity sweep
 

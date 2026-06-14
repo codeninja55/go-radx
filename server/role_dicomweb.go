@@ -100,7 +100,7 @@ func (r *DICOMwebRole) name() string { return "dicomweb" }
 // daemon's fail-closed startup aborts on a bind failure before declaring success.
 func (r *DICOMwebRole) start(ctx context.Context, host string, env roleEnv) error {
 	webOpts := []dicomweb.ServerOption{
-		dicomweb.WithStoreBackend(&dicomwebStore{store: r.store, cat: r.cat, logger: env.logger}),
+		dicomweb.WithStoreBackend(&dicomwebStore{store: r.store, cat: r.cat, logger: env.logger, audit: env.audit}),
 		dicomweb.WithRetrieveBackend(&dicomwebRetrieve{store: r.store, cat: r.cat}),
 		dicomweb.WithQueryBackend(&dicomwebQuery{cat: r.cat, store: r.store}),
 	}
@@ -177,13 +177,26 @@ type dicomwebStore struct {
 	store  ObjectStore
 	cat    Catalogue
 	logger *zap.Logger
+	audit  AuditFunc
 }
 
 func (b *dicomwebStore) Store(ctx context.Context, ds *dicom.DataSet) error {
 	if err := b.store.Put(ctx, ds); err != nil {
 		return err
 	}
-	return b.cat.Index(ctx, ds)
+	if err := b.cat.Index(ctx, ds); err != nil {
+		// Durably stored but un-indexed: the error still propagates to the per-instance STOW
+		// failure reason, but the durable store IS the modification, so the audit event fires
+		// with the un-indexed outcome — a stored object must never be an unaudited one.
+		if b.audit != nil {
+			b.audit(dicomAuditEvent(AuditOpSTOWStore, AuditOutcomeStoredUnindexed, ds))
+		}
+		return err
+	}
+	if b.audit != nil {
+		b.audit(dicomAuditEvent(AuditOpSTOWStore, AuditOutcomeStoredIndexed, ds))
+	}
+	return nil
 }
 
 // dicomwebRetrieve adapts the shared ObjectStore + Catalogue to the DICOMweb RetrieveBackend and

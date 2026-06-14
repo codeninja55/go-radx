@@ -136,6 +136,7 @@ func (r *FHIRRole) start(_ context.Context, host string, env roleEnv) error {
 		basePath:        r.cfg.basePath,
 		maxRequestBytes: r.cfg.maxRequestBytes,
 		logger:          env.logger,
+		audit:           env.audit,
 	}
 
 	mux := http.NewServeMux()
@@ -196,6 +197,7 @@ type fhirHandler struct {
 	basePath        string
 	maxRequestBytes int64
 	logger          *zap.Logger
+	audit           AuditFunc
 }
 
 // readBody reads a request body bounded by the role's cap, so a hostile client cannot stream an
