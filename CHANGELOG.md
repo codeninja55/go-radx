@@ -37,7 +37,7 @@ legacy codebase (`legacy-main`) and are not continued here.
   durably-stored-but-un-indexed warning state so a durable write is never unaudited. Events never carry
   attribute values (sentinel-tested) but the server-side events do carry object-identity UIDs, which are
   PHI-adjacent under PS3.15 — the audit sink warrants archive-grade access control. The default is no hook with
-  a nil-comparison disabled cost.
+  a nil-comparison disabled cost (#123).
 - Comparative benchmark harness `tools/bench-compare` (PRD §11.3): a uv-pinned Python environment (pydicom
   3.0.2 + pylibjpeg plugins, pynetdicom 3.0.4, python-hl7 0.4.5, fhir.resources 8.2.0) benchmarked against
   go-radx over the same vendored fixtures - DICOM decode and per-TS pixel codecs (user-facing path on both
