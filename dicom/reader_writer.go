@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // ReadFile opens path and parses it as a Part 10 file. It is the only entry point
@@ -18,7 +19,14 @@ func ReadFile(path string, opts ...ReadOption) (*File, error) {
 		return nil, err
 	}
 	defer func() { _ = file.Close() }()
-	return read(bufio.NewReader(file), path, opts...)
+	// Record the absolute path so a deferred value re-opens the same file even if the
+	// working directory changes between read and load; a relative path would resolve
+	// against the cwd at load time, which could name a different file.
+	source := path
+	if abs, err := filepath.Abs(path); err == nil {
+		source = abs
+	}
+	return read(bufio.NewReader(file), source, opts...)
 }
 
 // Read parses a Part 10 stream. It honours the transfer syntax declared in the file
@@ -84,6 +92,15 @@ func read(r io.Reader, sourcePath string, opts ...ReadOption) (*File, error) {
 
 // WriteFile encodes f to path in f.Meta.TransferSyntaxUID.
 func WriteFile(path string, f *File, opts ...WriteOption) error {
+	if f != nil && f.DataSet != nil {
+		// Materialise any deferred values before os.Create truncates path: a deferred
+		// value may load from this same file (a ReadFile + WriteFile round-trip), and
+		// truncating first would destroy its source. A failed load errors here, with
+		// path still untouched.
+		if err := f.DataSet.materialiseDeferred(); err != nil {
+			return err
+		}
+	}
 	out, err := os.Create(path) // #nosec G304 -- writing a caller-supplied path is this API's contract
 	if err != nil {
 		return err

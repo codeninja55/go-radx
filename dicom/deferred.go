@@ -160,6 +160,34 @@ func materialise(v Value) (Value, bool) {
 	return loaded, true
 }
 
+// materialiseDeferred loads every deferred value in the dataset and its nested
+// sequence items in place, so the dataset no longer depends on any external source.
+// WriteFile calls it before truncating the destination: a deferred value may load
+// from the very path being written (a ReadFile + WriteFile round-trip over one file),
+// and os.Create would destroy that source before the value could be read. A failed
+// load surfaces as a typed *DeferredLoadError before any output byte is written, so a
+// vanished source fails the write rather than corrupting the destination. With no
+// deferred values present it is a cheap walk and a no-op.
+func (ds *DataSet) materialiseDeferred() error {
+	for e := range ds.All() {
+		switch v := e.Value.(type) {
+		case *DeferredValue:
+			loaded, err := v.Load()
+			if err != nil {
+				return err
+			}
+			ds.Set(Element{Tag: e.Tag, VR: e.VR, Value: loaded})
+		case *sequenceValue:
+			for it := range v.seq.Items() {
+				if err := it.DataSet.materialiseDeferred(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // deferElementValue records h's value as deferred: it bounds-checks the declared
 // length exactly as the materialising path would, captures the value field's byte
 // window and decode context, and skips the bytes without retaining them.

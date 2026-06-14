@@ -182,12 +182,33 @@ func (p *Profile) Deidentify(ds *DataSet) (*DataSet, error) {
 	return out, nil
 }
 
-// checkBurnedIn enforces the fail-closed burned-in pixel rule.
+// checkBurnedIn enforces the fail-closed burned-in pixel rule. It inspects the
+// element directly rather than through GetString so a deferred BurnedInAnnotation
+// whose source can no longer be read fails closed: an unverifiable flag is treated
+// as burned-in PHI, never silently as cleaned (the GetString accessor would read a
+// failed deferred load as absent).
 func (p *Profile) checkBurnedIn(ds *DataSet) error {
 	if p.options.allowBurnedInPixelData {
 		return nil
 	}
-	if v, ok := ds.GetString(TagBurnedInAnnotation); ok && v == "YES" {
+	e, ok := ds.Get(TagBurnedInAnnotation)
+	if !ok {
+		return nil
+	}
+	v, ok := materialise(e.Value)
+	if !ok {
+		return fmt.Errorf("%w: BurnedInAnnotation %s is present but its deferred value could not be read",
+			ErrBurnedInPixelData, TagBurnedInAnnotation)
+	}
+	sv, ok := v.(*Strings)
+	if !ok {
+		// A conformant BurnedInAnnotation is CS (a text value); a non-string encoding
+		// (a malformed or hostile OB/UN element) cannot be confirmed clean, so fail
+		// closed rather than read an unverifiable flag as absent.
+		return fmt.Errorf("%w: BurnedInAnnotation %s is present but is not a readable text value",
+			ErrBurnedInPixelData, TagBurnedInAnnotation)
+	}
+	if s := sv.Strings(); len(s) > 0 && s[0] == "YES" {
 		return fmt.Errorf("%w: BurnedInAnnotation %s == YES", ErrBurnedInPixelData, TagBurnedInAnnotation)
 	}
 	return nil

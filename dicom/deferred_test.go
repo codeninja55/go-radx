@@ -447,3 +447,31 @@ func TestDeferredDeidentifyFailClosedOnLostSource(t *testing.T) {
 		t.Error("an unloadable deferred UID must be removed, never kept as the original")
 	}
 }
+
+// TestWriteFileInPlaceWithDeferredValuesPreservesSource is the round-trip guard: a
+// file read with WithDeferredValues and written back to the SAME path must survive
+// byte-identically. WriteFile must materialise the deferred values from the source
+// before os.Create truncates it, or the write would destroy its own input.
+func TestWriteFileInPlaceWithDeferredValuesPreservesSource(t *testing.T) {
+	path := writeDeferredFixture(t, ExplicitVRLittleEndian, 4096) // PixelData deferred at threshold 64
+	want, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := ReadFile(path, WithDeferredValues(64))
+	if err != nil {
+		t.Fatalf("ReadFile deferred: %v", err)
+	}
+	if err := WriteFile(path, f); err != nil {
+		t.Fatalf("in-place WriteFile after a deferred read: %v", err)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("re-read after in-place write: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("in-place deferred round-trip changed the file: %d bytes, want %d", len(got), len(want))
+	}
+}
