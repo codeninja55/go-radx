@@ -2,6 +2,7 @@ package dicom
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -213,5 +214,33 @@ func TestDeidentifyAuditShiftRecordsOnlyChangedValues(t *testing.T) {
 	}
 	if v, _ := out.GetString(TagStudyTime); v != "143000" {
 		t.Errorf("StudyTime = %q, want it retained verbatim", v)
+	}
+}
+
+// TestDeidentifyAuditFailClosedDeferredDeleteIsAudited asserts that when a deferred
+// value cannot be loaded (its source vanished), the fail-closed removal the walk
+// applies is itself audited. A removed element is a modification, never an unaudited
+// one - the deferred-load error path is no exception.
+func TestDeidentifyAuditFailClosedDeferredDeleteIsAudited(t *testing.T) {
+	gone := filepath.Join(t.TempDir(), "gone.dcm") // never created, so every Load fails
+	ds := NewDataSet()
+	ds.Set(Element{Tag: TagStudyInstanceUID, VR: VRUI, Value: &DeferredValue{
+		tag: TagStudyInstanceUID, vr: VRUI, path: gone, offset: 0, length: 32,
+	}})
+
+	var events []AuditEvent
+	prof := NewProfile(testGenerator(t), WithAudit(func(ev AuditEvent) { events = append(events, ev) }))
+	out, err := prof.Deidentify(ds)
+	if err != nil {
+		t.Fatalf("Deidentify: %v", err)
+	}
+	if _, ok := out.GetString(TagStudyInstanceUID); ok {
+		t.Error("a deferred UID whose source vanished must be removed fail-closed")
+	}
+	if len(events) != 1 {
+		t.Fatalf("audit events = %d, want 1", len(events))
+	}
+	if got := countChanges(events[0], TagStudyInstanceUID, AuditActionRemove); got != 1 {
+		t.Errorf("fail-closed deferred delete recorded %d remove changes, want 1", got)
 	}
 }

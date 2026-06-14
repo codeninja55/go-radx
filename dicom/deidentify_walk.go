@@ -154,8 +154,10 @@ func (w *deidWalk) applyUID(ds *DataSet, e Element) {
 	if !ok {
 		// A deferred UID whose source can no longer be read cannot be remapped;
 		// leaving the original would leak the identifying reference graph, so the
-		// element is removed (fail-closed, same direction as the R action).
+		// element is removed (fail-closed, same direction as the R action). The
+		// removal is a modification, so it is audited like any other delete.
 		ds.Delete(e.Tag)
+		w.record(e.Tag, AuditActionRemove)
 		return
 	}
 	sv, ok := v.(*Strings)
@@ -197,8 +199,10 @@ func (w *deidWalk) applyDate(ds *DataSet, e Element) {
 	if !ok {
 		// A deferred date whose source can no longer be read cannot be shifted;
 		// keeping the original would retain identifying temporal data, so the
-		// element is removed (fail-closed).
+		// element is removed (fail-closed). The removal is a modification, so it is
+		// audited like any other delete.
 		ds.Delete(e.Tag)
+		w.record(e.Tag, AuditActionRemove)
 		return
 	}
 	sv, ok := v.(*Strings)
