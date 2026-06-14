@@ -191,8 +191,18 @@ func (w *deidWalk) applyDate(ds *DataSet, e Element) {
 	}
 	src := sv.Strings()
 	out := make([]string, len(src))
+	changed := false
 	for i, s := range src {
 		out[i] = shiftDateValue(e.VR, s, w.dateShift)
+		if out[i] != s {
+			changed = true
+		}
+	}
+	if !changed {
+		// shiftDateValue was a no-op for every value - a TM time-only value (no date
+		// to anchor a day-granular shift), an unparseable date, or a zero offset - so
+		// nothing was modified: emit no audit change and skip the redundant Set.
+		return
 	}
 	ds.Set(Element{Tag: e.Tag, VR: e.VR, Value: NewStrings(e.VR, out...)})
 	w.record(e.Tag, AuditActionShiftDate)

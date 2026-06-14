@@ -99,12 +99,26 @@ func WithAudit(f AuditFunc) Option {
 
 // dicomAuditEvent builds the structural event for one stored DICOM object: the
 // operation, the outcome, a UTC timestamp, and the object's hierarchy identifiers.
-// It reads identifier attributes only, never patient values.
+// It reads identifier attributes only, never patient values. The SOP Class is taken
+// from the dataset's (0008,0016), which is correct for STOW-RS where the stored
+// instance is the only authority; the DIMSE path overrides it (see dimseStoreAuditEvent).
 func dicomAuditEvent(op AuditOp, outcome AuditOutcome, ds *dicom.DataSet) AuditEvent {
 	ev := AuditEvent{Op: op, Time: time.Now().UTC(), Outcome: outcome}
 	ev.SOPClassUID, _ = ds.GetString(dicom.TagSOPClassUID)
 	ev.StudyInstanceUID, _ = ds.GetString(dicom.TagStudyInstanceUID)
 	ev.SeriesInstanceUID, _ = ds.GetString(dicom.TagSeriesInstanceUID)
 	ev.SOPInstanceUID, _ = ds.GetString(dicom.TagSOPInstanceUID)
+	return ev
+}
+
+// dimseStoreAuditEvent builds the event for one object stored over DIMSE C-STORE. It
+// takes the SOP Class from sopClassUID - the Affected SOP Class UID of the validated
+// C-STORE command, which the association negotiated and the dispatch layer checked
+// against the presentation context - rather than the dataset's (0008,0016): only the
+// SOP Instance UID is validated to agree between command and dataset, so a dataset
+// missing (0008,0016) would otherwise emit an event with an empty SOP Class.
+func dimseStoreAuditEvent(outcome AuditOutcome, ds *dicom.DataSet, sopClassUID string) AuditEvent {
+	ev := dicomAuditEvent(AuditOpDIMSEStore, outcome, ds)
+	ev.SOPClassUID = sopClassUID
 	return ev
 }

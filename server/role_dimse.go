@@ -221,12 +221,12 @@ func (h *dimseHandler) Store(ctx context.Context, ds *dicom.DataSet, info dimse.
 		// un-indexed outcome — a stored object must never be an unaudited one.
 		h.logger.Warn("c-store catalogue index failed", zap.String("sop_class", string(info.SOPClassUID)))
 		if h.audit != nil {
-			h.audit(dicomAuditEvent(AuditOpDIMSEStore, AuditOutcomeStoredUnindexed, ds))
+			h.audit(dimseStoreAuditEvent(AuditOutcomeStoredUnindexed, ds, string(info.SOPClassUID)))
 		}
 		return dimse.StatusStoreElementDiscarded
 	}
 	if h.audit != nil {
-		h.audit(dicomAuditEvent(AuditOpDIMSEStore, AuditOutcomeStoredIndexed, ds))
+		h.audit(dimseStoreAuditEvent(AuditOutcomeStoredIndexed, ds, string(info.SOPClassUID)))
 	}
 	return dimse.StatusStoreSuccess
 }

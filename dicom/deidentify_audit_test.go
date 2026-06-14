@@ -14,6 +14,10 @@ const (
 	auditSentinelID   = "ZZZTEST-MRN-PHI-SENTINEL"
 	auditSentinelAcc  = "ZZZTEST-ACC-PHI-SENTINEL"
 	auditSentinelPriv = "ZZZTEST-PRIVATE-PHI-SENTINEL"
+	// auditSentinelUID stands in for an identifying UID. The dicom event carries no
+	// UIDs at all (unlike the server event), so neither this original nor its remap
+	// may appear in any event field.
+	auditSentinelUID = "1.2.3.4.5"
 )
 
 // newAuditTestDataSet builds a dataset whose patient attributes all carry PHI
@@ -27,7 +31,7 @@ func newAuditTestDataSet() *DataSet {
 	ds.SetString(TagPatientID, auditSentinelID)             // D: replace-dummy
 	ds.SetString(TagAccessionNumber, auditSentinelAcc)      // Z: zero
 	ds.SetString(TagPatientBirthTime, "235959")             // X: remove
-	ds.SetString(TagStudyInstanceUID, "1.2.3.4.5")          // U: remap-uid
+	ds.SetString(TagStudyInstanceUID, auditSentinelUID)     // U: remap-uid
 	ds.SetString(NewTag(0x0009, 0x0010), auditSentinelPriv) // private: remove
 
 	item := NewDataSet()
@@ -113,7 +117,7 @@ func TestDeidentifyAuditEventCarriesNoValues(t *testing.T) {
 	}
 
 	rendered := fmt.Sprintf("%+v", events[0])
-	for _, sentinel := range []string{auditSentinelName, auditSentinelID, auditSentinelAcc, auditSentinelPriv} {
+	for _, sentinel := range []string{auditSentinelName, auditSentinelID, auditSentinelAcc, auditSentinelPriv, auditSentinelUID} {
 		if strings.Contains(rendered, sentinel) {
 			t.Errorf("PHI sentinel %q leaked through the audit event: %s", sentinel, rendered)
 		}
@@ -173,5 +177,41 @@ func TestDeidentifyAuditDisabledIsNoBehaviorChange(t *testing.T) {
 		if hok != pok || hv != pv {
 			t.Errorf("tag %s differs between hooked and unhooked runs: %q,%v vs %q,%v", tag, hv, hok, pv, pok)
 		}
+	}
+}
+
+// TestDeidentifyAuditShiftRecordsOnlyChangedValues asserts a shift-date change is
+// recorded only when a value actually changes. Under DateModeShift a DA date is
+// shifted and audited, but a TM time-only value - which a day-granular shift leaves
+// verbatim - records no change: the audit's modification count must not be inflated
+// by a no-op shift.
+func TestDeidentifyAuditShiftRecordsOnlyChangedValues(t *testing.T) {
+	var events []AuditEvent
+	prof := NewProfile(testGenerator(t),
+		WithRetainLongitudinalTemporalInformation(DateModeShift),
+		WithAudit(func(ev AuditEvent) { events = append(events, ev) }))
+
+	ds := NewDataSet()
+	ds.SetString(TagStudyInstanceUID, "1.2.3.4.5")
+	ds.SetString(TagStudyDate, "20240115") // DA: shifted by the per-run offset -> recorded
+	ds.SetString(TagStudyTime, "143000")   // TM: a day-granular shift is a no-op -> not recorded
+
+	out, err := prof.Deidentify(ds)
+	if err != nil {
+		t.Fatalf("Deidentify: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("audit events = %d, want 1", len(events))
+	}
+	ev := events[0]
+
+	if got := countChanges(ev, TagStudyDate, AuditActionShiftDate); got != 1 {
+		t.Errorf("StudyDate shift changes = %d, want 1 (the date was shifted)", got)
+	}
+	if got := countChanges(ev, TagStudyTime, AuditActionShiftDate); got != 0 {
+		t.Errorf("StudyTime shift changes = %d, want 0 (a day-granular shift is a no-op for a time-only value)", got)
+	}
+	if v, _ := out.GetString(TagStudyTime); v != "143000" {
+		t.Errorf("StudyTime = %q, want it retained verbatim", v)
 	}
 }
