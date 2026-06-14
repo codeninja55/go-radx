@@ -13,7 +13,7 @@ library already provides.
 
 ## Summary
 
-28 in-scope dcmtk tools/tool-pairs: **8 MET, 10 PARTIAL, 10 NOT-MET.**
+28 in-scope dcmtk tools/tool-pairs: **8 MET, 11 PARTIAL, 9 NOT-MET.**
 
 Top gaps, largest first:
 
@@ -23,17 +23,18 @@ Top gaps, largest first:
    exists as a flag and deliberately fails closed (`cmd/radx/internal/command/store.go:87`). A `radx
    transcode` command would close dcmconv, dcmcrle/dcmdrle, dcmdjpeg, and dcmcjpls/dcmdjpls in one increment;
    dcmcjpeg (lossy/lossless JPEG *encode*) additionally needs encode-side codec work in the library.
-2. **DICOMDIR (L).** `dcmgpdir`/`dcmmkdir` have no equivalent; `dicom.FileSet` is named but deferred in v1
-   (`docs/conformance/dicom.md` "DICOMDIR file-sets are not implemented in v1"). Known data-layer gap.
-3. **Image rendering and import (L).** No `dcm2pnm`/`dcm2img`/`img2dcm` equivalent: the repo has no PNG/PPM
+2. **Image rendering and import (L).** No `dcm2pnm`/`dcm2img`/`img2dcm` equivalent: the repo has no PNG/PPM
    export or consumer-image import path (no `image/png` use anywhere); windowing/LUT/photometric rendering
    would be new library work.
-4. **Q/R SCP archive (L).** `dcmqrscp` maps to `server.NewDIMSERole` (C-ECHO/C-STORE/C-FIND over
+3. **Q/R SCP archive (L).** `dcmqrscp` maps to `server.NewDIMSERole` (C-ECHO/C-STORE/C-FIND over
    `ObjectStore`+`Catalogue`, optional MWL), but C-GET/C-MOVE SCP are explicitly unmounted
    (`server/role_dimse.go:182`) and there is no `radx serve dimse` subcommand.
-5. **CLI TLS (M, cross-cutting).** `dimse.WithTLS` ships in the library (`dimse/ae.go:79`), but no `radx`
+4. **CLI TLS (M, cross-cutting).** `dimse.WithTLS` ships in the library (`dimse/ae.go:79`), but no `radx`
    network command (`echo`, `store`, `find`, `get`, `move`, `scp`) exposes a TLS flag; dcmtk's `+tls` family
    has no CLI counterpart. This caveat applies to every dcmnet row below and is not repeated per row.
+5. **DICOMDIR (M).** `dcmgpdir`/`dcmmkdir` have no CLI equivalent, but `dicom.NewFileSetBuilder` builds and
+   writes a file-set and `dicom.OpenFileSet` reads and queries one (PR #119); a `radx` DICOMDIR subcommand
+   over the shipped FileSet closes it, with no further library work for create/read.
 
 ## DICOM data tools (dcmdata, dcmqrdb index)
 
@@ -52,7 +53,7 @@ Top gaps, largest first:
 | dcmdjpeg | Decode JPEG to uncompressed | PARTIAL | Library decodes JPEG Baseline/Extended/Lossless/SV1 via `dicom_libjpeg` (CGo build tag); no CLI command | M | CLI side is the `radx transcode` command; availability depends on the CGo codec build |
 | dcmcjpls / dcmdjpls | JPEG-LS encode/decode | PARTIAL | Library: CharLS decode for lossless and near-lossless, encode for lossless only (`dicom_charls` tag) | M | Near-lossless encode is decode-only by policy; CLI gap closed by `radx transcode` |
 | dcmftest | Test for Part 10 format | PARTIAL | No dedicated command; `radx dump` exits 3 on a malformed/non-DICOM file and 0 on a valid one | S | Scriptable today via dump's exit code; a quiet `--check` mode would be a direct equivalent |
-| dcmgpdir / dcmmkdir | Create DICOMDIR | NOT-MET | None; `dicom.FileSet` deferred in v1 (`docs/conformance/dicom.md:746`) | L | Known data-layer gap; requires the Basic Directory IOD and file-set referential rules |
+| dcmgpdir / dcmmkdir | Create DICOMDIR | PARTIAL | Library: `dicom.NewFileSetBuilder` builds and writes a DICOMDIR file-set (`Add`/`AddFile`/`Write`, `dicom/fileset_write.go`), `dicom.OpenFileSet` reads and queries one (`Find`/`FindValues`/`Records`/`Instances`, `dicom/fileset.go`); no CLI command | M | FileSet build/read shipped in PR #119; closed by a `radx` DICOMDIR subcommand over it (no further library work for create/read; update-in-place remains out of scope) |
 | img2dcm | Consumer image (JPEG/BMP) to DICOM | NOT-MET | None | M | Needs SC Image IOD construction plus image import; no current plan in conformance docs |
 | dcm2pnm / dcmj2pnm / dcml2pnm / dcm2img | Render DICOM to PGM/PNG/TIFF/BMP/JPEG | NOT-MET | No image export path in the repo | L | Requires a rendering pipeline (windowing, VOI/modality LUTs, photometric interpretation), all new library work |
 | dcmqridx | Register files in a query database index | MET | `radx catalogue` (`command/catalogue.go`): indexes a directory into SQLite, `--rebuild`, `--query`, read-only `--sql` | - | Exceeds dcmqridx: queryable SQL, PHI gate (`--confirm-phi`), `--redact` identifier hashing, 0600 db file |
