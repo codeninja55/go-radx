@@ -14,13 +14,13 @@ N-A (no sensible Go equivalent). Sizes: S (under 1 day), M (1-3 days), L (over 3
 
 | Subsystem | Reference(s) | Matrix | Rows | MET | PARTIAL | NOT-MET | N-A |
 |---|---|---|---|---|---|---|---|
-| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 55 | 8 | 19 | 6 |
+| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 56 | 9 | 17 | 6 |
 | DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 60 | 9 | 23 | 1 |
 | HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 26 | 5 | 0 | 1 |
 | FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 50 | 8 | 35 | 5 |
 | DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 43 | 3 | 27 | 2 |
 | radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 8 | 11 | 9 | 0 |
-| Total | | | 414 | 242 | 44 | 113 | 15 |
+| Total | | | 414 | 243 | 45 | 111 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in
@@ -62,7 +62,8 @@ updated in the same PR.
 ### Wave 1 - DICOM data layer (unlocks waves 4 and 5 codec work)
 
 VOI/modality LUT and windowing utilities (M each), palette colour expansion and colour-space conversion
-(M each), private block API and private-creator dictionaries (M each), charset table completion: ISO 2022
+(M each), private-creator dictionary vendor-catalogue breadth (M; the block API and lookup mechanism shipped,
+seed minimal and attributed), charset table completion: ISO 2022
 IR 149 Korean, IR 58 Chinese, ISO_IR 166 Thai, bare ISO_IR 13 (S each), overlays (M), waveforms (M),
 python-hl7-style small utilities flagged PARTIAL in dicom.md.
 

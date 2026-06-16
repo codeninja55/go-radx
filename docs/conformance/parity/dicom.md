@@ -16,16 +16,18 @@ Row counts across all tables:
 
 | Status | Count |
 |--------|-------|
-| MET | 61 |
-| PARTIAL | 8 |
-| NOT-MET | 13 |
+| MET | 62 |
+| PARTIAL | 9 |
+| NOT-MET | 11 |
 | N-A | 6 |
 | Total | 88 |
 
 Top NOT-MET/PARTIAL items by impact:
 
-1. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
-   but there is no `private_block`/`get_private_item` equivalent and no private-creator dictionary.
+1. **Private-creator dictionary breadth (PARTIAL, M).** The private block API and dictionary lookup mechanism are
+   now MET (`dicom/private_block.go`, `dicom/private_dict.go`); the dictionary seed is minimal and attributed
+   (the pydicom illustrative "ACME 3.1" creator). Vendor catalogues (Siemens/GE/Philips) are deferred to a
+   `gdcmPrivateDict.xml` generator because no such source is vendored here to attribute against.
 2. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
    the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family, UTF-8, GB18030, and GBK,
    but not ISO 2022 IR 149, ISO 2022 IR 58, ISO_IR 166, or bare ISO_IR 13.
@@ -70,8 +72,8 @@ go-radx extras with no pydicom equivalent: bounded hostile-input reading (`WithM
 | Recursive iteration into sequences | `Dataset.iterall` | NOT-MET | only the internal walker dicom/deidentify_walk.go:52 | S | Export a recursive walk |
 | Sequences (defined/undefined length, nesting, depth cap) | `Sequence` | MET | dicom/sequence.go, sequence_codec.go; sequence_test.go, sequence_regression_test.go | - | Original defined/undefined-length form preserved on write |
 | Private element parse and round-trip | private elements | MET | dicom/tag.go:26 IsPrivate, :29 IsPrivateCreator; generic element path; tag_test.go | - | Parsed and written generically, no semantic claim |
-| Private block API | `private_block`, `add_new_private`, `get_private_item` | NOT-MET | no equivalent symbols in dicom/ | M | Creator-slot resolution left to callers today |
-| Private-creator dictionaries | pydicom private dicts | NOT-MET | dicom/dictionary.go covers the standard dictionary only | M | |
+| Private block API | `private_block`, `add_new_private`, `get_private_item` | MET | dicom/private_block.go:DataSet.PrivateBlock, DataSet.PrivateCreators, DataSet.GetPrivateItem, PrivateBlock.{Get,Set,Tag,Lookup}; private_block_test.go | - | Block = low byte of creator element (PS3.5 §7.8.1); create=true reserves the lowest free block; resolves real blocks in parsed datasets incl. UN-encoded creators |
+| Private-creator dictionaries | pydicom private dicts | PARTIAL | dicom/private_dict.go:PrivateTagInfo, LookupPrivate, PrivateBlock.Lookup; private_block_test.go:TestPrivateDictLookup | M | Lookup mechanism complete; seed minimal and attributed (pydicom "ACME 3.1" illustrative creator). Vendor catalogues deferred to a gdcmPrivateDict.xml generator (TODO in private_dict.go); no such source vendored, so vendor tag meanings are not invented |
 | Remove all private tags standalone | `Dataset.remove_private_tags` | PARTIAL | dicom/deidentify_walk.go:194 (inside Deidentify only) | S | Available only via the de-identification profile |
 | DICOM JSON model (PS3.18) to/from | `Dataset.to_json` / `from_json` | MET | dicomweb/json.go:87 MarshalJSON, :516 UnmarshalJSON; dicomweb/json_test.go | - | Includes BulkDataURI threshold/resolver options (bulk data handler equivalent) |
 | Dataset deep copy | `copy.deepcopy` | MET | dicom/dataset.go:197 Clone | - | |
