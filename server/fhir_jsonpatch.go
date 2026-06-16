@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -75,8 +76,8 @@ func applyRFC6902(docJSON, patchJSON []byte) ([]byte, error) {
 	if len(ops) == 0 {
 		return nil, fmt.Errorf("%w: the patch document has no operations", errPatch)
 	}
-	var doc any
-	if err := json.Unmarshal(docJSON, &doc); err != nil {
+	doc, err := decodeJSONPreservingNumbers(docJSON)
+	if err != nil {
 		return nil, fmt.Errorf("%w: the target document is not valid JSON", errPatch)
 	}
 	for i := range ops {
@@ -87,6 +88,23 @@ func applyRFC6902(docJSON, patchJSON []byte) ([]byte, error) {
 		doc = next
 	}
 	return json.Marshal(doc)
+}
+
+// decodeJSONPreservingNumbers decodes JSON into the any tree the patch operates on with
+// UseNumber, so every JSON number stays a json.Number (its exact lexical text) rather than being
+// coerced to float64. This is what keeps a patch to one field from silently rewriting FHIR decimal
+// and integer64 values elsewhere in the document: a json.Number round-trips byte-for-byte on the
+// final json.Marshal (1.00 stays 1.00, a 64-bit integer keeps full precision), whereas float64 would
+// drop trailing zeros and lose precision past 2^53. Only the patched path is changed; every untouched
+// number is re-emitted verbatim.
+func decodeJSONPreservingNumbers(data []byte) (any, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 // applyOp applies one operation to doc and returns the resulting document root (the root may itself
@@ -119,8 +137,8 @@ func applyAddReplace(doc any, op *patchOp, mustExist bool) (any, error) {
 	if op.Value == nil {
 		return nil, fmt.Errorf("%w: %s at %q requires a value", errPatch, op.Op, op.Path)
 	}
-	var value any
-	if err := json.Unmarshal(op.Value, &value); err != nil {
+	value, err := decodeJSONPreservingNumbers(op.Value)
+	if err != nil {
 		return nil, fmt.Errorf("%w: %s value is not valid JSON", errPatch, op.Op)
 	}
 	if op.Path == "" {
@@ -143,8 +161,8 @@ func applyTest(doc any, op *patchOp) error {
 	if err != nil {
 		return err
 	}
-	var want any
-	if err := json.Unmarshal(op.Value, &want); err != nil {
+	want, err := decodeJSONPreservingNumbers(op.Value)
+	if err != nil {
 		return fmt.Errorf("%w: test value is not valid JSON", errPatch)
 	}
 	gotJSON, err1 := json.Marshal(got)
