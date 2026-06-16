@@ -12,6 +12,13 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Deferred (lazy) reads of large element values: `ReadFile` with `dicom.WithDeferredValues(threshold)`
+  records values above the threshold as re-openable placeholders and skips the bytes, keeping memory bounded
+  on large objects (the pydicom `defer_size` analogue). The value loads on first access, with the byte window
+  re-validated against the source - a shrunk, swapped, or unparseable file is a typed `DeferredLoadError`,
+  never a wrong value. Deferral is rejected fail-closed for a generic `io.Reader` and for Deflated Explicit
+  VR LE; accessors and the write path materialise transparently, and `WriteFile` materialises before
+  truncating so an in-place round-trip cannot destroy its own source (#125).
 - Wave 0 quick wins: C-CANCEL honoured during C-MOVE sub-operations (prompt terminal Cancel, in-flight
   store aborted, races classified honestly); the DICOMweb daemon role mounts the full WADO-RS retrieval
   surface (study/series/metadata/frames/bulkdata, backend faults 500 never 404, BulkDataURI attribute

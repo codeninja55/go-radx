@@ -282,6 +282,16 @@ native pixel value, so many small fragments cannot grow memory without limit. `d
 fails the call, and memory holds the full dataset, not just the elements up to the pixels — before the pixel element
 is bound to its geometry. An unrecognised or private transfer syntax is rejected fail-closed.
 
+For large objects, `ReadFile` with `WithDeferredValues(threshold)` (pydicom's `defer_size` analogue, PRD §6.2) skips
+any element value larger than the threshold and records its byte window instead, so memory stays bounded; the value
+loads from the source file on first access — transparently through the dataset accessors and the write path, or
+explicitly via `(*DeferredValue).Load`. Loads re-validate the recorded window against the file (a shrunk, replaced,
+or no-longer-parseable source is a typed `*DeferredLoadError`, never a panic), and a deferred encapsulated pixel
+stream is re-parsed through the same structural validator the read used. The option is `ReadFile`-only: `Read`,
+`DecodeDataSet`, and Deflated Explicit VR LE reject it fail-closed because their sources cannot be re-read at a
+recorded offset. The default read path is unchanged: without the option every value is materialised exactly as
+before.
+
 | Transfer syntax | UID | Read | Write |
 |-----------------|-----|------|-------|
 | Implicit VR Little Endian | `1.2.840.10008.1.2` | Yes | Yes |

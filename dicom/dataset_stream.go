@@ -45,6 +45,11 @@ func DecodeDataSet(r io.Reader, ts TransferSyntax, opts ...ReadOption) (*DataSet
 		return nil, err
 	}
 	cfg := newReadConfig(opts...)
+	if cfg.deferralEnabled() {
+		// A bare element stream has no re-openable source to load a deferred value
+		// from, so the option is rejected fail-closed (same contract as Read).
+		return nil, errDeferralNeedsPath
+	}
 	if ts.IsDeflated() {
 		// The flate reader does not expose Len(), so the boundedReader's remaining-byte
 		// guard cannot fire on this path; bound the total inflated bytes so a tiny

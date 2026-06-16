@@ -39,6 +39,29 @@ type readConfig struct {
 	// lenientDates relaxes DA parsing to accept the legacy YYYY and YYYYMM partial
 	// forms. Strict YYYYMMDD is the default (Codex DCM-010).
 	lenientDates bool
+	// deferThreshold is the value-field size in bytes above which an element is
+	// recorded as a *DeferredValue instead of materialised. Negative means deferral
+	// is off (the default). deferPath is the re-openable source each deferred value
+	// loads from; only ReadFile can supply it, so Read and DecodeDataSet reject the
+	// option fail-closed.
+	deferThreshold int64
+	deferPath      string
+}
+
+// deferralEnabled reports whether this read records deferred values.
+func (c *readConfig) deferralEnabled() bool { return c.deferThreshold >= 0 }
+
+// shouldDefer reports whether h's value is recorded as deferred rather than
+// materialised: deferral is on, the length is defined and over the threshold, the
+// element is not a sequence, and it is not (0008,0005) — the active character set
+// always materialises because it governs the decode of the text elements that
+// follow it.
+func (c *readConfig) shouldDefer(h elementHeader) bool {
+	return c.deferralEnabled() &&
+		h.vr != VRSQ &&
+		h.length != undefinedLength &&
+		int64(h.length) > c.deferThreshold &&
+		h.tag != TagSpecificCharacterSet
 }
 
 // ReadOption configures a Read/ReadFile call.
@@ -66,6 +89,7 @@ func newReadConfig(opts ...ReadOption) readConfig {
 		maxElementLen:    defaultMaxElementLen,
 		maxInflatedBytes: defaultMaxInflatedBytes,
 		maxSequenceDepth: defaultMaxSequenceDepth,
+		deferThreshold:   -1,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -97,6 +121,31 @@ func WithMaxSequenceDepth(n int) ReadOption {
 // WithStopAtPixelData defers the pixel-data element for a partial read.
 func WithStopAtPixelData() ReadOption {
 	return func(c *readConfig) { c.stopAtPixelData = true }
+}
+
+// WithDeferredValues defers element values larger than threshold bytes (pydicom's
+// defer_size analogue, PRD §6.2): instead of materialising the value, the reader
+// records its byte window as a *DeferredValue and skips it, so memory stays bounded
+// while reading large objects. The value is loaded from the source file on first
+// access — transparently through the dataset accessors and the write path, or
+// explicitly through (*DeferredValue).Load when the load error matters. A threshold
+// of 0 defers every non-empty value; a negative threshold disables deferral.
+//
+// Deferral requires a re-openable source, so it works only with ReadFile: Read and
+// DecodeDataSet reject the option fail-closed because a generic io.Reader cannot be
+// re-read on demand. Deflated Explicit VR LE is also rejected fail-closed: element
+// offsets there address the inflated stream, which is not seekable in the source
+// file. Under an encapsulated transfer syntax the (7FE0,0010) fragment stream is
+// always deferred (its delimited length is unknown until it has been scanned); the
+// scan still validates the item structure byte for byte. (0008,0005) Specific
+// Character Set is never deferred — it governs the decode of the elements that
+// follow it.
+//
+// The source file must still be present and unmodified when a deferred value loads;
+// the recorded window is re-validated against the file on every load and a source
+// that shrank or stopped parsing is a typed *DeferredLoadError, never a panic.
+func WithDeferredValues(threshold int64) ReadOption {
+	return func(c *readConfig) { c.deferThreshold = threshold }
 }
 
 // WithLenientDates accepts the legacy partial DA forms (YYYY and YYYYMM) in

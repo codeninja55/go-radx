@@ -7,23 +7,46 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
-// ReadFile opens path and parses it as a Part 10 file.
+// ReadFile opens path and parses it as a Part 10 file. It is the only entry point
+// that supports WithDeferredValues: the path is recorded on each deferred value so
+// it can be re-opened and loaded on demand.
 func ReadFile(path string, opts ...ReadOption) (*File, error) {
 	file, err := os.Open(path) // #nosec G304 -- reading a caller-supplied path is this API's contract
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = file.Close() }()
-	return Read(bufio.NewReader(file), opts...)
+	// Record the absolute path so a deferred value re-opens the same file even if the
+	// working directory changes between read and load; a relative path would resolve
+	// against the cwd at load time, which could name a different file.
+	source := path
+	if abs, err := filepath.Abs(path); err == nil {
+		source = abs
+	}
+	return read(bufio.NewReader(file), source, opts...)
 }
 
 // Read parses a Part 10 stream. It honours the transfer syntax declared in the file
 // meta for the main dataset; it never assumes Implicit VR LE (Codex DCM-002). For
-// Deflated Explicit VR LE the main dataset is inflated before parsing.
+// Deflated Explicit VR LE the main dataset is inflated before parsing. Read rejects
+// WithDeferredValues fail-closed: a generic io.Reader cannot be re-read on demand,
+// so deferral is a ReadFile-only option.
 func Read(r io.Reader, opts ...ReadOption) (*File, error) {
+	return read(r, "", opts...)
+}
+
+// read is the shared Part 10 parse. sourcePath is the re-openable file deferred
+// values load from; empty means the source cannot be re-read, so deferral is
+// rejected fail-closed rather than recording values that could never load.
+func read(r io.Reader, sourcePath string, opts ...ReadOption) (*File, error) {
 	cfg := newReadConfig(opts...)
+	cfg.deferPath = sourcePath
+	if cfg.deferralEnabled() && sourcePath == "" {
+		return nil, errDeferralNeedsPath
+	}
 	br := newBoundedReader(r, cfg.maxElementLen)
 
 	preamble, err := readPreamble(br)
@@ -42,6 +65,12 @@ func Read(r io.Reader, opts ...ReadOption) (*File, error) {
 
 	main := br
 	if ts.IsDeflated() {
+		if cfg.deferralEnabled() {
+			// A deferred value's offset would address the inflated stream, which has
+			// no seekable counterpart in the source file, so the load could never
+			// honour it; reject rather than record windows that cannot be re-read.
+			return nil, errDeferralDeflated
+		}
 		// The main dataset follows the file-meta group as a raw DEFLATE stream. The
 		// flate reader does not expose Len(), so the boundedReader's remaining-byte
 		// guard cannot fire on this path; bound the total inflated bytes so a tiny
@@ -63,6 +92,15 @@ func Read(r io.Reader, opts ...ReadOption) (*File, error) {
 
 // WriteFile encodes f to path in f.Meta.TransferSyntaxUID.
 func WriteFile(path string, f *File, opts ...WriteOption) error {
+	if f != nil && f.DataSet != nil {
+		// Materialise any deferred values before os.Create truncates path: a deferred
+		// value may load from this same file (a ReadFile + WriteFile round-trip), and
+		// truncating first would destroy its source. A failed load errors here, with
+		// path still untouched.
+		if err := f.DataSet.materialiseDeferred(); err != nil {
+			return err
+		}
+	}
 	out, err := os.Create(path) // #nosec G304 -- writing a caller-supplied path is this API's contract
 	if err != nil {
 		return err
