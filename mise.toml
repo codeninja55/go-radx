@@ -97,6 +97,14 @@ run = "go test -tags interop -count=1 -v ./dicomweb/integration/..."
 description = "Run the cross-standard convert end-to-end interop gate against the Orthanc containers"
 run = "go test -tags interop -count=1 -v ./convert/..."
 
+[tasks."interop:mllp"]
+description = "Run the HL7 v2.x MLLP interop gate against the python-hl7 peer container"
+run = "go test -tags interop -count=1 -v ./hl7v2/..."
+
+[tasks."interop:fhir-hapi"]
+description = "Run the FHIR REST client interop gate against the HAPI FHIR server container"
+run = "go test -tags interop -count=1 -v ./fhir/rest/..."
+
 [tasks."dicom:dciodvfy"]
 description = "Validate written DICOM files with dcmtk dciodvfy (skips if absent)"
 run = "tools/dicom-conformance/dciodvfy.sh"
