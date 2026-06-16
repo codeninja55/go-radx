@@ -231,6 +231,26 @@ func TestISO2022ThaiDesignationDecode(t *testing.T) {
 	}
 }
 
+func TestISO2022G1DoubleByteDelimiterResets(t *testing.T) {
+	// A G1 double-byte set (Korean IR 149) lives in the GR high-byte range, so an
+	// ASCII delimiter (0x5E '^') can never be part of a character: it must split the
+	// value and reset designation to the set's initial G1 (here IR 100 Latin-1).
+	// Unlike a Japanese G0 double-byte run, where 0x5E can be a character low byte.
+	// Bytes: ESC $ ) C <洪 = 0xFB 0xF3> ^ 0xE4 (ä as Latin-1 IR 100 after the reset).
+	cs, err := NewSpecificCharacterSet("", "ISO 2022 IR 100", "ISO 2022 IR 149")
+	if err != nil {
+		t.Fatalf("NewSpecificCharacterSet: %v", err)
+	}
+	raw := []byte{0x1b, '$', ')', 'C', 0xFB, 0xF3, '^', 0xE4}
+	got, err := cs.Decode(raw)
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if want := "洪^ä"; got != want {
+		t.Fatalf("Decode = %q (% x), want %q", got, []byte(got), want)
+	}
+}
+
 func TestBareThaiDecode(t *testing.T) {
 	// Bare ISO_IR 166: TIS 620 invoked directly into GR, no escape sequence.
 	cs, err := NewSpecificCharacterSet("ISO_IR 166")

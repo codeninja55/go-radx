@@ -62,27 +62,30 @@ type iso2022Component struct {
 	delimiter bool
 }
 
-// splitISO2022Components splits b into decodable runs separated by reset delimiters,
-// honouring a delimiter only while in a single-byte designation state. Escape
-// sequences that designate a multi-byte set (ESC $ B, ESC $ @, ESC $ ( D) enter the
-// double-byte state; the single-byte designations (ESC ( B/J/I) leave it.
+// splitISO2022Components splits b into decodable runs separated by reset delimiters.
+// A delimiter is suppressed only inside a G0 double-byte run (ESC $ B, ESC $ @,
+// ESC $ ( D), whose GL bytes can take a delimiter byte value as a character low byte.
+// A G1 double-byte designation (ESC $ ) C/A, Korean/Chinese) keeps delimiters live
+// because its run lives in the GR high-byte range, so an ASCII delimiter can never be
+// part of a character and must split and reset the designation. The single-byte
+// designations (ESC ( B/J/I, ESC - F) never suppress delimiters.
 func splitISO2022Components(b []byte) []iso2022Component {
 	var comps []iso2022Component
 	start := 0
-	doubleByte := false
+	doubleByteG0 := false
 	i := 0
 	for i < len(b) {
 		if b[i] == 0x1b {
 			n, dbl, ok := classifyEscape(b[i:])
 			if ok {
-				doubleByte = dbl
+				doubleByteG0 = dbl
 			} else {
 				n = 1 // skip the lone ESC; the decoder reports the malformed run
 			}
 			i += n
 			continue
 		}
-		if !doubleByte && isISO2022Reset(b[i]) {
+		if !doubleByteG0 && isISO2022Reset(b[i]) {
 			if i > start {
 				comps = append(comps, iso2022Component{bytes: b[start:i]})
 			}
@@ -100,15 +103,20 @@ func splitISO2022Components(b []byte) []iso2022Component {
 }
 
 // classifyEscape reports the length of an ISO 2022 designation escape at the start of
-// b and whether it invokes a multi-byte (double-byte) set. The recognised escapes are
-// the Japanese designations that can carry delimiter byte values inside their runs.
-func classifyEscape(b []byte) (n int, doubleByte bool, ok bool) {
+// b and whether it invokes a multi-byte set into G0. Only a G0 double-byte designation
+// suppresses delimiter splitting: its run uses the GL (0x21-0x7E) range, so a delimiter
+// byte value (0x5E '^', 0x3D '=', 0x5C '\') can be the low byte of a character (PS3.5
+// §6.1.2.5.3, Annex H Japanese). A G1 double-byte designation (Korean IR 149, Chinese
+// IR 58) uses the GR (0x80-0xFF) high-byte range, so an ASCII delimiter can never be
+// part of a character and must still split and reset (Annex I.2, Annex K.2); the split
+// keeps doubleByteG0 false for those escapes.
+func classifyEscape(b []byte) (n int, doubleByteG0 bool, ok bool) {
 	switch {
-	case hasBytePrefix(b, "\x1b$("): // ESC $ ( F : multi-byte (e.g. JIS X 0212 = D)
-		return 4, true, true
 	case hasBytePrefix(b, "\x1b$)"): // ESC $ ) F : multi-byte G1 (Korean = C, Chinese = A)
+		return 4, false, true
+	case hasBytePrefix(b, "\x1b$("): // ESC $ ( F : multi-byte G0 (e.g. JIS X 0212 = D)
 		return 4, true, true
-	case hasBytePrefix(b, "\x1b$"): // ESC $ F : multi-byte (JIS X 0208 = B/@)
+	case hasBytePrefix(b, "\x1b$"): // ESC $ F : multi-byte G0 (JIS X 0208 = B/@)
 		return 3, true, true
 	case hasBytePrefix(b, "\x1b("): // ESC ( F : single-byte G0 (ASCII/JIS-Roman/katakana)
 		return 3, false, true
