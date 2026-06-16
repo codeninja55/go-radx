@@ -113,16 +113,21 @@ paging), `transaction`/`batch`, conditional create/update with ETag concurrency,
 negotiation — sending and accepting `application/fhir+json` only. A non-2xx response whose body is an
 `OperationOutcome` is mapped to a typed error the caller classifies by issue severity, consistent with the package's
 `OperationOutcome` error model. The server role serves the conformance subset (`read`, `vread`, `history-instance`,
-`create`, `search-type`, `transaction`, and the `$validate` operation over the workflow resource set) over a
-pluggable versioned repository — every create stores version 1 with `meta.versionId`/`meta.lastUpdated`; read, vread,
-and create emit `ETag`/`Last-Modified`; a create's `Location` (and a transaction response entry's
-`response.location`/`response.etag`) names the created version (`[type]/[id]/_history/[vid]`); a write's `If-Match`
-answers `412` on a stale version — validating inbound
-resources with the release validator and answering every error with a release `OperationOutcome`. Server-side
-`update`/`patch`/`delete` and their conditional forms stay deferred (`501`); a conditional create (`If-None-Exist`,
-on the direct POST or a transaction entry) is rejected `400` with an `OperationOutcome` rather than silently
-ignored — its matching semantics are deferred to the search work. The version store appends versions, so the
-deferred writes extend it without reshaping. Deep multi-hop search chaining beyond a
+`create`, `update`, `patch`, `delete`, `search-type`, `transaction`, and the `$validate` operation over the workflow
+resource set) over a pluggable versioned repository — every create stores version 1 with
+`meta.versionId`/`meta.lastUpdated`; read, vread, and create emit `ETag`/`Last-Modified`; a create's `Location` (and a
+transaction response entry's `response.location`/`response.etag`) names the created version
+(`[type]/[id]/_history/[vid]`); a write's `If-Match` answers `412` on a stale version — validating inbound
+resources with the release validator and answering every error with a release `OperationOutcome`. `update`
+(`PUT [type]/[id]`) replaces the resource and bumps the version (`200`, or `201` for update-as-create, the FHIR and
+HAPI default); `patch` (`PATCH [type]/[id]`) applies JSON Patch (RFC 6902), re-validates, and bumps the version
+(`200`); `delete` (`DELETE [type]/[id]`) appends a deletion version (a later read is `410 Gone`, prior versions stay
+vread-able, the history shows the deletion) and is idempotent. The conditional forms (`PUT`/`PATCH`/`DELETE
+[type]?[search]`) resolve the criteria through the repository's search (zero/one/many → create-or-noop/apply/`412`),
+exactly as selective as that repository's search. FHIRPath Patch is out of scope (JSON Patch only). A conditional
+create (`If-None-Exist`, on the direct POST or a transaction entry) is rejected `400` with an `OperationOutcome`
+rather than silently ignored — its matching semantics are deferred to the search work. The version store is
+interaction-shaped, so update/patch/delete extend it by appending versions. Deep multi-hop search chaining beyond a
 server's `SearchParameter` definitions and every `_include`/`_revinclude` form are the server's concern; the client
 transmits whatever chained or include parameter the caller supplies rather than validating the chain itself.
 
