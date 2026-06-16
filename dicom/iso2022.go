@@ -217,14 +217,12 @@ func (c *SpecificCharacterSet) initialG1() charsetEntry {
 // than a silent switch (PS3.5 §6.1.2.3).
 func (c *SpecificCharacterSet) matchEscape(b []byte) (charsetEntry, int, bool) {
 	for _, e := range c.entries {
-		if e.escape == "" {
-			continue
-		}
-		if hasBytePrefix(b, e.escape) {
+		if e.escape != "" && hasBytePrefix(b, e.escape) {
 			return e, len(e.escape), true
 		}
-		// Also honour the code-extension form of a bare single-byte term so a value
-		// that designates explicitly still resolves.
+		// Also honour the code-extension form of a bare single-byte term (escape == "")
+		// so a value that designates explicitly with ESC ... still resolves to the
+		// configured supplement (e.g. bare ISO_IR 166 -> ESC - T for ISO 2022 IR 166).
 		if iso := definedTermTable[isoTermForEntry(termFor(e))]; iso.escape != "" && hasBytePrefix(b, iso.escape) {
 			return iso, len(iso.escape), true
 		}
@@ -278,6 +276,8 @@ func isoTermForEntry(term string) string {
 		return "ISO 2022 IR 138"
 	case "ISO_IR 148":
 		return "ISO 2022 IR 148"
+	case "ISO_IR 166":
+		return "ISO 2022 IR 166"
 	default:
 		return term
 	}

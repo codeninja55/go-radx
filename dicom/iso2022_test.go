@@ -251,6 +251,32 @@ func TestISO2022G1DoubleByteDelimiterResets(t *testing.T) {
 	}
 }
 
+func TestBareISO166ExtendedDecodesAndEncodesEscape(t *testing.T) {
+	// Bug fix: a bare ISO_IR 166 term in an extended set must resolve its ISO 2022
+	// code-extension form (ESC - T, the IR 166 G1 designation per PS3.3 C.12.1.1.2)
+	// through isoTermForEntry, so Decode accepts an explicit ESC - T Thai run and
+	// Encode emits the designation when switching to Thai.
+	cs, err := NewSpecificCharacterSet("", "ISO_IR 166")
+	if err != nil {
+		t.Fatalf("NewSpecificCharacterSet: %v", err)
+	}
+	raw := []byte{0x1b, '-', 'T', 0xB9, 0xD2, 0xC1, 0xCA, 0xA1, 0xD8, 0xC5}
+	got, err := cs.Decode(raw)
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if want := "นามสกุล"; got != want {
+		t.Fatalf("Decode = %q (% x), want %q", got, []byte(got), want)
+	}
+	reencoded, err := cs.Encode(got)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	if string(reencoded) != string(raw) {
+		t.Fatalf("Encode = % x, want % x (must emit ESC - T designation)", reencoded, raw)
+	}
+}
+
 func TestBareThaiDecode(t *testing.T) {
 	// Bare ISO_IR 166: TIS 620 invoked directly into GR, no escape sequence.
 	cs, err := NewSpecificCharacterSet("ISO_IR 166")
