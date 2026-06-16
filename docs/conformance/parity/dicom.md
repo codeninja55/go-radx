@@ -16,9 +16,9 @@ Row counts across all tables:
 
 | Status | Count |
 |--------|-------|
-| MET | 61 |
+| MET | 65 |
 | PARTIAL | 8 |
-| NOT-MET | 13 |
+| NOT-MET | 9 |
 | N-A | 6 |
 | Total | 88 |
 
@@ -26,9 +26,10 @@ Top NOT-MET/PARTIAL items by impact:
 
 1. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
    but there is no `private_block`/`get_private_item` equivalent and no private-creator dictionary.
-2. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
-   the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family, UTF-8, GB18030, and GBK,
-   but not ISO 2022 IR 149, ISO 2022 IR 58, ISO_IR 166, or bare ISO_IR 13.
+
+The charset table now covers the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family,
+UTF-8, GB18030, GBK, plus Korean (ISO 2022 IR 149), Simplified Chinese (ISO 2022 IR 58), Thai (ISO_IR 166 /
+ISO 2022 IR 166), and bare ISO_IR 13 half-width katakana (PS3.3 C.12.1.1.2, PS3.5 Annex I.2/K.2).
 Modality/VOI LUT and windowing (`apply_modality_lut`/`apply_voi_lut`/`apply_windowing`, `dicom/lut.go`), palette
 colour expansion (`apply_color_lut`), colour-space conversion (`convert_color_space`, `dicom/colorspace.go`), and
 overlay/waveform extraction (`overlay_array`/`waveform_array`, `dicom/overlay.go`, `dicom/waveform.go`) are now MET
@@ -133,10 +134,10 @@ tag, decode returns the typed `dicom.ErrCodecUnavailable` rather than failing th
 | Default repertoire + ISO 8859 supplements (IR 100/101/109/110/144/127/126/138/148) | `charset` term table | MET | dicom/specific_character_set.go:67-92; charset_integration_test.go | - | Bare and ISO 2022 forms both mapped |
 | UTF-8 (ISO_IR 192), GB18030, GBK | multi-byte stand-alone sets | MET | dicom/specific_character_set.go:104-106; charset_regression_test.go | - | |
 | ISO 2022 code extensions (Latin + Japanese IR 13/14/87/159), multi-valued (0008,0005), delimiter resets, per-item charset in sequences | code-extension decode | MET | dicom/iso2022.go:41 decodeISO2022, :21 isISO2022Reset; dicom/sequence_codec.go:150; iso2022_test.go | - | |
-| Korean (ISO 2022 IR 149) | `euc_kr` mapping | NOT-MET | absent from definedTermTable (specific_character_set.go:67) | S | |
-| Simplified Chinese code extension (ISO 2022 IR 58) | `GB2312` mapping | NOT-MET | absent from definedTermTable | S | |
-| Thai (ISO_IR 166 / ISO 2022 IR 166) | `TIS-620` mapping | NOT-MET | absent from definedTermTable | S | |
-| Bare ISO_IR 13 (JIS X 0201 without escapes) | `shift_jis` mapping | NOT-MET | only the ISO 2022 IR 13 form is mapped (specific_character_set.go:98) | S | |
+| Korean (ISO 2022 IR 149) | `euc_kr` mapping | MET | dicom/specific_character_set.go:definedTermTable "ISO 2022 IR 149" (korean.EUCKR, familyDoubleByteG1); dicom/iso2022.go:decodeSingleByteSegment double-byte G1 run; iso2022_test.go:TestISO2022KoreanPersonNameDecode | - | PS3.5 Annex I.2 worked example "Hong^Gildong=洪^吉洞=홍^길동" |
+| Simplified Chinese code extension (ISO 2022 IR 58) | `GB2312` mapping | MET | dicom/specific_character_set.go:definedTermTable "ISO 2022 IR 58" (simplifiedchinese.GBK, familyDoubleByteG1); iso2022_test.go:TestISO2022SimplifiedChinesePersonNameDecode | - | PS3.5 Annex K.2 worked example "Zhang^XiaoDong=张^小东"; GB2312 is the 8-bit subset of GBK |
+| Thai (ISO_IR 166 / ISO 2022 IR 166) | `TIS-620` mapping | MET | dicom/specific_character_set.go:definedTermTable "ISO_IR 166"/"ISO 2022 IR 166" (charmap.Windows874); iso2022_test.go:TestBareThaiDecode, TestISO2022ThaiDesignationDecode | - | Bare and ESC - T forms both mapped; pydicom test_charset.py vector |
+| Bare ISO_IR 13 (JIS X 0201 without escapes) | `shift_jis` mapping | MET | dicom/specific_character_set.go:definedTermTable "ISO_IR 13" (japanese.ShiftJIS); iso2022_test.go:TestBareKatakanaDecode | - | Half-width katakana 0xA1-0xDF -> U+FF61-U+FF9F; pydicom test_charset.py vector |
 | Encode with code extensions (write side) | `charset.encode_string` | MET | dicom/iso2022.go:258 encodeISO2022; iso2022_test.go | - | |
 | Lenient handling of malformed charset terms | `handle_encoding_errors`, spelling repair | PARTIAL | dicom/specific_character_set.go:157 normaliseDefinedTerm (trim only); typed UnsupportedCharacterSetError | S | Fail-closed by design; no replace/ignore modes, no misspelling repair |
 
