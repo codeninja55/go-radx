@@ -60,6 +60,26 @@ var vrNames = [...]string{
 	VRUSorSSorOW: "US or SS or OW",
 }
 
+// resolveExplicitVR maps an ambiguous dictionary placeholder to the concrete 2-letter
+// VR an explicit-VR stream must carry. The placeholders only arise from a value read
+// under Implicit VR LE (where no VR is on the wire); without resolution vrToBytes would
+// emit "UN", losing the element's true type on an implicit->explicit transcode. The
+// resolutions follow the conventional pixel-data reading (PS3.5 §6.2, PS3.6 dictionary):
+// the integer-only pair resolves to its unsigned form (US), the word-bearing pairs to OW
+// so the 16-bit value field is carried losslessly. A concrete VR passes through unchanged.
+func resolveExplicitVR(vr VR) VR {
+	switch vr {
+	case VRUSorSS:
+		return VRUS
+	case VRUSorOW, VRUSorSSorOW:
+		return VROW
+	case VROBorOW:
+		return VROW
+	default:
+		return vr
+	}
+}
+
 func (vr VR) String() string {
 	if int(vr) < len(vrNames) && vrNames[vr] != "" {
 		return vrNames[vr]
