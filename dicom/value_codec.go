@@ -40,12 +40,25 @@ func decodeValueBytes(vr VR, raw []byte, enc encoding, charset *SpecificCharacte
 	case VROB, VROW, VROL, VROV, VRUN:
 		return NewBytes(vr, raw), nil
 
-	case VROBorOW:
-		// Under Implicit VR LE the dictionary yields the ambiguous OB/OW placeholder
-		// (PS3.6 marks OverlayData, WaveformData, and similar as "OB or OW"). Both
-		// candidates carry raw binary, so the value field is the on-wire bytes
-		// verbatim; decoding it as text would corrupt any byte equal to the backslash
-		// value delimiter. Keep the placeholder VR so the write path re-emits it.
+	case VRUSorSS:
+		// Under Implicit VR LE the dictionary yields the ambiguous US/SS placeholder
+		// (PS3.6 marks SmallestImagePixelValue, the LUT Descriptor, and similar as
+		// "US or SS"). Both candidates are 16-bit integers, so materialise the field as
+		// 16-bit words rather than text (a backslash byte in the value would otherwise
+		// be mis-split). Signedness is genuinely ambiguous without dataset context
+		// (PixelRepresentation, or the LUT Descriptor's own first-mapped value), so the
+		// raw 16-bit values are preserved unsigned; a consumer reinterprets the sign
+		// from context.
+		return decodeInts(vr, raw, enc.byteOrder), nil
+
+	case VRUSorOW, VRUSorSSorOW, VROBorOW:
+		// Under Implicit VR LE the dictionary yields one of the word/byte placeholders
+		// (PS3.6 marks LUT Data as "US or OW", the Blending LUT family as "US or SS or
+		// OW", and OverlayData/WaveformData as "OB or OW"). Every candidate carries raw
+		// binary; the value field is the on-wire bytes verbatim, so decoding it as text
+		// would corrupt any byte equal to the backslash value delimiter. Materialise the
+		// bytes losslessly exactly as OW/OB do, keeping the placeholder VR so the write
+		// path resolves it to a concrete VR (see resolveExplicitVR).
 		return NewBytes(vr, raw), nil
 
 	default:
@@ -129,7 +142,9 @@ func decodeInts(vr VR, raw []byte, bo binary.ByteOrder) Value {
 		switch vr {
 		case VRSS:
 			vals = append(vals, int64(int16(bo.Uint16(chunk)))) // #nosec G115 -- same-width sign reinterpretation per PS3.5 Table 6.2-1
-		case VRUS:
+		case VRUS, VRUSorSS:
+			// Preserve the raw 16-bit value unsigned; sign is reinterpreted from
+			// dataset context for the ambiguous US-or-SS placeholder.
 			vals = append(vals, int64(bo.Uint16(chunk)))
 		case VRSL:
 			vals = append(vals, int64(int32(bo.Uint32(chunk)))) // #nosec G115 -- same-width sign reinterpretation per PS3.5 Table 6.2-1
@@ -275,7 +290,9 @@ func intFits(vr VR, n int64) bool {
 	switch vr {
 	case VRSS:
 		return n >= math.MinInt16 && n <= math.MaxInt16
-	case VRUS:
+	case VRUS, VRUSorSS:
+		// VRUSorSS values are materialised unsigned (decodeInts), so they share the US
+		// 16-bit range; encodeInts writes them via PutUint16.
 		return n >= 0 && n <= math.MaxUint16
 	case VRSL:
 		return n >= math.MinInt32 && n <= math.MaxInt32

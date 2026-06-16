@@ -106,7 +106,9 @@ func (v *Ints) EncodedLen(binary.ByteOrder) uint32 {
 // intSize is the per-element byte width of an integer VR.
 func intSize(vr VR) int {
 	switch vr {
-	case VRSS, VRUS:
+	case VRSS, VRUS, VRUSorSS:
+		// VRUSorSS is the unresolved Implicit VR LE placeholder for a 16-bit integer
+		// (US or SS); both candidates are 2 bytes wide.
 		return 2
 	case VRSL, VRUL:
 		return 4

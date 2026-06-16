@@ -90,8 +90,12 @@ func midElementEOF(err error) error {
 	return err
 }
 
-// writeElementHeader writes one element prefix in ts's encoding.
-func writeElementHeader(w io.Writer, h elementHeader, ts TransferSyntax) error {
+// writeElementHeader writes one element prefix in ts's encoding. signed is the
+// dataset's Pixel Representation (0028,0103) being two's-complement (==1): it disambiguates
+// the "US or SS" placeholder on an explicit-VR write so a signed value keeps SS semantics
+// (see resolveExplicitVR). It is ignored under Implicit VR (no VR on the wire) and for
+// every concrete or word/byte VR.
+func writeElementHeader(w io.Writer, h elementHeader, ts TransferSyntax, signed bool) error {
 	enc := encodingFor(ts)
 
 	var tagBytes [4]byte
@@ -102,17 +106,25 @@ func writeElementHeader(w io.Writer, h elementHeader, ts TransferSyntax) error {
 	}
 
 	if enc.implicitVR {
+		// Implicit VR carries no VR field on the wire, so an ambiguous dictionary
+		// placeholder (US or SS, OB or OW, ...) never needs resolving here.
 		var lenBytes [4]byte
 		enc.byteOrder.PutUint32(lenBytes[:], h.length)
 		_, err := w.Write(lenBytes[:])
 		return err
 	}
 
-	if _, err := w.Write(vrToBytes(h.vr)); err != nil {
+	// Explicit VR must emit a concrete 2-letter VR. A value read under Implicit VR LE
+	// keeps the dictionary's ambiguous placeholder; resolve it to a spec-valid VR so an
+	// implicit->explicit transcode emits e.g. OW, not UN. Resolve before the length-form
+	// check because the resolved VR (OW) uses the 32-bit length form.
+	vr := resolveExplicitVR(h.vr, signed)
+
+	if _, err := w.Write(vrToBytes(vr)); err != nil {
 		return err
 	}
 
-	if h.vr.Is32BitLength() {
+	if vr.Is32BitLength() {
 		var buf [6]byte // 2-byte reserved (zero) + 4-byte length
 		enc.byteOrder.PutUint32(buf[2:6], h.length)
 		_, err := w.Write(buf[:])
