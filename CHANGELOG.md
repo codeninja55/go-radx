@@ -117,8 +117,12 @@ legacy codebase (`legacy-main`) and are not continued here.
   (`US or OW`, `US or SS or OW`, `OB or OW`) as lossless raw bytes (`*Bytes`), exactly as OW/OB. A 16-bit
   numeric tag read under Implicit VR LE is now readable through `GetInt`/`GetInts`, and palette-colour LUTs
   (whose descriptor is `US or SS`, data `US or OW`) decode under Implicit VR LE rather than failing. On
-  Explicit VR write the placeholders resolve to a concrete, spec-valid VR (`US or SS` to `US`, the word
-  placeholders to `OW`) so an implicit-to-explicit transcode emits a valid VR, not `UN` (PS3.5 §6.2).
+  Explicit VR write the placeholders resolve to a concrete, spec-valid VR so an implicit-to-explicit
+  transcode emits a valid VR, not `UN`. `US or SS` resolves by the dataset's Pixel Representation
+  (0028,0103): `SS` when it is `1` (two's-complement signed), else `US` (unsigned, also the default when the
+  element is absent), so a signed value such as a Modality LUT Descriptor first-mapped `-1000` or a signed
+  Pixel Padding Value keeps its signed semantics rather than being re-read as `64536`; the word placeholders
+  resolve to `OW` (PS3.5 §6.2, §8.1.1).
 
 - hl7v2 MLLP and the server HTTP roles enforced no TLS floor: a caller-pinned MinVersion of 1.0/1.1 took
   effect despite the documented TLS 1.2 contract. Both now clone-and-clamp like the DIMSE AE; HTTP roles

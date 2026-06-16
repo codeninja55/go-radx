@@ -63,13 +63,26 @@ var vrNames = [...]string{
 // resolveExplicitVR maps an ambiguous dictionary placeholder to the concrete 2-letter
 // VR an explicit-VR stream must carry. The placeholders only arise from a value read
 // under Implicit VR LE (where no VR is on the wire); without resolution vrToBytes would
-// emit "UN", losing the element's true type on an implicit->explicit transcode. The
-// resolutions follow the conventional pixel-data reading (PS3.5 §6.2, PS3.6 dictionary):
-// the integer-only pair resolves to its unsigned form (US), the word-bearing pairs to OW
-// so the 16-bit value field is carried losslessly. A concrete VR passes through unchanged.
-func resolveExplicitVR(vr VR) VR {
+// emit "UN", losing the element's true type on an implicit->explicit transcode.
+//
+// "US or SS" signedness is defined by Pixel Representation (0028,0103): 0 is unsigned
+// (US), 1 is two's-complement signed (SS) (PS3.5 §8.1.1, PS3.6 dictionary). Resolving it
+// unconditionally to US corrupts the signed semantics of a value such as a Modality LUT
+// Descriptor first-mapped -1000 (held as 0xFC18) or a signed Pixel Padding Value: a later
+// explicit-VR read of a concrete US decodes 0xFC18 as 64536 and never sign-reinterprets
+// it. The value bytes are byte-identical either way, so signed carries the dataset's
+// PixelRepresentation==1 state to pick SS over US. When PixelRepresentation is absent the
+// standard's default is unsigned, so signed is false and the pair resolves to US.
+//
+// The word/byte placeholders (US or OW, US or SS or OW, OB or OW) resolve to OW: every
+// candidate carries raw 16-bit words or bytes, so the field is byte-preserving and no
+// signedness applies. A concrete VR passes through unchanged.
+func resolveExplicitVR(vr VR, signed bool) VR {
 	switch vr {
 	case VRUSorSS:
+		if signed {
+			return VRSS
+		}
 		return VRUS
 	case VRUSorOW, VRUSorSSorOW:
 		return VROW

@@ -90,8 +90,12 @@ func midElementEOF(err error) error {
 	return err
 }
 
-// writeElementHeader writes one element prefix in ts's encoding.
-func writeElementHeader(w io.Writer, h elementHeader, ts TransferSyntax) error {
+// writeElementHeader writes one element prefix in ts's encoding. signed is the
+// dataset's Pixel Representation (0028,0103) being two's-complement (==1): it disambiguates
+// the "US or SS" placeholder on an explicit-VR write so a signed value keeps SS semantics
+// (see resolveExplicitVR). It is ignored under Implicit VR (no VR on the wire) and for
+// every concrete or word/byte VR.
+func writeElementHeader(w io.Writer, h elementHeader, ts TransferSyntax, signed bool) error {
 	enc := encodingFor(ts)
 
 	var tagBytes [4]byte
@@ -114,7 +118,7 @@ func writeElementHeader(w io.Writer, h elementHeader, ts TransferSyntax) error {
 	// keeps the dictionary's ambiguous placeholder; resolve it to a spec-valid VR so an
 	// implicit->explicit transcode emits e.g. OW, not UN. Resolve before the length-form
 	// check because the resolved VR (OW) uses the 32-bit length form.
-	vr := resolveExplicitVR(h.vr)
+	vr := resolveExplicitVR(h.vr, signed)
 
 	if _, err := w.Write(vrToBytes(vr)); err != nil {
 		return err

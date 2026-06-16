@@ -109,6 +109,11 @@ func charsetFromElement(v Value) (*SpecificCharacterSet, error) {
 // padded character field is counted correctly.
 func writeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error {
 	enc := encodingFor(ts)
+	// Pixel Representation (0028,0103) disambiguates the "US or SS" placeholder on an
+	// explicit-VR write (PS3.5 §8.1.1). Each dataset, including a nested SQ item, reads
+	// its own value; absent the element the standard's default is unsigned.
+	pr, _ := ds.GetInt(TagPixelRepresentation)
+	signed := pr == 1
 	for e := range ds.All() {
 		if e.Value == nil {
 			return &ValueError{Tag: e.Tag, VR: e.VR, Msg: "element has no value"}
@@ -140,7 +145,7 @@ func writeDataSet(w io.Writer, ds *DataSet, ts TransferSyntax) error {
 		}
 
 		n := e.Value.EncodedLen(enc.byteOrder)
-		if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: n}, ts); err != nil {
+		if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: n}, ts, signed); err != nil {
 			return err
 		}
 		written, err := encodeValue(w, e.Value, enc)
@@ -167,7 +172,9 @@ func writeEncapsulatedElement(w io.Writer, e Element, ev *encapsulatedValue, ts 
 			Msg: "encapsulated pixel data cannot be written under an uncompressed transfer syntax; transcode it first",
 		}
 	}
-	if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: undefinedLength}, ts); err != nil {
+	// Encapsulated pixel data carries a concrete VR (OB/OW), so the US-or-SS
+	// disambiguation does not apply: signed is false.
+	if err := writeElementHeader(w, elementHeader{tag: e.Tag, vr: e.VR, length: undefinedLength}, ts, false); err != nil {
 		return err
 	}
 	_, err := w.Write(ev.stream)
@@ -188,7 +195,9 @@ func writeSequenceElement(w io.Writer, tag Tag, seq *Sequence, ts TransferSyntax
 		}
 		headerLen = n
 	}
-	if err := writeElementHeader(w, elementHeader{tag: tag, vr: VRSQ, length: headerLen}, ts); err != nil {
+	// An SQ header carries the concrete VRSQ, so the US-or-SS disambiguation does not
+	// apply: signed is false.
+	if err := writeElementHeader(w, elementHeader{tag: tag, vr: VRSQ, length: headerLen}, ts, false); err != nil {
 		return err
 	}
 	_, err := encodeSequenceValue(w, seq, ts)
