@@ -234,6 +234,42 @@ func dispatchMessage(
 		// rather than faulting the association — otherwise an SCU that breaks a C-FIND just as the
 		// query completes would have its association closed, breaking release/reuse.
 		return nil
+	case CommandNGetRQ:
+		nh, ok := h.(NGetHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNGetRSP, cmd, pcID)
+		}
+		return serveNGetMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNDeleteRQ:
+		nh, ok := h.(NDeleteHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNDeleteRSP, cmd, pcID)
+		}
+		return serveNDeleteMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNCreateRQ:
+		nh, ok := h.(NCreateHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNCreateRSP, cmd, pcID)
+		}
+		return serveNCreateMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNSetRQ:
+		nh, ok := h.(NSetHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNSetRSP, cmd, pcID)
+		}
+		return serveNSetMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNActionRQ:
+		nh, ok := h.(NActionHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNActionRSP, cmd, pcID)
+		}
+		return serveNActionMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNEventReportRQ:
+		nh, ok := h.(NEventReportHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNEventReportRSP, cmd, pcID)
+		}
+		return serveNEventReportMessage(ctx, acc, nh, cmd, ds, pcID, base)
 	default:
 		return &ProtocolError{
 			State:  acc.Machine().CurrentState(),
