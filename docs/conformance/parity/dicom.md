@@ -16,9 +16,9 @@ Row counts across all tables:
 
 | Status | Count |
 |--------|-------|
-| MET | 59 |
+| MET | 61 |
 | PARTIAL | 8 |
-| NOT-MET | 15 |
+| NOT-MET | 13 |
 | N-A | 6 |
 | Total | 88 |
 
@@ -29,11 +29,10 @@ Top NOT-MET/PARTIAL items by impact:
 2. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
    the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family, UTF-8, GB18030, and GBK,
    but not ISO 2022 IR 149, ISO 2022 IR 58, ISO_IR 166, or bare ISO_IR 13.
-3. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
-
 Modality/VOI LUT and windowing (`apply_modality_lut`/`apply_voi_lut`/`apply_windowing`, `dicom/lut.go`), palette
-colour expansion (`apply_color_lut`), and colour-space conversion (`convert_color_space`, `dicom/colorspace.go`)
-are now MET (PS3.3 §C.11, C.7.9, C.7.6.3.1.2).
+colour expansion (`apply_color_lut`), colour-space conversion (`convert_color_space`, `dicom/colorspace.go`), and
+overlay/waveform extraction (`overlay_array`/`waveform_array`, `dicom/overlay.go`, `dicom/waveform.go`) are now MET
+(PS3.3 §C.11, C.7.9, C.7.6.3.1.2, C.10.9, PS3.5 §8.1.2).
 
 Where go-radx exceeds pydicom: a full PS3.15 Table E.1-1 de-identification engine (pydicom core ships only
 `remove_private_tags` and guidance), typed fail-closed errors, bounded hostile-input reading with fuzz targets
@@ -123,8 +122,8 @@ tag, decode returns the typed `dicom.ErrCodecUnavailable` rather than failing th
 | Palette colour expansion | `apply_color_lut` | MET | dicom/colorspace.go ApplyColorLUT; colorspace_test.go (8/16-bit entries, first-mapped offset, zero-count=65536) | - | Non-segmented path (PS3.3 C.7.9, C.7.6.3.1.5); segmented LUT out of scope |
 | Colour-space conversion utility | `convert_color_space` | MET | dicom/colorspace.go ConvertColorSpace; colorspace_test.go (PS3.3 C.7.6.3.1.2 pixel-exact) | - | YBR_FULL<->RGB, YBR_FULL_422->RGB/YBR_FULL, planar config 0/1; YBR_PARTIAL/ICT/RCT out of scope |
 | 1-bit pixel pack/unpack | `pack_bits` / `unpack_bits` | PARTIAL | dicom/pixel_geometry.go:34 FrameLength (sub-byte sizing) | S | Frame sizing correct; no per-pixel pack/unpack helpers |
-| Overlay data extraction | `Dataset.overlay_array` | NOT-MET | overlay tags only in dicom/tag_values.go | M | |
-| Waveform decode | `Dataset.waveform_array` | NOT-MET | waveform tags/UIDs only (tag_values.go, uid_values.go) | M | |
+| Overlay data extraction | `Dataset.overlay_array` | MET | dicom/overlay.go:78 OverlayArray, OverlayGroups (LSB-first unpack PS3.5 §8.1.2); fixture + synthetic tests in overlay_test.go | - | 484x484 MR-SIEMENS fixture, 323 set bits exact; embedded (bit-position) overlays rejected as retired |
+| Waveform decode | `Dataset.waveform_array` | MET | dicom/waveform.go:84 WaveformArray, WaveformGroups (C.10.9 scaling); synthetic exact tests in waveform_test.go | - | 8/16-bit SS/US/SB/UB, big/little-endian, per-channel sensitivity*correction+baseline |
 | Streaming frame iteration | `pixels.iter_pixels` | MET | dicom/pixel_data.go:110 Frames | - | |
 
 ## Character sets

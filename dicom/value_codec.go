@@ -40,6 +40,14 @@ func decodeValueBytes(vr VR, raw []byte, enc encoding, charset *SpecificCharacte
 	case VROB, VROW, VROL, VROV, VRUN:
 		return NewBytes(vr, raw), nil
 
+	case VROBorOW:
+		// Under Implicit VR LE the dictionary yields the ambiguous OB/OW placeholder
+		// (PS3.6 marks OverlayData, WaveformData, and similar as "OB or OW"). Both
+		// candidates carry raw binary, so the value field is the on-wire bytes
+		// verbatim; decoding it as text would corrupt any byte equal to the backslash
+		// value delimiter. Keep the placeholder VR so the write path re-emits it.
+		return NewBytes(vr, raw), nil
+
 	default:
 		// All remaining VRs are text: AE AS CS DA DT LO LT PN SH ST TM UC UI UR UT.
 		return decodeStrings(vr, raw, charset)
