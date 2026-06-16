@@ -9,8 +9,13 @@ import (
 // NRequest carries the parsed fields of an inbound DIMSE-N request the SCP dispatch hands to an
 // N-service handler. It is the normalised-service counterpart of the per-operation OpInfo a
 // C-service handler receives, extended with the DIMSE-N reference pair and the request data set.
-// Every value it carries is a protocol identifier (a SOP Class/Instance UID, an Action/Event Type
-// ID, an attribute-tag list) — never a patient value — so it is safe to log (PRD §9.1).
+//
+// NRequest may carry PHI. Its DataSet holds the managed object's attributes (the N-CREATE/N-SET/
+// N-ACTION/N-EVENT-REPORT data set), which can include patient, study, and procedure identifiers,
+// and its SOP Instance UIDs are object identifiers tied to a study. A handler MUST NOT log the
+// request's contents by default (no PHI in logs, errors, or telemetry, PRD §9.1); the no-PHI
+// diagnostic context is NRequest.Info (an OpInfo: AE Titles, the presentation context, the Message
+// ID, the SOP Class), which is safe to log.
 //
 // Which fields are populated depends on the operation. An N-GET-RQ carries
 // RequestedSOPClassUID/RequestedSOPInstanceUID and an optional AttributeIdentifierList, and no data
