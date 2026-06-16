@@ -312,10 +312,11 @@ func TestFHIRCreateAuditEvent(t *testing.T) {
 	assertNoSentinel(t, ev)
 }
 
-// TestFHIRUpdateDeleteAuditEvents drives a create, an update, and a delete through a daemon with
-// WithAudit and asserts the structural events: the update is audited as an update (version 2), the
-// delete as a delete (the deleted outcome), each carrying only the resource type and the
-// server-known id and version, never a value from the sentinel-bearing body.
+// TestFHIRUpdateDeleteAuditEvents drives a create, an update, a patch, and a delete through a daemon
+// with WithAudit and asserts the structural events: the update is audited as fhir.update (version 2),
+// the patch as fhir.patch (version 3, never fhir.update), the delete as fhir.delete (the deleted
+// outcome), each carrying only the resource type and the server-known id and version, never a value
+// from the sentinel-bearing body.
 func TestFHIRUpdateDeleteAuditEvents(t *testing.T) {
 	t.Parallel()
 	collector := &auditCollector{}
@@ -385,21 +386,30 @@ func TestFHIRUpdateDeleteAuditEvents(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("update status = %d, want 200", resp.StatusCode)
 	}
+	// A PATCH must be audited as fhir.patch, distinct from the PUT's fhir.update.
+	resp = do(http.MethodPatch, "/Patient/"+id, "application/json-patch+json",
+		[]byte(`[{"op":"add","path":"/gender","value":"male"}]`))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("patch status = %d, want 200", resp.StatusCode)
+	}
 	resp = do(http.MethodDelete, "/Patient/"+id, "", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("delete status = %d, want 200", resp.StatusCode)
 	}
 
 	events := collector.all()
-	if len(events) != 3 {
-		t.Fatalf("audit events = %d, want 3 (create, update, delete)", len(events))
+	if len(events) != 4 {
+		t.Fatalf("audit events = %d, want 4 (create, update, patch, delete)", len(events))
 	}
-	create, update, del := events[0], events[1], events[2]
+	create, update, patch, del := events[0], events[1], events[2], events[3]
 	if create.Op != AuditOpFHIRCreate || create.VersionID != "1" {
 		t.Errorf("create event = %+v, want fhir.create version 1", create)
 	}
 	if update.Op != AuditOpFHIRUpdate || update.VersionID != "2" || update.Outcome != AuditOutcomeStoredIndexed {
 		t.Errorf("update event = %+v, want fhir.update version 2 stored-indexed", update)
+	}
+	if patch.Op != AuditOpFHIRPatch || patch.VersionID != "3" || patch.Outcome != AuditOutcomeStoredIndexed {
+		t.Errorf("patch event = %+v, want fhir.patch version 3 stored-indexed", patch)
 	}
 	if del.Op != AuditOpFHIRDelete || del.Outcome != AuditOutcomeDeleted || del.ResourceID != id {
 		t.Errorf("delete event = %+v, want fhir.delete deleted id %s", del, id)

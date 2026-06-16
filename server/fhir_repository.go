@@ -66,7 +66,13 @@ type Repository interface {
 	// stored resource is always the URL id, never a body id, so a body/URL id mismatch the caller
 	// already rejected cannot reach here. The caller validates with the release validator first; a
 	// resource with error-severity issues never reaches Update.
-	Update(ctx context.Context, resourceType, id string, r fhir.Resource) (resource fhir.Resource, created bool, err error)
+	//
+	// expectedVersion carries the If-Match precondition (FHIR R5 http.html#concurrency): when it is
+	// non-empty the update is a compare-and-swap that succeeds only if the resource's current
+	// meta.versionId equals expectedVersion, returning ErrVersionConflict otherwise; when it is empty
+	// there is no precondition. The comparison happens inside the repository's write lock so it is
+	// atomic with the write: two concurrent writers with the same valid If-Match cannot both succeed.
+	Update(ctx context.Context, resourceType, id string, r fhir.Resource, expectedVersion string) (resource fhir.Resource, created bool, err error)
 
 	// Delete retires the current version of (resourceType, id) by appending a deletion version to its
 	// history (the delete interaction, FHIR R5 http.html#delete). It is idempotent: deleting an
@@ -74,7 +80,13 @@ type Repository interface {
 	// HAPI's "delete of a non-existent resource succeeds". A resource that existed and was live
 	// reports existed=true. After a delete a Read answers ErrGone (the 410 path), prior versions stay
 	// VRead-able, and History shows the deletion entry.
-	Delete(ctx context.Context, resourceType, id string) (existed bool, err error)
+	//
+	// expectedVersion carries the If-Match precondition (FHIR R5 http.html#concurrency): when it is
+	// non-empty the delete succeeds only if the resource's current meta.versionId equals
+	// expectedVersion, returning ErrVersionConflict otherwise; an If-Match against an absent or
+	// already-deleted resource cannot be satisfied and is ErrVersionConflict. The comparison happens
+	// inside the repository's write lock so it is atomic with the delete.
+	Delete(ctx context.Context, resourceType, id string, expectedVersion string) (existed bool, err error)
 
 	// Search executes a type-level search and returns a searchset Bundle of the role's release (built
 	// with the release's NewSearchSet so total and the bdl-* invariants hold), behind the
@@ -218,10 +230,10 @@ func (m *MemoryRepository) createLocked(r fhir.Resource) (fhir.Resource, error) 
 // addresses itself by the path it was written to. The new version is appended to the resource's
 // history exactly as a create appends version 1, so history, vread, and the version headers all see
 // the update without any reshaping of the record. created reports whether this was a create.
-func (m *MemoryRepository) Update(_ context.Context, resourceType, id string, r fhir.Resource) (fhir.Resource, bool, error) {
+func (m *MemoryRepository) Update(_ context.Context, resourceType, id string, r fhir.Resource, expectedVersion string) (fhir.Resource, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.updateLocked(resourceType, id, r)
+	return m.updateLocked(resourceType, id, r, expectedVersion)
 }
 
 // updateLocked is the unlocked core of Update; the caller must hold m.mu for writing. A resource
@@ -230,9 +242,12 @@ func (m *MemoryRepository) Update(_ context.Context, resourceType, id string, r 
 // http.html#delete: "a server MAY allow a deleted resource to be brought back to life by a
 // subsequent update". The version id continues the existing sequence so a resurrected resource's
 // history stays monotonic.
-func (m *MemoryRepository) updateLocked(resourceType, id string, r fhir.Resource) (fhir.Resource, bool, error) {
+func (m *MemoryRepository) updateLocked(resourceType, id string, r fhir.Resource, expectedVersion string) (fhir.Resource, bool, error) {
 	key := storeKey(resourceType, id)
 	existing := m.byVer[key]
+	if err := checkExpectedVersion(existing, expectedVersion, resourceType, id); err != nil {
+		return nil, false, err
+	}
 	versionID := nextVersionID(existing)
 	created := len(existing) == 0 || lastVersionDeleted(existing)
 
@@ -240,6 +255,13 @@ func (m *MemoryRepository) updateLocked(resourceType, id string, r fhir.Resource
 	stored, err := m.adapter.withResourceVersion(r, id, versionID, fhirInstant(at))
 	if err != nil {
 		return nil, false, err
+	}
+	if len(existing) == 0 {
+		// Update-as-create at a client-chosen id (a PUT to a never-seen id). Reserve the id so a later
+		// createLocked never re-mints it: the counter is monotonic, so a minted id below this numeric id
+		// would collide and silently overwrite the resource the client just created. A non-numeric client
+		// id cannot collide with a minted (always numeric) id, so it leaves the counter alone.
+		m.reserveID(id)
 	}
 	m.byKey[key] = stored
 	m.byVer[key] = append(existing, ResourceVersion{
@@ -250,16 +272,41 @@ func (m *MemoryRepository) updateLocked(resourceType, id string, r fhir.Resource
 	return stored, created, nil
 }
 
+// reserveID advances the server id counter past a client-chosen numeric id so a later createLocked
+// mints a fresh id that cannot collide with it. It is the update-as-create guard: a PUT to a numeric
+// id that the server would later mint must reserve that id, or a subsequent POST overwrites the
+// PUT-created resource. A non-numeric client id never collides with a minted (always numeric) id, so
+// it is left alone. The caller must hold m.mu for writing. The counter is only ever advanced, never
+// lowered, so a concurrent create that already raced ahead is not rolled back.
+func (m *MemoryRepository) reserveID(id string) {
+	n, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		return
+	}
+	for {
+		cur := m.counter.Load()
+		if cur >= n {
+			return
+		}
+		if m.counter.CompareAndSwap(cur, n) {
+			return
+		}
+	}
+}
+
 // Delete retires the current version of (resourceType, id) by appending a deletion version to its
 // history and removing the live entry. It is idempotent: a resource that never existed, or whose
 // current version is already a deletion, is a no-op reporting existed=false (HAPI answers a delete of
 // an absent resource 200/204, never 404). A live resource reports existed=true; after the delete a
 // Read answers ErrGone, prior versions stay VRead-able, and History shows the deletion.
-func (m *MemoryRepository) Delete(_ context.Context, resourceType, id string) (bool, error) {
+func (m *MemoryRepository) Delete(_ context.Context, resourceType, id string, expectedVersion string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := storeKey(resourceType, id)
 	existing := m.byVer[key]
+	if err := checkExpectedVersion(existing, expectedVersion, resourceType, id); err != nil {
+		return false, err
+	}
 	if len(existing) == 0 || lastVersionDeleted(existing) {
 		return false, nil
 	}
@@ -293,6 +340,26 @@ func nextVersionID(existing []ResourceVersion) string {
 // delete paths share.
 func lastVersionDeleted(existing []ResourceVersion) bool {
 	return len(existing) > 0 && existing[len(existing)-1].Deleted
+}
+
+// checkExpectedVersion enforces an If-Match precondition against a resource's history (oldest first),
+// the compare-and-swap the update and delete paths run inside the write lock so the precondition is
+// atomic with the write (FHIR R5 http.html#concurrency). An empty expectedVersion is no precondition
+// and always passes. Otherwise the current version must be live (not absent, not deleted) and its
+// meta.versionId must equal expectedVersion, else it is ErrVersionConflict: an If-Match against an
+// absent or deleted resource names a version that is not the current one. resourceType and id are
+// structural locators for the (PHI-free) diagnostic.
+func checkExpectedVersion(existing []ResourceVersion, expectedVersion, resourceType, id string) error {
+	if expectedVersion == "" {
+		return nil
+	}
+	if len(existing) == 0 || lastVersionDeleted(existing) {
+		return fmt.Errorf("%w: %s/%s has no current version to match", ErrVersionConflict, resourceType, id)
+	}
+	if current := existing[len(existing)-1].VersionID; current != expectedVersion {
+		return fmt.Errorf("%w: %s/%s is at version %s, not %s", ErrVersionConflict, resourceType, id, current, expectedVersion)
+	}
+	return nil
 }
 
 // VRead returns the stored version of (resourceType, id) named by versionID: ErrNotFound when the
@@ -430,11 +497,11 @@ func (v lockedView) Create(_ context.Context, r fhir.Resource) (fhir.Resource, e
 	return v.repo.createLocked(r)
 }
 
-func (v lockedView) Update(_ context.Context, resourceType, id string, r fhir.Resource) (fhir.Resource, bool, error) {
-	return v.repo.updateLocked(resourceType, id, r)
+func (v lockedView) Update(_ context.Context, resourceType, id string, r fhir.Resource, expectedVersion string) (fhir.Resource, bool, error) {
+	return v.repo.updateLocked(resourceType, id, r, expectedVersion)
 }
 
-func (v lockedView) Delete(context.Context, string, string) (bool, error) {
+func (v lockedView) Delete(context.Context, string, string, string) (bool, error) {
 	return false, fmt.Errorf("server: delete is not supported inside a transaction")
 }
 

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"net/http"
 	"net/url"
 	"time"
@@ -45,18 +44,18 @@ func (h *fhirHandler) handleUpdate(w http.ResponseWriter, r *http.Request, resou
 		h.writeOutcome(w, r, http.StatusUnprocessableEntity, h.adapter.operationOutcome(toOutcomeIssues(oo)))
 		return
 	}
-	if !h.checkIfMatch(w, r, resourceType, id) {
-		return
-	}
 	h.applyUpdate(w, r, resourceType, id, resource, "update")
 }
 
 // applyUpdate calls the repository's update and writes the response: 201 with a versioned Location
 // when the update created the resource, 200 otherwise. interaction names the originating interaction
 // for the log and the audit event ("update" or "conditional-update"); a create-on-update is audited
-// as a create, the rest as an update.
+// as a create, the rest as an update. An If-Match precondition (when present) is passed to the
+// repository so the version check is a compare-and-swap atomic with the write (FHIR R5
+// http.html#concurrency): a stale or unsatisfiable version is ErrVersionConflict, which
+// writeRepoError maps to 412.
 func (h *fhirHandler) applyUpdate(w http.ResponseWriter, r *http.Request, resourceType, id string, resource fhir.Resource, interaction string) {
-	updated, created, err := h.repo.Update(r.Context(), resourceType, id, resource)
+	updated, created, err := h.repo.Update(r.Context(), resourceType, id, resource, ifMatchVersion(r))
 	if err != nil {
 		h.writeRepoError(w, r, err)
 		return
@@ -89,9 +88,6 @@ func (h *fhirHandler) handlePatch(w http.ResponseWriter, r *http.Request, resour
 		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body could not be read or exceeds the size limit")
 		return
 	}
-	if !h.checkIfMatch(w, r, resourceType, id) {
-		return
-	}
 	current, err := h.repo.Read(r.Context(), resourceType, id)
 	if err != nil {
 		h.writeRepoError(w, r, err)
@@ -106,12 +102,15 @@ func (h *fhirHandler) handlePatch(w http.ResponseWriter, r *http.Request, resour
 		h.writeOutcome(w, r, http.StatusUnprocessableEntity, h.adapter.operationOutcome(toOutcomeIssues(oo)))
 		return
 	}
-	updated, _, uerr := h.repo.Update(r.Context(), resourceType, id, patched)
+	// The If-Match precondition rides into the write so the version check is a compare-and-swap atomic
+	// with the store: the read above only fetches the document to patch, and a concurrent write between
+	// it and this Update is caught here as ErrVersionConflict (412), never a lost update.
+	updated, _, uerr := h.repo.Update(r.Context(), resourceType, id, patched, ifMatchVersion(r))
 	if uerr != nil {
 		h.writeRepoError(w, r, uerr)
 		return
 	}
-	h.auditWrite(updated, false)
+	h.auditPatch(updated)
 	h.logger.Info("fhir patch", zap.String("type", resourceType), zap.String("interaction", "patch"))
 	h.setVersionHeaders(w, updated)
 	h.writeResource(w, r, http.StatusOK, updated, "")
@@ -124,10 +123,7 @@ func (h *fhirHandler) handlePatch(w http.ResponseWriter, r *http.Request, resour
 // absent resource answers 204 No Content. After a delete a read answers 410 Gone, prior versions
 // stay vread-able, and the history shows the deletion.
 func (h *fhirHandler) handleDelete(w http.ResponseWriter, r *http.Request, resourceType, id string) {
-	if !h.checkIfMatch(w, r, resourceType, id) {
-		return
-	}
-	existed, err := h.repo.Delete(r.Context(), resourceType, id)
+	existed, err := h.repo.Delete(r.Context(), resourceType, id, ifMatchVersion(r))
 	if err != nil {
 		h.writeRepoError(w, r, err)
 		return
@@ -179,50 +175,61 @@ func (h *fhirHandler) decodeWriteBody(w http.ResponseWriter, r *http.Request) (f
 	return resource, true
 }
 
-// checkIfMatch evaluates a write's If-Match version precondition against the current version of the
-// target resource, per FHIR R5 http.html#concurrency: a version-aware write names the version it was
-// based on, and "if the version id given in the If-Match header does not match, the server returns a
-// 412 Precondition Failed status code instead of updating the resource". A request with no If-Match
-// passes through. An If-Match against a resource that does not exist (or is deleted) cannot be
-// satisfied, so it is a 412 — the named version is not the current one. A stale If-Match is the 412
-// with a conflict OperationOutcome. It reports true to proceed, false when it wrote the error.
-func (h *fhirHandler) checkIfMatch(w http.ResponseWriter, r *http.Request, resourceType, id string) bool {
+// ifMatchVersion extracts the version id a write's If-Match precondition names, or "" when the
+// request carries no If-Match (no precondition), per FHIR R5 http.html#concurrency. The version is
+// passed into the repository's Update/Delete, which compares it against the current version inside
+// its write lock so the precondition is a compare-and-swap atomic with the write: two concurrent
+// writers with the same valid If-Match cannot both pass, and the role never reads-then-writes with a
+// race window between. A stale or unsatisfiable precondition surfaces as ErrVersionConflict, which
+// writeRepoError maps to 412. Both the weak (W/"1") and strong ("1") entity-tag forms are accepted.
+func ifMatchVersion(r *http.Request) string {
 	ifMatch := r.Header.Get("If-Match")
 	if ifMatch == "" {
-		return true
+		return ""
 	}
-	current, err := h.repo.Read(r.Context(), resourceType, id)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrGone) {
-			h.writeError(w, r, http.StatusPreconditionFailed, issueTypeConflict,
-				"the If-Match version cannot be satisfied: "+resourceType+"/"+id+" has no matching current version")
-			return false
-		}
-		h.writeRepoError(w, r, err)
-		return false
+	v := etagVersionID(ifMatch)
+	if v == "" {
+		// A present-but-empty If-Match (e.g. `If-Match: ""`) is a malformed precondition, not the
+		// absence of one: it must fail, never silently turn into "no precondition". A sentinel that no
+		// real version id (a non-empty token) can equal forces the compare-and-swap to 412.
+		return malformedIfMatchSentinel
 	}
-	versionID, _ := resourceVersionViaJSON(current)
-	if etagVersionID(ifMatch) != versionID {
-		h.writeError(w, r, http.StatusPreconditionFailed, issueTypeConflict,
-			"the If-Match version does not match the current version of "+resourceType+"/"+id)
-		return false
-	}
-	return true
+	return v
 }
 
-// auditWrite emits the structural audit event for a committed update or patch: the resource type
-// plus the server-minted id and version, never a body value (PRD §9.5). A create-on-update is
-// audited as a create (AuditOpFHIRCreate); an update of an existing resource as an update. Patch
-// always passes created=false, so a patch is audited as an update.
+// malformedIfMatchSentinel is the expected-version value a present-but-empty If-Match maps to. No
+// real meta.versionId is empty or contains a NUL, so the compare-and-swap can never match it: a
+// malformed precondition is a failed precondition (412), never a bypassed one.
+const malformedIfMatchSentinel = "\x00malformed-if-match"
+
+// auditWrite emits the structural audit event for a committed update: the resource type plus the
+// server-minted id and version, never a body value (PRD §9.5). A create-on-update is audited as a
+// create (AuditOpFHIRCreate); an update of an existing resource as an update (AuditOpFHIRUpdate). A
+// patch is audited separately through auditPatch so it carries its own AuditOpFHIRPatch op.
 func (h *fhirHandler) auditWrite(updated fhir.Resource, created bool) {
-	if h.audit == nil {
-		return
-	}
-	versionID, _ := resourceVersionViaJSON(updated)
 	op := AuditOpFHIRUpdate
 	if created {
 		op = AuditOpFHIRCreate
 	}
+	h.auditStored(updated, op)
+}
+
+// auditPatch emits the structural audit event for a committed patch: the resource type plus the
+// server-minted id and version, with AuditOpFHIRPatch so a PATCH is distinguishable from a PUT in the
+// audit trail (PRD §9.5). A patch never creates a resource (it modifies an existing one), so it has
+// no create-on-update branch.
+func (h *fhirHandler) auditPatch(updated fhir.Resource) {
+	h.auditStored(updated, AuditOpFHIRPatch)
+}
+
+// auditStored is the shared body of auditWrite and auditPatch: it emits a stored-indexed write event
+// for op, carrying only the resource type and the server-known id and version (PRD §9.5). A nil audit
+// hook is a no-op.
+func (h *fhirHandler) auditStored(updated fhir.Resource, op AuditOp) {
+	if h.audit == nil {
+		return
+	}
+	versionID, _ := resourceVersionViaJSON(updated)
 	h.audit(AuditEvent{
 		Op:           op,
 		Time:         time.Now().UTC(),
@@ -399,6 +406,18 @@ func (h *fhirHandler) resolveConditional(w http.ResponseWriter, r *http.Request,
 		return "", 0, false
 	}
 	ids := searchsetMatchIDs(bundle, h.adapter)
+	// The zero/one/many decision keys off Bundle.total, the authoritative full-result count, not the
+	// number of entries on the page: a paged searchset can report total greater than len(entry), so a
+	// multi-match search must resolve as "many" (a 412) even when only one entry was returned, never as
+	// a single-resource write. A single match is total==1 with exactly one entry id to address.
+	if total, has := searchsetBundleTotal(bundle); has {
+		if total == 1 && len(ids) == 1 {
+			return ids[0], 1, true
+		}
+		return "", total, true
+	}
+	// No total element: fall back to the entry ids so a custom Repository whose searchset omits total
+	// still resolves a single unambiguous match, never silently mis-resolving.
 	if len(ids) == 1 {
 		return ids[0], 1, true
 	}

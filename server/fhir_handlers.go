@@ -690,6 +690,11 @@ func (h *fhirHandler) writeRepoError(w http.ResponseWriter, r *http.Request, err
 		h.writeError(w, r, http.StatusGone, issueTypeDeleted, "the resource is deleted")
 		return
 	}
+	if errors.Is(err, ErrVersionConflict) {
+		h.writeError(w, r, http.StatusPreconditionFailed, issueTypeConflict,
+			"the If-Match version does not match the current version of the resource")
+		return
+	}
 	h.writeError(w, r, http.StatusInternalServerError, issueTypeException, sanitizeRepoMessage(err))
 }
 

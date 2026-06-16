@@ -8,10 +8,14 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/codeninja55/go-radx/fhir"
 	"github.com/codeninja55/go-radx/fhir/r4"
@@ -39,7 +43,7 @@ func TestMemoryRepositoryUpdateAndDelete(t *testing.T) {
 			id := resourceLogicalIDForTest(t, created)
 
 			// Update: version 2, created=false.
-			updated, wasCreated, err := repo.Update(ctx, "Patient", id, newPatientResource(release))
+			updated, wasCreated, err := repo.Update(ctx, "Patient", id, newPatientResource(release), "")
 			if err != nil {
 				t.Fatalf("Update: %v", err)
 			}
@@ -51,7 +55,7 @@ func TestMemoryRepositoryUpdateAndDelete(t *testing.T) {
 			}
 
 			// Delete: existed=true; Read is now ErrGone; prior versions still VRead-able.
-			existed, err := repo.Delete(ctx, "Patient", id)
+			existed, err := repo.Delete(ctx, "Patient", id, "")
 			if err != nil || !existed {
 				t.Fatalf("Delete = (%v, %v), want (true, nil)", existed, err)
 			}
@@ -72,12 +76,12 @@ func TestMemoryRepositoryUpdateAndDelete(t *testing.T) {
 			}
 
 			// Idempotent re-delete: existed=false, no error.
-			if existed, err := repo.Delete(ctx, "Patient", id); err != nil || existed {
+			if existed, err := repo.Delete(ctx, "Patient", id, ""); err != nil || existed {
 				t.Errorf("re-delete = (%v, %v), want (false, nil)", existed, err)
 			}
 
 			// Resurrect via update: version 4, created=true.
-			res, wasCreated, err := repo.Update(ctx, "Patient", id, newPatientResource(release))
+			res, wasCreated, err := repo.Update(ctx, "Patient", id, newPatientResource(release), "")
 			if err != nil {
 				t.Fatalf("resurrect Update: %v", err)
 			}
@@ -584,6 +588,270 @@ func TestApplyRFC6902(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestApplyRFC6902PreservesNumericLexicals proves the JSON Patch applier does not rewrite numbers it
+// did not touch (the P1-B regression): a FHIR decimal carries its lexical form (1.00, 1.230 — the
+// trailing zeros are significant precision FHIR mandates be preserved) and a 64-bit integer exceeds
+// float64's exact range (2^53). Patching an unrelated field must leave both byte-for-byte intact;
+// decoding the whole document through float64 (the prior bug) would round 1.00 to 1 and lose
+// precision past 2^53. It also confirms an add/replace operand keeps its own decimal lexical form.
+func TestApplyRFC6902PreservesNumericLexicals(t *testing.T) {
+	// valueQuantity.value is a FHIR decimal (1.00); a Money.value 1.230; an explicit 64-bit integer
+	// beyond 2^53. All sit beside the field the patch changes.
+	const big = "9223372036854775807" // math.MaxInt64, past float64's exact range
+	doc := []byte(`{` +
+		`"resourceType":"Observation",` +
+		`"status":"final",` +
+		`"valueQuantity":{"value":1.00,"unit":"mg"},` +
+		`"extra":{"money":1.230,"i64":` + big + `}` +
+		`}`)
+
+	patch := []byte(`[{"op":"replace","path":"/status","value":"amended"}]`)
+	got, err := applyRFC6902(doc, patch)
+	if err != nil {
+		t.Fatalf("applyRFC6902: %v", err)
+	}
+
+	// The patched field changed; every number is byte-for-byte preserved.
+	if !jsonContainsRaw(t, got, `"value":1.00`) {
+		t.Errorf("decimal 1.00 was rewritten; result=%s", got)
+	}
+	if !jsonContainsRaw(t, got, `"money":1.230`) {
+		t.Errorf("decimal 1.230 was rewritten; result=%s", got)
+	}
+	if !jsonContainsRaw(t, got, `"i64":`+big) {
+		t.Errorf("int64 %s lost precision; result=%s", big, got)
+	}
+	if !jsonContainsRaw(t, got, `"status":"amended"`) {
+		t.Errorf("patched field not applied; result=%s", got)
+	}
+
+	// An add/replace operand keeps its own decimal lexical form too.
+	got2, err := applyRFC6902(doc, []byte(`[{"op":"replace","path":"/valueQuantity/value","value":2.50}]`))
+	if err != nil {
+		t.Fatalf("applyRFC6902 operand: %v", err)
+	}
+	if !jsonContainsRaw(t, got2, `"value":2.50`) {
+		t.Errorf("operand decimal 2.50 was rewritten; result=%s", got2)
+	}
+	// The untouched int64 still round-trips after a different patch.
+	if !jsonContainsRaw(t, got2, `"i64":`+big) {
+		t.Errorf("int64 %s lost precision on operand patch; result=%s", big, got2)
+	}
+}
+
+// jsonContainsRaw reports whether the compact form of doc contains the literal substring want, used
+// to assert a number's exact lexical form survived (json.Marshal emits no insignificant whitespace,
+// so a "key":number substring is stable).
+func jsonContainsRaw(t *testing.T, doc []byte, want string) bool {
+	t.Helper()
+	return strings.Contains(string(doc), want)
+}
+
+// TestFHIRRoleUpdateAsCreateReservesID proves update-as-create reserves the server id counter (the
+// P1-A regression): a PUT to /Patient/1 stores a resource at the client-chosen numeric id 1, and a
+// later POST must mint a fresh id (not 1), never overwriting the PUT-created resource. Before the
+// fix the counter was not advanced, so the POST re-minted "1" and clobbered the PUT resource with a
+// second version-1 history entry.
+func TestFHIRRoleUpdateAsCreateReservesID(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			// PUT /Patient/1: update-as-create at the client-chosen id 1 (201).
+			status, body, _ := httpDoHeaders(t, http.MethodPut, base+"/Patient/1", "application/fhir+json",
+				patientJSONWithIDGender(release, "1", "male"), nil)
+			if status != http.StatusCreated {
+				t.Fatalf("PUT /Patient/1 status = %d, want 201; body=%s", status, body)
+			}
+
+			// POST /Patient: the server mints an id; it must not be "1" (the reserved id).
+			status, body, _ = httpDo(t, http.MethodPost, base+"/Patient", "application/fhir+json",
+				patientJSON(release, "female"))
+			if status != http.StatusCreated {
+				t.Fatalf("POST /Patient status = %d, want 201; body=%s", status, body)
+			}
+			var posted struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(body, &posted); err != nil {
+				t.Fatalf("POST body decode: %v", err)
+			}
+			if posted.ID == "1" {
+				t.Fatalf("POST re-minted reserved id 1, overwriting the PUT resource; body=%s", body)
+			}
+
+			// The PUT resource at /Patient/1 is intact: still version 1, still gender male, history has
+			// exactly one version (no clobbering second version-1 entry).
+			status, body, _ = httpDo(t, http.MethodGet, base+"/Patient/1", "", nil)
+			if status != http.StatusOK {
+				t.Fatalf("GET /Patient/1 after POST status = %d, want 200; body=%s", status, body)
+			}
+			var got struct {
+				ID     string `json:"id"`
+				Gender string `json:"gender"`
+				Meta   struct {
+					VersionID string `json:"versionId"`
+				} `json:"meta"`
+			}
+			if err := json.Unmarshal(body, &got); err != nil {
+				t.Fatalf("GET body decode: %v", err)
+			}
+			if got.ID != "1" || got.Gender != "male" || got.Meta.VersionID != "1" {
+				t.Fatalf("PUT resource was disturbed: id=%q gender=%q version=%q; body=%s",
+					got.ID, got.Gender, got.Meta.VersionID, body)
+			}
+			status, body, _ = httpDo(t, http.MethodGet, base+"/Patient/1/_history", "", nil)
+			if status != http.StatusOK {
+				t.Fatalf("history status = %d, want 200; body=%s", status, body)
+			}
+			if total, ok := bundleTotalForTest(body); !ok || total != 1 {
+				t.Fatalf("history total = %d (ok=%v), want 1 (no clobbering version); body=%s", total, ok, body)
+			}
+		})
+	}
+}
+
+// bundleTotalForTest reads a Bundle's total element from its JSON, for asserting a history length.
+func bundleTotalForTest(body []byte) (int, bool) {
+	var env struct {
+		Total *int `json:"total"`
+	}
+	if err := json.Unmarshal(body, &env); err != nil || env.Total == nil {
+		return 0, false
+	}
+	return *env.Total, true
+}
+
+// TestFHIRRoleIfMatchIsAtomicCompareAndSwap proves the If-Match precondition is a compare-and-swap
+// atomic with the write (the P1-C regression): two concurrent writers presenting the SAME valid
+// If-Match (the current version) must not both succeed — exactly one wins (200) and the other gets a
+// 412. Before the fix the version check was a separate read before the write, so both passed the
+// read and the later write silently overwrote the earlier (a lost update). Run under -race.
+func TestFHIRRoleIfMatchIsAtomicCompareAndSwap(t *testing.T) {
+	base, cleanup := startFHIRDaemon(t, fhir.R5)
+	defer cleanup()
+	id := createPatient(t, base, fhir.R5) // version 1
+
+	const writers = 8 // more than two, to stress the CAS under -race
+	var wg sync.WaitGroup
+	statuses := make([]int, writers)
+	for i := 0; i < writers; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			req, err := http.NewRequest(http.MethodPut, base+"/Patient/"+id,
+				strings.NewReader(string(patientJSONWithIDGender(fhir.R5, id, "male"))))
+			if err != nil {
+				statuses[idx] = -1
+				return
+			}
+			req.Header.Set("Content-Type", "application/fhir+json")
+			req.Header.Set("If-Match", `W/"1"`) // every writer claims version 1
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				statuses[idx] = -1
+				return
+			}
+			_ = resp.Body.Close()
+			statuses[idx] = resp.StatusCode
+		}(i)
+	}
+	wg.Wait()
+
+	ok, conflict, other := 0, 0, 0
+	for _, s := range statuses {
+		switch s {
+		case http.StatusOK:
+			ok++
+		case http.StatusPreconditionFailed:
+			conflict++
+		default:
+			other++
+		}
+	}
+	if ok != 1 || conflict != writers-1 || other != 0 {
+		t.Fatalf("concurrent If-Match writers: ok=%d conflict=%d other=%d (statuses=%v); want exactly one 200 and %d 412",
+			ok, conflict, other, statuses, writers-1)
+	}
+
+	// The resource advanced to exactly version 2 (one committed write), never further (no lost update
+	// where a second writer also committed against version 1).
+	_, _, hdr := httpDo(t, http.MethodGet, base+"/Patient/"+id, "", nil)
+	if etag := hdr.Get("ETag"); etag != `W/"2"` {
+		t.Fatalf("ETag after concurrent writes = %q, want W/\"2\" (exactly one commit)", etag)
+	}
+}
+
+// pagedSearchRepo is a Repository whose Search returns a searchset reporting total=3 but carrying a
+// single entry — a paged result. It exercises the conditional-resolution count decision (the P2-C
+// regression): a conditional update/delete must use Bundle.total, not len(entry), so a multi-match
+// search resolves as "many" (a 412), never a wrong single-resource write. Only Search and the write
+// methods are needed; the rest report an error so a stray call is loud.
+type pagedSearchRepo struct {
+	Repository
+	adapter releaseAdapter
+}
+
+func (p pagedSearchRepo) Search(context.Context, string, url.Values) (fhir.Resource, error) {
+	g := r5.AdministrativeGender("female")
+	one := &r5.Patient{DomainResource: r5.DomainResource{ID: strptr("page-1")}, Gender: &g}
+	// total 3, one entry on the page.
+	return p.adapter.newSearchSet(3, []fhir.Resource{one})
+}
+
+func (p pagedSearchRepo) Update(context.Context, string, string, fhir.Resource, string) (fhir.Resource, bool, error) {
+	return nil, false, fmt.Errorf("pagedSearchRepo: update must not be reached on a multi-match resolution")
+}
+
+func (p pagedSearchRepo) Delete(context.Context, string, string, string) (bool, error) {
+	return false, fmt.Errorf("pagedSearchRepo: delete must not be reached on a multi-match resolution")
+}
+
+// TestFHIRRoleConditionalWriteCountsBundleTotal proves conditional resolution uses Bundle.total, not
+// the page's entry count (the P2-C regression): a searchset reporting total=3 with one entry must
+// resolve as multiple matches, so a conditional update and a conditional delete each answer 412 and
+// never reach the repository's Update/Delete with a single (wrong) id.
+func TestFHIRRoleConditionalWriteCountsBundleTotal(t *testing.T) {
+	repo := pagedSearchRepo{adapter: r5Adapter{}}
+	role, err := NewFHIRRole(repo, WithFHIRPort(0), WithFHIRRelease(fhir.R5))
+	if err != nil {
+		t.Fatalf("NewFHIRRole: %v", err)
+	}
+	d, err := New(WithFHIR(role))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(runCtx) }()
+	defer func() {
+		cancelRun()
+		select {
+		case <-runErr:
+		case <-time.After(5 * time.Second):
+			t.Error("daemon did not stop within 5s")
+		}
+	}()
+	waitForAddrs(t, d, "fhir@/fhir")
+	base := "http://" + d.Addrs()["fhir@/fhir"].String() + "/fhir"
+
+	// Conditional update against a total=3 searchset: 412 multiple matches, not a single write.
+	status, body, _ := httpDoHeaders(t, http.MethodPut, base+"/Patient?gender=female",
+		"application/fhir+json", patientJSONGender(fhir.R5, "male"), nil)
+	if status != http.StatusPreconditionFailed {
+		t.Fatalf("conditional update with total=3 status = %d, want 412; body=%s", status, body)
+	}
+	assertOperationOutcome(t, body, "error")
+
+	// Conditional delete against the same searchset: 412 too.
+	status, body, _ = httpDo(t, http.MethodDelete, base+"/Patient?gender=female", "", nil)
+	if status != http.StatusPreconditionFailed {
+		t.Fatalf("conditional delete with total=3 status = %d, want 412; body=%s", status, body)
+	}
+	assertOperationOutcome(t, body, "error")
 }
 
 // jsonEqual reports whether two JSON documents are structurally equal (key order and whitespace

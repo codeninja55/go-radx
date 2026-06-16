@@ -245,6 +245,27 @@ func searchsetMatchIDs(bundle fhir.Resource, _ releaseAdapter) []string {
 	return ids
 }
 
+// searchsetTotal reads a searchset Bundle's total element, the authoritative match count a
+// conditional interaction must use for its zero/one/many decision. It is the count the repository
+// reports for the whole result set, not the number of entries on the page: a paged searchset can
+// carry total greater than len(entry), so counting entries would mis-resolve a multi-match search as
+// a single match and write the wrong resource. ok is false when the Bundle carries no total (an
+// honest signal the count is unknown), so the caller can refuse to resolve rather than guess. The
+// JSON shape is uniform across R4 and R5, so no per-release walk is needed.
+func searchsetBundleTotal(bundle fhir.Resource) (total int, ok bool) {
+	data, err := json.Marshal(bundle)
+	if err != nil {
+		return 0, false
+	}
+	var env struct {
+		Total *int `json:"total"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil || env.Total == nil {
+		return 0, false
+	}
+	return *env.Total, true
+}
+
 // resourceVersionViaJSON reads a resource's meta.versionId and meta.lastUpdated by marshalling it
 // and peeking the "meta" key, the version twin of resourceIDViaJSON. A resource with no meta (or an
 // unversioned one from a custom Repository) yields empty strings, which the handlers treat as

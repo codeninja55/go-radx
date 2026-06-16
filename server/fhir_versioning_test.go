@@ -933,11 +933,11 @@ func (s *stubVersionRepo) Create(context.Context, fhir.Resource) (fhir.Resource,
 	return nil, fmt.Errorf("stubVersionRepo: create is not supported")
 }
 
-func (s *stubVersionRepo) Update(context.Context, string, string, fhir.Resource) (fhir.Resource, bool, error) {
+func (s *stubVersionRepo) Update(context.Context, string, string, fhir.Resource, string) (fhir.Resource, bool, error) {
 	return nil, false, fmt.Errorf("stubVersionRepo: update is not supported")
 }
 
-func (s *stubVersionRepo) Delete(context.Context, string, string) (bool, error) {
+func (s *stubVersionRepo) Delete(context.Context, string, string, string) (bool, error) {
 	return false, fmt.Errorf("stubVersionRepo: delete is not supported")
 }
 
