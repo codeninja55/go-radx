@@ -108,7 +108,7 @@ func TestReadElementHeaderTruncatedAfterTag(t *testing.T) {
 func TestWriteElementHeaderExplicitShortRoundTrip(t *testing.T) {
 	var buf bytes.Buffer
 	h := elementHeader{tag: NewTag(0x0010, 0x0010), vr: VRPN, length: 8}
-	if err := writeElementHeader(&buf, h, ExplicitVRLittleEndian); err != nil {
+	if err := writeElementHeader(&buf, h, ExplicitVRLittleEndian, false); err != nil {
 		t.Fatalf("writeElementHeader: %v", err)
 	}
 	want := []byte{0x10, 0x00, 0x10, 0x00, 'P', 'N', 0x08, 0x00}
@@ -120,7 +120,7 @@ func TestWriteElementHeaderExplicitShortRoundTrip(t *testing.T) {
 func TestWriteElementHeaderExplicitLongRoundTrip(t *testing.T) {
 	var buf bytes.Buffer
 	h := elementHeader{tag: NewTag(0x7FE0, 0x0010), vr: VROB, length: 16}
-	if err := writeElementHeader(&buf, h, ExplicitVRLittleEndian); err != nil {
+	if err := writeElementHeader(&buf, h, ExplicitVRLittleEndian, false); err != nil {
 		t.Fatalf("writeElementHeader: %v", err)
 	}
 	want := []byte{0xE0, 0x7F, 0x10, 0x00, 'O', 'B', 0x00, 0x00, 0x10, 0x00, 0x00, 0x00}
@@ -132,7 +132,7 @@ func TestWriteElementHeaderExplicitLongRoundTrip(t *testing.T) {
 func TestWriteElementHeaderImplicitRoundTrip(t *testing.T) {
 	var buf bytes.Buffer
 	h := elementHeader{tag: NewTag(0x0010, 0x0010), vr: VRPN, length: 8}
-	if err := writeElementHeader(&buf, h, ImplicitVRLittleEndian); err != nil {
+	if err := writeElementHeader(&buf, h, ImplicitVRLittleEndian, false); err != nil {
 		t.Fatalf("writeElementHeader: %v", err)
 	}
 	want := []byte{0x10, 0x00, 0x10, 0x00, 0x08, 0x00, 0x00, 0x00}
@@ -144,7 +144,7 @@ func TestWriteElementHeaderImplicitRoundTrip(t *testing.T) {
 func TestWriteElementHeaderBigEndianRoundTrip(t *testing.T) {
 	var buf bytes.Buffer
 	h := elementHeader{tag: NewTag(0x0008, 0x0005), vr: VRCS, length: 10}
-	if err := writeElementHeader(&buf, h, ExplicitVRBigEndian); err != nil {
+	if err := writeElementHeader(&buf, h, ExplicitVRBigEndian, false); err != nil {
 		t.Fatalf("writeElementHeader: %v", err)
 	}
 	want := []byte{0x00, 0x08, 0x00, 0x05, 'C', 'S', 0x00, 0x0A}
@@ -169,7 +169,7 @@ func TestElementHeaderRoundTripAllSyntaxes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			if err := writeElementHeader(&buf, tc.h, tc.ts); err != nil {
+			if err := writeElementHeader(&buf, tc.h, tc.ts, false); err != nil {
 				t.Fatalf("write: %v", err)
 			}
 			br := newBoundedReader(bytes.NewReader(buf.Bytes()), defaultMaxElementLen)
