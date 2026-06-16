@@ -266,12 +266,17 @@ func applyMoveCopy(doc any, op *patchOp, isMove bool) (any, error) {
 		doc = root
 	}
 	// Re-encode/decode the value so move/copy splice an independent copy, not a shared reference.
+	// The decode preserves number lexicals (UseNumber) exactly as add/replace and the untouched
+	// document do: a plain json.Unmarshal would coerce every number in the copied subtree to float64,
+	// rewriting a FHIR decimal (1.00 -> 1) or losing int64 precision past 2^53. Because the source was
+	// decoded with UseNumber, json.Marshal here re-emits json.Number values verbatim, and UseNumber on
+	// the way back keeps them lexical, so the copied subtree round-trips byte-for-byte.
 	encoded, err := json.Marshal(value)
 	if err != nil {
 		return nil, fmt.Errorf("%w: could not copy the value at %q", errPatch, op.From)
 	}
-	var fresh any
-	if err := json.Unmarshal(encoded, &fresh); err != nil {
+	fresh, err := decodeJSONPreservingNumbers(encoded)
+	if err != nil {
 		return nil, fmt.Errorf("%w: could not copy the value at %q", errPatch, op.From)
 	}
 	if op.Path == "" {

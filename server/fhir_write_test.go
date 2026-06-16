@@ -735,6 +735,49 @@ func TestApplyRFC6902RejectsMissingRequiredMembers(t *testing.T) {
 	}
 }
 
+// TestApplyRFC6902MoveCopyPreservesNumericLexicals proves move and copy preserve the lexical form of
+// numbers in the copied subtree (the P2-C fix): a FHIR decimal (1.00, 1.230 — trailing zeros are
+// significant precision) and a 64-bit integer beyond float64's exact range (2^53) must arrive at the
+// destination byte-for-byte. The prior move/copy path decoded the copied subtree with a plain
+// json.Unmarshal (float64), which rounded 1.00 to 1 and lost int64 precision; the number-preserving
+// decode keeps them exact. Reverting applyMoveCopy to json.Unmarshal fails this test.
+func TestApplyRFC6902MoveCopyPreservesNumericLexicals(t *testing.T) {
+	const big = "9223372036854775807" // math.MaxInt64, past float64's exact range
+	doc := []byte(`{` +
+		`"resourceType":"Observation",` +
+		`"src":{"value":1.00,"money":1.230,"i64":` + big + `},` +
+		`"dst":{}` +
+		`}`)
+
+	// Copy the whole numeric subtree to a new path: every number must survive at the destination, and
+	// (copy, not move) the source must be intact too.
+	gotCopy, err := applyRFC6902(doc, []byte(`[{"op":"copy","from":"/src","path":"/dst/copied"}]`))
+	if err != nil {
+		t.Fatalf("copy applyRFC6902: %v", err)
+	}
+	// Marshalling a map sorts keys, so assert each "key":number lexical independently of order. Each
+	// appears twice (source and destination) once copied.
+	for _, want := range []string{`"value":1.00`, `"money":1.230`, `"i64":` + big} {
+		if strings.Count(string(gotCopy), want) != 2 {
+			t.Errorf("copy did not preserve lexical %q at both source and destination; result=%s", want, gotCopy)
+		}
+	}
+
+	// Move the subtree: the destination must carry the exact lexicals; the source is gone.
+	gotMove, err := applyRFC6902(doc, []byte(`[{"op":"move","from":"/src","path":"/dst/moved"}]`))
+	if err != nil {
+		t.Fatalf("move applyRFC6902: %v", err)
+	}
+	for _, want := range []string{`"value":1.00`, `"money":1.230`, `"i64":` + big} {
+		if !jsonContainsRaw(t, gotMove, want) {
+			t.Errorf("move lost lexical %q; result=%s", want, gotMove)
+		}
+	}
+	if strings.Contains(string(gotMove), `"src"`) {
+		t.Errorf("move left the source in place; result=%s", gotMove)
+	}
+}
+
 // TestFHIRRoleUpdateAsCreateReservesID proves update-as-create reserves the server id counter (the
 // P1-A regression): a PUT to /Patient/1 stores a resource at the client-chosen numeric id 1, and a
 // later POST must mint a fresh id (not 1), never overwriting the PUT-created resource. Before the
