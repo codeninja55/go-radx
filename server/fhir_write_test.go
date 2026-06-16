@@ -511,6 +511,51 @@ func TestFHIRRoleConditionalDelete(t *testing.T) {
 	assertOperationOutcome(t, body, "error")
 }
 
+// TestFHIRRoleConditionalWriteIfMatchZeroMatch proves a conditional update or delete that carries
+// an If-Match precondition and matches zero resources is a 412, not a create / no-op: an If-Match
+// names a version that must already exist, and against zero matches there is no resource and no
+// version to satisfy it (FHIR R5 http.html#concurrency), matching the instance-update path's 412 for
+// If-Match against an absent resource. The conditional update must not create, and the conditional
+// delete must not answer 204.
+func TestFHIRRoleConditionalWriteIfMatchZeroMatch(t *testing.T) {
+	base, cleanup := startFHIRDaemon(t, fhir.R5)
+	defer cleanup()
+	ifMatch := map[string]string{"If-Match": `W/"1"`}
+
+	// Conditional update, zero match, with If-Match: 412 and no resource created.
+	status, body, _ := httpDoHeaders(t, http.MethodPut, base+"/Patient?_id=absent",
+		"application/fhir+json", patientJSONGender(fhir.R5, "female"), ifMatch)
+	if status != http.StatusPreconditionFailed {
+		t.Fatalf("conditional update If-Match zero-match status = %d, want 412; body=%s", status, body)
+	}
+	assertOperationOutcome(t, body, "error")
+
+	// Nothing was created: a search for the would-be resource still finds none. The type bucket is
+	// empty because no Patient was ever stored in this fresh daemon.
+	status, body, _ = httpDo(t, http.MethodGet, base+"/Patient/absent", "", nil)
+	if status != http.StatusNotFound {
+		t.Fatalf("read of absent id after If-Match zero-match status = %d, want 404; body=%s", status, body)
+	}
+
+	// Conditional delete, zero match, with If-Match: 412 (not the idempotent 204).
+	status, body, _ = httpDoHeaders(t, http.MethodDelete, base+"/Patient?_id=absent", "", nil, ifMatch)
+	if status != http.StatusPreconditionFailed {
+		t.Fatalf("conditional delete If-Match zero-match status = %d, want 412; body=%s", status, body)
+	}
+	assertOperationOutcome(t, body, "error")
+
+	// Control: the same zero-match writes WITHOUT If-Match keep their prior behaviour.
+	status, body, _ = httpDoHeaders(t, http.MethodPut, base+"/Patient?_id=absent",
+		"application/fhir+json", patientJSONGender(fhir.R5, "female"), nil)
+	if status != http.StatusCreated {
+		t.Fatalf("conditional update no-If-Match zero-match status = %d, want 201; body=%s", status, body)
+	}
+	status, body, _ = httpDoHeaders(t, http.MethodDelete, base+"/Patient?_id=stillabsent", "", nil, nil)
+	if status != http.StatusNoContent {
+		t.Fatalf("conditional delete no-If-Match zero-match status = %d, want 204; body=%s", status, body)
+	}
+}
+
 // TestFHIRRoleConditionalPatch proves a conditional patch (PATCH [type]?_id=...): one match is
 // patched (200), no match is a 404, and many matches is a 412.
 func TestFHIRRoleConditionalPatch(t *testing.T) {

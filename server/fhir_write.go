@@ -202,6 +202,15 @@ func ifMatchVersion(r *http.Request) string {
 // malformed precondition is a failed precondition (412), never a bypassed one.
 const malformedIfMatchSentinel = "\x00malformed-if-match"
 
+// hasIfMatch reports whether the request carries an If-Match precondition at all. The zero-match
+// conditional write paths consult it because there is no resolved resource to run the
+// compare-and-swap against: an If-Match against zero matches is an unsatisfiable precondition (412),
+// not the absence of one (FHIR R5 http.html#concurrency). A present-but-empty If-Match still counts
+// as carrying a precondition — a malformed, failing one, never "no precondition".
+func hasIfMatch(r *http.Request) bool {
+	return r.Header.Get("If-Match") != ""
+}
+
 // auditWrite emits the structural audit event for a committed update: the resource type plus the
 // server-minted id and version, never a body value (PRD §9.5). A create-on-update is audited as a
 // create (AuditOpFHIRCreate); an update of an existing resource as an update (AuditOpFHIRUpdate). A
@@ -304,6 +313,15 @@ func (h *fhirHandler) handleConditionalUpdate(w http.ResponseWriter, r *http.Req
 	}
 	switch count {
 	case 0:
+		// No match. An If-Match precondition names a version that must already exist; against zero
+		// matches there is no resource and no version to satisfy it, so the precondition fails (412) —
+		// the same answer the instance-update path gives for If-Match against an absent resource (FHIR
+		// R5 http.html#concurrency). Without an If-Match this is the spec's create-on-no-match.
+		if hasIfMatch(r) {
+			h.writeError(w, r, http.StatusPreconditionFailed, issueTypeConflict,
+				"the If-Match precondition cannot be satisfied: the conditional update matched no resource")
+			return
+		}
 		// No match: create. The repository mints the id, matching the unconditional create.
 		h.createResolved(w, r, resourceType, resource)
 	case 1:
@@ -360,6 +378,15 @@ func (h *fhirHandler) handleConditionalDelete(w http.ResponseWriter, r *http.Req
 	}
 	switch count {
 	case 0:
+		// No match. An If-Match precondition names a version that must already exist; against zero
+		// matches there is no resource and no version to satisfy it, so the precondition fails (412) —
+		// the same answer the instance-delete path gives for If-Match against an absent resource (FHIR
+		// R5 http.html#concurrency). Without an If-Match this is the idempotent no-op (204).
+		if hasIfMatch(r) {
+			h.writeError(w, r, http.StatusPreconditionFailed, issueTypeConflict,
+				"the If-Match precondition cannot be satisfied: the conditional delete matched no resource")
+			return
+		}
 		h.logger.Info("fhir conditional-delete", zap.String("type", resourceType), zap.String("interaction", "conditional-delete"))
 		w.WriteHeader(http.StatusNoContent)
 	case 1:
