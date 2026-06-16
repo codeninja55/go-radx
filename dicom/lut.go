@@ -3,6 +3,7 @@ package dicom
 import (
 	"encoding/binary"
 	"math"
+	"strings"
 )
 
 // The pixel presentation pipeline turns stored pixel values into the values a viewer
@@ -285,8 +286,12 @@ func lutFromItem(item *DataSet) (LUT, error) {
 
 // lutDescriptor reads (0028,3002) LUT Descriptor as three integers. The VR is US or SS
 // (VRUSorSS); the second value (first mapped) must honour signedness, so an SS
-// descriptor's negative value is preserved. GetInt already returns signed int64 for
-// both, so the three values are read directly.
+// descriptor's negative value is preserved. When the dataset was read in Explicit VR
+// the value materialises as *Ints (GetInt returns signed int64 for both US and SS). In
+// Implicit VR LE the dictionary VR is the unresolved placeholder VRUSorSS, which the
+// value codec materialises as *Strings carrying the verbatim value-field bytes; those
+// are decoded here as little-endian 16-bit words, sign-extended so an SS first-mapped
+// value stays negative.
 func lutDescriptor(item *DataSet) ([]int64, bool) {
 	e, ok := item.Get(TagLUTDescriptor)
 	if !ok {
@@ -296,17 +301,27 @@ func lutDescriptor(item *DataSet) ([]int64, bool) {
 	if !ok {
 		return nil, false
 	}
-	iv, ok := v.(*Ints)
-	if !ok {
+	switch val := v.(type) {
+	case *Ints:
+		return val.Ints(), true
+	case *Strings:
+		raw := implicitVRBytes(val)
+		out := make([]int64, len(raw)/2)
+		for i := range out {
+			out[i] = int64(int16(binary.LittleEndian.Uint16(raw[i*2:]))) // #nosec G115 -- 16-bit sign reinterpretation; the count is masked unsigned by lutFromItem
+		}
+		return out, true
+	default:
 		return nil, false
 	}
-	return iv.Ints(), true
 }
 
 // lutData reads (0028,3006) LUT Data as a slice of int. US data materialises as Ints;
 // OW data materialises as raw bytes which are decoded as little-endian 16-bit words
 // (the only byte order Part 10 native pixel-related data uses; an explicit-VR-BE file
-// would carry US, not OW, for this element in practice).
+// would carry US, not OW, for this element in practice). In Implicit VR LE the
+// dictionary VR is the unresolved placeholder VRUSorOW, materialised as *Strings whose
+// verbatim value-field bytes are decoded the same way.
 func lutData(item *DataSet) ([]int, bool) {
 	e, ok := item.Get(TagLUTData)
 	if !ok {
@@ -325,15 +340,30 @@ func lutData(item *DataSet) ([]int, bool) {
 		}
 		return out, true
 	case *Bytes:
-		b := val.Bytes()
-		out := make([]int, len(b)/2)
-		for i := range out {
-			out[i] = int(binary.LittleEndian.Uint16(b[i*2:]))
-		}
-		return out, true
+		return wordsLE(val.Bytes()), true
+	case *Strings:
+		return wordsLE(implicitVRBytes(val)), true
 	default:
 		return nil, false
 	}
+}
+
+// implicitVRBytes reconstructs the verbatim value-field bytes of a binary element that
+// was read in Implicit VR LE under an unresolved placeholder VR (VRUSorSS / VRUSorOW).
+// The value codec decodes such fields through the text path, splitting the field on the
+// backslash value delimiter; rejoining with the same delimiter is byte-lossless because
+// these VRs have no pad byte, so the codec trims nothing.
+func implicitVRBytes(s *Strings) []byte {
+	return []byte(strings.Join(s.Strings(), `\`))
+}
+
+// wordsLE decodes a byte field as little-endian unsigned 16-bit words.
+func wordsLE(b []byte) []int {
+	out := make([]int, len(b)/2)
+	for i := range out {
+		out[i] = int(binary.LittleEndian.Uint16(b[i*2:]))
+	}
+	return out
 }
 
 // decimalFloat reads the first value of a DS element as a float64. ok is false if the

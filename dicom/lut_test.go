@@ -1,6 +1,7 @@
 package dicom
 
 import (
+	"bytes"
 	"math"
 	"testing"
 )
@@ -412,4 +413,65 @@ func TestLUTDescriptorCountBoundaryAt32768(t *testing.T) {
 		t.Fatalf("len(Data) = %d, want 3", len(lut.Data))
 	}
 	assertClose(t, lut.Apply(2), 3, "boundary-32768")
+}
+
+func TestApplyVOILUTImplicitVRLE(t *testing.T) {
+	// Bug regression: a VOI LUT Sequence read from Implicit VR LE materialises the
+	// descriptor (VRUSorSS) and data (VRUSorOW) as *Strings, not *Ints/*Bytes. The LUT
+	// extraction must handle that implicit-VR form rather than returning a
+	// missing-descriptor error.
+	src := NewDataSet()
+	item := NewDataSet()
+	item.Set(Element{Tag: TagLUTDescriptor, VR: VRUS, Value: NewInts(VRUS, 4, 0, 16)})
+	item.Set(Element{Tag: TagLUTData, VR: VRUS, Value: NewInts(VRUS, 0, 85, 170, 255)})
+	src.Set(Element{Tag: TagVOILUTSequence, VR: VRSQ, Value: NewSequenceValue(NewSequence(item))})
+
+	ds := roundTripImplicitVRLE(t, src)
+
+	in := []float64{-1, 0, 1, 2, 3, 4}
+	out, err := ApplyVOILUT(in, ds, 0, 0, 255)
+	if err != nil {
+		t.Fatalf("ApplyVOILUT on implicit-VR dataset: %v", err)
+	}
+	want := []float64{0, 0, 85, 170, 255, 255}
+	for i := range want {
+		assertClose(t, out[i], want[i], "implicit-voi-table")
+	}
+}
+
+func TestApplyModalityLUTImplicitVRLE(t *testing.T) {
+	// Same regression on the Modality LUT path, with a negative first-mapped value to
+	// exercise signed-descriptor decoding through the implicit-VR *Strings form.
+	src := NewDataSet()
+	item := NewDataSet()
+	item.Set(Element{Tag: TagLUTDescriptor, VR: VRSS, Value: NewInts(VRSS, 3, -1000, 16)})
+	item.Set(Element{Tag: TagLUTData, VR: VRUS, Value: NewInts(VRUS, 5, 15, 25)})
+	src.Set(Element{Tag: TagModalityLUTSequence, VR: VRSQ, Value: NewSequenceValue(NewSequence(item))})
+
+	ds := roundTripImplicitVRLE(t, src)
+
+	out, err := ApplyModalityLUT([]float64{-1001, -1000, -999, -998, -997}, ds)
+	if err != nil {
+		t.Fatalf("ApplyModalityLUT on implicit-VR dataset: %v", err)
+	}
+	want := []float64{5, 5, 15, 25, 25}
+	for i := range want {
+		assertClose(t, out[i], want[i], "implicit-modality-table")
+	}
+}
+
+// roundTripImplicitVRLE encodes ds as Implicit VR LE and reads it back, so the LUT
+// elements carry the unresolved placeholder VRs the implicit-VR reader produces.
+func roundTripImplicitVRLE(t *testing.T, ds *DataSet) *DataSet {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := EncodeDataSet(&buf, ds, ImplicitVRLittleEndian); err != nil {
+		t.Fatalf("EncodeDataSet: %v", err)
+	}
+	br := newBoundedReader(bytes.NewReader(buf.Bytes()), defaultMaxElementLen)
+	got, err := readDataSet(br, ImplicitVRLittleEndian, newReadConfig())
+	if err != nil {
+		t.Fatalf("readDataSet: %v", err)
+	}
+	return got
 }
