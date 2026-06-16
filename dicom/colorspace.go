@@ -1,6 +1,7 @@
 package dicom
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 )
@@ -28,10 +29,11 @@ const (
 // non-segmented palette path (PS3.3 C.7.9, C.7.6.3.1.5).
 //
 // The input frame carries one index per pixel: a byte per pixel when geom.BitsAllocated
-// is 8, or a little-endian word per pixel when it is 16. Each index selects an entry
-// from the three LUTs; the output is Rows*Columns*3 bytes, R,G,B interleaved, one
-// 8-bit sample per channel (16-bit LUT entries are scaled down to 8 bits by taking the
-// high byte, matching pydicom's apply_color_lut output dtype for an 8-bit render).
+// is 8, or a word per pixel when it is 16, decoded with the dataset's transfer-syntax
+// byte order bo. Each index selects an entry from the three LUTs; the output is
+// Rows*Columns*3 bytes, R,G,B interleaved, one 8-bit sample per channel (16-bit LUT
+// entries are scaled down to 8 bits by taking the high byte, matching pydicom's
+// apply_color_lut output dtype for an 8-bit render).
 //
 // The LUT is described by its three-value descriptor (0028,1101..1103):
 //
@@ -44,16 +46,20 @@ const (
 // read under a signed VR (US or SS), descriptor[0] may decode as a negative number for
 // a 65536-entry table; ApplyColorLUT interprets descriptor[0] as unsigned, so a stored
 // -1/65535/0 all resolve to a 65536-entry table.
-func ApplyColorLUT(frame Frame, ds *DataSet, geom PixelGeometry) ([]byte, error) {
-	red, err := readPaletteLUT(ds, TagRedPaletteColorLookupTableDescriptor, TagRedPaletteColorLookupTableData)
+//
+// bo is the dataset's transfer-syntax byte order. The DataSet does not carry its transfer
+// syntax, so the caller supplies it (consistent with value_codec.go's decode helpers). It
+// governs both the 16-bit LUT-entry words (OW) and the 16-bit pixel indices.
+func ApplyColorLUT(frame Frame, ds *DataSet, geom PixelGeometry, bo binary.ByteOrder) ([]byte, error) {
+	red, err := readPaletteLUT(ds, TagRedPaletteColorLookupTableDescriptor, TagRedPaletteColorLookupTableData, bo)
 	if err != nil {
 		return nil, err
 	}
-	green, err := readPaletteLUT(ds, TagGreenPaletteColorLookupTableDescriptor, TagGreenPaletteColorLookupTableData)
+	green, err := readPaletteLUT(ds, TagGreenPaletteColorLookupTableDescriptor, TagGreenPaletteColorLookupTableData, bo)
 	if err != nil {
 		return nil, err
 	}
-	blue, err := readPaletteLUT(ds, TagBluePaletteColorLookupTableDescriptor, TagBluePaletteColorLookupTableData)
+	blue, err := readPaletteLUT(ds, TagBluePaletteColorLookupTableDescriptor, TagBluePaletteColorLookupTableData, bo)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +69,7 @@ func ApplyColorLUT(frame Frame, ds *DataSet, geom PixelGeometry) ([]byte, error)
 		return []byte{}, nil
 	}
 
-	indices, err := paletteIndices(frame.Pixels, pixels, geom.BitsAllocated)
+	indices, err := paletteIndices(frame.Pixels, pixels, geom.BitsAllocated, bo)
 	if err != nil {
 		return nil, err
 	}
@@ -100,11 +106,11 @@ func (l paletteLUT) lookup(index int) byte {
 
 // readPaletteLUT reads one colour channel's descriptor and data into a paletteLUT.
 // The descriptor (US-or-SS, VM 3) gives the entry count, first-mapped value, and
-// bits-per-entry; the data (OW) carries the entries. An 8-bit table stores its entries
-// in the low byte of each 16-bit word per PS3.5, except a table whose byte length is
-// exactly the entry count (entries packed one per byte). A 16-bit table keeps the high
-// byte for the 8-bit render.
-func readPaletteLUT(ds *DataSet, descTag, dataTag Tag) (paletteLUT, error) {
+// bits-per-entry; the data (OW) carries the entries decoded with byte order bo. An 8-bit
+// table stores its entries in the low byte of each 16-bit word per PS3.5, except a table
+// whose byte length is exactly the entry count (entries packed one per byte). A 16-bit
+// table keeps the high byte for the 8-bit render.
+func readPaletteLUT(ds *DataSet, descTag, dataTag Tag, bo binary.ByteOrder) (paletteLUT, error) {
 	desc, ok := getInts(ds, descTag)
 	if !ok || len(desc) < 3 {
 		return paletteLUT{}, &ValueError{Tag: descTag, VR: VRUSorSS, Msg: "missing or short Palette Color LUT Descriptor (need 3 values)"}
@@ -130,7 +136,7 @@ func readPaletteLUT(ds *DataSet, descTag, dataTag Tag) (paletteLUT, error) {
 		return paletteLUT{}, &ValueError{Tag: dataTag, VR: VROW, Msg: "missing Palette Color LUT Data"}
 	}
 
-	entries, err := decodePaletteEntries(raw, numEntries, int(bitsPerEntry), dataTag)
+	entries, err := decodePaletteEntries(raw, numEntries, int(bitsPerEntry), dataTag, bo)
 	if err != nil {
 		return paletteLUT{}, err
 	}
@@ -142,17 +148,20 @@ func readPaletteLUT(ds *DataSet, descTag, dataTag Tag) (paletteLUT, error) {
 // An 8-bit LUT (bitsPerEntry 8) is stored one of two ways and pydicom handles both:
 // either packed two entries per 16-bit word (byte length 2*numEntries, the common
 // PS3.5 form) or one entry per byte (byte length numEntries, seen in some encoders).
-// A 16-bit LUT stores one little-endian word per entry; the 8-bit render keeps the
-// high byte (value >> 8), matching pydicom's downscale to an 8-bit image.
-func decodePaletteEntries(raw []byte, numEntries, bitsPerEntry int, dataTag Tag) ([]byte, error) {
+// A 16-bit LUT stores one word per entry; the 8-bit render keeps the high byte
+// (value >> 8), matching pydicom's downscale to an 8-bit image. The 16-bit words and the
+// 8-bit-padded-OW low byte are decoded with byte order bo so an Explicit VR Big Endian
+// dataset reads its OW words big-endian rather than swapped.
+func decodePaletteEntries(raw []byte, numEntries, bitsPerEntry int, dataTag Tag, bo binary.ByteOrder) ([]byte, error) {
 	out := make([]byte, numEntries)
 	switch bitsPerEntry {
 	case 8:
 		switch {
 		case len(raw) >= 2*numEntries:
-			// Two 8-bit entries per word; little-endian low byte first.
+			// Two 8-bit entries per OW word; the entry sits in the word's low byte, whose
+			// position within the pair depends on the dataset byte order.
 			for i := range numEntries {
-				out[i] = raw[i*2]
+				out[i] = byte(bo.Uint16(raw[i*2:i*2+2]) & 0xFF) // #nosec G115 -- deliberate low-byte extraction of an 8-bit-in-OW entry
 			}
 		case len(raw) >= numEntries:
 			copy(out, raw[:numEntries])
@@ -164,18 +173,16 @@ func decodePaletteEntries(raw []byte, numEntries, bitsPerEntry int, dataTag Tag)
 			return nil, &ValueError{Tag: dataTag, VR: VROW, Msg: fmt.Sprintf("Palette Color LUT Data too short: have %d bytes, need %d 16-bit entries", len(raw), numEntries)}
 		}
 		for i := range numEntries {
-			lo := uint16(raw[i*2])
-			hi := uint16(raw[i*2+1])
-			out[i] = byte((lo | hi<<8) >> 8)
+			out[i] = byte(bo.Uint16(raw[i*2:i*2+2]) >> 8)
 		}
 	}
 	return out, nil
 }
 
 // paletteIndices reads one index per pixel from a PALETTE COLOR frame: a byte each at
-// 8 BitsAllocated, a little-endian word each at 16. It fails closed on an unsupported
-// bit depth or a frame shorter than the pixel count requires.
-func paletteIndices(pixels []byte, count int, bitsAllocated uint16) ([]int, error) {
+// 8 BitsAllocated, a word each at 16 decoded with byte order bo. It fails closed on an
+// unsupported bit depth or a frame shorter than the pixel count requires.
+func paletteIndices(pixels []byte, count int, bitsAllocated uint16, bo binary.ByteOrder) ([]int, error) {
 	idx := make([]int, count)
 	switch bitsAllocated {
 	case 8:
@@ -190,7 +197,7 @@ func paletteIndices(pixels []byte, count int, bitsAllocated uint16) ([]int, erro
 			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "PALETTE COLOR frame shorter than pixel count"}
 		}
 		for i := range count {
-			idx[i] = int(uint16(pixels[i*2]) | uint16(pixels[i*2+1])<<8)
+			idx[i] = int(bo.Uint16(pixels[i*2 : i*2+2]))
 		}
 	default:
 		return nil, &ValueError{Tag: TagBitsAllocated, VR: VRUS, Msg: fmt.Sprintf("PALETTE COLOR supports 8 or 16 BitsAllocated, got %d", bitsAllocated)}

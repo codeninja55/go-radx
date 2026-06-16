@@ -2,6 +2,7 @@ package dicom
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 )
 
@@ -22,7 +23,7 @@ func TestApplyColorLUT8Bit(t *testing.T) {
 	geom := PixelGeometry{Rows: 1, Columns: 4, BitsAllocated: 8, PhotometricInterpretation: "PALETTE COLOR"}
 	frame := Frame{Pixels: []byte{0, 1, 2, 3}}
 
-	got, err := ApplyColorLUT(frame, ds, geom)
+	got, err := ApplyColorLUT(frame, ds, geom, binary.LittleEndian)
 	if err != nil {
 		t.Fatalf("ApplyColorLUT: %v", err)
 	}
@@ -55,7 +56,7 @@ func TestApplyColorLUT16Bit(t *testing.T) {
 	// 5 -> entry 0, 6 -> entry 1, 99 (above last -> clamp to entry 2).
 	frame := Frame{Pixels: []byte{4, 0, 5, 0, 6, 0, 99, 0}}
 
-	got, err := ApplyColorLUT(frame, ds, geom)
+	got, err := ApplyColorLUT(frame, ds, geom, binary.LittleEndian)
 	if err != nil {
 		t.Fatalf("ApplyColorLUT: %v", err)
 	}
@@ -88,7 +89,40 @@ func paletteLUTFromCount(t *testing.T, count int64) (paletteLUT, error) {
 	ds := NewDataSet()
 	ds.Set(Element{Tag: TagRedPaletteColorLookupTableDescriptor, VR: VRUS, Value: NewInts(VRUS, count, 0, 8)})
 	ds.Set(Element{Tag: TagRedPaletteColorLookupTableData, VR: VROW, Value: NewBytes(VROW, make([]byte, 131072))})
-	return readPaletteLUT(ds, TagRedPaletteColorLookupTableDescriptor, TagRedPaletteColorLookupTableData)
+	return readPaletteLUT(ds, TagRedPaletteColorLookupTableDescriptor, TagRedPaletteColorLookupTableData, binary.LittleEndian)
+}
+
+// TestApplyColorLUTBigEndian asserts a big-endian dataset's 16-bit palette LUT entries
+// (OW, PS3.5) are read with the correct byte order rather than swapped. Each 16-bit entry
+// is stored big-endian; the 8-bit render keeps the high byte, so the first stored byte of
+// each word is the rendered value. Decoding little-endian (the pre-fix bug) would take the
+// trailing low byte (0x00) and render black.
+func TestApplyColorLUTBigEndian(t *testing.T) {
+	ds := NewDataSet()
+	ds.Set(Element{Tag: TagRedPaletteColorLookupTableDescriptor, VR: VRUS, Value: NewInts(VRUS, 3, 0, 16)})
+	ds.Set(Element{Tag: TagGreenPaletteColorLookupTableDescriptor, VR: VRUS, Value: NewInts(VRUS, 3, 0, 16)})
+	ds.Set(Element{Tag: TagBluePaletteColorLookupTableDescriptor, VR: VRUS, Value: NewInts(VRUS, 3, 0, 16)})
+	// Big-endian 16-bit entries: high byte first. 0x10,0x00 -> 0x1000 -> high 0x10=16.
+	ds.Set(Element{Tag: TagRedPaletteColorLookupTableData, VR: VROW, Value: NewBytes(VROW, []byte{0x10, 0x00, 0x20, 0x00, 0x30, 0x00})})
+	ds.Set(Element{Tag: TagGreenPaletteColorLookupTableData, VR: VROW, Value: NewBytes(VROW, []byte{0x40, 0x00, 0x50, 0x00, 0x60, 0x00})})
+	ds.Set(Element{Tag: TagBluePaletteColorLookupTableData, VR: VROW, Value: NewBytes(VROW, []byte{0x70, 0x00, 0x80, 0x00, 0x90, 0x00})})
+
+	geom := PixelGeometry{Rows: 1, Columns: 3, BitsAllocated: 16, PhotometricInterpretation: "PALETTE COLOR"}
+	// Big-endian 16-bit pixel indices 0,1,2.
+	frame := Frame{Pixels: []byte{0x00, 0x00, 0x00, 0x01, 0x00, 0x02}}
+
+	got, err := ApplyColorLUT(frame, ds, geom, binary.BigEndian)
+	if err != nil {
+		t.Fatalf("ApplyColorLUT: %v", err)
+	}
+	want := []byte{
+		0x10, 0x40, 0x70, // index 0
+		0x20, 0x50, 0x80, // index 1
+		0x30, 0x60, 0x90, // index 2
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("big-endian palette\n got=%v\nwant=%v", got, want)
+	}
 }
 
 // TestYBRFullToRGBExact asserts the PS3.3 C.7.6.3.1.2 inverse equations pixel-exactly.
