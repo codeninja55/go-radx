@@ -25,14 +25,15 @@ Row counts across all tables:
 Top NOT-MET/PARTIAL items by impact:
 
 1. **VOI/modality LUT and windowing (NOT-MET, M).** No `apply_voi_lut`/`apply_modality_lut` equivalents.
-2. **Palette colour and colour-space conversion utilities (NOT-MET, M each).** Decoders preserve the colour
-   model correctly, but no `convert_color_space` or palette-expansion helpers exist.
-3. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
+2. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
    but there is no `private_block`/`get_private_item` equivalent and no private-creator dictionary.
-4. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
+3. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
    the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family, UTF-8, GB18030, and GBK,
    but not ISO 2022 IR 149, ISO 2022 IR 58, ISO_IR 166, or bare ISO_IR 13.
-5. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
+4. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
+
+Palette colour expansion (`apply_color_lut`) and colour-space conversion (`convert_color_space`) are now MET via
+`dicom/colorspace.go` (non-segmented palette path; YBR_FULL/422 to RGB and back per PS3.3 C.7.6.3.1.2).
 
 Where go-radx exceeds pydicom: a full PS3.15 Table E.1-1 de-identification engine (pydicom core ships only
 `remove_private_tags` and guidance), typed fail-closed errors, bounded hostile-input reading with fuzz targets
@@ -119,8 +120,8 @@ tag, decode returns the typed `dicom.ErrCodecUnavailable` rather than failing th
 | Pixel-layer transcode between syntaxes | decompress-then-compress flow | MET | dicom/transcode.go:12 Transcode; transcode_test.go | - | Explicit, opt-in; lossless targets only |
 | Modality LUT / rescale application | `apply_modality_lut` | NOT-MET | tags only (dicom/tag_values.go TagRescaleSlope) | M | |
 | VOI LUT and windowing | `apply_voi_lut`, `apply_windowing` | NOT-MET | tags only (TagVOILUTFunction) | M | |
-| Palette colour expansion | `apply_color_lut` | NOT-MET | tags only (palette descriptor tags) | M | |
-| Colour-space conversion utility | `convert_color_space` | NOT-MET | decoders preserve colour model (codec_libjpeg.go:214 isYBRPhotometric) but no converter | M | YBR_FULL/422 to RGB and back |
+| Palette colour expansion | `apply_color_lut` | MET | dicom/colorspace.go ApplyColorLUT; colorspace_test.go (8/16-bit entries, first-mapped offset, zero-count=65536) | - | Non-segmented path (PS3.3 C.7.9, C.7.6.3.1.5); segmented LUT out of scope |
+| Colour-space conversion utility | `convert_color_space` | MET | dicom/colorspace.go ConvertColorSpace; colorspace_test.go (PS3.3 C.7.6.3.1.2 pixel-exact) | - | YBR_FULL<->RGB, YBR_FULL_422->RGB/YBR_FULL, planar config 0/1; YBR_PARTIAL/ICT/RCT out of scope |
 | 1-bit pixel pack/unpack | `pack_bits` / `unpack_bits` | PARTIAL | dicom/pixel_geometry.go:34 FrameLength (sub-byte sizing) | S | Frame sizing correct; no per-pixel pack/unpack helpers |
 | Overlay data extraction | `Dataset.overlay_array` | NOT-MET | overlay tags only in dicom/tag_values.go | M | |
 | Waveform decode | `Dataset.waveform_array` | NOT-MET | waveform tags/UIDs only (tag_values.go, uid_values.go) | M | |

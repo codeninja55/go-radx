@@ -12,6 +12,13 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- DICOM palette-colour LUT expansion and photometric colour-space conversion (the pydicom `apply_color_lut`
+  and `convert_color_space` analogues). `dicom.ApplyColorLUT` expands a `PALETTE COLOR` frame to interleaved
+  RGB through the Red/Green/Blue Palette Color Lookup Tables, honouring the descriptor's first-mapped-value
+  offset, 8- and 16-bit entries, the two-entries-per-word packing, and the descriptor[0]=0 means 65536 rule
+  (PS3.3 C.7.9, C.7.6.3.1.5; non-segmented path). `dicom.ConvertColorSpace` converts `YBR_FULL` <-> `RGB`
+  and `YBR_FULL_422` -> `RGB`/`YBR_FULL` using the PS3.3 C.7.6.3.1.2 full-range equations, handling
+  `PlanarConfiguration` 0 and 1; out-of-scope pairs (`YBR_PARTIAL_*`, ICT/RCT) fail closed with a typed error.
 - Deferred (lazy) reads of large element values: `ReadFile` with `dicom.WithDeferredValues(threshold)`
   records values above the threshold as re-openable placeholders and skips the bytes, keeping memory bounded
   on large objects (the pydicom `defer_size` analogue). The value loads on first access, with the byte window
