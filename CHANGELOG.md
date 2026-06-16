@@ -12,6 +12,16 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- DICOM pixel presentation pipeline (`dicom/lut.go`): `ApplyModalityLUT`, `ApplyVOILUT`, and `ApplyWindowing`
+  turn stored pixel values into presentation values per PS3.3 §C.11, the pydicom `apply_modality_lut` /
+  `apply_voi_lut` / `apply_windowing` analogues. The Modality LUT applies a `ModalityLUTSequence` table when
+  present (it takes precedence) and otherwise a linear `RescaleSlope`/`RescaleIntercept` rescale to measured
+  units such as Hounsfield (§C.11.1.1.2). The VOI stage applies a `VOILUTSequence` table when present and
+  otherwise windowing, with the `VOILUTFunction` LINEAR (the default, one-LSB-shifted form), LINEAR_EXACT,
+  and SIGMOID variants (§C.11.2.1.2 / §C.11.2.1.3) and indexed multi-pair `WindowCenter`/`WindowWidth`
+  selection. Table paths honour the LUT Descriptor first-mapped value and clamp out-of-range inputs to the
+  end entries (§C.11.1.1.1); LUT Data is read from US or OW. A non-positive window width is rejected fail-closed
+  rather than emitting NaN/Inf into a displayed image.
 - Deferred (lazy) reads of large element values: `ReadFile` with `dicom.WithDeferredValues(threshold)`
   records values above the threshold as re-openable placeholders and skips the bytes, keeping memory bounded
   on large objects (the pydicom `defer_size` analogue). The value loads on first access, with the byte window

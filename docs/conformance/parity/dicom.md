@@ -16,23 +16,22 @@ Row counts across all tables:
 
 | Status | Count |
 |--------|-------|
-| MET | 55 |
+| MET | 57 |
 | PARTIAL | 8 |
-| NOT-MET | 19 |
+| NOT-MET | 17 |
 | N-A | 6 |
 | Total | 88 |
 
 Top NOT-MET/PARTIAL items by impact:
 
-1. **VOI/modality LUT and windowing (NOT-MET, M).** No `apply_voi_lut`/`apply_modality_lut` equivalents.
-2. **Palette colour and colour-space conversion utilities (NOT-MET, M each).** Decoders preserve the colour
+1. **Palette colour and colour-space conversion utilities (NOT-MET, M each).** Decoders preserve the colour
    model correctly, but no `convert_color_space` or palette-expansion helpers exist.
-3. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
+2. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
    but there is no `private_block`/`get_private_item` equivalent and no private-creator dictionary.
-4. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
+3. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
    the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family, UTF-8, GB18030, and GBK,
    but not ISO 2022 IR 149, ISO 2022 IR 58, ISO_IR 166, or bare ISO_IR 13.
-5. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
+4. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
 
 Where go-radx exceeds pydicom: a full PS3.15 Table E.1-1 de-identification engine (pydicom core ships only
 `remove_private_tags` and guidance), typed fail-closed errors, bounded hostile-input reading with fuzz targets
@@ -117,8 +116,8 @@ tag, decode returns the typed `dicom.ErrCodecUnavailable` rather than failing th
 | Lossy encode (J2K ratios, JLS near-lossless, JPEG baseline) | `compress` with lossy params | NOT-MET | dicom/codec_libjpeg.go:67 CanEncode false; typed ErrEncodeUnsupported (codec.go:56) | M | Deliberate fidelity policy; revisit only with explicit opt-in design |
 | Dataset-level compress/decompress in place | `Dataset.compress` / `decompress` | MET | dicom/transcode.go File.SetPixelData; encapsulated_io_test.go TestSetPixelDataTranscodeRoundTrip; store.go prepareForStore | - | NewPixelData -> Transcode -> File.SetPixelData -> Write; radx store --transcode-to decompresses on send |
 | Pixel-layer transcode between syntaxes | decompress-then-compress flow | MET | dicom/transcode.go:12 Transcode; transcode_test.go | - | Explicit, opt-in; lossless targets only |
-| Modality LUT / rescale application | `apply_modality_lut` | NOT-MET | tags only (dicom/tag_values.go TagRescaleSlope) | M | |
-| VOI LUT and windowing | `apply_voi_lut`, `apply_windowing` | NOT-MET | tags only (TagVOILUTFunction) | M | |
+| Modality LUT / rescale application | `apply_modality_lut` | MET | dicom/lut.go:ApplyModalityLUT; lut_test.go TestApplyModalityLUTRescale, TestApplyModalityLUTTablePrecedence | - | ModalityLUTSequence table (precedence) or RescaleSlope/Intercept linear rescale (PS3.3 §C.11.1.1.2) |
+| VOI LUT and windowing | `apply_voi_lut`, `apply_windowing` | MET | dicom/lut.go:ApplyVOILUT, ApplyWindowing; lut_test.go TestApplyWindowingLinear, TestApplyWindowingLinearExact, TestApplyWindowingSigmoid, TestApplyVOILUTTablePrecedence | - | VOILUTSequence table or LINEAR/LINEAR_EXACT/SIGMOID windowing (PS3.3 §C.11.2.1.2-3); indexed multi-pair WC/WW |
 | Palette colour expansion | `apply_color_lut` | NOT-MET | tags only (palette descriptor tags) | M | |
 | Colour-space conversion utility | `convert_color_space` | NOT-MET | decoders preserve colour model (codec_libjpeg.go:214 isYBRPhotometric) but no converter | M | YBR_FULL/422 to RGB and back |
 | 1-bit pixel pack/unpack | `pack_bits` / `unpack_bits` | PARTIAL | dicom/pixel_geometry.go:34 FrameLength (sub-byte sizing) | S | Frame sizing correct; no per-pixel pack/unpack helpers |
