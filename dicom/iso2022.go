@@ -106,6 +106,8 @@ func classifyEscape(b []byte) (n int, doubleByte bool, ok bool) {
 	switch {
 	case hasBytePrefix(b, "\x1b$("): // ESC $ ( F : multi-byte (e.g. JIS X 0212 = D)
 		return 4, true, true
+	case hasBytePrefix(b, "\x1b$)"): // ESC $ ) F : multi-byte G1 (Korean = C, Chinese = A)
+		return 4, true, true
 	case hasBytePrefix(b, "\x1b$"): // ESC $ F : multi-byte (JIS X 0208 = B/@)
 		return 3, true, true
 	case hasBytePrefix(b, "\x1b("): // ESC ( F : single-byte G0 (ASCII/JIS-Roman/katakana)
@@ -131,10 +133,12 @@ func (c *SpecificCharacterSet) decodeISO2022Segment(seg []byte, japaneseFamily b
 	return c.decodeSingleByteSegment(seg)
 }
 
-// decodeSingleByteSegment decodes a run that mixes ASCII (G0) with one or more
-// ISO 8859 G1 supplements selected by ESC designation sequences. Bytes with the high
-// bit clear come from G0 (ASCII); bytes with the high bit set come from the active
-// G1 charmap. The initial G1 is the first configured G1 supplement.
+// decodeSingleByteSegment decodes a run that mixes ASCII (G0) with one or more G1
+// supplements selected by ESC designation sequences. Bytes with the high bit clear
+// come from G0 (ASCII); bytes with the high bit set come from the active G1 set. A
+// single-byte G1 (ISO 8859, TIS 620) decodes one byte at a time; a double-byte G1
+// (Korean EUC-KR, Chinese GB2312) consumes a contiguous run of high bytes as pairs
+// (PS3.5 Annex I.2, Annex K.2). The initial G1 is the first configured G1 supplement.
 func (c *SpecificCharacterSet) decodeSingleByteSegment(seg []byte) ([]byte, error) {
 	g1 := c.initialG1()
 	var out []byte
@@ -155,11 +159,26 @@ func (c *SpecificCharacterSet) decodeSingleByteSegment(seg []byte) ([]byte, erro
 			i++
 			continue
 		}
-		// A G1 byte: decode through the active supplement's charmap, which indexes
-		// the full 0x00-0xFF range.
 		if g1.enc == nil {
 			return nil, fmt.Errorf("dicom: G1 byte 0x%02x with no designated G1 set", seg[i])
 		}
+		// A double-byte G1: decode the maximal contiguous run of high bytes through
+		// the multi-byte codec so two-byte characters are not split.
+		if g1.family == familyDoubleByteG1 {
+			j := i
+			for j < len(seg) && seg[j] >= 0x80 {
+				j++
+			}
+			dec, _, err := transform.Bytes(g1.enc.NewDecoder(), seg[i:j])
+			if err != nil {
+				return nil, fmt.Errorf("dicom: decode ISO 2022 double-byte G1 run: %w", err)
+			}
+			out = append(out, dec...)
+			i = j
+			continue
+		}
+		// A single-byte G1: decode through the supplement's charmap, which indexes
+		// the full 0x00-0xFF range.
 		dec, _, err := transform.Bytes(g1.enc.NewDecoder(), seg[i:i+1])
 		if err != nil {
 			return nil, fmt.Errorf("dicom: decode ISO 2022 G1 byte: %w", err)
@@ -170,11 +189,14 @@ func (c *SpecificCharacterSet) decodeSingleByteSegment(seg []byte) ([]byte, erro
 	return out, nil
 }
 
-// initialG1 returns the first configured single-byte G1 supplement, or the default
-// (no G1) when none is configured.
+// initialG1 returns the first configured G1 supplement (single- or double-byte), or
+// the default (no G1) when none is configured.
 func (c *SpecificCharacterSet) initialG1() charsetEntry {
 	for _, e := range c.entries {
-		if e.family == familySingleByte && e.element == codeElementG1 {
+		if e.element != codeElementG1 {
+			continue
+		}
+		if e.family == familySingleByte || e.family == familyDoubleByteG1 {
 			return e
 		}
 	}
@@ -325,10 +347,11 @@ func (c *SpecificCharacterSet) encodeSingleByteSegment(seg []byte) ([]byte, erro
 	return out, nil
 }
 
-// g1ForRune returns the first configured single-byte supplement that can encode r.
+// g1ForRune returns the first configured G1 supplement (single- or double-byte) that
+// can encode r.
 func (c *SpecificCharacterSet) g1ForRune(r rune) (charsetEntry, bool) {
 	for _, e := range c.entries {
-		if e.family != familySingleByte || e.enc == nil {
+		if e.enc == nil || (e.family != familySingleByte && e.family != familyDoubleByteG1) {
 			continue
 		}
 		if _, _, err := transform.Bytes(e.enc.NewEncoder(), []byte(string(r))); err == nil {
