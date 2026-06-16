@@ -258,7 +258,13 @@ func lutFromItem(item *DataSet) (LUT, error) {
 	if !ok || len(desc) < 3 {
 		return LUT{}, &ValueError{Tag: TagLUTDescriptor, VR: VRUSorSS, Msg: "missing or short LUT Descriptor"}
 	}
-	count := int(desc[0])
+	// PS3.3 §C.11.1.1.1: the first descriptor value (number of entries) is ALWAYS an
+	// unsigned 16-bit count, even when the element VR is SS (only the second value,
+	// first-mapped, is signed). Mask to 16 bits so a count above 32767 read through an
+	// SS descriptor (sign-extended to negative by decodeInts) is restored, and 0 still
+	// means 2^16. Without this a 65536-entry LUT (or any count 32768-65535) yields a
+	// negative count and the data[:count] slice below panics.
+	count := int(uint16(desc[0])) // #nosec G115 -- intentional 16-bit truncation to read the unsigned entry count
 	if count == 0 {
 		count = 1 << 16
 	}

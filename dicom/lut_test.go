@@ -362,3 +362,54 @@ func TestLUTDescriptorZeroCountIs65536(t *testing.T) {
 	assertClose(t, lut.Apply(2), 9, "zero-count")
 	assertClose(t, lut.Apply(100), 9, "zero-count-clamp")
 }
+
+func TestLUTDescriptorCountUnsignedWithSignedFirstMapped(t *testing.T) {
+	// PS3.3 C.11.1.1.1: the first descriptor value (entry count) is ALWAYS unsigned,
+	// even under an SS descriptor; only the second value (first-mapped) is signed. An
+	// on-disk count word of 40000 (> 32767) is sign-extended to -25536 by the SS reader
+	// (decodeInts does int64(int16(...))), which previously made the data[:count] slice
+	// panic with a negative bound. The first-mapped value (-2000) legitimately stays
+	// negative.
+	var unsignedCount uint16 = 40000         // > 32767, the boundary the bug crossed
+	countWord := int64(int16(unsignedCount)) // SS reinterpretation (negative on disk)
+	if uint16(countWord) != unsignedCount {
+		t.Fatalf("test setup: uint16(%d) = %d, want %d", countWord, uint16(countWord), unsignedCount)
+	}
+	item := NewDataSet()
+	item.Set(Element{Tag: TagLUTDescriptor, VR: VRSS, Value: NewInts(VRSS, countWord, -2000, 16)})
+	// A 40000-entry table is declared; supply two entries and let clamping cover the
+	// rest. The descriptor maths is what is under test, not a full table.
+	item.Set(Element{Tag: TagLUTData, VR: VRUS, Value: NewInts(VRUS, 11, 22)})
+
+	lut, err := lutFromItem(item)
+	if err != nil {
+		t.Fatalf("lutFromItem: %v", err)
+	}
+	if lut.FirstMapped != -2000 {
+		t.Fatalf("FirstMapped = %d, want -2000 (signed first-mapped must be preserved)", lut.FirstMapped)
+	}
+	if len(lut.Data) != 2 {
+		t.Fatalf("len(Data) = %d, want 2 (data shorter than the declared count is retained)", len(lut.Data))
+	}
+	// FirstMapped -2000 -> Data[0]; -1999 -> Data[1]; below clamps to first, above to last.
+	assertClose(t, lut.Apply(-2001), 11, "count-unsigned-clamp-low")
+	assertClose(t, lut.Apply(-2000), 11, "count-unsigned-entry0")
+	assertClose(t, lut.Apply(-1999), 22, "count-unsigned-entry1")
+	assertClose(t, lut.Apply(5000), 22, "count-unsigned-clamp-high")
+}
+
+func TestLUTDescriptorCountBoundaryAt32768(t *testing.T) {
+	// Count 32768 on disk is int16 -32768 after SS decoding; read unsigned it is 32768,
+	// not a negative bound. The table here has fewer entries, which the clamp tolerates.
+	item := NewDataSet()
+	item.Set(Element{Tag: TagLUTDescriptor, VR: VRSS, Value: NewInts(VRSS, -32768, 0, 16)})
+	item.Set(Element{Tag: TagLUTData, VR: VRUS, Value: NewInts(VRUS, 1, 2, 3)})
+	lut, err := lutFromItem(item)
+	if err != nil {
+		t.Fatalf("lutFromItem: %v", err)
+	}
+	if len(lut.Data) != 3 {
+		t.Fatalf("len(Data) = %d, want 3", len(lut.Data))
+	}
+	assertClose(t, lut.Apply(2), 3, "boundary-32768")
+}
