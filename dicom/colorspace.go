@@ -30,10 +30,12 @@ const (
 //
 // The input frame carries one index per pixel: a byte per pixel when geom.BitsAllocated
 // is 8, or a word per pixel when it is 16, decoded with the dataset's transfer-syntax
-// byte order bo. Each index selects an entry from the three LUTs; the output is
-// Rows*Columns*3 bytes, R,G,B interleaved, one 8-bit sample per channel (16-bit LUT
-// entries are scaled down to 8 bits by taking the high byte, matching pydicom's
-// apply_color_lut output dtype for an 8-bit render).
+// byte order bo. When geom.PixelRepresentation is 1 the indices and the descriptor's
+// first-mapped value are two's-complement signed (PS3.3 C.7.6.3.1.5); otherwise they are
+// unsigned. Each index selects an entry from the three LUTs; the output is Rows*Columns*3
+// bytes, R,G,B interleaved, one 8-bit sample per channel (16-bit LUT entries are scaled
+// down to 8 bits by taking the high byte, matching pydicom's apply_color_lut output dtype
+// for an 8-bit render).
 //
 // The LUT is described by its three-value descriptor (0028,1101..1103):
 //
@@ -45,21 +47,23 @@ const (
 // pydicom documents a quirk that PS3.3 C.7.6.3.1.5 also notes: when the descriptor is
 // read under a signed VR (US or SS), descriptor[0] may decode as a negative number for
 // a 65536-entry table; ApplyColorLUT interprets descriptor[0] as unsigned, so a stored
-// -1/65535/0 all resolve to a 65536-entry table.
+// -1/65535/0 all resolve to a 65536-entry table. The count is always unsigned; only the
+// first-mapped value (descriptor[1]) and the pixel indices follow PixelRepresentation.
 //
 // bo is the dataset's transfer-syntax byte order. The DataSet does not carry its transfer
 // syntax, so the caller supplies it (consistent with value_codec.go's decode helpers). It
 // governs both the 16-bit LUT-entry words (OW) and the 16-bit pixel indices.
 func ApplyColorLUT(frame Frame, ds *DataSet, geom PixelGeometry, bo binary.ByteOrder) ([]byte, error) {
-	red, err := readPaletteLUT(ds, TagRedPaletteColorLookupTableDescriptor, TagRedPaletteColorLookupTableData, bo)
+	signed := geom.PixelRepresentation == 1
+	red, err := readPaletteLUT(ds, TagRedPaletteColorLookupTableDescriptor, TagRedPaletteColorLookupTableData, signed, bo)
 	if err != nil {
 		return nil, err
 	}
-	green, err := readPaletteLUT(ds, TagGreenPaletteColorLookupTableDescriptor, TagGreenPaletteColorLookupTableData, bo)
+	green, err := readPaletteLUT(ds, TagGreenPaletteColorLookupTableDescriptor, TagGreenPaletteColorLookupTableData, signed, bo)
 	if err != nil {
 		return nil, err
 	}
-	blue, err := readPaletteLUT(ds, TagBluePaletteColorLookupTableDescriptor, TagBluePaletteColorLookupTableData, bo)
+	blue, err := readPaletteLUT(ds, TagBluePaletteColorLookupTableDescriptor, TagBluePaletteColorLookupTableData, signed, bo)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +73,7 @@ func ApplyColorLUT(frame Frame, ds *DataSet, geom PixelGeometry, bo binary.ByteO
 		return []byte{}, nil
 	}
 
-	indices, err := paletteIndices(frame.Pixels, pixels, geom.BitsAllocated, bo)
+	indices, err := paletteIndices(frame.Pixels, pixels, geom.BitsAllocated, signed, bo)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +114,11 @@ func (l paletteLUT) lookup(index int) byte {
 // table stores its entries in the low byte of each 16-bit word per PS3.5, except a table
 // whose byte length is exactly the entry count (entries packed one per byte). A 16-bit
 // table keeps the high byte for the 8-bit render.
-func readPaletteLUT(ds *DataSet, descTag, dataTag Tag, bo binary.ByteOrder) (paletteLUT, error) {
+//
+// When signed is true the image's Pixel Representation (0028,0103) is two's-complement, so
+// the first-mapped value (descriptor[1]) is signed and sign-extended from 16 bits (PS3.3
+// C.7.6.3.1.5); the count (descriptor[0]) is always unsigned.
+func readPaletteLUT(ds *DataSet, descTag, dataTag Tag, signed bool, bo binary.ByteOrder) (paletteLUT, error) {
 	desc, ok := getInts(ds, descTag)
 	if !ok || len(desc) < 3 {
 		return paletteLUT{}, &ValueError{Tag: descTag, VR: VRUSorSS, Msg: "missing or short Palette Color LUT Descriptor (need 3 values)"}
@@ -120,12 +128,18 @@ func readPaletteLUT(ds *DataSet, descTag, dataTag Tag, bo binary.ByteOrder) (pal
 	// can carry the count as a negative number for a full 65536-entry table, so fold it
 	// to the low 16 bits (the unsigned interpretation) before applying the zero rule.
 	// The mask keeps the conversion in range for any wider-VR value a hostile file
-	// might carry under this tag.
+	// might carry under this tag. The count is unsigned regardless of Pixel Representation.
 	numEntries := int(desc[0] & 0xFFFF)
 	if numEntries == 0 {
 		numEntries = 65536
 	}
-	firstMapped := int(desc[1] & 0xFFFF)
+	// descriptor[1] is the first input value mapped. For a signed (PixelRepresentation==1)
+	// image it is two's-complement, so sign-extend the low 16 bits; otherwise it is the
+	// unsigned low 16 bits. The lookup offset (index - firstMapped) then works for both.
+	firstMapped := int(uint16(desc[1])) // #nosec G115 -- intentional fold to 16-bit then re-extend below
+	if signed {
+		firstMapped = int(int16(uint16(desc[1]))) // #nosec G115 -- two's-complement first-mapped per PS3.3 C.7.6.3.1.5
+	}
 	bitsPerEntry := desc[2]
 	if bitsPerEntry != 8 && bitsPerEntry != 16 {
 		return paletteLUT{}, &ValueError{Tag: descTag, VR: VRUSorSS, Msg: fmt.Sprintf("Palette Color LUT bits-per-entry must be 8 or 16, got %d", bitsPerEntry)}
@@ -180,9 +194,11 @@ func decodePaletteEntries(raw []byte, numEntries, bitsPerEntry int, dataTag Tag,
 }
 
 // paletteIndices reads one index per pixel from a PALETTE COLOR frame: a byte each at
-// 8 BitsAllocated, a word each at 16 decoded with byte order bo. It fails closed on an
-// unsupported bit depth or a frame shorter than the pixel count requires.
-func paletteIndices(pixels []byte, count int, bitsAllocated uint16, bo binary.ByteOrder) ([]int, error) {
+// 8 BitsAllocated, a word each at 16 decoded with byte order bo. When signed is true the
+// image's Pixel Representation (0028,0103) is two's-complement, so indices are int8/int16
+// (PS3.3 C.7.6.3.1.5); otherwise they are unsigned. It fails closed on an unsupported bit
+// depth or a frame shorter than the pixel count requires.
+func paletteIndices(pixels []byte, count int, bitsAllocated uint16, signed bool, bo binary.ByteOrder) ([]int, error) {
 	idx := make([]int, count)
 	switch bitsAllocated {
 	case 8:
@@ -190,14 +206,23 @@ func paletteIndices(pixels []byte, count int, bitsAllocated uint16, bo binary.By
 			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "PALETTE COLOR frame shorter than pixel count"}
 		}
 		for i := range count {
-			idx[i] = int(pixels[i])
+			if signed {
+				idx[i] = int(int8(pixels[i])) // #nosec G115 -- two's-complement index per PS3.3 C.7.6.3.1.5
+			} else {
+				idx[i] = int(pixels[i])
+			}
 		}
 	case 16:
 		if len(pixels) < 2*count {
 			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "PALETTE COLOR frame shorter than pixel count"}
 		}
 		for i := range count {
-			idx[i] = int(bo.Uint16(pixels[i*2 : i*2+2]))
+			w := bo.Uint16(pixels[i*2 : i*2+2])
+			if signed {
+				idx[i] = int(int16(w)) // #nosec G115 -- two's-complement index per PS3.3 C.7.6.3.1.5
+			} else {
+				idx[i] = int(w)
+			}
 		}
 	default:
 		return nil, &ValueError{Tag: TagBitsAllocated, VR: VRUS, Msg: fmt.Sprintf("PALETTE COLOR supports 8 or 16 BitsAllocated, got %d", bitsAllocated)}

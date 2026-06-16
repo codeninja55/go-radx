@@ -89,7 +89,54 @@ func paletteLUTFromCount(t *testing.T, count int64) (paletteLUT, error) {
 	ds := NewDataSet()
 	ds.Set(Element{Tag: TagRedPaletteColorLookupTableDescriptor, VR: VRUS, Value: NewInts(VRUS, count, 0, 8)})
 	ds.Set(Element{Tag: TagRedPaletteColorLookupTableData, VR: VROW, Value: NewBytes(VROW, make([]byte, 131072))})
-	return readPaletteLUT(ds, TagRedPaletteColorLookupTableDescriptor, TagRedPaletteColorLookupTableData, binary.LittleEndian)
+	return readPaletteLUT(ds, TagRedPaletteColorLookupTableDescriptor, TagRedPaletteColorLookupTableData, false, binary.LittleEndian)
+}
+
+// TestApplyColorLUTSignedIndices covers a signed (PixelRepresentation=1) PALETTE COLOR
+// frame whose descriptor first-mapped value is negative (-2), per PS3.3 C.7.6.3.1.5. The
+// descriptor's second value -2 is stored two's-complement (0xFFFE); pixel indices are
+// int8. An index below the mapped range clamps to the first entry, one at or within the
+// range offsets correctly, and one above clamps to the last entry. Masking the
+// first-mapped to unsigned (the pre-fix bug) would make every offset negative and clamp
+// everything to entry 0.
+func TestApplyColorLUTSignedIndices(t *testing.T) {
+	ds := NewDataSet()
+	// 4 entries, first mapped value -2 (0xFFFE two's-complement), 8 bits per entry.
+	const firstMapped = 0xFFFE // int16(-2)
+	ds.Set(Element{Tag: TagRedPaletteColorLookupTableDescriptor, VR: VRSS, Value: NewInts(VRSS, 4, -2, 8)})
+	ds.Set(Element{Tag: TagGreenPaletteColorLookupTableDescriptor, VR: VRSS, Value: NewInts(VRSS, 4, -2, 8)})
+	ds.Set(Element{Tag: TagBluePaletteColorLookupTableDescriptor, VR: VRSS, Value: NewInts(VRSS, 4, -2, 8)})
+	ds.Set(Element{Tag: TagRedPaletteColorLookupTableData, VR: VROW, Value: NewBytes(VROW, []byte{10, 0, 20, 0, 30, 0, 40, 0})})
+	ds.Set(Element{Tag: TagGreenPaletteColorLookupTableData, VR: VROW, Value: NewBytes(VROW, []byte{50, 0, 60, 0, 70, 0, 80, 0})})
+	ds.Set(Element{Tag: TagBluePaletteColorLookupTableData, VR: VROW, Value: NewBytes(VROW, []byte{90, 0, 100, 0, 110, 0, 120, 0})})
+
+	geom := PixelGeometry{Rows: 1, Columns: 4, BitsAllocated: 8, PixelRepresentation: 1, PhotometricInterpretation: "PALETTE COLOR"}
+	// Signed int8 indices: -3 (below -2, clamp entry 0), -2 (entry 0), -1 (entry 1),
+	// 5 (above last mapped, clamp entry 3). 0xFD=-3, 0xFE=-2, 0xFF=-1.
+	frame := Frame{Pixels: []byte{0xFD, 0xFE, 0xFF, 5}}
+
+	got, err := ApplyColorLUT(frame, ds, geom, binary.LittleEndian)
+	if err != nil {
+		t.Fatalf("ApplyColorLUT: %v", err)
+	}
+	want := []byte{
+		10, 50, 90, // index -3 clamps to entry 0
+		10, 50, 90, // index -2 -> entry 0
+		20, 60, 100, // index -1 -> entry 1
+		40, 80, 120, // index 5 clamps to entry 3
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("signed palette\n got=%v\nwant=%v", got, want)
+	}
+
+	// Guard the invariant the fix relies on: firstMapped sign-extends to -2, not 0xFFFE.
+	lut, err := readPaletteLUT(ds, TagRedPaletteColorLookupTableDescriptor, TagRedPaletteColorLookupTableData, true, binary.LittleEndian)
+	if err != nil {
+		t.Fatalf("readPaletteLUT: %v", err)
+	}
+	if lut.firstMapped != -2 {
+		t.Errorf("signed firstMapped = %d, want -2 (unsigned fold would give %d)", lut.firstMapped, firstMapped)
+	}
 }
 
 // TestApplyColorLUTBigEndian asserts a big-endian dataset's 16-bit palette LUT entries
