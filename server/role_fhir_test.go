@@ -1227,16 +1227,58 @@ func TestFHIRRoleCapabilityStatement(t *testing.T) {
 			if len(cs.Rest) == 0 || cs.Rest[0].Mode != "server" {
 				t.Fatalf("metadata rest = %+v, want one server-mode rest", cs.Rest)
 			}
-			for _, interaction := range []string{"read", "vread", "history-instance", "create", "search-type"} {
+			// Every instance interaction the handler serves must be advertised, including the write side
+			// (update/patch/delete) the role now implements — a client preflighting via /metadata must see
+			// the full picture.
+			for _, interaction := range []string{"read", "vread", "history-instance", "create", "search-type", "update", "patch", "delete"} {
 				if !advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", interaction) {
 					t.Errorf("metadata: expected Patient %s to be advertised", interaction)
 				}
 			}
-			// Deferred interactions must not be over-advertised.
-			for _, interaction := range []string{"update", "patch", "delete"} {
-				if advertisesResourceInteraction(cs.Rest[0].Resource, "Patient", interaction) {
-					t.Errorf("metadata: %s is advertised but the handler answers it 501", interaction)
+			// The conditional flags the role supports are advertised: update-as-create and the conditional
+			// update/delete forms in both releases, plus conditional patch in R5 (R4's CapabilityStatement
+			// has no conditionalPatch element).
+			var condCS struct {
+				Rest []struct {
+					Resource []struct {
+						Type              string  `json:"type"`
+						UpdateCreate      *bool   `json:"updateCreate"`
+						ConditionalUpdate *bool   `json:"conditionalUpdate"`
+						ConditionalPatch  *bool   `json:"conditionalPatch"`
+						ConditionalDelete *string `json:"conditionalDelete"`
+					} `json:"resource"`
+				} `json:"rest"`
+			}
+			if err := json.Unmarshal(body, &condCS); err != nil {
+				t.Fatalf("metadata conditional-flags decode: %v", err)
+			}
+			var patientRes *struct {
+				Type              string  `json:"type"`
+				UpdateCreate      *bool   `json:"updateCreate"`
+				ConditionalUpdate *bool   `json:"conditionalUpdate"`
+				ConditionalPatch  *bool   `json:"conditionalPatch"`
+				ConditionalDelete *string `json:"conditionalDelete"`
+			}
+			for i := range condCS.Rest[0].Resource {
+				if condCS.Rest[0].Resource[i].Type == "Patient" {
+					patientRes = &condCS.Rest[0].Resource[i]
+					break
 				}
+			}
+			if patientRes == nil {
+				t.Fatal("metadata: Patient resource not found for conditional-flag assertions")
+			}
+			if patientRes.UpdateCreate == nil || !*patientRes.UpdateCreate {
+				t.Error("metadata: expected Patient updateCreate=true")
+			}
+			if patientRes.ConditionalUpdate == nil || !*patientRes.ConditionalUpdate {
+				t.Error("metadata: expected Patient conditionalUpdate=true")
+			}
+			if patientRes.ConditionalDelete == nil || *patientRes.ConditionalDelete != "single" {
+				t.Errorf("metadata: expected Patient conditionalDelete=single, got %v", patientRes.ConditionalDelete)
+			}
+			if release == fhir.R5 && (patientRes.ConditionalPatch == nil || !*patientRes.ConditionalPatch) {
+				t.Error("metadata: expected R5 Patient conditionalPatch=true")
 			}
 			// The $validate operation is advertised with its canonical definition.
 			var rawCS struct {

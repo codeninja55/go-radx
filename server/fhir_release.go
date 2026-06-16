@@ -411,12 +411,24 @@ func (a r5Adapter) capabilityStatement(basePath string) fhir.Resource {
 		vread := r5.TypeRestfulInteractionVread
 		historyInstance := r5.TypeRestfulInteractionHistoryInstance
 		create := r5.TypeRestfulInteractionCreate
+		update := r5.TypeRestfulInteractionUpdate
+		patch := r5.TypeRestfulInteractionPatch
+		del := r5.TypeRestfulInteractionDelete
 		searchType := r5.TypeRestfulInteractionSearchType
+		condDelete := r5.ConditionalDeleteStatusSingle
 		rest.Resource = append(rest.Resource, r5.CapabilityStatementRestResource{
 			Type: &typ,
 			Interaction: []r5.CapabilityStatementRestResourceInteraction{
-				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create}, {Code: &searchType},
+				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create},
+				{Code: &update}, {Code: &patch}, {Code: &del}, {Code: &searchType},
 			},
+			// The role allows update-as-create and the conditional update/patch/delete forms; a
+			// conditional delete resolves a single match only (multiple is a 412), so the status is
+			// "single", never "multiple".
+			UpdateCreate:      boolptr(true),
+			ConditionalUpdate: boolptr(true),
+			ConditionalPatch:  boolptr(true),
+			ConditionalDelete: &condDelete,
 			Operation: []r5.CapabilityStatementRestResourceOperation{
 				{Name: strptr(validateOperationName), Definition: strptr(validateOperationDefinition)},
 			},
@@ -612,12 +624,24 @@ func (a r4Adapter) capabilityStatement(basePath string) fhir.Resource {
 		vread := r4.TypeRestfulInteractionVread
 		historyInstance := r4.TypeRestfulInteractionHistoryInstance
 		create := r4.TypeRestfulInteractionCreate
+		update := r4.TypeRestfulInteractionUpdate
+		patch := r4.TypeRestfulInteractionPatch
+		del := r4.TypeRestfulInteractionDelete
 		searchType := r4.TypeRestfulInteractionSearchType
+		condDelete := r4.ConditionalDeleteStatusSingle
 		rest.Resource = append(rest.Resource, r4.CapabilityStatementRestResource{
 			Type: &typ,
 			Interaction: []r4.CapabilityStatementRestResourceInteraction{
-				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create}, {Code: &searchType},
+				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create},
+				{Code: &update}, {Code: &patch}, {Code: &del}, {Code: &searchType},
 			},
+			// The role allows update-as-create and the conditional update/delete forms; a conditional
+			// delete resolves a single match only (multiple is a 412), so the status is "single".
+			// R4's CapabilityStatement has no conditionalPatch flag (added in R5), so it is not set here
+			// though the role serves a conditional patch.
+			UpdateCreate:      boolptr(true),
+			ConditionalUpdate: boolptr(true),
+			ConditionalDelete: &condDelete,
 			Operation: []r4.CapabilityStatementRestResourceOperation{
 				{Name: strptr(validateOperationName), Definition: strptr(validateOperationDefinition)},
 			},
@@ -677,6 +701,10 @@ const (
 // strptr returns a pointer to s, the local helper for the non-empty optional string fields the
 // release Bundle and OperationOutcome builders take.
 func strptr(s string) *string { return &s }
+
+// boolptr returns a pointer to b, the local helper for the optional bool capability flags
+// (updateCreate, conditionalUpdate, conditionalPatch) the CapabilityStatement builders set.
+func boolptr(b bool) *bool { return &b }
 
 // optptr returns a pointer to s, or nil when s is empty, so an absent optional field is omitted on
 // the wire rather than serialised as an empty string.
