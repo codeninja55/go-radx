@@ -417,8 +417,8 @@ func TestLUTDescriptorCountBoundaryAt32768(t *testing.T) {
 
 func TestApplyVOILUTImplicitVRLE(t *testing.T) {
 	// Bug regression: a VOI LUT Sequence read from Implicit VR LE materialises the
-	// descriptor (VRUSorSS) and data (VRUSorOW) as *Strings, not *Ints/*Bytes. The LUT
-	// extraction must handle that implicit-VR form rather than returning a
+	// descriptor (VRUSorSS) as *Ints of 16-bit words and the data (VRUSorOW) as *Bytes.
+	// The LUT extraction must consume those typed forms rather than returning a
 	// missing-descriptor error.
 	src := NewDataSet()
 	item := NewDataSet()
@@ -441,7 +441,7 @@ func TestApplyVOILUTImplicitVRLE(t *testing.T) {
 
 func TestApplyModalityLUTImplicitVRLE(t *testing.T) {
 	// Same regression on the Modality LUT path, with a negative first-mapped value to
-	// exercise signed-descriptor decoding through the implicit-VR *Strings form.
+	// exercise signed-descriptor reinterpretation of the implicit-VR *Ints placeholder.
 	src := NewDataSet()
 	item := NewDataSet()
 	item.Set(Element{Tag: TagLUTDescriptor, VR: VRSS, Value: NewInts(VRSS, 3, -1000, 16)})

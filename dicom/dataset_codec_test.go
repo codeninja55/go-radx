@@ -17,7 +17,7 @@ func buildElement(t *testing.T, ts TransferSyntax, tag Tag, vr VR, v Value) []by
 		t.Fatalf("encodeValue: %v", err)
 	}
 	var hbuf bytes.Buffer
-	if err := writeElementHeader(&hbuf, elementHeader{tag: tag, vr: vr, length: n}, ts); err != nil {
+	if err := writeElementHeader(&hbuf, elementHeader{tag: tag, vr: vr, length: n}, ts, false); err != nil {
 		t.Fatalf("writeElementHeader: %v", err)
 	}
 	return append(hbuf.Bytes(), vbuf.Bytes()...)
