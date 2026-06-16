@@ -24,8 +24,8 @@ Top gaps by size:
    have no typed views (size M per family; L for HAPI-equivalent breadth, which needs codegen).
 2. Per-version typed structures (2.1-2.8.1) as HAPI does — go-radx is single-layout v2.5.1,
    version-tolerant (size L; deliberate v1 posture, not an accident).
-3. Cross-implementation MLLP interop in CI — test exists but skips without `RADX_HL7_MLLP_PEER`;
-   tracked as issue #114 (planned, not built).
+3. ~~Cross-implementation MLLP interop in CI~~ — closed by issue #114: the `interop:mllp` CI leg
+   provisions a pinned python-hl7 peer container and gates both send directions.
 
 ## python-hl7 floor (primary)
 
@@ -82,7 +82,7 @@ Top gaps by size:
 | asyncio client (`open_hl7_connection`, stream reader/writer) | api.html `hl7.mllp` | MET | `Client.Send(ctx, ...)` honours cancellation `hl7v2/mllp_client.go:127` | - | Single client covers both blocking and cancellable use |
 | `InvalidBlockError` + `limit` | api.html `hl7.mllp` | MET | `FrameError` `hl7v2/mllp.go:32`, `DefaultMaxFrameSize` `:26`, bounded `ReadFrame` `:89`; `FuzzReadFrame` `hl7v2/mllp_frame_test.go:187` | - | Frame size capped both sides (hostile-input guard); fuzz target ships |
 | `mllp_send` CLI | mllp.html | MET | `radx hl7 send` `cmd/radx/internal/command/hl7.go:36` (file or stdin, host/port/timeout/max-frame) | - | Exceeds python-hl7: `radx hl7 listen` receiver also ships (`:152`) |
-| Cross-implementation MLLP interop | (project gate, not python-hl7 doc) | PARTIAL | `hl7v2/mllp_interop_test.go:26` skips unless `RADX_HL7_MLLP_PEER` set | M | CI peer-container leg planned in issue #114; loopback go-go gate runs in CI |
+| Cross-implementation MLLP interop | (project gate, not python-hl7 doc) | MET | `interop:mllp` CI leg: `hl7v2/mllp_peer_main_test.go` provisions the pinned python-hl7 peer container; `TestInteropMLLPPeer` (go-radx sends) + `TestInteropMLLPPeerSender` (`mllp_send` sends) | - | Wired by issue #114; `RADX_HL7_MLLP_PEER` substitutes an external peer; loopback go-go gate also runs in CI |
 
 ### Batch and file protocols
 
@@ -151,6 +151,6 @@ Not verified / caveats:
   running both libraries side by side; go-radx's own conformance statement claims rule-for-rule parity
   and its accessor tests exercise the deep/shallow-path rules.
 - HAPI per-version structure counts for versions other than 2.5 were not enumerated.
-- The cross-implementation MLLP interop leg compiles but skips in CI (no peer container); issue #114
-  tracks wiring it in. Treat MLLP wire-compat with python-hl7/hl7apy as locally verified design, not a
-  CI-proven gate.
+- The cross-implementation MLLP interop leg is wired in CI (issue #114): the `interop:mllp` leg
+  provisions a pinned python-hl7 peer container and gates both send directions, so MLLP wire-compat
+  with python-hl7 is a CI-proven gate. hl7apy wire-compat remains untested.
