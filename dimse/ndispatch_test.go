@@ -2,12 +2,18 @@ package dimse
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/codeninja55/go-radx/dicom"
 )
+
+// otherNServiceSOPClass is a second, NEVER-negotiated N-service abstract syntax (a synthetic UID).
+// The negotiated-context regression sends an N-service request carrying this SOP Class on the
+// presentation context negotiated for displaySystemSOPClass, which must be rejected.
+const otherNServiceSOPClass dicom.SOPClassUID = "1.2.840.10008.5.1.1.40.99"
 
 // displaySystemSOPClass is the Display System SOP Class UID (PS3.4 EE), the canonical N-GET target:
 // a Display System Management SCU reads the configuration of a display device with N-GET. It is a
@@ -279,4 +285,138 @@ func TestNGetNDeleteRejectEmptyReferences(t *testing.T) {
 		t.Error("N-DELETE should reject an empty instance UID")
 	}
 	_ = assoc.Release(ctx)
+}
+
+// TestValidateNContext is the unit regression for the DIMSE-N negotiation guard (the symmetry with
+// validateStoreContext): an N-service request must arrive on a presentation context whose negotiated
+// abstract syntax equals the SOP Class the request names, else it is a protocol fault — a peer
+// cannot run an N-service outside the negotiated/accepted SOP Class. It also pins which SOP Class UID
+// field each N-primitive carries per PS3.7 §10: the reference-pair operations (N-GET/N-SET/N-ACTION/
+// N-DELETE) carry the Requested SOP Class UID, N-CREATE/N-EVENT-REPORT the Affected SOP Class UID.
+func TestValidateNContext(t *testing.T) {
+	abstractFor := func(pcID uint8) (dicom.SOPClassUID, bool) {
+		if pcID == 1 {
+			return displaySystemSOPClass, true
+		}
+		return "", false
+	}
+
+	// Reference-pair operations validate the Requested SOP Class UID against the negotiated context.
+	for _, tc := range []struct {
+		name  string
+		field CommandField
+	}{
+		{"N-GET", CommandNGetRQ},
+		{"N-SET", CommandNSetRQ},
+		{"N-ACTION", CommandNActionRQ},
+		{"N-DELETE", CommandNDeleteRQ},
+	} {
+		match := CommandSet{CommandField: tc.field, RequestedSOPClassUID: dicom.UID(displaySystemSOPClass)}
+		if err := validateNContext(match, 1, abstractFor, Sta6); err != nil {
+			t.Errorf("%s: matching Requested SOP Class on the negotiated context rejected: %v", tc.name, err)
+		}
+		mismatch := CommandSet{CommandField: tc.field, RequestedSOPClassUID: dicom.UID(otherNServiceSOPClass)}
+		if err := validateNContext(mismatch, 1, abstractFor, Sta6); err == nil {
+			t.Errorf("%s: mismatched Requested SOP Class on the negotiated context = nil error, want a protocol fault", tc.name)
+		} else {
+			var pe *ProtocolError
+			if !errors.As(err, &pe) {
+				t.Errorf("%s: error = %T, want *ProtocolError", tc.name, err)
+			}
+		}
+	}
+
+	// Affected-pair operations validate the Affected SOP Class UID against the negotiated context.
+	for _, tc := range []struct {
+		name  string
+		field CommandField
+	}{
+		{"N-CREATE", CommandNCreateRQ},
+		{"N-EVENT-REPORT", CommandNEventReportRQ},
+	} {
+		match := CommandSet{CommandField: tc.field, AffectedSOPClassUID: dicom.UID(displaySystemSOPClass)}
+		if err := validateNContext(match, 1, abstractFor, Sta6); err != nil {
+			t.Errorf("%s: matching Affected SOP Class on the negotiated context rejected: %v", tc.name, err)
+		}
+		mismatch := CommandSet{CommandField: tc.field, AffectedSOPClassUID: dicom.UID(otherNServiceSOPClass)}
+		if err := validateNContext(mismatch, 1, abstractFor, Sta6); err == nil {
+			t.Errorf("%s: mismatched Affected SOP Class on the negotiated context = nil error, want a protocol fault", tc.name)
+		}
+	}
+
+	// An N-service on a context that was never negotiated is a protocol fault.
+	never := CommandSet{CommandField: CommandNDeleteRQ, RequestedSOPClassUID: dicom.UID(displaySystemSOPClass)}
+	if err := validateNContext(never, 9, abstractFor, Sta6); err == nil {
+		t.Error("N-service on an unknown presentation context = nil error, want a protocol fault")
+	}
+}
+
+// TestNServiceMismatchedSOPClassRefused is the loopback regression for the negotiated-context boundary
+// (BUG: the N-service dispatch arms routed to the handler WITHOUT the presentation-context SOP-class
+// validation the C-service paths perform). It negotiates SOP Class A (displaySystemSOPClass), then
+// sends an N-DELETE and an N-CREATE carrying SOP Class B (otherNServiceSOPClass) on the context
+// negotiated for A, and asserts the handler is NEVER invoked and the request fails — the destructive
+// N-DELETE must not run for a SOP Class never accepted on the association (PS3.7 §9.1).
+func TestNServiceMismatchedSOPClassRefused(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		field  CommandField
+		setSOP func(*CommandSet)
+	}{
+		{
+			name:  "N-DELETE",
+			field: CommandNDeleteRQ,
+			setSOP: func(c *CommandSet) {
+				c.RequestedSOPClassUID = dicom.UID(otherNServiceSOPClass)
+				c.RequestedSOPInstanceUID = displaySystemInstance
+			},
+		},
+		{
+			name:  "N-CREATE",
+			field: CommandNCreateRQ,
+			setSOP: func(c *CommandSet) {
+				c.AffectedSOPClassUID = dicom.UID(otherNServiceSOPClass)
+				c.AffectedSOPInstanceUID = displaySystemInstance
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := &nServiceHandler{getStatus: StatusNSuccess, deleteStatus: StatusNSuccess}
+			srv, _ := startNServer(t, h)
+			assoc, ctx, cancel := dialNSCU(t, srv.Addr().String())
+			defer cancel()
+
+			// Resolve the presentation context negotiated for SOP Class A, then craft an N-service
+			// request carrying SOP Class B on that same context — the negotiation-bypass attempt the
+			// high-level SCU primitives (which pick the context by SOP Class) cannot construct.
+			pcID, _, ok := assoc.contextForQuery(displaySystemSOPClass)
+			if !ok {
+				t.Fatal("no accepted Display System presentation context")
+			}
+			rq := CommandSet{
+				CommandField:       tc.field,
+				MessageID:          1,
+				CommandDataSetType: CommandDataSetNotPresent,
+			}
+			tc.setSOP(&rq)
+			if err := sendCommand(ctx, assoc.requestor.Conn(), assoc.requestor.Machine(), pcID, rq); err != nil {
+				t.Fatalf("send mismatched-context %s: %v", tc.name, err)
+			}
+
+			// The SCP must fault the association rather than answer: the SCU's read returns a transport/
+			// protocol error, never a Success RSP.
+			rsp, _, err := receiveCommand(ctx, assoc.requestor.Conn(), assoc.requestor.Machine())
+			if err == nil && rsp.HasStatus && rsp.Status == StatusNSuccess.Code {
+				t.Fatalf("%s on a mismatched context returned a Success RSP, want a fault", tc.name)
+			}
+
+			getReq, deleteReq := h.snapshot()
+			if deleteReq != nil {
+				t.Errorf("%s on a mismatched context invoked the N-DELETE handler — the negotiated-context boundary was bypassed", tc.name)
+			}
+			if getReq != nil {
+				t.Errorf("%s on a mismatched context invoked the N-GET handler — the negotiated-context boundary was bypassed", tc.name)
+			}
+		})
+	}
 }

@@ -444,6 +444,55 @@ func isGetModel(sopClass dicom.SOPClassUID) bool {
 	return ok
 }
 
+// validateNContext fails closed when a DIMSE-N request's SOP Class UID does not match the abstract
+// syntax negotiated for the presentation context it arrived on — the normalised-service counterpart
+// of validateStoreContext, kept symmetric with the C-service guards. Without it a peer that
+// negotiated abstract syntax A could send an N-service request (including a destructive N-DELETE or
+// N-SET) carrying SOP Class UID B on that context, and the handler would run for a SOP Class never
+// accepted on the association — a presentation-context negotiation bypass (PS3.7 §9.1, PS3.8 §7.1.1)
+// and an authorization-boundary escape, not a service failure.
+//
+// Which command field carries the SOP Class UID depends on the operation (PS3.7 §10): the
+// reference-pair operations N-GET (§10.3), N-SET (§10.4), N-ACTION (§10.5), and N-DELETE (§10.6)
+// carry the Requested SOP Class UID (0000,0003); N-CREATE (§10.7) and N-EVENT-REPORT (§10.2) carry
+// the Affected SOP Class UID (0000,0002). nSOPClassUID picks the field the operation defines as
+// Type 1, the same field nRequestFromCommand surfaces as Info.SOPClassUID. Unlike a C-FIND/C-MOVE/
+// C-GET context (constrained to an information-model set), an N-service may run over any negotiated
+// abstract syntax, so the check is the generic command-SOP-class-equals-negotiated-abstract-syntax,
+// exactly as validateStoreContext enforces.
+func validateNContext(cmd CommandSet, pcID uint8, abstractFor func(uint8) (dicom.SOPClassUID, bool), state State) error {
+	requestSOPClass, service, field := nSOPClassUID(cmd)
+	abstract, ok := abstractFor(pcID)
+	if !ok || dicom.SOPClassUID(requestSOPClass) != abstract {
+		return &ProtocolError{State: state, Detail: fmt.Sprintf(
+			"%s %s SOP Class %q does not match the abstract syntax negotiated for presentation context %d",
+			service, field, requestSOPClass, pcID)}
+	}
+	return nil
+}
+
+// nSOPClassUID returns the SOP Class UID a DIMSE-N command carries as its Type 1 reference (PS3.7
+// §10), the service name, and the name of the field it came from, for the diagnostic. N-CREATE and
+// N-EVENT-REPORT carry the Affected SOP Class UID (0000,0002); the reference-pair operations carry
+// the Requested SOP Class UID (0000,0003). It mirrors nRequestFromCommand's field selection so the
+// validated SOP Class is the one the handler sees.
+func nSOPClassUID(cmd CommandSet) (sopClass dicom.UID, service, field string) {
+	switch cmd.CommandField {
+	case CommandNCreateRQ:
+		return cmd.AffectedSOPClassUID, "N-CREATE", "Affected"
+	case CommandNEventReportRQ:
+		return cmd.AffectedSOPClassUID, "N-EVENT-REPORT", "Affected"
+	case CommandNSetRQ:
+		return cmd.RequestedSOPClassUID, "N-SET", "Requested"
+	case CommandNActionRQ:
+		return cmd.RequestedSOPClassUID, "N-ACTION", "Requested"
+	case CommandNDeleteRQ:
+		return cmd.RequestedSOPClassUID, "N-DELETE", "Requested"
+	default:
+		return cmd.RequestedSOPClassUID, "N-GET", "Requested"
+	}
+}
+
 // validateStoreInstance fails closed when a C-STORE-RQ's mandatory Affected SOP Instance UID is
 // absent or disagrees with the dataset's own SOP Instance UID (0008,0018). Storing on a mismatch
 // would let the SCP persist one instance while acknowledging another (the RSP echoes the command
