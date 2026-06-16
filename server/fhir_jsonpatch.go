@@ -55,12 +55,84 @@ func (h *fhirHandler) applyJSONPatch(current fhir.Resource, patchDoc []byte) (fh
 
 // patchOp is one RFC 6902 operation. Path and From are JSON Pointers (RFC 6901); Value is the
 // operand for add/replace/test. The raw value is kept as json.RawMessage so it is spliced into the
-// document verbatim, preserving number lexical form and key order within the operand.
+// document verbatim, preserving number lexical form and key order within the operand. The hasPath /
+// hasFrom / hasValue flags record whether each member was present in the operation object, so an
+// omitted member is distinguished from one that is present but the empty string "" (the valid
+// whole-document JSON Pointer). This distinction is what lets validateOp reject an operation that
+// is missing a required member (RFC 6902 §4) rather than silently treating the missing pointer as
+// the document root.
 type patchOp struct {
+	Op    string
+	Path  string
+	From  string
+	Value json.RawMessage
+
+	hasPath  bool
+	hasFrom  bool
+	hasValue bool
+}
+
+// patchOpWire is the on-the-wire shape of an operation. Path and From are pointers so an absent
+// member decodes to nil (distinguishable from a present "") and Value is a json.RawMessage so a
+// present-but-null value is still detectable. UnmarshalJSON funnels through this to set the
+// presence flags on patchOp.
+type patchOpWire struct {
 	Op    string          `json:"op"`
-	Path  string          `json:"path"`
-	From  string          `json:"from"`
+	Path  *string         `json:"path"`
+	From  *string         `json:"from"`
 	Value json.RawMessage `json:"value"`
+}
+
+// UnmarshalJSON decodes one operation, recording which optional members were present so validateOp
+// can enforce RFC 6902's per-op required-member rules. A member that is present but empty ("") is
+// recorded as present, so the legitimate whole-document pointer survives, while an omitted member
+// stays absent.
+func (op *patchOp) UnmarshalJSON(data []byte) error {
+	var wire patchOpWire
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	op.Op = wire.Op
+	op.Value = wire.Value
+	op.hasValue = wire.Value != nil
+	if wire.Path != nil {
+		op.Path = *wire.Path
+		op.hasPath = true
+	}
+	if wire.From != nil {
+		op.From = *wire.From
+		op.hasFrom = true
+	}
+	return nil
+}
+
+// validateOp enforces RFC 6902 §4's required-member rules for one operation before it is applied:
+// add/replace/test require path and value, remove requires path, move/copy require path and from. A
+// missing required member is rejected here (mapping to 422) rather than defaulting to the empty
+// pointer "" (the document root), which would let, for example, a copy with no from silently read
+// the whole document. An unknown op is left to applyOp, which rejects it.
+func validateOp(op *patchOp) error {
+	switch op.Op {
+	case "add", "replace", "test":
+		if !op.hasPath {
+			return fmt.Errorf("%w: %s requires a path member", errPatch, op.Op)
+		}
+		if !op.hasValue {
+			return fmt.Errorf("%w: %s requires a value member", errPatch, op.Op)
+		}
+	case "remove":
+		if !op.hasPath {
+			return fmt.Errorf("%w: remove requires a path member", errPatch)
+		}
+	case "move", "copy":
+		if !op.hasPath {
+			return fmt.Errorf("%w: %s requires a path member", errPatch, op.Op)
+		}
+		if !op.hasFrom {
+			return fmt.Errorf("%w: %s requires a from member", errPatch, op.Op)
+		}
+	}
+	return nil
 }
 
 // applyRFC6902 applies a JSON Patch document (a JSON array of operations) to a JSON document and
@@ -81,6 +153,9 @@ func applyRFC6902(docJSON, patchJSON []byte) ([]byte, error) {
 		return nil, fmt.Errorf("%w: the target document is not valid JSON", errPatch)
 	}
 	for i := range ops {
+		if err := validateOp(&ops[i]); err != nil {
+			return nil, err
+		}
 		next, err := applyOp(doc, &ops[i])
 		if err != nil {
 			return nil, err

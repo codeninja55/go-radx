@@ -694,6 +694,47 @@ func jsonContainsRaw(t *testing.T, doc []byte, want string) bool {
 	return strings.Contains(string(doc), want)
 }
 
+// TestApplyRFC6902RejectsMissingRequiredMembers proves the applier enforces RFC 6902 §4's
+// required-member rules (the P2-B fix): a copy or move with no from, or any op with no path, is an
+// error rather than silently defaulting the absent member to the empty pointer "" (the whole
+// document). The error maps to 422 at the HTTP edge. A legitimately-empty path (path:"", the
+// whole-document pointer RFC 6902 allows for add/replace/test) must still apply.
+func TestApplyRFC6902RejectsMissingRequiredMembers(t *testing.T) {
+	doc := []byte(`{"a":1,"b":{"c":2}}`)
+	cases := []struct {
+		name    string
+		patch   string
+		wantErr bool
+	}{
+		{"copy without from", `[{"op":"copy","path":"/x"}]`, true},
+		{"move without from", `[{"op":"move","path":"/x"}]`, true},
+		{"add without path", `[{"op":"add","value":1}]`, true},
+		{"replace without path", `[{"op":"replace","value":1}]`, true},
+		{"remove without path", `[{"op":"remove"}]`, true},
+		{"test without path", `[{"op":"test","value":1}]`, true},
+		{"copy without path", `[{"op":"copy","from":"/a"}]`, true},
+		{"move without path", `[{"op":"move","from":"/a"}]`, true},
+		{"add without value", `[{"op":"add","path":"/x"}]`, true},
+		{"replace without value", `[{"op":"replace","path":"/a"}]`, true},
+		{"test without value", `[{"op":"test","path":"/a"}]`, true},
+		// A present-but-empty path "" (the whole-document pointer) is valid for replace.
+		{"replace whole document", `[{"op":"replace","path":"","value":{"z":9}}]`, false},
+		// A present-but-empty value (an explicit null) satisfies the value requirement.
+		{"add explicit null value", `[{"op":"add","path":"/n","value":null}]`, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := applyRFC6902(doc, []byte(c.patch))
+			if c.wantErr && err == nil {
+				t.Fatalf("expected error for %s, got none", c.patch)
+			}
+			if !c.wantErr && err != nil {
+				t.Fatalf("unexpected error for %s: %v", c.patch, err)
+			}
+		})
+	}
+}
+
 // TestFHIRRoleUpdateAsCreateReservesID proves update-as-create reserves the server id counter (the
 // P1-A regression): a PUT to /Patient/1 stores a resource at the client-chosen numeric id 1, and a
 // later POST must mint a fresh id (not 1), never overwriting the PUT-created resource. Before the
