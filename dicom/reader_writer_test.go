@@ -57,10 +57,10 @@ func TestWriteReadRoundTripAllSyntaxes(t *testing.T) {
 }
 
 func TestWriteRejectsUnsupportedTransferSyntax(t *testing.T) {
-	f := sampleFile(JPEGBaseline8Bit) // encapsulated; not writable as a main dataset
+	f := sampleFile(TransferSyntax("1.2.840.113619.5.2")) // private; element encoding cannot be assumed
 	var buf bytes.Buffer
 	if err := Write(&buf, f); err == nil {
-		t.Error("Write should reject an unsupported (encapsulated) transfer syntax before writing")
+		t.Error("Write should reject an unrecognised transfer syntax before writing")
 	}
 	if buf.Len() != 0 {
 		t.Errorf("Write emitted %d bytes for an unsupported syntax; must reject before writing", buf.Len())

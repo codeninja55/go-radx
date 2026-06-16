@@ -17,26 +17,32 @@ func decodeValue(br *boundedReader, h elementHeader, enc encoding, charset *Spec
 	if err != nil {
 		return nil, err
 	}
+	return decodeValueBytes(h.vr, raw, enc, charset)
+}
 
-	switch h.vr {
+// decodeValueBytes decodes an already-read value field into a typed Value. It is
+// shared by the in-line path (decodeValue) and the deferred-load path, so a value
+// decodes identically whether it was materialised at read time or on demand.
+func decodeValueBytes(vr VR, raw []byte, enc encoding, charset *SpecificCharacterSet) (Value, error) {
+	switch vr {
 	case VRSS, VRUS, VRSL, VRUL, VRSV, VRUV:
-		return decodeInts(h.vr, raw, enc.byteOrder), nil
+		return decodeInts(vr, raw, enc.byteOrder), nil
 
 	case VRFL, VRFD, VROF, VROD:
-		return decodeFloats(h.vr, raw, enc.byteOrder), nil
+		return decodeFloats(vr, raw, enc.byteOrder), nil
 
 	case VRAT:
 		return decodeTags(raw, enc.byteOrder), nil
 
 	case VRDS, VRIS:
-		return decodeDecimals(h.vr, raw)
+		return decodeDecimals(vr, raw)
 
 	case VROB, VROW, VROL, VROV, VRUN:
-		return NewBytes(h.vr, raw), nil
+		return NewBytes(vr, raw), nil
 
 	default:
 		// All remaining VRs are text: AE AS CS DA DT LO LT PN SH ST TM UC UI UR UT.
-		return decodeStrings(h.vr, raw, charset)
+		return decodeStrings(vr, raw, charset)
 	}
 }
 

@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"iter"
 	"sort"
 	"time"
 
@@ -17,13 +18,16 @@ import (
 // FindCmd queries a remote AE with a C-FIND (dcmtk's findscu), streaming one match per result.
 // The streaming multi-response contract mirrors the underlying Association.Find iterator: each
 // Pending match is one JSON Line, and a transport fault after the loop (Association.LastError) is a
-// network failure (docs/reference/cli.md find).
+// network failure (docs/reference/cli.md find). The -W flag switches to the Modality Worklist
+// Information Model (findscu -W): it negotiates the worklist context and queries through
+// Association.FindWorklist on the SPS-sequence skeleton.
 type FindCmd struct {
 	Host      string        `name:"host" required:"" env:"RADX_HOST" help:"Remote host."`
 	Port      int           `name:"port" default:"11112" env:"RADX_PORT" help:"Remote port."`
 	CalledAE  string        `name:"called-ae" default:"${default_called_ae}" env:"RADX_CALLED_AE" help:"Called AE Title (the remote AE)."`
 	CallingAE string        `name:"calling-ae" default:"${default_calling_ae}" env:"RADX_CALLING_AE" help:"Calling AE Title (this client)."`
 	Level     string        `name:"level" enum:"PATIENT,STUDY,SERIES,IMAGE" default:"STUDY" help:"Query/Retrieve Level."`
+	Worklist  bool          `name:"worklist" short:"W" help:"Query the Modality Worklist Information Model (findscu -W). The worklist model is flat, so --level is ignored."`
 	Match     []string      `name:"match" help:"Identifier match key (key=value); repeat to add keys."`
 	Timeout   time.Duration `name:"timeout" default:"5m" env:"RADX_TIMEOUT" help:"Operation timeout."`
 	MaxPDU    uint32        `name:"max-pdu" default:"${default_max_pdu}" env:"RADX_MAX_PDU" help:"Maximum PDU length in bytes."`
@@ -54,6 +58,18 @@ func (c *FindCmd) Run(rc *RunContext) error {
 	if err != nil {
 		return err
 	}
+	if c.Worklist {
+		// A worklist identifier starts from the SPS-sequence skeleton (PS3.4 K.6.1.2): the empty
+		// Scheduled Procedure Step Sequence item universal-matches every scheduled step. Each
+		// --match key is routed where the worklist model defines it (PS3.4 Table K.6-1): an SPS
+		// requirement key (Modality, ScheduledStationAETitle, the SPS start date/time, ...) goes
+		// inside the sequence item — where an SCP matches it — and everything else stays top level.
+		wl := dimse.NewWorklistQuery()
+		for e := range identifier.All() {
+			dimse.SetWorklistMatch(wl, e)
+		}
+		identifier = wl
+	}
 
 	log := logging.FromContext(rc.Ctx)
 	log.Debug("find: opening query association",
@@ -73,7 +89,11 @@ func (c *FindCmd) Run(rc *RunContext) error {
 		return err
 	}
 
-	assoc, err := ae.Associate(rc.Ctx, hostPort(c.Host, c.Port), called, dimse.QueryRetrieveContexts())
+	contexts := dimse.QueryRetrieveContexts()
+	if c.Worklist {
+		contexts = dimse.BasicWorklistContexts()
+	}
+	assoc, err := ae.Associate(rc.Ctx, hostPort(c.Host, c.Port), called, contexts)
 	if err != nil {
 		return err
 	}
@@ -84,8 +104,17 @@ func (c *FindCmd) Run(rc *RunContext) error {
 		return err
 	}
 
+	// FindWorklist targets the flat Modality Worklist model (no Query/Retrieve Level); the levelled
+	// Find runs the Patient/Study Root models.
+	var query iter.Seq2[dimse.Status, *dicom.DataSet]
+	if c.Worklist {
+		query = assoc.FindWorklist(rc.Ctx, identifier)
+	} else {
+		query = assoc.Find(rc.Ctx, identifier, level)
+	}
+
 	var terminal dimse.Status
-	for status, ds := range assoc.Find(rc.Ctx, identifier, level) {
+	for status, ds := range query {
 		if status.IsPending() {
 			if emitErr := em.emit(datasetAttributes(ds)); emitErr != nil {
 				return emitErr

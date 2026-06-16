@@ -6,20 +6,21 @@ verified against go-radx source and tests (file:symbol evidence). The matrices a
 for the parity build-out: every PARTIAL and NOT-MET row is a tracked task, and a row flips to MET only in the
 same PR that ships the feature (lockstep with the conformance statements).
 
-Audited 2026-06-10 against main @ fdf7b54. Statuses: MET (implemented and tested), PARTIAL (usable subset),
-NOT-MET (absent), N-A (no sensible Go equivalent). Sizes: S (under 1 day), M (1-3 days), L (over 3 days).
+Audited 2026-06-10 against main @ fdf7b54; aggregate re-verified 2026-06-14 against main @ f518b29 after
+wave 0 (PRs #119-#122). Statuses: MET (implemented and tested), PARTIAL (usable subset), NOT-MET (absent),
+N-A (no sensible Go equivalent). Sizes: S (under 1 day), M (1-3 days), L (over 3 days).
 
 ## Aggregate results
 
 | Subsystem | Reference(s) | Matrix | Rows | MET | PARTIAL | NOT-MET | N-A |
 |---|---|---|---|---|---|---|---|
-| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 50 | 8 | 24 | 6 |
-| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 59 | 9 | 24 | 1 |
-| HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 29 | 24 | 4 | 0 | 1 |
-| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 46 | 7 | 40 | 5 |
-| DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 38 | 8 | 27 | 2 |
-| radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 7 | 11 | 10 | 0 |
-| Total | | | 411 | 224 | 47 | 125 | 15 |
+| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 55 | 8 | 19 | 6 |
+| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 60 | 9 | 23 | 1 |
+| HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 26 | 5 | 0 | 1 |
+| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 50 | 8 | 35 | 5 |
+| DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 43 | 3 | 27 | 2 |
+| radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 8 | 11 | 9 | 0 |
+| Total | | | 414 | 242 | 44 | 113 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in
@@ -30,9 +31,9 @@ The HL7 matrix additionally carries a clearly-labelled stretch section against t
 The python-hl7 floor is effectively met (zero NOT-MET). The DIMSE association plane and DIMSE-C services are
 at full pynetdicom parity; gaps concentrate in DIMSE-N SCP sides and UPS. FHIR models and the REST client are
 near parity; roughly two thirds of FHIR gaps sit in the server role's write side. The DICOM data layer's
-headline finding is that `dicom.Read` rejects every encapsulated transfer syntax, so compressed Part 10
-metadata is unreachable through the public API - a floor violation that also gates `radx dump`, `radx modify`
-and `radx store` on compressed files.
+former headline finding - `dicom.Read` rejecting every encapsulated transfer syntax - is resolved: compressed
+Part 10 files read with the dataset retained, write back byte-identically, and transcode at the dataset level,
+which also unblocked `radx dump`, `radx modify` and `radx store --transcode-to` on compressed files.
 
 ## Wave plan
 

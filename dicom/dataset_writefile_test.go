@@ -58,7 +58,7 @@ func TestDataSetWriteFileUnsupportedSyntaxFails(t *testing.T) {
 	ds.Set(Element{Tag: TagSOPClassUID, VR: VRUI, Value: NewStrings(VRUI, "1.2.840.10008.5.1.4.1.1.7")})
 	ds.Set(Element{Tag: TagSOPInstanceUID, VR: VRUI, Value: NewStrings(VRUI, "1.2.3.4.5.6.7.8.9")})
 	dir := t.TempDir()
-	if err := ds.WriteFile(filepath.Join(dir, "x.dcm"), JPEGBaseline8Bit); err == nil {
+	if err := ds.WriteFile(filepath.Join(dir, "x.dcm"), TransferSyntax("1.2.840.113619.5.2")); err == nil {
 		t.Error("WriteFile should reject an unsupported transfer syntax")
 	}
 }

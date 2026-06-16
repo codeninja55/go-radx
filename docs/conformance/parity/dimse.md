@@ -7,14 +7,14 @@ transport/TLS/timeouts. Evidence is file:symbol against main as of 2026-06-10. T
 
 ## Summary
 
-**Counts: 93 features — 59 MET, 9 PARTIAL, 24 NOT-MET, 1 N-A.** (The NOT-MET count includes the
+**Counts: 93 features — 60 MET, 9 PARTIAL, 23 NOT-MET, 1 N-A.** (The NOT-MET count includes the
 `qrscp` CLI-layer row cross-referenced to A6.)
 
 The association plane is at full parity: requestor and acceptor, the complete PS3.8 FSM (Sta1-13
 including release collision), ARTIM, all eight user-information negotiation items, A-ABORT/A-P-ABORT
 in both directions, all four timeout knobs, TLS (1.2 floor + mTLS) on both sides, and nine PDU fuzz
-targets. The DIMSE-C plane is also at parity, including C-CANCEL as SCU and as SCP for C-FIND and
-C-GET — the single C gap is C-CANCEL during a C-MOVE sub-operation loop (a tracked TODO).
+targets. The DIMSE-C plane is at full parity, including C-CANCEL as SCU and as SCP for C-FIND,
+C-GET, and C-MOVE.
 
 The gap is service-class breadth and the DIMSE-N plane. pynetdicom documents 23 service classes;
 go-radx ships 7 of them (Verification, Storage, Q/R, Worklist, and SCU-side MPPS and Storage
@@ -38,10 +38,9 @@ Top gaps by size:
    only (size M).
 8. Notification-event surface (pynetdicom's ~17 `evt.EVT_*` monitoring events; no logging/hook
    system is wired) (size M).
-9. C-CANCEL during C-MOVE sub-operations — tracked TODO (size S).
-10. The remaining Q/R-family service classes (Hanging Protocol, Color Palette, Implant Template,
-    Defined Procedure, Protocol Approval, Inventory) — each size M, all sharing the existing C-FIND/
-    C-GET/C-MOVE machinery once their models are admitted.
+9. The remaining Q/R-family service classes (Hanging Protocol, Color Palette, Implant Template,
+   Defined Procedure, Protocol Approval, Inventory) — each size M, all sharing the existing C-FIND/
+   C-GET/C-MOVE machinery once their models are admitted.
 
 ## Association and ACSE
 
@@ -124,7 +123,7 @@ service as a whole; the role split is in the notes.
 | C-CANCEL send (SCU) | `Association.send_c_cancel` | MET | `Association.Cancel` `dimse/find.go:351`; auto-cancel on ctx `find.go:291` | - | |
 | C-CANCEL honored by C-FIND SCP | `evt.is_cancelled` | MET | Cancel watcher `dimse/find_scp.go:59-93,126-150`; 0xFE00 terminal RSP | - | |
 | C-CANCEL honored by C-GET SCP | `evt.is_cancelled` | MET | Interleaved C-CANCEL check `dimse/get_scp.go:97-99,196` | - | Terminal Cancel status carries accumulated sub-op counts |
-| C-CANCEL honored by C-MOVE SCP | `evt.is_cancelled` | NOT-MET | TODO(M8) `dimse/move_scp.go:103-104` — only cooperative ctx cancellation today | S | Known ground truth; mirror of the C-FIND cancel watcher |
+| C-CANCEL honored by C-MOVE SCP | `evt.is_cancelled` | MET | C-FIND cancel watcher reused in the sub-operation loop `dimse/move_scp.go:120,136-144`; terminal `StatusMoveCancel` w/ accumulated counts; `TestServeMoveTerminalCancelOnInboundCancel` `dimse/move_scp_test.go:686` | - | PS3.4 C.4.2.3 |
 | C-CANCEL outside an in-flight operation ignored | PS3.7 §9.3.2.3 behavior | MET | Silent drop at top-level dispatch `dimse/dispatch.go:229-237` | - | |
 | Message ID management | `msg_id` parameters | MET | `nextMessageID` `dimse/association.go:95`; `WithStoreMessageID` `dimse/store.go:44` | - | |
 

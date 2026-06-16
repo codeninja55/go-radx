@@ -6,26 +6,25 @@ file:symbol against main as of 2026-06-10. Tests count toward MET.
 
 ## Summary
 
-**python-hl7 floor (primary): 29 features — 24 MET, 4 PARTIAL, 0 NOT-MET, 1 N-A.** The floor is
+**python-hl7 floor (primary): 32 features — 26 MET, 5 PARTIAL, 0 NOT-MET, 1 N-A.** The floor is
 effectively met: every parsing entry point, the full container model, accessor extract/assign semantics,
 escape/unescape, ACK construction, batch/file protocols, the MLLP client/server pair, and the CLI sender
-all have shipped, tested go-radx equivalents. The four PARTIALs are all size S conveniences
-(boolean format predicates, a `split_file` helper, charset-decode on parse, custom `\Z\` escape maps).
+all have shipped, tested go-radx equivalents. Four of the five PARTIALs are size S conveniences
+(boolean format predicates, a `split_file` helper, charset-decode on parse, custom `\Z\` escape maps); the
+fifth is the cross-implementation MLLP interop CI leg (size M, issue #114).
 
 **HAPI catalogue (stretch): expected and confirmed large breadth gap.** go-radx types 5 message families
-(ADT, ORM, OMG-via-ORM, ORU, ACK) with a radiology-scoped trigger subset; HAPI v2.5 alone ships ~195
+(ADT, ORM, OMG, ORU, ACK) with a radiology-scoped trigger subset; HAPI v2.5 alone ships ~195
 typed message structures across ~30 families, per-version from 2.1 to 2.8.1. The generic six-level tree
 parses everything, so the gap is typed-view breadth, not parseability.
 
 Top gaps by size:
 
-1. Dedicated typed `OMG` view (`AsOMG`) — conformance statement marks it NOT YET SHIPPED; today
-   `AsORM` accepts the `OMG` code as a variant (size S, mostly naming/API surface).
-2. Trigger-event catalogue breadth vs HAPI — SIU, MDM, DFT, BAR, VXU, QBP/RSP, MFN, pharmacy families
+1. Trigger-event catalogue breadth vs HAPI — SIU, MDM, DFT, BAR, VXU, QBP/RSP, MFN, pharmacy families
    have no typed views (size M per family; L for HAPI-equivalent breadth, which needs codegen).
-3. Per-version typed structures (2.1-2.8.1) as HAPI does — go-radx is single-layout v2.5.1,
+2. Per-version typed structures (2.1-2.8.1) as HAPI does — go-radx is single-layout v2.5.1,
    version-tolerant (size L; deliberate v1 posture, not an accident).
-4. ~~Cross-implementation MLLP interop in CI~~ — closed by issue #114: the `interop:mllp` CI leg
+3. ~~Cross-implementation MLLP interop in CI~~ — closed by issue #114: the `interop:mllp` CI leg
    provisions a pinned python-hl7 peer container and gates both send directions.
 
 ## python-hl7 floor (primary)
@@ -116,7 +115,7 @@ matters most. "Generic tree" means the message parses losslessly and is fully re
 | Per-version typed structures 2.1-2.8.1 | HAPI version JavaDocs | PARTIAL | v2.5.1 layouts, version-tolerant parse of 2.3-2.8.1 (`VersionID` MSH-12 `hl7v2/typed.go:24`, not enforced) | L | HAPI-style per-version codegen is a different architecture |
 | ADT family (HAPI v2.5: 17 structures, A01-A61 + AXX) | HAPI v25 message pkg | PARTIAL | `AsADT` `hl7v2/lens.go:18` accepts any ADT trigger; conformance-scoped to A01/A02/A03/A04/A08 | M | Lens checks only MSH-9.1 = "ADT", so other triggers get the same typed view |
 | ORM/ORR order family | HAPI v25 (ORx: ~28 structures) | PARTIAL | `AsORM` `hl7v2/orm.go:18` (`ORM^O01`), `Orders()` `:35` yields ORC+OBR groups | M | ORR (order response) untyped; generic tree only |
-| OMG (general clinical order) | HAPI v25 OMx | PARTIAL | `AsORM` accepts the `OMG` code `hl7v2/orm.go:24`; corpus fixture `omg-o19` `hl7v2/corpus_test.go:49` | S | Dedicated `AsOMG`/`OMG` type NOT YET SHIPPED (conformance statement); typed access works via the ORM lens today |
+| OMG (general clinical order) | HAPI v25 OMx | MET | Dedicated `AsOMG`/`OMG` lens `hl7v2/orm.go:39,50`; `AsORM` still admits the `OMG` code; `TestAsOMG` against the `omg-o19` fixture `hl7v2/orm_test.go:22` | - | `OMG^O19` scope; the ORC+OBR grouping is shared with `ORM.Orders` |
 | OML/OMB/OMD/OMI/OMN/OMP/OMS | HAPI v25 OMx (9 structures) | NOT-MET | Generic tree only | M | OML^O21 (lab order) is the most-requested next family |
 | ORU result family (R01...) | HAPI v25 | PARTIAL | `AsORU` `hl7v2/lens.go:47`, `Results()` `:62` (OBR+OBX groups) | S | R01 conformance-scoped; lens accepts any ORU trigger |
 | ACK | HAPI v25 | MET | `AsACK` `hl7v2/lens.go:98`, `BuildACK` `hl7v2/build.go:258` | - | |

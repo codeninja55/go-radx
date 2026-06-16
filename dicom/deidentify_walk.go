@@ -15,6 +15,20 @@ type deidWalk struct {
 	// dateShift is the per-run offset applied to retained dates/times under
 	// DateModeShift. It is zero unless temporal retention with shifting is enabled.
 	dateShift time.Duration
+	// changes accumulates the structural audit trail for the call. It stays nil —
+	// no allocation — unless the profile carries an AuditFunc (see record).
+	changes []AuditChange
+}
+
+// record appends one structural change to the call's audit trail. With no AuditFunc
+// configured it is a single nil comparison, keeping the disabled cost off the
+// de-identification path (PRD §9.6). It records the tag coordinate and action only,
+// never a value.
+func (w *deidWalk) record(t Tag, a AuditAction) {
+	if w.profile.audit == nil {
+		return
+	}
+	w.changes = append(w.changes, AuditChange{Tag: t, Action: a})
 }
 
 // resolveDateShift derives the single per-run date offset used when the caller opts
@@ -117,11 +131,14 @@ func (w *deidWalk) applyAction(ds *DataSet, e Element, action deidAction) {
 		// nothing
 	case deidRemove:
 		ds.Delete(e.Tag)
+		w.record(e.Tag, AuditActionRemove)
 	case deidReplaceZero, deidClean:
 		// C collapses to Z in v1: identity removed, content not preserved.
 		ds.Set(Element{Tag: e.Tag, VR: e.VR, Value: NewStrings(e.VR)})
+		w.record(e.Tag, AuditActionZero)
 	case deidReplaceDummy:
 		ds.Set(Element{Tag: e.Tag, VR: e.VR, Value: w.dummyValue(e)})
+		w.record(e.Tag, AuditActionReplaceDummy)
 	case deidReplaceUID:
 		w.applyUID(ds, e)
 	case deidShiftDate:
@@ -133,7 +150,17 @@ func (w *deidWalk) applyAction(ds *DataSet, e Element, action deidAction) {
 // repeated source UID always maps to the same replacement, preserving the reference
 // graph (Codex DCM-013: referential integrity after remap).
 func (w *deidWalk) applyUID(ds *DataSet, e Element) {
-	sv, ok := e.Value.(*Strings)
+	v, ok := materialise(e.Value)
+	if !ok {
+		// A deferred UID whose source can no longer be read cannot be remapped;
+		// leaving the original would leak the identifying reference graph, so the
+		// element is removed (fail-closed, same direction as the R action). The
+		// removal is a modification, so it is audited like any other delete.
+		ds.Delete(e.Tag)
+		w.record(e.Tag, AuditActionRemove)
+		return
+	}
+	sv, ok := v.(*Strings)
 	if !ok {
 		// A UID-action attribute that is not a string value is left as-is; the table
 		// only lists UI-VR attributes for U, so this is unreachable for valid input.
@@ -145,6 +172,7 @@ func (w *deidWalk) applyUID(ds *DataSet, e Element) {
 		out[i] = string(w.remapUID(UID(s)))
 	}
 	ds.Set(Element{Tag: e.Tag, VR: e.VR, Value: NewStrings(e.VR, out...)})
+	w.record(e.Tag, AuditActionRemapUID)
 }
 
 // remapUID returns the stable replacement for src, minting one on first use. An empty
@@ -167,16 +195,37 @@ func (w *deidWalk) applyDate(ds *DataSet, e Element) {
 	if w.profile.options.temporalMode == DateModeKeep {
 		return
 	}
-	sv, ok := e.Value.(*Strings)
+	v, ok := materialise(e.Value)
+	if !ok {
+		// A deferred date whose source can no longer be read cannot be shifted;
+		// keeping the original would retain identifying temporal data, so the
+		// element is removed (fail-closed). The removal is a modification, so it is
+		// audited like any other delete.
+		ds.Delete(e.Tag)
+		w.record(e.Tag, AuditActionRemove)
+		return
+	}
+	sv, ok := v.(*Strings)
 	if !ok {
 		return
 	}
 	src := sv.Strings()
 	out := make([]string, len(src))
+	changed := false
 	for i, s := range src {
 		out[i] = shiftDateValue(e.VR, s, w.dateShift)
+		if out[i] != s {
+			changed = true
+		}
+	}
+	if !changed {
+		// shiftDateValue was a no-op for every value - a TM time-only value (no date
+		// to anchor a day-granular shift), an unparseable date, or a zero offset - so
+		// nothing was modified: emit no audit change and skip the redundant Set.
+		return
 	}
 	ds.Set(Element{Tag: e.Tag, VR: e.VR, Value: NewStrings(e.VR, out...)})
+	w.record(e.Tag, AuditActionShiftDate)
 }
 
 // dummyValue produces the D-action replacement. A caller override (WithDummyValues)
@@ -194,6 +243,7 @@ func (w *deidWalk) dummyValue(e Element) Value {
 func (w *deidWalk) applyPrivate(ds *DataSet, e Element) {
 	if !w.profile.options.retainSafePrivate {
 		ds.Delete(e.Tag)
+		w.record(e.Tag, AuditActionRemove)
 		return
 	}
 	if e.Tag.IsPrivateCreator() {
@@ -202,6 +252,7 @@ func (w *deidWalk) applyPrivate(ds *DataSet, e Element) {
 			return
 		}
 		ds.Delete(e.Tag)
+		w.record(e.Tag, AuditActionRemove)
 		return
 	}
 	// A private data element is kept only when its declaring creator is allow-listed.
@@ -209,6 +260,7 @@ func (w *deidWalk) applyPrivate(ds *DataSet, e Element) {
 		return
 	}
 	ds.Delete(e.Tag)
+	w.record(e.Tag, AuditActionRemove)
 }
 
 // privateCreatorAllowed reports whether the private data element t belongs to an

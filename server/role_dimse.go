@@ -126,6 +126,7 @@ func (r *DIMSERole) start(ctx context.Context, host string, env roleEnv) error {
 		cat:      r.cat,
 		worklist: r.cfg.worklist,
 		logger:   env.logger,
+		audit:    env.audit,
 	}
 
 	var srvOpts []dimse.ServerOption
@@ -188,6 +189,7 @@ type dimseHandler struct {
 	cat      Catalogue
 	worklist WorklistSource
 	logger   *zap.Logger
+	audit    AuditFunc
 }
 
 // Echo answers a C-ECHO with success unless the SCP is degraded.
@@ -215,8 +217,16 @@ func (h *dimseHandler) Store(ctx context.Context, ds *dicom.DataSet, info dimse.
 	if err := h.cat.Index(ctx, ds); err != nil {
 		// The object is durably stored but un-indexed; report the warning rather than a clean success
 		// so the peer is not told the catalogue is consistent when it is not (PRD §9.2 fail-closed).
+		// The durable store IS the modification, so the audit event still fires, carrying the
+		// un-indexed outcome — a stored object must never be an unaudited one.
 		h.logger.Warn("c-store catalogue index failed", zap.String("sop_class", string(info.SOPClassUID)))
+		if h.audit != nil {
+			h.audit(dimseStoreAuditEvent(AuditOutcomeStoredUnindexed, ds, string(info.SOPClassUID)))
+		}
 		return dimse.StatusStoreElementDiscarded
+	}
+	if h.audit != nil {
+		h.audit(dimseStoreAuditEvent(AuditOutcomeStoredIndexed, ds, string(info.SOPClassUID)))
 	}
 	return dimse.StatusStoreSuccess
 }

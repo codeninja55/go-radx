@@ -251,10 +251,12 @@ in `human`, a progress bar on stderr and a final tally.
 Three behaviours diverge deliberately from the prototype. First, transcoding is **off by default and is an explicit
 opt-in**: objects are sent as stored, matching `storescu`, and `--transcode-to` names the target transfer syntax rather
 than the prototype's silent default-on transcode to JPEG 2000 (RADX-011) — medical-image fidelity is not altered
-without an explicit instruction. Transcoding (the encode side) is available only in a build that includes the optional
-CGo codec tag and only for the syntaxes a codec exists for (RLE and JPEG 2000 lossless first, per `dicom.md` and
-`conformance/dicom.md`); a `--transcode-to` request against a syntax this build cannot encode is a usage error, not a
-silent passthrough. Decoding compressed input for storage is always available; only encode/transcode is gated.
+without an explicit instruction. The store transport encodes each dataset in the negotiated uncompressed transfer
+syntax, so the honourable targets are the four uncompressed syntaxes (decompress-before-send); an encapsulated or
+malformed `--transcode-to` target is a usage error, not a silent passthrough, and a compressed object sent without
+`--transcode-to` is a per-file failure naming the flag rather than a silent decompress. Decoding the compressed source
+needs a codec for its transfer syntax: RLE is always built in, the JPEG families need the optional CGo codec tags
+(per `conformance/dicom.md`); a missing decoder is a typed per-file failure.
 Second, any failed transfer makes the command exit non-zero; `--continue-on-error` changes only whether the batch stops,
 not the final status (RADX-003). Third, each worker owns its association lifecycle, so a reconnect replaces the worker's
 client cleanly rather than leaking the original (RADX-009). A study with files larger than the PDU is streamed in PDV
@@ -271,6 +273,7 @@ never laundered into success.
 
 ```text
 radx find [flags]    --level=STUDY  --match key=value...    ~ findscu
+radx find [flags]    -W             --match key=value...    ~ findscu -W (worklist)
 radx get  [flags]    --level=SERIES --match key=value...    ~ getscu
 radx move [flags]    --move-destination=AE ...              ~ movescu
 ```
@@ -278,6 +281,15 @@ radx move [flags]    --move-destination=AE ...              ~ movescu
 `--level` takes a typed `QueryLevel` (`PATIENT|STUDY|SERIES|IMAGE`, glossary), `--match` builds the identifier dataset,
 and `find` returns one match per JSON Line, mirroring the streaming multi-response contract of the underlying
 `Association.Find` iterator (PRD §8.1). `move` requires `--move-destination`, a named `AETitle`.
+
+`find -W` (`--worklist`) queries the Modality Worklist Information Model instead of the Patient/Study Root models,
+matching dcmtk's `findscu -W`: it negotiates the worklist context and sends the Scheduled Procedure Step Sequence
+query skeleton (`dimse.NewWorklistQuery`). Each `--match` key is routed where the worklist model defines it
+(`dimse.SetWorklistMatch`, PS3.4 Table K.6-1): a Scheduled Procedure Step requirement key (`Modality`,
+`ScheduledStationAETitle`, the SPS start date/time, `ScheduledPerformingPhysicianName`, the SPS description/ID,
+and the other Table K.6-1 SPS keys) goes inside the sequence item, where an SCP matches it; every other key
+stays at the top level. The worklist model is flat, so `--level` is ignored and no Query/Retrieve Level is sent
+(PS3.4 K.6.1.2.1).
 
 ### scp — receive objects (Storage / Verification SCP)
 

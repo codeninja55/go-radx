@@ -180,6 +180,10 @@ var (
 	// StatusMoveDestinationUnknown is the C-MOVE Failure "Move Destination Unknown" (0xA801): the
 	// requested Move Destination AE Title was not recognised.
 	StatusMoveDestinationUnknown = NewStatus(0xA801, ServiceClassMove)
+	// StatusMoveCancel is the C-MOVE terminal Cancel status (0xFE00): the SCU sent a C-CANCEL-RQ
+	// mid-retrieve and the SCP stopped the sub-operation loop, reporting the accumulated counts
+	// (PS3.4 C.4.2.3). It is a clean cancellation, never a protocol fault.
+	StatusMoveCancel = NewStatus(0xFE00, ServiceClassMove)
 
 	// StatusGetPending is the C-GET Pending status (0xFF00): sub-operations are continuing
 	// (PS3.4 C.4.3.1.4).

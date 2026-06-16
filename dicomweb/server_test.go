@@ -43,7 +43,7 @@ func (m *memStore) RetrieveInstance(_ context.Context, p ResourcePath) (*dicom.D
 	defer m.mu.Unlock()
 	ds, ok := m.instances[string(p.Instance)]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, ErrNotFound
 	}
 	return ds, nil
 }

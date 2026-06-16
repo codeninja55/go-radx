@@ -12,6 +12,39 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- Deferred (lazy) reads of large element values: `ReadFile` with `dicom.WithDeferredValues(threshold)`
+  records values above the threshold as re-openable placeholders and skips the bytes, keeping memory bounded
+  on large objects (the pydicom `defer_size` analogue). The value loads on first access, with the byte window
+  re-validated against the source - a shrunk, swapped, or unparseable file is a typed `DeferredLoadError`,
+  never a wrong value. Deferral is rejected fail-closed for a generic `io.Reader` and for Deflated Explicit
+  VR LE; accessors and the write path materialise transparently, and `WriteFile` materialises before
+  truncating so an in-place round-trip cannot destroy its own source (#125).
+- Wave 0 quick wins: C-CANCEL honoured during C-MOVE sub-operations (prompt terminal Cancel, in-flight
+  store aborted, races classified honestly); the DICOMweb daemon role mounts the full WADO-RS retrieval
+  surface (study/series/metadata/frames/bulkdata, backend faults 500 never 404, BulkDataURI attribute
+  locators resolve exactly); HL7 `AsOMG` typed accessor; `radx find -W` Modality Worklist queries with
+  PS3.4 K.6-1 SPS match-key routing (#122).
+- FHIR server versioning: a version store behind the repository seam, vread and history-instance with
+  correct entry request/response, absolute fullUrl, _count, ETag W/"versionId" + Last-Modified, If-Match
+  preconditions (412/404), versioned create Location on the direct and transaction paths, server-side
+  $validate, and a real `radx serve fhir` subcommand replacing the fail-closed stub. Conditional create
+  (If-None-Exist) fails closed with a 400 not-supported OperationOutcome on both paths, closing the
+  audit-flagged client-vs-own-server duplicate-create asymmetry (#120).
+- Compressed Part 10 IO: `dicom.Read`/`ReadFile`/`DecodeDataSet` accept the recognised encapsulated
+  transfer syntaxes, retaining the pixel stream verbatim (aggregate-capped, structurally validated) for
+  byte-identical re-write; `File.SetPixelData` closes the dataset-level transcode loop, reconciling
+  PlanarConfiguration, PhotometricInterpretation, NumberOfFrames, and lossy-compression bookkeeping with
+  the decoded bytes; `radx store --transcode-to` decompress-on-send works, and `radx dump`/`radx modify`
+  read compressed objects (#121).
+- Optional data-modification audit hook (PRD §9.5, closes the issue #113 gap): `dicom.WithAudit` on the
+  PS3.15 de-identification profile emits one `dicom.AuditEvent` per successful `Deidentify` listing the applied
+  (tag, action) changes — tag coordinates and action names only, no values and no UIDs — and `server.WithAudit`
+  on the daemon emits one `server.AuditEvent` per durably committed server-side write (DIMSE C-STORE, STOW-RS
+  stored instance, FHIR create), with an `Outcome` field separating the clean stored-and-indexed write from the
+  durably-stored-but-un-indexed warning state so a durable write is never unaudited. Events never carry
+  attribute values (sentinel-tested) but the server-side events do carry object-identity UIDs, which are
+  PHI-adjacent under PS3.15 — the audit sink warrants archive-grade access control. The default is no hook with
+  a nil-comparison disabled cost (#123).
 - Comparative benchmark harness `tools/bench-compare` (PRD §11.3): a uv-pinned Python environment (pydicom
   3.0.2 + pylibjpeg plugins, pynetdicom 3.0.4, python-hl7 0.4.5, fhir.resources 8.2.0) benchmarked against
   go-radx over the same vendored fixtures - DICOM decode and per-TS pixel codecs (user-facing path on both

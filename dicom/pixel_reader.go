@@ -17,68 +17,86 @@ func ReadPixelData(path string, opts ...ReadOption) (*PixelData, error) {
 		return nil, err
 	}
 	defer func() { _ = f.Close() }()
-	return ReadPixelDataFrom(bufio.NewReader(f), opts...)
+	// The path threads through so WithDeferredValues works here as it does for
+	// ReadFile (the pixel element itself is materialised by NewPixelData, but the
+	// rest of the dataset's large elements stay deferred).
+	parsed, err := read(bufio.NewReader(f), path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return NewPixelData(parsed.DataSet, parsed.Meta.TransferSyntaxUID)
 }
 
-// ReadPixelDataFrom reads a Part 10 stream and returns its PixelData. The main
-// dataset must be carried in one of the uncompressed encodings (only the pixel data
-// is compressed under an encapsulated transfer syntax), which is always the case for
-// a conformant Part 10 object.
+// ReadPixelDataFrom reads a Part 10 stream and returns its PixelData. It shares the
+// Read path: the full dataset is parsed (an encapsulated transfer syntax retains the
+// verbatim fragment stream) and NewPixelData binds it to its geometry.
+//
+// Because the whole dataset is parsed, the call fails on a malformed element
+// anywhere in the stream — including elements after (7FE0,0010) — and holds the
+// full dataset in memory for the duration of the call, not just the elements up to
+// the pixel data. Memory stays bounded by the read limits (WithMaxElementLen and
+// friends), which also cap the retained encapsulated stream.
 func ReadPixelDataFrom(r io.Reader, opts ...ReadOption) (*PixelData, error) {
-	cfg := newReadConfig(opts...)
-	br := newBoundedReader(r, cfg.maxElementLen)
-
-	if _, err := readPreamble(br); err != nil {
-		return nil, err
-	}
-	meta, err := readFileMeta(br)
+	f, err := Read(r, opts...)
 	if err != nil {
 		return nil, err
 	}
-	ts := meta.TransferSyntaxUID
-	if ts == "" {
-		return nil, &ValueError{Tag: tagTransferSyntax, VR: VRUI, Msg: "empty transfer syntax"}
-	}
-
-	if !ts.IsEncapsulated() {
-		// The dataset reader handles native pixel data as a normal OB/OW value.
-		ds, err := readDataSet(br, ts, cfg)
-		if err != nil {
-			return nil, err
-		}
-		return NewPixelData(ds, ts)
-	}
-
-	// Encapsulated: stop the dataset reader at the pixel-data element. It consumes the
-	// (7FE0,0010) undefined-length header and leaves the reader positioned at the first
-	// fragment item, which readEncapsulatedValue copies out as a bounded item stream.
-	cfg.stopAtPixelData = true
-	ds, err := readDataSet(br, ts, cfg)
-	if err != nil {
-		return nil, err
-	}
-	value, err := readEncapsulatedValue(br, ts)
-	if err != nil {
-		return nil, err
-	}
-	return NewEncapsulatedPixelData(ds, ts, value)
+	return NewPixelData(f.DataSet, f.Meta.TransferSyntaxUID)
 }
 
 // readEncapsulatedValue copies the encapsulated fragment stream — every byte from the
 // first item header through the Sequence Delimitation Item — into a buffer for
-// parseEncapsulated to bound-check. The dataset reader has already consumed the
-// (7FE0,0010) header (stopAtPixelData), so the reader is positioned at the first item.
-// Each item header is validated against the bytes remaining as it is read, so a
-// hostile length cannot drive an allocation past the source (Codex DCM-006).
+// parseEncapsulated to bound-check. The caller (readDataSet's element loop) has
+// already consumed the (7FE0,0010) header, so the reader is positioned at the first
+// item. Each item header is validated against the bytes remaining as it is read, so a
+// hostile length cannot drive an allocation past the source (Codex DCM-006). The
+// accumulated stream is one (7FE0,0010) element value, so it is also held to the same
+// per-element cap (WithMaxElementLen) that bounds a native pixel value: per-item
+// bounds alone would let many small fragments grow the retained stream without limit.
+//
+// Structural validation mirrors parseEncapsulated (NewPixelData's validator): item
+// tags only, defined even item lengths, and a zero-length Sequence Delimitation Item,
+// so the two layers accept and reject the same streams. parseEncapsulated reads the
+// first item as the Basic Offset Table, which is positional — any stream this loop
+// accepts begins with an item, so there is nothing extra to check here. The read
+// layer is laxer only about frame mapping, which needs the dataset's NumberOfFrames
+// and stays in NewPixelData.
 func readEncapsulatedValue(br *boundedReader, ts TransferSyntax) ([]byte, error) {
+	return scanEncapsulatedValue(br, ts, true)
+}
+
+// skimEncapsulatedValue validates and consumes an encapsulated fragment stream
+// without retaining it: the deferred-read path records the stream's byte window and
+// re-reads it on demand, so only the structural checks (identical to the retaining
+// path's) and the cumulative size cap run here.
+func skimEncapsulatedValue(br *boundedReader, ts TransferSyntax) error {
+	_, err := scanEncapsulatedValue(br, ts, false)
+	return err
+}
+
+// scanEncapsulatedValue is the single walk over an encapsulated fragment stream:
+// it applies the structural checks documented on readEncapsulatedValue and either
+// retains the verbatim bytes (retain) or discards them (skim). total tracks the
+// element-value bytes scanned so far — item headers and bodies — so the cumulative
+// per-element cap applies identically on both paths.
+func scanEncapsulatedValue(br *boundedReader, ts TransferSyntax, retain bool) ([]byte, error) {
 	var out []byte
+	var total uint64
 	for {
 		tag, length, err := readDelimiterHeader(br, ts)
 		if err != nil {
 			return nil, err
 		}
-		out = appendDelimiterHeader(out, tag, length, ts)
+		total += 8
+		if retain {
+			out = appendDelimiterHeader(out, tag, length, ts)
+		}
 		if tag == tagSequenceDelimit {
+			if length != 0 {
+				// A non-zero delimiter length must fail here: accepting it would leave
+				// the outer element loop misreading the bytes that follow (PS3.5 A.4).
+				return nil, &ValueError{Tag: tagSequenceDelimit, VR: VROBorOW, Msg: "Sequence Delimitation Item must have zero length"}
+			}
 			return out, nil
 		}
 		if tag != tagItem {
@@ -87,11 +105,22 @@ func readEncapsulatedValue(br *boundedReader, ts TransferSyntax) ([]byte, error)
 		if length == undefinedLength {
 			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "fragment item has undefined length"}
 		}
-		body, err := br.readN(length)
-		if err != nil {
+		if length%2 != 0 {
+			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "fragment item length is odd; encapsulated item values must be even"}
+		}
+		if grown := total + uint64(length); grown > uint64(br.maxLen) {
+			return nil, &LimitExceededError{Tag: TagPixelData, Limit: uint64(br.maxLen), Actual: grown, Kind: "element-length"}
+		}
+		if retain {
+			body, err := br.readN(length)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, body...)
+		} else if err := br.discardN(length, TagPixelData); err != nil {
 			return nil, err
 		}
-		out = append(out, body...)
+		total += uint64(length)
 	}
 }
 

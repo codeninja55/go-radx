@@ -32,26 +32,40 @@ type PixelData struct {
 
 // NewPixelData builds the PixelData for ds under ts. For an uncompressed transfer
 // syntax it reads the native (7FE0,0010) value from ds. For an encapsulated transfer
-// syntax the fragment stream must be supplied through NewEncapsulatedPixelData,
-// because the dataset reader does not retain the raw fragment bytes; this
-// constructor returns a typed error for an encapsulated syntax.
+// syntax it reads the fragment stream the reader retained on the dataset; a dataset
+// whose pixel element does not carry retained fragments (one built by hand) supplies
+// the stream through NewEncapsulatedPixelData instead.
 func NewPixelData(ds *DataSet, ts TransferSyntax) (*PixelData, error) {
-	geom, err := ResolvePixelGeometry(ds, ts)
-	if err != nil {
-		return nil, err
-	}
-	if ts.IsEncapsulated() {
-		return nil, &ValueError{
-			Tag: TagPixelData, VR: VROBorOW,
-			Msg: "encapsulated pixel data must be built with NewEncapsulatedPixelData",
-		}
-	}
-
 	e, ok := ds.Get(TagPixelData)
 	if !ok {
 		return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "dataset has no Pixel Data element"}
 	}
-	b, ok := e.Value.(*Bytes)
+
+	val := e.Value
+	if dv, isDeferred := val.(*DeferredValue); isDeferred {
+		loaded, err := dv.Load()
+		if err != nil {
+			return nil, err
+		}
+		val = loaded
+	}
+
+	if ts.IsEncapsulated() {
+		ev, ok := val.(*encapsulatedValue)
+		if !ok {
+			return nil, &ValueError{
+				Tag: TagPixelData, VR: e.VR,
+				Msg: "encapsulated Pixel Data carries no retained fragment stream; build it with NewEncapsulatedPixelData",
+			}
+		}
+		return NewEncapsulatedPixelData(ds, ts, ev.stream)
+	}
+
+	geom, err := ResolvePixelGeometry(ds, ts)
+	if err != nil {
+		return nil, err
+	}
+	b, ok := val.(*Bytes)
 	if !ok {
 		return nil, &ValueError{Tag: TagPixelData, VR: e.VR, Msg: "native Pixel Data is not an OB/OW byte value"}
 	}

@@ -173,6 +173,11 @@ func decodeElementValue(br *boundedReader, h elementHeader, ts TransferSyntax, c
 		}
 		return &sequenceValue{seq: seq}, nil
 	}
+	if cfg.shouldDefer(h) {
+		// Item elements read from the same bounded reader as the top level, so their
+		// recorded offsets address the source file directly.
+		return deferElementValue(br, h, ts, cfg)
+	}
 	return decodeValue(br, h, encodingFor(ts), cfg.activeCharset)
 }
 

@@ -306,10 +306,11 @@ func TestStoreNoFilesIsUsageError(t *testing.T) {
 	}
 }
 
-// TestStoreTranscodeToFailsClosed confirms --transcode-to is not silently ignored: a request fails
-// closed (exit 2) rather than sending as stored, so medical-image fidelity is never altered by an
-// unhonoured flag (RADX-011).
-func TestStoreTranscodeToFailsClosed(t *testing.T) {
+// TestStoreTranscodeToEncapsulatedTargetFailsClosed confirms an encapsulated
+// --transcode-to target fails closed (exit 2): the store transport encodes each
+// dataset in the negotiated uncompressed transfer syntax, so a compressed target
+// cannot be honoured on the wire and is never silently downgraded (RADX-011).
+func TestStoreTranscodeToEncapsulatedTargetFailsClosed(t *testing.T) {
 	dir := t.TempDir()
 	f := writeStorableDICOM(t, dir, "1.2.3.4.5.30")
 	_, _, code := runRadx(t, "store", "--host", "127.0.0.1", "--port", "11112",

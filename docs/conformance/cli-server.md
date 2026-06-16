@@ -16,7 +16,8 @@ and the reference docs disagree on scope, this statement wins. The behaviour bel
 ## Command surface
 
 The `radx` command tree ships today, parsed by Kong, with every command group registered so `radx --help` lists the
-full surface. The DICOM command groups are `echo` (C-ECHO), `store` (C-STORE SCU), `find` (C-FIND SCU), `get` (C-GET),
+full surface. The DICOM command groups are `echo` (C-ECHO), `store` (C-STORE SCU), `find` (C-FIND SCU over the
+Patient/Study Root models, or the Modality Worklist model with `-W`/`--worklist`), `get` (C-GET),
 `move` (C-MOVE), `scp` (Storage/Verification SCP), `dump` (inspect a Part 10 file), `modify` (edit tags, regenerate
 UIDs), `organize` (reorganise files by Study/Series/SOP UID), `lookup` (resolve tag dictionary information), and
 `catalogue` (index and query a local DICOM catalogue). The cross-standard groups are `hl7` (HL7 v2 over MLLP),
@@ -47,7 +48,9 @@ library surface; its full public-API contract is `docs/reference/servers.md`. Wh
   and `Authenticator` (the identity plane), each segregated so a deployment implements only what it serves.
 - **Four server roles.** A DIMSE SCP role (`NewDIMSERole`, wrapping `dimse.Server`, storing via `ObjectStore` and
   indexing via `Catalogue`, with an optional Modality Worklist SCP fed by a `WorklistSource`), a DICOMweb role
-  (`NewDICOMwebRole`, wrapping `dicomweb.Server` over the same backends), an HL7 v2 MLLP role (`NewMLLPRole`, wrapping
+  (`NewDICOMwebRole`, wrapping `dicomweb.Server` over the same backends and mounting the full WADO-RS retrieval
+  surface — instance, study, series, metadata, frames, and bulkdata — alongside QIDO-RS search and STOW-RS storage),
+  an HL7 v2 MLLP role (`NewMLLPRole`, wrapping
   `hl7v2.Server`), and a FHIR REST role (`NewFHIRRole`, over a `Repository` bound to one FHIR release; see
   [FHIR REST client and server role](#fhir-rest-client-and-server-role) below). Each applies the daemon's shared bind,
   TLS, and observability policy uniformly.
@@ -147,7 +150,15 @@ The contract has two parts, both following the PRD's observability and PHI rules
 
 PHI governance beyond these safe defaults — encryption at rest, retention and erasure, access control, and audit — is
 the integrating consumer's responsibility (PRD §9.1). The library ships the safe defaults and the structural field
-vocabulary, not a compliance regime.
+vocabulary, not a compliance regime. For consumers who want an audit trail, the PRD §9.5 data-modification hook is the
+seam: `server.WithAudit` emits one `server.AuditEvent` per durably committed server-side write (DIMSE C-STORE, STOW-RS
+stored instance, FHIR create), with an `Outcome` field separating the clean stored-and-indexed write from the
+durably-stored-but-un-indexed warning state, and `dicom.WithAudit` does the same per de-identification run. The
+contract is values never, object identity always: no event field carries an attribute or element value (a sentinel
+test enforces value absence), but the server-side events do carry object-identity Study/Series/SOP Instance UIDs,
+which are PHI-adjacent under PS3.15 — wiring the hook is an explicit opt-in, and the sink warrants the same access
+control as the archive itself. The `dicom`-side events carry tag coordinates and action names only, no UIDs and no
+values. The default is no hook; the sink, retention, and any schema beyond the event type are the consumer's policy.
 
 ### PHI-default sanity sweep
 

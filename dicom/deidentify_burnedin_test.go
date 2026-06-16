@@ -2,6 +2,7 @@ package dicom
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 )
 
@@ -60,6 +61,36 @@ func TestDeidentifyAllowBurnedInPixelData(t *testing.T) {
 	}
 	if v, _ := clean.GetString(TagPatientIdentityRemoved); v != "YES" {
 		t.Error("metadata not set under the burned-in opt-out")
+	}
+}
+
+// A deferred BurnedInAnnotation whose source can no longer be read must fail closed:
+// the accessor would report a failed deferred load as absent, so checkBurnedIn must
+// inspect the element directly and treat an unverifiable flag as burned-in PHI.
+func TestDeidentifyBurnedInDeferredUnreadableFailsClosed(t *testing.T) {
+	gone := filepath.Join(t.TempDir(), "gone.dcm") // never created, so Load always fails
+	ds := NewDataSet()
+	ds.SetString(TagStudyInstanceUID, "1.2.3")
+	ds.Set(Element{Tag: TagBurnedInAnnotation, VR: VRCS, Value: &DeferredValue{
+		tag: TagBurnedInAnnotation, vr: VRCS, path: gone, offset: 0, length: 4,
+	}})
+
+	_, err := NewProfile(testGenerator(t)).Deidentify(ds)
+	if !errors.Is(err, ErrBurnedInPixelData) {
+		t.Fatalf("Deidentify with an unreadable deferred BurnedInAnnotation = %v, want ErrBurnedInPixelData", err)
+	}
+}
+
+// A present-but-non-string BurnedInAnnotation (a malformed OB/UN encoding of a CS
+// attribute) cannot be confirmed clean and must fail closed, never be read as absent.
+func TestDeidentifyBurnedInNonStringFailsClosed(t *testing.T) {
+	ds := NewDataSet()
+	ds.SetString(TagStudyInstanceUID, "1.2.3")
+	ds.Set(Element{Tag: TagBurnedInAnnotation, VR: VROB, Value: NewBytes(VROB, []byte("YES"))})
+
+	_, err := NewProfile(testGenerator(t)).Deidentify(ds)
+	if !errors.Is(err, ErrBurnedInPixelData) {
+		t.Fatalf("Deidentify with a non-string BurnedInAnnotation = %v, want ErrBurnedInPixelData", err)
 	}
 }
 

@@ -56,3 +56,26 @@ func TestTransferSyntaxByteOrder(t *testing.T) {
 		t.Errorf("Little Endian Uint16 = %#x, want 0x1234", got)
 	}
 }
+
+// TestTransferSyntaxIsLossy pins the lossy classification the transcode bookkeeping
+// derives from the registry: the syntaxes that permit lossy compression, including
+// JPEG 2000 (.91) and HTJ2K (.203) whose codestreams may individually be lossless
+// but whose syntax does not guarantee it.
+func TestTransferSyntaxIsLossy(t *testing.T) {
+	lossy := []TransferSyntax{JPEGBaseline8Bit, JPEGExtended12Bit, JPEGLSNearLossless, JPEG2000, HTJ2K}
+	lossless := []TransferSyntax{
+		ImplicitVRLittleEndian, ExplicitVRLittleEndian, DeflatedExplicitVRLittleEndian,
+		ExplicitVRBigEndian, RLELossless, JPEGLossless, JPEGLosslessSV1, JPEGLSLossless,
+		JPEG2000Lossless, HTJ2KLossless, HTJ2KLosslessRPCL,
+	}
+	for _, ts := range lossy {
+		if !ts.IsLossy() {
+			t.Errorf("%s.IsLossy() = false, want true", ts.Name())
+		}
+	}
+	for _, ts := range lossless {
+		if ts.IsLossy() {
+			t.Errorf("%s.IsLossy() = true, want false", ts.Name())
+		}
+	}
+}

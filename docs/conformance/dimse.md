@@ -33,7 +33,10 @@ of it:
   SCP, are implemented. C-GET uses same-association SCP/SCU role selection: the SCP C-STOREs each matched instance back
   to the requestor over the same association, so the requestor takes the Storage SCP role to receive the sub-operations.
   A partial failure (one or more sub-operations the destination rejects) surfaces as a Warning or Failure terminal
-  status, never laundered into Success.
+  status, never laundered into Success. C-CANCEL is supported in both roles: the SCU sends a C-CANCEL-RQ when the
+  caller breaks its result iterator or cancels its context, and the C-FIND, C-GET, and C-MOVE SCPs each honour an
+  interleaved C-CANCEL-RQ mid-operation by stopping the handler (and any further sub-operation dispatch) and answering
+  the terminal Cancel status (0xFE00) with the sub-operation counts accumulated so far (PS3.4 C.4.2.3, PS3.7 §9.3.2.3).
 - **Modality Worklist** (C-FIND) as SCU — implemented. The `Association.FindWorklist` entry point queries the Modality
   Worklist Information Model — FIND SOP Class. The worklist is a flat information model with no level hierarchy, so the
   SCU suppresses Query/Retrieve Level (0008,0052): unlike Patient Root or Study Root C-FIND it is never written into

@@ -101,13 +101,19 @@ func (ds *DataSet) GetString(t Tag) (string, bool) {
 	return vals[0], true
 }
 
-// GetStrings returns all backslash-separated values of a text VR element.
+// GetStrings returns all backslash-separated values of a text VR element. A
+// deferred value is loaded transparently; a failed load reads as absent (use
+// (*DeferredValue).Load for the typed error).
 func (ds *DataSet) GetStrings(t Tag) ([]string, bool) {
 	e, ok := ds.Get(t)
 	if !ok {
 		return nil, false
 	}
-	sv, ok := e.Value.(*Strings)
+	v, ok := materialise(e.Value)
+	if !ok {
+		return nil, false
+	}
+	sv, ok := v.(*Strings)
 	if !ok {
 		return nil, false
 	}
@@ -129,7 +135,11 @@ func (ds *DataSet) GetInt(t Tag) (int64, bool) {
 	if !ok {
 		return 0, false
 	}
-	switch v := e.Value.(type) {
+	val, ok := materialise(e.Value)
+	if !ok {
+		return 0, false
+	}
+	switch v := val.(type) {
 	case *Ints:
 		ns := v.Ints()
 		if len(ns) == 0 {
@@ -153,7 +163,11 @@ func (ds *DataSet) GetDecimal(t Tag) (Decimal, bool) {
 	if !ok {
 		return Decimal{}, false
 	}
-	dv, ok := e.Value.(*Decimals)
+	v, ok := materialise(e.Value)
+	if !ok {
+		return Decimal{}, false
+	}
+	dv, ok := v.(*Decimals)
 	if !ok {
 		return Decimal{}, false
 	}
@@ -223,6 +237,15 @@ func cloneValue(v Value) Value {
 		return NewBytes(t.vr, t.b)
 	case *sequenceValue:
 		return &sequenceValue{seq: cloneSequence(t.seq)}
+	case *encapsulatedValue:
+		cp := make([]byte, len(t.stream))
+		copy(cp, t.stream)
+		return &encapsulatedValue{stream: cp}
+	case *DeferredValue:
+		// A deferred value is immutable after construction and its lazy load is
+		// internally synchronised, so clones share it; one load then serves every
+		// clone and a clone can never contaminate the source.
+		return t
 	default:
 		return v
 	}

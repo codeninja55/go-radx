@@ -4,9 +4,10 @@ import "encoding/binary"
 
 // TransferSyntax is the UID-identified encoding of a dataset: byte order,
 // implicit-versus-explicit VR, and compression. It is the single transfer-syntax
-// type reused by dimse and dicomweb. v1 reads and writes the four uncompressed
-// syntaxes; compressed syntaxes are recognised for transport and pixel decoding,
-// but the main dataset is never written in a compressed syntax.
+// type reused by dimse and dicomweb. The reader and writer handle the four
+// uncompressed syntaxes and the recognised encapsulated syntaxes below (whose main
+// dataset is Explicit VR LE and whose pixel data is a retained fragment stream);
+// pixel decode/encode is a separate, codec-gated concern.
 type TransferSyntax UID
 
 const (
@@ -53,6 +54,19 @@ func (ts TransferSyntax) IsEncapsulated() bool {
 		return false
 	default:
 		return true
+	}
+}
+
+// IsLossy reports whether the syntax permits lossy compression: JPEG Baseline (.50)
+// and Extended (.51), JPEG-LS Near-Lossless (.81), JPEG 2000 (.91), and HTJ2K
+// (.203). A .91 or .203 codestream may individually be lossless, but the syntax does
+// not guarantee it, so lossy bookkeeping (PS3.3 C.7.6.1.1.5) treats both as lossy.
+func (ts TransferSyntax) IsLossy() bool {
+	switch ts {
+	case JPEGBaseline8Bit, JPEGExtended12Bit, JPEGLSNearLossless, JPEG2000, HTJ2K:
+		return true
+	default:
+		return false
 	}
 }
 

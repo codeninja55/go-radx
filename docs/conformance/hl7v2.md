@@ -43,13 +43,12 @@ In scope for v1:
 - MLLP transport: a blocking client and a `context`-aware server, both with a configurable maximum frame length.
 - Acknowledgement construction (`BuildACK`) honouring original-mode and enhanced-mode acknowledgement codes.
 
-> **Implementation status: PARTIAL.** This list is the v1 target. Of it, the parse tree, the typed segments and
-> composites, encoding-character derivation and `DTM` precision, Chapter 2 §2.10 escape/unescape, the typed `ORM`,
-> `ADT`, `ORU`, and `ACK` views, the `AckCode` enum with its predicates, message construction (`NewMessage` / `SetMSH` /
-> `AppendSegment` and the `MSH`/`PID`/`ORC`/`OBR` segment renderers), `BuildACK`, MLLP transport (the frame codec,
-> the blocking `Client`, and the `context`-aware `Server`), and batch/file container parsing (`ParseBatch` /
-> `ParseFile` / `ParseAny`) ship today. The typed `OMG` view is **NOT YET SHIPPED**; the per-section banners below mark
-> exactly which surface each describes.
+> **Implementation status: SHIPPED.** This list is the v1 target and all of it ships today: the parse tree, the typed
+> segments and composites, encoding-character derivation and `DTM` precision, Chapter 2 §2.10 escape/unescape, the
+> typed `ORM`, `OMG`, `ADT`, `ORU`, and `ACK` views, the `AckCode` enum with its predicates, message construction
+> (`NewMessage` / `SetMSH` / `AppendSegment` and the `MSH`/`PID`/`ORC`/`OBR` segment renderers), `BuildACK`, MLLP
+> transport (the frame codec, the blocking `Client`, and the `context`-aware `Server`), and batch/file container
+> parsing (`ParseBatch` / `ParseFile` / `ParseAny`).
 
 Out of scope for v1 is listed explicitly in [Conformance scope and limits](#conformance-scope-and-limits). Notably:
 HL7 v2 XML encoding, FHIR-based v2 representations, inline character-set switching inside escape sequences, the full
@@ -147,9 +146,9 @@ non-standard delimiters round-trips correctly.
 
 ### Typed message types in scope
 
-> **Implementation status: PARTIAL.** The typed `ORM`, `ADT`, `ORU`, and `ACK` views and their `As*` constructors ship
-> today. The `OMG` typed view and its `AsOMG` constructor are NOT YET SHIPPED; until it lands, `OMG` messages parse into
-> the generic six-level tree but have no dedicated typed view.
+> **Implementation status: SHIPPED.** The typed `ORM`, `OMG`, `ADT`, `ORU`, and `ACK` views and their `As*`
+> constructors ship today. `AsORM` also admits the `OMG` code as an order variant; `AsOMG` is the dedicated lens for
+> callers that must distinguish the imaging-order variant from a classic `ORM`.
 
 `MessageType` is the `MSH-9` composite `code^trigger^structure` (e.g. `ORU^R01^ORU_R01`). The trigger event is only
 `MSH-9.2` (glossary). The in-scope message views are `ADT`, `ORM`, `OMG`, `ORU`, and `ACK`, each obtained from a parsed
@@ -256,9 +255,8 @@ second `BHS`/`FHS` inside the body — is a `*ParseError`.
 
 ## Supported message types and trigger events
 
-> **Implementation status: PARTIAL.** Of the message types in the table below, `ORM`, `ADT`, `ORU`, and `ACK` have
-> shipped typed views (`AsORM` / `AsADT` / `AsORU` / `AsACK`) today. `OMG` is NOT YET SHIPPED as a typed view; its row
-> describes the planned scope.
+> **Implementation status: SHIPPED.** Every message type in the table below has a shipped typed view today
+> (`AsORM` / `AsOMG` / `AsADT` / `AsORU` / `AsACK`).
 
 The following message types are typed and conformance-tested in v1. Other trigger events of these message types parse
 into the generic tree but do not get a dedicated typed view.

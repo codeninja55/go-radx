@@ -53,6 +53,10 @@ type BulkDataObject struct {
 // StudyRetriever is the optional WADO-RS study-level retrieval backend. A backend that does
 // not implement it makes /studies/{study} retrieval answer 501; the base RetrieveBackend
 // only mandates instance retrieval (ISP, PRD §8.2).
+//
+// Every retriever interface shares one error contract: return an error wrapping ErrNotFound
+// when the addressed resource does not exist (the server answers 404); any other error is a
+// backend fault the server answers 500, never disguised as an absent resource (PRD §9.2).
 type StudyRetriever interface {
 	RetrieveStudy(ctx context.Context, study dicom.UID) ([]RetrievedInstance, error)
 }
@@ -79,15 +83,31 @@ type MetadataRetriever interface {
 
 // FrameRetriever is the optional WADO-RS frame backend. It returns the requested 1-based
 // frames as raw octet-stream payloads, in the order requested. A frame number outside the
-// instance is a typed error mapped to 404 (PS3.18 §10.4.3).
+// instance is an error wrapping ErrNotFound, mapped to 404 (PS3.18 §10.4.3); any other
+// error is a backend fault answered 500 (the StudyRetriever error contract).
 type FrameRetriever interface {
 	RetrieveFrames(ctx context.Context, p ResourcePath, frames []int) ([]BulkDataObject, error)
 }
 
 // BulkDataRetriever is the optional WADO-RS bulkdata backend. It returns every bulk-data
-// value of the instance as ordered octet-stream payloads.
+// value of the instance as ordered octet-stream payloads and backs only the BARE
+// ".../bulkdata" return-all target; a locator-suffixed bulk-data reference (the form the
+// metadata response emits) is resolved by the server itself through the base
+// RetrieveBackend's RetrieveInstance, so those URIs never require this interface.
 type BulkDataRetriever interface {
 	RetrieveBulkData(ctx context.Context, p ResourcePath) ([]BulkDataObject, error)
+}
+
+// writeRetrieveBackendError maps a retrieval-backend error to its HTTP answer per the
+// StudyRetriever error contract: an error wrapping ErrNotFound is the absent-resource
+// answer (404, with the caller's detail); any other error is a backend fault answered 500,
+// never disguised as a 404 (PRD §9.2).
+func (s *Server) writeRetrieveBackendError(w http.ResponseWriter, r *http.Request, err error, notFoundDetail string) {
+	if errors.Is(err, ErrNotFound) {
+		s.writeProblem(w, r, http.StatusNotFound, err, notFoundDetail)
+		return
+	}
+	s.writeProblem(w, r, http.StatusInternalServerError, err, "the retrieval backend faulted")
 }
 
 // handleRetrieveStudy answers a WADO-RS study GET with a multipart/related body of
@@ -112,7 +132,7 @@ func (s *Server) handleRetrieveStudy(w http.ResponseWriter, r *http.Request, stu
 	}
 	instances, err := br.RetrieveStudy(r.Context(), study)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "study not found")
+		s.writeRetrieveBackendError(w, r, err, "study not found")
 		return
 	}
 	s.writeInstanceParts(w, r, instances)
@@ -141,7 +161,7 @@ func (s *Server) handleRetrieveSeries(w http.ResponseWriter, r *http.Request, st
 	}
 	instances, err := br.RetrieveSeries(r.Context(), study, series)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "series not found")
+		s.writeRetrieveBackendError(w, r, err, "series not found")
 		return
 	}
 	s.writeInstanceParts(w, r, instances)
@@ -223,7 +243,7 @@ func (s *Server) handleRetrieveMetadata(w http.ResponseWriter, r *http.Request, 
 
 	instances, err := br.RetrieveMetadata(r.Context(), p)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "resource not found")
+		s.writeRetrieveBackendError(w, r, err, "resource not found")
 		return
 	}
 	if len(instances) == 0 {
@@ -302,19 +322,24 @@ func (s *Server) handleRetrieveFrames(w http.ResponseWriter, r *http.Request, p 
 	}
 	objs, err := br.RetrieveFrames(r.Context(), p, frames)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "frames not found")
+		s.writeRetrieveBackendError(w, r, err, "frames not found")
 		return
 	}
 	s.writeOctetParts(w, r, objs)
 }
 
 // handleRetrieveBulkData answers a WADO-RS bulkdata GET with a multipart/related body of
-// application/octet-stream parts, one per bulk-data value of the instance. A backend that
-// does not implement BulkDataRetriever answers 501.
-func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, p ResourcePath) {
-	br, ok := s.retrieve.(BulkDataRetriever)
-	if !ok {
-		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS bulkdata retrieval is not implemented")
+// application/octet-stream parts. A ".../bulkdata/{locator}" target — the form the metadata
+// response's BulkDataURI references carry — returns exactly the one attribute value the
+// locator names, resolved against the instance dataset with the same locator scheme the JSON
+// codec emits (a top-level tag, or a tag/item-index/... path into nested sequences); it needs
+// only the base RetrieveBackend, so the URIs metadata emits are always resolvable when
+// retrieval is mounted at all. A locator that names no binary attribute of the instance
+// answers 404. The bare ".../bulkdata" target returns every bulk-data value of the instance
+// and is the only form gated on the optional BulkDataRetriever (501 when unimplemented).
+func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, p ResourcePath, locator []string) {
+	if s.retrieve == nil {
+		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS retrieval is not implemented")
 		return
 	}
 	// Bulk-data octets carry no transfer syntax of their own, so a concrete transfer-syntax
@@ -328,12 +353,106 @@ func (s *Server) handleRetrieveBulkData(w http.ResponseWriter, r *http.Request, 
 		s.writeProblem(w, r, http.StatusBadRequest, err, "invalid resource path")
 		return
 	}
+	if len(locator) > 0 {
+		s.handleRetrieveBulkDataValue(w, r, p, locator)
+		return
+	}
+	br, ok := s.retrieve.(BulkDataRetriever)
+	if !ok {
+		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS bulkdata retrieval is not implemented")
+		return
+	}
 	objs, err := br.RetrieveBulkData(r.Context(), p)
 	if err != nil {
-		s.writeProblem(w, r, http.StatusNotFound, err, "bulkdata not found")
+		s.writeRetrieveBackendError(w, r, err, "bulkdata not found")
 		return
 	}
 	s.writeOctetParts(w, r, objs)
+}
+
+// handleRetrieveBulkDataValue answers a locator-suffixed bulkdata GET: it fetches the instance
+// through the base RetrieveBackend and resolves the locator to the one attribute value the
+// metadata BulkDataURI referenced, so each URI returns exactly its own octets — never the whole
+// instance's bulk data under a per-attribute URI (PS3.18 §10.4.4).
+func (s *Server) handleRetrieveBulkDataValue(w http.ResponseWriter, r *http.Request, p ResourcePath, locator []string) {
+	ds, err := s.retrieve.RetrieveInstance(r.Context(), p)
+	if err != nil {
+		s.writeRetrieveBackendError(w, r, err, "bulkdata not found")
+		return
+	}
+	data, ok := resolveBulkDataLocator(ds, locator)
+	if !ok {
+		s.writeProblem(w, r, http.StatusNotFound, ErrNotFound,
+			"the bulkdata reference names no binary attribute of the instance")
+		return
+	}
+	s.writeOctetParts(w, r, []BulkDataObject{{Data: data}})
+}
+
+// resolveBulkDataLocator walks ds along a metadata-emitted BulkDataURI locator — the path the
+// JSON codec appends to the instance's bulkdata base URL: a top-level tag key ("7FE00010"), or
+// a path alternating sequence tag and zero-based item index into nested sequences
+// ("00081199/0/7FE00010"). It returns the exact octets the codec would have referenced for the
+// attribute (the raw bytes of a binary VR; OF/OD float values serialised little-endian, per
+// marshalBinary). ok is false when the locator is malformed or names no binary attribute, so
+// the caller answers 404 rather than wrong bytes.
+func resolveBulkDataLocator(ds *dicom.DataSet, locator []string) ([]byte, bool) {
+	for i := 0; i < len(locator); i += 2 {
+		t, err := parseTagKey(locator[i])
+		if err != nil {
+			return nil, false
+		}
+		e, ok := ds.Get(t)
+		if !ok {
+			return nil, false
+		}
+		if i == len(locator)-1 {
+			return binaryValueBytes(e)
+		}
+		seq, ok := sequenceFromValue(e)
+		if !ok {
+			return nil, false
+		}
+		idx, err := strconv.Atoi(locator[i+1])
+		if err != nil || idx < 0 {
+			return nil, false
+		}
+		item, ok := sequenceItemAt(seq, idx)
+		if !ok {
+			return nil, false
+		}
+		ds = item
+	}
+	return nil, false
+}
+
+// binaryValueBytes returns the octets a binary element's BulkDataURI references: the raw bytes
+// of an OB/OW/OL/OV/UN value, or the little-endian serialisation of an OF/OD value — exactly
+// the payload marshalBinary would have inlined or referenced. A non-binary element resolves to
+// nothing (false): its value is carried in the metadata itself, never as a bulk reference.
+func binaryValueBytes(e dicom.Element) ([]byte, bool) {
+	switch v := e.Value.(type) {
+	case *dicom.Bytes:
+		return v.Bytes(), true
+	case *dicom.Floats:
+		if isOtherFloatVR(e.VR) {
+			return otherFloatBytes(e.VR, v.Floats()), true
+		}
+	}
+	return nil, false
+}
+
+// sequenceItemAt returns the zero-based idx-th item dataset of seq, or false when idx is
+// outside the sequence.
+func sequenceItemAt(seq *dicom.Sequence, idx int) (*dicom.DataSet, bool) {
+	i := 0
+	for item := range seq.Items() {
+		if i == idx {
+			return item.DataSet, true
+		}
+		i++
+	}
+	return nil, false
 }
 
 // writeOctetParts frames the given payloads as a multipart/related body of

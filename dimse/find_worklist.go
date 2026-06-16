@@ -65,3 +65,58 @@ func NewWorklistQuery() *dicom.DataSet {
 	})
 	return query
 }
+
+// worklistSPSTags is the SetWorklistMatch routing set: every attribute the current PS3.4
+// Table K.6-1 names as a DIRECT child of the Scheduled Procedure Step Sequence (0040,0100).
+// The Modality Worklist information model defines these inside the sequence item, not at the
+// query's top level, so an SCP matches them against the item and one placed top-level would
+// never constrain the query. Children of the nested protocol sequences (the table's ">>" rows
+// under the Scheduled Protocol Code Sequence and the referenced protocol sequences) are NOT
+// routed individually: a caller supplies those sequences whole and their items travel with
+// them. The table's residual "All other Attributes of the Scheduled Procedure Step Sequence"
+// row is deliberately not expressible here - an unlisted tag cannot be told apart from a
+// top-level worklist key by tag alone, so unlisted keys stay top-level.
+var worklistSPSTags = map[dicom.Tag]struct{}{
+	dicom.TagModality:                            {}, // (0008,0060)
+	dicom.TagReferencedDefinedProtocolSequence:   {}, // (0018,990C)
+	dicom.TagReferencedPerformedProtocolSequence: {}, // (0018,990D)
+	dicom.TagRequestedContrastAgent:              {}, // (0032,1070)
+	dicom.TagScheduledStationAETitle:             {}, // (0040,0001)
+	dicom.TagScheduledProcedureStepStartDate:     {}, // (0040,0002)
+	dicom.TagScheduledProcedureStepStartTime:     {}, // (0040,0003)
+	dicom.TagScheduledPerformingPhysicianName:    {}, // (0040,0006)
+	dicom.TagScheduledProcedureStepDescription:   {}, // (0040,0007)
+	dicom.TagScheduledProtocolCodeSequence:       {}, // (0040,0008)
+	dicom.TagScheduledProcedureStepID:            {}, // (0040,0009)
+	dicom.TagScheduledStationName:                {}, // (0040,0010)
+	dicom.TagScheduledProcedureStepLocation:      {}, // (0040,0011)
+	dicom.TagPreMedication:                       {}, // (0040,0012)
+	dicom.TagScheduledProcedureStepStatus:        {}, // (0040,0020)
+}
+
+// SetWorklistMatch sets one match/return key on a Modality Worklist query identifier where the
+// information model defines it (PS3.4 Table K.6-1): a Scheduled Procedure Step attribute
+// (Modality, Scheduled Station AE Title, the SPS start date/time, performing physician, SPS
+// description/ID, ...) is set inside the FIRST Scheduled Procedure Step Sequence (0040,0100)
+// item — the universal-match item NewWorklistQuery seeds — and every other attribute is set at
+// the query's top level. A query with no sequence item yet (a caller that did not start from
+// NewWorklistQuery) has one seeded so the SPS key still lands where the SCP matches it.
+func SetWorklistMatch(query *dicom.DataSet, e dicom.Element) {
+	if _, sps := worklistSPSTags[e.Tag]; !sps {
+		query.Set(e)
+		return
+	}
+	if seq, ok := query.GetSequence(dicom.TagScheduledProcedureStepSequence); ok {
+		for item := range seq.Items() {
+			item.DataSet.Set(e)
+			return
+		}
+	}
+	step := dicom.NewDataSet()
+	step.Set(e)
+	query.Set(dicom.Element{
+		Tag:   dicom.TagScheduledProcedureStepSequence,
+		VR:    dicom.VRSQ,
+		Value: dicom.NewSequenceValue(dicom.NewSequence(step)),
+	})
+}

@@ -37,7 +37,11 @@ func ovUint64s(ds *DataSet, tag Tag) ([]uint64, bool) {
 	if !ok {
 		return nil, false
 	}
-	b, ok := e.Value.(*Bytes)
+	v, ok := materialise(e.Value)
+	if !ok {
+		return nil, false
+	}
+	b, ok := v.(*Bytes)
 	if !ok {
 		return nil, false
 	}

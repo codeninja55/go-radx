@@ -16,34 +16,23 @@ Row counts across all tables:
 
 | Status | Count |
 |--------|-------|
-| MET | 51 |
-| PARTIAL | 9 |
-| NOT-MET | 22 |
+| MET | 55 |
+| PARTIAL | 8 |
+| NOT-MET | 19 |
 | N-A | 6 |
 | Total | 88 |
 
 Top NOT-MET/PARTIAL items by impact:
 
-1. **Reading a compressed Part 10 file with the dataset retained (PARTIAL, M).** `dicom.Read` rejects every
-   encapsulated transfer syntax (`reader_writer.go:126`); `ReadPixelDataFrom` parses such files but returns
-   only the `PixelData`, discarding the parsed metadata dataset (`pixel_reader.go:64`). pydicom's `dcmread`
-   reads any transfer syntax and keeps the encapsulated bytes on the dataset. This also gates `radx dump`,
-   `radx modify`, and `radx store`, which all call `dicom.ReadFile`.
-2. **Writing a compressed Part 10 file (NOT-MET, M).** `checkWritableTransferSyntax` permits only the four
-   uncompressed syntaxes; there is no public encapsulated-pixel-data element writer (BOT or extended offsets).
-3. **Dataset-level compress/decompress round-trip (NOT-MET, M).** `Transcode` works at the `PixelData` layer
-   only; the result cannot be written back into a `DataSet`/`File`. `radx store --transcode-to` fails closed.
-4. **Deferred/partial reads of large elements (NOT-MET, M).** PRD section 6.2's `defer_size`-equivalent lazy
-   loading is confirmed absent; `Read` materialises every value (the closest knob is `WithStopAtPixelData`).
-5. **VOI/modality LUT and windowing (NOT-MET, M).** No `apply_voi_lut`/`apply_modality_lut` equivalents.
-6. **Palette colour and colour-space conversion utilities (NOT-MET, M each).** Decoders preserve the colour
+1. **VOI/modality LUT and windowing (NOT-MET, M).** No `apply_voi_lut`/`apply_modality_lut` equivalents.
+2. **Palette colour and colour-space conversion utilities (NOT-MET, M each).** Decoders preserve the colour
    model correctly, but no `convert_color_space` or palette-expansion helpers exist.
-7. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
+3. **Private block API and private dictionaries (NOT-MET, M each).** Private elements round-trip generically,
    but there is no `private_block`/`get_private_item` equivalent and no private-creator dictionary.
-8. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
+4. **Korean, Chinese (GB2312), Thai, and bare ISO_IR 13 charsets (NOT-MET, S each).** The charset table covers
    the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family, UTF-8, GB18030, and GBK,
    but not ISO 2022 IR 149, ISO 2022 IR 58, ISO_IR 166, or bare ISO_IR 13.
-9. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
+5. **Overlay and waveform extraction (NOT-MET, M each).** No `overlay_array`/`waveform_array` equivalents.
 
 Where go-radx exceeds pydicom: a full PS3.15 Table E.1-1 de-identification engine (pydicom core ships only
 `remove_private_tags` and guidance), typed fail-closed errors, bounded hostile-input reading with fuzz targets
@@ -55,12 +44,12 @@ baselines.
 | Feature | pydicom anchor | Status | go-radx evidence | Size | Notes |
 |---------|---------------|--------|------------------|------|-------|
 | Read Part 10 from path or stream (uncompressed TS) | `dcmread` | MET | dicom/reader_writer.go:Read, ReadFile; dicom/file_test.go | - | Honours declared TS; never assumes Implicit VR LE |
-| Read compressed Part 10 with dataset retained | `dcmread` (any TS) | PARTIAL | dicom/reader_writer.go:126 (rejects); dicom/pixel_reader.go:27 ReadPixelDataFrom | M | Pixel pipeline parses the file but discards the dataset; metadata of compressed files is unreachable via the public API |
+| Read compressed Part 10 with dataset retained | `dcmread` (any TS) | MET | dicom/dataset_codec.go:readDataSet (encapsulated branch); encapsulated_io_test.go TestReadEncapsulatedFixtureRetainsDataSet | - | The (7FE0,0010) fragment stream is retained verbatim, undecoded; unrecognised/private syntaxes stay rejected fail-closed |
 | Write Part 10 (uncompressed TS) | `dcmwrite` / `Dataset.save_as` | MET | dicom/reader_writer.go:Write, WriteFile; dicom/dataset_writefile.go:9 | - | Encode-to-buffer first so errors surface before bytes hit the writer |
-| Write compressed Part 10 (encapsulated pixel data) | `dcmwrite` with compressed TS | NOT-MET | dicom/reader_writer.go:139 checkWritableTransferSyntax | M | No public encapsulated-element writer (fragments, BOT, EOT) |
+| Write compressed Part 10 (encapsulated pixel data) | `dcmwrite` with compressed TS | MET | dicom/dataset_codec.go:writeEncapsulatedElement; encapsulated_io_test.go TestEncapsulatedFixtureMainDataSetByteIdentical | - | Undefined-length element with Basic Offset Table (PS3.5 A.4); byte-identical round-trip on the compressed fixtures |
 | Deflated Explicit VR LE read/write | Deflated TS support | MET | dicom/reader_writer.go:44-52,107-116; dicom/deflate_bomb_test.go | - | Inflate cap defends against decompression bombs (`WithMaxInflatedBytes`) |
 | Stop before pixel data | `stop_before_pixels` | MET | dicom/file.go:98 WithStopAtPixelData; dicom/dataset_codec_test.go:114 | - | |
-| Deferred loading of large elements | `defer_size` | NOT-MET | verified absent; dicom/dataset_codec.go:17 materialises all values | M | PRD section 6.2 item, confirmed unimplemented |
+| Deferred loading of large elements | `defer_size` | MET | dicom/file.go WithDeferredValues; dicom/deferred.go DeferredValue.Load; deferred_test.go TestReadFileDefersLargeValues, TestDeferredRoundTripByteIdentical; deferred_hostile_test.go | - | ReadFile-only (the path is re-opened on demand); Read/DecodeDataSet and deflated TS reject the option fail-closed; loads re-validate the recorded window (typed *DeferredLoadError) |
 | Selective-tag read | `specific_tags` | NOT-MET | no equivalent option in dicom/file.go readConfig | S | |
 | Read without preamble / missing file meta | `force=True` | PARTIAL | dicom/dataset_stream.go:43 DecodeDataSet(r, ts) | S | Bare datasets readable when the caller supplies the TS; no preamble-less sniffing |
 | Bare dataset stream encode/decode | `read_dataset` internals | MET | dicom/dataset_stream.go:17 EncodeDataSet, :43 DecodeDataSet; dataset_stream_test.go | - | |
@@ -113,7 +102,7 @@ tag, decode returns the typed `dicom.ErrCodecUnavailable` rather than failing th
 | Native (uncompressed) frame decode and iteration | `pixel_array` / `iter_pixels` | MET | dicom/pixel_data.go:110 Frames; pixel_data_native_test.go | - | `iter.Seq2[Frame, error]` streaming iterator |
 | Encapsulated frame extraction with Basic Offset Table | `encaps.generate_frames`, `parse_basic_offsets` | MET | dicom/encapsulated.go:42 parseEncapsulated, :119 basicOffsetTable; encapsulated_test.go | - | Frame-to-fragment mapping validated, hostile lengths bounded |
 | Extended Offset Table (read) | `encapsulate_extended` read side | MET | dicom/extended_offset.go:22,59; extended_offset_test.go | - | |
-| Public encapsulation builders (BOT/EOT write) | `encaps.encapsulate`, `encapsulate_extended` | NOT-MET | only internal dicom/transcode.go:67 transcodeToEncapsulated | M | Needed for compressed write parity |
+| Public encapsulation builders (BOT/EOT write) | `encaps.encapsulate`, `encapsulate_extended` | NOT-MET | internal dicom/encapsulated.go encodeStream (used by File.SetPixelData) | S | Compressed write ships via retained streams and SetPixelData; no public byte-level builder API |
 | Single-frame random access by index | `encaps.get_frame`, `pixel_array(index=)` | PARTIAL | dicom/pixel_data.go:110 (iterate to index) | S | Iterator carries Frame.Index; no direct indexed accessor |
 | Typed sample access with metadata | `pixel_array` ndarray + `as_array` meta | PARTIAL | dicom/pixel_data.go:8 Frame.Pixels ([]byte) + PixelGeometry | S | Raw bytes plus geometry; no typed []uint16/[]int16 view helpers |
 | JPEG Baseline / Extended decode (.50/.51) | pylibjpeg-libjpeg decode | MET | dicom/codec_libjpeg.go; codec_libjpeg_test.go | - | `dicom_libjpeg` tag (libjpeg-turbo) |
@@ -126,7 +115,7 @@ tag, decode returns the typed `dicom.ErrCodecUnavailable` rather than failing th
 | JPEG 2000 lossless encode | pylibjpeg-openjpeg encode | MET | dicom/codec_openjpeg.go:59 CanEncode; codec_bench_encode_test.go | - | Lossless only, pixel-exact |
 | JPEG-LS lossless encode | pyjpegls encode | MET | dicom/codec_charls.go:69 CanEncode; codec_charls_test.go | - | Lossless only |
 | Lossy encode (J2K ratios, JLS near-lossless, JPEG baseline) | `compress` with lossy params | NOT-MET | dicom/codec_libjpeg.go:67 CanEncode false; typed ErrEncodeUnsupported (codec.go:56) | M | Deliberate fidelity policy; revisit only with explicit opt-in design |
-| Dataset-level compress/decompress in place | `Dataset.compress` / `decompress` | NOT-MET | dicom/transcode.go:12 (PixelData layer only); cmd/radx/internal/command/store.go:88 fails closed | M | Transcode result cannot be written back to a DataSet/File |
+| Dataset-level compress/decompress in place | `Dataset.compress` / `decompress` | MET | dicom/transcode.go File.SetPixelData; encapsulated_io_test.go TestSetPixelDataTranscodeRoundTrip; store.go prepareForStore | - | NewPixelData -> Transcode -> File.SetPixelData -> Write; radx store --transcode-to decompresses on send |
 | Pixel-layer transcode between syntaxes | decompress-then-compress flow | MET | dicom/transcode.go:12 Transcode; transcode_test.go | - | Explicit, opt-in; lossless targets only |
 | Modality LUT / rescale application | `apply_modality_lut` | NOT-MET | tags only (dicom/tag_values.go TagRescaleSlope) | M | |
 | VOI LUT and windowing | `apply_voi_lut`, `apply_windowing` | NOT-MET | tags only (TagVOILUTFunction) | M | |
@@ -182,7 +171,7 @@ so this area exceeds the pydicom reference surface.
 | UID validation | `UID.is_valid` | MET | dicom/uid.go:21 Validate, :53 IsValid; uid_test.go | - | |
 | UID registry names | `UID.name` / `keyword` | MET | dicom/uid.go:59 Name; uid_values.go | - | |
 | Transfer syntax introspection | `is_implicit_VR`, `is_compressed`, etc. | MET | dicom/transfer_syntax.go:32-67 IsImplicitVR/IsBigEndian/IsDeflated/IsEncapsulated/Name | - | |
-| Private transfer syntax registration | `UID.set_private_encoding` | NOT-MET | dicom/reader_writer.go:126 hard-gates to the four uncompressed syntaxes | S | `RegisterCodec` (codec.go:90) covers pixel codecs only |
+| Private transfer syntax registration | `UID.set_private_encoding` | NOT-MET | dicom/reader_writer.go supportedEncapsulated allowlist rejects unrecognised syntaxes | S | `RegisterCodec` (codec.go:90) covers pixel codecs only |
 
 ## Configuration and utilities
 
@@ -192,7 +181,7 @@ so this area exceeds the pydicom reference surface.
 | Global debug logging | `config.debug` | N-A | structured logging is the caller's concern (zap upstream) | - | |
 | Raw-element conversion hooks | `pydicom.hooks` | N-A | typed errors and functional options replace callback hooks | - | |
 | Future-behaviour switch | `config._use_future` | N-A | versioned Go module API | - | |
-| Inspect/dump a file from the CLI | `pydicom show` | MET | cmd/radx/internal/command/dump.go (radx dump) | - | CLI parity owned by audit A6; blocked for compressed files by the Read gap above |
+| Inspect/dump a file from the CLI | `pydicom show` | MET | cmd/radx/internal/command/dump.go (radx dump); compressed_io_test.go TestDumpCompressedFile | - | CLI parity owned by audit A6; works on compressed files |
 | Generate code from a file | `pydicom codify` | NOT-MET | no equivalent radx command | S | Dev tooling; CLI scope owned by audit A6 |
 | Bundled example/test data module | `pydicom.examples`, `get_testdata_file` | N-A | dicom/testdata serves the test suite; not a public API commitment | - | |
 
@@ -221,10 +210,9 @@ Caveats and unverified areas, stated honestly:
 - Tests were inspected for existence and subject matter, not executed in this audit (no `go test` run).
 - Value-multiplicity (VM) enforcement on write was not deeply verified in either direction; the dictionary
   carries VM strings (dicom/tag_values.go TagInfo) but no row claims VM validation parity.
-- DIMSE-layer behaviour for compressed instances (transport pass-through) is out of this audit's scope; the
-  compressed-read finding here is about the `dicom.Read` file API specifically. Note the adjacent
-  doc-accuracy point: `docs/conformance/dicom.md` line 41 says compressed syntaxes are handled "for transport
-  always", which holds for DIMSE but can mislead readers about `dicom.Read`, which rejects them
-  (reader_writer.go:126).
+- DIMSE-layer behaviour for compressed instances (transport pass-through) is out of this audit's scope. The
+  former doc-accuracy point about `docs/conformance/dicom.md` ("for transport always" misleading readers about
+  `dicom.Read`) is resolved: `dicom.Read`/`Write` now handle the recognised encapsulated syntaxes with the
+  pixel stream retained, and the statement says so.
 - Fuzzing posture confirmed: 22 repo-wide fuzz targets include the data-layer `FuzzRead` and
   `FuzzReadPixelDataFrom` in `dicom/fuzz_test.go`; fuzz coverage is not a gap.
