@@ -35,7 +35,9 @@ type Repository interface {
 	// Read returns the current version of one resource by type and id, or ErrNotFound when absent.
 	// The returned fhir.Resource is a concrete resource of the role's release. The returned resource
 	// carries its version metadata (meta.versionId, meta.lastUpdated), so the role can emit the ETag
-	// and Last-Modified headers FHIR R5 http.html#read calls for.
+	// and Last-Modified headers FHIR R5 http.html#read calls for. A resource whose current version
+	// records a deletion is ErrGone (the 410 path, FHIR R5 http.html#delete), distinct from the
+	// ErrNotFound a never-existing resource gets.
 	Read(ctx context.Context, resourceType, id string) (fhir.Resource, error)
 
 	// VRead returns one specific version of a resource (the vread interaction, FHIR R5
@@ -55,6 +57,24 @@ type Repository interface {
 	// must never overwrite it. The caller (the role) validates with the release validator first; a
 	// resource with error-severity issues never reaches Create.
 	Create(ctx context.Context, r fhir.Resource) (fhir.Resource, error)
+
+	// Update stores a new version of the resource at (resourceType, id), the update interaction
+	// (PUT [type]/[id], FHIR R5 http.html#update). When the resource already exists the stored
+	// resource becomes the next version (meta.versionId bumped, meta.lastUpdated re-stamped) and
+	// created is false; when it does not exist the resource is created at the client-supplied id
+	// (update-as-create, the FHIR default and HAPI's default) and created is true. The id on the
+	// stored resource is always the URL id, never a body id, so a body/URL id mismatch the caller
+	// already rejected cannot reach here. The caller validates with the release validator first; a
+	// resource with error-severity issues never reaches Update.
+	Update(ctx context.Context, resourceType, id string, r fhir.Resource) (resource fhir.Resource, created bool, err error)
+
+	// Delete retires the current version of (resourceType, id) by appending a deletion version to its
+	// history (the delete interaction, FHIR R5 http.html#delete). It is idempotent: deleting an
+	// absent or already-deleted resource is a no-op that reports existed=false and no error, matching
+	// HAPI's "delete of a non-existent resource succeeds". A resource that existed and was live
+	// reports existed=true. After a delete a Read answers ErrGone (the 410 path), prior versions stay
+	// VRead-able, and History shows the deletion entry.
+	Delete(ctx context.Context, resourceType, id string) (existed bool, err error)
 
 	// Search executes a type-level search and returns a searchset Bundle of the role's release (built
 	// with the release's NewSearchSet so total and the bdl-* invariants hold), behind the
@@ -134,13 +154,19 @@ func (m *MemoryRepository) Read(_ context.Context, resourceType, id string) (fhi
 
 // readLocked returns the stored resource for (resourceType, id), or ErrNotFound. The caller must hold
 // m.mu (read or write); it never locks, so it composes inside the transaction's write-locked section
-// without deadlocking.
+// without deadlocking. A resource whose current version records a deletion is ErrGone (the 410 path),
+// distinct from the ErrNotFound a resource that never existed gets: a delete removes the live entry
+// from byKey but leaves its history in byVer, whose newest entry is the deletion version.
 func (m *MemoryRepository) readLocked(resourceType, id string) (fhir.Resource, error) {
-	r, ok := m.byKey[storeKey(resourceType, id)]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s/%s", ErrNotFound, resourceType, id)
+	key := storeKey(resourceType, id)
+	r, ok := m.byKey[key]
+	if ok {
+		return r, nil
 	}
-	return r, nil
+	if versions := m.byVer[key]; len(versions) > 0 && versions[len(versions)-1].Deleted {
+		return nil, fmt.Errorf("%w: %s/%s", ErrGone, resourceType, id)
+	}
+	return nil, fmt.Errorf("%w: %s/%s", ErrNotFound, resourceType, id)
 }
 
 // Create stores r under a server-assigned id and returns the stored resource. The repository always
@@ -184,6 +210,89 @@ func (m *MemoryRepository) createLocked(r fhir.Resource) (fhir.Resource, error) 
 		LastUpdated: at,
 	})
 	return r, nil
+}
+
+// Update stores a new version of (resourceType, id): version n+1 when the resource already exists,
+// or version 1 at the client-supplied id when it does not (update-as-create, the FHIR default and
+// HAPI's default). The id set on the stored resource is always the URL id, so the stored resource
+// addresses itself by the path it was written to. The new version is appended to the resource's
+// history exactly as a create appends version 1, so history, vread, and the version headers all see
+// the update without any reshaping of the record. created reports whether this was a create.
+func (m *MemoryRepository) Update(_ context.Context, resourceType, id string, r fhir.Resource) (fhir.Resource, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.updateLocked(resourceType, id, r)
+}
+
+// updateLocked is the unlocked core of Update; the caller must hold m.mu for writing. A resource
+// whose current version was deleted is treated as absent for the create-on-update decision, so a PUT
+// after a DELETE resurrects the resource as a new version (n+1) rather than erroring — FHIR R5
+// http.html#delete: "a server MAY allow a deleted resource to be brought back to life by a
+// subsequent update". The version id continues the existing sequence so a resurrected resource's
+// history stays monotonic.
+func (m *MemoryRepository) updateLocked(resourceType, id string, r fhir.Resource) (fhir.Resource, bool, error) {
+	key := storeKey(resourceType, id)
+	existing := m.byVer[key]
+	versionID := nextVersionID(existing)
+	created := len(existing) == 0 || lastVersionDeleted(existing)
+
+	at := m.now()
+	stored, err := m.adapter.withResourceVersion(r, id, versionID, fhirInstant(at))
+	if err != nil {
+		return nil, false, err
+	}
+	m.byKey[key] = stored
+	m.byVer[key] = append(existing, ResourceVersion{
+		Resource:    stored,
+		VersionID:   versionID,
+		LastUpdated: at,
+	})
+	return stored, created, nil
+}
+
+// Delete retires the current version of (resourceType, id) by appending a deletion version to its
+// history and removing the live entry. It is idempotent: a resource that never existed, or whose
+// current version is already a deletion, is a no-op reporting existed=false (HAPI answers a delete of
+// an absent resource 200/204, never 404). A live resource reports existed=true; after the delete a
+// Read answers ErrGone, prior versions stay VRead-able, and History shows the deletion.
+func (m *MemoryRepository) Delete(_ context.Context, resourceType, id string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := storeKey(resourceType, id)
+	existing := m.byVer[key]
+	if len(existing) == 0 || lastVersionDeleted(existing) {
+		return false, nil
+	}
+	at := m.now()
+	m.byVer[key] = append(existing, ResourceVersion{
+		VersionID:   nextVersionID(existing),
+		LastUpdated: at,
+		Deleted:     true,
+	})
+	delete(m.byKey, key)
+	return true, nil
+}
+
+// nextVersionID returns the version id to mint for the next version of a resource, given its existing
+// history (oldest first): the create writes "1" and each subsequent version increments the numeric
+// version of the newest entry. A non-numeric existing version (a custom Repository's scheme) falls
+// back to the history length plus one, so the minted id is still unique and monotonic.
+func nextVersionID(existing []ResourceVersion) string {
+	if len(existing) == 0 {
+		return initialVersionID
+	}
+	last := existing[len(existing)-1].VersionID
+	if n, err := strconv.Atoi(last); err == nil {
+		return strconv.Itoa(n + 1)
+	}
+	return strconv.Itoa(len(existing) + 1)
+}
+
+// lastVersionDeleted reports whether a resource's newest version (the last entry of an oldest-first
+// history) records a deletion, the "is this resource currently deleted" predicate the update and
+// delete paths share.
+func lastVersionDeleted(existing []ResourceVersion) bool {
+	return len(existing) > 0 && existing[len(existing)-1].Deleted
 }
 
 // VRead returns the stored version of (resourceType, id) named by versionID: ErrNotFound when the
@@ -319,6 +428,14 @@ func (v lockedView) Read(_ context.Context, resourceType, id string) (fhir.Resou
 
 func (v lockedView) Create(_ context.Context, r fhir.Resource) (fhir.Resource, error) {
 	return v.repo.createLocked(r)
+}
+
+func (v lockedView) Update(_ context.Context, resourceType, id string, r fhir.Resource) (fhir.Resource, bool, error) {
+	return v.repo.updateLocked(resourceType, id, r)
+}
+
+func (v lockedView) Delete(context.Context, string, string) (bool, error) {
+	return false, fmt.Errorf("server: delete is not supported inside a transaction")
 }
 
 func (v lockedView) Search(context.Context, string, url.Values) (fhir.Resource, error) {

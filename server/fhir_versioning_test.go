@@ -551,16 +551,14 @@ func historyTotals(t *testing.T, url string) (total, entries int) {
 	return bundle.Total, len(bundle.Entry)
 }
 
-// TestFHIRRoleIfMatchPrecondition proves the If-Match version precondition on the deferred write
+// TestFHIRRoleIfMatchPrecondition proves the If-Match version precondition on the write
 // interactions (http.html#concurrency: a version-aware update quotes the version it is based on in
 // If-Match, and "if the version id given in the If-Match header does not match, the server returns
-// a 412 Precondition Failed status code instead of updating the resource"; the page also names 409
-// for a version conflict detected without If-Match — this role's only conflict detection is the
-// If-Match check, so 412 is the code it emits). A stale If-Match is a 412 conflict
-// OperationOutcome; an If-Match against an absent resource is a 404 (no version to match); a
-// current If-Match passes the precondition and falls through to the interaction's own answer,
-// which is still the deferred 501 — the precondition gate ships ahead of the update interaction
-// itself (wave 3). The same gate covers PUT, PATCH, and DELETE, the three version-aware writes.
+// a 412 Precondition Failed status code instead of updating the resource"). A stale If-Match is a
+// 412 conflict OperationOutcome; an If-Match against an absent resource is a 412 (the named version
+// cannot be the current one); a current If-Match (weak or strong form) passes the precondition and
+// the update succeeds with 200. The same gate covers PUT, PATCH, and DELETE, the three version-aware
+// writes.
 func TestFHIRRoleIfMatchPrecondition(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -571,7 +569,7 @@ func TestFHIRRoleIfMatchPrecondition(t *testing.T) {
 			put := func(target, ifMatch string) (int, []byte) {
 				t.Helper()
 				req, err := http.NewRequest(http.MethodPut, base+"/Patient/"+target,
-					strings.NewReader(string(patientJSON(release, "female"))))
+					strings.NewReader(string(patientJSONWithID(release, target))))
 				if err != nil {
 					t.Fatalf("NewRequest: %v", err)
 				}
@@ -596,43 +594,60 @@ func TestFHIRRoleIfMatchPrecondition(t *testing.T) {
 			}
 			assertOperationOutcome(t, body, "error")
 
-			// An If-Match against a resource that does not exist is a 404 (no version to match).
+			// An If-Match against a resource that does not exist is a 412: the named version cannot be
+			// the current one (there is no current version to match).
 			status, body = put("missing", `W/"1"`)
-			if status != http.StatusNotFound {
-				t.Fatalf("PUT If-Match on missing resource status = %d, want 404; body=%s", status, body)
+			if status != http.StatusPreconditionFailed {
+				t.Fatalf("PUT If-Match on missing resource status = %d, want 412; body=%s", status, body)
 			}
 			assertOperationOutcome(t, body, "error")
 
-			// A current If-Match passes the precondition; the update interaction itself is still the
-			// deferred 501 (the strong form a non-FHIR-aware client sends is accepted too).
-			for _, etag := range []string{`W/"1"`, `"1"`} {
+			// A current If-Match passes the precondition; the update succeeds (the strong form a
+			// non-FHIR-aware client sends is accepted too). The first succeeds against version 1; the
+			// second names version 2 (the version the first update minted).
+			for _, etag := range []string{`W/"1"`, `"2"`} {
 				status, body = put(id, etag)
-				if status != http.StatusNotImplemented {
-					t.Fatalf("PUT current If-Match %q status = %d, want 501 (precondition holds, interaction deferred); body=%s", etag, status, body)
+				if status != http.StatusOK {
+					t.Fatalf("PUT current If-Match %q status = %d, want 200; body=%s", etag, status, body)
 				}
-				assertOperationOutcome(t, body, "error")
 			}
 
-			// No If-Match: unchanged deferred behaviour.
-			status, body = put(id, "")
-			if status != http.StatusNotImplemented {
-				t.Fatalf("PUT without If-Match status = %d, want 501; body=%s", status, body)
+			// A stale If-Match on DELETE and PATCH is a 412 the same way. The PATCH carries the JSON
+			// Patch content type (a PATCH with the wrong content type is a 415 before the precondition
+			// is reached, so the media type is declared to exercise the precondition path).
+			cases := []struct {
+				method, contentType string
+				body                []byte
+			}{
+				{http.MethodDelete, "", nil},
+				{http.MethodPatch, "application/json-patch+json", []byte(`[{"op":"replace","path":"/gender","value":"male"}]`)},
 			}
-
-			// The gate covers DELETE and PATCH the same way.
-			for _, method := range []string{http.MethodDelete, http.MethodPatch} {
-				req, err := http.NewRequest(method, base+"/Patient/"+id, nil)
+			for _, c := range cases {
+				var rdr *strings.Reader
+				if c.body != nil {
+					rdr = strings.NewReader(string(c.body))
+				}
+				var req *http.Request
+				var err error
+				if rdr != nil {
+					req, err = http.NewRequest(c.method, base+"/Patient/"+id, rdr)
+				} else {
+					req, err = http.NewRequest(c.method, base+"/Patient/"+id, nil)
+				}
 				if err != nil {
 					t.Fatalf("NewRequest: %v", err)
+				}
+				if c.contentType != "" {
+					req.Header.Set("Content-Type", c.contentType)
 				}
 				req.Header.Set("If-Match", `W/"999"`)
 				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
-					t.Fatalf("Do %s: %v", method, err)
+					t.Fatalf("Do %s: %v", c.method, err)
 				}
 				_ = resp.Body.Close()
 				if resp.StatusCode != http.StatusPreconditionFailed {
-					t.Errorf("%s stale If-Match status = %d, want 412", method, resp.StatusCode)
+					t.Errorf("%s stale If-Match status = %d, want 412", c.method, resp.StatusCode)
 				}
 			}
 		})
@@ -839,6 +854,8 @@ func TestFHIRRoleClientVReadAndHistory(t *testing.T) {
 
 func errorsIsNotFound(err error) bool { return errors.Is(err, ErrNotFound) }
 
+func errorsIsGone(err error) bool { return errors.Is(err, ErrGone) }
+
 // newPatientResource builds a minimal Patient of the release for repository-level tests.
 func newPatientResource(release fhir.Release) fhir.Resource {
 	switch release {
@@ -914,6 +931,14 @@ func (s *stubVersionRepo) History(_ context.Context, resourceType, id string) ([
 
 func (s *stubVersionRepo) Create(context.Context, fhir.Resource) (fhir.Resource, error) {
 	return nil, fmt.Errorf("stubVersionRepo: create is not supported")
+}
+
+func (s *stubVersionRepo) Update(context.Context, string, string, fhir.Resource) (fhir.Resource, bool, error) {
+	return nil, false, fmt.Errorf("stubVersionRepo: update is not supported")
+}
+
+func (s *stubVersionRepo) Delete(context.Context, string, string) (bool, error) {
+	return false, fmt.Errorf("stubVersionRepo: delete is not supported")
 }
 
 func (s *stubVersionRepo) Search(context.Context, string, url.Values) (fhir.Resource, error) {

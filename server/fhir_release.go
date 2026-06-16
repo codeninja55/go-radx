@@ -213,6 +213,38 @@ func withResourceVersionViaJSON(r fhir.Resource, id, versionID, lastUpdated stri
 	return decode(merged)
 }
 
+// searchsetMatchIDs reads the logical ids of the match entries of a searchset Bundle, marshalling
+// the Bundle and peeking each entry's resource id under the top-level "entry[].resource.id" keys.
+// It is release-neutral (a Bundle always serialises this shape across R4 and R5), so the conditional
+// interactions can resolve "how many resources matched, and which one" from the same searchset the
+// repository builds for a plain search — without a per-release Bundle walk. Only entries that carry a
+// resource with a non-empty id are counted, so a Bundle's OperationOutcome or include entries (no id)
+// are ignored. adapter is accepted for symmetry with the other release-neutral readers but the JSON
+// shape is uniform, so it is not consulted.
+func searchsetMatchIDs(bundle fhir.Resource, _ releaseAdapter) []string {
+	data, err := json.Marshal(bundle)
+	if err != nil {
+		return nil
+	}
+	var env struct {
+		Entry []struct {
+			Resource *struct {
+				ID string `json:"id"`
+			} `json:"resource"`
+		} `json:"entry"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		return nil
+	}
+	var ids []string
+	for _, e := range env.Entry {
+		if e.Resource != nil && e.Resource.ID != "" {
+			ids = append(ids, e.Resource.ID)
+		}
+	}
+	return ids
+}
+
 // resourceVersionViaJSON reads a resource's meta.versionId and meta.lastUpdated by marshalling it
 // and peeking the "meta" key, the version twin of resourceIDViaJSON. A resource with no meta (or an
 // unversioned one from a custom Repository) yields empty strings, which the handlers treat as

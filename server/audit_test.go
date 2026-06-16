@@ -311,3 +311,113 @@ func TestFHIRCreateAuditEvent(t *testing.T) {
 	}
 	assertNoSentinel(t, ev)
 }
+
+// TestFHIRUpdateDeleteAuditEvents drives a create, an update, and a delete through a daemon with
+// WithAudit and asserts the structural events: the update is audited as an update (version 2), the
+// delete as a delete (the deleted outcome), each carrying only the resource type and the
+// server-known id and version, never a value from the sentinel-bearing body.
+func TestFHIRUpdateDeleteAuditEvents(t *testing.T) {
+	t.Parallel()
+	collector := &auditCollector{}
+
+	repo, err := NewMemoryRepository(fhir.R5)
+	if err != nil {
+		t.Fatalf("NewMemoryRepository: %v", err)
+	}
+	role, err := NewFHIRRole(repo, WithFHIRPort(0), WithFHIRRelease(fhir.R5))
+	if err != nil {
+		t.Fatalf("NewFHIRRole: %v", err)
+	}
+	d, err := New(WithFHIR(role), WithAudit(collector.fn()))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runErr := make(chan error, 1)
+	go func() { runErr <- d.Run(runCtx) }()
+	defer func() {
+		cancelRun()
+		select {
+		case <-runErr:
+		case <-time.After(5 * time.Second):
+			t.Error("daemon did not stop within 5s")
+		}
+	}()
+	waitForAddrs(t, d, "fhir@/fhir")
+	base := "http://" + d.Addrs()["fhir@/fhir"].String() + "/fhir"
+
+	sentinelPatient := func(id string) []byte {
+		patient := map[string]any{
+			"resourceType": "Patient",
+			"name":         []map[string]any{{"family": auditPHIName}},
+			"identifier":   []map[string]any{{"value": auditPHIID}},
+		}
+		if id != "" {
+			patient["id"] = id
+		}
+		b, _ := json.Marshal(patient)
+		return b
+	}
+
+	do := func(method, path, contentType string, body []byte) *http.Response {
+		req, err := http.NewRequest(method, base+path, bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("NewRequest: %v", err)
+		}
+		if contentType != "" {
+			req.Header.Set("Content-Type", contentType)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("%s %s: %v", method, path, err)
+		}
+		_ = resp.Body.Close()
+		return resp
+	}
+
+	resp := do(http.MethodPost, "/Patient", "application/fhir+json", sentinelPatient(""))
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create status = %d, want 201", resp.StatusCode)
+	}
+	id := idFromLocationHeader(resp.Header.Get("Location"))
+
+	resp = do(http.MethodPut, "/Patient/"+id, "application/fhir+json", sentinelPatient(id))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("update status = %d, want 200", resp.StatusCode)
+	}
+	resp = do(http.MethodDelete, "/Patient/"+id, "", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("delete status = %d, want 200", resp.StatusCode)
+	}
+
+	events := collector.all()
+	if len(events) != 3 {
+		t.Fatalf("audit events = %d, want 3 (create, update, delete)", len(events))
+	}
+	create, update, del := events[0], events[1], events[2]
+	if create.Op != AuditOpFHIRCreate || create.VersionID != "1" {
+		t.Errorf("create event = %+v, want fhir.create version 1", create)
+	}
+	if update.Op != AuditOpFHIRUpdate || update.VersionID != "2" || update.Outcome != AuditOutcomeStoredIndexed {
+		t.Errorf("update event = %+v, want fhir.update version 2 stored-indexed", update)
+	}
+	if del.Op != AuditOpFHIRDelete || del.Outcome != AuditOutcomeDeleted || del.ResourceID != id {
+		t.Errorf("delete event = %+v, want fhir.delete deleted id %s", del, id)
+	}
+	for _, ev := range events {
+		assertNoSentinel(t, ev)
+	}
+}
+
+// idFromLocationHeader extracts the resource id from a versioned FHIR Location header
+// ([base]/Patient/{id}/_history/{vid}), for the audit test to address the created resource.
+func idFromLocationHeader(loc string) string {
+	if i := strings.Index(loc, "/_history/"); i >= 0 {
+		loc = loc[:i]
+	}
+	segs := strings.Split(strings.Trim(loc, "/"), "/")
+	if len(segs) == 0 {
+		return ""
+	}
+	return segs[len(segs)-1]
+}

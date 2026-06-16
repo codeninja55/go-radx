@@ -119,17 +119,22 @@ func (h *fhirHandler) handleType(w http.ResponseWriter, r *http.Request, resourc
 		h.handleSearch(w, r, resourceType)
 	case http.MethodPost:
 		h.handleCreate(w, r, resourceType)
+	case http.MethodPut:
+		h.handleConditionalUpdate(w, r, resourceType)
+	case http.MethodPatch:
+		h.handleConditionalPatch(w, r, resourceType)
+	case http.MethodDelete:
+		h.handleConditionalDelete(w, r, resourceType)
 	default:
-		h.writeUnsupported(w, r, "the type endpoint supports GET (search) and POST (create) only")
+		h.writeUnsupported(w, r,
+			"the type endpoint supports GET (search), POST (create), and conditional PUT/PATCH/DELETE only")
 	}
 }
 
-// handleInstance serves the instance-level interactions: a read GET on a resource by type and id.
-// update, delete, and patch are deferred and answered with a 501 OperationOutcome, never a silent
-// no-op (servers.md, PRD §9.2) — but the If-Match version precondition is evaluated first, so a
-// version-aware client gets the honest 412 the spec defines for a stale version (FHIR R5
-// http.html#concurrency) rather than a 501 that hides the conflict. The mutation itself stays
-// deferred: a write whose precondition holds still answers 501.
+// handleInstance serves the instance-level interactions on a resource by type and id: read (GET),
+// update (PUT), patch (PATCH), and delete (DELETE). The If-Match version precondition, when present,
+// is evaluated before any mutation so a version-aware client gets the honest 412 the spec defines
+// for a stale version (FHIR R5 http.html#concurrency).
 func (h *fhirHandler) handleInstance(w http.ResponseWriter, r *http.Request, resourceType, id string) {
 	if !isWorkflowResourceType(resourceType) {
 		h.writeError(w, r, http.StatusNotFound, issueTypeNotSupported,
@@ -139,42 +144,15 @@ func (h *fhirHandler) handleInstance(w http.ResponseWriter, r *http.Request, res
 	switch r.Method {
 	case http.MethodGet:
 		h.handleRead(w, r, resourceType, id)
-	case http.MethodPut, http.MethodDelete, http.MethodPatch:
-		if !h.checkIfMatch(w, r, resourceType, id) {
-			return
-		}
-		h.writeError(w, r, http.StatusNotImplemented, issueTypeNotSupported,
-			"the "+strings.ToLower(r.Method)+" interaction is not implemented in v1")
+	case http.MethodPut:
+		h.handleUpdate(w, r, resourceType, id)
+	case http.MethodPatch:
+		h.handlePatch(w, r, resourceType, id)
+	case http.MethodDelete:
+		h.handleDelete(w, r, resourceType, id)
 	default:
-		h.writeUnsupported(w, r, "the instance endpoint supports GET (read) only in v1")
+		h.writeUnsupported(w, r, "the instance endpoint supports GET, PUT, PATCH, and DELETE")
 	}
-}
-
-// checkIfMatch evaluates a write's If-Match version precondition against the current version of the
-// target resource, per FHIR R5 http.html#concurrency: a version-aware write names the version it
-// was based on, and "if the version id given in the If-Match header does not match, the server
-// returns a 412 Precondition Failed status code instead of updating the resource". A request with
-// no If-Match passes through (the deferred interaction answers for itself); an If-Match against a
-// resource that does not exist is a 404 (there is no version to match); a stale If-Match is the 412
-// with a conflict OperationOutcome. It reports true to proceed, false when it has already written
-// the error.
-func (h *fhirHandler) checkIfMatch(w http.ResponseWriter, r *http.Request, resourceType, id string) bool {
-	ifMatch := r.Header.Get("If-Match")
-	if ifMatch == "" {
-		return true
-	}
-	current, err := h.repo.Read(r.Context(), resourceType, id)
-	if err != nil {
-		h.writeRepoError(w, r, err)
-		return false
-	}
-	versionID, _ := resourceVersionViaJSON(current)
-	if etagVersionID(ifMatch) != versionID {
-		h.writeError(w, r, http.StatusPreconditionFailed, issueTypeConflict,
-			"the If-Match version does not match the current version of "+resourceType+"/"+id)
-		return false
-	}
-	return true
 }
 
 // handleRead serves a read: it fetches the resource from the repository and writes it with the
@@ -681,6 +659,14 @@ func (h *fhirHandler) requireFHIRWriteMedia(w http.ResponseWriter, r *http.Reque
 // casing does not defeat the check; an absent or unparseable Content-Type is not accepted, matching the
 // server contract that a write declares its FHIR JSON body.
 func isFHIRWriteMediaType(contentType string) bool {
+	return mediaTypeEquals(contentType, mediaTypeFHIRJSON) || mediaTypeEquals(contentType, mediaTypeJSON)
+}
+
+// mediaTypeEquals reports whether a Content-Type header names the given media type, ignoring a
+// charset (or other) parameter and casing. An absent or unparseable Content-Type never matches, so a
+// write that does not declare its body type is rejected rather than guessed. It is the shared
+// content-type comparison the write-media and patch-media checks use.
+func mediaTypeEquals(contentType, want string) bool {
 	if contentType == "" {
 		return false
 	}
@@ -688,21 +674,20 @@ func isFHIRWriteMediaType(contentType string) bool {
 	if err != nil {
 		return false
 	}
-	switch strings.ToLower(mt) {
-	case mediaTypeFHIRJSON, mediaTypeJSON:
-		return true
-	default:
-		return false
-	}
+	return strings.EqualFold(mt, want)
 }
 
-// writeRepoError maps a repository error to an OperationOutcome: ErrNotFound to a 404, any other to
-// a 500 with a sanitized, PHI-free message. The repository's own errors are PHI-free by contract,
-// but the message is still passed through sanitizeRepoMessage so only the structural part reaches
-// the wire.
+// writeRepoError maps a repository error to an OperationOutcome: ErrNotFound to a 404, ErrGone to a
+// 410 (a read of a deleted resource, FHIR R5 http.html#delete), any other to a 500 with a sanitized,
+// PHI-free message. The repository's own errors are PHI-free by contract, but the message is still
+// passed through sanitizeRepoMessage so only the structural part reaches the wire.
 func (h *fhirHandler) writeRepoError(w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, ErrNotFound) {
 		h.writeError(w, r, http.StatusNotFound, fhir.IssueTypeNotFound, "resource not found")
+		return
+	}
+	if errors.Is(err, ErrGone) {
+		h.writeError(w, r, http.StatusGone, issueTypeDeleted, "the resource is deleted")
 		return
 	}
 	h.writeError(w, r, http.StatusInternalServerError, issueTypeException, sanitizeRepoMessage(err))

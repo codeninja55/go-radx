@@ -680,17 +680,25 @@ func TestFHIRRoleCreateInvalidResourceIsOperationOutcome(t *testing.T) {
 	}
 }
 
-func TestFHIRRoleDeferredInteractionIsNotImplemented(t *testing.T) {
+// TestFHIRRoleUpdateAsCreate proves a PUT to a previously-unknown id creates the resource at that id
+// (update-as-create, the FHIR default and HAPI's default), answering 201 with a versioned Location.
+// The update interaction itself is exercised in detail in fhir_write_test.go.
+func TestFHIRRoleUpdateAsCreate(t *testing.T) {
 	base, cleanup := startFHIRDaemon(t, fhir.R5)
 	defer cleanup()
-	// A PUT (update) is a deferred interaction: a 501 OperationOutcome, never a silent no-op.
-	// (vread and history-instance are implemented interactions now — see fhir_versioning_test.go.)
-	status, body, _ := httpDo(t, http.MethodPut, base+"/Patient/1", "application/fhir+json",
-		patientJSON(fhir.R5, "female"))
-	if status != http.StatusNotImplemented {
-		t.Fatalf("update status = %d, want 501; body=%s", status, body)
+	status, body, header := httpDo(t, http.MethodPut, base+"/Patient/fixed-id", "application/fhir+json",
+		patientJSONWithID(fhir.R5, "fixed-id"))
+	if status != http.StatusCreated {
+		t.Fatalf("update-as-create status = %d, want 201; body=%s", status, body)
 	}
-	assertOperationOutcome(t, body, "error")
+	if loc := header.Get("Location"); !strings.Contains(loc, "Patient/fixed-id/_history/1") {
+		t.Errorf("update-as-create Location = %q, want a versioned Patient/fixed-id/_history/1", loc)
+	}
+	// A subsequent read of the client-chosen id returns the created resource.
+	status, body, _ = httpDo(t, http.MethodGet, base+"/Patient/fixed-id", "", nil)
+	if status != http.StatusOK {
+		t.Fatalf("read after update-as-create status = %d, want 200; body=%s", status, body)
+	}
 }
 
 func TestFHIRRoleUnservedResourceType(t *testing.T) {
