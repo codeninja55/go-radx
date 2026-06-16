@@ -12,6 +12,17 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- DICOM overlay-plane and waveform extraction (pydicom `overlay_array`/`waveform_array` parity):
+  `(*dicom.DataSet).OverlayArray(group)` unpacks the 1-bit-per-pixel overlay bitmap from a 60xx repeating
+  group (6000, 6002, ... 60FE) into a dense row-major boolean plane, reading bits least-significant-first
+  per PS3.5 section 8.1.2; `OverlayGroups()` lists the present groups. Retired embedded-in-pixel-data
+  overlays (non-zero Overlay Bit Position) are rejected with a typed error rather than guessed at.
+  `(*dicom.DataSet).WaveformArray(index, byteOrder)` decodes a Waveform Sequence multiplex group into a
+  `[channel][sample]` real-unit matrix, applying the PS3.3 C.10.9 per-channel scaling
+  `raw*ChannelSensitivity*ChannelSensitivityCorrectionFactor + ChannelBaseline`; `WaveformGroups()` counts
+  the multiplex groups. Supports 8/16-bit samples, signed/unsigned (SS/US/SB/UB/MB) interpretation, and
+  big- or little-endian sample words. Verified pixel-exact against the 484x484 MR-SIEMENS overlay fixture
+  (323 set bits) and with synthetic datasets carrying known bitmaps and scaled samples.
 - Deferred (lazy) reads of large element values: `ReadFile` with `dicom.WithDeferredValues(threshold)`
   records values above the threshold as re-openable placeholders and skips the bytes, keeping memory bounded
   on large objects (the pydicom `defer_size` analogue). The value loads on first access, with the byte window
