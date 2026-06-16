@@ -37,37 +37,48 @@ type PrivateTagInfo struct {
 	Description string // human-readable description
 }
 
-// privateDictEntry keys a seed entry by creator and the in-block element offset.
-type privateDictEntry struct {
+// privateDictKey identifies a private-dictionary entry by its three addressing
+// dimensions: the private creator, the (odd) group it lives in, and the low byte
+// (0x00..0xFF) of the data element within the creator's reserved block.
+//
+// This mirrors pydicom, where private_dictionaries is keyed by creator then by the
+// "ggggxxee" tag pattern: the group (gggg) is fixed, the block byte (xx) is a
+// wildcard, and the element low byte (ee) is fixed. group and offset together are
+// the part of that pattern that identifies the entry; block is assigned at runtime
+// and is deliberately not part of the key.
+type privateDictKey struct {
 	creator string
+	group   uint16
 	offset  uint8
-	info    PrivateTagInfo
 }
 
-// privateDict is the seed table. It is keyed at init into privateDictByCreator.
+// privateDictEntry is a seed entry: its addressing key and the typed meaning.
+type privateDictEntry struct {
+	privateDictKey
+	info PrivateTagInfo
+}
+
+// privateDict is the seed table. It is keyed at init into privateDictByKey.
 //
 // Each entry's offset is the low byte (0x00..0xFF) of the private data element
 // within the creator's reserved block; the block (high byte) is assigned at runtime
-// and is not part of the dictionary key, matching pydicom, where private_dictionaries
-// is keyed by creator then by the "ggggxxee" pattern with xx == block wildcard.
+// and is not part of the dictionary key. The group is part of the key because, per
+// PS3.5 §7.8.1, private element addressing is group-scoped: the same creator and
+// offset in two different odd groups are distinct entries.
 var privateDict = []privateDictEntry{
-	// pydicom documentation/test creator "ACME 3.1". Illustrative only.
-	{creator: "ACME 3.1", offset: 0x01, info: PrivateTagInfo{VR: VRSH, VM: "1", Keyword: "ACMEPrivateData01", Description: "ACME private data 01"}},
-	{creator: "ACME 3.1", offset: 0x02, info: PrivateTagInfo{VR: VRLO, VM: "1", Keyword: "ACMEPrivateData02", Description: "ACME private data 02"}},
-	{creator: "ACME 3.1", offset: 0x03, info: PrivateTagInfo{VR: VRDS, VM: "1-n", Keyword: "ACMEPrivateData03", Description: "ACME private data 03"}},
+	// pydicom documentation/test creator "ACME 3.1". Illustrative only. The seed
+	// group (0x0009) matches the group the private-block tests reserve the creator in.
+	{privateDictKey{creator: "ACME 3.1", group: 0x0009, offset: 0x01}, PrivateTagInfo{VR: VRSH, VM: "1", Keyword: "ACMEPrivateData01", Description: "ACME private data 01"}},
+	{privateDictKey{creator: "ACME 3.1", group: 0x0009, offset: 0x02}, PrivateTagInfo{VR: VRLO, VM: "1", Keyword: "ACMEPrivateData02", Description: "ACME private data 02"}},
+	{privateDictKey{creator: "ACME 3.1", group: 0x0009, offset: 0x03}, PrivateTagInfo{VR: VRDS, VM: "1-n", Keyword: "ACMEPrivateData03", Description: "ACME private data 03"}},
 }
 
-// privateDictByCreator indexes the seed by creator then by offset, built once at
-// init. Lookups are O(1) and never mutate, so it is safe for concurrent reads.
-var privateDictByCreator = func() map[string]map[uint8]PrivateTagInfo {
-	m := make(map[string]map[uint8]PrivateTagInfo)
+// privateDictByKey indexes the seed by (creator, group, offset), built once at init.
+// Lookups are O(1) and never mutate, so it is safe for concurrent reads.
+var privateDictByKey = func() map[privateDictKey]PrivateTagInfo {
+	m := make(map[privateDictKey]PrivateTagInfo, len(privateDict))
 	for _, e := range privateDict {
-		byOffset, ok := m[e.creator]
-		if !ok {
-			byOffset = make(map[uint8]PrivateTagInfo)
-			m[e.creator] = byOffset
-		}
-		byOffset[e.offset] = e.info
+		m[e.privateDictKey] = e.info
 	}
 	return m
 }()
@@ -75,29 +86,30 @@ var privateDictByCreator = func() map[string]map[uint8]PrivateTagInfo {
 // LookupPrivate resolves the private-dictionary entry for a private data element.
 // creator is the private-creator identifier, group is the element's (odd) group,
 // and offset is the low byte (0x00..0xFF) of the data element within the creator's
-// block. ok is false when the creator/offset pair is not seeded.
+// block. ok is false when the (creator, group, offset) triple is not seeded.
 //
-// group is accepted for parity with pydicom's keying (and to reject even groups)
-// even though the current seed is group-independent; a future vendored dictionary
-// may key by group.
+// Per PS3.5 §7.8.1 private element addressing is group-scoped, so group is part of
+// the dictionary key: the same creator and offset in a different odd group is a
+// distinct entry and resolves independently.
 func LookupPrivate(creator string, group uint16, offset uint8) (PrivateTagInfo, bool) {
 	if group%2 == 0 {
 		return PrivateTagInfo{}, false
 	}
-	byOffset, ok := privateDictByCreator[creator]
-	if !ok {
-		return PrivateTagInfo{}, false
-	}
-	info, ok := byOffset[offset]
+	info, ok := privateDictByKey[privateDictKey{creator: creator, group: group, offset: offset}]
 	return info, ok
 }
 
 // PrivateCreatorsKnown reports the private creators the dictionary has seeded. It is
 // a diagnostic aid for callers that want to know the dictionary's breadth.
 func PrivateCreatorsKnown() []string {
-	creators := make([]string, 0, len(privateDictByCreator))
-	for c := range privateDictByCreator {
-		creators = append(creators, c)
+	seen := make(map[string]struct{})
+	creators := make([]string, 0, len(privateDictByKey))
+	for k := range privateDictByKey {
+		if _, dup := seen[k.creator]; dup {
+			continue
+		}
+		seen[k.creator] = struct{}{}
+		creators = append(creators, k.creator)
 	}
 	return creators
 }

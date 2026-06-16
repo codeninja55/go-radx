@@ -147,6 +147,35 @@ func TestPrivateDictLookup(t *testing.T) {
 	}
 }
 
+func TestPrivateDictLookupIsGroupScoped(t *testing.T) {
+	// The "ACME 3.1" seed lives in group 0x0009 (privateGroup). Per PS3.5 §7.8.1
+	// private element addressing is group-scoped, so the same creator and offset in a
+	// different odd group is a distinct, unseeded entry and must not resolve.
+	const otherOddGroup uint16 = 0x000B
+	if otherOddGroup == privateGroup {
+		t.Fatalf("test setup: otherOddGroup must differ from privateGroup")
+	}
+
+	if _, ok := LookupPrivate("ACME 3.1", privateGroup, 0x01); !ok {
+		t.Fatalf("LookupPrivate(ACME 3.1, %#04x, 0x01): seeded entry not found", privateGroup)
+	}
+	if info, ok := LookupPrivate("ACME 3.1", otherOddGroup, 0x01); ok {
+		t.Fatalf("LookupPrivate(ACME 3.1, %#04x, 0x01) = %+v, true; group must disambiguate, want not found", otherOddGroup, info)
+	}
+
+	// A PrivateBlock in the other odd group must resolve through its own group and
+	// therefore also miss, proving Lookup carries the block's group, not the seed's.
+	ds := NewDataSet()
+	ds.Set(Element{Tag: NewTag(otherOddGroup, 0x0010), VR: VRLO, Value: NewStrings(VRLO, "ACME 3.1")})
+	block, ok := ds.PrivateBlock(otherOddGroup, "ACME 3.1", false)
+	if !ok {
+		t.Fatalf("PrivateBlock(%#04x, ACME 3.1) not resolved", otherOddGroup)
+	}
+	if info, ok := block.Lookup(0x01); ok {
+		t.Fatalf("block.Lookup(0x01) in group %#04x = %+v, true; want not found", otherOddGroup, info)
+	}
+}
+
 func TestPrivateBlockRoundTrip(t *testing.T) {
 	ds := buildPrivateDataSet()
 
