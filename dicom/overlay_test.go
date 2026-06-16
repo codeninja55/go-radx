@@ -1,6 +1,8 @@
 package dicom
 
 import (
+	"bytes"
+	"encoding/binary"
 	"path/filepath"
 	"testing"
 )
@@ -97,6 +99,82 @@ func TestOverlayArrayFixture(t *testing.T) {
 	if set != 323 {
 		t.Errorf("set-bit count = %d, want 323", set)
 	}
+}
+
+// TestOverlayWaveformImplicitVRRoundTrip is the regression guard for the OB/OW data
+// being read as the ambiguous VROBorOW placeholder under Implicit VR Little Endian, the
+// most common transfer syntax. The dictionary marks Overlay Data (60xx,3000) and
+// Waveform Data (5400,1010) as "OB or OW", so an implicit-VR read resolves both to
+// VROBorOW. Decoding that placeholder as text yields a *Strings value (and corrupts any
+// 0x5C byte by splitting on the value delimiter), so OverlayArray/WaveformArray used to
+// reject valid implicit-VR data with "not a binary value". Encoding the dataset as
+// Implicit VR LE and decoding it back exercises the real reader path, not a hand-built
+// value.
+func TestOverlayWaveformImplicitVRRoundTrip(t *testing.T) {
+	const group = 0x6000
+	// 4x4 overlay, diagonal set: byte0 bits {0,5} = 0x21, byte1 bits {2,7} = 0x84. A
+	// 0x84 byte also guards against the text decoder mangling a high byte.
+	overlayPacked := []byte{0x21, 0x84}
+
+	// 1 channel, 4 SS samples little-endian: 100, -200, 0x5C5C (a backslash-laden word
+	// that a text decoder would split), 1.
+	waveSamples := []int16{100, -200, 0x5C5C, 1}
+	wavePacked := make([]byte, len(waveSamples)*2)
+	for i, v := range waveSamples {
+		binary.LittleEndian.PutUint16(wavePacked[i*2:], uint16(v)) // #nosec G115 -- test fixture
+	}
+
+	mplx := NewDataSet()
+	mplx.Set(Element{Tag: TagNumberOfWaveformChannels, VR: VRUS, Value: NewInts(VRUS, 1)})
+	mplx.Set(Element{Tag: TagNumberOfWaveformSamples, VR: VRUL, Value: NewInts(VRUL, 4)})
+	mplx.Set(Element{Tag: TagWaveformBitsAllocated, VR: VRUS, Value: NewInts(VRUS, 16)})
+	mplx.Set(Element{Tag: TagWaveformSampleInterpretation, VR: VRCS, Value: NewStrings(VRCS, "SS")})
+	mplx.Set(Element{Tag: TagWaveformData, VR: VROW, Value: NewBytes(VROW, wavePacked)})
+
+	ds := NewDataSet()
+	ds.Set(Element{Tag: NewTag(group, overlayElemRows), VR: VRUS, Value: NewInts(VRUS, 4)})
+	ds.Set(Element{Tag: NewTag(group, overlayElemColumns), VR: VRUS, Value: NewInts(VRUS, 4)})
+	ds.Set(Element{Tag: NewTag(group, overlayElemBitsAllocated), VR: VRUS, Value: NewInts(VRUS, 1)})
+	ds.Set(Element{Tag: NewTag(group, overlayElemBitPosition), VR: VRUS, Value: NewInts(VRUS, 0)})
+	ds.Set(Element{Tag: NewTag(group, overlayElemData), VR: VROW, Value: NewBytes(VROW, overlayPacked)})
+	ds.Set(Element{Tag: TagWaveformSequence, VR: VRSQ, Value: NewSequenceValue(NewSequence(mplx))})
+
+	var buf bytes.Buffer
+	if err := EncodeDataSet(&buf, ds, ImplicitVRLittleEndian); err != nil {
+		t.Fatalf("EncodeDataSet implicit: %v", err)
+	}
+	got, err := DecodeDataSet(bytes.NewReader(buf.Bytes()), ImplicitVRLittleEndian)
+	if err != nil {
+		t.Fatalf("DecodeDataSet implicit: %v", err)
+	}
+
+	// The Overlay Data element must have decoded to a binary value, not text.
+	dataElem, ok := got.Get(NewTag(group, overlayElemData))
+	if !ok {
+		t.Fatal("decoded dataset has no Overlay Data")
+	}
+	if dataElem.VR != VROBorOW {
+		t.Fatalf("Overlay Data VR = %v, want the implicit-VR VROBorOW placeholder", dataElem.VR)
+	}
+
+	o, err := got.OverlayArray(group)
+	if err != nil {
+		t.Fatalf("OverlayArray after implicit-VR round-trip: %v", err)
+	}
+	if o.Rows != 4 || o.Columns != 4 {
+		t.Fatalf("dims = %dx%d, want 4x4", o.Rows, o.Columns)
+	}
+	for d := range 4 {
+		if !o.At(d, d) {
+			t.Errorf("At(%d,%d) = false, want true (diagonal)", d, d)
+		}
+	}
+
+	w, err := got.WaveformArray(0, binary.LittleEndian)
+	if err != nil {
+		t.Fatalf("WaveformArray after implicit-VR round-trip: %v", err)
+	}
+	assertChannel(t, "implicit", w.Data[0], []float64{100, -200, 0x5C5C, 1})
 }
 
 func TestOverlayArrayRejectsEmbedded(t *testing.T) {
