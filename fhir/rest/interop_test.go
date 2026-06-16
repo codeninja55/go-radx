@@ -19,21 +19,21 @@ import (
 // request shape is accepted, and a foreign CapabilityStatement and resource are parsed, by a server
 // go-radx did not write.
 //
-// There is no HAPI FHIR container in this harness, so the test SKIPs unless RADX_FHIR_HAPI_BASE names
-// a reachable FHIR service base URL of such a server (for example
-// http://localhost:8080/fhir for the public HAPI test server). This is a deliberate skip, not a
-// silent pass: the client<->httptest round-trip in client_test.go and the client<->go-radx-role
-// round-trip in the server package remain the hard correctness gates (they need no external server),
-// and this test only adds confidence against a foreign implementation when one is supplied. The skip
-// avoids depending on a fragile container or the public test server's availability in CI.
+// The server is normally the pinned HAPI container TestMain (in hapi_main_test.go) provisions for
+// the interop gate, which exports RADX_FHIR_HAPI_BASE before the run; setting the variable yourself
+// substitutes an external server's FHIR service base URL (for example http://localhost:8080/fhir)
+// for the container. The client<->httptest round-trip in client_test.go and the
+// client<->go-radx-role round-trip in the server package remain standing correctness gates that
+// need no external server.
 //
-// The reference HAPI test server runs R4, so this test uses an R4 client. Set RADX_FHIR_HAPI_BASE to
-// an R5 server's base to exercise R5.
+// The HAPI container's default configuration runs R4, so this test uses an R4 client. Set
+// RADX_FHIR_HAPI_BASE to an R5 server's base to exercise R5.
 func TestInteropHAPIServer(t *testing.T) {
 	base := os.Getenv("RADX_FHIR_HAPI_BASE")
 	if base == "" {
-		t.Skip("RADX_FHIR_HAPI_BASE not set: no external HAPI FHIR server is provisioned in this " +
-			"harness; the client<->httptest and client<->go-radx-role round-trips are the hard interop gates")
+		// Unreachable under the normal gate: TestMain either exports the variable or
+		// fails the run before any test executes.
+		t.Skip("RADX_FHIR_HAPI_BASE not set and no HAPI container was provisioned")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

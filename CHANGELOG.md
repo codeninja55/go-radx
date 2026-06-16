@@ -23,6 +23,23 @@ legacy codebase (`legacy-main`) and are not continued here.
   the multiplex groups. Supports 8/16-bit samples, signed/unsigned (SS/US/SB/UB/MB) interpretation, and
   big- or little-endian sample words. Verified pixel-exact against the 484x484 MR-SIEMENS overlay fixture
   (323 set bits) and with synthetic datasets carrying known bitmaps and scaled samples.
+- DICOM palette-colour LUT expansion and photometric colour-space conversion (the pydicom `apply_color_lut`
+  and `convert_color_space` analogues). `dicom.ApplyColorLUT` expands a `PALETTE COLOR` frame to interleaved
+  RGB through the Red/Green/Blue Palette Color Lookup Tables, honouring the descriptor's first-mapped-value
+  offset, 8- and 16-bit entries, the two-entries-per-word packing, and the descriptor[0]=0 means 65536 rule
+  (PS3.3 C.7.9, C.7.6.3.1.5; non-segmented path). `dicom.ConvertColorSpace` converts `YBR_FULL` <-> `RGB`
+  and `YBR_FULL_422` -> `RGB`/`YBR_FULL` using the PS3.3 C.7.6.3.1.2 full-range equations, handling
+  `PlanarConfiguration` 0 and 1; out-of-scope pairs (`YBR_PARTIAL_*`, ICT/RCT) fail closed with a typed error.
+- DICOM pixel presentation pipeline (`dicom/lut.go`): `ApplyModalityLUT`, `ApplyVOILUT`, and `ApplyWindowing`
+  turn stored pixel values into presentation values per PS3.3 §C.11, the pydicom `apply_modality_lut` /
+  `apply_voi_lut` / `apply_windowing` analogues. The Modality LUT applies a `ModalityLUTSequence` table when
+  present (it takes precedence) and otherwise a linear `RescaleSlope`/`RescaleIntercept` rescale to measured
+  units such as Hounsfield (§C.11.1.1.2). The VOI stage applies a `VOILUTSequence` table when present and
+  otherwise windowing, with the `VOILUTFunction` LINEAR (the default, one-LSB-shifted form), LINEAR_EXACT,
+  and SIGMOID variants (§C.11.2.1.2 / §C.11.2.1.3) and indexed multi-pair `WindowCenter`/`WindowWidth`
+  selection. Table paths honour the LUT Descriptor first-mapped value and clamp out-of-range inputs to the
+  end entries (§C.11.1.1.1); LUT Data is read from US or OW. A non-positive window width is rejected fail-closed
+  rather than emitting NaN/Inf into a displayed image.
 - Deferred (lazy) reads of large element values: `ReadFile` with `dicom.WithDeferredValues(threshold)`
   records values above the threshold as re-openable placeholders and skips the bytes, keeping memory bounded
   on large objects (the pydicom `defer_size` analogue). The value loads on first access, with the byte window

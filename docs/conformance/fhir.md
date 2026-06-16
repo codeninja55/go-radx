@@ -100,6 +100,13 @@ directly (it remains the most deployed release and US Core runs on it) rather th
 > ([`./cli-server.md`](./cli-server.md) "FHIR REST client and server role"); this note records that they ship and that
 > SMART on FHIR remains the documented deferral.
 
+Cross-implementation conformance of the client is wired into CI: the `interop:fhir-hapi` leg (build tag `interop`)
+provisions a HAPI FHIR server container pinned by digest (recorded in `tools/versions`) and drives capability
+negotiation plus a create/read/search round-trip against it (`TestInteropHAPIServer` in `fhir/rest`), so the client's
+request shape and parsing are proven against a reference implementation go-radx did not write. Setting
+`RADX_FHIR_HAPI_BASE` to a reachable FHIR service base substitutes an external server for the container. The
+client-to-`httptest` and client-to-go-radx-role round-trips remain standing correctness gates that need no container.
+
 The client implements the FHIR HTTP interactions — `read`, `vread`, `create`, `update`, `patch`, `delete`, `history`,
 type-level `search` (typed parameters, modifiers, single-level chaining, `_include`/`_revinclude`, and `Bundle.link`
 paging), `transaction`/`batch`, conditional create/update with ETag concurrency, and `CapabilityStatement`

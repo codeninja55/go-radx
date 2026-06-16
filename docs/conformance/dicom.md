@@ -369,6 +369,14 @@ the stale offset-table and total-length elements (`(7FE0,0001)`/`(7FE0,0002)`/`(
 bookkeeping is preserved per PS3.3 C.7.6.1.1.5: a lossy source syntax (`TransferSyntax.IsLossy`) forces
 `(0028,2110)` to `01`, and the ratio/method attributes are never invented.
 
+Separately from transcoding, two explicit colour helpers operate on a decoded `Frame` without touching the transfer
+syntax. `dicom.ApplyColorLUT` expands a `PALETTE COLOR` frame to interleaved RGB through the Red/Green/Blue Palette
+Color Lookup Tables (the non-segmented path, PS3.3 C.7.9 and C.7.6.3.1.5; segmented LUT data is out of scope).
+`dicom.ConvertColorSpace` converts between `YBR_FULL` and `RGB`, and from `YBR_FULL_422` to either, using the
+PS3.3 C.7.6.3.1.2 full-range equations and handling `PlanarConfiguration` 0 and 1. The limited-range
+`YBR_PARTIAL_*` terms and the JPEG-2000-internal ICT/RCT transforms are out of scope: the latter are applied inside
+the J2K codec so decoded frames are already RGB.
+
 ### Performance baseline
 
 The Part 10 dataset decode and per-transfer-syntax codec hot paths carry committed benchmark baselines so a regression
