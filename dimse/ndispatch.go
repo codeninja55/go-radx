@@ -131,8 +131,13 @@ func serveNSetMessage(ctx context.Context, acc *acse.Acceptor, h NSetHandler, cm
 
 // serveNActionMessage dispatches an already-read N-ACTION-RQ to the NActionHandler and writes the
 // N-ACTION-RSP (PS3.7 §10.1.4). The RSP echoes the Requested SOP Class/Instance UID into the
-// Affected pair and the Action Type ID. This is the foundation hook a later Storage Commitment SCP
-// plugs into; the commitment result itself follows asynchronously via N-EVENT-REPORT.
+// Affected pair and the Action Type ID. This is the hook the Storage Commitment SCP plugs into.
+//
+// When the handler also implements NActionReporter AND the N-ACTION status is Success, the dispatch
+// then invokes the reporter so it can emit the follow-up N-EVENT-REPORT on the SAME association — the
+// synchronous Storage Commitment reporting model (PS3.4 J.3.3). The report runs only after the
+// N-ACTION-RSP has been written (the request is acknowledged first) and only on Success (a refused
+// request carries no report); a reporter error faults the association.
 func serveNActionMessage(ctx context.Context, acc *acse.Acceptor, h NActionHandler, cmd CommandSet, ds *dicom.DataSet, pcID uint8, base OpInfo) error {
 	req := nRequestFromCommand(acc, cmd, ds, pcID, base)
 	status := h.NAction(ctx, req)
@@ -148,7 +153,70 @@ func serveNActionMessage(ctx context.Context, acc *acse.Acceptor, h NActionHandl
 		Status:                    status.Code,
 		CommandDataSetType:        CommandDataSetNotPresent,
 	}
-	return sendCommand(ctx, acc.Conn(), acc.Machine(), pcID, rsp)
+	if err := sendCommand(ctx, acc.Conn(), acc.Machine(), pcID, rsp); err != nil {
+		return err
+	}
+	if reporter, ok := h.(NActionReporter); ok && status.IsSuccess() {
+		return reporter.ReportAfterAction(ctx, newNReportSender(acc, pcID, cmd.RequestedSOPClassUID, cmd.RequestedSOPInstanceUID), req)
+	}
+	return nil
+}
+
+// newNReportSender binds an NReportSender to one acceptor association, presentation context, and the
+// reference object the originating N-ACTION named (its Requested SOP Class/Instance UID become the
+// N-EVENT-REPORT's Affected pair, PS3.4 J.3.3: the report references the same well-known SOP Instance
+// the N-ACTION targeted). Each call assigns a fresh non-zero Message ID, sends the N-EVENT-REPORT-RQ
+// with the supplied event-information data set, and reads the requestor's N-EVENT-REPORT-RSP status.
+func newNReportSender(acc *acse.Acceptor, pcID uint8, affectedSOPClass, affectedSOPInstance dicom.UID) NReportSender {
+	var msgID uint16
+	return func(ctx context.Context, eventTypeID uint16, ds *dicom.DataSet) (Status, error) {
+		msgID++
+		if msgID == 0 {
+			msgID = 1
+		}
+		rq := CommandSet{
+			CommandField:           CommandNEventReportRQ,
+			MessageID:              msgID,
+			AffectedSOPClassUID:    affectedSOPClass,
+			AffectedSOPInstanceUID: affectedSOPInstance,
+			HasEventTypeID:         true,
+			EventTypeID:            eventTypeID,
+			CommandDataSetType:     CommandDataSetNotPresent,
+		}
+		conn := acc.Conn()
+		machine := acc.Machine()
+		ts, err := acceptedTransferSyntaxResolver(acc)(pcID)
+		if err != nil {
+			return Status{}, err
+		}
+		if ds != nil {
+			rq.CommandDataSetType = CommandDataSetPresent
+			sendCap := MaxPDULength(acc.PeerMaxPDULength()).SendCap(defaultMaxPDULength)
+			if serr := sendMessage(ctx, conn, machine, pcID, rq, ds, ts, sendCap); serr != nil {
+				return Status{}, serr
+			}
+		} else if serr := sendCommand(ctx, conn, machine, pcID, rq); serr != nil {
+			return Status{}, serr
+		}
+
+		reply, _, _, rerr := receiveMessage(ctx, conn, machine, newMessageReassembler(ts))
+		if rerr != nil {
+			return Status{}, rerr
+		}
+		if reply.CommandField != CommandNEventReportRSP {
+			return Status{}, &ProtocolError{
+				State:  machine.CurrentState(),
+				Detail: "expected an N-EVENT-REPORT-RSP for the Storage Commitment report",
+			}
+		}
+		if !reply.HasStatus {
+			return Status{}, &ProtocolError{
+				State:  machine.CurrentState(),
+				Detail: "N-EVENT-REPORT-RSP missing the mandatory Status element",
+			}
+		}
+		return NewStatus(reply.Status, ServiceClassStorageCommitment), nil
+	}
 }
 
 // serveNEventReportMessage dispatches an already-read N-EVENT-REPORT-RQ to the NEventReportHandler
