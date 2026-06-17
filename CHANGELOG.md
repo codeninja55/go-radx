@@ -12,6 +12,25 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- DICOMweb `application/dicom+xml` metadata: the PS3.19 Native DICOM Model as the XML twin of the existing
+  DICOM-JSON codec (`dicomweb/xml.go` `MarshalXML`/`UnmarshalXML`). The model serialises a dataset to the
+  `<NativeDicomModel><DicomAttribute tag= vr= keyword=>` form with positional `Value`/`PersonName`/`Item`
+  children and `InlineBinary`/`BulkData` references, and decodes it back to a value-equal dataset; it reuses
+  the same dataset model, bulk-data locators, depth cap, and fail-closed value checks as the JSON codec, so
+  the XML and JSON forms of one dataset carry identical content (PS3.18 §F, PS3.19 §A.1). WADO-RS metadata
+  retrieval now content-negotiates the serialization: `Accept: application/dicom+xml` (or its
+  `multipart/related` wrapper) returns a `multipart/related` body of Native DICOM Model parts, while an empty
+  `Accept`, a wildcard, or `application/dicom+json` returns the JSON array unchanged. The client gains
+  `RetrieveMetadataXML` alongside `RetrieveMetadata` (PS3.18 §8.7.3, §10.4.1.1.5).
+- DICOMweb WADO-URI legacy URI service (PS3.18 §9): client and embeddable-server support for single-instance
+  retrieval through the `?requestType=WADO&studyUID=&seriesUID=&objectUID=&contentType=` query form. The
+  server recognises a `GET` carrying `requestType=WADO` and serves the identified object as the raw Part 10
+  `application/dicom` response body (`dicomweb/wadouri.go` `handleWADOURI`); the client exposes
+  `WADORetrieveInstance` and `WADORetrieveInstanceObject` (`dicomweb/wadouri_client.go`). Query parameters are
+  validated fail-closed — a missing or malformed required parameter is `400`, an absent object is `404`, and a
+  rendered consumer-format `contentType` (`image/*` and the other §9.5 media types) is answered `406` because
+  rendering is out of scope. Only `contentType=application/dicom` is served.
+
 - DIMSE-N N-GET and N-DELETE primitives and a DIMSE-N SCP dispatch substrate (pynetdicom `send_n_get`/
   `send_n_delete` and `evt.EVT_N_*` parity, PS3.7 §10.1.2 / §10.1.6). `(*dimse.Association).NGet` reads
   attributes of a managed SOP Instance, naming the wanted attributes through the Attribute Identifier List
