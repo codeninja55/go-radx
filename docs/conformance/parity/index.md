@@ -6,21 +6,23 @@ verified against go-radx source and tests (file:symbol evidence). The matrices a
 for the parity build-out: every PARTIAL and NOT-MET row is a tracked task, and a row flips to MET only in the
 same PR that ships the feature (lockstep with the conformance statements).
 
-Audited 2026-06-10 against main @ fdf7b54; aggregate re-verified 2026-06-14 against main @ f518b29 after
-wave 0 (PRs #119-#122). Statuses: MET (implemented and tested), PARTIAL (usable subset), NOT-MET (absent),
-N-A (no sensible Go equivalent). Sizes: S (under 1 day), M (1-3 days), L (over 3 days).
+Audited 2026-06-10 against main @ fdf7b54; aggregate re-tallied against main @ 9fa06ee after waves 0-3
+(PRs #119-#123 plus the data-layer, DIMSE-N, and FHIR-write increments). Each subsystem row is the actual
+count of status rows in that matrix, reconciled against the matrix's own summary. Statuses: MET (implemented
+and tested), PARTIAL (usable subset), NOT-MET (absent), N-A (no sensible Go equivalent). Sizes: S (under 1
+day), M (1-3 days), L (over 3 days).
 
 ## Aggregate results
 
 | Subsystem | Reference(s) | Matrix | Rows | MET | PARTIAL | NOT-MET | N-A |
 |---|---|---|---|---|---|---|---|
-| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 56 | 9 | 17 | 6 |
-| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 60 | 9 | 23 | 1 |
-| HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 26 | 5 | 0 | 1 |
-| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 50 | 8 | 35 | 5 |
+| DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 66 | 9 | 7 | 6 |
+| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 63 | 9 | 20 | 1 |
+| HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 27 | 4 | 0 | 1 |
+| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 54 | 8 | 31 | 5 |
 | DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 43 | 3 | 27 | 2 |
 | radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 8 | 11 | 9 | 0 |
-| Total | | | 414 | 243 | 45 | 111 | 15 |
+| Total | | | 414 | 261 | 44 | 94 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in
@@ -29,11 +31,21 @@ The HL7 matrix additionally carries a clearly-labelled stretch section against t
 ## Reading the results
 
 The python-hl7 floor is effectively met (zero NOT-MET). The DIMSE association plane and DIMSE-C services are
-at full pynetdicom parity; gaps concentrate in DIMSE-N SCP sides and UPS. FHIR models and the REST client are
-near parity; roughly two thirds of FHIR gaps sit in the server role's write side. The DICOM data layer's
-former headline finding - `dicom.Read` rejecting every encapsulated transfer syntax - is resolved: compressed
-Part 10 files read with the dataset retained, write back byte-identically, and transcode at the dataset level,
-which also unblocked `radx dump`, `radx modify` and `radx store --transcode-to` on compressed files.
+at full pynetdicom parity, and the DIMSE-N foundation now lands: the N-GET and N-DELETE primitives ship as
+both SCU and SCP, and the `Server` routes all six DIMSE-N command fields to interface-segregated N-handler
+hooks. The remaining DIMSE gaps are the application logic over those hooks - the MPPS SCP, the Storage
+Commitment SCP, and UPS. FHIR models and the REST client are near parity, and the server's write side is now
+whole: update, patch, and delete with their conditional forms join the wave-0 vread/history/`$validate`/`radx
+serve fhir` work. The remaining FHIR gaps are server search depth, batch at the base endpoint, the operations
+framework, and the R4B/STU3 release breadth.
+
+The DICOM data layer is now substantially complete. The former headline finding - `dicom.Read` rejecting
+every encapsulated transfer syntax - is resolved: compressed Part 10 files read with the dataset retained,
+write back byte-identically, and transcode at the dataset level, which also unblocked `radx dump`, `radx
+modify`, and `radx store --transcode-to` on compressed files. Modality/VOI LUT and windowing, palette colour
+expansion and colour-space conversion, overlay and waveform extraction, the wide charset table (Korean,
+Simplified Chinese, Thai, bare ISO_IR 13), and the private-block API with creator-dictionary lookup are all
+MET. The one remaining DICOM PARTIAL of note is private-creator dictionary vendor breadth.
 
 ## Wave plan
 

@@ -158,6 +158,18 @@ legacy codebase (`legacy-main`) and are not continued here.
   attributes are rejected rather than truncated into wrong frame geometry, and received DICOM files are
   written 0600 (#117).
 
+### Documentation
+
+- Refreshed the reference-library parity backlog (`docs/conformance/parity/`) to current `main`. Re-tallied
+  every subsystem matrix from its actual status rows and reconciled each matrix summary and the `index.md`
+  aggregate to that tally; the new aggregate is 414 rows / 261 MET / 44 PARTIAL / 94 NOT-MET / 15 N-A.
+  Corrected the `index.md` DICOM (now 66 MET / 7 NOT-MET), DIMSE (63 / 20), HL7 floor (27 MET / 4 PARTIAL),
+  and FHIR (54 MET / 8 PARTIAL) rows that had drifted from their matrices, and fixed the stale `hl7v2.md`
+  (26/5 → 27/4) and `fhir.md` (53/9 → 54/8) summary counts. Updated the "reading the results" prose and the
+  wave plan to mark waves 0-3 done or partly done (DICOM data-layer LUT/colour-space/overlays/charsets/
+  private-blocks, DIMSE-N N-GET/N-DELETE + dispatch, FHIR update/patch/delete) while keeping the remaining
+  work listed.
+
 ### Fixed
 
 - DICOM Implicit VR LE decode of the ambiguous dictionary placeholder VRs no longer corrupts binary value

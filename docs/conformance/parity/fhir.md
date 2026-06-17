@@ -9,9 +9,9 @@ effort for non-MET rows. Evidence is `file:symbol` in this repository; tests cou
 
 ## Summary
 
-Across the four sections: **53 MET, 9 PARTIAL, 31 NOT-MET, 5 N-A** (98 rows).
+Across the four sections: **54 MET, 8 PARTIAL, 31 NOT-MET, 5 N-A** (98 rows).
 Section split (MET/PARTIAL/NOT-MET/N-A): models 7/0/2/2, primitives-validation 11/2/6/2, REST client
-20/3/13/1, server role 15/4/10/0. The model and client layers are near parity; the server role's read-
+21/2/13/1, server role 15/4/10/0. The model and client layers are near parity; the server role's read-
 and write-sides are now both whole: versioning, vread, instance history, ETag/Last-Modified/If-Match,
 server-side `$validate`, the `radx serve fhir` daemon (wave 0), and update/patch/delete with their
 conditional forms (see the flipped rows below).
