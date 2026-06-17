@@ -19,11 +19,11 @@ func IsHL7(b []byte) bool {
 	if trimmed[0] != 'M' || trimmed[1] != 'S' || trimmed[2] != 'H' {
 		return false
 	}
-	sep := trimmed[3]
-	// A "\rMSH<sep>" run anywhere is a second message header, so the body is a
-	// batch rather than a lone message. The leading MSH itself is not preceded by
-	// a CR, so it never matches.
-	return !bytes.Contains(b, []byte{'\r', 'M', 'S', 'H', sep})
+	// A second MSH-led segment anywhere makes the body a header-less batch rather
+	// than a lone message. The count uses the parser's own line splitter, so it
+	// recognises \r, \n, and \r\n segment boundaries — a \n-only or \r\n-only
+	// batch that Parse would flatten is not misreported as a single message.
+	return countMSHSegments(b) <= 1
 }
 
 // IsBatch reports whether b looks like an HL7 batch: it begins (after leading
@@ -90,25 +90,28 @@ func SplitFile(b []byte) [][]byte {
 		if len(line) == 0 && term == "" {
 			break
 		}
-		trimmed := bytes.TrimSpace(line)
-		if len(trimmed) == 0 {
+		// Skip a truly blank line (empty or whitespace-only) without ever mutating
+		// the bytes of a real segment: HL7 fields are whitespace-significant, so a
+		// trailing space or tab inside a value must survive SplitFile byte-for-byte
+		// (matching python-hl7, which only splits and re-joins, never trims content).
+		if len(bytes.TrimSpace(line)) == 0 {
 			continue
 		}
-		switch segmentID(trimmed) {
+		switch segmentID(line) {
 		case "FHS", "BHS", "FTS", "BTS":
 			continue
 		case "MSH":
 			if current != nil {
 				messages = append(messages, current)
 			}
-			current = append([]byte(nil), trimmed...)
+			current = append([]byte(nil), line...)
 			current = append(current, '\r')
 		default:
 			if current == nil {
 				// A segment before the first MSH has no message to attach to.
 				continue
 			}
-			current = append(current, trimmed...)
+			current = append(current, line...)
 			current = append(current, '\r')
 		}
 	}

@@ -144,6 +144,65 @@ func TestSplitFileNoMSH(t *testing.T) {
 	}
 }
 
+func TestSplitFilePreservesTrailingWhitespace(t *testing.T) {
+	// HL7 leaf values are whitespace-significant: an OBX value with intentional
+	// trailing spaces must survive SplitFile byte-for-byte. SplitFile must only
+	// drop blank lines and framing, never trim the content of a real segment.
+	const obxValue = "value with trailing spaces  "
+	in := "MSH|^~\\&|SEND|FAC|RECV|FAC|20240101||ORU^R01|WS1|P|2.5.1\r" +
+		"OBX|1|ST|CODE^Name||" + obxValue + "\r"
+	got := SplitFile([]byte(in))
+	if len(got) != 1 {
+		t.Fatalf("SplitFile yielded %d, want 1", len(got))
+	}
+	// The message must round-trip byte-for-byte through SplitFile (the input is a
+	// single \r-terminated message, so the one returned element equals the input).
+	if !bytes.Equal(got[0], []byte(in)) {
+		t.Fatalf("SplitFile mutated segment bytes:\n got = %q\nwant = %q", got[0], in)
+	}
+	// And the trailing spaces survive parsing into the OBX-5 value.
+	m, err := Parse(got[0])
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+	if v, _ := m.Get("OBX-5"); v != obxValue {
+		t.Errorf("OBX-5 = %q, want %q (trailing whitespace lost)", v, obxValue)
+	}
+}
+
+func TestSniffHeaderlessBatchLFAndCRLF(t *testing.T) {
+	// A header-less batch terminated only with \n (and one with \r\n) must be
+	// recognised as a batch, not misreported as a single message: Parse/SplitFile
+	// accept \n and \r\n, so IsHL7's second-MSH check must use the same terminator
+	// handling. Otherwise a caller routing on IsHL7 would call Parse and flatten
+	// multiple messages into one.
+	lf := "MSH|^~\\&|SEND|FAC|RECV|FAC|20240101||ADT^A01|LF1|P|2.5.1\n" +
+		"PID|1||PIDLF1\n" +
+		"MSH|^~\\&|SEND|FAC|RECV|FAC|20240101||ADT^A02|LF2|P|2.5.1\n" +
+		"PID|1||PIDLF2\n"
+	crlf := "MSH|^~\\&|SEND|FAC|RECV|FAC|20240101||ADT^A01|CRLF1|P|2.5.1\r\n" +
+		"PID|1||PIDCRLF1\r\n" +
+		"MSH|^~\\&|SEND|FAC|RECV|FAC|20240101||ADT^A02|CRLF2|P|2.5.1\r\n" +
+		"PID|1||PIDCRLF2\r\n"
+
+	for _, tc := range []struct {
+		name string
+		in   string
+	}{{"lf", lf}, {"crlf", crlf}} {
+		t.Run(tc.name, func(t *testing.T) {
+			if IsHL7([]byte(tc.in)) {
+				t.Errorf("IsHL7 = true for a 2-message %s batch, want false", tc.name)
+			}
+			if !IsBatch([]byte(tc.in)) {
+				t.Errorf("IsBatch = false for a 2-message %s batch, want true", tc.name)
+			}
+			if got := SplitFile([]byte(tc.in)); len(got) != 2 {
+				t.Errorf("SplitFile yielded %d, want 2", len(got))
+			}
+		})
+	}
+}
+
 func TestSplitFileNormalisesTerminators(t *testing.T) {
 	// Input uses \n and \r\n; output must normalise to \r, matching python-hl7.
 	in := "MSH|^~\\&|SEND|FAC|RECV|FAC|20240101||ADT^A01|MSGN1|P|2.5.1\nPID|1||PIDN1\r\n"
