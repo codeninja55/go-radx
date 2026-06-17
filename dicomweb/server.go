@@ -138,6 +138,8 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	segs := splitPath(r.URL.Path)
 
 	switch {
+	case r.Method == http.MethodOptions && len(segs) == 0:
+		s.handleCapabilities(w, r)
 	case r.Method == http.MethodGet && isWADOURI(r):
 		s.handleWADOURI(w, r)
 	case r.Method == http.MethodPost && isStudiesStore(segs):
@@ -160,6 +162,24 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported,
 			"the requested DICOMweb service is not implemented")
 	}
+}
+
+// handleCapabilities answers a Retrieve Capabilities request (PS3.18 §8.9): an OPTIONS on the
+// service base URI. It returns the go-radx capabilities document — a pragmatic JSON summary of
+// the services and transactions this origin wires, driven by the registered backends — with an
+// Allow header naming the methods the service accepts. The document carries only path templates
+// (no concrete UIDs), so it is PHI-free (PRD §9.1).
+func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
+	caps := s.buildCapabilities()
+	out, err := json.Marshal(caps)
+	if err != nil {
+		s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot encode the capabilities document")
+		return
+	}
+	w.Header().Set("Content-Type", CapabilitiesMediaType)
+	w.Header().Set("Allow", "GET, POST, OPTIONS")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(out) // #nosec G705 -- Content-Type is application/json (set above), not an HTML sink
 }
 
 // splitPath splits a cleaned URL path into its non-empty segments.
