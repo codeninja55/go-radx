@@ -30,6 +30,40 @@ legacy codebase (`legacy-main`) and are not continued here.
   completed round trip, the invalid-transition rejection, and the Storage Commitment success and
   partial-failure reports. Patient/procedure-step attributes carried in the N-CREATE/N-SET/N-ACTION data
   sets are never logged (PRD §9.1).
+- FHIR server-role search depth: `Bundle.link` paging, `_include`/`_revinclude`, and one-hop chained
+  parameters on `search-type` (`server/fhir_search.go`, `server/fhir_search_params.go`). Searchset
+  Bundles now carry `self`/`next`/`prev` links over a `_count` page size and an `_offset` cursor the
+  `next` link round-trips (`_count` defaults to 50, clamped to 200; `total` reports the full match
+  count across pages; the last page carries no `next` link), matching FHIR R5 `http.html#paging`.
+  `_include`/`_revinclude` resolve one level deep into `entry.search.mode=include` entries (matches
+  excluded, duplicates dropped), and a one-hop chained parameter
+  (`Observation?subject:Patient.name=...` or the typeless `subject.name=...`) resolves against the
+  configured `Repository` through a JSON-path `SearchParameter` registry covering the workflow
+  references (FHIR R5 `search.html`). The base matching stays the `Repository`'s — the in-memory
+  default now also matches reference parameters (`Observation?subject=Patient/1`), a production
+  `Repository` matches any parameter. `:iterate` recursive include, `_has` reverse chaining, and
+  multi-hop chains are out of scope and ignored, not errors. Error responses remain PHI-free
+  `OperationOutcome`s and the search log line names the interaction and type only, never the query
+  string. Exercised for R4 and R5 (`server/fhir_search_test.go`).
+- DICOMweb `application/dicom+xml` metadata: the PS3.19 Native DICOM Model as the XML twin of the existing
+  DICOM-JSON codec (`dicomweb/xml.go` `MarshalXML`/`UnmarshalXML`). The model serialises a dataset to the
+  `<NativeDicomModel><DicomAttribute tag= vr= keyword=>` form with positional `Value`/`PersonName`/`Item`
+  children and `InlineBinary`/`BulkData` references, and decodes it back to a value-equal dataset; it reuses
+  the same dataset model, bulk-data locators, depth cap, and fail-closed value checks as the JSON codec, so
+  the XML and JSON forms of one dataset carry identical content (PS3.18 §F, PS3.19 §A.1). WADO-RS metadata
+  retrieval now content-negotiates the serialization: `Accept: application/dicom+xml` (or its
+  `multipart/related` wrapper) returns a `multipart/related` body of Native DICOM Model parts, while an empty
+  `Accept`, a wildcard, or `application/dicom+json` returns the JSON array unchanged. The client gains
+  `RetrieveMetadataXML` alongside `RetrieveMetadata` (PS3.18 §8.7.3, §10.4.1.1.5).
+- DICOMweb WADO-URI legacy URI service (PS3.18 §9): client and embeddable-server support for single-instance
+  retrieval through the `?requestType=WADO&studyUID=&seriesUID=&objectUID=&contentType=` query form. The
+  server recognises a `GET` carrying `requestType=WADO` and serves the identified object as the raw Part 10
+  `application/dicom` response body (`dicomweb/wadouri.go` `handleWADOURI`); the client exposes
+  `WADORetrieveInstance` and `WADORetrieveInstanceObject` (`dicomweb/wadouri_client.go`). Query parameters are
+  validated fail-closed — a missing or malformed required parameter is `400`, an absent object is `404`, and a
+  rendered consumer-format `contentType` (`image/*` and the other §9.5 media types) is answered `406` because
+  rendering is out of scope. Only `contentType=application/dicom` is served.
+
 - DIMSE-N N-GET and N-DELETE primitives and a DIMSE-N SCP dispatch substrate (pynetdicom `send_n_get`/
   `send_n_delete` and `evt.EVT_N_*` parity, PS3.7 §10.1.2 / §10.1.6). `(*dimse.Association).NGet` reads
   attributes of a managed SOP Instance, naming the wanted attributes through the Attribute Identifier List

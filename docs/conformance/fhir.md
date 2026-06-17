@@ -131,6 +131,16 @@ interaction-shaped, so update/patch/delete extend it by appending versions. Deep
 server's `SearchParameter` definitions and every `_include`/`_revinclude` form are the server's concern; the client
 transmits whatever chained or include parameter the caller supplies rather than validating the chain itself.
 
+The server role's `search-type` now carries the result surface beyond a bare match list. It pages with `Bundle.link`
+(`self`/`next`/`prev`) over a `_count` page size and an `_offset` cursor the `next` link round-trips (`_count` defaults
+to 50 and is clamped to 200); `total` reports the full match count across pages. `_include` and `_revinclude` resolve
+one level deep into `entry.search.mode=include` entries (the matches themselves excluded, duplicates dropped), and a
+one-hop chained parameter (`Observation?subject:Patient.name=...` or the typeless `subject.name=...`) resolves against
+the configured `Repository` through a JSON-path `SearchParameter` registry covering the workflow references. The base
+matching is the `Repository`'s — the in-memory default matches `_id` and reference parameters, a production
+`Repository` matches any parameter. Out of scope and ignored (not errors): `:iterate` recursive include, `_has` reverse
+chaining, and multi-hop chains.
+
 ### Out of scope / deferred (v1)
 
 These are architected-for but not implemented in v1 (PRD §3.2, §5.3). They are listed here so the boundary is explicit

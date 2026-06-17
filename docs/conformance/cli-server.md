@@ -91,7 +91,8 @@ never sent cross-origin, mirroring the DICOMweb client's auth seam. **SMART on F
 is supplied through the bearer/round-tripper seam, but the SMART authorization flow itself is not implemented.
 
 The **server role** (`server.NewFHIRRole`, mounted with `server.WithFHIR`) serves the conformance subset over a
-pluggable `server.Repository`: `read`, `vread`, `history-instance`, `create`, `search-type`, `transaction`, and the
+pluggable `server.Repository`: `read`, `vread`, `history-instance`, `create`, `search-type` (with `Bundle.link`
+paging, `_include`/`_revinclude`, and one-hop chaining), `transaction`, and the
 `$validate` operation over the workflow resource set (`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`,
 `DiagnosticReport`, `Observation`), as `application/fhir+json`. The repository versions every create
 (`meta.versionId`/`meta.lastUpdated`); read, vread, and create responses carry `ETag: W/"versionId"` and
@@ -129,7 +130,19 @@ criteria. A conditional create (FHIR R5 `http.html` conditional create) fails cl
 `If-None-Exist` — on the direct POST or as a transaction entry's `request.ifNoneExist` — is rejected `400` with a
 `not-supported` `OperationOutcome` and persists nothing, never silently ignored into a duplicate; the matching
 semantics are deferred to the search work. The version store is interaction-shaped (one record per version, newest
-first): update, patch, and delete extend it by appending versions rather than reshaping it. The release is
+first): update, patch, and delete extend it by appending versions rather than reshaping it.
+
+`search-type` carries the FHIR result surface beyond a bare match list. It pages with `Bundle.link` (`self`/`next`/
+`prev`) over a `_count` page size and an `_offset` cursor the `next` link round-trips: `_count` defaults to 50 and is
+clamped to 200, `total` reports the full match count across pages (not the page size), the last page carries no `next`
+link, and the client only follows the link the server emits (the cursor is opaque). `_include` and `_revinclude`
+resolve one level deep into `entry.search.mode=include` entries (the matches themselves excluded, duplicates dropped),
+and a one-hop chained parameter (`Observation?subject:Patient.name=...` or the typeless `subject.name=...`) resolves
+against the configured `Repository` through a JSON-path `SearchParameter` registry covering the workflow references.
+The base matching is the `Repository`'s — the in-memory default matches `_id` and reference parameters
+(`Observation?subject=Patient/1`), a production `Repository` matches any parameter. `:iterate` recursive include,
+`_has` reverse chaining, and multi-hop chains are out of scope and ignored (a malformed or out-of-scope spec is
+dropped, not an error). The release is
 fixed with `WithFHIRRelease` (default R5); to serve both releases from one process, mount two roles on different base
 paths (for example `/fhir/r4` and `/fhir/r5`). A default in-memory `server.MemoryRepository` makes the role runnable
 out of the box; a production deployment supplies its own `Repository`. The role plugs into the `Daemon` exactly like

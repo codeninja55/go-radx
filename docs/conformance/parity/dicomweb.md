@@ -12,25 +12,27 @@ NOT-MET (absent), N-A (not applicable). Size estimates for non-MET rows: S (days
 
 ## Summary
 
-Across 75 rows: 43 MET, 3 PARTIAL, 27 NOT-MET, 2 N-A.
+Across 75 rows: 44 MET, 6 PARTIAL, 23 NOT-MET, 2 N-A.
 
 The shipped core — QIDO-RS search (all six resource paths, full PS3.4 matching semantics), WADO-RS retrieval
 (study/series/instance/metadata/frames/bulkdata), and STOW-RS storage (both body variants server-side) — is at
 or above dicomweb-client parity on the transactions it implements, with stronger PHI hygiene, origin-scoped
-credentials, and an AWS SigV4 adapter dicomweb-client lacks. The gaps are whole PS3.18 services and the
-rendered/consumer-format surface:
+credentials, and an AWS SigV4 adapter dicomweb-client lacks. The `application/dicom+xml` Native DICOM Model metadata
+media type (client and server) and the WADO-URI legacy URI service (`application/dicom` retrieve) now ship; their
+remaining edges (STOW XML bodies, WADO-URI rendered formats) are folded into the gap list below. The gaps are whole
+PS3.18 services and the rendered/consumer-format surface:
 
 1. UPS-RS Worklist Service, all 11 transactions, client and server (PS3.18 §11) — L
-2. Rendered resources (instance/series/frames `/rendered`, server-side rendering to JPEG/PNG) — L
+2. Rendered resources (instance/series/frames `/rendered`, server-side rendering to JPEG/PNG; WADO-URI rendered
+   `contentType`s, §9.5) — L
 3. Server-side transcoding: the negotiation seam exists but no pixel-data transcoders ship — L
 4. Non-Patient Instance Service (PS3.18 §12) — L
 5. Notifications / WebSocket event channel (PS3.18 §8.10) — L
 6. Thumbnail resources (`/thumbnail` at every level) — M
 7. Pixel data resources of Table 10.1-1 — M
-8. `application/dicom+xml` media type, responses and STOW bodies (answered 406 today) — M
-9. WADO-URI legacy URI service (PS3.18 §9) — M
-10. Capabilities discovery (`OPTIONS /`, PS3.18 §8.9) — M
-11. STOW-RS metadata + bulkdata variant on the client (server accepts it; client posts whole objects) — M
+8. `application/dicom+xml` STOW-RS store bodies (metadata retrieval ships; STOW XML body still unparsed) — M
+9. Capabilities discovery (`OPTIONS /`, PS3.18 §8.9) — M
+10. STOW-RS metadata + bulkdata variant on the client (server accepts it; client posts whole objects) — M
 
 ## dicomweb-client parity (client-side)
 
@@ -51,7 +53,7 @@ Reference: dicomweb-client package API (readthedocs, fetched 2026-06-10). Rows c
 | `retrieve_study` / `iter_study` | WADO-RS study retrieve | MET | `client_retrieve.go:22` `RetrieveStudy` (iterator); `:64` `RetrieveStudyObjects` (byte-preserving) | - | Iterator-first design covers both Python forms |
 | `retrieve_series` / `iter_series` | WADO-RS series retrieve | MET | `client_retrieve.go:29` `RetrieveSeries`; `:71` `RetrieveSeriesObjects` | - | |
 | `retrieve_instance` | WADO-RS instance retrieve | MET | `dicomweb/client.go:327` `RetrieveInstance`; `:342` `RetrieveInstanceObject` | - | Object form preserves origin transfer syntax byte-for-byte |
-| `retrieve_study/series/instance_metadata` | WADO-RS metadata | MET | `client_retrieve.go:156` `RetrieveMetadata(ResourcePath)` covers all three levels | - | `application/dicom+json` only |
+| `retrieve_study/series/instance_metadata` | WADO-RS metadata | MET | `client_retrieve.go:156` `RetrieveMetadata` (JSON, all three levels); `RetrieveMetadataXML` (Native DICOM Model) | - | Both `application/dicom+json` and `application/dicom+xml` |
 | `retrieve_instance_frames` / `iter_instance_frames` | WADO-RS frames | MET | `client_retrieve.go:186` `RetrieveFrames` (1-based) | - | `application/octet-stream` parts only |
 | Per-call `media_types` (incl. transfer-syntax UID pairs) | retrieve method params | PARTIAL | client-level `WithTransferSyntaxes` (`client.go:78`) drives the Accept header | M | No per-call media type; no consumer-format (image/jpeg) Accept |
 | `retrieve_bulkdata` (by URL) | WADO-RS bulkdata | MET | `client_retrieve.go:196` `RetrieveBulkData`; `:222` `ResolveBulkDataURI`; `bulkdata.go` `BulkDataURIs` | - | Origin-scoped: foreign-host URIs blocked unless allowlisted (`client.go:98,108`) |
@@ -85,7 +87,7 @@ metadata, bulkdata, pixel data, rendered, thumbnail variants), §11 (Worklist Se
 | Retrieve study | §10.4, `/studies/{s}` | MET | `client_retrieve.go:22` | - | Streaming multipart of `application/dicom` |
 | Retrieve series | §10.4 | MET | `client_retrieve.go:29` | - | |
 | Retrieve instance | §10.4 | MET | `client.go:327` | - | |
-| Retrieve metadata (study/series/instance) | §10.4, `.../metadata` | MET | `client_retrieve.go:156` | - | JSON only; no `application/dicom+xml` Accept |
+| Retrieve metadata (study/series/instance) | §10.4, `.../metadata` | MET | `client_retrieve.go:156` (JSON), `RetrieveMetadataXML` (XML) | - | Both `application/dicom+json` and `application/dicom+xml` Accept |
 | Retrieve frames | §10.4, `.../frames/{list}` | MET | `client_retrieve.go:186` | - | Octet-stream parts; no consumer media types |
 | Retrieve bulkdata | §10.4, `.../bulkdata` | MET | `client_retrieve.go:196,222` | - | No Range requests |
 | Retrieve pixel data resources | Table 10.1-1 pixel data | NOT-MET | none (`pixeldata` appears only in path redaction, `client.go:510`) | M | |
@@ -94,8 +96,8 @@ metadata, bulkdata, pixel data, rendered, thumbnail variants), §11 (Worklist Se
 | Store instances (`POST /studies[/{s}]`) | §10.5 | MET | `client.go:241,251`; status mapping per §10.5.3 (`client.go:295`) | - | |
 | Store metadata + bulkdata variant (client body) | §10.5 | NOT-MET | client encodes whole objects only (`client.go:270`) | M | Server side accepts both variants |
 | Transfer-syntax negotiation in Accept | §8.7.3.5.2 | MET | `client.go:78` `WithTransferSyntaxes` -> `acceptInstances` (`client_retrieve.go:104`) | - | |
-| `application/dicom+xml` media type | §8.7.3 / Annex A | NOT-MET | deferred (`negotiation.go:267`) | M | Deliberate; recorded in conformance out-of-scope |
-| URI Service (WADO-URI) retrieve | §9, `?requestType=WADO` | NOT-MET | none | M | Legacy; superseded by WADO-RS for in-scope workflows |
+| `application/dicom+xml` media type | §8.7.3 / Annex A | MET | `xml.go` `MarshalXML`/`UnmarshalXML` (PS3.19 Native DICOM Model); metadata negotiation `negotiation.go` `negotiateMetadataFormat`; client `RetrieveMetadataXML` | - | Metadata retrieval, client and server; STOW XML body still deferred |
+| URI Service (WADO-URI) retrieve | §9, `?requestType=WADO` | PARTIAL | `wadouri_client.go` `WADORetrieveInstance`/`WADORetrieveInstanceObject` | - | `contentType=application/dicom` single-instance retrieve; rendered `image/*` out of scope (§9.5) |
 | Worklist Service (UPS-RS), all transactions | §11 | NOT-MET | none | L | DIMSE Modality Worklist is the worklist surface today |
 | Notifications (WebSocket event channel) | §8.10 / §11 | NOT-MET | none | L | Depends on UPS-RS |
 | Non-Patient Instance Service | §12 | NOT-MET | none | L | Hanging protocols, color palettes, implant templates |
@@ -126,8 +128,8 @@ they differ, status reflects the library and the daemon gap is noted.
 | Store response document (Referenced/Failed SOP seq, Retrieve URLs, 200/202/409) | §10.5.3 | MET | `dicomweb/store_response.go`; `server.go:471`; `WithStoreRetrieveURLBase` (`server.go:100`) | - | Warning Reason via `WarnableStoreBackend` |
 | Failure/Warning reason codes | §10.5.3.1 | MET | code table in `store_response.go` / `store.go`; `FailureReasonError` | - | Unregistered codes rendered as hex, never dropped |
 | Rendered / thumbnail / pixel data resources | §10.4, Table 10.1-1 | NOT-MET | none | L | |
-| `application/dicom+xml` (responses, STOW bodies) | Annex A | NOT-MET | gated 406 / unparsed (`negotiation.go:75,267`, `server.go:327`) | M | |
-| URI Service (WADO-URI) | §9 | NOT-MET | none | M | |
+| `application/dicom+xml` (responses, STOW bodies) | Annex A | PARTIAL | metadata responses MET (`retrieve.go` `writeMetadataXML`, `xml.go`); STOW XML body still unparsed (`server.go:327`) | M | Native DICOM Model metadata served; STOW `type="application/dicom+xml"` body deferred |
+| URI Service (WADO-URI) | §9 | PARTIAL | `wadouri.go` `handleWADOURI` (`?requestType=WADO`, `contentType=application/dicom`) | - | Single-instance `application/dicom` retrieve; rendered `contentType` answered 406 (§9.5 out of scope) |
 | Worklist Service (UPS-RS) | §11 | NOT-MET | none | L | |
 | Notifications (WebSocket) | §8.10 | NOT-MET | none | L | |
 | Non-Patient Instance Service | §12 | NOT-MET | none | L | |
