@@ -9,12 +9,13 @@ effort for non-MET rows. Evidence is `file:symbol` in this repository; tests cou
 
 ## Summary
 
-Across the four sections: **54 MET, 8 PARTIAL, 31 NOT-MET, 5 N-A** (98 rows).
+Across the four sections: **56 MET, 8 PARTIAL, 29 NOT-MET, 5 N-A** (98 rows).
 Section split (MET/PARTIAL/NOT-MET/N-A): models 7/0/2/2, primitives-validation 11/2/6/2, REST client
-21/2/13/1, server role 15/4/10/0. The model and client layers are near parity; the server role's read-
+21/2/13/1, server role 17/4/8/0. The model and client layers are near parity; the server role's read-
 and write-sides are now both whole: versioning, vread, instance history, ETag/Last-Modified/If-Match,
-server-side `$validate`, the `radx serve fhir` daemon (wave 0), and update/patch/delete with their
-conditional forms (see the flipped rows below).
+server-side `$validate`, the `radx serve fhir` daemon (wave 0), update/patch/delete with their
+conditional forms, and search depth — `Bundle.link` paging, `_include`/`_revinclude`, and one-hop
+chaining (see the flipped rows below).
 
 Top gaps, largest first:
 
@@ -29,8 +30,10 @@ Top gaps, largest first:
    invocation API and `$everything` is absent on both sides. HAPI treats this as core surface.
 5. **Batch at the system endpoint** (M) — the server explicitly rejects a `batch` Bundle; only `transaction`
    is processed (`server/fhir_handlers.go:handleTransaction`). The client sends both.
-6. **Search depth on the server** (M) — the handler forwards raw params, but the shipped `MemoryRepository`
-   matches `_id` only and ignores `_count`/`_sort`/`_include`; no paging links are emitted.
+6. **Search shaping on the server** (S) — `_summary`/`_elements` response shaping is still absent
+   server-side (the `fhir.MarshalSummary` machinery exists but is unwired); `_sort` is left to the
+   Repository. Paging (`Bundle.link`), `_include`/`_revinclude`, and one-hop chaining now ship (flipped
+   below); `:iterate`, `_has`, and multi-hop chains remain out of scope.
 7. **Nested-backbone validation** (M) — `fhir.Validate` covers top-level required/choice/binding only.
 8. **Primitive lexical validation** (M) — date/dateTime/time calendar and offset rules deferred to the HL7
    validator CI gate; fhir.resources enforces them at parse time via pydantic field patterns.
@@ -154,12 +157,12 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
 | Conditional update / patch / delete | http.html#cond-update etc. | PARTIAL | `fhir_write.go:handleConditionalUpdate`/`handleConditionalPatch`/`handleConditionalDelete`; resolve `[type]?[search]` through `Repository.Search` (`resolveConditional`): the 0/1/many decision uses `Bundle.total` (`searchsetBundleTotal`), not the page's entry count, so a paged searchset with `total > len(entry)` resolves as "many" (412), never a wrong single write; 0/1/many → create-or-noop/apply/412; a zero-match conditional update or delete that carries an `If-Match` is a 412 (the precondition names a version that cannot exist against zero matches, matching the instance path), not a create / no-op (`hasIfMatch`); tests `fhir_write_test.go:TestFHIRRoleConditionalUpdate` (+ multi-match) / `TestFHIRRoleConditionalDelete` / `TestFHIRRoleConditionalPatch` / `TestFHIRRoleConditionalWriteCountsBundleTotal` / `TestFHIRRoleConditionalWriteIfMatchZeroMatch` | S | Resolution is exactly as selective as the configured Repository's search; the dev `MemoryRepository` resolves an `_id` criterion (else all-of-type), so against it a conditional write is well-defined for `_id` — a production Repository with full search resolves any criteria. Multiple-match delete is a 412 (refine), not a bulk delete |
 | create | http.html#create | MET | `fhir_handlers.go:handleCreate`; server-mints id, ignores client id (`fhir_repository.go:createLocked`); versioned `Location` `[base]/[type]/[id]/_history/[vid]` (`createdLocation`) | — | Inbound resource gated by release validator; error-severity issues → 422; client `idFromLocation` strips the `_history` suffix (`TestFHIRRoleClientCreateResolvesVersionedLocation`) |
 | Conditional create (If-None-Exist) | http.html#ccreate | NOT-MET | fails closed: `handleCreate` and `validateTransactionWrites` answer `400` not-supported `OperationOutcome`, nothing persisted (`TestFHIRRoleConditionalCreateFailsClosed`; client interop `TestFHIRRoleClientConditionalCreateSurfacesTypedError`) | S | Matching semantics deferred to the search work; the client-sent header is answered honestly now — the silent-duplicate interop sharp edge is closed |
-| search-type (GET `[type]?`) | http.html#search | PARTIAL | `fhir_handlers.go:handleSearch` forwards raw params; `MemoryRepository.Search` matches `_id` only, else all-of-type | M | Handler seam is correct; depth is the Repository's. Unrecognised params ignored, not rejected — documented |
+| search-type (GET `[type]?`) | http.html#search | MET | `fhir_search.go:handleSearch` resolves chains, pages, and expands includes over `Repository.Search`; `MemoryRepository.Search` matches `_id` and reference parameters from the registry (`referenceConstraints`), else all-of-type; tests `fhir_search_test.go:TestFHIRRoleSearchDirectReference` (R4+R5) | — | Handler seam owns paging/include/chain; base matching is the Repository's. Unrecognised params ignored, not rejected — documented |
 | Search via POST `_search` | http.html#search | NOT-MET | GET-only on the type route | S | |
 | search-system | http.html#search | NOT-MET | — | S | |
-| `_include` / `_revinclude` / chaining server-side | search.html | NOT-MET | `MemoryRepository` ignores them; no SearchParameter registry | L | Conformance statement assigns these to the server/Repository; nothing implements them yet |
+| `_include` / `_revinclude` / chaining server-side | search.html | PARTIAL | `fhir_search.go:expandIncludes` resolves one-level `_include`/`_revinclude` into `entry.search.mode=include` entries (matches excluded, deduped) and `resolveChains` resolves one-hop chained params (`subject:Patient.name=`/`subject.name=`) against the Repository via the JSON-path `searchParamRegistry` (`fhir_search_params.go`); tests `TestFHIRRoleSearchInclude` / `TestFHIRRoleSearchRevInclude` / `TestFHIRRoleSearchChained` / `TestFHIRRoleSearchIterateNotApplied` (R4+R5) | M | `:iterate` (recursive include) and `_has` (reverse chaining) and multi-hop chains are out of scope and ignored, not errors — documented. The registry covers the workflow references; a production Repository's own `SearchParameter` set resolves any parameter |
 | `_summary` / `_elements` response shaping | search.html#summary | NOT-MET | no `_summary` handling in `server/` despite `fhir.MarshalSummary` existing | S | Cheap win: the library machinery already exists |
-| Paging (Bundle.link next/prev, `_count`) | http.html#paging | NOT-MET | `MemoryRepository.Search` returns all matches, no links | M | history-instance honours `_count` as a cap (row above); link-based paging itself remains absent |
+| Paging (Bundle.link next/prev, `_count`) | http.html#paging | MET | `fhir_search.go:pageMatches`/`searchLinkURL` emit absolute `self`/`next`/`prev` Bundle.link over a `_count` page size and an `_offset` cursor the `next` link round-trips; `_count` defaults to 50 and is clamped to 200 (`clampCount`); `total` is the full match count across pages, not the page size; tests `TestFHIRRoleSearchPaging` (next round-trips, last page has no next) / `TestFHIRRoleSearchCountClampedAndZero` / `TestSearchLinkURLRoundTrips` (R4+R5) | — | Cursor is an explicit `_offset` the server emits and the client only follows (opaque-link contract); matches sorted by id (`sortResourcesByID`) so paging is stable over a map-backed store |
 | transaction (POST [base]) | http.html#transaction | MET | `fhir_handlers.go:handleTransaction`; atomic staging-copy apply under write lock (`fhir_repository.go:Transaction`); per-entry create validation (`validateTransactionWrites`); response entries carry versioned `response.location` + `response.etag` (`createdEntryResponse`) | — | Transaction entries limited to POST/GET verbs in the dev repository |
 | batch (POST [base]) | http.html#transaction (batch) | NOT-MET | explicitly rejected: "processes a transaction Bundle only" (`fhir_handlers.go` bundle-type check) | M | Batch is independent-entry semantics — simpler than the transaction already shipped |
 | Versioning / ETag / Last-Modified emission | http.html#concurrency | MET | version store in `server/fhir_repository.go` (every create stamps `meta.versionId`/`meta.lastUpdated`); `fhir_handlers.go:setVersionHeaders` (ETag `W/"versionId"` + Last-Modified on read/vread/create) and an atomic If-Match compare-and-swap inside the repository write lock (`ifMatchVersion` → `checkExpectedVersion`, 412 on a stale or unsatisfiable version); tests `TestFHIRRoleReadAndCreateEmitVersionHeaders` / `TestFHIRRoleIfMatchPrecondition` / `TestFHIRRoleIfMatchIsAtomicCompareAndSwap` (`-race`) | — | The precondition is atomic with the write, so concurrent writers with the same valid If-Match cannot both commit |
@@ -179,8 +182,11 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
   (version store, vread, history-instance, ETag/If-Match, server `$validate`, `radx serve fhir`) landed
   on `feat/fhir-server-versioning`; server-role update/patch/delete and their conditional forms flipped
   2026-06-16 on `feat/fhir-server-write-side` (the write side: `server/fhir_write.go`,
-  `server/fhir_jsonpatch.go`, `Repository.Update`/`Delete`); the flipped rows cite their shipped evidence
-  and tests directly.
+  `server/fhir_jsonpatch.go`, `Repository.Update`/`Delete`); server-role search depth — `Bundle.link`
+  paging, `_include`/`_revinclude`, and one-hop chaining — flipped 2026-06-17 on
+  `feat/fhir-server-search-depth` (`server/fhir_search.go`, `server/fhir_search_params.go`, the
+  reference-aware `MemoryRepository.Search`); the flipped rows cite their shipped evidence and tests
+  directly.
 - **Repository state**: main at `fdf7b54` for the original audit; `10c1174` plus the wave-0 FHIR-server
   slice for the updated rows.
 - **References consulted**:
