@@ -15,6 +15,7 @@ import (
 const (
 	mediaTypeDICOM     = "application/dicom"
 	mediaTypeDICOMJSON = "application/dicom+json"
+	mediaTypeDICOMXML  = "application/dicom+xml"
 	mediaTypeOctet     = "application/octet-stream"
 	mediaTypeMultipart = "multipart/related"
 )
@@ -263,13 +264,71 @@ func dicomRangeMatchesMediaType(mt string, params map[string]string) bool {
 }
 
 // negotiateDICOMJSON reports whether an Accept header admits application/dicom+json
-// (used by WADO-RS metadata and QIDO-RS). An empty Accept defaults to acceptable.
-// application/dicom+xml is explicitly deferred, so an Accept naming only XML is
-// unacceptable (the caller answers 406).
+// (used by QIDO-RS, which serves JSON only). An empty Accept defaults to acceptable.
 func negotiateDICOMJSON(accept string) bool {
 	return negotiate(accept, func(mt string, _ map[string]string) bool {
 		switch mt {
 		case mediaTypeDICOMJSON, "application/json", "application/*", "*/*":
+			return true
+		default:
+			return false
+		}
+	})
+}
+
+// metadataFormat is the serialization a WADO-RS metadata response uses: DICOM JSON or the
+// PS3.19 Native DICOM Model XML.
+type metadataFormat int
+
+const (
+	// metadataJSON serves application/dicom+json (the default when the Accept expresses no
+	// preference between the two metadata media types).
+	metadataJSON metadataFormat = iota
+	// metadataXML serves application/dicom+xml (the Native DICOM Model).
+	metadataXML
+	// metadataNotAcceptable means the Accept named neither metadata media type; the caller
+	// answers 406.
+	metadataNotAcceptable
+)
+
+// negotiateMetadataFormat selects the WADO-RS metadata serialization from the Accept header
+// (PS3.18 §8.7.3, §10.4.1.1.5). Both application/dicom+json and application/dicom+xml are
+// served; an empty Accept, or one naming both forms equally (for example */*), defaults to
+// JSON, the prior behaviour and the more compact form. An Accept naming only XML selects XML;
+// an Accept naming only JSON selects JSON; an Accept naming neither (and no wildcard) is not
+// acceptable. A q=0 refusal of the otherwise-selected form falls through to the other when it
+// is acceptable, so "application/dicom+json;q=0, application/dicom+xml" yields XML.
+func negotiateMetadataFormat(accept string) metadataFormat {
+	if strings.TrimSpace(accept) == "" {
+		return metadataJSON
+	}
+	jsonOK := negotiateDICOMJSON(accept)
+	xmlOK := negotiateDICOMXML(accept)
+	switch {
+	case jsonOK && xmlOK:
+		// Both acceptable (a wildcard, or an explicit list of both): prefer JSON.
+		return metadataJSON
+	case xmlOK:
+		return metadataXML
+	case jsonOK:
+		return metadataJSON
+	default:
+		return metadataNotAcceptable
+	}
+}
+
+// negotiateDICOMXML reports whether an Accept header admits the application/dicom+xml Native
+// DICOM Model. The model is delivered as a multipart/related body of application/dicom+xml
+// parts (PS3.18 §8.7.3.4), so a multipart/related range with a compatible type parameter is
+// admitted, as is the bare application/dicom+xml media type, the generic application/xml
+// synonym, and the application/* and */* wildcards. An empty Accept defaults to acceptable.
+func negotiateDICOMXML(accept string) bool {
+	return negotiate(accept, func(mt string, params map[string]string) bool {
+		switch mt {
+		case mediaTypeMultipart:
+			t, ok := params["type"]
+			return ok && (t == mediaTypeDICOMXML || t == "*/*")
+		case mediaTypeDICOMXML, "application/xml", "application/*", "*/*":
 			return true
 		default:
 			return false

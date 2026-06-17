@@ -180,6 +180,69 @@ func (c *Client) RetrieveMetadata(ctx context.Context, p ResourcePath) ([]*dicom
 	return parseMetadataArray(raw)
 }
 
+// RetrieveMetadataXML fetches the metadata of a study, series, or instance as the PS3.19
+// Native DICOM Model (application/dicom+xml) and parses each instance into a dataset. It is
+// the XML twin of RetrieveMetadata: the origin returns a multipart/related body of
+// application/dicom+xml parts, one per instance, which this method decodes (PS3.18 §8.7.3.4,
+// §10.4.1.1.5). A binary value the origin emitted as a BulkData reference is left unresolved,
+// exactly as in RetrieveMetadata; enumerate it with BulkDataURIs and fetch it with
+// ResolveBulkDataURI. Use RetrieveMetadata for the more compact JSON form; this method exists
+// for interop with origins or workflows that require the Native DICOM Model.
+func (c *Client) RetrieveMetadataXML(ctx context.Context, p ResourcePath) ([]*dicom.DataSet, error) {
+	path, err := p.Metadata()
+	if err != nil {
+		return nil, err
+	}
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", relatedContentType(mediaTypeDICOMXML))
+
+	resp, err := c.httpClient.Do(req) // #nosec G704 -- the URL is joined from the caller-configured base URL (newRequest); requesting the configured service is the client's purpose
+	if err != nil {
+		return nil, c.transportError(http.MethodGet, path, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.httpError(http.MethodGet, path, resp)
+	}
+	if !isMultipartRelated(resp.Header.Get("Content-Type")) {
+		return nil, fmt.Errorf("%w: WADO-RS XML metadata response is not multipart/related", ErrNotAcceptable)
+	}
+
+	mr, err := NewMultipartReader(c.boundedBody(resp), resp.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, err
+	}
+	var datasets []*dicom.DataSet
+	for {
+		ct, part, err := mr.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if mt := mediaTypeOf(ct); mt != mediaTypeDICOMXML {
+			return nil, fmt.Errorf("%w: WADO-RS metadata part media type %q is not application/dicom+xml", ErrNotAcceptable, mt)
+		}
+		raw, err := io.ReadAll(part)
+		if err != nil {
+			return nil, c.readError(http.MethodGet, path, err)
+		}
+		ds, err := UnmarshalXML(raw)
+		if err != nil {
+			return nil, err
+		}
+		datasets = append(datasets, ds)
+	}
+	if len(datasets) == 0 {
+		return nil, fmt.Errorf("%w: WADO-RS XML metadata response carried no part", ErrNotAcceptable)
+	}
+	return datasets, nil
+}
+
 // RetrieveFrames fetches the given 1-based frames of an instance as a multipart/related body
 // of application/octet-stream parts and returns each frame's raw octets in request order
 // (PS3.18 §10.4.3). A frame number below 1 is rejected before any request is made.

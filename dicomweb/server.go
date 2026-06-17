@@ -138,6 +138,8 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	segs := splitPath(r.URL.Path)
 
 	switch {
+	case r.Method == http.MethodGet && isWADOURI(r):
+		s.handleWADOURI(w, r)
 	case r.Method == http.MethodPost && isStudiesStore(segs):
 		s.handleStore(w, r, targetStudyUID(segs))
 	case r.Method == http.MethodGet && isMetadataRetrieve(segs):
