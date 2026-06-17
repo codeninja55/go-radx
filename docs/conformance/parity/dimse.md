@@ -7,7 +7,7 @@ transport/TLS/timeouts. Evidence is file:symbol against main as of 2026-06-10. T
 
 ## Summary
 
-**Counts: 93 features — 65 MET, 8 PARTIAL, 19 NOT-MET, 1 N-A.** (The NOT-MET count includes the
+**Counts: 93 features — 66 MET, 8 PARTIAL, 18 NOT-MET, 1 N-A.** (The NOT-MET count includes the
 `qrscp` CLI-layer row cross-referenced to A6.)
 
 The association plane is at full parity: requestor and acceptor, the complete PS3.8 FSM (Sta1-13
@@ -36,13 +36,18 @@ Top gaps by size:
    (N-CREATE/N-SET) now ships both roles; these two adjacent MPPS SOP classes are not yet admitted
    (size M).
 3. Print Management — absent (size L).
-4. Composite Instance Root / instance- and frame-level retrieve models — Q/R is Patient/Study Root
-   only (size M).
-5. Notification-event surface (pynetdicom's ~17 `evt.EVT_*` monitoring events; no logging/hook
+4. Notification-event surface (pynetdicom's ~17 `evt.EVT_*` monitoring events; no logging/hook
    system is wired) (size M).
-6. The remaining Q/R-family service classes (Hanging Protocol, Color Palette, Implant Template,
+5. The remaining Q/R-family service classes (Hanging Protocol, Color Palette, Implant Template,
    Defined Procedure, Protocol Approval, Inventory) — each size M, all sharing the existing C-FIND/
-   C-GET/C-MOVE machinery once their models are admitted.
+   C-GET/C-MOVE machinery once their models are admitted. Each still needs its own non-image Storage
+   SOP class for the retrieve payload, which is why they remain NOT-MET despite the generic machinery.
+
+The Composite Instance Root / instance- and frame-level retrieve models, previously a top gap, are
+now MET: the Patient/Study Only, Composite Instance Root Retrieve (IMAGE + FRAME), and Composite
+Instance Retrieve Without Bulk Data models are admitted by the SCU preflight and SCP validation,
+with per-model level handling (PS3.4 C.6.3, C.6.5, C.6.6). UPS remains NOT-MET (deferred to a later
+increment).
 
 ## Association and ACSE
 
@@ -88,8 +93,8 @@ service as a whole; the role split is in the notes.
 |---|---|---|---|---|---|
 | Verification | `service_classes/verification...` | MET | SCU `Association.Echo` `dimse/echo.go:29`; SCP `EchoHandler` `dimse/handler.go:33` | - | Both roles; interop-tested (`dimse/integration/interop_test.go`) |
 | Storage | `service_classes/storage_service_class` | MET | SCU `Association.Store` `dimse/store.go:77`; SCP `StoreHandler` `dimse/handler.go:42` | - | Curated 37-class radiology preset `dimse/presets.go:44`; arbitrary classes via custom contexts |
-| Query/Retrieve (Patient/Study Root FIND/MOVE/GET) | `service_classes/query_retrieve...` | MET | SCU `Find`/`Move`/`Get` `dimse/find.go:97`, `dimse/move.go:33`, `dimse/get.go:38`; SCP `FindHandler`/`MoveHandler`/`GetHandler` `dimse/handler.go:59,75,95` | - | C-GET uses same-association role selection (`get.go:373`); sub-op counts `association.go:145` |
-| Q/R Composite Instance Root retrieve (instance/frame level) | Q/R service class, retrieve models | NOT-MET | `moveModels`/`getModels` admit only Patient/Study Root (`dimse/handler.go:411-443`, `dimse/move.go`, `dimse/get.go`) | M | Machinery generic; the additional models are not admitted by SCU preflight or SCP validation |
+| Query/Retrieve (Patient/Study Root FIND/MOVE/GET) | `service_classes/query_retrieve...` | MET | SCU `Find`/`Move`/`Get` `dimse/find.go:97`, `dimse/move.go:33`, `dimse/get.go:38`; SCP `FindHandler`/`MoveHandler`/`GetHandler` `dimse/handler.go:59,75,95` | - | C-GET uses same-association role selection (`get.go:373`); sub-op counts `association.go:145`. The additional information models (Patient/Study Only, Composite Instance Root Retrieve, Composite Instance Retrieve Without Bulk Data) are admitted alongside the core Patient/Study Root models with per-model level validation — see the Composite Instance Root row below |
+| Q/R Composite Instance Root retrieve (instance/frame level) | Q/R service class, retrieve models | MET | Models admitted by `moveModels`/`getModels` and the SCP `isMoveModel`/`isGetModel` guards (`dimse/qr_models.go`, `dimse/move.go`, `dimse/get.go`, `dimse/handler.go:411-445`); IMAGE + FRAME levels (`QueryLevelFrame` `dimse/find.go`) with per-model level validation (`validateModelLevel` `dimse/qr_models.go`); loopback `dimse/qr_models_test.go` | - | Composite Instance Root Retrieve MOVE (`1.2.840.10008.5.1.4.1.2.4.2`) and GET (`.4.3`) at IMAGE and FRAME levels (PS3.4 C.6.5); also admits Patient/Study Only (PS3.4 C.6.3) and Composite Instance Retrieve Without Bulk Data GET (PS3.4 C.6.6). SCU preflight + SCP validation reuse the existing C-FIND/C-GET/C-MOVE machinery; frame-selection attributes (Simple/Calculated Frame List, Time Range) are caller-supplied identifier elements |
 | Basic Worklist Management (MWL) | `service_classes/basic_worklist_service_class` | MET | SCU `Association.FindWorklist` `dimse/find_worklist.go:37`; SCP via `findModels` incl. MWL `dimse/find.go:245-249` | - | Flat model, Q/R level suppressed (PS3.4 K.6.1.2.1); dcm4chee live leg skips pending archive MWL config |
 | Modality Performed Procedure Step | `service_classes/modality_performed_procedure_step` | MET | SCU `MPPS.Create`/`MPPS.Set` `dimse/mpps.go:81,169`; SCP `MPPSProvider` (`NCreateHandler`/`NSetHandler`) `dimse/mpps_scp.go`; `dimse/mpps_test.go`, `dimse/mpps_scp_test.go`; interop `dimse/integration/mpps_interop_test.go` | - | Core N-CREATE/N-SET both roles; SCP enforces mandatory attrs + IN PROGRESS→final transition (pynetdicom MPPS SCP parity). MPPS Retrieve (N-GET) and Notification (N-EVENT-REPORT) SOP classes still absent (NOT-MET top-gap A2) |
 | Storage Commitment (Push Model) | `service_classes/storage_commitment` | MET | SCU `StorageCommitment.Request` `dimse/stgcommit.go:170`; separate-association `CommitmentReceiver.ServeConn` `:365`; SCP `StorageCommitmentProvider` (`NActionHandler`+`NActionReporter`) `dimse/stgcommit_scp.go`; `dimse/stgcommit_test.go`, `dimse/stgcommit_scp_test.go` | - | Both roles. SCP commits per a `CommitmentDecider` hook, then reports success/partial-failure via same-association N-EVENT-REPORT; failed instances surface as typed failure `stgcommit.go:118`. Separate-association report leg (SCP opening a new association) deferred |

@@ -321,8 +321,11 @@ func defaultGetModel(level QueryLevel) dicom.SOPClassUID {
 // Study Root GET models. A WithQueryModel naming a FIND/MOVE (or any non-GET) class is rejected so Get
 // never sends a C-GET-RQ whose Affected SOP Class is not a valid retrieve information model.
 var getModels = map[dicom.SOPClassUID]struct{}{
-	patientRootGetSOPClass: {},
-	studyRootGetSOPClass:   {},
+	patientRootGetSOPClass:                          {},
+	studyRootGetSOPClass:                            {},
+	patientStudyOnlyGetSOPClass:                     {},
+	compositeInstanceRootGetSOPClass:                {},
+	compositeInstanceRetrieveWithoutBulkGetSOPClass: {},
 }
 
 // getPreflight validates the association can run a C-GET for the given model and level: the model is a
@@ -336,6 +339,9 @@ func (a *Association) getPreflight(model dicom.SOPClassUID, level QueryLevel, st
 	}
 	if _, ok := queryLevelKeywords[level]; !ok {
 		return &ValidationError{Detail: "unknown Query/Retrieve Level for a C-GET"}
+	}
+	if err := validateModelLevel(model, level); err != nil {
+		return err
 	}
 	if store == nil {
 		return &ValidationError{Detail: "C-GET requires a non-nil StoreHandler sink to receive the sub-operation instances"}

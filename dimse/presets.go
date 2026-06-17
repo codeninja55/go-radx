@@ -80,6 +80,20 @@ var validatedStorageSOPClasses = []dicom.SOPClassUID{
 	"1.2.840.10008.5.1.4.1.1.104.1",  // Encapsulated PDF Storage
 }
 
+// extendedQueryRetrieveSOPClasses is the additional Query/Retrieve Information Model set beyond the
+// Patient Root / Study Root core: the Patient/Study Only model (FIND/MOVE/GET), the Composite
+// Instance Root Retrieve model (MOVE/GET), and the Composite Instance Retrieve Without Bulk Data
+// model (GET). They reuse the same C-FIND/C-GET/C-MOVE machinery; only their level handling differs
+// (PS3.4 C.6.3, C.6.5, C.6.6).
+var extendedQueryRetrieveSOPClasses = []dicom.SOPClassUID{
+	patientStudyOnlyFindSOPClass,
+	patientStudyOnlyMoveSOPClass,
+	patientStudyOnlyGetSOPClass,
+	compositeInstanceRootMoveSOPClass,
+	compositeInstanceRootGetSOPClass,
+	compositeInstanceRetrieveWithoutBulkGetSOPClass,
+}
+
 // contextsFor builds presentation contexts for the given abstract syntaxes, assigning the
 // odd IDs 1, 3, 5, … (PS3.8 9.3.2.2) and proposing DefaultTransferSyntaxes for each. It
 // returns a fresh slice so callers may mutate it without sharing state.
@@ -129,6 +143,15 @@ func QueryRetrieveWithStorageContexts() []PresentationContext {
 	combined = append(combined, queryRetrieveSOPClasses...)
 	combined = append(combined, validatedStorageSOPClasses...)
 	return contextsFor(combined)
+}
+
+// ExtendedQueryRetrieveContexts returns the additional Query/Retrieve Information Model contexts: the
+// Patient/Study Only model (FIND/MOVE/GET), the Composite Instance Root Retrieve model (MOVE/GET),
+// and the Composite Instance Retrieve Without Bulk Data model (GET). These complement the Patient
+// Root / Study Root core returned by QueryRetrieveContexts and reuse the same C-FIND/C-GET/C-MOVE
+// machinery (PS3.4 C.6.3, C.6.5, C.6.6). A fresh slice is returned each call.
+func ExtendedQueryRetrieveContexts() []PresentationContext {
+	return contextsFor(extendedQueryRetrieveSOPClasses)
 }
 
 // BasicWorklistContexts returns the single Modality Worklist Information Model — FIND context, the

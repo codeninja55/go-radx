@@ -49,6 +49,14 @@ func serveFindMessage(ctx context.Context, acc *acse.Acceptor, h FindHandler, cm
 	if levelErr != nil {
 		return sendFindResponse(ctx, acc, cmd, pcID, NewStatus(0xA900, svc), nil)
 	}
+	// The parsed level must be admissible for THIS query model: queryLevelFromIdentifier accepts any
+	// known keyword, so a peer could send a Patient/Study Only C-FIND at SERIES or IMAGE. Enforce the
+	// same per-model level table the SCU preflight uses (symmetric inbound boundary) and fail closed
+	// with 0xA900 "Identifier Does Not Match SOP Class" BEFORE the handler runs (PS3.4 Annex C, PS3.7 —
+	// malformed identifier).
+	if err := validateModelLevel(model, level); err != nil {
+		return sendFindResponse(ctx, acc, cmd, pcID, NewStatus(0xA900, svc), nil)
+	}
 
 	ts, _ := acceptedTransferSyntaxResolver(acc)(pcID)
 	info.PresentationID = pcID

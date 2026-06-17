@@ -103,6 +103,7 @@ func VerificationContexts() []dimse.PresentationContext      // 1 context  — V
 func StorageContexts() []dimse.PresentationContext           // radiology-first Storage set (see table below)
 func QueryRetrieveContexts() []dimse.PresentationContext     // Patient Root + Study Root C-FIND/C-GET/C-MOVE
 func QueryRetrieveWithStorageContexts() []dimse.PresentationContext // Q/R + validated Storage, one ID sequence (C-GET SCU)
+func ExtendedQueryRetrieveContexts() []dimse.PresentationContext // Patient/Study Only + Composite Instance Root + without-bulk-data Q/R models
 func BasicWorklistContexts() []dimse.PresentationContext     // Modality Worklist Information Model — FIND
 func ModalityPerformedContexts() []dimse.PresentationContext // MPPS SOP Class (MPPS SCU and SCP)
 func StorageCommitmentContexts() []dimse.PresentationContext // Storage Commitment Push Model SOP Class (SCU and SCP)
@@ -218,6 +219,16 @@ reference, not go-radx's preset count. The Query/Retrieve Levels supported are P
 C-FIND/C-GET/C-MOVE expose results as `iter.Seq2[Status, *dicom.DataSet]` iterators with C-CANCEL on early iterator exit
 (PRD §8.1, glossary).
 
+`ExtendedQueryRetrieveContexts()` returns 6 additional contexts for the Query/Retrieve information models beyond the
+Patient Root / Study Root core: the Patient/Study Only model (FIND/MOVE/GET, PS3.4 C.6.3, two-level PATIENT/STUDY), the
+Composite Instance Root Retrieve model (MOVE/GET, PS3.4 C.6.5, IMAGE and FRAME levels), and the Composite Instance
+Retrieve Without Bulk Data model (GET, PS3.4 C.6.6, IMAGE level). These reuse the same C-FIND/C-GET/C-MOVE machinery;
+the only model-specific behaviour is per-model level validation, which fails closed before any wire I/O when a caller
+names a level the model does not define (e.g. a Composite Instance Root retrieve at STUDY level). The new FRAME level
+adds the `(0008,0052)` keyword `FRAME`; frame selection is carried by the caller's Simple Frame List `(0008,1161)`,
+Calculated Frame List `(0008,1162)`, or Time Range `(0008,1163)` identifier attributes. A caller names a model in
+`WithQueryModel(...)` using the exported SOP Class UID aliases (e.g. `CompositeInstanceRootRetrieveInformationModelGet`).
+
 ### Modality Worklist
 
 | SOP Class | UID | SCU | SCP |
@@ -265,6 +276,7 @@ association to report later) is deferred. Exposed for negotiation by `StorageCom
 | `AllStorageContexts()` | Storage transport-only | NOT YET SHIPPED (would be 170, the registered Storage set) |
 | `QueryRetrieveContexts()` | Patient Root + Study Root Q/R | 6 |
 | `QueryRetrieveWithStorageContexts()` | Q/R + validated Storage under one ID sequence (same-association C-GET) | 42 |
+| `ExtendedQueryRetrieveContexts()` | Patient/Study Only + Composite Instance Root Retrieve + Composite Instance Retrieve Without Bulk Data Q/R models | 6 |
 | `BasicWorklistContexts()` | Modality Worklist FIND | 1 |
 | `ModalityPerformedContexts()` | MPPS SCU | 1 |
 | `StorageCommitmentContexts()` | Storage Commitment SCU | 1 |

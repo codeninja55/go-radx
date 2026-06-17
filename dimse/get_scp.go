@@ -44,6 +44,14 @@ func serveGetMessage(ctx context.Context, acc *acse.Acceptor, h GetHandler, cmd 
 	if levelErr != nil {
 		return sendGetResponse(ctx, acc, cmd, pcID, NewStatus(0xA900, ServiceClassGet), SubOperationCounts{})
 	}
+	// The parsed level must be admissible for THIS retrieve model: queryLevelFromIdentifier accepts any
+	// known keyword, so a peer could send a Composite Instance Root C-GET at STUDY, or a Patient/Study
+	// Only retrieve at IMAGE. Enforce the same per-model level table the SCU preflight uses (symmetric
+	// inbound boundary) and fail closed with 0xA900 "Identifier Does Not Match SOP Class" BEFORE the
+	// handler runs (PS3.4 Annex C, PS3.7 — malformed identifier).
+	if err := validateModelLevel(model, level); err != nil {
+		return sendGetResponse(ctx, acc, cmd, pcID, NewStatus(0xA900, ServiceClassGet), SubOperationCounts{})
+	}
 
 	ts, _ := acceptedTransferSyntaxResolver(acc)(pcID)
 	info.PresentationID = pcID
