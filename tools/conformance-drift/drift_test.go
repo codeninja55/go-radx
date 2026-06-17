@@ -19,6 +19,7 @@ var codePresetCounts = map[string]PresetCounter{
 	"StorageContexts":                  func() int { return len(dimse.StorageContexts()) },
 	"QueryRetrieveContexts":            func() int { return len(dimse.QueryRetrieveContexts()) },
 	"QueryRetrieveWithStorageContexts": func() int { return len(dimse.QueryRetrieveWithStorageContexts()) },
+	"ExtendedQueryRetrieveContexts":    func() int { return len(dimse.ExtendedQueryRetrieveContexts()) },
 	"BasicWorklistContexts":            func() int { return len(dimse.BasicWorklistContexts()) },
 	"ModalityPerformedContexts":        func() int { return len(dimse.ModalityPerformedContexts()) },
 	"StorageCommitmentContexts":        func() int { return len(dimse.StorageCommitmentContexts()) },

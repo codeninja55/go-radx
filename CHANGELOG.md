@@ -12,6 +12,22 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- DIMSE additional Query/Retrieve information models and instance/frame-level retrieve, reusing the
+  existing C-FIND/C-GET/C-MOVE machinery (PS3.4 Annex C.6.3, C.6.5, C.6.6). go-radx now admits the
+  Patient/Study Only Q/R model (FIND/MOVE/GET, two-level PATIENT/STUDY), the Composite Instance Root
+  Retrieve model (MOVE/GET, IMAGE and the new FRAME level), and the Composite Instance Retrieve Without
+  Bulk Data model (GET, IMAGE) as both SCU and SCP. A new `dimse.QueryLevelFrame` carries the
+  `(0008,0052)` keyword `FRAME` for single-frame extraction from a multi-frame instance; frame selection
+  rides the caller's Simple Frame List `(0008,1161)`, Calculated Frame List `(0008,1162)`, or Time Range
+  `(0008,1163)` identifier attributes. Each model is admitted by the SCU preflight and the SCP context
+  validation, and a new per-model level check (`validateModelLevel`) fails closed before any wire I/O when
+  a caller names a Query/Retrieve Level the model does not define (e.g. a Composite Instance Root retrieve
+  at STUDY level). Callers name a model in `WithQueryModel(...)` using the exported SOP Class UID aliases
+  (`PatientStudyOnlyQueryRetrieveInformationModelFind`/`Move`/`Get`,
+  `CompositeInstanceRootRetrieveInformationModelMove`/`Get`, `CompositeInstanceRetrieveWithoutBulkDataGet`)
+  and negotiate them with the new `dimse.ExtendedQueryRetrieveContexts()` preset. SCU-to-SCP loopback tests
+  cover a Patient/Study Only C-FIND and a Composite Instance Root C-GET at the IMAGE and FRAME levels.
+  Unified Procedure Step (UPS) remains deferred to a later increment.
 - DIMSE MPPS SCP and Storage Commitment SCP, both plugging into the DIMSE-N SCP dispatch substrate to
   bring those two service classes to both-role parity with pynetdicom (PS3.4 Annex F, Annex J).
   `dimse.MPPSProvider` (an `NCreateHandler` and `NSetHandler`) answers the Modality Performed Procedure
