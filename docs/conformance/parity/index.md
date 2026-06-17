@@ -6,9 +6,13 @@ verified against go-radx source and tests (file:symbol evidence). The matrices a
 for the parity build-out: every PARTIAL and NOT-MET row is a tracked task, and a row flips to MET only in the
 same PR that ships the feature (lockstep with the conformance statements).
 
-Audited 2026-06-10 against main @ fdf7b54; aggregate re-tallied against main @ 9fa06ee after waves 0-3
-(PRs #119-#123 plus the data-layer, DIMSE-N, and FHIR-write increments). Each subsystem row is the actual
-count of status rows in that matrix, reconciled against the matrix's own summary. Statuses: MET (implemented
+Audited 2026-06-10 against main @ fdf7b54; aggregate re-tallied against main @ d426d97 after the DICOMweb
+XML/WADO-URI, FHIR search-depth (#137), MPPS/Storage-Commitment SCP (#138), HL7 floor close-out (#146), and
+extended DIMSE Q/R (#147) increments. Two batch items were intentionally not landed in the parity wind-down -
+DICOMweb capabilities discovery + client byte-range/retry/auto-pagination (#145, closed) and FHIR
+transaction/batch at the base endpoint (branch abandoned) - so their matrix rows remain NOT-MET/PARTIAL by
+choice. Each subsystem row is the actual count of status rows in that matrix, reconciled against the matrix's
+own summary. Statuses: MET (implemented
 and tested), PARTIAL (usable subset), NOT-MET (absent), N-A (no sensible Go equivalent). Sizes: S (under 1
 day), M (1-3 days), L (over 3 days).
 
@@ -17,12 +21,12 @@ day), M (1-3 days), L (over 3 days).
 | Subsystem | Reference(s) | Matrix | Rows | MET | PARTIAL | NOT-MET | N-A |
 |---|---|---|---|---|---|---|---|
 | DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 66 | 9 | 7 | 6 |
-| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 65 | 8 | 19 | 1 |
-| HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 27 | 4 | 0 | 1 |
-| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 54 | 8 | 31 | 5 |
-| DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 43 | 3 | 27 | 2 |
+| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 66 | 8 | 18 | 1 |
+| HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 31 | 0 | 0 | 1 |
+| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 56 | 8 | 29 | 5 |
+| DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 44 | 6 | 23 | 2 |
 | radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 8 | 11 | 9 | 0 |
-| Total | | | 414 | 263 | 43 | 93 | 15 |
+| Total | | | 414 | 271 | 42 | 86 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in
@@ -34,10 +38,13 @@ The python-hl7 floor is effectively met (zero NOT-MET). The DIMSE association pl
 at full pynetdicom parity, and the DIMSE-N plane now carries application logic: the N-GET and N-DELETE
 primitives ship as both SCU and SCP, the `Server` routes all six DIMSE-N command fields to
 interface-segregated N-handler hooks, and the MPPS SCP (N-CREATE/N-SET) and the Storage Commitment SCP
-(N-ACTION plus same-association N-EVENT-REPORT) now plug into those hooks. The remaining DIMSE-N gap is UPS. FHIR models and the REST client are near parity, and the server's write side is now
+(N-ACTION plus same-association N-EVENT-REPORT) now plug into those hooks. The extended Q/R models with
+Composite Instance Root and instance/frame-level retrieve (#147) join them; the remaining DIMSE-N gap is UPS.
+FHIR models and the REST client are near parity, and the server's write side is now
 whole: update, patch, and delete with their conditional forms join the wave-0 vread/history/`$validate`/`radx
-serve fhir` work. The remaining FHIR gaps are server search depth, batch at the base endpoint, the operations
-framework, and the R4B/STU3 release breadth.
+serve fhir` work, and search depth now ships - `Bundle.link` paging, `_include`/`_revinclude`, and one-hop
+chaining (#137). The remaining FHIR gaps are batch at the base endpoint (deliberately not landed in the
+wind-down), the operations framework, and the R4B/STU3 release breadth.
 
 The DICOM data layer is now substantially complete. The former headline finding - `dicom.Read` rejecting
 every encapsulated transfer syntax - is resolved: compressed Part 10 files read with the dataset retained,
@@ -85,26 +92,30 @@ PARTIAL in dicom.md.
 Done: the N-GET and N-DELETE primitives (SCU and SCP) and the DIMSE-N SCP dispatch substrate routing all six
 DIMSE-N command fields to interface-segregated handler hooks (`dimse/ndispatch.go`); the MPPS SCP
 (N-CREATE/N-SET, `dimse/mpps_scp.go`); and the Storage Commitment SCP (N-ACTION plus same-association
-N-EVENT-REPORT, `dimse/stgcommit_scp.go`). Remaining: MPPS Retrieve/Notification SOP classes (M), UPS
-push/pull/watch/event/query (L), Composite Instance Root and instance/frame-level retrieve (M),
-notification/monitoring event hooks (M), remaining Q/R-family service classes reusing existing machinery
-(M each). Print Management (L) is a residual-candidate for Andru's call.
+N-EVENT-REPORT, `dimse/stgcommit_scp.go`); and the extended Q/R models plus Composite Instance Root and
+instance/frame-level retrieve (#147). Remaining: MPPS Retrieve/Notification SOP classes (M), UPS
+push/pull/watch/event/query (L), and notification/monitoring event hooks (M). Print Management (L) is a
+residual-candidate for Andru's call. All remaining Wave 2 items are deferred in the parity wind-down.
 
 ### Wave 3 - FHIR server depth and release breadth (partly done)
 
 Done: server write side beyond create - update/patch/delete with their conditional forms (built on the wave-0
-version store), now MET in fhir.md. Remaining: search depth (parameter registry, `_include`/`_revinclude`,
-chaining) (L), paging with `Bundle.link` (M), batch at the base endpoint (M), operations framework with
-`$everything` (M), R4B models via generator re-run (M), STU3 structural assessment first - report before
-building (assessment S, build TBD), nested backbone validation and primitive lexical validation (M each).
-SMART on FHIR (L) and XML serialisation (L) are residual-candidates.
+version store); and search depth - the parameter registry, `_include`/`_revinclude`, one-hop chaining, and
+`Bundle.link` paging (#137), now MET in fhir.md. Remaining: batch at the base endpoint (M; a branch was
+started and abandoned in the wind-down), operations framework with `$everything` (M), R4B models via generator
+re-run (M), STU3 structural assessment first - report before building (assessment S, build TBD), nested
+backbone validation and primitive lexical validation (M each). SMART on FHIR (L) and XML serialisation (L) are
+residual-candidates. All remaining Wave 3 items are deferred in the parity wind-down.
 
-### Wave 4 - DICOMweb completion
+### Wave 4 - DICOMweb completion (partly done)
 
-`application/dicom+xml` media type (M), WADO-URI service (M), capabilities discovery (M), thumbnail
-resources (M), pixel-data resources of Table 10.1-1 (M), rendered resources (L), server-side transcoding
-(L, builds on wave 1 codecs), client small misses: byte ranges, retries, auto-pagination (S each). UPS-RS
-worklist service (L, builds on wave 2 UPS) and notifications/WebSocket (L) are residual-candidates.
+Done: the `application/dicom+xml` Native DICOM Model media type (client and server) and the WADO-URI legacy
+URI service, now MET in dicomweb.md. A branch adding capabilities discovery and the client byte-range/retry/
+auto-pagination misses (#145) was built but not landed in the wind-down. Remaining: capabilities discovery
+(M), thumbnail resources (M), pixel-data resources of Table 10.1-1 (M), rendered resources (L), server-side
+transcoding (L, builds on wave 1 codecs), and the client small misses - byte ranges, retries, auto-pagination
+(S each). UPS-RS worklist service (L, builds on wave 2 UPS) and notifications/WebSocket (L) are
+residual-candidates. All remaining Wave 4 items are deferred in the parity wind-down.
 
 ### Wave 5 - radx CLI parity
 
