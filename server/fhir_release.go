@@ -43,6 +43,14 @@ type releaseAdapter interface {
 	// total set to the match count. It returns the Bundle behind the fhir.Resource interface.
 	newSearchSet(total int32, matches []fhir.Resource) (fhir.Resource, error)
 
+	// newSearchSetWithLinks builds a searchset Bundle carrying the page of matches (entry.search.mode
+	// "match"), the included resources (entry.search.mode "include", FHIR R5 search.html#include), and
+	// the paging Bundle.link set (self/next/prev, http.html#paging). total is the full match count
+	// across all pages, not the page size, so total can exceed the number of match entries. It is the
+	// search-depth twin of newSearchSet: the same searchset Bundle plus the result-surface elements the
+	// search layer derives (page links and include entries).
+	newSearchSetWithLinks(total int32, matches, includes []fhir.Resource, links []searchLink) (fhir.Resource, error)
+
 	// newHistoryBundle builds a history Bundle of the release from a resource's version list (newest
 	// first), with each entry carrying the request/response pair FHIR R5 http.html requires of a
 	// history entry (bdl-3 makes entry.request mandatory in a history bundle). total is the full
@@ -312,6 +320,38 @@ func (r5Adapter) newSearchSet(total int32, matches []fhir.Resource) (fhir.Resour
 	return r5.NewSearchSet(total, entries...)
 }
 
+// newSearchSetWithLinks builds the R5 searchset Bundle directly so it can carry both the include-mode
+// entries and the paging Bundle.link set, neither of which the NewSearchSet builder takes. It mirrors
+// that builder's structure — type "searchset", total set, each entry's search.mode populated — and
+// adds the include entries (search.mode "include") and the self/next/prev links. The Bundle is built
+// once and returned immutable (the build-once discipline the typed builders follow); the search
+// layer never mutates it after.
+func (r5Adapter) newSearchSetWithLinks(total int32, matches, includes []fhir.Resource, links []searchLink) (fhir.Resource, error) {
+	bt := r5.BundleTypeSearchset
+	bundle := &r5.Bundle{Type: &bt, Total: &total}
+	for _, l := range links {
+		rel := r5.LinkRelationTypes(l.relation)
+		bundle.Link = append(bundle.Link, r5.BundleLink{Relation: &rel, URL: strptr(l.url)})
+	}
+	matchMode := r5.SearchEntryModeMatch
+	for _, m := range matches {
+		res := m
+		bundle.Entry = append(bundle.Entry, r5.BundleEntry{
+			Resource: &res,
+			Search:   &r5.BundleEntrySearch{Mode: &matchMode},
+		})
+	}
+	includeMode := r5.SearchEntryModeInclude
+	for _, inc := range includes {
+		res := inc
+		bundle.Entry = append(bundle.Entry, r5.BundleEntry{
+			Resource: &res,
+			Search:   &r5.BundleEntrySearch{Mode: &includeMode},
+		})
+	}
+	return bundle, nil
+}
+
 // newHistoryBundle builds the R5 history Bundle directly (no typed builder exists for history):
 // type "history", total set to the full version count (bdl-1 permits total on searchset and
 // history; a _count-capped response carries fewer entries than total), and every entry carrying
@@ -527,6 +567,35 @@ func (r4Adapter) newSearchSet(total int32, matches []fhir.Resource) (fhir.Resour
 		entries = append(entries, r4.SearchEntry{Resource: m, Mode: &mode})
 	}
 	return r4.NewSearchSet(total, entries...)
+}
+
+// newSearchSetWithLinks builds the R4 searchset Bundle directly, the R4 twin of the R5 adapter's (see
+// that method for the rationale). R4's BundleLink.relation is a plain string (the LinkRelationTypes
+// enum was added in R5), so the relation is set as the bare string value.
+func (r4Adapter) newSearchSetWithLinks(total int32, matches, includes []fhir.Resource, links []searchLink) (fhir.Resource, error) {
+	bt := r4.BundleTypeSearchset
+	bundle := &r4.Bundle{Type: &bt, Total: &total}
+	for _, l := range links {
+		rel := l.relation
+		bundle.Link = append(bundle.Link, r4.BundleLink{Relation: &rel, URL: strptr(l.url)})
+	}
+	matchMode := r4.SearchEntryModeMatch
+	for _, m := range matches {
+		res := m
+		bundle.Entry = append(bundle.Entry, r4.BundleEntry{
+			Resource: &res,
+			Search:   &r4.BundleEntrySearch{Mode: &matchMode},
+		})
+	}
+	includeMode := r4.SearchEntryModeInclude
+	for _, inc := range includes {
+		res := inc
+		bundle.Entry = append(bundle.Entry, r4.BundleEntry{
+			Resource: &res,
+			Search:   &r4.BundleEntrySearch{Mode: &includeMode},
+		})
+	}
+	return bundle, nil
 }
 
 // newHistoryBundle builds the R4 history Bundle, the R4 twin of the R5 adapter's (see that method
