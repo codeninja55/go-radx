@@ -6,12 +6,12 @@ file:symbol against main as of 2026-06-10. Tests count toward MET.
 
 ## Summary
 
-**python-hl7 floor (primary): 32 features — 26 MET, 5 PARTIAL, 0 NOT-MET, 1 N-A.** The floor is
+**python-hl7 floor (primary): 32 features — 27 MET, 4 PARTIAL, 0 NOT-MET, 1 N-A.** The floor is
 effectively met: every parsing entry point, the full container model, accessor extract/assign semantics,
-escape/unescape, ACK construction, batch/file protocols, the MLLP client/server pair, and the CLI sender
-all have shipped, tested go-radx equivalents. Four of the five PARTIALs are size S conveniences
-(boolean format predicates, a `split_file` helper, charset-decode on parse, custom `\Z\` escape maps); the
-fifth is the cross-implementation MLLP interop CI leg (size M, issue #114).
+escape/unescape, ACK construction, batch/file protocols, the MLLP client/server pair, the cross-implementation
+MLLP interop CI leg (issue #114, now MET), and the CLI sender all have shipped, tested go-radx equivalents.
+The four remaining PARTIALs are size S conveniences (boolean format predicates, a `split_file` helper,
+charset-decode on parse, custom `\Z\` escape maps).
 
 **HAPI catalogue (stretch): expected and confirmed large breadth gap.** go-radx types 5 message families
 (ADT, ORM, OMG, ORU, ACK) with a radiology-scoped trigger subset; HAPI v2.5 alone ships ~195
