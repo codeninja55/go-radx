@@ -182,8 +182,10 @@ func defaultMoveModel(level QueryLevel) dicom.SOPClassUID {
 // and Study Root MOVE models. A WithQueryModel naming a FIND/GET (or any non-MOVE) class is rejected
 // so Move never sends a C-MOVE-RQ whose Affected SOP Class is not a valid retrieve information model.
 var moveModels = map[dicom.SOPClassUID]struct{}{
-	patientRootMoveSOPClass: {},
-	studyRootMoveSOPClass:   {},
+	patientRootMoveSOPClass:           {},
+	studyRootMoveSOPClass:             {},
+	patientStudyOnlyMoveSOPClass:      {},
+	compositeInstanceRootMoveSOPClass: {},
 }
 
 // movePreflight validates the association can run a C-MOVE for the given model, level, and
@@ -203,6 +205,9 @@ func (a *Association) movePreflight(model dicom.SOPClassUID, level QueryLevel, d
 	}
 	if _, ok := queryLevelKeywords[level]; !ok {
 		return &ValidationError{Detail: "unknown Query/Retrieve Level for a C-MOVE"}
+	}
+	if err := validateModelLevel(model, level); err != nil {
+		return err
 	}
 	if a == nil || a.requestor == nil {
 		return &AssociationError{Kind: AssociationNotEstablished, Detail: "Move on an unestablished association"}

@@ -25,15 +25,21 @@ const (
 	QueryLevelSeries
 	// QueryLevelImage queries at the Image (SOP Instance) level.
 	QueryLevelImage
+	// QueryLevelFrame retrieves at the Frame level, the lowest level of the Composite Instance Root
+	// Retrieve Information Model (PS3.4 C.6.5). It is a retrieve-only level: frame selection is carried
+	// by Simple Frame List (0008,1161), Calculated Frame List (0008,1162), or Time Range (0008,1163).
+	QueryLevelFrame
 )
 
 // queryLevelKeywords maps each level to the DICOM keyword written into Query/Retrieve Level
-// (0008,0052), VR CS (PS3.4 C.3.1): "PATIENT", "STUDY", "SERIES", "IMAGE".
+// (0008,0052), VR CS (PS3.4 C.3.1): "PATIENT", "STUDY", "SERIES", "IMAGE", and "FRAME" for the
+// Composite Instance Root Retrieve frame level (PS3.4 C.6.5).
 var queryLevelKeywords = map[QueryLevel]string{
 	QueryLevelPatient: "PATIENT",
 	QueryLevelStudy:   "STUDY",
 	QueryLevelSeries:  "SERIES",
 	QueryLevelImage:   "IMAGE",
+	QueryLevelFrame:   "FRAME",
 }
 
 // String renders the DICOM keyword written into Query/Retrieve Level (0008,0052).
@@ -243,9 +249,10 @@ func serviceClassForQueryModel(model dicom.SOPClassUID) ServiceClass {
 // MOVE/GET (or any non-FIND) class is rejected so Find never sends a C-FIND-RQ whose Affected SOP
 // Class is not a valid query information model (which a compliant peer would reject or abort).
 var findModels = map[dicom.SOPClassUID]struct{}{
-	patientRootFindSOPClass:  {},
-	studyRootFindSOPClass:    {},
-	modalityWorklistSOPClass: {},
+	patientRootFindSOPClass:      {},
+	studyRootFindSOPClass:        {},
+	patientStudyOnlyFindSOPClass: {},
+	modalityWorklistSOPClass:     {},
 }
 
 // findPreflight validates the association can run a C-FIND for the given model and level: the model
@@ -260,6 +267,9 @@ func (a *Association) findPreflight(model dicom.SOPClassUID, level QueryLevel) e
 	if model != modalityWorklistSOPClass {
 		if _, ok := queryLevelKeywords[level]; !ok {
 			return &ValidationError{Detail: "unknown Query/Retrieve Level for a C-FIND"}
+		}
+		if err := validateModelLevel(model, level); err != nil {
+			return err
 		}
 	}
 	if a == nil || a.requestor == nil {
