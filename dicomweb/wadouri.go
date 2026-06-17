@@ -1,6 +1,7 @@
 package dicomweb
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -125,6 +126,11 @@ func (s *Server) handleWADOURIDICOM(w http.ResponseWriter, r *http.Request, q ur
 		// re-encode through dicom.Write, which emits only the four uncompressed syntaxes.
 		decision := negotiateRetrieveTransferSyntax("", si.transferSyntaxOrDefault())
 		raw, err = encodeRetrievedInstance(si, decision)
+		if errors.Is(err, ErrNotAcceptable) {
+			s.writeProblem(w, r, http.StatusNotAcceptable, err,
+				"the stored object is in a compressed transfer syntax that cannot be served unchanged")
+			return
+		}
 		if err != nil {
 			s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot encode the retrieved object")
 			return

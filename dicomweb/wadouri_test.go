@@ -214,6 +214,40 @@ func TestWADOURIServesStoredBytesVerbatim(t *testing.T) {
 	}
 }
 
+// TestWADOURIUnservableTransferSyntaxIs406 is the P2-B regression: a backend reporting a
+// compressed transfer syntax with no Encoded bytes cannot be served unchanged (go-radx writes
+// no encapsulated syntax), so WADO-URI must answer 406, not 500.
+func TestWADOURIUnservableTransferSyntaxIs406(t *testing.T) {
+	store := newWADOStore()
+	store.put(RetrievedInstance{
+		DataSet:        sampleInstance("1.2.3", "1.2.3.4", "1.2.3.4.5"),
+		TransferSyntax: dicom.JPEGBaseline8Bit, // encapsulated, with no Encoded bytes to pass through
+	})
+	c := newWADOServerClient(t, store)
+
+	status, _ := getWADOURIObject(t, c, "1.2.3", "1.2.3.4", "1.2.3.4.5")
+	if status != http.StatusNotAcceptable {
+		t.Errorf("status = %d, want 406 for an unservable compressed transfer syntax", status)
+	}
+}
+
+// TestWADOURIEncodeFailureIs500 confirms a genuine internal encode failure (not a content
+// negotiation refusal) still maps to 500, so the 406 mapping does not swallow real errors.
+// An uncompressed instance with no Encoded bytes and no SOP Class UID fails encodeInstance's
+// SOP-identity check with ErrInvalidResource, which is not ErrNotAcceptable.
+func TestWADOURIEncodeFailureIs500(t *testing.T) {
+	ds := sampleInstance("1.2.3", "1.2.3.4", "1.2.3.4.5")
+	ds.Delete(dicom.TagSOPClassUID) // breaks the Part 10 SOP-identity requirement -> internal encode error
+	store := newWADOStore()
+	store.put(RetrievedInstance{DataSet: ds, TransferSyntax: dicom.ExplicitVRLittleEndian})
+	c := newWADOServerClient(t, store)
+
+	status, _ := getWADOURIObject(t, c, "1.2.3", "1.2.3.4", "1.2.3.4.5")
+	if status != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500 for a genuine internal encode failure", status)
+	}
+}
+
 // TestWADOURIRequestTypeRequired confirms a GET without requestType=WADO is not routed to the
 // URI service (it falls through to the path router, which answers 501 for the bare root).
 func TestWADOURIRequestTypeRequired(t *testing.T) {
