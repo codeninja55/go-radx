@@ -112,13 +112,23 @@ func (s *Server) handleWADOURIDICOM(w http.ResponseWriter, r *http.Request, q ur
 	}
 
 	// WADO-URI returns the object in whatever transfer syntax the origin holds it (PS3.18
-	// §9.3.1; the transfer-syntax negotiation of WADO-RS is not part of the URI service).
-	// Passing only the stored syntax to the policy makes it a pure passthrough.
-	decision := negotiateRetrieveTransferSyntax("", si.transferSyntaxOrDefault())
-	raw, err := encodeRetrievedInstance(si, decision)
-	if err != nil {
-		s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot encode the retrieved object")
-		return
+	// §9.3.1; the transfer-syntax negotiation of WADO-RS is not part of the URI service), and
+	// WADORetrieveInstanceObject advertises a byte-exact Part 10 object. When the backend
+	// supplied the stored bytes, serve them verbatim regardless of transfer syntax: re-encoding
+	// from the DataSet would rewrite the File Meta group, padding, and element order, breaking
+	// that byte-exact contract. This mirrors the WADO-RS path's preference for Encoded.
+	raw := si.Encoded
+	if len(raw) == 0 {
+		// No stored bytes: fall back to encoding from the DataSet. Passing only the stored
+		// syntax to the policy makes it a pure passthrough; an encapsulated stored syntax with
+		// no bytes to pass through is ErrNotAcceptable (406 below), never a 500 from a doomed
+		// re-encode through dicom.Write, which emits only the four uncompressed syntaxes.
+		decision := negotiateRetrieveTransferSyntax("", si.transferSyntaxOrDefault())
+		raw, err = encodeRetrievedInstance(si, decision)
+		if err != nil {
+			s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot encode the retrieved object")
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", mediaTypeDICOM)

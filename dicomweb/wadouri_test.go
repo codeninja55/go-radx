@@ -1,7 +1,9 @@
 package dicomweb
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/url"
 	"testing"
@@ -158,6 +160,57 @@ func TestWADOURIServerParamValidation(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// getWADOURIObject performs a raw WADO-URI application/dicom GET for one instance and returns
+// the response status and body bytes, so a test can assert on the exact bytes served.
+func getWADOURIObject(t *testing.T, c *Client, study, series, object string) (int, []byte) {
+	t.Helper()
+	q := url.Values{}
+	q.Set(wadoParamRequestType, wadoRequestTypeWADO)
+	q.Set(wadoParamStudyUID, study)
+	q.Set(wadoParamSeriesUID, series)
+	q.Set(wadoParamObjectUID, object)
+	q.Set(wadoParamContentType, mediaTypeDICOM)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.baseURL+"?"+q.Encode(), nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		t.Fatalf("do: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	return resp.StatusCode, body
+}
+
+// TestWADOURIServesStoredBytesVerbatim is the P2-A regression: when the backend supplies the
+// stored Part 10 bytes (Encoded), the WADO-URI application/dicom response must be those exact
+// bytes, never a re-encode from the DataSet. The sentinel bytes here are deliberately not a
+// valid Part 10 object: re-encoding the DataSet could never reproduce them, so a byte-exact
+// match proves the stored bytes were passed through verbatim, even for an uncompressed syntax.
+func TestWADOURIServesStoredBytesVerbatim(t *testing.T) {
+	stored := []byte("STORED-PART10-BYTES-VERBATIM-\x00\x01\x02\xff")
+	store := newWADOStore()
+	store.put(RetrievedInstance{
+		DataSet:        sampleInstance("1.2.3", "1.2.3.4", "1.2.3.4.5"),
+		TransferSyntax: dicom.ExplicitVRLittleEndian, // uncompressed: re-encode path would otherwise rewrite bytes
+		Encoded:        stored,
+	})
+	c := newWADOServerClient(t, store)
+
+	status, body := getWADOURIObject(t, c, "1.2.3", "1.2.3.4", "1.2.3.4.5")
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200", status)
+	}
+	if !bytes.Equal(body, stored) {
+		t.Errorf("WADO-URI body was re-encoded, not served verbatim:\n got %q\nwant %q", body, stored)
 	}
 }
 
