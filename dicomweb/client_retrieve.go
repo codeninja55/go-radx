@@ -103,9 +103,9 @@ func (c *Client) retrieveInstanceStream(ctx context.Context, path string, pathEr
 		}
 		req.Header.Set("Accept", acceptInstances(c.transferSyntaxes...))
 
-		resp, err := c.httpClient.Do(req)
+		resp, err := c.do(req, http.MethodGet, path)
 		if err != nil {
-			yield(RetrievedInstance{}, c.transportError(http.MethodGet, path, err))
+			yield(RetrievedInstance{}, err)
 			return
 		}
 		defer func() { _ = resp.Body.Close() }()
@@ -164,9 +164,9 @@ func (c *Client) RetrieveMetadata(ctx context.Context, p ResourcePath) ([]*dicom
 	}
 	req.Header.Set("Accept", mediaTypeDICOMJSON)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req, http.MethodGet, path)
 	if err != nil {
-		return nil, c.transportError(http.MethodGet, path, err)
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
@@ -199,9 +199,9 @@ func (c *Client) RetrieveMetadataXML(ctx context.Context, p ResourcePath) ([]*di
 	}
 	req.Header.Set("Accept", relatedContentType(mediaTypeDICOMXML))
 
-	resp, err := c.httpClient.Do(req) // #nosec G704 -- the URL is joined from the caller-configured base URL (newRequest); requesting the configured service is the client's purpose
+	resp, err := c.do(req, http.MethodGet, path) // #nosec G704 -- the URL is joined from the caller-configured base URL (newRequest); requesting the configured service is the client's purpose
 	if err != nil {
-		return nil, c.transportError(http.MethodGet, path, err)
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
@@ -251,7 +251,7 @@ func (c *Client) RetrieveFrames(ctx context.Context, p ResourcePath, frames ...i
 	if err != nil {
 		return nil, err
 	}
-	return c.retrieveOctetParts(ctx, path, acceptOctetStream())
+	return c.retrieveOctetParts(ctx, path, acceptOctetStream(), "")
 }
 
 // RetrieveBulkData fetches every bulk-data value of an instance as a multipart/related body
@@ -261,7 +261,75 @@ func (c *Client) RetrieveBulkData(ctx context.Context, p ResourcePath) ([][]byte
 	if err != nil {
 		return nil, err
 	}
-	return c.retrieveOctetParts(ctx, path, acceptOctetStream())
+	return c.retrieveOctetParts(ctx, path, acceptOctetStream(), "")
+}
+
+// RetrieveBulkDataRange fetches a byte range of an instance's bulk data, sending an HTTP Range
+// header (PS3.18 §8.7.4, §10.4.4, matching the dicomweb-client byte_range parameter). It is the
+// partial-retrieval form of RetrieveBulkData: an origin that supports range requests returns 206
+// Partial Content with only the requested octets, sparing a re-fetch of a large bulk-data value.
+// An origin that ignores the Range header returns the full 200 body, which is still correct; the
+// caller can compare the returned length against the requested span when partial semantics matter.
+// The returned parts are the octet-stream parts of the (possibly partial) response.
+func (c *Client) RetrieveBulkDataRange(ctx context.Context, p ResourcePath, br ByteRange) ([][]byte, error) {
+	if err := br.validate(); err != nil {
+		return nil, err
+	}
+	path, err := p.BulkData()
+	if err != nil {
+		return nil, err
+	}
+	return c.retrieveOctetParts(ctx, path, acceptOctetStream(), br.header())
+}
+
+// RetrieveFramesRange fetches a byte range of an instance's frame data, sending an HTTP Range
+// header (PS3.18 §8.7.4, §10.4.3). It is the partial-retrieval form of RetrieveFrames; the same
+// origin-support caveat as RetrieveBulkDataRange applies.
+func (c *Client) RetrieveFramesRange(ctx context.Context, p ResourcePath, br ByteRange, frames ...int) ([][]byte, error) {
+	if err := br.validate(); err != nil {
+		return nil, err
+	}
+	path, err := p.Frames(frames...)
+	if err != nil {
+		return nil, err
+	}
+	return c.retrieveOctetParts(ctx, path, acceptOctetStream(), br.header())
+}
+
+// ByteRange names a half-open byte span for a partial retrieval, rendered as an HTTP Range
+// header (RFC 9110 §14, PS3.18 §8.7.4). It mirrors the dicomweb-client byte_range parameter: a
+// (start, end) pair selecting bytes start through end inclusive, or an open-ended suffix/prefix.
+// All offsets are zero-based, matching the HTTP Range unit.
+type ByteRange struct {
+	// Start is the zero-based first byte offset. A negative Start selects the final -Start bytes
+	// (a suffix range, "bytes=-N") and End is ignored.
+	Start int64
+	// End is the zero-based last byte offset, inclusive. A zero or negative End (with a
+	// non-negative Start) selects from Start to the end of the value ("bytes=Start-").
+	End int64
+}
+
+// validate rejects a degenerate range: a forward range whose End precedes its Start. An
+// open-ended range (End <= 0) and a suffix range (Start < 0) are valid.
+func (b ByteRange) validate() error {
+	if b.Start >= 0 && b.End > 0 && b.End < b.Start {
+		return fmt.Errorf("%w: byte range end precedes start", ErrInvalidResource)
+	}
+	return nil
+}
+
+// header renders the ByteRange as an HTTP Range header value ("bytes=..."). A suffix range
+// (Start < 0) renders "bytes=-N"; an open-ended range (End <= 0) renders "bytes=Start-"; a
+// closed range renders "bytes=Start-End".
+func (b ByteRange) header() string {
+	switch {
+	case b.Start < 0:
+		return fmt.Sprintf("bytes=%d", b.Start)
+	case b.End <= 0:
+		return fmt.Sprintf("bytes=%d-", b.Start)
+	default:
+		return fmt.Sprintf("bytes=%d-%d", b.Start, b.End)
+	}
 }
 
 // ResolveBulkDataURI fetches the octets a BulkDataURI references. WADO-RS returns a bulk-data
@@ -283,6 +351,25 @@ func (c *Client) RetrieveBulkData(ctx context.Context, p ResourcePath) ([][]byte
 // header to another host would let a malicious or compromised origin harvest the PACS
 // credential, so a cross-origin reference is fetched without credentials (PRD §9.8).
 func (c *Client) ResolveBulkDataURI(ctx context.Context, uri BulkDataURI) ([]byte, error) {
+	return c.resolveBulkDataURI(ctx, uri, "")
+}
+
+// ResolveBulkDataURIRange fetches a byte range of the octets a BulkDataURI references, sending an
+// HTTP Range header (PS3.18 §8.7.4, matching the dicomweb-client byte_range parameter). It shares
+// the same-origin and cross-origin-allowlist policy as ResolveBulkDataURI; an origin that supports
+// ranges returns 206 Partial Content with only the requested span, while one that ignores the
+// header returns the full body.
+func (c *Client) ResolveBulkDataURIRange(ctx context.Context, uri BulkDataURI, br ByteRange) ([]byte, error) {
+	if err := br.validate(); err != nil {
+		return nil, err
+	}
+	return c.resolveBulkDataURI(ctx, uri, br.header())
+}
+
+// resolveBulkDataURI is the shared bulk-data resolve, with an optional Range header for a partial
+// retrieval. It enforces the same-origin/allowlist SSRF guard, then fetches the first
+// octet-stream part of the (possibly partial) multipart/related response.
+func (c *Client) resolveBulkDataURI(ctx context.Context, uri BulkDataURI, rangeHeader string) ([]byte, error) {
 	target := c.absoluteBulkDataURL(string(uri))
 	if err := c.checkBulkDataOrigin(target); err != nil {
 		return nil, err
@@ -292,13 +379,16 @@ func (c *Client) ResolveBulkDataURI(ctx context.Context, uri BulkDataURI) ([]byt
 		return nil, fmt.Errorf("dicomweb: build bulkdata request: %w", err)
 	}
 	req.Header.Set("Accept", acceptOctetStream())
+	if rangeHeader != "" {
+		req.Header.Set("Range", rangeHeader)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("dicomweb: GET bulkdata: %w", sanitizeTransportError(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		return nil, &HTTPError{StatusCode: resp.StatusCode, Method: http.MethodGet, URL: "/bulkdata"}
 	}
 	if !isMultipartRelated(resp.Header.Get("Content-Type")) {
@@ -405,20 +495,25 @@ func originPort(u *url.URL) string {
 
 // retrieveOctetParts issues a multipart/related WADO-RS GET against path with the given
 // Accept header and returns each application/octet-stream part's raw octets. A non-octet
-// part media type is a typed error rather than a silently-dropped part (PRD §9.2).
-func (c *Client) retrieveOctetParts(ctx context.Context, path, accept string) ([][]byte, error) {
+// part media type is a typed error rather than a silently-dropped part (PRD §9.2). A non-empty
+// rangeHeader sets the HTTP Range header for a byte-range (partial) retrieval; the response may
+// then carry 206 Partial Content, which the status check below admits alongside 200.
+func (c *Client) retrieveOctetParts(ctx context.Context, path, accept, rangeHeader string) ([][]byte, error) {
 	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Accept", accept)
+	if rangeHeader != "" {
+		req.Header.Set("Range", rangeHeader)
+	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req, http.MethodGet, path)
 	if err != nil {
-		return nil, c.transportError(http.MethodGet, path, err)
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		return nil, c.httpError(http.MethodGet, path, resp)
 	}
 	if !isMultipartRelated(resp.Header.Get("Content-Type")) {

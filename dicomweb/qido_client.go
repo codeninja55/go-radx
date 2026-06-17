@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"net/url"
 	"sort"
@@ -13,6 +14,10 @@ import (
 
 	"github.com/codeninja55/go-radx/dicom"
 )
+
+// defaultPageSize is the per-request page size SearchAll* uses when the query's Limit is zero.
+// It bounds each round trip while letting the iterator span an arbitrarily large result set.
+const defaultPageSize = 100
 
 // SearchQuery is the client-side QIDO-RS query a caller builds for SearchStudies,
 // SearchSeries, or SearchInstances. It carries the attribute-matching keys, the projected
@@ -72,6 +77,78 @@ func (c *Client) SearchInstances(ctx context.Context, study, series dicom.UID, q
 	return c.search(ctx, path, q)
 }
 
+// SearchAllStudies searches all studies, transparently paging through the result set with
+// offset/limit until the origin returns a short (or empty) page, and yields each match in turn
+// (matching the dicomweb-client get_remaining behaviour). It is the auto-paginating counterpart to
+// SearchStudies: a caller iterates without managing the offset window itself. The query's Limit
+// sets the per-request page size (defaulting to 100); its Offset sets the starting position. The
+// iterator stops at the first transport or decode error, yielding that error, so a truncated page
+// is never read as the complete result set.
+func (c *Client) SearchAllStudies(ctx context.Context, q SearchQuery) iter.Seq2[SearchResult, error] {
+	return c.searchAll(ctx, "/studies", q)
+}
+
+// SearchAllSeries is the auto-paginating counterpart to SearchSeries, with the same paging
+// semantics as SearchAllStudies.
+func (c *Client) SearchAllSeries(ctx context.Context, study dicom.UID, q SearchQuery) iter.Seq2[SearchResult, error] {
+	path, err := seriesSearchPath(study)
+	return c.searchAllPath(ctx, path, err, q)
+}
+
+// SearchAllInstances is the auto-paginating counterpart to SearchInstances, with the same paging
+// semantics as SearchAllStudies.
+func (c *Client) SearchAllInstances(ctx context.Context, study, series dicom.UID, q SearchQuery) iter.Seq2[SearchResult, error] {
+	path, err := instanceSearchPath(study, series)
+	return c.searchAllPath(ctx, path, err, q)
+}
+
+// searchAll pages through a QIDO-RS search at path, yielding each result. It requests fixed-size
+// pages by offset/limit and stops when a page comes back shorter than the page size, which marks
+// the end of the result set (PS3.18 §10.6.1.4 has no Link/cursor mechanism, so offset/limit paging
+// is the portable exhaustion signal). A page exactly the page size triggers one more request,
+// which then returns a short or empty page — correct, at the cost of one extra round trip on an
+// exact multiple.
+func (c *Client) searchAll(ctx context.Context, path string, q SearchQuery) iter.Seq2[SearchResult, error] {
+	return c.searchAllPath(ctx, path, nil, q)
+}
+
+// searchAllPath is searchAll with a deferred path-construction error, so the scoped Search* helpers
+// can build the path inline; when pathErr is set the iterator yields that single error.
+func (c *Client) searchAllPath(ctx context.Context, path string, pathErr error, q SearchQuery) iter.Seq2[SearchResult, error] {
+	return func(yield func(SearchResult, error) bool) {
+		if pathErr != nil {
+			yield(SearchResult{}, pathErr)
+			return
+		}
+		page := q.Limit
+		if page <= 0 {
+			page = defaultPageSize
+		}
+		offset := q.Offset
+		for {
+			pageQuery := q
+			pageQuery.Limit = page
+			pageQuery.Offset = offset
+			results, err := c.search(ctx, path, pageQuery)
+			if err != nil {
+				yield(SearchResult{}, err)
+				return
+			}
+			for _, r := range results {
+				if !yield(r, nil) {
+					return
+				}
+			}
+			if len(results) < page {
+				// A short page (including an empty one) is the last page: the origin had no more
+				// matches beyond it.
+				return
+			}
+			offset += len(results)
+		}
+	}
+}
+
 // seriesSearchPath builds the series-search path for the optional study scope, validating
 // the study UID when present so a malformed identifier never reaches the wire.
 func seriesSearchPath(study dicom.UID) (string, error) {
@@ -118,9 +195,9 @@ func (c *Client) search(ctx context.Context, path string, q SearchQuery) ([]Sear
 	}
 	req.Header.Set("Accept", mediaTypeDICOMJSON)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req, http.MethodGet, path)
 	if err != nil {
-		return nil, c.transportError(http.MethodGet, path, err)
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 

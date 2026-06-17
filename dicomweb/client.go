@@ -49,6 +49,10 @@ type Client struct {
 	transport  http.RoundTripper
 	authLayer  func(base http.RoundTripper, origin *url.URL) http.RoundTripper
 	clientCert *tls.Certificate
+
+	// retry, when set by WithRetry, applies automatic retry of idempotent reads on a transient
+	// failure. It is nil by default (no retry).
+	retry *RetryPolicy
 }
 
 // ClientOption configures a Client. There is no global configuration; every knob is an
@@ -359,9 +363,9 @@ func (c *Client) retrieveSingleInstance(ctx context.Context, p ResourcePath, cap
 	}
 	req.Header.Set("Accept", acceptInstances(c.transferSyntaxes...))
 
-	resp, err := c.httpClient.Do(req) // #nosec G704 -- the URL is joined from the caller-configured base URL (newRequest); requesting the configured service is the client's purpose
+	resp, err := c.do(req, http.MethodGet, path) // #nosec G704 -- the URL is joined from the caller-configured base URL (newRequest); requesting the configured service is the client's purpose
 	if err != nil {
-		return RetrievedInstance{}, c.transportError(http.MethodGet, path, err)
+		return RetrievedInstance{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
