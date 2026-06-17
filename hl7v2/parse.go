@@ -2,17 +2,34 @@ package hl7v2
 
 import (
 	"bytes"
+
+	"golang.org/x/text/encoding"
 )
 
 // parseConfig holds the resolved options for a single Parse call. It is never a
 // package global: encoding characters and limits are per-message so a
 // non-standard sender round-trips correctly (PRD §9.4).
-type parseConfig struct{}
+type parseConfig struct {
+	charset encoding.Encoding // nil means the bytes are already UTF-8/ASCII
+}
 
-// ParseOption configures a parse. Pass none for the standard behaviour. The
-// option set is intentionally minimal for the M2 ORM slice; size caps, an
-// application-defined escape map, and strictness toggles arrive in M5.
+// ParseOption configures a parse. Pass none for the standard behaviour.
 type ParseOption func(*parseConfig)
+
+// WithCharset decodes the input bytes from charset to UTF-8 before parsing,
+// matching python-hl7's parse(lines, encoding=...). Use it when an interface
+// emits a message in a legacy single-byte or multi-byte character set named in
+// MSH-18 (for example ISO-8859-1 or Shift-JIS): pass the matching
+// golang.org/x/text/encoding.Encoding and the leaf values come back as UTF-8.
+// Without it, the bytes are parsed as-is, so an already-UTF-8 or ASCII message
+// needs no charset option.
+//
+// The structural delimiters (the field separator and MSH-2 encoding characters)
+// are single ASCII bytes in every HL7-registered character set, so decoding the
+// whole buffer first and then splitting on those bytes is safe.
+func WithCharset(charset encoding.Encoding) ParseOption {
+	return func(cfg *parseConfig) { cfg.charset = charset }
+}
 
 func newParseConfig(opts ...ParseOption) parseConfig {
 	var cfg parseConfig
@@ -20,6 +37,20 @@ func newParseConfig(opts ...ParseOption) parseConfig {
 		opt(&cfg)
 	}
 	return cfg
+}
+
+// decodeCharset returns b decoded from cfg.charset to UTF-8, or b unchanged when
+// no charset option was given. A decode error is surfaced as a *ParseError so a
+// caller handles it like any other malformed input.
+func (cfg parseConfig) decodeCharset(b []byte) ([]byte, error) {
+	if cfg.charset == nil {
+		return b, nil
+	}
+	decoded, err := cfg.charset.NewDecoder().Bytes(b)
+	if err != nil {
+		return nil, &ParseError{Offset: 0, Reason: "charset decode failed: " + err.Error()}
+	}
+	return decoded, nil
 }
 
 // Message is the root of the six-level tree: an ordered list of Segments, the
@@ -64,7 +95,11 @@ type Component struct {
 // *ParseError, and a body that ends inside a segment is truncation and returns
 // io.ErrUnexpectedEOF wrapped in a *ParseError (PRD §9.2).
 func Parse(b []byte, opts ...ParseOption) (*Message, error) {
-	_ = newParseConfig(opts...)
+	cfg := newParseConfig(opts...)
+	b, err := cfg.decodeCharset(b)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(b) < 3 || b[0] != 'M' || b[1] != 'S' || b[2] != 'H' {
 		return nil, &ParseError{Offset: 0, Reason: "message must begin with an MSH segment"}

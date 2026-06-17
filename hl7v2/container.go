@@ -43,7 +43,11 @@ type File struct {
 // round-trips correctly. A BHS without a BTS, or a BTS without a BHS, is a
 // *ParseError (the both-or-neither rule).
 func ParseBatch(b []byte, opts ...ParseOption) (*Batch, error) {
-	_ = newParseConfig(opts...)
+	cfg := newParseConfig(opts...)
+	b, err := cfg.decodeCharset(b)
+	if err != nil {
+		return nil, err
+	}
 
 	enc, err := deriveContainerEncoding(b)
 	if err != nil {
@@ -60,7 +64,11 @@ func ParseBatch(b []byte, opts ...ParseOption) (*Batch, error) {
 // both-or-neither rule applies to the FHS/FTS pair, and each inner batch is
 // parsed by the same batch rules.
 func ParseFile(b []byte, opts ...ParseOption) (*File, error) {
-	_ = newParseConfig(opts...)
+	cfg := newParseConfig(opts...)
+	b, err := cfg.decodeCharset(b)
+	if err != nil {
+		return nil, err
+	}
 
 	enc, err := deriveContainerEncoding(b)
 	if err != nil {
