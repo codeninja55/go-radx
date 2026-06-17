@@ -6,12 +6,13 @@ file:symbol against main as of 2026-06-10. Tests count toward MET.
 
 ## Summary
 
-**python-hl7 floor (primary): 32 features — 27 MET, 4 PARTIAL, 0 NOT-MET, 1 N-A.** The floor is
-effectively met: every parsing entry point, the full container model, accessor extract/assign semantics,
-escape/unescape, ACK construction, batch/file protocols, the MLLP client/server pair, the cross-implementation
-MLLP interop CI leg (issue #114, now MET), and the CLI sender all have shipped, tested go-radx equivalents.
-The four remaining PARTIALs are size S conveniences (boolean format predicates, a `split_file` helper,
-charset-decode on parse, custom `\Z\` escape maps).
+**python-hl7 floor (primary): 32 features — 31 MET, 0 PARTIAL, 0 NOT-MET, 1 N-A.** The floor is fully
+met: every parsing entry point, the format-sniff predicates, the full container model, accessor
+extract/assign semantics, escape/unescape with caller-defined app maps, ACK construction, batch/file
+protocols including the one-call `split_file` flatten, charset-decode on parse, the MLLP client/server
+pair, the cross-implementation MLLP interop CI leg (issue #114), and the CLI sender all have shipped,
+tested go-radx equivalents. The four former PARTIALs (boolean format predicates, a `split_file` helper,
+charset-decode on parse, and custom `\Z\` escape maps) shipped together as the size S floor close-out.
 
 **HAPI catalogue (stretch): expected and confirmed large breadth gap.** go-radx types 5 message families
 (ADT, ORM, OMG, ORU, ACK) with a radiology-scoped trigger subset; HAPI v2.5 alone ships ~195
@@ -37,9 +38,9 @@ Top gaps by size:
 | `hl7.parse_batch()` | api.html `parse_batch` | MET | `ParseBatch` `hl7v2/container.go:45`; `hl7v2/container_test.go` | - | Headerless batch (bare MSH sequence) accepted, matching python-hl7 |
 | `hl7.parse_file()` | api.html `parse_file` | MET | `ParseFile` `hl7v2/container.go:62` | - | File with no inner BHS wraps a single headerless batch |
 | `hl7.parse_hl7()` auto-detect | api.html `parse_hl7` | MET | `ParseAny` `hl7v2/container.go:82`, `leadingSegmentID` `:339` | - | Dispatches MSH/BHS/FHS to Message/Batch/File via `Container` interface |
-| `ishl7`/`isbatch`/`isfile` predicates | api.html helpers | PARTIAL | `ParseAny` + type switch covers the use case; no boolean predicates | S | Cheap non-parsing sniff helpers absent; parse-then-check works today |
-| `split_file()` | api.html `split_file` | PARTIAL | Composable: `File.Batches[].Messages` `hl7v2/container.go:33` | S | No one-call helper that flattens a file to messages |
-| `encoding=` charset decode | api.html `parse(lines, encoding=...)` | PARTIAL | `Parse([]byte)` consumes raw bytes; no charset conversion in package | S | Caller pre-converts (e.g. `golang.org/x/text`); UTF-8/ASCII pass through |
+| `ishl7`/`isbatch`/`isfile` predicates | api.html helpers | MET | `IsHL7`/`IsBatch`/`IsFile` `hl7v2/sniff.go:11,46,67`; `hl7v2/sniff_test.go` | - | Cheap non-parsing sniffs matching python-hl7's second-MSH/BHS/FHS logic exactly |
+| `split_file()` | api.html `split_file` | MET | `SplitFile` `hl7v2/sniff.go:96`; `hl7v2/sniff_test.go` | - | One call flattens a batch/file to messages, dropping FHS/BHS/FTS/BTS framing, `\r`-terminated |
+| `encoding=` charset decode | api.html `parse(lines, encoding=...)` | MET | `WithCharset` `hl7v2/parse.go:30` decodes via `golang.org/x/text/encoding` before parse; `hl7v2/charset_test.go` | - | ASCII delimiters decode safely first; Latin-1 and Shift-JIS round-trip in tests |
 | `Factory` custom containers | api.html `Factory` | N-A | - | - | Subclass-injection pattern; Go uses concrete typed structs by design |
 
 ### Container model and indexing
@@ -62,7 +63,7 @@ Top gaps by size:
 | `assign_field` | api.html | MET | `Message.Set` `hl7v2/accessor.go:271` + `grow*` `:322-353` | - | Grows structure to path; never invents a segment; rejects MSH-1/MSH-2 |
 | Auto-unescape on extract / escape on assign | accessors.html | MET | `Get` unescapes, `Set` escapes (see `hl7v2/accessor.go`); MSH-1/2 verbatim | - | Delimiter bytes in values cannot forge structure |
 | `escape()` / `unescape()` | api.html | MET | `Escape` `hl7v2/escape.go:68`, `Unescape` `:151`; `hl7v2/escape_test.go` | - | Full §2.10 incl. `\Xdd\` hex, `\H\`/`\N\`, `\.br\`; derived from message delimiters |
-| `app_map` custom `\Z\` sequences | api.html `escape(field, app_map)` | PARTIAL | `\Zxxx\` preserved + surfaced via `UnescapeNote` `hl7v2/escape.go:230-234` | S | No caller-supplied map to interpret site-defined sequences |
+| `app_map` custom `\Z\` sequences | api.html `escape(field, app_map)` | MET | `WithAppMap` `hl7v2/escape.go:46` on `Escape`/`Unescape`; `hl7v2/escape_appmap_test.go` | - | Caller map decodes/encodes site-defined sequences; takes precedence over the §2.10 decline-and-note path |
 
 ### ACK and utilities
 
@@ -145,8 +146,9 @@ Sources fetched 2026-06-10:
 
 Not verified / caveats:
 
-- No tests were executed for this audit (per task constraints); MET rows cite symbols and existing test
-  files, not fresh runs.
+- The four former-PARTIAL floor rows (sniff predicates, `split_file`, charset decode, app-map escaping)
+  were closed with shipped code and tests run under `go test -race ./hl7v2/...`. The remaining MET rows
+  cite symbols and existing test files rather than fresh side-by-side runs against python-hl7.
 - python-hl7's exact `extract_field` edge-case behaviour was compared at documentation level, not by
   running both libraries side by side; go-radx's own conformance statement claims rule-for-rule parity
   and its accessor tests exercise the deep/shallow-path rules.
