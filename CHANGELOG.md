@@ -12,6 +12,21 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- DICOMweb capabilities discovery and the remaining dicomweb-client client conveniences, closing the PS3.18 §8.9
+  capabilities gap and the byte-range/retry/auto-pagination small misses (`dicomweb`). The embeddable server answers a
+  Retrieve Capabilities request (`OPTIONS /`) with a pragmatic JSON document — a version, the implementing library, the
+  wired services (`WADO-RS`/`QIDO-RS`/`STOW-RS`/`WADO-URI`, driven by the registered backends), and per-transaction
+  method/path templates (placeholders only, never concrete UIDs) — plus an `Allow` header; the client reads it with
+  `RetrieveCapabilities` and branches on `Capabilities.HasService`. The document is deliberately compact and is not a
+  conformant OpenAPI/WADL description (documented honestly in the conformance statement). The client adds byte-range
+  partial retrieval (`ByteRange`, `RetrieveBulkDataRange`, `RetrieveFramesRange`, `ResolveBulkDataURIRange`) sending an
+  HTTP `Range: bytes=...` header and accepting `206 Partial Content`; configurable transient-failure retry (`WithRetry`,
+  `RetryPolicy`) over idempotent reads with bounded exponential back-off on transport errors and 429/502/503/504 (a
+  STOW-RS store is never auto-retried, to avoid a double-store); and QIDO-RS auto-pagination (`SearchAllStudies`,
+  `SearchAllSeries`, `SearchAllInstances`) that pages by offset/limit until the result set is exhausted. Rendered
+  resources, the `/thumbnail` resource, and the WebSocket notification channel remain deferred (tracked in #142 and
+  #143). PS3.18 §8.9, §8.7.4, §10.4, §10.6.
+
 - DIMSE MPPS SCP and Storage Commitment SCP, both plugging into the DIMSE-N SCP dispatch substrate to
   bring those two service classes to both-role parity with pynetdicom (PS3.4 Annex F, Annex J).
   `dimse.MPPSProvider` (an `NCreateHandler` and `NSetHandler`) answers the Modality Performed Procedure

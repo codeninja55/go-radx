@@ -29,6 +29,10 @@ The package ships the three core DICOMweb services on both the client and the em
 - **WADO-URI** (the legacy URI-parameter single-object retrieval, PS3.18 §9) — `application/dicom` retrieval of one
   instance by its study/series/object UID triple. See [WADO-URI](#wado-uri).
 
+- **Capabilities discovery** (PS3.18 §8.9) — a pragmatic JSON capabilities document the server serves on
+  `OPTIONS /` and the client parses, describing the wired services and transactions. See
+  [Capabilities discovery](#capabilities-discovery).
+
 The supported query parameters, `Accept`/`Content-Type` negotiation, transfer-syntax selection, bulk-data referencing,
 pagination semantics, and authentication modes are declared in the sections below with their client and server roles.
 WADO-RS metadata is served as either `application/dicom+json` or the PS3.19 Native DICOM Model
@@ -102,6 +106,25 @@ absolute reference is fetched as given. The bulkdata server resolves a reference
 referenced value, top-level and nested sequence paths alike; a locator that names no binary attribute of the
 instance answers `404`. The bare `.../bulkdata` sub-resource returns every bulk-data value of the instance.
 
+### Byte-range retrieval
+
+The client can request a byte range of a frame or bulk-data value (PS3.18 §8.7.4, matching the dicomweb-client
+`byte_range` parameter): `RetrieveBulkDataRange`, `RetrieveFramesRange`, and `ResolveBulkDataURIRange` take a
+`ByteRange` and send an HTTP `Range: bytes=...` header. An origin that supports ranges answers `206 Partial Content`
+with only the requested span; an origin that ignores the header answers the full `200` body (still correct). The
+`ByteRange` renders the three RFC 9110 forms: a closed range (`bytes=start-end`), an open-ended range (`bytes=start-`),
+and a suffix range (`bytes=-N`); a forward range whose end precedes its start is rejected before any request. The
+embeddable server does not itself slice a `multipart/related` body to a `Range` header; byte-range partial retrieval is
+a client capability against a range-supporting origin.
+
+### Transient-failure retry
+
+The client retries an idempotent read (`GET`, `OPTIONS`) on a transient failure when `WithRetry` is set (matching the
+dicomweb-client `set_http_retry_params` knob): a transport error and a retryable status (`429`, `502`, `503`, `504` by
+default) are retried with bounded exponential back-off; the back-off respects context cancellation. A deterministic
+`4xx` (other than `429`) is never retried, and a STOW-RS store is never auto-retried, since a replayed non-transactional
+store risks a double-store (PS3.18 §10.5).
+
 ### Errors
 
 A retrieval fault is a typed problem document carrying the mapped HTTP status and a PHI-free structural detail. A
@@ -174,7 +197,12 @@ closed (`500`) rather than reporting an empty result a caller would read as "no 
 ### Client
 
 The client exposes `SearchStudies`, `SearchSeries`, and `SearchInstances`. The query string is stripped from any URL
-recorded in an error, since a QIDO query string can carry patient identifiers.
+recorded in an error, since a QIDO query string can carry patient identifiers. For a result set that spans many pages,
+`SearchAllStudies`, `SearchAllSeries`, and `SearchAllInstances` return a streaming iterator that transparently pages
+through the result set with `offset`/`limit` until a short page marks the end (matching the dicomweb-client
+`get_remaining` behaviour); the query's `Limit` sets the per-request page size (defaulting to 100). PS3.18 §10.6.1.4
+defines no `Link`/cursor mechanism, so offset/limit paging is the portable exhaustion signal; the iterator stops at the
+first transport or decode error so a truncated page is never read as the complete result.
 
 ### Roles
 
@@ -298,6 +326,31 @@ line.
 | WADO-URI retrieve (`contentType=application/dicom`) | Implemented (reuses `RetrieveBackend`/`StoredInstanceRetriever`) | Implemented (`WADORetrieveInstance`, `WADORetrieveInstanceObject`) |
 | WADO-URI rendered retrieve (`contentType=image/jpeg`, ...) | Out of scope — answered `406` | Out of scope |
 
+## Capabilities discovery
+
+PS3.18 §8.9 says every RESTful DICOM service shall answer a Retrieve Capabilities request describing the transactions
+and resources it supports. The standard frames the response as a machine-readable description and names the
+OpenAPI/RESTful Services Description Document as the modern form (the older Web Application Description Language is also
+permitted). go-radx serves a pragmatic JSON capabilities document rather than the full OpenAPI/WADL surface: it
+enumerates the services and transactions the origin actually wires (driven by the registered backends), so a client
+discovers what a server supports without trial requests.
+
+| Aspect | Behaviour |
+|--------|-----------|
+| Request | `OPTIONS` on the service base path |
+| Response | `application/json` document (`CapabilitiesMediaType`), plus an `Allow` header naming the accepted methods |
+| Content | a `version`, the implementing `library`, the supported `services` (a subset of `WADO-RS`, `QIDO-RS`, `STOW-RS`, `WADO-URI`), and per-transaction `name`/`methods`/`paths` templates |
+| PHI | path templates carry `{study}`/`{series}`/`{instance}` placeholders, never concrete UIDs (PRD §9.1) |
+| Client | `RetrieveCapabilities` issues the `OPTIONS` request and parses the JSON; `Capabilities.HasService` branches on what an origin supports |
+
+The document is deliberately compact and is **not** a conformant OpenAPI or WADL description: a consumer needing the
+full PS3.18 capabilities schema must treat the go-radx document as an informational summary. The client parses the
+go-radx JSON shape only; a foreign origin returning a different description format yields a typed decode error.
+
+| Service | Server | Client |
+|---------|--------|--------|
+| Retrieve Capabilities (`OPTIONS /`) | Implemented (pragmatic JSON document) | Implemented (`RetrieveCapabilities`) |
+
 ## Client authentication
 
 Client authentication is a pluggable transport concern: each scheme is an `http.RoundTripper` layered over the
@@ -355,10 +408,13 @@ answers an unservable request with an honest status (`406`, `501`) rather than a
 - **Rendered retrieval and thumbnails** (`/rendered`, `/thumbnail`, PS3.18 §10.4.1.2, and WADO-URI rendered
   `contentType`s, PS3.18 §9.5) — server-side rendering to consumer image formats (JPEG/PNG). Out of scope: the package
   retrieves DICOM objects, frames, and bulk data, not rendered pixels. A WADO-URI request for a rendered `contentType`
-  is answered `406 Not Acceptable`.
-- **UPS-RS** (Unified Procedure Step / worklist over the web, PS3.18 §11) and **capabilities discovery** (the
-  `OPTIONS /` / `/capabilities` document, PS3.18 §8.9) — no endpoint is served. The DIMSE Modality Worklist
-  ([`./dicom.md`](./dicom.md)) is the worklist surface today.
+  is answered `406 Not Acceptable`. The `/thumbnail` resource is deferred with rendering because a thumbnail is itself a
+  rendered consumer image (tracked in issue #142).
+- **Notifications / WebSocket event channel** (PS3.18 §8.10) — no event channel is served (tracked in issue #143).
+- **UPS-RS** (Unified Procedure Step / worklist over the web, PS3.18 §11) — no endpoint is served. The DIMSE Modality
+  Worklist ([`./dicom.md`](./dicom.md)) is the worklist surface today.
+
+Capabilities discovery (PS3.18 §8.9) is now in scope — see [Capabilities discovery](#capabilities-discovery).
 - **Pixel-data transcoding** — the WADO-RS transfer-syntax policy answers `406 Not Acceptable` for a syntax the origin
   cannot serve; the shipped server registers no transcoders (see [Transfer-syntax policy](#transfer-syntax-policy)).
 - **STOW-RS metadata + bulk-data client** — the server accepts both store variants, but the client posts whole objects
