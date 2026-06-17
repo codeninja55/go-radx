@@ -12,6 +12,20 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- FHIR server-role write side: `update` (PUT), `patch` (PATCH), and `delete` (DELETE) with their
+  conditional forms, replacing the prior `501` stubs (`server/fhir_write.go`, `server/fhir_jsonpatch.go`).
+  `update` does a full-resource replace with resourceType/id integrity (`400` on a mismatch), release
+  validation, version bump, and `If-Match` optimistic locking (`412` on a stale version), answering `200`
+  for an existing resource or `201` for update-as-create (the FHIR and HAPI default; a PUT after a DELETE
+  resurrects the resource). `patch` supports JSON Patch (RFC 6902, `application/json-patch+json`): the patch
+  applies to the current version, the result is re-validated through the create gate and stored as the next
+  version (`415` on the wrong content type, `422` on a non-applying patch); FHIRPath Patch is out of scope.
+  `delete` appends a deletion version to the store so a later read is `410 Gone`, prior versions stay
+  vread-able, and the history shows the deletion; it is idempotent (`200`/`204`, never `404`, per HAPI). The
+  conditional forms (`PUT`/`PATCH`/`DELETE [type]?[search]`) resolve the criteria through the configured
+  `Repository`'s search (zero/one/many → create-or-no-op/apply/`412`), as selective as that repository's
+  search. The `Repository` interface gains `Update` and `Delete`; the audit hook emits `fhir.update`,
+  `fhir.patch`, and `fhir.delete` events. Errors are PHI-free release `OperationOutcome`s throughout.
 - DICOM private-block API and a private-creator dictionary (pydicom `private_block`/`private_creators`/
   `get_private_item` and `private_dictionaries` parity). `(*dicom.DataSet).PrivateBlock(group, creator,
   create)` resolves the private-creator element (gggg,0010-00FF) whose value matches `creator` and returns a

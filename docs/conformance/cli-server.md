@@ -107,13 +107,29 @@ precondition is evaluated against the current version (`412` on a stale version,
 validates inbound resources with the release validator (a resource with error-severity issues is rejected `422`;
 `POST [type]/$validate` runs the same validator and returns the findings as an `OperationOutcome` without
 persisting), returns a release `OperationOutcome` for every error (a `404` read miss, a `400` malformed body, a
-`405`/`501` deferred interaction — `update`/`delete`/`patch` are answered with a `501` `OperationOutcome`, never a
-silent no-op), and serves a `CapabilityStatement` at `[base]/metadata` advertising exactly the supported
-interactions. A conditional create (FHIR R5 `http.html` conditional create) fails closed: a create carrying
+`405` unsupported method), and serves a `CapabilityStatement` at `[base]/metadata` advertising exactly the supported
+interactions.
+
+The role implements the write interactions beyond create. `update` (`PUT [type]/[id]`) does a full-resource replace:
+the body's `resourceType` and id must match the URL (`400` on a mismatch), the resource is validated through the
+create gate, the version is bumped, and the response is `200` for an existing resource or `201` (with a versioned
+`Location`) when the update created the resource (update-as-create, the FHIR default and HAPI's default). `patch`
+(`PATCH [type]/[id]`) supports JSON Patch (RFC 6902, `application/json-patch+json`): the patch applies to the current
+version, the result is re-validated through the same gate, and the version is bumped (`200`); a wrong content type is
+`415` and a patch that does not apply is `422`. FHIRPath Patch (a `Parameters` body) is out of scope. `delete`
+(`DELETE [type]/[id]`) appends a deletion version to the history: a subsequent read is `410 Gone`, a vread of a prior
+version still returns `200`, the history shows the deletion entry, and the delete is idempotent (deleting an absent or
+already-deleted resource is `200`/`204`, never `404`, matching HAPI). The conditional forms (`PUT`/`PATCH`/`DELETE
+[type]?[search]`) resolve the criteria through the configured `Repository`'s search: zero matches creates
+(conditional update) or is a no-op (`204`, conditional delete) or `404` (conditional patch); one match is the
+update/patch/delete of that resource; multiple matches is `412`. Conditional resolution is exactly as selective as the
+`Repository`'s search — the in-memory default resolves an `_id` criterion (and otherwise all-of-type), so a
+conditional write against it is well-defined for `_id`; a production `Repository` with full search resolves any
+criteria. A conditional create (FHIR R5 `http.html` conditional create) fails closed: a create carrying
 `If-None-Exist` — on the direct POST or as a transaction entry's `request.ifNoneExist` — is rejected `400` with a
 `not-supported` `OperationOutcome` and persists nothing, never silently ignored into a duplicate; the matching
-semantics are deferred to the search work. The version store is interaction-shaped (one record per version, newest first), so the deferred
-update/patch/delete and conditional writes extend it by appending versions rather than reshaping it. The release is
+semantics are deferred to the search work. The version store is interaction-shaped (one record per version, newest
+first): update, patch, and delete extend it by appending versions rather than reshaping it. The release is
 fixed with `WithFHIRRelease` (default R5); to serve both releases from one process, mount two roles on different base
 paths (for example `/fhir/r4` and `/fhir/r5`). A default in-memory `server.MemoryRepository` makes the role runnable
 out of the box; a production deployment supplies its own `Repository`. The role plugs into the `Daemon` exactly like

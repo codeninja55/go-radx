@@ -10,6 +10,14 @@ var (
 	// backend fault, never reporting a silent success on missing data (PRD §9.2).
 	ErrNotFound = errors.New("server: object or resource not found")
 
+	// ErrVersionConflict is returned by Repository.Update and Repository.Delete when an If-Match
+	// precondition (the expected version passed into the write) does not match the resource's current
+	// version: FHIR R5 http.html#concurrency answers a stale version-aware write with 412 Precondition
+	// Failed. The check is performed inside the repository's write lock so it is atomic with the write —
+	// two concurrent writers with the same valid If-Match cannot both pass (the lost-update guard). The
+	// role maps this sentinel to a 412 conflict OperationOutcome.
+	ErrVersionConflict = errors.New("server: resource version does not match the If-Match precondition")
+
 	// ErrGone is returned by Repository.VRead when the named version exists in the resource's
 	// history but records a deletion: FHIR R5 http.html#vread answers that version with 410 Gone,
 	// distinct from the 404 an unknown resource or version gets. The in-memory repository cannot
