@@ -177,6 +177,19 @@ func TestStgCommitProviderNActionValidation(t *testing.T) {
 		ds.SetString(dicom.TagTransactionUID, "1.2.3.txn")
 		return ds
 	}
+	withTxnAndRefs := func() *dicom.DataSet {
+		ds := withTxn()
+		item := dicom.NewDataSet()
+		item.SetString(dicom.TagReferencedSOPClassUID, "1.2.840.10008.5.1.4.1.1.2")
+		item.SetString(dicom.TagReferencedSOPInstanceUID, "1.2.3.1")
+		ds.Set(dicom.Element{Tag: dicom.TagReferencedSOPSequence, VR: dicom.VRSQ, Value: dicom.NewSequenceValue(dicom.NewSequence(item))})
+		return ds
+	}
+	withTxnEmptyRefs := func() *dicom.DataSet {
+		ds := withTxn()
+		ds.Set(dicom.Element{Tag: dicom.TagReferencedSOPSequence, VR: dicom.VRSQ, Value: dicom.NewSequenceValue(dicom.NewSequence())})
+		return ds
+	}
 
 	for _, tc := range []struct {
 		name string
@@ -203,13 +216,28 @@ func TestStgCommitProviderNActionValidation(t *testing.T) {
 			req:  NRequest{RequestedSOPClassUID: pushClass, RequestedSOPInstanceUID: storageCommitmentPushModelInstance, HasActionTypeID: true, ActionTypeID: 1, DataSet: dicom.NewDataSet()},
 			want: 0x0114,
 		},
+		{
+			name: "absent referenced SOP sequence",
+			req:  NRequest{RequestedSOPClassUID: pushClass, RequestedSOPInstanceUID: storageCommitmentPushModelInstance, HasActionTypeID: true, ActionTypeID: 1, DataSet: withTxn()},
+			want: 0x0120,
+		},
+		{
+			name: "empty referenced SOP sequence",
+			req:  NRequest{RequestedSOPClassUID: pushClass, RequestedSOPInstanceUID: storageCommitmentPushModelInstance, HasActionTypeID: true, ActionTypeID: 1, DataSet: withTxnEmptyRefs()},
+			want: 0x0120,
+		},
+		{
+			name: "valid request with one referenced instance",
+			req:  NRequest{RequestedSOPClassUID: pushClass, RequestedSOPInstanceUID: storageCommitmentPushModelInstance, HasActionTypeID: true, ActionTypeID: 1, DataSet: withTxnAndRefs()},
+			want: StatusStorageCommitmentSuccess.Code,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			status := p.NAction(context.Background(), tc.req)
 			if status.Code != tc.want {
 				t.Errorf("NAction status = %s, want %#04x", status, tc.want)
 			}
-			if status.IsSuccess() {
+			if tc.want != StatusStorageCommitmentSuccess.Code && status.IsSuccess() {
 				t.Error("a refused N-ACTION must not report Success")
 			}
 		})

@@ -88,7 +88,14 @@ func NewStorageCommitmentProvider(decider CommitmentDecider) *StorageCommitmentP
 //   - the action type — only Request Storage Commitment (type 1) is defined (PS3.4 J.3.2.1); any other
 //     Action Type ID is StorageCommitmentNoSuchAction (0x0123);
 //   - a present action-information data set carrying the Transaction UID and Referenced SOP Sequence —
-//     an absent or uncorrelatable request is StatusNoSuchArgument-shaped (0x0114, Invalid Argument).
+//     an absent or uncorrelatable request is StatusNoSuchArgument-shaped (0x0114, Invalid Argument);
+//   - at least one referenced SOP Instance — the Referenced SOP Sequence (0008,1199) is a type-1
+//     attribute of the Request Storage Commitment action (PS3.4 J.3.2.2, Table J.3-1), so an action
+//     information data set with an absent or empty Referenced SOP Sequence is malformed and is
+//     rejected with the missing-attribute Failure (0x0120). Accepting it would launder a malformed
+//     request into a Success answered by a vacuous "everything committed" report (PRD §9.2
+//     fail-closed); pynetdicom's Storage Commitment SCP example likewise treats the request as
+//     carrying one or more referenced instances.
 //
 // A Success status means the request was accepted; the report follows. No patient or per-instance SOP
 // Instance value is logged (PRD §9.1).
@@ -108,7 +115,27 @@ func (p *StorageCommitmentProvider) NAction(_ context.Context, req NRequest) Sta
 	if tuid, ok := req.DataSet.GetString(dicom.TagTransactionUID); !ok || tuid == "" {
 		return NewStatus(0x0114, ServiceClassStorageCommitment) // No Such Argument: uncorrelatable
 	}
+	if !hasReferencedInstance(req.DataSet) {
+		// Missing Attribute (0x0120): the Referenced SOP Sequence is mandatory and must carry at least
+		// one item; a request with none is malformed and must not be laundered into a success report.
+		return NewStatus(0x0120, ServiceClassStorageCommitment)
+	}
 	return StatusStorageCommitmentSuccess
+}
+
+// hasReferencedInstance reports whether the action-information data set carries a Referenced SOP
+// Sequence (0008,1199) with at least one item — the minimum a Request Storage Commitment action must
+// reference (PS3.4 J.3.2.2). It only inspects sequence presence and item count, never SOP Instance
+// values (PRD §9.1).
+func hasReferencedInstance(ds *dicom.DataSet) bool {
+	seq, ok := ds.GetSequence(dicom.TagReferencedSOPSequence)
+	if !ok {
+		return false
+	}
+	for range seq.Items() {
+		return true
+	}
+	return false
 }
 
 // ReportAfterAction emits the follow-up N-EVENT-REPORT for an accepted Storage Commitment request
