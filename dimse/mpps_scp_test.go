@@ -2,6 +2,7 @@ package dimse
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -145,6 +146,77 @@ func TestMPPSSCPRejectsSetOnUnknownStep(t *testing.T) {
 		t.Errorf("N-SET against an unknown step status = %s, want 0x0112 (No Such SOP Instance)", status)
 	}
 	_ = assoc.Release(ctx)
+}
+
+// TestMPPSConcurrentFinaliseAtomic is the atomicity gate (P2-C): two concurrent N-SETs racing to
+// finalise the same IN PROGRESS step — as two associations would — must resolve to exactly one
+// Success and one StatusMPPSMayNoLongerBeUpdated (0x0110). A lookup-then-write would let both observe
+// the non-final step and both finalise it; the locked compare-and-apply in UpdateStep makes exactly
+// one win. Run under -race to catch a data race on the store. The provider's NSet is exercised
+// directly (no loopback) so the two transitions truly race on the store.
+func TestMPPSConcurrentFinaliseAtomic(t *testing.T) {
+	const stepUID = dicom.UID("1.2.840.10008.3.1.2.3.3.1.race")
+	store := NewMemoryMPPSStore()
+	p := NewMPPSProvider(store)
+
+	if status := store.CreateStep(context.Background(), stepUID, mppsInProgressAttrs(stepUID)); !status.IsSuccess() {
+		t.Fatalf("CreateStep = %s, want Success", status)
+	}
+
+	mpps := dicom.UID(modalityPerformedStepSOPClass)
+	finalReq := func(state ProcedureStepState) NRequest {
+		mods := dicom.NewDataSet()
+		mods.SetString(dicom.TagPerformedProcedureStepStatus, state.String())
+		return NRequest{RequestedSOPClassUID: mpps, RequestedSOPInstanceUID: stepUID, DataSet: mods}
+	}
+
+	const racers = 2
+	var (
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		results []Status
+		start   = make(chan struct{})
+	)
+	states := []ProcedureStepState{ProcedureStepCompleted, ProcedureStepDiscontinued}
+	for i := range racers {
+		wg.Add(1)
+		go func(state ProcedureStepState) {
+			defer wg.Done()
+			<-start
+			status := p.NSet(context.Background(), finalReq(state))
+			mu.Lock()
+			results = append(results, status)
+			mu.Unlock()
+		}(states[i])
+	}
+	close(start)
+	wg.Wait()
+
+	var successes, mayNotUpdate int
+	for _, status := range results {
+		switch {
+		case status.IsSuccess():
+			successes++
+		case status.Code == StatusMPPSMayNoLongerBeUpdated.Code:
+			mayNotUpdate++
+		default:
+			t.Errorf("unexpected N-SET status %s, want Success or 0x0110", status)
+		}
+	}
+	if successes != 1 {
+		t.Errorf("concurrent finalise: %d Successes, want exactly 1", successes)
+	}
+	if mayNotUpdate != 1 {
+		t.Errorf("concurrent finalise: %d may-no-longer-be-updated, want exactly 1", mayNotUpdate)
+	}
+
+	step, ok := store.LookupStep(context.Background(), stepUID)
+	if !ok {
+		t.Fatal("store lost the step after the race")
+	}
+	if got, _ := step.GetString(dicom.TagPerformedProcedureStepStatus); !isFinalStepState(got) {
+		t.Errorf("stored step status = %q, want a final state", got)
+	}
 }
 
 // TestMPPSProviderNCreateValidation pins the N-CREATE attribute validation the provider performs

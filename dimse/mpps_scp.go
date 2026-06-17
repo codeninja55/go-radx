@@ -47,12 +47,23 @@ type MPPSStore interface {
 	// a duplicate is never laundered into success (PRD §9.2 fail-closed).
 	CreateStep(ctx context.Context, instanceUID dicom.UID, attrs *dicom.DataSet) Status
 	// LookupStep returns the current attributes of the managed step named by instanceUID and whether it
-	// exists. The provider reads the step's current Performed Procedure Step Status from the returned
-	// attributes to enforce the state transition before applying an N-SET.
+	// exists. It is a read accessor for callers that need the step's attributes (for example a
+	// read-back after an N-SET); the N-SET state transition itself is enforced atomically inside
+	// UpdateStep, never by a lookup-then-write across this call and UpdateStep.
 	LookupStep(ctx context.Context, instanceUID dicom.UID) (*dicom.DataSet, bool)
-	// UpdateStep applies the N-SET modification list to the managed step named by instanceUID, advancing
-	// its state. It returns a Failure-category status when it cannot apply the update; the provider has
-	// already enforced existence and the state transition before calling it.
+	// UpdateStep atomically validates and applies the N-SET modification list to the managed step named
+	// by instanceUID. The existence check, the one-way IN PROGRESS to final-state transition rule
+	// (PS3.4 F.7.1, F.8.1), and the write MUST happen as a single locked compare-and-apply so two
+	// concurrent N-SETs from different associations cannot both observe a non-final step and both
+	// finalise it. It returns:
+	//
+	//   - StatusMPPSNoSuchInstance (0x0112) when instanceUID names no managed step;
+	//   - StatusMPPSMayNoLongerBeUpdated (0x0110) when the step is already in a final state (COMPLETED
+	//     or DISCONTINUED) — the losing writer of a finalisation race gets this, never a laundered
+	//     Success (PRD §9.2 fail-closed);
+	//   - StatusMPPSInvalidAttributeValue (0x0106) when mods sets the Performed Procedure Step Status to
+	//     a non-final value (including a return to IN PROGRESS);
+	//   - StatusMPPSSuccess when the transition is legal and the modification list was applied.
 	UpdateStep(ctx context.Context, instanceUID dicom.UID, mods *dicom.DataSet) Status
 }
 
@@ -95,14 +106,28 @@ func (s *MemoryMPPSStore) LookupStep(_ context.Context, instanceUID dicom.UID) (
 	return step.Clone(), true
 }
 
-// UpdateStep merges every element of mods into the stored step, overwriting on tag collision. The
-// provider has already enforced existence and the state transition, so this only applies the change.
+// UpdateStep atomically validates and applies the N-SET modification list under the store lock: it
+// rejects an unknown step, a step already in a final state (the losing writer of a concurrent
+// finalisation race gets StatusMPPSMayNoLongerBeUpdated, never Success), and a modification list that
+// sets a non-final Performed Procedure Step Status, then merges mods into the stored step, overwriting
+// on tag collision. Holding the lock across the check and the write is what makes the IN PROGRESS to
+// final transition one-way under concurrency (PS3.4 F.7.1, F.8.1).
 func (s *MemoryMPPSStore) UpdateStep(_ context.Context, instanceUID dicom.UID, mods *dicom.DataSet) Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	step, ok := s.steps[instanceUID]
 	if !ok {
 		return StatusMPPSNoSuchInstance
+	}
+	currentState, _ := step.GetString(dicom.TagPerformedProcedureStepStatus)
+	if isFinalStepState(currentState) {
+		// A COMPLETED or DISCONTINUED step is terminal; no N-SET may reopen or re-finalise it.
+		return StatusMPPSMayNoLongerBeUpdated
+	}
+	if newState, has := mods.GetString(dicom.TagPerformedProcedureStepStatus); has && !isFinalStepState(newState) {
+		// The only legal status transition from IN PROGRESS is to a final state; anything else
+		// (including a return to IN PROGRESS) is an invalid attribute value.
+		return StatusMPPSInvalidAttributeValue
 	}
 	for el := range mods.All() {
 		step.Set(el)
@@ -187,8 +212,12 @@ func (p *MPPSProvider) NCreate(ctx context.Context, req NRequest) (Status, dicom
 //     Procedure Step Status it must be a final state (COMPLETED or DISCONTINUED), not a return to
 //     IN PROGRESS — an invalid transition is StatusMPPSInvalidAttributeValue (0x0106).
 //
-// On a legal transition it applies the modification list through the store. No patient or
-// procedure-step value is logged (PRD §9.1).
+// The existence check and the transition rule are enforced atomically inside the store's UpdateStep
+// (a single locked compare-and-apply), not by a lookup-then-write in the provider: two N-SETs racing
+// to finalise the same step from different associations would otherwise both observe a non-final step
+// and both finalise it. Delegating the whole transition to UpdateStep makes exactly one of them win;
+// the loser gets StatusMPPSMayNoLongerBeUpdated. No patient or procedure-step value is logged
+// (PRD §9.1).
 func (p *MPPSProvider) NSet(ctx context.Context, req NRequest) Status {
 	if dicom.SOPClassUID(req.RequestedSOPClassUID) != modalityPerformedStepSOPClass {
 		return StatusSOPClassNotSupported
@@ -196,24 +225,6 @@ func (p *MPPSProvider) NSet(ctx context.Context, req NRequest) Status {
 	if req.DataSet == nil || req.DataSet.Len() == 0 {
 		return StatusMPPSInvalidAttributeValue
 	}
-
-	current, ok := p.store.LookupStep(ctx, req.RequestedSOPInstanceUID)
-	if !ok {
-		return StatusMPPSNoSuchInstance
-	}
-
-	currentState, _ := current.GetString(dicom.TagPerformedProcedureStepStatus)
-	if isFinalStepState(currentState) {
-		// A COMPLETED or DISCONTINUED step is terminal; no N-SET may reopen or re-finalise it.
-		return StatusMPPSMayNoLongerBeUpdated
-	}
-
-	if newState, has := req.DataSet.GetString(dicom.TagPerformedProcedureStepStatus); has && !isFinalStepState(newState) {
-		// The only legal status transition from IN PROGRESS is to a final state; an N-SET that sets the
-		// status to anything else (including back to IN PROGRESS) is an invalid attribute value.
-		return StatusMPPSInvalidAttributeValue
-	}
-
 	return p.store.UpdateStep(ctx, req.RequestedSOPInstanceUID, req.DataSet)
 }
 
