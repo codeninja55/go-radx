@@ -201,6 +201,15 @@ legacy codebase (`legacy-main`) and are not continued here.
   four phisweep sinks scanned and a planted-leak canary - the first automated test of PRD §9.8 (#117).
 - TLS-downgrade regression tests for MLLP, the DICOMweb and FHIR REST clients, and the daemon HTTP roles,
   each with a control proving the legacy TLS 1.1 fixture genuinely bites (#117).
+- HL7 v2 python-hl7 floor close-out: the last four PARTIAL parity rows now ship as MET. `hl7v2.IsHL7`,
+  `IsBatch`, and `IsFile` are cheap non-parsing format sniffs matching python-hl7's second-MSH/BHS/FHS
+  detection. `hl7v2.SplitFile` flattens a batch or file buffer into individual `\r`-terminated messages,
+  discarding FHS/BHS/FTS/BTS framing, the byte-level counterpart of python-hl7's `split_file`. A new
+  `WithCharset` parse option decodes the input from a `golang.org/x/text/encoding` character set (for
+  example ISO-8859-1 or Shift-JIS) to UTF-8 before parsing, matching `parse(lines, encoding=...)`; the
+  ASCII structural delimiters decode unchanged. `WithAppMap` lets a caller supply a site-defined escape
+  map to `Escape`/`Unescape` for the `\Zxxx\` application sequences §2.10 leaves to local agreement,
+  matching python-hl7's `escape(field, app_map)`. Message content is never logged (PRD §9.1).
 
 ### Changed
 
