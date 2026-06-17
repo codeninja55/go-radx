@@ -402,13 +402,18 @@ func (m *MemoryRepository) History(_ context.Context, resourceType, id string) (
 	return out, nil
 }
 
-// Search implements the small search the development repository supports: an exact match on _id
-// when present, otherwise every resource of the requested type. It returns a searchset Bundle of the
-// repository's release with total set to the match count. Unrecognised parameters are ignored rather
-// than rejected, so a client's _count/_sort/_include do not fail the search; the documented limit is
-// that this repository does not honour arbitrary search parameters (a production Repository does).
+// Search implements the small search the development repository supports: an exact match on _id and
+// on any reference search parameter the role's registry recognises for the type (for example
+// Observation?subject=Patient/1), otherwise every resource of the requested type. It returns a
+// searchset Bundle of the repository's release with total set to the match count. The result/control
+// parameters (_count, _offset, _include, _revinclude) and any unrecognised parameter are ignored
+// rather than rejected, so a client's _sort or an unknown parameter does not fail the search; the
+// documented limit is that this repository matches _id and references only (a production Repository
+// honours arbitrary parameters). The role's search-depth layer derives paging links, include entries,
+// and chained-parameter resolution on top of this base match (see fhir_search.go).
 func (m *MemoryRepository) Search(_ context.Context, resourceType string, params url.Values) (fhir.Resource, error) {
 	wantID := params.Get("_id")
+	refConstraints := referenceConstraints(resourceType, params)
 
 	m.mu.RLock()
 	var matches []fhir.Resource
@@ -420,11 +425,66 @@ func (m *MemoryRepository) Search(_ context.Context, resourceType string, params
 		if wantID != "" && m.adapter.resourceID(r) != wantID {
 			continue
 		}
+		if !resourceSatisfiesRefConstraints(r, refConstraints) {
+			continue
+		}
 		matches = append(matches, r)
 	}
 	m.mu.RUnlock()
 
 	return m.adapter.newSearchSet(int32(len(matches)), matches) // #nosec G115 -- an in-memory match count is far below int32
+}
+
+// refConstraint is one reference search criterion the dev repository matches: the JSON path to a
+// resource's Reference element and the "Type/id" the reference must point at.
+type refConstraint struct {
+	jsonPath string
+	want     string
+}
+
+// referenceConstraints reads the request's reference search parameters (those the role's registry
+// declares as references for the type) into a list of constraints the dev repository's match loop
+// applies. A reference value may be a bare "Type/id" or an absolute URL; the constraint keeps the
+// declared "Type/id" suffix so a relative-vs-absolute spelling does not matter at match time (the
+// stored resource's reference is also reduced to its "Type/id" suffix when compared). A parameter the
+// registry does not know as a reference is left for the all-of-type fall-through.
+func referenceConstraints(resourceType string, params url.Values) []refConstraint {
+	var out []refConstraint
+	for name, values := range params {
+		param, ok := lookupSearchParam(resourceType, name)
+		if !ok || !param.isReference {
+			continue
+		}
+		for _, v := range values {
+			rt, id := splitReference(v)
+			if rt == "" || id == "" {
+				continue
+			}
+			out = append(out, refConstraint{jsonPath: param.jsonPath, want: resourceKey(rt, id)})
+		}
+	}
+	return out
+}
+
+// resourceSatisfiesRefConstraints reports whether a resource satisfies every reference constraint:
+// for each, at least one Reference at the constraint's JSON path resolves to the wanted "Type/id".
+// Multiple constraints AND together (FHIR ANDs repeated parameters); a resource with no reference at
+// the path fails the constraint.
+func resourceSatisfiesRefConstraints(r fhir.Resource, constraints []refConstraint) bool {
+	for _, c := range constraints {
+		matched := false
+		for _, ref := range referenceValues(r, c.jsonPath) {
+			rt, id := splitReference(ref)
+			if resourceKey(rt, id) == c.want {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	return true
 }
 
 // Transaction processes a transaction Bundle by applying each entry through the repository and

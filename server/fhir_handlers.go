@@ -486,18 +486,6 @@ func (h *fhirHandler) handleValidate(w http.ResponseWriter, r *http.Request, res
 	h.writeOutcome(w, r, http.StatusOK, h.adapter.operationOutcome(issues))
 }
 
-// handleSearch serves a type-level search: it forwards the raw query parameters to the repository
-// and writes the searchset Bundle the repository builds.
-func (h *fhirHandler) handleSearch(w http.ResponseWriter, r *http.Request, resourceType string) {
-	bundle, err := h.repo.Search(r.Context(), resourceType, r.URL.Query())
-	if err != nil {
-		h.writeRepoError(w, r, err)
-		return
-	}
-	h.logger.Info("fhir search", zap.String("type", resourceType), zap.String("interaction", "search-type"))
-	h.writeResource(w, r, http.StatusOK, bundle, "")
-}
-
 // handleTransaction serves a transaction: it reads and decodes the request Bundle, then applies it
 // through the repository and writes the transaction-response Bundle. A body that does not decode or
 // is not a Bundle is a 400 OperationOutcome; a repository failure (an unsupported entry verb, a
