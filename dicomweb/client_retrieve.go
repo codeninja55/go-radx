@@ -296,39 +296,46 @@ func (c *Client) RetrieveFramesRange(ctx context.Context, p ResourcePath, br Byt
 	return c.retrieveOctetParts(ctx, path, acceptOctetStream(), br.header())
 }
 
-// ByteRange names a half-open byte span for a partial retrieval, rendered as an HTTP Range
-// header (RFC 9110 §14, PS3.18 §8.7.4). It mirrors the dicomweb-client byte_range parameter: a
-// (start, end) pair selecting bytes start through end inclusive, or an open-ended suffix/prefix.
+// ByteRange names a byte span for a partial retrieval, rendered as an HTTP Range header
+// (RFC 7233 §2.1, PS3.18 §8.7.4). It mirrors the dicomweb-client byte_range parameter: a
+// (Start, End) pair selecting bytes Start through End inclusive, or an open-ended suffix/prefix.
 // All offsets are zero-based, matching the HTTP Range unit.
 type ByteRange struct {
 	// Start is the zero-based first byte offset. A negative Start selects the final -Start bytes
 	// (a suffix range, "bytes=-N") and End is ignored.
 	Start int64
-	// End is the zero-based last byte offset, inclusive. A zero or negative End (with a
-	// non-negative Start) selects from Start to the end of the value ("bytes=Start-").
-	End int64
+	// End is the zero-based last byte offset, inclusive. A nil End (with a non-negative Start)
+	// is open-ended, selecting from Start to the end of the value ("bytes=Start-"). End is a
+	// pointer so that an inclusive end of zero (the first-byte probe, "bytes=0-0") is
+	// expressible and distinct from the open-ended form; use Int64Ptr to set it.
+	End *int64
 }
 
+// Int64Ptr returns a pointer to v, a convenience for setting ByteRange.End inline (e.g.
+// ByteRange{Start: 0, End: dicomweb.Int64Ptr(0)} for the first-byte probe "bytes=0-0").
+func Int64Ptr(v int64) *int64 { return &v }
+
 // validate rejects a degenerate range: a forward range whose End precedes its Start. An
-// open-ended range (End <= 0) and a suffix range (Start < 0) are valid.
+// open-ended range (End nil) and a suffix range (Start < 0) are valid.
 func (b ByteRange) validate() error {
-	if b.Start >= 0 && b.End > 0 && b.End < b.Start {
+	if b.Start >= 0 && b.End != nil && *b.End < b.Start {
 		return fmt.Errorf("%w: byte range end precedes start", ErrInvalidResource)
 	}
 	return nil
 }
 
-// header renders the ByteRange as an HTTP Range header value ("bytes=..."). A suffix range
-// (Start < 0) renders "bytes=-N"; an open-ended range (End <= 0) renders "bytes=Start-"; a
-// closed range renders "bytes=Start-End".
+// header renders the ByteRange as an HTTP Range header value ("bytes=...", RFC 7233 §2.1). A
+// suffix range (Start < 0) renders "bytes=-N"; an open-ended range (End nil) renders
+// "bytes=Start-"; a closed range renders "bytes=Start-End", including the first-byte probe
+// "bytes=0-0" when End points to zero.
 func (b ByteRange) header() string {
 	switch {
 	case b.Start < 0:
 		return fmt.Sprintf("bytes=%d", b.Start)
-	case b.End <= 0:
+	case b.End == nil:
 		return fmt.Sprintf("bytes=%d-", b.Start)
 	default:
-		return fmt.Sprintf("bytes=%d-%d", b.Start, b.End)
+		return fmt.Sprintf("bytes=%d-%d", b.Start, *b.End)
 	}
 }
 

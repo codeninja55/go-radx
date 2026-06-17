@@ -136,7 +136,7 @@ func TestByteRangeBulkDataRequestsRange(t *testing.T) {
 	}
 
 	p := NewInstance("1.2.3", "1.2.3.4", "1.2.3.4.5")
-	parts, err := c.RetrieveBulkDataRange(context.Background(), p, ByteRange{Start: 4, End: 7})
+	parts, err := c.RetrieveBulkDataRange(context.Background(), p, ByteRange{Start: 4, End: Int64Ptr(7)})
 	if err != nil {
 		t.Fatalf("RetrieveBulkDataRange: %v", err)
 	}
@@ -148,6 +148,53 @@ func TestByteRangeBulkDataRequestsRange(t *testing.T) {
 	}
 }
 
+// TestByteRangeFirstByteProbe asserts ByteRange{Start: 0, End: Int64Ptr(0)} sends "bytes=0-0" and
+// returns exactly the first byte, the inclusive first-byte probe that the old End<=0 open-ended
+// sentinel could not express (RFC 7233 §2.1, PS3.18 §8.7.4).
+func TestByteRangeFirstByteProbe(t *testing.T) {
+	const full = "0123456789ABCDEF"
+	var seenRange string
+	hs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenRange = r.Header.Get("Range")
+		body := full
+		status := http.StatusOK
+		if rng := r.Header.Get("Range"); rng != "" {
+			start, end := parseTestRange(rng, len(full))
+			body = full[start : end+1]
+			status = http.StatusPartialContent
+		}
+		var buf bytes.Buffer
+		mw := NewMultipartWriter(&buf, mediaTypeOctet)
+		if err := mw.AddPart(mediaTypeOctet, strings.NewReader(body)); err != nil {
+			t.Errorf("AddPart: %v", err)
+		}
+		if _, err := mw.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+		w.Header().Set("Content-Type", mw.ContentType())
+		w.WriteHeader(status)
+		_, _ = w.Write(buf.Bytes())
+	}))
+	t.Cleanup(hs.Close)
+
+	c, err := NewClient(hs.URL, WithHTTPClient(hs.Client()))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	p := NewInstance("1.2.3", "1.2.3.4", "1.2.3.4.5")
+	parts, err := c.RetrieveBulkDataRange(context.Background(), p, ByteRange{Start: 0, End: Int64Ptr(0)})
+	if err != nil {
+		t.Fatalf("RetrieveBulkDataRange: %v", err)
+	}
+	if seenRange != "bytes=0-0" {
+		t.Fatalf("origin saw Range = %q, want bytes=0-0", seenRange)
+	}
+	if len(parts) != 1 || string(parts[0]) != "0" {
+		t.Fatalf("first-byte probe body = %q, want a single byte %q", parts, "0")
+	}
+}
+
 // TestByteRangeValidation asserts a degenerate range (end before start) is rejected before any
 // request.
 func TestByteRangeValidation(t *testing.T) {
@@ -156,7 +203,7 @@ func TestByteRangeValidation(t *testing.T) {
 		t.Fatalf("NewClient: %v", err)
 	}
 	p := NewInstance("1.2.3", "1.2.3.4", "1.2.3.4.5")
-	if _, err := c.RetrieveBulkDataRange(context.Background(), p, ByteRange{Start: 10, End: 4}); !errors.Is(err, ErrInvalidResource) {
+	if _, err := c.RetrieveBulkDataRange(context.Background(), p, ByteRange{Start: 10, End: Int64Ptr(4)}); !errors.Is(err, ErrInvalidResource) {
 		t.Fatalf("inverted range error = %v, want ErrInvalidResource", err)
 	}
 }
@@ -167,8 +214,11 @@ func TestByteRangeHeaderForms(t *testing.T) {
 		br   ByteRange
 		want string
 	}{
-		{ByteRange{Start: 0, End: 99}, "bytes=0-99"},
+		{ByteRange{Start: 0, End: Int64Ptr(99)}, "bytes=0-99"},
+		{ByteRange{Start: 0, End: Int64Ptr(0)}, "bytes=0-0"},
+		{ByteRange{Start: 5, End: Int64Ptr(5)}, "bytes=5-5"},
 		{ByteRange{Start: 100}, "bytes=100-"},
+		{ByteRange{Start: 100, End: nil}, "bytes=100-"},
 		{ByteRange{Start: -256}, "bytes=-256"},
 	}
 	for _, tc := range cases {
