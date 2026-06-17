@@ -26,9 +26,13 @@ The package ships the three core DICOMweb services on both the client and the em
 - **QIDO-RS** (query based on ID for DICOM objects) — RESTful search over studies, series, and instances. See
   [QIDO-RS](#qido-rs).
 
+- **WADO-URI** (the legacy URI-parameter single-object retrieval, PS3.18 §9) — `application/dicom` retrieval of one
+  instance by its study/series/object UID triple. See [WADO-URI](#wado-uri).
+
 The supported query parameters, `Accept`/`Content-Type` negotiation, transfer-syntax selection, bulk-data referencing,
 pagination semantics, and authentication modes are declared in the sections below with their client and server roles.
-The deferred surfaces — `application/dicom+xml` metadata, WADO-URI, and the wider service set — are recorded in
+WADO-RS metadata is served as either `application/dicom+json` or the PS3.19 Native DICOM Model
+(`application/dicom+xml`). The deferred surfaces — rendered retrieval and the wider service set — are recorded in
 [Out of scope](#out-of-scope).
 
 ## WADO-RS
@@ -45,7 +49,7 @@ sub-resources. The client exposes one method per resource.
 | Study | `/studies/{study}` | `multipart/related` of `application/dicom` parts | `RetrieveStudy` (streaming iterator) |
 | Series | `/studies/{study}/series/{series}` | `multipart/related` of `application/dicom` parts | `RetrieveSeries` (streaming iterator) |
 | Instance | `/studies/{study}/series/{series}/instances/{sop}` | `multipart/related` of one `application/dicom` part | `RetrieveInstance` |
-| Metadata | `.../metadata` (study, series, or instance level) | `application/dicom+json` array | `RetrieveMetadata` |
+| Metadata | `.../metadata` (study, series, or instance level) | `application/dicom+json` array, or `multipart/related` of `application/dicom+xml` Native DICOM Model parts | `RetrieveMetadata` (JSON), `RetrieveMetadataXML` (XML) |
 | Frames | `.../instances/{sop}/frames/{frameList}` | `multipart/related` of `application/octet-stream` parts | `RetrieveFrames` (1-based) |
 | Bulk data | `.../instances/{sop}/bulkdata` (with optional reference suffix) | `multipart/related` of `application/octet-stream` parts | `RetrieveBulkData`, `ResolveBulkDataURI` |
 
@@ -59,11 +63,17 @@ as a complete-but-empty result.
 | Resource | Accept | Emitted parts |
 |----------|--------|---------------|
 | Study / series / instance | `multipart/related; type="application/dicom"` (or a wildcard) | `application/dicom` (Part 10) |
-| Metadata | `application/dicom+json` (or a wildcard) | one DICOM-JSON object per instance |
+| Metadata (JSON) | `application/dicom+json` (or a wildcard) | one DICOM-JSON object per instance, in a single JSON array |
+| Metadata (XML) | `application/dicom+xml`, or `multipart/related; type="application/dicom+xml"` | one PS3.19 Native DICOM Model document per instance, as `multipart/related` parts |
 | Frames / bulk data | `multipart/related; type="application/octet-stream"` (or a wildcard) | `application/octet-stream` |
 
-`application/dicom+xml` metadata is deferred; an `Accept` naming only XML is answered `406 Not Acceptable`. The media
-type is gated before the backend is consulted, so a wholly unservable `Accept` fails fast without a lookup.
+Metadata content negotiation selects the serialization from the `Accept` header (PS3.18 §8.7.3): an `Accept` naming
+`application/dicom+xml` (or its `multipart/related` wrapper) is served the Native DICOM Model; an `Accept` naming
+`application/dicom+json`, an empty `Accept`, or a wildcard (`*/*`) is served DICOM-JSON, the default and more compact
+form; an `Accept` naming neither metadata media type is answered `406 Not Acceptable`. The media type is gated before
+the backend is consulted, so a wholly unservable `Accept` fails fast without a lookup. The XML and JSON forms carry the
+same logical content — a dataset round-tripped through either decodes to the same attributes — and both emit a binary
+value above the threshold as a bulk-data reference rooted at the instance's bulkdata sub-resource.
 
 ### Transfer-syntax policy
 
@@ -250,6 +260,44 @@ origin-rooted Retrieve URLs, never a patient value (PRD §9.1).
 | STOW-RS store (whole object) | Implemented (`StoreBackend`; `WarnableStoreBackend` for a per-instance warning) | Implemented (`Store`) |
 | STOW-RS store (metadata + bulk data) | Implemented | Deferred — the client posts whole objects today |
 
+## WADO-URI
+
+The `dicomweb` package implements the legacy URI service (PS3.18 §9) on both the embeddable server and the client for
+single-instance `application/dicom` retrieval. WADO-URI addresses one object by query parameters on the service URL
+rather than a hierarchical path; the server recognises a `GET` carrying `requestType=WADO` and serves the identified
+object as the raw Part 10 response body (not the `multipart/related` framing WADO-RS uses).
+
+### Request parameters
+
+| Parameter | Required | Value |
+|-----------|----------|-------|
+| `requestType` | Yes | `WADO` (case-insensitive) |
+| `studyUID` | Yes | StudyInstanceUID of the object |
+| `seriesUID` | Yes | SeriesInstanceUID of the object |
+| `objectUID` | Yes | SOPInstanceUID of the object |
+| `contentType` | No | `application/dicom` (the default when absent) |
+
+The client exposes `WADORetrieveInstance` (returns the decoded dataset) and `WADORetrieveInstanceObject` (returns the
+byte-exact Part 10 object and its transfer syntax). The object is returned in the transfer syntax the origin holds it
+in; WADO-URI does not negotiate transfer syntax the way WADO-RS does.
+
+### Validation
+
+Every parameter is validated fail-closed (PRD §9.2): a missing required parameter is `400 Bad Request`, a malformed
+study/series/object UID is `400` (the UID is never interpolated into a backend lookup), a genuinely absent object is
+`404 Not Found`, and a `requestType` other than `WADO` is not routed to the service. A rendered consumer-format
+`contentType` (any `image/*`, `video/*`, `text/*`, or `application/pdf`) is recognised and answered `406 Not
+Acceptable`, because rendering is out of scope (see [Out of scope](#out-of-scope)) and the server ships no pixel-data
+renderer; any other unsupported `contentType` is likewise `406`. A resource UID is never echoed in an error or log
+line.
+
+### Roles
+
+| Service | Server | Client |
+|---------|--------|--------|
+| WADO-URI retrieve (`contentType=application/dicom`) | Implemented (reuses `RetrieveBackend`/`StoredInstanceRetriever`) | Implemented (`WADORetrieveInstance`, `WADORetrieveInstanceObject`) |
+| WADO-URI rendered retrieve (`contentType=image/jpeg`, ...) | Out of scope — answered `406` | Out of scope |
+
 ## Client authentication
 
 Client authentication is a pluggable transport concern: each scheme is an `http.RoundTripper` layered over the
@@ -300,17 +348,14 @@ The deferrals below are the complete out-of-scope boundary for conformance versi
 a service or media type not named in the sections above and not listed here is simply unimplemented, and the package
 answers an unservable request with an honest status (`406`, `501`) rather than a substitute.
 
-- **`application/dicom+xml` metadata** — the XML representation of DICOM-JSON (PS3.18 Annex A). Metadata and store
-  responses are `application/dicom+json` only; an `Accept` naming only XML is answered `406 Not Acceptable`, and a
-  STOW-RS `type="application/dicom+xml"` body is not parsed. Deferred because DICOM-JSON is the modern, sufficient
-  representation and supporting both doubles the encode/decode surface; XML support would be added behind the same
-  negotiation seam without changing the JSON path.
-- **WADO-URI** (the legacy single-object query-parameter retrieval, PS3.18 §9) — superseded by WADO-RS for the
-  workflows in scope. Retrieval is WADO-RS (`multipart/related`) only; the `?requestType=WADO` query form is not
-  served. Deferred as a legacy surface with no new capability over WADO-RS.
-- **Rendered retrieval and thumbnails** (`/rendered`, `/thumbnail`, PS3.18 §10.4.1.2) — server-side rendering to
-  consumer image formats (JPEG/PNG). Out of scope: the package retrieves DICOM objects, frames, and bulk data, not
-  rendered pixels.
+- **`application/dicom+xml` STOW-RS bodies** — WADO-RS metadata retrieval serves the PS3.19 Native DICOM Model
+  (see [Media types](#media-types)), but a STOW-RS `type="application/dicom+xml"` store body is not parsed; the store
+  metadata+bulkdata variant accepts `application/dicom+json` only. Deferred because DICOM-JSON is the sufficient store
+  representation; XML store parsing would be added behind the same store seam without changing the JSON path.
+- **Rendered retrieval and thumbnails** (`/rendered`, `/thumbnail`, PS3.18 §10.4.1.2, and WADO-URI rendered
+  `contentType`s, PS3.18 §9.5) — server-side rendering to consumer image formats (JPEG/PNG). Out of scope: the package
+  retrieves DICOM objects, frames, and bulk data, not rendered pixels. A WADO-URI request for a rendered `contentType`
+  is answered `406 Not Acceptable`.
 - **UPS-RS** (Unified Procedure Step / worklist over the web, PS3.18 §11) and **capabilities discovery** (the
   `OPTIONS /` / `/capabilities` document, PS3.18 §8.9) — no endpoint is served. The DIMSE Modality Worklist
   ([`./dicom.md`](./dicom.md)) is the worklist surface today.
