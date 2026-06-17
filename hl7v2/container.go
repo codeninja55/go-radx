@@ -43,7 +43,11 @@ type File struct {
 // round-trips correctly. A BHS without a BTS, or a BTS without a BHS, is a
 // *ParseError (the both-or-neither rule).
 func ParseBatch(b []byte, opts ...ParseOption) (*Batch, error) {
-	_ = newParseConfig(opts...)
+	cfg := newParseConfig(opts...)
+	b, err := cfg.decodeCharset(b)
+	if err != nil {
+		return nil, err
+	}
 
 	enc, err := deriveContainerEncoding(b)
 	if err != nil {
@@ -60,7 +64,11 @@ func ParseBatch(b []byte, opts ...ParseOption) (*Batch, error) {
 // both-or-neither rule applies to the FHS/FTS pair, and each inner batch is
 // parsed by the same batch rules.
 func ParseFile(b []byte, opts ...ParseOption) (*File, error) {
-	_ = newParseConfig(opts...)
+	cfg := newParseConfig(opts...)
+	b, err := cfg.decodeCharset(b)
+	if err != nil {
+		return nil, err
+	}
 
 	enc, err := deriveContainerEncoding(b)
 	if err != nil {
@@ -80,20 +88,34 @@ func ParseFile(b []byte, opts ...ParseOption) (*File, error) {
 // render any of them. A body whose first segment is not MSH, BHS, or FHS is a
 // *ParseError.
 func ParseAny(b []byte, opts ...ParseOption) (Container, error) {
-	switch leadingSegmentID(b) {
+	// Decode the charset once, up front, before sniffing the container type. The
+	// leading-segment-ID and MSH-count sniffs run on raw bytes, so a non-ASCII MSH
+	// in a legacy charset would otherwise be misrouted or rejected here even though
+	// Parse, which decodes first, handles it. Re-decoding is then suppressed in the
+	// delegated call so the bytes are not decoded twice.
+	cfg := newParseConfig(opts...)
+	decoded, err := cfg.decodeCharset(b)
+	if err != nil {
+		return nil, err
+	}
+	dispatchOpts := make([]ParseOption, len(opts), len(opts)+1)
+	copy(dispatchOpts, opts)
+	dispatchOpts = append(dispatchOpts, withoutCharset)
+
+	switch leadingSegmentID(decoded) {
 	case "MSH":
 		// A bare sequence of multiple MSH-led messages is a header-less batch:
 		// routing it through Parse would flatten every segment into a single
 		// *Message and lose the batch grouping, so callers could not address each
 		// message. A single-MSH body is an ordinary *Message.
-		if countMSHSegments(b) > 1 {
-			return ParseBatch(b, opts...)
+		if countMSHSegments(decoded) > 1 {
+			return ParseBatch(decoded, dispatchOpts...)
 		}
-		return Parse(b, opts...)
+		return Parse(decoded, dispatchOpts...)
 	case "FHS":
-		return ParseFile(b, opts...)
+		return ParseFile(decoded, dispatchOpts...)
 	case "BHS":
-		return ParseBatch(b, opts...)
+		return ParseBatch(decoded, dispatchOpts...)
 	default:
 		return nil, &ParseError{Offset: 0, Reason: "container must begin with an MSH, BHS, or FHS segment"}
 	}
