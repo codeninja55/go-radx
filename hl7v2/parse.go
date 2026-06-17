@@ -31,6 +31,11 @@ func WithCharset(charset encoding.Encoding) ParseOption {
 	return func(cfg *parseConfig) { cfg.charset = charset }
 }
 
+// withoutCharset clears any charset previously set on the config. ParseAny uses
+// it when delegating to Parse, ParseBatch, or ParseFile after it has already
+// decoded the buffer once, so the delegate does not decode the same bytes twice.
+func withoutCharset(cfg *parseConfig) { cfg.charset = nil }
+
 func newParseConfig(opts ...ParseOption) parseConfig {
 	var cfg parseConfig
 	for _, opt := range opts {
