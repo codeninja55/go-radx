@@ -231,9 +231,10 @@ func (s *Server) handleRetrieveMetadata(w http.ResponseWriter, r *http.Request, 
 		s.writeProblem(w, r, http.StatusNotImplemented, ErrUnsupported, "WADO-RS metadata retrieval is not implemented")
 		return
 	}
-	if !negotiateDICOMJSON(r.Header.Get("Accept")) {
+	format := negotiateMetadataFormat(r.Header.Get("Accept"))
+	if format == metadataNotAcceptable {
 		s.writeProblem(w, r, http.StatusNotAcceptable, ErrNotAcceptable,
-			"WADO-RS metadata retrieval serves application/dicom+json only")
+			"WADO-RS metadata retrieval serves application/dicom+json or application/dicom+xml")
 		return
 	}
 	if _, err := p.Path(); err != nil {
@@ -255,6 +256,10 @@ func (s *Server) handleRetrieveMetadata(w http.ResponseWriter, r *http.Request, 
 	for _, si := range instances {
 		datasets = append(datasets, si.DataSet)
 	}
+	if format == metadataXML {
+		s.writeMetadataXML(w, r, datasets)
+		return
+	}
 	body, err := marshalMetadata(datasets, s.originBaseURL(r))
 	if err != nil {
 		s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot encode the metadata")
@@ -263,6 +268,35 @@ func (s *Server) handleRetrieveMetadata(w http.ResponseWriter, r *http.Request, 
 	w.Header().Set("Content-Type", mediaTypeDICOMJSON)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body) // #nosec G705 -- Content-Type is application/dicom+json (set above), not an HTML sink
+}
+
+// writeMetadataXML writes a WADO-RS metadata response as a multipart/related body of
+// application/dicom+xml parts, one PS3.19 Native DICOM Model document per instance (PS3.18
+// §8.7.3.4, §10.4.1.1.5). Binary values are emitted as BulkData references rooted at the
+// instance's bulkdata sub-resource, the same locators the JSON path uses, so a client
+// resolves them through this origin.
+func (s *Server) writeMetadataXML(w http.ResponseWriter, r *http.Request, datasets []*dicom.DataSet) {
+	originBaseURL := s.originBaseURL(r)
+	var buf strings.Builder
+	mw := NewMultipartWriter(&buf, mediaTypeDICOMXML)
+	for _, ds := range datasets {
+		raw, err := MarshalXML(ds, metadataBulkOptions(ds, originBaseURL)...)
+		if err != nil {
+			s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot encode the metadata")
+			return
+		}
+		if err := mw.AddPart(mediaTypeDICOMXML, strings.NewReader(string(raw))); err != nil {
+			s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot frame the metadata")
+			return
+		}
+	}
+	if _, err := mw.Close(); err != nil {
+		s.writeProblem(w, r, http.StatusInternalServerError, err, "cannot close the multipart body")
+		return
+	}
+	w.Header().Set("Content-Type", mw.ContentType())
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(w, buf.String())
 }
 
 // routeFrames parses the frame-list segment of a WADO-RS frames target into 1-based frame
@@ -509,7 +543,7 @@ func (s *Server) originBaseURL(r *http.Request) string {
 func marshalMetadata(datasets []*dicom.DataSet, originBaseURL string) ([]byte, error) {
 	parts := make([][]byte, 0, len(datasets))
 	for _, ds := range datasets {
-		opts := metadataJSONOptions(ds, originBaseURL)
+		opts := metadataBulkOptions(ds, originBaseURL)
 		raw, err := MarshalJSON(ds, opts...)
 		if err != nil {
 			return nil, err
@@ -519,12 +553,12 @@ func marshalMetadata(datasets []*dicom.DataSet, originBaseURL string) ([]byte, e
 	return joinJSONArray(parts), nil
 }
 
-// metadataJSONOptions returns the DICOM-JSON options for one instance's metadata: when the
-// origin base URL is set and the instance carries its identity UIDs, binary values are
-// referenced as a BulkDataURI rooted at the instance's bulkdata sub-resource; otherwise they
-// are inlined. The per-element locator the codec appends keeps two binary attributes
-// distinct under the same instance prefix.
-func metadataJSONOptions(ds *dicom.DataSet, originBaseURL string) []JSONOption {
+// metadataBulkOptions returns the codec options for one instance's metadata, shared by the
+// JSON and XML metadata responses: when the origin base URL is set and the instance carries
+// its identity UIDs, binary values are referenced as a BulkDataURI rooted at the instance's
+// bulkdata sub-resource; otherwise they are inlined. The per-element locator the codec
+// appends keeps two binary attributes distinct under the same instance prefix.
+func metadataBulkOptions(ds *dicom.DataSet, originBaseURL string) []JSONOption {
 	if originBaseURL == "" {
 		return nil
 	}
