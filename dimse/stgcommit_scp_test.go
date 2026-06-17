@@ -77,6 +77,67 @@ func receiveSameAssociationReport(t *testing.T, assoc *Association, ctx context.
 	return result
 }
 
+// dialStgCommitSCUNoRole opens a Storage Commitment association proposing the Storage Commitment Push
+// Model context but NOT the SCP role for it, so the role-reversed same-association N-EVENT-REPORT is
+// not negotiated. It is the negative fixture for the report-role gate (PS3.7 D.3.3.4).
+func dialStgCommitSCUNoRole(t *testing.T, addr string) (*Association, context.Context, context.CancelFunc) {
+	t.Helper()
+	ae, err := NewAE(AETitle("STGCMTSCU"), WithDIMSETimeout(3*time.Second))
+	if err != nil {
+		t.Fatalf("NewAE: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	assoc, err := ae.Associate(ctx, addr, AETitle("STGCMTSCP"), StorageCommitmentContexts())
+	if err != nil {
+		cancel()
+		t.Fatalf("Associate: %v", err)
+	}
+	return assoc, ctx, cancel
+}
+
+// TestStgCommitSCPSkipsReportWhenRoleNotNegotiated is the gate for the report-role check (P2-B): when
+// the requestor did NOT negotiate the Storage Commitment Push Model SCP role, the SCP must accept the
+// N-ACTION but send no role-reversed same-association N-EVENT-REPORT (a strict peer would otherwise
+// abort the report). The N-ACTION succeeds, no SCP role is granted, and a short read after the
+// N-ACTION-RSP observes no N-EVENT-REPORT-RQ before the association releases.
+func TestStgCommitSCPSkipsReportWhenRoleNotNegotiated(t *testing.T) {
+	const txn = "1.2.840.10008.3.1.2.3.3.txn.norole"
+	present := map[dicom.SOPInstanceUID]bool{"1.2.3.1": true}
+	srv := startStgCommitServer(t, NewStorageCommitmentProvider(CommitAllPresent(present)))
+	assoc, ctx, cancel := dialStgCommitSCUNoRole(t, srv.Addr().String())
+	defer cancel()
+
+	for _, role := range assoc.NegotiatedRoles() {
+		if role.SOPClassUID == storageCommitmentPushModelSOPClass && role.SCPRole {
+			t.Fatal("expected no granted SCP role for Storage Commitment when none was proposed")
+		}
+	}
+
+	status, err := assoc.StorageCommitment().Request(ctx, txn, []dicom.ReferencedSOPInstance{ref("1.2.3.1")})
+	if err != nil {
+		t.Fatalf("N-ACTION transport error: %v", err)
+	}
+	if !status.IsSuccess() {
+		t.Errorf("N-ACTION status = %s, want Success (request accepted)", status)
+	}
+
+	// No same-association report must follow: a short read sees no N-EVENT-REPORT-RQ. A deadline
+	// expiry or a clean release/abort is the expected outcome, not an N-EVENT-REPORT-RQ.
+	conn := assoc.requestor.Conn()
+	machine := assoc.requestor.Machine()
+	_, ts, ok := assoc.contextForQuery(storageCommitmentPushModelSOPClass)
+	if !ok {
+		t.Fatal("no accepted Storage Commitment presentation context")
+	}
+	readCtx, readCancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer readCancel()
+	cmd, _, _, rerr := receiveMessage(readCtx, conn, machine, newMessageReassembler(ts))
+	if rerr == nil && cmd.CommandField == CommandNEventReportRQ {
+		t.Fatal("SCP sent a role-reversed N-EVENT-REPORT-RQ despite the report role not being negotiated")
+	}
+	_ = assoc.Release(ctx)
+}
+
 func ref(instance string) dicom.ReferencedSOPInstance {
 	return dicom.ReferencedSOPInstance{
 		SOPClassUID:    dicom.SOPClassUID("1.2.840.10008.5.1.4.1.1.2"), // CT Image Storage
@@ -94,6 +155,16 @@ func TestStgCommitSCPReportsSuccess(t *testing.T) {
 	srv := startStgCommitServer(t, NewStorageCommitmentProvider(CommitAllPresent(present)))
 	assoc, ctx, cancel := dialStgCommitSCU(t, srv.Addr().String())
 	defer cancel()
+
+	grantedReportRole := false
+	for _, role := range assoc.NegotiatedRoles() {
+		if role.SOPClassUID == storageCommitmentPushModelSOPClass && role.SCPRole {
+			grantedReportRole = true
+		}
+	}
+	if !grantedReportRole {
+		t.Fatal("expected the SCP to grant the requestor the Storage Commitment report (SCP) role")
+	}
 
 	refs := []dicom.ReferencedSOPInstance{ref("1.2.3.1"), ref("1.2.3.2")}
 	status, err := assoc.StorageCommitment().Request(ctx, txn, refs)

@@ -119,7 +119,8 @@ func serveCannedStgCommitAction(ctx context.Context, acc *acse.Acceptor, actionS
 }
 
 // dialStgCommitSCU opens a Storage Commitment association to the mock SCP, proposing the Storage
-// Commitment Push Model context.
+// Commitment Push Model context and the SCP role for it so the role-reversed same-association
+// N-EVENT-REPORT (the synchronous reporting model) is negotiated (PS3.7 D.3.3.4).
 func dialStgCommitSCU(t *testing.T, addr string) (*Association, context.Context, context.CancelFunc) {
 	t.Helper()
 	ae, err := NewAE(AETitle("STGCMTSCU"), WithDIMSETimeout(3*time.Second))
@@ -127,7 +128,8 @@ func dialStgCommitSCU(t *testing.T, addr string) (*Association, context.Context,
 		t.Fatalf("NewAE: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	assoc, err := ae.Associate(ctx, addr, AETitle("STGCMTSCP"), StorageCommitmentContexts())
+	assoc, err := ae.Associate(ctx, addr, AETitle("STGCMTSCP"), StorageCommitmentContexts(),
+		WithRoleSelection(RoleSelection{SOPClassUID: storageCommitmentPushModelSOPClass, SCURole: true, SCPRole: true}))
 	if err != nil {
 		cancel()
 		t.Fatalf("Associate: %v", err)

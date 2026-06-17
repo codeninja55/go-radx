@@ -364,8 +364,9 @@ func (s *Server) serveConn(ctx context.Context, conn *dul.Conn) {
 		ImplementationVersion:  s.ae.config().implementationVersion,
 		// Grant the requestor the Storage SCP role for each configured C-GET Storage SOP Class so a
 		// same-association C-GET can C-STORE the matched instances back (PS3.7 D.3.3.4). The SCU role
-		// is granted too, so an everyday Storage SCU on the same SOP Class is unaffected.
-		SupportedRoles: s.getStorageSupportedRoles(),
+		// is granted too, so an everyday Storage SCU on the same SOP Class is unaffected. The Storage
+		// Commitment report role is added when the handler reports same-association.
+		SupportedRoles: s.supportedRoles(),
 		// Carry the configured association authorizer into negotiation so an unauthorized Calling AE
 		// Title is rejected with an A-ASSOCIATE-RJ before any service runs. The peer address is
 		// captured here (the per-association goroutine owns conn) so the authorizer sees both the
@@ -548,6 +549,40 @@ func toSupportedContexts(contexts []PresentationContext) []acse.SupportedContext
 		})
 	}
 	return out
+}
+
+// supportedRoles builds the acceptor-side SCP/SCU role grants the Server offers: the configured
+// C-GET Storage SCP roles plus, when the handler emits the same-association Storage Commitment report
+// (an NActionReporter) over a supported Storage Commitment Push Model context, the Storage Commitment
+// Push Model report role. The Storage Commitment report is role-reversed (the acceptor sends the
+// N-EVENT-REPORT as SCU, the requestor receives it as SCP), so the acceptor must grant the requestor
+// the SCP role for the requestor's proposal to resolve and the report to proceed (PS3.7 D.3.3.4); the
+// SCU role is granted too so an everyday requestor on the same SOP class is unaffected. It returns
+// nil when neither applies.
+func (s *Server) supportedRoles() []acse.SupportedRole {
+	roles := s.getStorageSupportedRoles()
+	if _, ok := s.handler.(NActionReporter); ok && s.supportsStorageCommitment() {
+		roles = append(roles, acse.SupportedRole{
+			SOPClassUID: string(storageCommitmentPushModelSOPClass),
+			SCURole:     true,
+			SCPRole:     true,
+		})
+	}
+	if len(roles) == 0 {
+		return nil
+	}
+	return roles
+}
+
+// supportsStorageCommitment reports whether the Server negotiates a Storage Commitment Push Model
+// presentation context, so the report role is only granted when the service is actually offered.
+func (s *Server) supportsStorageCommitment() bool {
+	for _, pc := range s.supported {
+		if pc.AbstractSyntax == string(storageCommitmentPushModelSOPClass) {
+			return true
+		}
+	}
+	return false
 }
 
 // getStorageSupportedRoles builds the acceptor-side SCP/SCU role grants for the configured C-GET

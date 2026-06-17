@@ -138,6 +138,15 @@ func serveNSetMessage(ctx context.Context, acc *acse.Acceptor, h NSetHandler, cm
 // synchronous Storage Commitment reporting model (PS3.4 J.3.3). The report runs only after the
 // N-ACTION-RSP has been written (the request is acknowledged first) and only on Success (a refused
 // request carries no report); a reporter error faults the association.
+//
+// The same-association report is role-reversed: the SCP that received the N-ACTION becomes the
+// N-EVENT-REPORT SCU and the original requestor must act as the N-EVENT-REPORT SCP. Under the DICOM
+// default roles the requestor is the SCU and the acceptor the SCP, which is the wrong role for this
+// report (PS3.7 D.3.3.4, PS3.8 7.1.1.13). The dispatch therefore sends the same-association report
+// only when SCP/SCU role selection granted the requestor the SCP role for the N-ACTION's SOP class;
+// without that grant a strict peer would abort the role-reversed N-EVENT-REPORT, so the dispatch
+// skips it (the commitment result then requires the separate-association report, which is deferred on
+// the provider side — see StorageCommitmentProvider). The skip is observable, not silent.
 func serveNActionMessage(ctx context.Context, acc *acse.Acceptor, h NActionHandler, cmd CommandSet, ds *dicom.DataSet, pcID uint8, base OpInfo) error {
 	req := nRequestFromCommand(acc, cmd, ds, pcID, base)
 	status := h.NAction(ctx, req)
@@ -156,10 +165,33 @@ func serveNActionMessage(ctx context.Context, acc *acse.Acceptor, h NActionHandl
 	if err := sendCommand(ctx, acc.Conn(), acc.Machine(), pcID, rsp); err != nil {
 		return err
 	}
-	if reporter, ok := h.(NActionReporter); ok && status.IsSuccess() {
-		return reporter.ReportAfterAction(ctx, newNReportSender(acc, pcID, cmd.RequestedSOPClassUID, cmd.RequestedSOPInstanceUID), req)
+	reporter, ok := h.(NActionReporter)
+	if !ok || !status.IsSuccess() {
+		return nil
 	}
-	return nil
+	if !requestorHasReportRole(acc, cmd.RequestedSOPClassUID) {
+		// Role selection did not grant the requestor the SCP role for this SOP class, so the
+		// role-reversed same-association N-EVENT-REPORT cannot be sent without risking a peer abort.
+		// Skip it: the result is left to the deferred separate-association report. This is a documented
+		// no-op (no logger is wired into the package) and never an aborted association.
+		return nil
+	}
+	return reporter.ReportAfterAction(ctx, newNReportSender(acc, pcID, cmd.RequestedSOPClassUID, cmd.RequestedSOPInstanceUID), req)
+}
+
+// requestorHasReportRole reports whether SCP/SCU role selection granted the requestor the SCP role
+// for sopClass on this association (a NegotiatedRoles entry with SCPRole set, PS3.7 D.3.3.4). The
+// same-association Storage Commitment N-EVENT-REPORT is role-reversed — the acceptor sends it as the
+// N-EVENT-REPORT SCU and the requestor must receive it as the N-EVENT-REPORT SCP — so without the
+// granted SCP role the acceptor would be transmitting in a role the peer did not negotiate. The first
+// granting entry wins; an empty role set (default roles) yields false, so the report is skipped.
+func requestorHasReportRole(acc *acse.Acceptor, sopClass dicom.UID) bool {
+	for _, role := range acc.NegotiatedRoles() {
+		if role.SOPClassUID == string(sopClass) && role.SCPRole {
+			return true
+		}
+	}
+	return false
 }
 
 // newNReportSender binds an NReportSender to one acceptor association, presentation context, and the
