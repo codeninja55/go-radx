@@ -100,12 +100,48 @@ type NSetHandler interface {
 	NSet(ctx context.Context, req NRequest) Status
 }
 
-// NActionHandler answers an inbound N-ACTION (PS3.7 §10.1.4). It is the foundation hook a later
-// Storage Commitment SCP (acting on a commitment request) plugs into.
+// NActionHandler answers an inbound N-ACTION (PS3.7 §10.1.4). It is the hook the Storage Commitment
+// SCP (acting on a commitment request) plugs into.
 type NActionHandler interface {
 	// NAction answers an N-ACTION, performing the action named by req.ActionTypeID.
 	NAction(ctx context.Context, req NRequest) Status
 }
+
+// NActionReporter is the optional extension an NActionHandler implements when, after the N-ACTION-RSP
+// has been sent, it must emit an N-EVENT-REPORT to the requestor on the SAME association — the
+// synchronous-reporting model of the Storage Commitment Push Model SCP (PS3.4 J.3.3), where the SCP
+// accepts the request (N-ACTION-RSP) and then reports the commitment result (N-EVENT-REPORT) back on
+// the association the N-ACTION arrived on.
+//
+// The dispatch type-asserts this capability AFTER it has sent the N-ACTION-RSP, and only when the
+// N-ACTION status was Success — a refused request carries no follow-up report. It is invoked with an
+// NReportSender bound to the same presentation context the N-ACTION arrived on, so the reporter sends
+// the N-EVENT-REPORT-RQ and reads its RSP without owning the connection. A reporter that returns an
+// error has faulted the association (a wire/protocol failure on the report leg); returning nil after
+// a non-success N-EVENT-REPORT-RSP is the reporter's choice — the RSP status is in-band data.
+//
+// An NActionHandler that does NOT implement NActionReporter sends no follow-up report: the N-ACTION
+// is answered with its RSP alone, the SCU-side separate-association reporting model (PS3.4 J.3.3
+// also permits the report on a later association the SCP opens back to the SCU).
+type NActionReporter interface {
+	NActionHandler
+	// ReportAfterAction emits the follow-up N-EVENT-REPORT for an N-ACTION that returned Success. send
+	// is bound to the N-ACTION's presentation context and reference object; req is the original
+	// N-ACTION request. A returned error faults the association.
+	ReportAfterAction(ctx context.Context, send NReportSender, req NRequest) error
+}
+
+// NReportSender sends one N-EVENT-REPORT-RQ to the requestor on the association the originating
+// N-ACTION arrived on and returns the requestor's N-EVENT-REPORT-RSP status. It is handed to an
+// NActionReporter so a provider can report a result (for example a Storage Commitment outcome) without
+// owning the connection, the presentation context, or the Message ID — the dispatch binds those.
+//
+// eventTypeID names the event being reported (PS3.4 J.3.3: 1 = complete, 2 = failures exist); ds is
+// the event-information data set (the Referenced/Failed SOP Sequences and the Transaction UID). The
+// returned Status is the requestor's N-EVENT-REPORT-RSP status, meaningful only when err is nil; a
+// returned error is a wire/protocol fault on the report leg. The event-information data set may carry
+// SOP Instance UIDs, so the sender never logs it (PRD §9.1).
+type NReportSender func(ctx context.Context, eventTypeID uint16, ds *dicom.DataSet) (Status, error)
 
 // NEventReportHandler answers an inbound N-EVENT-REPORT (PS3.7 §10.1.1). It is the foundation hook a
 // general N-EVENT-REPORT receiver plugs into; the special-purpose CommitmentReceiver remains the

@@ -36,8 +36,9 @@ In scope for v1:
 - **Verification** (C-ECHO) as SCU and SCP.
 - **Query/Retrieve** (C-FIND, C-GET, C-MOVE) under the Patient Root and Study Root information models, as SCU and SCP.
 - **Modality Worklist** (C-FIND) as SCU, with a reference Modality Worklist SCP so the leg is testable end to end.
-- **Modality Performed Procedure Step (MPPS)** as SCU only (N-CREATE, N-SET).
-- **Storage Commitment Push Model** as SCU only (N-ACTION, N-EVENT-REPORT).
+- **Modality Performed Procedure Step (MPPS)** as SCU and SCP (N-CREATE, N-SET; `MPPSProvider`).
+- **Storage Commitment Push Model** as SCU and SCP (N-ACTION, N-EVENT-REPORT; `StorageCommitmentProvider`, with the
+  SCP reporting on the same association).
 - Uncompressed transfer syntaxes for read and write. The recognised compressed transfer syntaxes (RLE, the JPEG
   families, JPEG 2000, HTJ2K) also read and write at the Part 10 / dataset level: the main dataset parses in full
   and the encapsulated pixel stream is retained verbatim and re-emitted byte-identically. Pixel decode/encode is a
@@ -58,7 +59,9 @@ In scope for v1:
 
 Out of scope for v1 (deferred, designed-for but not implemented — PRD §3.2, §5.1):
 
-- The **SCP/server side** of MPPS and Storage Commitment. v1's N-services are SCU-only.
+- The MPPS Retrieve (N-GET) and Notification (N-EVENT-REPORT) SOP classes, and the separate-association Storage
+  Commitment report leg (the SCP opening a new association back to the SCU to report later). The MPPS and Storage
+  Commitment SCP sides themselves now ship (`MPPSProvider`, `StorageCommitmentProvider`).
 - All other DIMSE-N services as either role: N-GET, N-DELETE outside the two SCU flows above, Print Management
   (N-CREATE/N-SET/N-GET/N-ACTION/N-DELETE/N-EVENT-REPORT), Unified Procedure Step (UPS), RT Machine Verification, Media
   Creation Management, Display System, Application Event Logging, Instance Availability Notification, Storage
@@ -101,13 +104,14 @@ func StorageContexts() []dimse.PresentationContext           // radiology-first 
 func QueryRetrieveContexts() []dimse.PresentationContext     // Patient Root + Study Root C-FIND/C-GET/C-MOVE
 func QueryRetrieveWithStorageContexts() []dimse.PresentationContext // Q/R + validated Storage, one ID sequence (C-GET SCU)
 func BasicWorklistContexts() []dimse.PresentationContext     // Modality Worklist Information Model — FIND
-func ModalityPerformedContexts() []dimse.PresentationContext // MPPS SOP Class (MPPS SCU)
-func StorageCommitmentContexts() []dimse.PresentationContext // Storage Commitment Push Model SOP Class
+func ModalityPerformedContexts() []dimse.PresentationContext // MPPS SOP Class (MPPS SCU and SCP)
+func StorageCommitmentContexts() []dimse.PresentationContext // Storage Commitment Push Model SOP Class (SCU and SCP)
 ```
 
 The verb-level entry points that drive each service are `Association.Echo`, `Association.Store`, `Association.Find`,
 `Association.Get`, `Association.Move` (SCU); the `dimse.Handler` interface methods `Echo`/`Store`/`Find`/`Get`/`Move`
-(SCP); and `Association.MPPS()` / `Association.StorageCommitment()` for the two N-service SCU flows.
+(SCP); `Association.MPPS()` / `Association.StorageCommitment()` for the two N-service SCU flows; and `MPPSProvider`
+/ `StorageCommitmentProvider` (registered as the `dimse.Server` handler) for their SCP sides.
 
 `Find`/`Get`/`Move` extend the PRD §8.1 `Find(ctx, query, level)` form with a trailing functional-options variadic
 (`opts ...dimse.QueryOption`) — a deliberate, recorded extension that keeps the type-level shape (receiver, value
@@ -224,27 +228,33 @@ Worklist is a C-FIND with the Modality Worklist information model. v1 ships both
 Worklist SCP (PRD §5.1 step 2) so the order-to-worklist leg is testable end to end. Exposed by
 `BasicWorklistContexts()`, one context, matching the single-Class `pynetdicom` Basic Worklist preset.
 
-### Modality Performed Procedure Step (MPPS) — SCU only
+### Modality Performed Procedure Step (MPPS) — SCU and SCP
 
 | SOP Class | UID | SCU | SCP |
 |-----------|-----|-----|-----|
-| Modality Performed Procedure Step | `1.2.840.10008.3.1.2.3.3` | Yes (N-CREATE, N-SET) | No (deferred) |
+| Modality Performed Procedure Step | `1.2.840.10008.3.1.2.3.3` | Yes (N-CREATE, N-SET) | Yes (N-CREATE, N-SET; `MPPSProvider`) |
 
-MPPS reports procedure-step start and completion (PRD §5.1 step 3.5). v1 implements the SCU only: `Association.MPPS()`
-returns an `*MPPS` with `Create` (N-CREATE, status "IN PROGRESS") and `Set` (N-SET, "COMPLETED"/"DISCONTINUED"). The
-SCP side is deferred. The N-services used are N-CREATE and N-SET; no other MPPS N-services are in scope. Exposed for
-negotiation by `ModalityPerformedContexts()`.
+MPPS reports procedure-step start and completion (PRD §5.1 step 3.5). The SCU `Association.MPPS()` returns an `*MPPS`
+with `Create` (N-CREATE, status "IN PROGRESS") and `Set` (N-SET, "COMPLETED"/"DISCONTINUED"). The SCP `MPPSProvider`
+(an `NCreateHandler` and `NSetHandler` registered as the `dimse.Server` handler) opens the step on N-CREATE — after
+checking the Affected SOP Instance UID and an `IN PROGRESS` Performed Procedure Step Status are present — and advances
+it on N-SET, rejecting an N-SET against an unknown step or one already in a final state. Persistence is delegated to an
+`MPPSStore` (with a `MemoryMPPSStore` default). The N-services used are N-CREATE and N-SET; the MPPS Retrieve (N-GET)
+and Notification (N-EVENT-REPORT) SOP classes are not in scope. Exposed for negotiation by `ModalityPerformedContexts()`.
 
-### Storage Commitment — SCU only
+### Storage Commitment — SCU and SCP
 
 | SOP Class | UID | SCU | SCP |
 |-----------|-----|-----|-----|
-| Storage Commitment Push Model | `1.2.840.10008.1.20.1` | Yes (N-ACTION, N-EVENT-REPORT) | No (deferred) |
+| Storage Commitment Push Model | `1.2.840.10008.1.20.1` | Yes (N-ACTION, N-EVENT-REPORT) | Yes (N-ACTION, N-EVENT-REPORT; `StorageCommitmentProvider`) |
 
-Storage Commitment confirms that an archive has taken custody of stored instances (PRD §5.1 step 4.5). v1 implements
-the SCU only: `Association.StorageCommitment().Request(...)` issues the N-ACTION request and receives the asynchronous
-N-EVENT-REPORT result as a `StorageCommitmentResult`. The SCP side is deferred. Exposed for negotiation by
-`StorageCommitmentContexts()`.
+Storage Commitment confirms that an archive has taken custody of stored instances (PRD §5.1 step 4.5). The SCU
+`Association.StorageCommitment().Request(...)` issues the N-ACTION request and receives the asynchronous
+N-EVENT-REPORT result as a `StorageCommitmentResult`. The SCP `StorageCommitmentProvider` (an `NActionHandler`
+registered as the `dimse.Server` handler) answers the N-ACTION (action type 1), decides per-instance commitment
+through a `CommitmentDecider` hook, then reports the outcome to the SCU with an N-EVENT-REPORT on the same association
+(event type 1 complete, event type 2 failures exist). The separate-association report leg (the SCP opening a new
+association to report later) is deferred. Exposed for negotiation by `StorageCommitmentContexts()`.
 
 ### Presentation-context preset summary
 
