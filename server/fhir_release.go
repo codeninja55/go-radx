@@ -213,6 +213,59 @@ func withResourceVersionViaJSON(r fhir.Resource, id, versionID, lastUpdated stri
 	return decode(merged)
 }
 
+// searchsetMatchIDs reads the logical ids of the match entries of a searchset Bundle, marshalling
+// the Bundle and peeking each entry's resource id under the top-level "entry[].resource.id" keys.
+// It is release-neutral (a Bundle always serialises this shape across R4 and R5), so the conditional
+// interactions can resolve "how many resources matched, and which one" from the same searchset the
+// repository builds for a plain search — without a per-release Bundle walk. Only entries that carry a
+// resource with a non-empty id are counted, so a Bundle's OperationOutcome or include entries (no id)
+// are ignored. adapter is accepted for symmetry with the other release-neutral readers but the JSON
+// shape is uniform, so it is not consulted.
+func searchsetMatchIDs(bundle fhir.Resource, _ releaseAdapter) []string {
+	data, err := json.Marshal(bundle)
+	if err != nil {
+		return nil
+	}
+	var env struct {
+		Entry []struct {
+			Resource *struct {
+				ID string `json:"id"`
+			} `json:"resource"`
+		} `json:"entry"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		return nil
+	}
+	var ids []string
+	for _, e := range env.Entry {
+		if e.Resource != nil && e.Resource.ID != "" {
+			ids = append(ids, e.Resource.ID)
+		}
+	}
+	return ids
+}
+
+// searchsetTotal reads a searchset Bundle's total element, the authoritative match count a
+// conditional interaction must use for its zero/one/many decision. It is the count the repository
+// reports for the whole result set, not the number of entries on the page: a paged searchset can
+// carry total greater than len(entry), so counting entries would mis-resolve a multi-match search as
+// a single match and write the wrong resource. ok is false when the Bundle carries no total (an
+// honest signal the count is unknown), so the caller can refuse to resolve rather than guess. The
+// JSON shape is uniform across R4 and R5, so no per-release walk is needed.
+func searchsetBundleTotal(bundle fhir.Resource) (total int, ok bool) {
+	data, err := json.Marshal(bundle)
+	if err != nil {
+		return 0, false
+	}
+	var env struct {
+		Total *int `json:"total"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil || env.Total == nil {
+		return 0, false
+	}
+	return *env.Total, true
+}
+
 // resourceVersionViaJSON reads a resource's meta.versionId and meta.lastUpdated by marshalling it
 // and peeking the "meta" key, the version twin of resourceIDViaJSON. A resource with no meta (or an
 // unversioned one from a custom Repository) yields empty strings, which the handlers treat as
@@ -379,12 +432,24 @@ func (a r5Adapter) capabilityStatement(basePath string) fhir.Resource {
 		vread := r5.TypeRestfulInteractionVread
 		historyInstance := r5.TypeRestfulInteractionHistoryInstance
 		create := r5.TypeRestfulInteractionCreate
+		update := r5.TypeRestfulInteractionUpdate
+		patch := r5.TypeRestfulInteractionPatch
+		del := r5.TypeRestfulInteractionDelete
 		searchType := r5.TypeRestfulInteractionSearchType
+		condDelete := r5.ConditionalDeleteStatusSingle
 		rest.Resource = append(rest.Resource, r5.CapabilityStatementRestResource{
 			Type: &typ,
 			Interaction: []r5.CapabilityStatementRestResourceInteraction{
-				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create}, {Code: &searchType},
+				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create},
+				{Code: &update}, {Code: &patch}, {Code: &del}, {Code: &searchType},
 			},
+			// The role allows update-as-create and the conditional update/patch/delete forms; a
+			// conditional delete resolves a single match only (multiple is a 412), so the status is
+			// "single", never "multiple".
+			UpdateCreate:      boolptr(true),
+			ConditionalUpdate: boolptr(true),
+			ConditionalPatch:  boolptr(true),
+			ConditionalDelete: &condDelete,
 			Operation: []r5.CapabilityStatementRestResourceOperation{
 				{Name: strptr(validateOperationName), Definition: strptr(validateOperationDefinition)},
 			},
@@ -580,12 +645,24 @@ func (a r4Adapter) capabilityStatement(basePath string) fhir.Resource {
 		vread := r4.TypeRestfulInteractionVread
 		historyInstance := r4.TypeRestfulInteractionHistoryInstance
 		create := r4.TypeRestfulInteractionCreate
+		update := r4.TypeRestfulInteractionUpdate
+		patch := r4.TypeRestfulInteractionPatch
+		del := r4.TypeRestfulInteractionDelete
 		searchType := r4.TypeRestfulInteractionSearchType
+		condDelete := r4.ConditionalDeleteStatusSingle
 		rest.Resource = append(rest.Resource, r4.CapabilityStatementRestResource{
 			Type: &typ,
 			Interaction: []r4.CapabilityStatementRestResourceInteraction{
-				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create}, {Code: &searchType},
+				{Code: &read}, {Code: &vread}, {Code: &historyInstance}, {Code: &create},
+				{Code: &update}, {Code: &patch}, {Code: &del}, {Code: &searchType},
 			},
+			// The role allows update-as-create and the conditional update/delete forms; a conditional
+			// delete resolves a single match only (multiple is a 412), so the status is "single".
+			// R4's CapabilityStatement has no conditionalPatch flag (added in R5), so it is not set here
+			// though the role serves a conditional patch.
+			UpdateCreate:      boolptr(true),
+			ConditionalUpdate: boolptr(true),
+			ConditionalDelete: &condDelete,
 			Operation: []r4.CapabilityStatementRestResourceOperation{
 				{Name: strptr(validateOperationName), Definition: strptr(validateOperationDefinition)},
 			},
@@ -645,6 +722,10 @@ const (
 // strptr returns a pointer to s, the local helper for the non-empty optional string fields the
 // release Bundle and OperationOutcome builders take.
 func strptr(s string) *string { return &s }
+
+// boolptr returns a pointer to b, the local helper for the optional bool capability flags
+// (updateCreate, conditionalUpdate, conditionalPatch) the CapabilityStatement builders set.
+func boolptr(b bool) *bool { return &b }
 
 // optptr returns a pointer to s, or nil when s is empty, so an absent optional field is omitted on
 // the wire rather than serialised as an empty string.

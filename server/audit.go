@@ -17,6 +17,16 @@ const (
 	AuditOpSTOWStore AuditOp = "dicomweb.stow-rs"
 	// AuditOpFHIRCreate is one FHIR create interaction committed by the repository.
 	AuditOpFHIRCreate AuditOp = "fhir.create"
+	// AuditOpFHIRUpdate is one FHIR update (PUT) interaction committed by the
+	// repository — a full-resource replace that minted a new version (the
+	// create-on-update case is audited as a create, not an update).
+	AuditOpFHIRUpdate AuditOp = "fhir.update"
+	// AuditOpFHIRPatch is one FHIR patch (PATCH) interaction committed by the
+	// repository — a partial modification that minted a new version.
+	AuditOpFHIRPatch AuditOp = "fhir.patch"
+	// AuditOpFHIRDelete is one FHIR delete (DELETE) interaction committed by the
+	// repository — a deletion version appended to the resource's history.
+	AuditOpFHIRDelete AuditOp = "fhir.delete"
 )
 
 // AuditOutcome records how far a committed write got. The durable write is the
@@ -35,6 +45,10 @@ const (
 	// but un-indexed because the catalogue index failed — the state the DIMSE handler
 	// reports as a Storage warning status and STOW-RS as the per-instance failure.
 	AuditOutcomeStoredUnindexed AuditOutcome = "stored-unindexed"
+	// AuditOutcomeDeleted is the FHIR delete's single value: the resource's current
+	// version was retired by appending a deletion version to its history. A
+	// subsequent read answers 410 Gone while prior versions remain vread-able.
+	AuditOutcomeDeleted AuditOutcome = "deleted"
 )
 
 // AuditEvent reports one committed server-side write.
