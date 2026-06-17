@@ -78,12 +78,14 @@ func (c *Client) SearchInstances(ctx context.Context, study, series dicom.UID, q
 }
 
 // SearchAllStudies searches all studies, transparently paging through the result set with
-// offset/limit until the origin returns a short (or empty) page, and yields each match in turn
+// offset/limit until the origin returns an empty page, and yields each match in turn
 // (matching the dicomweb-client get_remaining behaviour). It is the auto-paginating counterpart to
 // SearchStudies: a caller iterates without managing the offset window itself. The query's Limit
-// sets the per-request page size (defaulting to 100); its Offset sets the starting position. The
-// iterator stops at the first transport or decode error, yielding that error, so a truncated page
-// is never read as the complete result set.
+// sets the per-request page size (defaulting to 100); its Offset sets the starting position. Paging
+// advances by the rows the origin actually returns, so a server that caps a page below the
+// requested size (signalling truncation with a Warning: 299 header) still yields every match rather
+// than stopping at the first short page. The iterator stops at the first transport or decode error,
+// yielding that error, so a truncated page is never read as the complete result set.
 func (c *Client) SearchAllStudies(ctx context.Context, q SearchQuery) iter.Seq2[SearchResult, error] {
 	return c.searchAll(ctx, "/studies", q)
 }
@@ -103,11 +105,13 @@ func (c *Client) SearchAllInstances(ctx context.Context, study, series dicom.UID
 }
 
 // searchAll pages through a QIDO-RS search at path, yielding each result. It requests fixed-size
-// pages by offset/limit and stops when a page comes back shorter than the page size, which marks
-// the end of the result set (PS3.18 §10.6.1.4 has no Link/cursor mechanism, so offset/limit paging
-// is the portable exhaustion signal). A page exactly the page size triggers one more request,
-// which then returns a short or empty page — correct, at the cost of one extra round trip on an
-// exact multiple.
+// pages by offset/limit, advancing the offset by the number of rows the origin actually returned,
+// and continues until a page comes back empty — the only portable end-of-set signal, since PS3.18
+// §10.6.1.4 defines no Link/cursor mechanism. Stopping on a short (but non-empty) page would drop
+// matches whenever the origin caps a page below the requested size (e.g. go-radx with
+// WithMaxQueryResults below the page size), which it signals with a Warning: 299 header; advancing
+// by the rows returned reaches every match and terminates on the empty final page, at the cost of
+// one extra round trip when the result count is an exact multiple of the page size.
 func (c *Client) searchAll(ctx context.Context, path string, q SearchQuery) iter.Seq2[SearchResult, error] {
 	return c.searchAllPath(ctx, path, nil, q)
 }
@@ -134,15 +138,16 @@ func (c *Client) searchAllPath(ctx context.Context, path string, pathErr error, 
 				yield(SearchResult{}, err)
 				return
 			}
+			if len(results) == 0 {
+				// An empty page is the only reliable end-of-set marker: an origin that caps a page
+				// below the requested size returns a short, non-empty page (with a Warning: 299
+				// truncation header) yet has more matches, so a short page must not stop paging.
+				return
+			}
 			for _, r := range results {
 				if !yield(r, nil) {
 					return
 				}
-			}
-			if len(results) < page {
-				// A short page (including an empty one) is the last page: the origin had no more
-				// matches beyond it.
-				return
 			}
 			offset += len(results)
 		}

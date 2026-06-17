@@ -231,6 +231,43 @@ func TestSearchAllStudiesEmpty(t *testing.T) {
 	}
 }
 
+// TestSearchAllStudiesPagesPastServerCap asserts the auto-paginating iterator yields every match
+// even when the origin caps each page below the requested page size (here WithMaxQueryResults(2)
+// against a Limit of 10) and signals the truncation with a Warning: 299 header (PS3.18 §10.6.1.4).
+// Stopping on the first short page would drop the matches beyond the cap; advancing the offset by
+// the rows actually returned reaches all of them and terminates on the empty final page.
+func TestSearchAllStudiesPagesPastServerCap(t *testing.T) {
+	candidates := make([]*dicom.DataSet, 0, 5)
+	for i := range 5 {
+		candidates = append(candidates, studyRecord(
+			fmt.Sprintf("1.2.%d", i), fmt.Sprintf("PID%d", i), "Doe^Jane", "20200101", "ACC", "CT"))
+	}
+	hs := newQueryTestServer(t, &memQuery{candidates: candidates}, WithMaxQueryResults(2))
+	c, err := NewClient(hs.URL, WithHTTPClient(hs.Client()))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	seen := make(map[string]int)
+	var count int
+	for r, err := range c.SearchAllStudies(context.Background(), SearchQuery{Limit: 10}) {
+		if err != nil {
+			t.Fatalf("SearchAllStudies yielded error: %v", err)
+		}
+		uid, _ := r.DataSet.GetString(dicom.TagStudyInstanceUID)
+		seen[uid]++
+		count++
+	}
+	if count != 5 {
+		t.Fatalf("server-capped paging yielded %d results, want all 5", count)
+	}
+	for uid, n := range seen {
+		if n != 1 {
+			t.Errorf("study %s yielded %d times, want once", uid, n)
+		}
+	}
+}
+
 // parseTestRange parses a "bytes=start-end" header into inclusive 0-based offsets for the test
 // origin, clamping to the value length. It handles the closed-range form the byte-range test uses.
 func parseTestRange(h string, length int) (int, int) {
