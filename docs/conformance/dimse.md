@@ -106,8 +106,19 @@ The DIMSE-N service operations and the roles each ships as today:
 
 | Service | SOP Class | SCU | SCP | Reference |
 |---------|-----------|-----|-----|-----------|
-| N-CREATE, N-SET | Modality Performed Procedure Step | Shipped | Deferred | PS3.4 F.7.1, PS3.7 §10.1 |
-| N-ACTION, N-EVENT-REPORT | Storage Commitment Push Model | Shipped (SCU; separate-assoc report) | Deferred | PS3.4 J.3 |
+| N-CREATE, N-SET | Modality Performed Procedure Step | Shipped | Deferred (dispatch hook present) | PS3.4 F.7.1, PS3.7 §10.1 |
+| N-ACTION, N-EVENT-REPORT | Storage Commitment Push Model | Shipped (SCU; separate-assoc report) | Deferred (dispatch hook present) | PS3.4 J.3 |
+| N-GET | SOP-class-agnostic primitive | Shipped | Shipped | PS3.7 §10.1.2 |
+| N-DELETE | SOP-class-agnostic primitive | Shipped | Shipped | PS3.7 §10.1.6 |
+
+The `dimse.Server` routes all six DIMSE-N command fields to interface-segregated handler hooks
+(`NGetHandler`, `NDeleteHandler`, `NCreateHandler`, `NSetHandler`, `NActionHandler`,
+`NEventReportHandler`); a DIMSE-N request reaching a server with no handler for that operation is
+refused with a `StatusSOPClassNotSupported` response rather than aborting, the same interface-
+segregation contract as the DIMSE-C dispatch. N-GET and N-DELETE are fully served end to end (SCU
+primitive plus SCP serve-and-respond). The N-CREATE/N-SET/N-ACTION/N-EVENT-REPORT SCP hooks exist as
+the dispatch substrate (the serve-and-respond path is in place); the application-specific SCP logic —
+the MPPS SCP, the Storage Commitment SCP, UPS — that plugs into them is deferred to later waves.
 
 ## Association negotiation
 
@@ -146,9 +157,9 @@ truthful negotiated value, not a stub for an unsupported feature. SOP-class exte
 
 ## Out of scope
 
-Not yet authored. The explicit deferral list (the SCP side of MPPS and Storage Commitment, the other DIMSE-N services,
-Print Management, UPS, RT Machine Verification, and the non-radiology Query/Retrieve models) is declared in
-[`./dicom.md`](./dicom.md) until this statement supersedes it.
+Not yet authored. The explicit deferral list (the application-specific SCP logic for MPPS and Storage Commitment — the
+generic N-service dispatch hooks now exist — Print Management, UPS, RT Machine Verification, and the non-radiology
+Query/Retrieve models) is declared in [`./dicom.md`](./dicom.md) until this statement supersedes it.
 
 ## Verification
 

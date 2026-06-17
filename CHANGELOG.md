@@ -12,6 +12,20 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- DIMSE-N N-GET and N-DELETE primitives and a DIMSE-N SCP dispatch substrate (pynetdicom `send_n_get`/
+  `send_n_delete` and `evt.EVT_N_*` parity, PS3.7 §10.1.2 / §10.1.6). `(*dimse.Association).NGet` reads
+  attributes of a managed SOP Instance, naming the wanted attributes through the Attribute Identifier List
+  (0000,1005, VR AT) command-set element and returning the SCP's typed status with the returned attribute
+  data set; `(*dimse.Association).NDelete` removes a managed SOP Instance. Both reference the target by the
+  Requested SOP Class/Instance UID pair the DIMSE-N services use, fail closed before any wire I/O on missing
+  references or an unestablished association, and surface a Failure-category status as in-band data rather
+  than a Go error. The `dimse.Server` now routes all six DIMSE-N command fields to interface-segregated
+  handler hooks (`NGetHandler`, `NDeleteHandler`, `NCreateHandler`, `NSetHandler`, `NActionHandler`,
+  `NEventReportHandler`); a DIMSE-N request reaching a server with no handler for that operation is refused
+  with a `StatusSOPClassNotSupported` response rather than aborting, the same interface-segregation contract
+  as the DIMSE-C dispatch. N-GET and N-DELETE are served end to end (SCU primitive plus SCP serve-and-respond,
+  exercised by an in-process SCU-to-SCP loopback test); the N-CREATE/N-SET/N-ACTION/N-EVENT-REPORT SCP hooks
+  are the foundation substrate that the deferred MPPS SCP, Storage Commitment SCP, and UPS plug into.
 - FHIR server-role write side: `update` (PUT), `patch` (PATCH), and `delete` (DELETE) with their
   conditional forms, replacing the prior `501` stubs (`server/fhir_write.go`, `server/fhir_jsonpatch.go`).
   `update` does a full-resource replace with resourceType/id integrity (`400` on a mismatch), release

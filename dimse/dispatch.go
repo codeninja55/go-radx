@@ -234,6 +234,64 @@ func dispatchMessage(
 		// rather than faulting the association — otherwise an SCU that breaks a C-FIND just as the
 		// query completes would have its association closed, breaking release/reuse.
 		return nil
+	case CommandNGetRQ:
+		// Like every C-service path, a DIMSE-N request must arrive on a context whose negotiated
+		// abstract syntax is the SOP Class the request names; without this guard a peer could run an
+		// N-service (here N-GET) against a SOP Class never accepted on the association, bypassing
+		// presentation-context negotiation (PS3.7 §9.1) — validated before the handler runs.
+		if err := validateNContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), acc.Machine().CurrentState()); err != nil {
+			return err
+		}
+		nh, ok := h.(NGetHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNGetRSP, cmd, pcID)
+		}
+		return serveNGetMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNDeleteRQ:
+		if err := validateNContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), acc.Machine().CurrentState()); err != nil {
+			return err
+		}
+		nh, ok := h.(NDeleteHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNDeleteRSP, cmd, pcID)
+		}
+		return serveNDeleteMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNCreateRQ:
+		if err := validateNContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), acc.Machine().CurrentState()); err != nil {
+			return err
+		}
+		nh, ok := h.(NCreateHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNCreateRSP, cmd, pcID)
+		}
+		return serveNCreateMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNSetRQ:
+		if err := validateNContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), acc.Machine().CurrentState()); err != nil {
+			return err
+		}
+		nh, ok := h.(NSetHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNSetRSP, cmd, pcID)
+		}
+		return serveNSetMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNActionRQ:
+		if err := validateNContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), acc.Machine().CurrentState()); err != nil {
+			return err
+		}
+		nh, ok := h.(NActionHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNActionRSP, cmd, pcID)
+		}
+		return serveNActionMessage(ctx, acc, nh, cmd, ds, pcID, base)
+	case CommandNEventReportRQ:
+		if err := validateNContext(cmd, pcID, acceptedAbstractSyntaxResolver(acc), acc.Machine().CurrentState()); err != nil {
+			return err
+		}
+		nh, ok := h.(NEventReportHandler)
+		if !ok {
+			return refuseUnsupportedN(ctx, acc, CommandNEventReportRSP, cmd, pcID)
+		}
+		return serveNEventReportMessage(ctx, acc, nh, cmd, ds, pcID, base)
 	default:
 		return &ProtocolError{
 			State:  acc.Machine().CurrentState(),

@@ -7,7 +7,7 @@ transport/TLS/timeouts. Evidence is file:symbol against main as of 2026-06-10. T
 
 ## Summary
 
-**Counts: 93 features — 60 MET, 9 PARTIAL, 23 NOT-MET, 1 N-A.** (The NOT-MET count includes the
+**Counts: 93 features — 63 MET, 9 PARTIAL, 20 NOT-MET, 1 N-A.** (The NOT-MET count includes the
 `qrscp` CLI-layer row cross-referenced to A6.)
 
 The association plane is at full parity: requestor and acceptor, the complete PS3.8 FSM (Sta1-13
@@ -16,29 +16,32 @@ in both directions, all four timeout knobs, TLS (1.2 floor + mTLS) on both sides
 targets. The DIMSE-C plane is at full parity, including C-CANCEL as SCU and as SCP for C-FIND,
 C-GET, and C-MOVE.
 
-The gap is service-class breadth and the DIMSE-N plane. pynetdicom documents 23 service classes;
-go-radx ships 7 of them (Verification, Storage, Q/R, Worklist, and SCU-side MPPS and Storage
-Commitment). N-GET and N-DELETE do not exist at any layer, no DIMSE-N service is dispatchable in the
-SCP (`Server` dispatches only C-services), and UPS — pynetdicom's flagship N-service — is absent
-entirely. This matches the conformance statement's declared v1 deferral list, so most NOT-MET rows
-are deliberate scope, not accidental gaps.
+The gap is now service-class breadth rather than the DIMSE-N plane foundation. pynetdicom documents
+23 service classes; go-radx ships 7 of them (Verification, Storage, Q/R, Worklist, and SCU-side MPPS
+and Storage Commitment). The DIMSE-N foundation is in place: the N-GET and N-DELETE primitives exist
+as both SCU and SCP, and the `Server` now routes all six DIMSE-N command fields to interface-
+segregated N-handler hooks (the DIMSE-N SCP dispatch substrate). What remains is the application
+logic that plugs into those hooks — the MPPS SCP, the Storage Commitment SCP, and UPS, pynetdicom's
+flagship N-service. This matches the conformance statement's declared v1 deferral list, so most
+NOT-MET rows are deliberate scope, not accidental gaps.
 
 Top gaps by size:
 
-1. DIMSE-N SCP dispatch — `Server` handles only C-services (`dispatch.go:188-243`); no N-CREATE/
-   N-SET/N-GET/N-DELETE/N-ACTION/N-EVENT-REPORT handler interfaces exist (size L). This single gap
-   blocks the MPPS SCP, Storage Commitment SCP, and every other N-service SCP row below.
-2. Unified Procedure Step (push/pull/watch/event/query) — absent at every layer (size L).
-3. N-GET and N-DELETE primitives — no command-field constants, no SCU, no SCP (size M each);
-   prerequisite for Display System, MPPS Retrieve, Print, RT, UPS.
-4. MPPS SCP + the Retrieve/Notification SOP classes — SCU-only today (size L for the SCP).
-5. Storage Commitment SCP (committing instances and initiating the report) — SCU-only (size M).
-6. Print Management — absent (size L).
-7. Composite Instance Root / instance- and frame-level retrieve models — Q/R is Patient/Study Root
+1. Unified Procedure Step (push/pull/watch/event/query) — absent at every layer (size L). The DIMSE-N
+   SCP dispatch substrate and the N-GET/N-DELETE primitives it needs now exist; the UPS service logic
+   does not.
+2. MPPS SCP + the Retrieve/Notification SOP classes — SCU-only today (size L for the SCP). The
+   N-CREATE/N-SET SCP serve+RSP hooks exist (`dimse/ndispatch.go`); the MPPS application logic that
+   plugs into them is deferred.
+3. Storage Commitment SCP (committing instances and initiating the report) — SCU-only (size M). The
+   N-ACTION/N-EVENT-REPORT SCP serve+RSP hooks exist (`dimse/ndispatch.go`); the commitment logic is
+   deferred.
+4. Print Management — absent (size L).
+5. Composite Instance Root / instance- and frame-level retrieve models — Q/R is Patient/Study Root
    only (size M).
-8. Notification-event surface (pynetdicom's ~17 `evt.EVT_*` monitoring events; no logging/hook
+6. Notification-event surface (pynetdicom's ~17 `evt.EVT_*` monitoring events; no logging/hook
    system is wired) (size M).
-9. The remaining Q/R-family service classes (Hanging Protocol, Color Palette, Implant Template,
+7. The remaining Q/R-family service classes (Hanging Protocol, Color Palette, Implant Template,
    Defined Procedure, Protocol Approval, Inventory) — each size M, all sharing the existing C-FIND/
    C-GET/C-MOVE machinery once their models are admitted.
 
@@ -93,7 +96,7 @@ service as a whole; the role split is in the notes.
 | Storage Commitment (Push Model) | `service_classes/storage_commitment` | PARTIAL | SCU `StorageCommitment.Request` `dimse/stgcommit.go:170`; separate-association `CommitmentReceiver.ServeConn` `:365`; `dimse/stgcommit_test.go` | M | SCP side (committing instances, initiating the report) deferred; failed instances surface as typed failure `stgcommit.go:118` |
 | Unified Procedure Step (push/pull/watch/event/query) | `service_classes/unified_procedure_step...` | NOT-MET | No UPS symbol anywhere in `dimse/` (grep: UPS/UnifiedProcedureStep zero hits) | L | Needs N-CREATE/N-SET/N-GET/N-ACTION/N-EVENT-REPORT both roles + UPS C-FIND |
 | Print Management | `service_classes/print_management...` | NOT-MET | No print symbols in `dimse/` | L | Declared out of scope (`docs/conformance/dimse.md:144-148`) |
-| Display System Management | `service_classes/display_system_service_class` | NOT-MET | No N-GET primitive exists (no command field in `dimse/command.go`) | M | Blocked on N-GET |
+| Display System Management | `service_classes/display_system_service_class` | NOT-MET | N-GET primitive now exists (`dimse/nget.go`, `NGetHandler` `dimse/nhandler.go:62`); the Display System SOP class registration and device-config model are not shipped as a service | M | No longer blocked on N-GET — works mechanically over a custom N-GET context; not a preset/declared service |
 | RT Machine Verification | `service_classes/rt_machine...` | NOT-MET | No RT symbols in `dimse/` | L | Declared out of scope |
 | Relevant Patient Information Query | `service_classes/relevant_patient...` | NOT-MET | Model not in `findModels` `dimse/find.go:245` | S | C-FIND machinery exists; admit model + flat-query handling |
 | Substance Administration Query | `service_classes/substance_admin...` | NOT-MET | Model not in `findModels` | S | Same shape as above |
@@ -136,9 +139,9 @@ service as a whole; the role split is in the notes.
 | N-ACTION SCU | `send_n_action` | PARTIAL | `StorageCommitment.Request` `dimse/stgcommit.go:170`; command field `command.go:86` | S | Storage-Commitment-scoped (Action Type ID 1) |
 | N-EVENT-REPORT receive (role-inverted acceptor) | storage commitment examples | PARTIAL | `CommitmentReceiver.ServeConn`/`serveReport` `dimse/stgcommit.go:365,402` | M | Purpose-built for Storage Commitment only; not a general N-EVENT-REPORT SCP |
 | N-EVENT-REPORT send | `send_n_event_report` | NOT-MET | RSP/RQ command fields exist (`command.go:99,103`) but no send entry point | M | Needed for Storage Commitment SCP, MPPS Notification, UPS watch |
-| N-GET (SCU + SCP) | `send_n_get`, `evt.EVT_N_GET` | NOT-MET | No N-GET command-field constant in `dimse/command.go` (grep zero hits) | M | Blocks Display System, MPPS Retrieve, Print, UPS pull |
-| N-DELETE (SCU + SCP) | `send_n_delete`, `evt.EVT_N_DELETE` | NOT-MET | No N-DELETE command-field constant | M | |
-| DIMSE-N SCP dispatch in `Server` | `evt.EVT_N_*` handlers | NOT-MET | `dispatch.go:188-243` switches on C-service commands only; `Handler` interfaces `dimse/handler.go:33-113` are all C-services | L | The structural gap behind every N-service SCP row; `CommitmentReceiver` is the only (special-purpose) N acceptor |
+| N-GET (SCU + SCP) | `send_n_get`, `evt.EVT_N_GET` | MET | SCU `Association.NGet` `dimse/nget.go:43`; command field `CommandNGetRQ`/`CommandNGetRSP` `dimse/command.go:112,118` w/ Attribute Identifier List (0000,1005) `command.go`; SCP `NGetHandler` `dimse/nhandler.go:62` via `serveNGetMessage` `dimse/ndispatch.go:43`; loopback `dimse/ndispatch_test.go` | - | SCU + SCP both roles; status against ServiceClassGeneral (PS3.7 Annex C) |
+| N-DELETE (SCU + SCP) | `send_n_delete`, `evt.EVT_N_DELETE` | MET | SCU `Association.NDelete` `dimse/ndelete.go:24`; command field `CommandNDeleteRQ`/`CommandNDeleteRSP` `command.go`; SCP `NDeleteHandler` `dimse/nhandler.go:80` via `serveNDeleteMessage` `dimse/ndispatch.go:74`; loopback `dimse/ndispatch_test.go` | - | SCU + SCP both roles |
+| DIMSE-N SCP dispatch in `Server` | `evt.EVT_N_*` handlers | MET | `dispatchMessage` routes all six N-service command fields `dimse/dispatch.go`; N-handler interfaces `NGetHandler`/`NDeleteHandler`/`NCreateHandler`/`NSetHandler`/`NActionHandler`/`NEventReportHandler` `dimse/nhandler.go:62-118`; serve fns `dimse/ndispatch.go`; capability-checked refusal `refuseUnsupportedN` `ndispatch.go` | - | Substrate complete: all six N-services routed with interface-segregated handler hooks and StatusSOPClassNotSupported refusal. N-GET/N-DELETE fully served; N-CREATE/N-SET/N-ACTION/N-EVENT-REPORT are foundation hooks (the SCP serve+RSP path exists; the MPPS-SCP/Storage-Commitment-SCP/UPS application logic that plugs into them is deferred to later waves) |
 
 ## Event and handler model
 

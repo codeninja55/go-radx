@@ -217,6 +217,19 @@ var (
 	// N-ACTION request was accepted (the commitment result follows asynchronously via
 	// N-EVENT-REPORT). PS3.4 J.3.
 	StatusStorageCommitmentSuccess = NewStatus(0x0000, ServiceClassStorageCommitment)
+
+	// StatusNSuccess is the general DIMSE-N success status (0x0000): the normalised operation (N-GET,
+	// N-DELETE, N-CREATE, N-SET, N-ACTION, N-EVENT-REPORT) was performed. The DIMSE-N services use the
+	// PS3.7 Annex C general status table, so an N-service SCP returns it from its handler on success.
+	StatusNSuccess = NewStatus(0x0000, ServiceClassGeneral)
+	// StatusNoSuchSOPInstance is the general DIMSE failure "No Such SOP Instance" (0x0112, PS3.7 Annex
+	// C). An N-GET/N-SET/N-ACTION/N-DELETE SCP returns it when the Requested SOP Instance UID names no
+	// managed object it knows — failing closed rather than fabricating a result (PRD §9.2).
+	StatusNoSuchSOPInstance = NewStatus(0x0112, ServiceClassGeneral)
+	// StatusNoSuchAttribute is the general DIMSE failure "No Such Attribute" (0x0105, PS3.7 Annex C).
+	// An N-GET SCP returns it when the Attribute Identifier List names an attribute the managed object
+	// does not define and the SCP treats that as a failure rather than omitting it.
+	StatusNoSuchAttribute = NewStatus(0x0105, ServiceClassGeneral)
 )
 
 // statusEntry is a categorised, human-readable status meaning in a service-class table.

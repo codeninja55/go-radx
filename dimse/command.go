@@ -101,6 +101,29 @@ const (
 	// N_EVENT_REPORT_RSP 0x8100). The N-EVENT-REPORT receiver returns it to acknowledge the report,
 	// echoing the Affected SOP Class/Instance UID and the Event Type ID and carrying the status.
 	CommandNEventReportRSP CommandField = 0x8100
+	// CommandNGetRQ is the N-GET request command field (PS3.7 §10.1.2, verified against pynetdicom
+	// dimse_messages.py N_GET_RQ 0x0110). The normalised N-GET reads attributes of an existing managed
+	// SOP Instance — for Display System Management, the device's configuration; for MPPS Retrieve, a
+	// performed procedure step. It references the target by Requested SOP Class UID (0000,0003) and
+	// Requested SOP Instance UID (0000,1001), and MAY carry an Attribute Identifier List (0000,1005),
+	// VR AT, naming which attributes to return; an absent or empty list requests every attribute. An
+	// N-GET-RQ never carries a data set (CommandDataSetType 0x0101) — the requested attributes are
+	// named in the command set, not a payload.
+	CommandNGetRQ CommandField = 0x0110
+	// CommandNGetRSP is the N-GET response command field (PS3.7 §10.1.2, pynetdicom N_GET_RSP 0x8110).
+	// It echoes the Affected SOP Class UID (0000,0002) and Affected SOP Instance UID (0000,1000) of the
+	// object read, carries the status, and — on success — carries the returned attribute list as the
+	// command's data set (CommandDataSetType present).
+	CommandNGetRSP CommandField = 0x8110
+	// CommandNDeleteRQ is the N-DELETE request command field (PS3.7 §10.1.6, verified against
+	// pynetdicom dimse_messages.py N_DELETE_RQ 0x0150). The normalised N-DELETE removes an existing
+	// managed SOP Instance. It references the target by Requested SOP Class UID (0000,0003) and
+	// Requested SOP Instance UID (0000,1001) and carries no data set (CommandDataSetType 0x0101).
+	CommandNDeleteRQ CommandField = 0x0150
+	// CommandNDeleteRSP is the N-DELETE response command field (PS3.7 §10.1.6, pynetdicom N_DELETE_RSP
+	// 0x8150). It echoes the Affected SOP Class UID (0000,0002) and Affected SOP Instance UID
+	// (0000,1000) of the deleted object, carries the status, and carries no data set.
+	CommandNDeleteRSP CommandField = 0x8150
 )
 
 // Priority is the DIMSE operation priority (0000,0700), a US value (PS3.7 §10.3.1). The wire
@@ -141,6 +164,7 @@ var (
 	tagMessageID                 = dicom.NewTag(0x0000, 0x0110) // US
 	tagMessageIDBeingRespondedTo = dicom.NewTag(0x0000, 0x0120) // US
 	tagEventTypeID               = dicom.NewTag(0x0000, 0x1002) // US
+	tagAttributeIdentifierList   = dicom.NewTag(0x0000, 0x1005) // AT
 	tagActionTypeID              = dicom.NewTag(0x0000, 0x1008) // US
 	tagMoveDestination           = dicom.NewTag(0x0000, 0x0600) // AE
 	tagPriority                  = dicom.NewTag(0x0000, 0x0700) // US
@@ -170,6 +194,7 @@ var commandVR = map[dicom.Tag]dicom.VR{
 	tagMessageID:                 dicom.VRUS,
 	tagMessageIDBeingRespondedTo: dicom.VRUS,
 	tagEventTypeID:               dicom.VRUS,
+	tagAttributeIdentifierList:   dicom.VRAT,
 	tagActionTypeID:              dicom.VRUS,
 	tagMoveDestination:           dicom.VRAE,
 	tagPriority:                  dicom.VRUS,
@@ -209,11 +234,18 @@ type CommandSet struct {
 	// event type 1 (all committed) or 2 (failures exist). HasActionTypeID/HasEventTypeID distinguish a
 	// present zero value from an absent element, and gate emission so a C-service command carries
 	// neither.
-	HasActionTypeID    bool
-	ActionTypeID       uint16
-	HasEventTypeID     bool
-	EventTypeID        uint16
-	CommandDataSetType uint16
+	HasActionTypeID bool
+	ActionTypeID    uint16
+	HasEventTypeID  bool
+	EventTypeID     uint16
+	// AttributeIdentifierList is the Attribute Identifier List (0000,1005), VR AT, an N-GET-RQ field
+	// naming which attributes of the managed SOP Instance the SCU wants returned (PS3.7 §10.3.2). Each
+	// entry is a DICOM Attribute Tag encoded as four bytes (group then element, little-endian). It is
+	// optional (Type 2): an empty list requests every attribute the SCP chooses to return. The slice is
+	// nil on every command other than an N-GET-RQ, and CommandSet.elements() emits the element only when
+	// the slice is non-empty.
+	AttributeIdentifierList []dicom.Tag
+	CommandDataSetType      uint16
 	// Priority is the operation priority (0000,0700); present on data-bearing requests (C-STORE,
 	// C-FIND, C-GET, C-MOVE). HasPriority distinguishes a present medium priority (0x0000) from an
 	// absent element, since PriorityMedium is the zero value.
@@ -348,6 +380,9 @@ func (cs CommandSet) elements() []commandElement {
 	if cs.HasActionTypeID {
 		es = append(es, encodeCommandUS(tagActionTypeID, cs.ActionTypeID))
 	}
+	if len(cs.AttributeIdentifierList) > 0 {
+		es = append(es, encodeCommandAT(tagAttributeIdentifierList, cs.AttributeIdentifierList))
+	}
 	if cs.HasSubOpCounts {
 		// NumberOfRemainingSubOperations is conditional: omit it when the responder does not know the
 		// outstanding count (a streaming retrieve) and on the terminal response (PS3.4 C.4.2.1.5).
@@ -453,6 +488,8 @@ func (cs *CommandSet) applyElement(tag dicom.Tag, value []byte) {
 	case tagActionTypeID:
 		cs.HasActionTypeID = true
 		cs.ActionTypeID = decodeUS(value)
+	case tagAttributeIdentifierList:
+		cs.AttributeIdentifierList = decodeAT(value)
 	case tagNumRemainingSubOps:
 		cs.HasSubOpCounts = true
 		cs.HasRemainingSubOp = true
@@ -503,6 +540,38 @@ func decodeUS(b []byte) uint16 {
 		return 0
 	}
 	return binary.LittleEndian.Uint16(b)
+}
+
+// encodeCommandAT encodes an AT (Attribute Tag) command value at tag: each tag is four bytes — the
+// group as a little-endian US then the element as a little-endian US (PS3.5 §6.2, the AT VR). The
+// Attribute Identifier List (0000,1005) an N-GET-RQ carries is a list of such tags naming which
+// attributes to return.
+func encodeCommandAT(tag dicom.Tag, tags []dicom.Tag) commandElement {
+	b := make([]byte, 0, len(tags)*4)
+	for _, t := range tags {
+		var entry [4]byte
+		binary.LittleEndian.PutUint16(entry[0:2], t.Group())
+		binary.LittleEndian.PutUint16(entry[2:4], t.Element())
+		b = append(b, entry[:]...)
+	}
+	return commandElement{tag, b}
+}
+
+// decodeAT decodes an AT value into the list of Attribute Tags it carries. Each tag is four bytes
+// (group then element, little-endian); a trailing partial entry (a non-multiple-of-four length from
+// a non-conformant peer) is ignored rather than misread.
+func decodeAT(b []byte) []dicom.Tag {
+	n := len(b) / 4
+	if n == 0 {
+		return nil
+	}
+	tags := make([]dicom.Tag, 0, n)
+	for i := 0; i < n*4; i += 4 {
+		group := binary.LittleEndian.Uint16(b[i : i+2])
+		element := binary.LittleEndian.Uint16(b[i+2 : i+4])
+		tags = append(tags, dicom.NewTag(group, element))
+	}
+	return tags
 }
 
 // encodeUI encodes a UI (UID) value, padding to an even length with a trailing NUL as PS3.5
