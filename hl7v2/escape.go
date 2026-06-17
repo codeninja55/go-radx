@@ -2,6 +2,44 @@ package hl7v2
 
 import "strings"
 
+// EscapeOption configures Escape and Unescape. The only option today is
+// WithAppMap, which supplies a caller-defined escape-sequence table for the
+// site-specific sequences §2.10 leaves to local agreement.
+type EscapeOption func(*escapeConfig)
+
+// escapeConfig holds the resolved options for one Escape or Unescape call. appMap
+// maps an escape-sequence body (the bytes between the two escape delimiters, e.g.
+// "Zus" or "N") to the literal text it stands for.
+type escapeConfig struct {
+	appMap map[string]string
+}
+
+func newEscapeConfig(opts ...EscapeOption) escapeConfig {
+	var cfg escapeConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	return cfg
+}
+
+// WithAppMap supplies a caller-defined escape-sequence map, matching the app_map
+// parameter of python-hl7's escape(field, app_map) and unescape(field, app_map).
+// Each key is an escape-sequence body — the characters between the two escape
+// delimiters, such as "Zus" for the application-defined sequence \Zus\ or "N" to
+// give the normal-highlight sequence \N\ a site-specific meaning — and each value
+// is the literal text it represents.
+//
+// On Unescape, a sequence whose body matches a key decodes to the mapped value
+// instead of being preserved verbatim and reported through a note. On Escape, a
+// run of literal text matching a mapped value is replaced by its \body\ sequence,
+// so a value round-trips through Escape and Unescape under the same map. Keys are
+// honoured before the built-in §2.10 handling, so a map may give a local meaning
+// to an otherwise-declined sequence; it cannot redefine the five delimiter
+// escapes, which remain structural.
+func WithAppMap(appMap map[string]string) EscapeOption {
+	return func(cfg *escapeConfig) { cfg.appMap = appMap }
+}
+
 // escapeTable maps each delimiter byte to the single-letter escape sequence that
 // HL7 Chapter 2 §2.10 defines for it, and the reverse. It is derived from the
 // EncodingCharacters in force for the message — never from the package defaults —
@@ -65,12 +103,16 @@ func (t escapeTable) delimiterFor(code byte) (byte, bool) {
 // formatting, or application-defined sequences; those are read-side only and
 // Escape never emits them. The \Xdd\ hex escapes it does emit round-trip through
 // Unescape, which decodes them back to the original bytes.
-func Escape(value string, enc EncodingCharacters) string {
+func Escape(value string, enc EncodingCharacters, opts ...EscapeOption) string {
 	table := escapeTable{enc: enc}
+	cfg := newEscapeConfig(opts...)
 
-	// Most leaf values carry no delimiter or control byte, so scan first and
-	// return the input unchanged when there is nothing to escape, avoiding an
-	// allocation.
+	// Most leaf values carry no delimiter, control byte, or mapped run, so scan
+	// first and return the input unchanged when there is nothing to escape,
+	// avoiding an allocation. The app-map check is skipped in this fast path and
+	// handled in the slow path below; a value carrying a mapped run almost always
+	// carries a delimiter or control byte too, and a false negative here only
+	// costs the cheap second scan, never correctness.
 	needsEscape := false
 	for i := 0; i < len(value); i++ {
 		if _, ok := table.escapeCode(value[i]); ok || needsHexEscape(value[i]) {
@@ -78,17 +120,23 @@ func Escape(value string, enc EncodingCharacters) string {
 			break
 		}
 	}
-	if !needsEscape {
+	if !needsEscape && len(cfg.appMap) == 0 {
 		return value
 	}
 
 	var b strings.Builder
 	b.Grow(len(value) + 8)
-	for i := 0; i < len(value); i++ {
+	for i := 0; i < len(value); {
+		if seq, n, ok := matchAppMapValue(value[i:], enc, cfg.appMap); ok {
+			b.WriteString(seq)
+			i += n
+			continue
+		}
 		if code, ok := table.escapeCode(value[i]); ok {
 			b.WriteByte(enc.Escape)
 			b.WriteByte(code)
 			b.WriteByte(enc.Escape)
+			i++
 			continue
 		}
 		if needsHexEscape(value[i]) {
@@ -97,11 +145,36 @@ func Escape(value string, enc EncodingCharacters) string {
 			b.WriteByte(hexDigit(value[i] >> 4))
 			b.WriteByte(hexDigit(value[i] & 0x0F))
 			b.WriteByte(enc.Escape)
+			i++
 			continue
 		}
 		b.WriteByte(value[i])
+		i++
 	}
 	return b.String()
+}
+
+// matchAppMapValue reports whether the start of s matches one of the literal
+// values in appMap, preferring the longest match so a value that is a prefix of
+// another never shadows it. On a match it returns the encoded \body\ sequence and
+// the number of source bytes consumed. An empty mapped value never matches, so it
+// cannot drive an infinite loop.
+func matchAppMapValue(s string, enc EncodingCharacters, appMap map[string]string) (string, int, bool) {
+	bestBody := ""
+	bestLen := 0
+	for body, literal := range appMap {
+		if literal == "" || len(literal) <= bestLen {
+			continue
+		}
+		if strings.HasPrefix(s, literal) {
+			bestBody = body
+			bestLen = len(literal)
+		}
+	}
+	if bestLen == 0 {
+		return "", 0, false
+	}
+	return string(enc.Escape) + bestBody + string(enc.Escape), bestLen, true
 }
 
 // needsHexEscape reports whether a byte is a segment terminator that must be
@@ -148,11 +221,12 @@ type UnescapeNote struct {
 // Unescape never mutates the message; it is a read-side projection, so a value
 // round-trips byte-exact through Parse and MarshalText regardless of how it is
 // read.
-func Unescape(value string, enc EncodingCharacters) (string, []UnescapeNote) {
+func Unescape(value string, enc EncodingCharacters, opts ...EscapeOption) (string, []UnescapeNote) {
 	if !strings.ContainsRune(value, rune(enc.Escape)) {
 		return value, nil
 	}
 
+	cfg := newEscapeConfig(opts...)
 	table := escapeTable{enc: enc}
 	var b strings.Builder
 	b.Grow(len(value))
@@ -176,6 +250,17 @@ func Unescape(value string, enc EncodingCharacters) (string, []UnescapeNote) {
 
 		body := value[i+1 : end]
 		seq := value[i : end+1] // the full sequence including both delimiters
+
+		// A caller-supplied app map takes precedence over the built-in §2.10
+		// handling, so a site can give an otherwise-declined sequence (\Zxxx\, or
+		// a re-purposed \N\) a literal meaning. It cannot redefine the five
+		// delimiter escapes, which never reach this point as app-map keys unless
+		// the caller deliberately maps them.
+		if literal, ok := cfg.appMap[body]; ok {
+			b.WriteString(literal)
+			i = end + 1
+			continue
+		}
 
 		decoded, decodedNote, ok := decodeEscape(body, table)
 		if !ok {
