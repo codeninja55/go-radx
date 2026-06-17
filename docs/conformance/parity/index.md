@@ -17,12 +17,12 @@ day), M (1-3 days), L (over 3 days).
 | Subsystem | Reference(s) | Matrix | Rows | MET | PARTIAL | NOT-MET | N-A |
 |---|---|---|---|---|---|---|---|
 | DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 66 | 9 | 7 | 6 |
-| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 63 | 9 | 20 | 1 |
+| DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 65 | 8 | 19 | 1 |
 | HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 27 | 4 | 0 | 1 |
 | FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 54 | 8 | 31 | 5 |
 | DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 43 | 3 | 27 | 2 |
 | radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 8 | 11 | 9 | 0 |
-| Total | | | 414 | 261 | 44 | 94 | 15 |
+| Total | | | 414 | 263 | 43 | 93 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in
@@ -31,10 +31,10 @@ The HL7 matrix additionally carries a clearly-labelled stretch section against t
 ## Reading the results
 
 The python-hl7 floor is effectively met (zero NOT-MET). The DIMSE association plane and DIMSE-C services are
-at full pynetdicom parity, and the DIMSE-N foundation now lands: the N-GET and N-DELETE primitives ship as
-both SCU and SCP, and the `Server` routes all six DIMSE-N command fields to interface-segregated N-handler
-hooks. The remaining DIMSE gaps are the application logic over those hooks - the MPPS SCP, the Storage
-Commitment SCP, and UPS. FHIR models and the REST client are near parity, and the server's write side is now
+at full pynetdicom parity, and the DIMSE-N plane now carries application logic: the N-GET and N-DELETE
+primitives ship as both SCU and SCP, the `Server` routes all six DIMSE-N command fields to
+interface-segregated N-handler hooks, and the MPPS SCP (N-CREATE/N-SET) and the Storage Commitment SCP
+(N-ACTION plus same-association N-EVENT-REPORT) now plug into those hooks. The remaining DIMSE-N gap is UPS. FHIR models and the REST client are near parity, and the server's write side is now
 whole: update, patch, and delete with their conditional forms join the wave-0 vread/history/`$validate`/`radx
 serve fhir` work. The remaining FHIR gaps are server search depth, batch at the base endpoint, the operations
 framework, and the R4B/STU3 release breadth.
@@ -83,11 +83,12 @@ PARTIAL in dicom.md.
 ### Wave 2 - DIMSE-N and remaining service classes (partly done)
 
 Done: the N-GET and N-DELETE primitives (SCU and SCP) and the DIMSE-N SCP dispatch substrate routing all six
-DIMSE-N command fields to interface-segregated handler hooks (`dimse/ndispatch.go`). Remaining: MPPS SCP plus
-Retrieve/Notification SOP classes (L), Storage Commitment SCP side (M), UPS push/pull/watch/event/query (L),
-Composite Instance Root and instance/frame-level retrieve (M), notification/monitoring event hooks (M),
-remaining Q/R-family service classes reusing existing machinery (M each). Print Management (L) is a
-residual-candidate for Andru's call.
+DIMSE-N command fields to interface-segregated handler hooks (`dimse/ndispatch.go`); the MPPS SCP
+(N-CREATE/N-SET, `dimse/mpps_scp.go`); and the Storage Commitment SCP (N-ACTION plus same-association
+N-EVENT-REPORT, `dimse/stgcommit_scp.go`). Remaining: MPPS Retrieve/Notification SOP classes (M), UPS
+push/pull/watch/event/query (L), Composite Instance Root and instance/frame-level retrieve (M),
+notification/monitoring event hooks (M), remaining Q/R-family service classes reusing existing machinery
+(M each). Print Management (L) is a residual-candidate for Andru's call.
 
 ### Wave 3 - FHIR server depth and release breadth (partly done)
 

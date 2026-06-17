@@ -106,8 +106,8 @@ The DIMSE-N service operations and the roles each ships as today:
 
 | Service | SOP Class | SCU | SCP | Reference |
 |---------|-----------|-----|-----|-----------|
-| N-CREATE, N-SET | Modality Performed Procedure Step | Shipped | Deferred (dispatch hook present) | PS3.4 F.7.1, PS3.7 §10.1 |
-| N-ACTION, N-EVENT-REPORT | Storage Commitment Push Model | Shipped (SCU; separate-assoc report) | Deferred (dispatch hook present) | PS3.4 J.3 |
+| N-CREATE, N-SET | Modality Performed Procedure Step | Shipped | Shipped (`MPPSProvider`) | PS3.4 F.7.1, PS3.7 §10.1 |
+| N-ACTION, N-EVENT-REPORT | Storage Commitment Push Model | Shipped (SCU; separate-assoc report) | Shipped (`StorageCommitmentProvider`; same-assoc report) | PS3.4 J.3 |
 | N-GET | SOP-class-agnostic primitive | Shipped | Shipped | PS3.7 §10.1.2 |
 | N-DELETE | SOP-class-agnostic primitive | Shipped | Shipped | PS3.7 §10.1.6 |
 
@@ -116,9 +116,17 @@ The `dimse.Server` routes all six DIMSE-N command fields to interface-segregated
 `NEventReportHandler`); a DIMSE-N request reaching a server with no handler for that operation is
 refused with a `StatusSOPClassNotSupported` response rather than aborting, the same interface-
 segregation contract as the DIMSE-C dispatch. N-GET and N-DELETE are fully served end to end (SCU
-primitive plus SCP serve-and-respond). The N-CREATE/N-SET/N-ACTION/N-EVENT-REPORT SCP hooks exist as
-the dispatch substrate (the serve-and-respond path is in place); the application-specific SCP logic —
-the MPPS SCP, the Storage Commitment SCP, UPS — that plugs into them is deferred to later waves.
+primitive plus SCP serve-and-respond). The MPPS SCP (`MPPSProvider`, an `NCreateHandler` and
+`NSetHandler`) and the Storage Commitment SCP (`StorageCommitmentProvider`, an `NActionHandler`)
+now plug into the substrate. The MPPS SCP enforces the mandatory N-CREATE attributes (the Affected
+SOP Instance UID and an `IN PROGRESS` Performed Procedure Step Status) and the one-way IN PROGRESS to
+COMPLETED/DISCONTINUED transition, delegating persistence to an `MPPSStore` (a `MemoryMPPSStore`
+default). The Storage Commitment SCP answers the N-ACTION (action type 1), decides per-instance
+commitment through a `CommitmentDecider` hook, and reports the outcome to the SCU with an
+N-EVENT-REPORT on the same association (event type 1 complete, event type 2 failures exist) via the
+`NActionReporter`/`NReportSender` substrate extension. The remaining DIMSE-N SCP logic — UPS, the
+MPPS Retrieve/Notification SOP classes, and the separate-association Storage Commitment report leg —
+is deferred to later waves.
 
 ## Association negotiation
 

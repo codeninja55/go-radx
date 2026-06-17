@@ -12,6 +12,24 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- DIMSE MPPS SCP and Storage Commitment SCP, both plugging into the DIMSE-N SCP dispatch substrate to
+  bring those two service classes to both-role parity with pynetdicom (PS3.4 Annex F, Annex J).
+  `dimse.MPPSProvider` (an `NCreateHandler` and `NSetHandler`) answers the Modality Performed Procedure
+  Step N-CREATE that opens a step `IN PROGRESS` and the N-SET that advances it to `COMPLETED`/`DISCONTINUED`,
+  enforcing the pynetdicom MPPS SCP rules — a mandatory Affected SOP Instance UID and `IN PROGRESS`
+  Performed Procedure Step Status on N-CREATE, and the one-way IN PROGRESS to a final state transition on
+  N-SET (an N-SET against an unknown or already-final step is refused, never laundered into success).
+  Persistence is delegated to an `MPPSStore` interface with an in-memory `MemoryMPPSStore` default.
+  `dimse.StorageCommitmentProvider` (an `NActionHandler`) answers the Storage Commitment Push Model
+  N-ACTION "Request Storage Commitment" (action type 1) targeting the well-known SOP Instance, decides
+  per-instance commitment through a `CommitmentDecider` hook (with a `CommitAllPresent` default), and then
+  reports the outcome to the SCU with an N-EVENT-REPORT on the same association (event type 1 when every
+  instance committed, event type 2 with the Failed SOP Sequence and per-instance Failure Reasons when one
+  or more failed). The same-association report is sent through a new `NActionReporter`/`NReportSender`
+  extension to the SCP dispatch substrate. SCU-to-SCP loopback tests cover the MPPS create-then-set-to-
+  completed round trip, the invalid-transition rejection, and the Storage Commitment success and
+  partial-failure reports. Patient/procedure-step attributes carried in the N-CREATE/N-SET/N-ACTION data
+  sets are never logged (PRD §9.1).
 - DIMSE-N N-GET and N-DELETE primitives and a DIMSE-N SCP dispatch substrate (pynetdicom `send_n_get`/
   `send_n_delete` and `evt.EVT_N_*` parity, PS3.7 §10.1.2 / §10.1.6). `(*dimse.Association).NGet` reads
   attributes of a managed SOP Instance, naming the wanted attributes through the Attribute Identifier List
