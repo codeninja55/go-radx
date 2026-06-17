@@ -39,6 +39,34 @@ func TestUnescapeWithAppMapOverridesBuiltin(t *testing.T) {
 	}
 }
 
+func TestUnescapeAppMapCannotRedefineReservedEscapes(t *testing.T) {
+	enc := DefaultEncoding()
+	// An app map keyed on a reserved structural escape (\F\ = field separator) must
+	// NOT change how \F\ decodes: the built-in §2.10 handling wins and the map is
+	// never consulted for F/S/R/T/E. Otherwise a site could turn a standard field
+	// escape into arbitrary text, corrupting every value carrying a delimiter.
+	appMap := map[string]string{"F": "SHOULD_NOT_APPEAR"}
+	got, _ := Unescape(`a\F\b`, enc, WithAppMap(appMap))
+	if got != "a|b" {
+		t.Errorf("Unescape(\\F\\) with reserved-key app map = %q, want %q (reserved escape redefined)", got, "a|b")
+	}
+
+	// All five reserved escapes resist redefinition.
+	reserved := map[string]string{"E": "\\", "F": "|", "S": "^", "T": "&", "R": "~"}
+	for body, want := range reserved {
+		in := `x\` + body + `\y`
+		evil := map[string]string{body: "EVIL"}
+		if got, _ := Unescape(in, enc, WithAppMap(evil)); got != "x"+want+"y" {
+			t.Errorf("Unescape(%q) with app map {%q} = %q, want %q", in, body, got, "x"+want+"y")
+		}
+	}
+
+	// A non-reserved key (\Zx\) still maps, so the reservation is narrow.
+	if got, _ := Unescape(`p\Zx\q`, enc, WithAppMap(map[string]string{"Zx": "[z]"})); got != "p[z]q" {
+		t.Errorf("Unescape(\\Zx\\) with app map = %q, want %q (non-reserved key should still map)", got, "p[z]q")
+	}
+}
+
 func TestEscapeWithAppMapRoundTrip(t *testing.T) {
 	enc := DefaultEncoding()
 	appMap := map[string]string{"Zb": "[bold]"}

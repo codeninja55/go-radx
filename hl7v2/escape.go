@@ -32,10 +32,12 @@ func newEscapeConfig(opts ...EscapeOption) escapeConfig {
 // On Unescape, a sequence whose body matches a key decodes to the mapped value
 // instead of being preserved verbatim and reported through a note. On Escape, a
 // run of literal text matching a mapped value is replaced by its \body\ sequence,
-// so a value round-trips through Escape and Unescape under the same map. Keys are
-// honoured before the built-in §2.10 handling, so a map may give a local meaning
-// to an otherwise-declined sequence; it cannot redefine the five delimiter
-// escapes, which remain structural.
+// so a value round-trips through Escape and Unescape under the same map. A map may
+// give a local meaning to an otherwise-declined sequence (\Zxxx\, or a re-purposed
+// highlight \N\). It cannot redefine the five structural delimiter escapes — \F\,
+// \S\, \T\, \R\, and \E\ — which are decoded by the built-in §2.10 handling before
+// the map is consulted, so a key of F, S, T, R, or E is silently ignored and the
+// reserved escape keeps its standard meaning.
 func WithAppMap(appMap map[string]string) EscapeOption {
 	return func(cfg *escapeConfig) { cfg.appMap = appMap }
 }
@@ -69,6 +71,18 @@ func (t escapeTable) escapeCode(b byte) (byte, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// isReservedEscapeBody reports whether an escape-sequence body names one of the
+// five structural delimiter escapes (\F\ \S\ \T\ \R\ \E\). These are reserved by
+// HL7 Chapter 2 §2.10 and must never be redefined by a caller's app map, so
+// Unescape decodes them with the built-in handling before consulting the map.
+func (t escapeTable) isReservedEscapeBody(body string) bool {
+	if len(body) != 1 {
+		return false
+	}
+	_, ok := t.delimiterFor(body[0])
+	return ok
 }
 
 // delimiterFor returns the delimiter byte a §2.10 escape letter decodes to, and
@@ -252,14 +266,18 @@ func Unescape(value string, enc EncodingCharacters, opts ...EscapeOption) (strin
 		seq := value[i : end+1] // the full sequence including both delimiters
 
 		// A caller-supplied app map takes precedence over the built-in §2.10
-		// handling, so a site can give an otherwise-declined sequence (\Zxxx\, or
-		// a re-purposed \N\) a literal meaning. It cannot redefine the five
-		// delimiter escapes, which never reach this point as app-map keys unless
-		// the caller deliberately maps them.
-		if literal, ok := cfg.appMap[body]; ok {
-			b.WriteString(literal)
-			i = end + 1
-			continue
+		// handling for non-reserved sequences, so a site can give an
+		// otherwise-declined sequence (\Zxxx\, or a re-purposed \N\) a literal
+		// meaning. The five structural delimiter escapes (\F\ \S\ \T\ \R\ \E\) are
+		// reserved: they are decoded by the built-in handling first and the app map
+		// is never consulted for them, so a map keyed on F/S/R/T/E cannot turn a
+		// standard \F\ into arbitrary text (matching the WithAppMap contract).
+		if !table.isReservedEscapeBody(body) {
+			if literal, ok := cfg.appMap[body]; ok {
+				b.WriteString(literal)
+				i = end + 1
+				continue
+			}
 		}
 
 		decoded, decodedNote, ok := decodeEscape(body, table)
