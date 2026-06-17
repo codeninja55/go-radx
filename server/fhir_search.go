@@ -47,6 +47,7 @@ const (
 	// _offset is used: the client never constructs it, only follows the link the server emits.
 	searchOffsetParam = "_offset"
 	searchCountParam  = "_count"
+	searchSortParam   = "_sort"
 	includeParam      = "_include"
 	revIncludeParam   = "_revinclude"
 )
@@ -100,9 +101,14 @@ func (h *fhirHandler) handleSearch(w http.ResponseWriter, r *http.Request, resou
 // that is not _count/_offset/_include/_revinclude), with any one-hop chained parameter resolved first
 // into a constraint the repository can answer. The base matching is the Repository's: the chained
 // hops are resolved here (a chained reference is dereferenced against the store, then the base type is
-// filtered to those whose reference points at a resolved id), and the remaining plain parameters are
-// forwarded to Repository.Search. Matches are sorted by id so paging is stable across requests (a map
-// iteration order is not).
+// filtered to those whose reference points at a resolved id), and the remaining plain parameters
+// (including _sort) are forwarded to Repository.Search.
+//
+// Ordering follows the FHIR REST search contract (search.html#sort): when the request carries _sort
+// the Repository owns the result order, so the order it returns is preserved exactly. Only when no
+// _sort is given does this layer impose a deterministic id sort, so paging is stable over a map-backed
+// store whose iteration order is otherwise unspecified — an id sort applied unconditionally would
+// silently discard the Repository's _sort order.
 func (h *fhirHandler) resolveBaseMatches(ctx context.Context, resourceType string, query url.Values) ([]fhir.Resource, error) {
 	plain, chains := splitChainedParams(query)
 
@@ -120,7 +126,9 @@ func (h *fhirHandler) resolveBaseMatches(ctx context.Context, resourceType strin
 	if matchedByChain != nil {
 		matches = filterByIDSet(h.adapter, matches, matchedByChain)
 	}
-	sortResourcesByID(h.adapter, matches)
+	if query.Get(searchSortParam) == "" {
+		sortResourcesByID(h.adapter, matches)
+	}
 	return matches, nil
 }
 
@@ -143,7 +151,11 @@ func (h *fhirHandler) pageMatches(r *http.Request, resourceType string, query ur
 	page := matches[offset:end]
 
 	links := []searchLink{{relation: linkRelationSelf, url: h.searchLinkURL(r, resourceType, query, offset, count)}}
-	if end < len(matches) {
+	// A next link is emitted only when this page advanced the cursor (end > offset) AND matches remain
+	// past it. _count=0 is the FHIR count-only request (search.html#count): it returns total with no
+	// entries, and a next link whose _offset equals this page's would not advance, looping the client
+	// on the same empty page forever — so no next link is emitted.
+	if end > offset && end < len(matches) {
 		links = append(links, searchLink{relation: linkRelationNext, url: h.searchLinkURL(r, resourceType, query, end, count)})
 	}
 	if offset > 0 {
@@ -217,6 +229,12 @@ func (h *fhirHandler) expandIncludes(ctx context.Context, resourceType string, q
 				if refType == "" || refID == "" {
 					continue
 				}
+				// An _include target-type modifier (Observation:derived-from:ImagingStudy,
+				// search.html#include) constrains a multi-target reference to one type: include only the
+				// referenced resources of that type, not every type the reference can point at.
+				if incl.targetType != "" && refType != incl.targetType {
+					continue
+				}
 				target, err := h.repo.Read(ctx, refType, refID)
 				if err != nil {
 					continue // a dangling or deleted reference is skipped, not a search failure
@@ -259,19 +277,26 @@ func (h *fhirHandler) expandIncludes(ctx context.Context, resourceType string, q
 // them. A chained parameter names a reference search parameter on the base type, an optional target
 // type modifier, and a parameter on the target (Observation?subject:Patient.name=X or the typeless
 // subject.name=X). It is resolved by finding the target resources that match the target parameter,
-// then keeping the base resources whose reference points at one of them. A nil result means no chains
-// were present (no filtering); an empty non-nil set means chains were present but nothing matched.
-// Reverse chaining (_has) and multi-hop chains are out of scope: a parameter that is not a
-// single-hop reference chain is ignored here (it was already removed from the plain params).
+// then keeping the base resources whose reference points at one of them.
+//
+// The return distinguishes "no constraint" from "constrained to zero", which the caller must not
+// conflate (FHIR REST search.html#chaining and the documented out-of-scope stance): a nil result
+// means no SUPPORTED chain produced a constraint — there were no chains, or every dotted parameter was
+// out of scope (an unknown/non-reference head, or a multi-hop / unrecognised target parameter that
+// resolves on no candidate target type) — so the base matches must be returned unfiltered (the
+// parameter is ignored, not applied). A non-nil result (possibly empty) means at least one supported
+// chain ran: an empty set then legitimately filters every match out. Returning an empty non-nil set
+// for an ignored chain would turn "ignored" into "no results", excluding matches a lenient server must
+// keep. Reverse chaining (_has) is out of scope and never reaches here.
 func (h *fhirHandler) resolveChains(ctx context.Context, resourceType string, chains []chainedParam) (map[string]struct{}, error) {
 	if len(chains) == 0 {
 		return nil, nil
 	}
-	result := map[string]struct{}{}
-	for ci, chain := range chains {
+	var result map[string]struct{} // nil until a supported chain contributes a constraint
+	for _, chain := range chains {
 		param, ok := lookupSearchParam(resourceType, chain.refParam)
 		if !ok || !param.isReference {
-			continue // an unknown or non-reference chain head is ignored, matching the lenient stance
+			continue // an unknown or non-reference chain head is out of scope: ignore, do not constrain
 		}
 		// Determine the candidate target types: the explicit modifier when present, else the
 		// reference parameter's declared targets.
@@ -280,23 +305,28 @@ func (h *fhirHandler) resolveChains(ctx context.Context, resourceType string, ch
 			targetTypes = []string{chain.targetType}
 		}
 		matchedTargets := map[string]struct{}{}
+		supported := false // the target parameter resolved on at least one candidate target type
 		for _, tt := range targetTypes {
 			if !isWorkflowResourceType(tt) {
 				continue
 			}
+			tparam, ok := lookupSearchParam(tt, chain.targetParam)
+			if !ok {
+				continue // a multi-hop or unrecognised target parameter is not a supported single hop
+			}
+			supported = true
 			targets, err := h.allOfType(ctx, tt)
 			if err != nil {
 				return nil, err
-			}
-			tparam, ok := lookupSearchParam(tt, chain.targetParam)
-			if !ok {
-				continue
 			}
 			for _, t := range targets {
 				if resourceMatchesValue(t, tparam, chain.value) {
 					matchedTargets[resourceKey(tt, h.adapter.resourceID(t))] = struct{}{}
 				}
 			}
+		}
+		if !supported {
+			continue // the chain resolves to no single hop: out of scope, ignore rather than exclude all
 		}
 		// Keep the base resources whose reference points at a matched target.
 		bases, err := h.allOfType(ctx, resourceType)
@@ -313,11 +343,11 @@ func (h *fhirHandler) resolveChains(ctx context.Context, resourceType string, ch
 				}
 			}
 		}
-		if ci == 0 {
+		if result == nil {
 			result = thisChain
 			continue
 		}
-		result = intersectIDSets(result, thisChain) // multiple chained params AND together
+		result = intersectIDSets(result, thisChain) // multiple supported chains AND together
 	}
 	return result, nil
 }

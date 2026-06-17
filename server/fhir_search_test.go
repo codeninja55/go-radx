@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -131,6 +133,42 @@ func observationForSubject(release fhir.Release, patientID string) fhir.Resource
 	}
 }
 
+// imagingStudyForSubject builds a valid ImagingStudy of the release referencing the given patient id
+// (status and subject are the two required elements, ImagingStudy validation descriptor).
+func imagingStudyForSubject(release fhir.Release, patientID string) fhir.Resource {
+	ref := "Patient/" + patientID
+	switch release {
+	case fhir.R4:
+		st := r4.ImagingStudyStatus("available")
+		return &r4.ImagingStudy{Status: &st, Subject: &r4.Reference{Reference: strp(ref)}}
+	default:
+		st := r5.ImagingStudyStatus("available")
+		return &r5.ImagingStudy{Status: &st, Subject: &r5.Reference{Reference: strp(ref)}}
+	}
+}
+
+// observationDerivedFrom builds a valid Observation of the release whose derivedFrom references both an
+// Observation and an ImagingStudy — the multi-target reference an _include target-type modifier must
+// narrow.
+func observationDerivedFrom(release fhir.Release, obsID, studyID string) fhir.Resource {
+	obsRef := "Observation/" + obsID
+	studyRef := "ImagingStudy/" + studyID
+	switch release {
+	case fhir.R4:
+		st := r4.ObservationStatus("final")
+		return &r4.Observation{
+			Status: &st, Code: &r4.CodeableConcept{Text: strp("derived")},
+			DerivedFrom: []r4.Reference{{Reference: strp(obsRef)}, {Reference: strp(studyRef)}},
+		}
+	default:
+		st := r5.ObservationStatus("final")
+		return &r5.Observation{
+			Status: &st, Code: &r5.CodeableConcept{Text: strp("derived")},
+			DerivedFrom: []r5.Reference{{Reference: strp(obsRef)}, {Reference: strp(studyRef)}},
+		}
+	}
+}
+
 // TestFHIRRoleSearchPaging proves the searchset carries Bundle.link self/next/prev paging honouring
 // _count, and that following the next link round-trips to the next page until the last page (which
 // carries no next link), per FHIR R5 http.html#paging. total reports the full match count on every
@@ -213,8 +251,8 @@ func TestFHIRRoleSearchPaging(t *testing.T) {
 }
 
 // TestFHIRRoleSearchCountClampedAndZero proves _count is clamped to the server max and that _count=0
-// returns an empty page with the honest total and a next link (the FHIR "count me, return nothing"
-// request).
+// returns an empty page with the honest total and NO next link (the FHIR count-only request,
+// search.html#count): a next link whose _offset did not advance would loop the client forever.
 func TestFHIRRoleSearchCountClampedAndZero(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -225,7 +263,8 @@ func TestFHIRRoleSearchCountClampedAndZero(t *testing.T) {
 				createResource(t, base, "Patient", patientWithName(release, "Zero"))
 			}
 
-			// _count=0: no match entries, total is the full count, a next link is present.
+			// _count=0: no match entries, total is the full count, and NO next link (the cursor cannot
+			// advance off a zero-size page, so a next link would loop the client on the same empty page).
 			zero := getSearchBundle(t, base+"/Patient?_count=0")
 			if got := len(zero.matchIDs()); got != 0 {
 				t.Errorf("_count=0 match entries = %d, want 0", got)
@@ -233,8 +272,8 @@ func TestFHIRRoleSearchCountClampedAndZero(t *testing.T) {
 			if zero.Total != 3 {
 				t.Errorf("_count=0 total = %d, want 3", zero.Total)
 			}
-			if _, ok := zero.linkURL("next"); !ok {
-				t.Error("_count=0 missing next link (matches remain)")
+			if url, ok := zero.linkURL("next"); ok {
+				t.Errorf("_count=0 has a next link %q, want none (count-only request, non-advancing cursor)", url)
 			}
 
 			// _count above the cap is clamped: the self link names the clamped count, not the requested
@@ -474,4 +513,194 @@ func TestSearchLinkURLRoundTrips(t *testing.T) {
 	if !strings.Contains(u.Path, "/Patient") {
 		t.Errorf("next link path = %q, want it to name the Patient type", u.Path)
 	}
+}
+
+// TestFHIRRoleSearchSortPreservesRepoOrder proves the search-depth layer preserves the Repository's
+// returned order when the request carries _sort (FHIR R5 search.html#sort: the server, here the
+// Repository, owns the sort), and only imposes its own id sort when no _sort is given. The stub
+// Repository returns its matches in a fixed descending-id order; with _sort the served pages keep that
+// order, while without _sort the layer's stable id sort reorders them ascending.
+func TestFHIRRoleSearchSortPreservesRepoOrder(t *testing.T) {
+	repo := &sortStubRepo{release: fhir.R5, ids: []string{"3", "2", "1"}}
+	base, cleanup := startFHIRDaemonRepo(t, fhir.R5, repo)
+	defer cleanup()
+
+	// With _sort the Repository's order is authoritative and must survive paging end to end.
+	sorted := getSearchBundle(t, base+"/Patient?_sort=name")
+	if got := sorted.matchIDs(); len(got) != 3 || got[0] != "3" || got[1] != "2" || got[2] != "1" {
+		t.Errorf("_sort search match order = %v, want [3 2 1] (repo order preserved)", got)
+	}
+
+	// The repo order is preserved across pages too: page 1 of a _count=1 _sort search is the repo's
+	// first element, not the id-smallest.
+	page1 := getSearchBundle(t, base+"/Patient?_sort=name&_count=1")
+	if got := page1.matchIDs(); len(got) != 1 || got[0] != "3" {
+		t.Errorf("_sort page1 = %v, want [3] (first repo element, not id-smallest)", got)
+	}
+	next, ok := page1.linkURL("next")
+	if !ok {
+		t.Fatal("_sort page1 missing next link")
+	}
+	page2 := getSearchBundle(t, next)
+	if got := page2.matchIDs(); len(got) != 1 || got[0] != "2" {
+		t.Errorf("_sort page2 = %v, want [2] (second repo element)", got)
+	}
+
+	// Without _sort the layer imposes its stable id sort so paging is deterministic over the map-backed
+	// store: the same repo order is reordered ascending by id.
+	unsorted := getSearchBundle(t, base+"/Patient")
+	if got := unsorted.matchIDs(); len(got) != 3 || got[0] != "1" || got[1] != "2" || got[2] != "3" {
+		t.Errorf("no-_sort search match order = %v, want [1 2 3] (layer id sort)", got)
+	}
+}
+
+// TestFHIRRoleSearchUnsupportedChainIgnored proves an unsupported or unparseable dotted parameter is
+// ignored (the documented out-of-scope stance, FHIR R5 search.html#chaining) rather than applied as a
+// filter that excludes every match: an unknown chain head and a multi-hop chain both return the
+// unfiltered base matches, while a SUPPORTED chain that resolves to no target still returns empty.
+func TestFHIRRoleSearchUnsupportedChainIgnored(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			patientID := createResource(t, base, "Patient", patientWithName(release, "ChainBase"))
+			obsA := createResource(t, base, "Observation", observationForSubject(release, patientID))
+			obsB := createResource(t, base, "Observation", observationForSubject(release, patientID))
+			all := map[string]bool{obsA: true, obsB: true}
+
+			assertAll := func(label, rawURL string) {
+				b := getSearchBundle(t, rawURL)
+				ids := b.matchIDs()
+				if len(ids) != len(all) {
+					t.Errorf("%s matches = %v, want all %d observations (chain ignored)", label, ids, len(all))
+				}
+				for _, id := range ids {
+					if !all[id] {
+						t.Errorf("%s returned unexpected id %s", label, id)
+					}
+				}
+			}
+
+			// Unknown chain head (foo is not a reference parameter on Observation): ignored, not a filter.
+			assertAll("unknown-head", base+"/Observation?foo.bar=x")
+
+			// Multi-hop chain (subject.organization.name): the head subject is a real reference but the
+			// target parameter "organization.name" is not a supported single hop, so the whole chain is
+			// out of scope and ignored rather than excluding every match.
+			assertAll("multi-hop", base+"/Observation?subject.organization.name=Acme")
+
+			// A SUPPORTED chain that resolves to no target still returns empty — the distinction the fix
+			// preserves: this is a real constraint that matched nothing, not an ignored parameter.
+			none := getSearchBundle(t, base+"/Observation?subject:Patient.name=NoSuchName")
+			if ids := none.matchIDs(); len(ids) != 0 {
+				t.Errorf("supported no-match chain matches = %v, want [] (real empty constraint)", ids)
+			}
+		})
+	}
+}
+
+// TestFHIRRoleSearchIncludeTargetType proves an _include target-type modifier narrows a multi-target
+// reference to the named type (FHIR R5 search.html#include): an Observation whose derivedFrom points at
+// both another Observation and an ImagingStudy, searched with _include=Observation:derived-from:
+// ImagingStudy, includes only the ImagingStudy target — not the Observation target.
+func TestFHIRRoleSearchIncludeTargetType(t *testing.T) {
+	for _, release := range fhirReleases() {
+		t.Run(string(release), func(t *testing.T) {
+			base, cleanup := startFHIRDaemon(t, release)
+			defer cleanup()
+
+			patientID := createResource(t, base, "Patient", patientWithName(release, "DerivedSubject"))
+			sourceObs := createResource(t, base, "Observation", observationForSubject(release, patientID))
+			studyID := createResource(t, base, "ImagingStudy", imagingStudyForSubject(release, patientID))
+			derivedID := createResource(t, base, "Observation", observationDerivedFrom(release, sourceObs, studyID))
+
+			// Target-type modifier ImagingStudy: only the ImagingStudy target is included.
+			b := getSearchBundle(t, base+"/Observation?_id="+derivedID+"&_include="+
+				url.QueryEscape("Observation:derived-from:ImagingStudy"))
+			if matches := b.matchIDs(); len(matches) != 1 || matches[0] != derivedID {
+				t.Errorf("target-type include matches = %v, want [%s]", matches, derivedID)
+			}
+			includes := b.includeKeys()
+			wantInclude := "ImagingStudy/" + studyID
+			if len(includes) != 1 || includes[0] != wantInclude {
+				t.Errorf("target-type include entries = %v, want [%s] only (Observation target excluded)",
+					includes, wantInclude)
+			}
+
+			// Without the modifier, both targets are included — proving the modifier is what narrows.
+			bAll := getSearchBundle(t, base+"/Observation?_id="+derivedID+"&_include="+
+				url.QueryEscape("Observation:derived-from"))
+			gotAll := map[string]bool{}
+			for _, k := range bAll.includeKeys() {
+				gotAll[k] = true
+			}
+			if !gotAll["ImagingStudy/"+studyID] || !gotAll["Observation/"+sourceObs] || len(gotAll) != 2 {
+				t.Errorf("unmodified include entries = %v, want both ImagingStudy/%s and Observation/%s",
+					bAll.includeKeys(), studyID, sourceObs)
+			}
+		})
+	}
+}
+
+// sortStubRepo is a Repository whose Search returns a fixed list of minimal Patients in the order its
+// ids slice gives, so a test can prove the search-depth layer preserves the Repository's order under
+// _sort (and only imposes its own id sort when _sort is absent). Only Search and Read are exercised;
+// the write and version methods are unused.
+type sortStubRepo struct {
+	release fhir.Release
+	ids     []string
+}
+
+func (s *sortStubRepo) patient(id string) fhir.Resource {
+	pid := id
+	return &r5.Patient{DomainResource: r5.DomainResource{ID: &pid}, Name: []r5.HumanName{{Family: strp("Sort")}}}
+}
+
+func (s *sortStubRepo) Search(_ context.Context, resourceType string, _ url.Values) (fhir.Resource, error) {
+	if resourceType != "Patient" {
+		return r5.NewSearchSet(0)
+	}
+	mode := r5.SearchEntryModeMatch
+	entries := make([]r5.SearchEntry, 0, len(s.ids))
+	for _, id := range s.ids {
+		entries = append(entries, r5.SearchEntry{Resource: s.patient(id), Mode: &mode})
+	}
+	return r5.NewSearchSet(int32(len(entries)), entries...) // #nosec G115 -- test fixture, small count
+}
+
+func (s *sortStubRepo) Read(_ context.Context, resourceType, id string) (fhir.Resource, error) {
+	if resourceType != "Patient" {
+		return nil, fmt.Errorf("%w: %s/%s", ErrNotFound, resourceType, id)
+	}
+	for _, have := range s.ids {
+		if have == id {
+			return s.patient(id), nil
+		}
+	}
+	return nil, fmt.Errorf("%w: %s/%s", ErrNotFound, resourceType, id)
+}
+
+func (s *sortStubRepo) VRead(context.Context, string, string, string) (fhir.Resource, error) {
+	return nil, fmt.Errorf("sortStubRepo: vread is not supported")
+}
+
+func (s *sortStubRepo) History(context.Context, string, string) ([]ResourceVersion, error) {
+	return nil, fmt.Errorf("sortStubRepo: history is not supported")
+}
+
+func (s *sortStubRepo) Create(context.Context, fhir.Resource) (fhir.Resource, error) {
+	return nil, fmt.Errorf("sortStubRepo: create is not supported")
+}
+
+func (s *sortStubRepo) Update(context.Context, string, string, fhir.Resource, string) (fhir.Resource, bool, error) {
+	return nil, false, fmt.Errorf("sortStubRepo: update is not supported")
+}
+
+func (s *sortStubRepo) Delete(context.Context, string, string, string) (bool, error) {
+	return false, fmt.Errorf("sortStubRepo: delete is not supported")
+}
+
+func (s *sortStubRepo) Transaction(context.Context, fhir.Resource) (fhir.Resource, error) {
+	return nil, fmt.Errorf("sortStubRepo: transactions are not supported")
 }
