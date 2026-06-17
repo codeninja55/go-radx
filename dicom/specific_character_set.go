@@ -7,6 +7,7 @@ import (
 	xencoding "golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/encoding/korean"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -38,9 +39,10 @@ const (
 type charsetFamily uint8
 
 const (
-	familyDefault    charsetFamily = iota // ISO 646 pass-through
-	familySingleByte                      // ISO 8859 G1 supplement
-	familyJapanese                        // ISO-2022-JP escape family (IR 13/14/87/159)
+	familyDefault      charsetFamily = iota // ISO 646 pass-through
+	familySingleByte                        // ISO 8859 (and TIS 620) G1 supplement
+	familyJapanese                          // ISO-2022-JP escape family (IR 13/14/87/159)
+	familyDoubleByteG1                      // two-byte G1 set: Korean IR 149 (EUC-KR), Chinese IR 58 (GB2312)
 )
 
 // charsetEntry describes one mapped defined term. enc is the byte<->rune codec for
@@ -90,6 +92,26 @@ var definedTermTable = map[string]charsetEntry{
 	"ISO 2022 IR 138": {enc: charmap.ISO8859_8, family: familySingleByte, element: codeElementG1, escape: "\x1b-H"},
 	"ISO_IR 148":      {enc: charmap.ISO8859_9, family: familySingleByte, element: codeElementG1},
 	"ISO 2022 IR 148": {enc: charmap.ISO8859_9, family: familySingleByte, element: codeElementG1, escape: "\x1b-M"},
+
+	// Thai (TIS 620). The bare form invokes TIS 620 directly into GR; the
+	// code-extension form designates it into G1 with ESC - T (PS3.3 C.12.1.1.2,
+	// PS3.5 §6.1.2.5.4). charmap.Windows874 is a TIS-620 superset whose 0xA1-0xFB
+	// Thai range maps identically to ISO-8859-11 / TIS-620 (pydicom: iso_ir_166).
+	"ISO_IR 166":      {enc: charmap.Windows874, family: familySingleByte, element: codeElementG1},
+	"ISO 2022 IR 166": {enc: charmap.Windows874, family: familySingleByte, element: codeElementG1, escape: "\x1b-T"},
+
+	// Korean (KS X 1001) and Simplified Chinese (GB2312) two-byte sets. DICOM uses
+	// these only as G1 code extensions (PS3.5 Annex I.2, Annex K.2). Korean
+	// designates with ESC $ ) C and decodes through EUC-KR; Chinese designates with
+	// ESC $ ) A and decodes through GB2312, which is the 8-bit subset of GBK
+	// (pydicom: euc_kr, iso_ir_58).
+	"ISO 2022 IR 149": {enc: korean.EUCKR, family: familyDoubleByteG1, element: codeElementG1, escape: "\x1b$)C"},
+	"ISO 2022 IR 58":  {enc: simplifiedchinese.GBK, family: familyDoubleByteG1, element: codeElementG1, escape: "\x1b$)A"},
+
+	// Bare Japanese half-width katakana (JIS X 0201). The single-valued ISO_IR 13
+	// form carries no escapes: katakana bytes 0xA1-0xDF sit directly in GR and map
+	// to U+FF61-U+FF9F. Shift-JIS decodes that range natively (pydicom: shift_jis).
+	"ISO_IR 13": {enc: japanese.ShiftJIS, family: familyDefault},
 
 	// Japanese code extensions. The DICOM escapes match the ISO-2022-JP vocabulary
 	// exactly, so a component run is decoded by the shared japanese.ISO2022JP codec:

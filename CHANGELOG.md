@@ -26,6 +26,31 @@ legacy codebase (`legacy-main`) and are not continued here.
   as the DIMSE-C dispatch. N-GET and N-DELETE are served end to end (SCU primitive plus SCP serve-and-respond,
   exercised by an in-process SCU-to-SCP loopback test); the N-CREATE/N-SET/N-ACTION/N-EVENT-REPORT SCP hooks
   are the foundation substrate that the deferred MPPS SCP, Storage Commitment SCP, and UPS plug into.
+- DICOM private-block API and a private-creator dictionary (pydicom `private_block`/`private_creators`/
+  `get_private_item` and `private_dictionaries` parity). `(*dicom.DataSet).PrivateBlock(group, creator,
+  create)` resolves the private-creator element (gggg,0010-00FF) whose value matches `creator` and returns a
+  typed `PrivateBlock` view of its reserved data elements (gggg, bb00-bbFF, where bb is the block number =
+  the low byte of the creator element, per PS3.5 section 7.8.1); with `create=true` it reserves the lowest
+  free block and writes the creator element. `PrivateCreators(group)` lists the creators in a group and
+  `GetPrivateItem(group, offset, creator)` fetches a single private element. The block resolver handles
+  creators stored as text or as raw bytes (UN/Implicit-VR reads). `dicom.LookupPrivate(creator, group,
+  offset)` and `PrivateBlock.Lookup(offset)` resolve a private tag's VR/keyword/description through the
+  private-creator dictionary; the lookup mechanism is complete and the seed is minimal and attributed (the
+  pydicom illustrative "ACME 3.1" creator). Vendor catalogues (Siemens/GE/Philips) are deferred to a future
+  `gdcmPrivateDict.xml` generator (no such source is vendored, so vendor tag meanings are not invented).
+  Private blocks round-trip through encode/decode.
+- DICOM Korean, Simplified Chinese, Thai, and bare half-width katakana Specific Character Sets (0008,0005),
+  completing the pydicom `pydicom.charset` mapping parity for the previously unmapped repertoires. `ISO 2022
+  IR 149` (Korean, KS X 1001) and `ISO 2022 IR 58` (Simplified Chinese, GB2312) are decoded as two-byte ISO
+  2022 G1 code extensions (escapes `ESC $ ) C` and `ESC $ ) A`) backed by `golang.org/x/text/encoding/korean`
+  (EUC-KR) and `.../simplifiedchinese` (GBK, the 8-bit superset of GB2312); contiguous high-byte runs are
+  decoded as character pairs so a delimiter byte value inside a double-byte character is never mistaken for a
+  PersonName separator. `ISO_IR 166` / `ISO 2022 IR 166` (Thai, TIS 620) is decoded via `.../charmap`
+  (Windows-874, a TIS-620 superset) in both the bare GR form and the `ESC - T` G1 designation. Bare `ISO_IR
+  13` (JIS X 0201 half-width katakana, bytes 0xA1-0xDF mapping to U+FF61-U+FF9F) is decoded standalone via
+  `.../japanese` (Shift-JIS), complementing the existing `ISO 2022 IR 13` escape form. Verified against the
+  PS3.5 Annex I.2 Korean and Annex K.2 Simplified Chinese worked PersonName examples and pydicom
+  `test_charset.py` Thai and katakana vectors, decoding alphabetic/ideographic/phonetic component groups.
 - DICOM overlay-plane and waveform extraction (pydicom `overlay_array`/`waveform_array` parity):
   `(*dicom.DataSet).OverlayArray(group)` unpacks the 1-bit-per-pixel overlay bitmap from a 60xx repeating
   group (6000, 6002, ... 60FE) into a dense row-major boolean plane, reading bits least-significant-first
