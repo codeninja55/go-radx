@@ -238,14 +238,14 @@ legacy codebase (`legacy-main`) and are not continued here.
 ### Documentation
 
 - Refreshed the reference-library parity backlog (`docs/conformance/parity/`) to current `main`. Re-tallied
-  every subsystem matrix from its actual status rows and reconciled each matrix summary and the `index.md`
-  aggregate to that tally; the new aggregate is 414 rows / 261 MET / 44 PARTIAL / 94 NOT-MET / 15 N-A.
-  Corrected the `index.md` DICOM (now 66 MET / 7 NOT-MET), DIMSE (63 / 20), HL7 floor (27 MET / 4 PARTIAL),
-  and FHIR (54 MET / 8 PARTIAL) rows that had drifted from their matrices, and fixed the stale `hl7v2.md`
-  (26/5 → 27/4) and `fhir.md` (53/9 → 54/8) summary counts. Updated the "reading the results" prose and the
-  wave plan to mark waves 0-3 done or partly done (DICOM data-layer LUT/colour-space/overlays/charsets/
-  private-blocks, DIMSE-N N-GET/N-DELETE + dispatch, FHIR update/patch/delete) while keeping the remaining
-  work listed.
+  every subsystem matrix from its actual status rows and reconciled the `index.md` aggregate to each matrix's
+  own summary; the aggregate is now 414 rows / 271 MET / 42 PARTIAL / 86 NOT-MET / 15 N-A. The latest
+  increments folded in are the DICOMweb XML/WADO-URI work, FHIR search depth (#137), MPPS/Storage-Commitment
+  SCP (#138), the HL7 python-hl7 floor close-out (#146, floor now 31 MET / 0 PARTIAL), and the extended DIMSE
+  Q/R models with instance/frame retrieve (#147). Updated the "reading the results" prose and the wave plan to
+  mark waves 0-4 done or partly done while keeping the remaining work listed, and recorded the parity
+  wind-down: the DICOMweb capabilities/client branch (#145, closed) and the FHIR transaction/batch branch were
+  deliberately not landed, so their rows stay NOT-MET/PARTIAL by choice and the remaining waves are deferred.
 
 ### Fixed
 
