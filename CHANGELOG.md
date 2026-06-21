@@ -10,6 +10,8 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-21
+
 ### Added
 
 - DIMSE additional Query/Retrieve information models and instance/frame-level retrieve, reusing the
@@ -645,7 +647,8 @@ legacy codebase (`legacy-main`) and are not continued here.
   unpinned tag. The interop-determinism section of the cross-cutting conformance statement now
   documents the contract.
 
-[Unreleased]: https://github.com/codeninja55/go-radx/commits/main
+[Unreleased]: https://github.com/codeninja55/go-radx/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/codeninja55/go-radx/releases/tag/v0.11.0
 [#34]: https://github.com/codeninja55/go-radx/pull/34
 [#35]: https://github.com/codeninja55/go-radx/pull/35
 [#36]: https://github.com/codeninja55/go-radx/pull/36
