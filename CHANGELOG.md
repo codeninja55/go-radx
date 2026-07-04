@@ -10,6 +10,17 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ## [Unreleased]
 
+### Changed
+
+- Parity matrices re-verified against main @ c1b839d (stratified sample of 47 MET rows plus a full
+  pressure-test of all 128 PARTIAL/NOT-MET rows, every change adversarially confirmed): one dicom row
+  downgraded MET to PARTIAL (per-item charset in sequences implemented but untested), two cli rows upgraded
+  NOT-MET to PARTIAL (dcmconv and dcm2xml, stale since the #121 transcode and #136 PS3.19 XML codec
+  increments), stale notes corrected in cli.md (storescu `--transcode-to`, dcm2pnm rendering pipeline,
+  xml2dcm evidence, both Summary top-gap entries) and dimse.md (N-EVENT-REPORT receive is a general SCP via
+  `NEventReportHandler`), and a fhir.md evidence miscount fixed (workflow resource set is 6 types, not 8).
+  Aggregate is now 270 MET / 45 PARTIAL / 84 NOT-MET / 15 N-A across 414 rows.
+
 ## [0.11.0] - 2026-06-21
 
 ### Added

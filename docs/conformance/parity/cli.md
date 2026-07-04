@@ -1,6 +1,7 @@
 # radx CLI parity with the dcmtk application suite
 
-This matrix compares the `radx` CLI (`cmd/radx`, audited at commit `fdf7b54`) against the dcmtk command-line
+This matrix compares the `radx` CLI (`cmd/radx`, audited at commit `fdf7b54`, re-verified at `c1b839d`
+2026-07-04) against the dcmtk command-line
 tool suite as documented at <https://support.dcmtk.org/docs/pages.html>. Scope is limited to dcmtk apps whose
 underlying capability go-radx implements or plans (DICOM data layer, DIMSE/DICOMweb networking, pixel codecs).
 Apps outside that domain are listed under "Out of scope" with a one-line justification rather than silently
@@ -13,19 +14,22 @@ library already provides.
 
 ## Summary
 
-28 in-scope dcmtk tools/tool-pairs: **8 MET, 11 PARTIAL, 9 NOT-MET.**
+28 in-scope dcmtk tools/tool-pairs: **8 MET, 13 PARTIAL, 7 NOT-MET.**
 
 Top gaps, largest first:
 
 1. **No transcode command (L, one command closes five rows).** The library decodes RLE (pure Go, both
-   directions), JPEG/JPEG-LS/JPEG 2000/HTJ2K (CGo, mostly decode-only), and reads/writes the uncompressed and
-   Deflated syntaxes — but no CLI command rewrites a file's transfer syntax. `radx store --transcode-to`
-   exists as a flag and deliberately fails closed (`cmd/radx/internal/command/store.go:87`). A `radx
+   directions), JPEG/JPEG-LS/JPEG 2000/HTJ2K (CGo, mostly decode-only), reads/writes the uncompressed and
+   Deflated syntaxes, and rewrites transfer syntax at dataset/file level (`dicom.Transcode` +
+   `File.SetPixelData`, PR #121) — but no dedicated CLI command rewrites a file's transfer syntax. `radx
+   store --transcode-to` exercises that seam for uncompressed targets (`prepareForStore`,
+   `cmd/radx/internal/command/store.go`) and fails closed only for encapsulated targets. A `radx
    transcode` command would close dcmconv, dcmcrle/dcmdrle, dcmdjpeg, and dcmcjpls/dcmdjpls in one increment;
    dcmcjpeg (lossy/lossless JPEG *encode*) additionally needs encode-side codec work in the library.
 2. **Image rendering and import (L).** No `dcm2pnm`/`dcm2img`/`img2dcm` equivalent: the repo has no PNG/PPM
-   export or consumer-image import path (no `image/png` use anywhere); windowing/LUT/photometric rendering
-   would be new library work.
+   export or consumer-image import path (no `image/png` use anywhere). The windowing/VOI/modality LUT and
+   palette/photometric pipeline now ships in the library (`dicom/lut.go`, `dicom/colorspace.go`, PRs
+   #127/#128); the remaining gap is display-value-to-image composition and the format writers.
 3. **Q/R SCP archive (L).** `dcmqrscp` maps to `server.NewDIMSERole` (C-ECHO/C-STORE/C-FIND over
    `ObjectStore`+`Catalogue`, optional MWL), but C-GET/C-MOVE SCP are explicitly unmounted
    (`server/role_dimse.go:182`) and there is no `radx serve dimse` subcommand.
@@ -42,12 +46,12 @@ Top gaps, largest first:
 |---|---|---|---|---|---|
 | dcmdump | Dump file/dataset elements | MET | `radx dump` (`command/dump.go`): `-R` recursive, `--tag`/`--group` filters, `--process-pixel-data`, human/json/csv | - | Values shown by default with `--redact` opt-in masking PS3.15 confidentiality attributes - an intentional design decision matching dcmdump's posture, not a gap |
 | dcm2json | DICOM to PS3.18 JSON | PARTIAL | `radx dump --format json` emits radx's own tag-keyed shape (`dumpFile`/`dumpElement`), not the PS3.18 Annex F model | S | PS3.18 DICOM-JSON marshal/unmarshal already ships in the `dicomweb` package (QIDO/WADO metadata); wiring it into dump or a dedicated flag is small |
-| dcm2xml | DICOM to XML (Native Model) | NOT-MET | No XML support anywhere in the repo | M | PS3.19 Native Model is unimplemented and unplanned in conformance docs |
-| xml2dcm | XML to DICOM | NOT-MET | None | M | Depends on the same absent XML model |
+| dcm2xml | DICOM to XML (Native Model) | PARTIAL | `dicomweb/xml.go:MarshalXML` (PS3.19 Native DICOM Model, PR #136); tests `dicomweb/xml_test.go`, `metadata_xml_test.go` | S | Library-only: `MarshalXML` encodes any `*dicom.DataSet`, but no CLI command emits XML; wiring it into `dump` or a flag closes this |
+| xml2dcm | XML to DICOM | NOT-MET | `dicomweb/xml.go:UnmarshalXML` (PS3.19, PR #136) parses Native Model XML into a `*dicom.DataSet` | M | `dicomweb` has the XML unmarshal and `dicom` has the Part 10 writer; a CLI builder command is glue plus VR/meta handling (same shape as json2dcm) |
 | json2dcm | PS3.18 JSON to DICOM | NOT-MET | None | M | `dicomweb` has the JSON unmarshal and `dicom` has the Part 10 writer; a CLI builder command is glue plus VR/meta handling |
 | dump2dcm | ASCII dump to DICOM | NOT-MET | None | M | No dump-text parser; lower value given json2dcm would cover the round-trip need |
 | dcmodify | Insert/modify/erase tags, generate UIDs | PARTIAL | `radx modify` (`command/modify.go`): `--insert`, `--delete`, `--regenerate-{study,series,instance,all}-uids` with batch-consistent UID remapping, atomic temp-and-rename writes | M | No sequence-path syntax (`seq[n].element`), no `--modify-all`/`--erase-all` wildcards, no file-based value insert; UID regeneration preserves the study/series reference graph across a batch, which dcmodify does not do per-run |
-| dcmconv | Convert file encoding (implicit/explicit, deflated, charset) | NOT-MET | No CLI command; `radx modify` rewrites in the original transfer syntax only | M | Library reads/writes all four uncompressed syntaxes plus Deflated (`dicom/codec_native.go:35`); a `radx transcode` command closes this |
+| dcmconv | Convert file encoding (implicit/explicit, deflated, charset) | PARTIAL | `dicom.Transcode` + `File.SetPixelData` (`dicom/transcode.go`, PR #121) rewrite transfer syntax at dataset/file level; exercised end-to-end by `store --transcode-to` (`prepareForStore`); `radx modify` rewrites in the original transfer syntax only | M | No `radx transcode` command; charset conversion not covered; pure-Go encode targets limited to uncompressed + RLE (`ErrEncodeUnsupported` otherwise) |
 | dcmcrle / dcmdrle | RLE encode/decode | PARTIAL | Library: pure-Go RLE codec, encode and decode (`dicom/codec_rle.go`); no CLI command | M | Closed by the same `radx transcode` command |
 | dcmcjpeg | Encode to JPEG syntaxes | NOT-MET | Library JPEG codecs are decode-only for Baseline/Extended/Lossless (`docs/conformance/dicom.md` Tier 3 table) | L | Needs encode-side libjpeg work in the library before any CLI wiring |
 | dcmdjpeg | Decode JPEG to uncompressed | PARTIAL | Library decodes JPEG Baseline/Extended/Lossless/SV1 via `dicom_libjpeg` (CGo build tag); no CLI command | M | CLI side is the `radx transcode` command; availability depends on the CGo codec build |
@@ -55,7 +59,7 @@ Top gaps, largest first:
 | dcmftest | Test for Part 10 format | PARTIAL | No dedicated command; `radx dump` exits 3 on a malformed/non-DICOM file and 0 on a valid one | S | Scriptable today via dump's exit code; a quiet `--check` mode would be a direct equivalent |
 | dcmgpdir / dcmmkdir | Create DICOMDIR | PARTIAL | Library: `dicom.NewFileSetBuilder` builds and writes a DICOMDIR file-set (`Add`/`AddFile`/`Write`, `dicom/fileset_write.go`), `dicom.OpenFileSet` reads and queries one (`Find`/`FindValues`/`Records`/`Instances`, `dicom/fileset.go`); no CLI command | M | FileSet build/read shipped in PR #119; closed by a `radx` DICOMDIR subcommand over it (no further library work for create/read; update-in-place remains out of scope) |
 | img2dcm | Consumer image (JPEG/BMP) to DICOM | NOT-MET | None | M | Needs SC Image IOD construction plus image import; no current plan in conformance docs |
-| dcm2pnm / dcmj2pnm / dcml2pnm / dcm2img | Render DICOM to PGM/PNG/TIFF/BMP/JPEG | NOT-MET | No image export path in the repo | L | Requires a rendering pipeline (windowing, VOI/modality LUTs, photometric interpretation), all new library work |
+| dcm2pnm / dcmj2pnm / dcml2pnm / dcm2img | Render DICOM to PGM/PNG/TIFF/BMP/JPEG | NOT-MET | No image export path in the repo; windowing/VOI/modality LUT and palette/photometric conversion ship in the library (`dicom/lut.go`, `dicom/colorspace.go`, PRs #127/#128) | L | Remaining gap is display-value-to-image composition and the format writers, not the rendering pipeline |
 | dcmqridx | Register files in a query database index | MET | `radx catalogue` (`command/catalogue.go`): indexes a directory into SQLite, `--rebuild`, `--query`, read-only `--sql` | - | Exceeds dcmqridx: queryable SQL, PHI gate (`--confirm-phi`), `--redact` identifier hashing, 0600 db file |
 
 ## DICOM networking tools (dcmnet, dcmqrdb, dcmwlm)
@@ -63,7 +67,7 @@ Top gaps, largest first:
 | dcmtk app | Function | Status | radx evidence | Size | Notes |
 |---|---|---|---|---|---|
 | echoscu | C-ECHO verification SCU | MET | `radx echo HOST PORT` (`command/echo.go`): AE titles, timeout, max-PDU, named DIMSE status, exit 4 on peer "no" | - | TLS flag absent (cross-cutting gap above) |
-| storescu | C-STORE SCU with TS proposal sets | PARTIAL | `radx store` (`command/store.go`): `-R` recursive, `--workers` pooled associations (1-128), `--continue-on-error`, `--max-pdu` (capped 131072, same ceiling as dcmtk), per-file JSON Lines + summary | M | No `--propose-*` compression proposal sets (proposes the default TS set per context); `--transcode-to` fails closed pending encode codecs; no `--repeat`/UID-invention options. Worker-pooled multi-association batching exceeds storescu |
+| storescu | C-STORE SCU with TS proposal sets | PARTIAL | `radx store` (`command/store.go`): `-R` recursive, `--workers` pooled associations (1-128), `--continue-on-error`, `--max-pdu` (capped 131072, same ceiling as dcmtk), per-file JSON Lines + summary | M | No `--propose-*` compression proposal sets (proposes the default TS set per context); `--transcode-to` transcodes to uncompressed targets via `dicom.Transcode` (`prepareForStore`), passes pixel-less objects unchanged, and fails closed for encapsulated targets; no `--repeat`/UID-invention options. Worker-pooled multi-association batching exceeds storescu |
 | dcmsend | Simplified storage SCU | MET | Same `radx store` surface | - | No `--report-file`; the JSON Lines stream plus summary line serves the same automation need |
 | storescp | Storage SCP writing received files | PARTIAL | `radx scp` (`command/scp.go`): loopback-default `--bind`, `--aet`, `--output-dir`, `--no-accept-echo`, `--max-conns`, UID-validated paths, graceful drain | S | No study-folder sorting (`--sort-conc-studies`), no `--exec-on-reception` hooks, no filename templates; loopback-by-default and traversal-safe UID paths exceed storescp's defaults |
 | dcmrecv | Simplified storage SCP | MET | Same `radx scp` surface | - | - |
