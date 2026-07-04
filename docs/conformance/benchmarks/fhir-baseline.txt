@@ -18,53 +18,53 @@ goos: darwin
 goarch: arm64
 pkg: github.com/codeninja55/go-radx/fhir/r5
 cpu: Apple M1
-BenchmarkMarshalSearchSetBundle-8     	     100	   2472037 ns/op	  899102 B/op	    4620 allocs/op
-BenchmarkMarshalSearchSetBundle-8     	     100	   2236778 ns/op	  896163 B/op	    4614 allocs/op
-BenchmarkMarshalSearchSetBundle-8     	     100	   2153083 ns/op	  893414 B/op	    4613 allocs/op
-BenchmarkMarshalSearchSetBundle-8     	     100	   2132604 ns/op	  896101 B/op	    4613 allocs/op
-BenchmarkMarshalSearchSetBundle-8     	     100	   2152704 ns/op	  891177 B/op	    4613 allocs/op
-BenchmarkMarshalSearchSetBundle-8     	     100	   2125872 ns/op	  886530 B/op	    4613 allocs/op
-BenchmarkUnmarshalSearchSetBundle-8   	     100	   9029861 ns/op	  11.07 MB/s	 2515803 B/op	   42286 allocs/op
-BenchmarkUnmarshalSearchSetBundle-8   	     100	   8897545 ns/op	  11.23 MB/s	 2513600 B/op	   42285 allocs/op
-BenchmarkUnmarshalSearchSetBundle-8   	     100	   9217347 ns/op	  10.84 MB/s	 2511596 B/op	   42286 allocs/op
-BenchmarkUnmarshalSearchSetBundle-8   	     100	   9073152 ns/op	  11.02 MB/s	 2510333 B/op	   42284 allocs/op
-BenchmarkUnmarshalSearchSetBundle-8   	     100	   9112300 ns/op	  10.97 MB/s	 2522205 B/op	   42286 allocs/op
-BenchmarkUnmarshalSearchSetBundle-8   	     100	   8924219 ns/op	  11.20 MB/s	 2521182 B/op	   42287 allocs/op
-BenchmarkValidateWorkflowSet-8        	     100	     51545 ns/op	   49413 B/op	     797 allocs/op
-BenchmarkValidateWorkflowSet-8        	     100	     50891 ns/op	   49419 B/op	     797 allocs/op
-BenchmarkValidateWorkflowSet-8        	     100	     48618 ns/op	   49412 B/op	     797 allocs/op
-BenchmarkValidateWorkflowSet-8        	     100	     49772 ns/op	   49409 B/op	     797 allocs/op
-BenchmarkValidateWorkflowSet-8        	     100	     49425 ns/op	   49413 B/op	     797 allocs/op
-BenchmarkValidateWorkflowSet-8        	     100	     50945 ns/op	   49412 B/op	     797 allocs/op
-BenchmarkMarshalSummary/full-8        	     100	      5612 ns/op	    3024 B/op	      21 allocs/op
-BenchmarkMarshalSummary/full-8        	     100	      5614 ns/op	    3008 B/op	      21 allocs/op
-BenchmarkMarshalSummary/full-8        	     100	      5585 ns/op	    2993 B/op	      21 allocs/op
-BenchmarkMarshalSummary/full-8        	     100	      5489 ns/op	    2993 B/op	      21 allocs/op
-BenchmarkMarshalSummary/full-8        	     100	      5415 ns/op	    3008 B/op	      21 allocs/op
-BenchmarkMarshalSummary/full-8        	     100	      5577 ns/op	    3008 B/op	      21 allocs/op
-BenchmarkMarshalSummary/true-8        	     100	     26338 ns/op	   17681 B/op	     363 allocs/op
-BenchmarkMarshalSummary/true-8        	     100	     24899 ns/op	   17641 B/op	     363 allocs/op
-BenchmarkMarshalSummary/true-8        	     100	     24478 ns/op	   17664 B/op	     363 allocs/op
-BenchmarkMarshalSummary/true-8        	     100	     23996 ns/op	   17652 B/op	     363 allocs/op
-BenchmarkMarshalSummary/true-8        	     100	     23908 ns/op	   17649 B/op	     363 allocs/op
-BenchmarkMarshalSummary/true-8        	     100	     23929 ns/op	   17649 B/op	     363 allocs/op
-BenchmarkMarshalSummary/text-8        	     100	     17322 ns/op	   12721 B/op	     235 allocs/op
-BenchmarkMarshalSummary/text-8        	     100	     17356 ns/op	   12704 B/op	     235 allocs/op
-BenchmarkMarshalSummary/text-8        	     100	     16966 ns/op	   12704 B/op	     235 allocs/op
-BenchmarkMarshalSummary/text-8        	     100	     16870 ns/op	   12704 B/op	     235 allocs/op
-BenchmarkMarshalSummary/text-8        	     100	     16795 ns/op	   12704 B/op	     235 allocs/op
-BenchmarkMarshalSummary/text-8        	     100	     17010 ns/op	   12704 B/op	     235 allocs/op
-BenchmarkMarshalSummary/data-8        	     100	     23960 ns/op	   17649 B/op	     363 allocs/op
-BenchmarkMarshalSummary/data-8        	     100	     24405 ns/op	   17661 B/op	     363 allocs/op
-BenchmarkMarshalSummary/data-8        	     100	     24247 ns/op	   17634 B/op	     363 allocs/op
-BenchmarkMarshalSummary/data-8        	     100	     23411 ns/op	   17649 B/op	     363 allocs/op
-BenchmarkMarshalSummary/data-8        	     100	     22235 ns/op	   17641 B/op	     363 allocs/op
-BenchmarkMarshalSummary/data-8        	     100	     22408 ns/op	   17609 B/op	     363 allocs/op
-BenchmarkMarshalSummary/count-8       	     100	     13933 ns/op	   12664 B/op	     201 allocs/op
-BenchmarkMarshalSummary/count-8       	     100	     13848 ns/op	   12664 B/op	     201 allocs/op
-BenchmarkMarshalSummary/count-8       	     100	     14058 ns/op	   12664 B/op	     201 allocs/op
-BenchmarkMarshalSummary/count-8       	     100	     14360 ns/op	   12649 B/op	     201 allocs/op
-BenchmarkMarshalSummary/count-8       	     100	     14417 ns/op	   12649 B/op	     201 allocs/op
-BenchmarkMarshalSummary/count-8       	     100	     15397 ns/op	   12664 B/op	     201 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2431639 ns/op	  913188 B/op	    4621 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2103083 ns/op	  891348 B/op	    4613 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2099163 ns/op	  892988 B/op	    4613 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2117049 ns/op	  899543 B/op	    4614 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2116295 ns/op	  900500 B/op	    4613 allocs/op
+BenchmarkMarshalSearchSetBundle-8     	     100	   2113613 ns/op	  910303 B/op	    4614 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   8718839 ns/op	  11.46 MB/s	 2510479 B/op	   42286 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   8729133 ns/op	  11.45 MB/s	 2509332 B/op	   42285 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   8719609 ns/op	  11.46 MB/s	 2511448 B/op	   42284 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   8836478 ns/op	  11.31 MB/s	 2504817 B/op	   42283 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   8731610 ns/op	  11.45 MB/s	 2507123 B/op	   42284 allocs/op
+BenchmarkUnmarshalSearchSetBundle-8   	     100	   8735606 ns/op	  11.44 MB/s	 2517770 B/op	   42285 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     53875 ns/op	   49430 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     50461 ns/op	   49414 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     48776 ns/op	   49405 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     50198 ns/op	   49409 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     49361 ns/op	   49412 B/op	     797 allocs/op
+BenchmarkValidateWorkflowSet-8        	     100	     50237 ns/op	   49412 B/op	     797 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5746 ns/op	    3031 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5557 ns/op	    3008 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5331 ns/op	    3008 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5429 ns/op	    3008 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5368 ns/op	    3008 B/op	      21 allocs/op
+BenchmarkMarshalSummary/full-8        	     100	      5430 ns/op	    2993 B/op	      21 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     25527 ns/op	   17684 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     26211 ns/op	   17661 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     24111 ns/op	   17668 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     23769 ns/op	   17650 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     23325 ns/op	   17624 B/op	     363 allocs/op
+BenchmarkMarshalSummary/true-8        	     100	     22199 ns/op	   17624 B/op	     363 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     16715 ns/op	   12704 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     16652 ns/op	   12704 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     16691 ns/op	   12704 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     17040 ns/op	   12704 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     17029 ns/op	   12689 B/op	     235 allocs/op
+BenchmarkMarshalSummary/text-8        	     100	     16999 ns/op	   12689 B/op	     235 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     22170 ns/op	   17609 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     22178 ns/op	   17624 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     22237 ns/op	   17624 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     23341 ns/op	   17609 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     22520 ns/op	   17624 B/op	     363 allocs/op
+BenchmarkMarshalSummary/data-8        	     100	     21991 ns/op	   17624 B/op	     363 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     13865 ns/op	   12664 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     14084 ns/op	   12664 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     14054 ns/op	   12664 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     14380 ns/op	   12664 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     14201 ns/op	   12664 B/op	     201 allocs/op
+BenchmarkMarshalSummary/count-8       	     100	     14765 ns/op	   12649 B/op	     201 allocs/op
 PASS
-ok  	github.com/codeninja55/go-radx/fhir/r5	7.144s
+ok  	github.com/codeninja55/go-radx/fhir/r5	7.150s

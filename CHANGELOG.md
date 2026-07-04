@@ -32,6 +32,10 @@ legacy codebase (`legacy-main`) and are not continued here.
   dominates allocates half of what it did (16.8 MB to 8.4 MB per op on the 8 MiB benchmark fixture), and
   encoding a ~2 MB dataset drops from 2.1 MB to 2.3 KB allocated per op with a 95% time reduction. Byte
   output is unchanged (round-trip and mutation-harness suites are the oracle). (#152)
+- Comparative benchmark tables published from a full `mise run bench:compare` run (63 measured series,
+  median of 7 samples, pinned Python peers), replacing the preliminary smoke-run numbers, and all four Go
+  benchmark baselines re-recorded at the same commit so they carry the post-copy-elimination allocation
+  profile. (#153)
 
 ## [0.11.0] - 2026-06-21
 
