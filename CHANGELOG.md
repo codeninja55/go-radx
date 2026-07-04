@@ -25,7 +25,7 @@ legacy codebase (`legacy-main`) and are not continued here.
   adjacent `Add(1)`+`go`+`Done` goroutine spawns use Go 1.25's `WaitGroup.Go` (the five trackConn-pattern
   sites keep explicit `Add` because they deliberately count connections under the server mutex before the
   goroutine exists); seven single-pass `strings.Split` loops use Go 1.24's `strings.SplitSeq`. No
-  behavioural change; generated FHIR trees untouched.
+  behavioural change; generated FHIR trees untouched. (#151)
 
 ## [0.11.0] - 2026-06-21
 
