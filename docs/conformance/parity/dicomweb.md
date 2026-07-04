@@ -12,7 +12,7 @@ NOT-MET (absent), N-A (not applicable). Size estimates for non-MET rows: S (days
 
 ## Summary
 
-Across 75 rows: 44 MET, 6 PARTIAL, 23 NOT-MET, 2 N-A.
+Across 75 rows: 45 MET, 7 PARTIAL, 21 NOT-MET, 2 N-A.
 
 The shipped core — QIDO-RS search (all six resource paths, full PS3.4 matching semantics), WADO-RS retrieval
 (study/series/instance/metadata/frames/bulkdata), and STOW-RS storage (both body variants server-side) — is at
@@ -31,8 +31,7 @@ PS3.18 services and the rendered/consumer-format surface:
 6. Thumbnail resources (`/thumbnail` at every level) — M
 7. Pixel data resources of Table 10.1-1 — M
 8. `application/dicom+xml` STOW-RS store bodies (metadata retrieval ships; STOW XML body still unparsed) — M
-9. Capabilities discovery (`OPTIONS /`, PS3.18 §8.9) — M
-10. STOW-RS metadata + bulkdata variant on the client (server accepts it; client posts whole objects) — M
+9. STOW-RS metadata + bulkdata variant on the client (server accepts it; client posts whole objects) — M
 
 ## dicomweb-client parity (client-side)
 
@@ -80,7 +79,7 @@ metadata, bulkdata, pixel data, rendered, thumbnail variants), §11 (Worklist Se
 
 | Transaction / capability | Reference anchor | Status | go-radx evidence | Size | Notes |
 |---|---|---|---|---|---|
-| Retrieve Capabilities (`OPTIONS /`) | §8.9 | NOT-MET | none | M | Standard says all RESTful services shall implement it |
+| Retrieve Capabilities (`OPTIONS /`) | §8.9 | MET | `capabilities_client.go` `Client.Capabilities` (OPTIONS on the service root, Accept `application/vnd.sun.wadl+xml`); parses the WADL description minimally (resources, methods, media types, nested resources flattened, depth-capped); tests `capabilities_test.go` (`TestClientCapabilitiesRoundTrip`, `TestClientCapabilitiesParsesNestedResources`, `TestClientCapabilitiesFailsClosed`) | - | Minimal WADL view, not a full WADL model; non-200 and non-XML answers are typed errors |
 | Search studies | §10.6, `/studies` | MET | `qido_client.go:49` | - | |
 | Search series (incl. `/studies/{s}/series`) | §10.6 | MET | `qido_client.go:56` | - | |
 | Search instances (all three paths) | §10.6 | MET | `qido_client.go:67` | - | |
@@ -110,7 +109,7 @@ they differ, status reflects the library and the daemon gap is noted.
 
 | Transaction / capability | Reference anchor | Status | go-radx evidence | Size | Notes |
 |---|---|---|---|---|---|
-| Retrieve Capabilities (`OPTIONS /`) | §8.9 | NOT-MET | router handles GET/POST only (`server.go:134`) | M | Unrouted paths answer 501, never a silent empty body |
+| Retrieve Capabilities (`OPTIONS /`) | §8.9 | PARTIAL | `server.go` routes `OPTIONS` on the service root to `capabilities.go` `handleCapabilities`: a WADL document (`application/vnd.sun.wadl+xml`, the PS3.18 §8.9 normative format) derived from the mounted backends, so an unrouted transaction is never advertised; negotiated fail-closed (406); tests `capabilities_test.go` (`TestServerCapabilitiesDescribesMountedServices`, `TestServerCapabilitiesOmitsUnmountedServices`, `TestServerCapabilitiesNegotiatesWADL`) | S | Pragmatic WADL subset: resources, methods, representation media types only — no query-parameter enumeration, WADO-URI not described; OPTIONS off the root stays 501 |
 | Search studies/series/instances (all six resource paths) | §10.6 | MET | `server.go:266,270` routing; `qido_server.go:69`; daemon: `role_dicomweb.go:103` `QueryBackend` | - | |
 | Matching semantics (single, wildcard, UID list, range, universal, fuzzy PN) | PS3.4 C.2.2.2 | MET | `dicomweb/qido_match.go`; tests `qido_test.go` | - | Fuzzy is substring, not phonetic (documented) |
 | `includefield` + default return attributes | §10.6, Tables 10.6.1-5/-5a/-5b | MET | `qido.go:114,196` | - | Unresolvable attribute rejected, not dropped |
