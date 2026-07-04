@@ -19,7 +19,7 @@ legacy codebase (`legacy-main`) and are not continued here.
   increments), stale notes corrected in cli.md (storescu `--transcode-to`, dcm2pnm rendering pipeline,
   xml2dcm evidence, both Summary top-gap entries) and dimse.md (N-EVENT-REPORT receive is a general SCP via
   `NEventReportHandler`), and a fhir.md evidence miscount fixed (workflow resource set is 6 types, not 8).
-  Aggregate is now 270 MET / 45 PARTIAL / 84 NOT-MET / 15 N-A across 414 rows.
+  Aggregate is now 270 MET / 45 PARTIAL / 84 NOT-MET / 15 N-A across 414 rows. (#150)
 
 ## [0.11.0] - 2026-06-21
 
