@@ -229,6 +229,13 @@ func NewBytes(vr VR, b []byte) Value {
 	return &Bytes{vr: vr, b: cp}
 }
 
+// newBytesOwned wraps b without copying; the caller relinquishes b. The decode
+// paths use it on buffers only they hold, so a dataset's largest value field is
+// allocated once rather than twice; NewBytes keeps copying for external callers.
+func newBytesOwned(vr VR, b []byte) Value {
+	return &Bytes{vr: vr, b: b}
+}
+
 func (v *Bytes) VR() VR { return v.vr }
 
 // Bytes returns a copy of the value field.
