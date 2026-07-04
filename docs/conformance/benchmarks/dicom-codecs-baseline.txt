@@ -16,101 +16,101 @@ goos: darwin
 goarch: arm64
 pkg: github.com/codeninja55/go-radx/dicom
 cpu: Apple M1
-BenchmarkRLECodecDecode-8        	      50	    573031 ns/op	 1572978 B/op	       6 allocs/op
-BenchmarkRLECodecDecode-8        	      50	    587884 ns/op	 1572864 B/op	       6 allocs/op
-BenchmarkRLECodecDecode-8        	      50	    473960 ns/op	 1572982 B/op	       6 allocs/op
-BenchmarkRLECodecDecode-8        	      50	    445008 ns/op	 1572866 B/op	       6 allocs/op
-BenchmarkRLECodecDecode-8        	      50	    604799 ns/op	 1572866 B/op	       6 allocs/op
-BenchmarkRLECodecDecode-8        	      50	    763155 ns/op	 1572875 B/op	       6 allocs/op
-BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    119620 ns/op	 547.87 MB/s	  188352 B/op	      18 allocs/op
-BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    107918 ns/op	 607.28 MB/s	  188352 B/op	      18 allocs/op
-BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    107872 ns/op	 607.53 MB/s	  188352 B/op	      18 allocs/op
-BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    107125 ns/op	 611.77 MB/s	  188352 B/op	      18 allocs/op
-BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    106338 ns/op	 616.30 MB/s	  188354 B/op	      18 allocs/op
-BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    104730 ns/op	 625.76 MB/s	  188352 B/op	      18 allocs/op
-BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    251627 ns/op	 520.90 MB/s	  644482 B/op	      39 allocs/op
-BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    251963 ns/op	 520.20 MB/s	  644480 B/op	      39 allocs/op
-BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    251022 ns/op	 522.15 MB/s	  644482 B/op	      39 allocs/op
-BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    251756 ns/op	 520.63 MB/s	  644480 B/op	      39 allocs/op
-BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    249301 ns/op	 525.76 MB/s	  644482 B/op	      39 allocs/op
-BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    246405 ns/op	 531.94 MB/s	  644480 B/op	      39 allocs/op
-BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    550860 ns/op	 356.91 MB/s	 1683644 B/op	      70 allocs/op
-BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    549371 ns/op	 357.88 MB/s	 1683639 B/op	      70 allocs/op
-BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    564654 ns/op	 348.19 MB/s	 1683638 B/op	      70 allocs/op
-BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    563725 ns/op	 348.77 MB/s	 1683640 B/op	      70 allocs/op
-BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    549404 ns/op	 357.86 MB/s	 1683649 B/op	      70 allocs/op
-BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    542588 ns/op	 362.35 MB/s	 1683640 B/op	      70 allocs/op
-BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     79534 ns/op	    8496 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     72374 ns/op	    8496 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     75324 ns/op	    8496 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     70270 ns/op	    8496 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     71358 ns/op	    8496 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     69053 ns/op	    8496 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3307 ns/op	     784 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3398 ns/op	     784 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3248 ns/op	     784 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3301 ns/op	     784 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3288 ns/op	     784 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3364 ns/op	     784 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    243794 ns/op	    1328 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    236650 ns/op	    1328 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    234304 ns/op	    1328 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    234302 ns/op	    1328 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    231075 ns/op	    1328 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    231683 ns/op	    1328 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     34731 ns/op	   33072 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     31783 ns/op	   33072 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     31108 ns/op	   33072 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     30502 ns/op	   33072 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     30397 ns/op	   33072 B/op	       3 allocs/op
-BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     30655 ns/op	   33072 B/op	       3 allocs/op
-BenchmarkCharLSCodecEncode-8                                       	      50	    105000 ns/op	    5136 B/op	       3 allocs/op
-BenchmarkCharLSCodecEncode-8                                       	      50	     98723 ns/op	    5136 B/op	       3 allocs/op
-BenchmarkCharLSCodecEncode-8                                       	      50	     95524 ns/op	    5136 B/op	       3 allocs/op
-BenchmarkCharLSCodecEncode-8                                       	      50	     97469 ns/op	    5136 B/op	       3 allocs/op
-BenchmarkCharLSCodecEncode-8                                       	      50	     94607 ns/op	    5136 B/op	       3 allocs/op
-BenchmarkCharLSCodecEncode-8                                       	      50	     96211 ns/op	    5136 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    136488 ns/op	  196912 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    111342 ns/op	  196912 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    110700 ns/op	  196912 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    110630 ns/op	  196912 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    110062 ns/op	  196912 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    111055 ns/op	  196912 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    596503 ns/op	  524594 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    583201 ns/op	  524592 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    579870 ns/op	  524592 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    578601 ns/op	  524592 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    577879 ns/op	  524594 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    576797 ns/op	  524592 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4272026 ns/op	  786738 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4233994 ns/op	  786740 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4239886 ns/op	  786744 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4252562 ns/op	  786742 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4234688 ns/op	  786744 B/op	       3 allocs/op
-BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4238785 ns/op	  786742 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7272982 ns/op	   99360 B/op	       9 allocs/op
-BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7228688 ns/op	   99360 B/op	       9 allocs/op
-BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7232995 ns/op	   99360 B/op	       9 allocs/op
-BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7247602 ns/op	   99360 B/op	       9 allocs/op
-BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7201807 ns/op	   99360 B/op	       9 allocs/op
-BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7291443 ns/op	   99360 B/op	       9 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9918172 ns/op	  926050 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	  10172461 ns/op	  926052 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9847952 ns/op	  926050 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9897214 ns/op	  926048 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	  10675379 ns/op	  926048 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9809177 ns/op	  926048 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8884186 ns/op	  926050 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8886700 ns/op	  926048 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8841750 ns/op	  926048 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8896795 ns/op	  926048 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8942028 ns/op	  926048 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   9071936 ns/op	  926048 B/op	       3 allocs/op
-BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3958296 ns/op	 3149872 B/op	      12 allocs/op
-BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3913162 ns/op	 3149872 B/op	      12 allocs/op
-BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3916967 ns/op	 3149874 B/op	      12 allocs/op
-BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3950552 ns/op	 3149872 B/op	      12 allocs/op
-BenchmarkOpenJPEGCodecEncode-8                                     	      50	   4068757 ns/op	 3149876 B/op	      12 allocs/op
-BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3966364 ns/op	 3149872 B/op	      12 allocs/op
+BenchmarkRLECodecDecode-8        	      50	    954711 ns/op	 1573087 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8        	      50	    527988 ns/op	 1572864 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8        	      50	    415694 ns/op	 1572864 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8        	      50	    419478 ns/op	 1572864 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8        	      50	    414457 ns/op	 1572864 B/op	       6 allocs/op
+BenchmarkRLECodecDecode-8        	      50	    413348 ns/op	 1572864 B/op	       6 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    107871 ns/op	 607.54 MB/s	  188352 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    106691 ns/op	 614.26 MB/s	  188352 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    106271 ns/op	 616.69 MB/s	  188352 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    108092 ns/op	 606.30 MB/s	  188354 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    107777 ns/op	 608.07 MB/s	  188352 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/8-bit_mono_256x256-8         	      50	    107595 ns/op	 609.10 MB/s	  188354 B/op	      18 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    247404 ns/op	 529.79 MB/s	  644482 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    252491 ns/op	 519.12 MB/s	  644480 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    249020 ns/op	 526.35 MB/s	  644484 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    245318 ns/op	 534.30 MB/s	  644482 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    245730 ns/op	 533.40 MB/s	  644486 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/16-bit_mono_256x256-8        	      50	    245504 ns/op	 533.89 MB/s	  644484 B/op	      39 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    555271 ns/op	 354.08 MB/s	 1683640 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    561132 ns/op	 350.38 MB/s	 1683640 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    560839 ns/op	 350.56 MB/s	 1683637 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    557289 ns/op	 352.79 MB/s	 1683647 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    555950 ns/op	 353.64 MB/s	 1683639 B/op	      70 allocs/op
+BenchmarkRLECodecEncode/8-bit_rgb_256x256-8          	      50	    554488 ns/op	 354.58 MB/s	 1683637 B/op	      70 allocs/op
+BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     81928 ns/op	    8496 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     79056 ns/op	    8496 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     76180 ns/op	    8496 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     75428 ns/op	    8496 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     77329 ns/op	    8496 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/MR_small_jpeg_ls_lossless.dcm-8         	      50	     74713 ns/op	    8496 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3322 ns/op	     784 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      4117 ns/op	     784 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3188 ns/op	     784 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3302 ns/op	     784 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3171 ns/op	     784 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_08.dcm-8             	      50	      3132 ns/op	     784 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    231974 ns/op	    1328 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    230863 ns/op	    1328 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    231024 ns/op	    1328 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    230475 ns/op	    1328 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    229867 ns/op	    1328 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/JPEGLSNearLossless_16.dcm-8             	      50	    230289 ns/op	    1328 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     33407 ns/op	   33072 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     31585 ns/op	   33072 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     31580 ns/op	   33072 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     31289 ns/op	   33072 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     32189 ns/op	   33072 B/op	       3 allocs/op
+BenchmarkCharLSCodecDecode/SC_rgb_jls_lossy_sample.dcm-8           	      50	     31696 ns/op	   33072 B/op	       3 allocs/op
+BenchmarkCharLSCodecEncode-8                                       	      50	    105987 ns/op	    5136 B/op	       3 allocs/op
+BenchmarkCharLSCodecEncode-8                                       	      50	    104899 ns/op	    5136 B/op	       3 allocs/op
+BenchmarkCharLSCodecEncode-8                                       	      50	    103913 ns/op	    5136 B/op	       3 allocs/op
+BenchmarkCharLSCodecEncode-8                                       	      50	    102310 ns/op	    5136 B/op	       3 allocs/op
+BenchmarkCharLSCodecEncode-8                                       	      50	    103934 ns/op	    5136 B/op	       3 allocs/op
+BenchmarkCharLSCodecEncode-8                                       	      50	    104048 ns/op	    5136 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    109215 ns/op	  196912 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    107617 ns/op	  196914 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    105472 ns/op	  196912 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    111654 ns/op	  196912 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    110581 ns/op	  196912 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/SC_jpeg_no_color_transform.dcm-8       	      50	    111229 ns/op	  196912 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    585236 ns/op	  524592 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    579672 ns/op	  524592 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    582032 ns/op	  524592 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    588558 ns/op	  524592 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    582483 ns/op	  524592 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGExtended.dcm-8                      	      50	    580696 ns/op	  524594 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4236618 ns/op	  786742 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4228972 ns/op	  786740 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4233669 ns/op	  786740 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4257444 ns/op	  786740 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4257924 ns/op	  786742 B/op	       3 allocs/op
+BenchmarkLibJPEGCodecDecode/JPGLosslessP14SV1_1s_1f_8b.dcm-8       	      50	   4256071 ns/op	  786742 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7227981 ns/op	   99360 B/op	       9 allocs/op
+BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7212454 ns/op	   99360 B/op	       9 allocs/op
+BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7323954 ns/op	   99360 B/op	       9 allocs/op
+BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7212555 ns/op	   99360 B/op	       9 allocs/op
+BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7222608 ns/op	   99360 B/op	       9 allocs/op
+BenchmarkOpenJPEGCodecDecode/liver_j2k.dcm-8                       	      50	   7203850 ns/op	   99360 B/op	       9 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9868907 ns/op	  926050 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9826171 ns/op	  926048 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9838771 ns/op	  926050 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9875242 ns/op	  926050 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9824935 ns/op	  926054 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2KLossless_08_RGB.dcm-8            	      50	   9826273 ns/op	  926050 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8901373 ns/op	  926048 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   9042236 ns/op	  926048 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8909096 ns/op	  926050 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8895866 ns/op	  926048 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8896658 ns/op	  926048 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecDecode/HTJ2K_08_RGB.dcm-8                    	      50	   8926894 ns/op	  926048 B/op	       3 allocs/op
+BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3923123 ns/op	 3149874 B/op	      12 allocs/op
+BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3914782 ns/op	 3149874 B/op	      12 allocs/op
+BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3908757 ns/op	 3149874 B/op	      12 allocs/op
+BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3915048 ns/op	 3149874 B/op	      12 allocs/op
+BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3916925 ns/op	 3149874 B/op	      12 allocs/op
+BenchmarkOpenJPEGCodecEncode-8                                     	      50	   3930770 ns/op	 3149874 B/op	      12 allocs/op
 PASS
-ok  	github.com/codeninja55/go-radx/dicom	12.335s
+ok  	github.com/codeninja55/go-radx/dicom	11.365s
