@@ -31,7 +31,7 @@ legacy codebase (`legacy-main`) and are not continued here.
   the internal slices instead of the copy-returning accessors. Measured: reading a file whose pixel data
   dominates allocates half of what it did (16.8 MB to 8.4 MB per op on the 8 MiB benchmark fixture), and
   encoding a ~2 MB dataset drops from 2.1 MB to 2.3 KB allocated per op with a 95% time reduction. Byte
-  output is unchanged (round-trip and mutation-harness suites are the oracle).
+  output is unchanged (round-trip and mutation-harness suites are the oracle). (#152)
 
 ## [0.11.0] - 2026-06-21
 
