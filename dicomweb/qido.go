@@ -199,7 +199,7 @@ func (q *QueryRequest) setSeriesScope(uid string) error {
 // silently dropped, so a caller never receives a projection narrower than it asked for.
 func (q *QueryRequest) applyIncludeField(vals []string) error {
 	for _, raw := range vals {
-		for _, field := range strings.Split(raw, ",") {
+		for field := range strings.SplitSeq(raw, ",") {
 			field = strings.TrimSpace(field)
 			if field == "" {
 				continue
