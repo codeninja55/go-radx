@@ -131,11 +131,8 @@ func TestBatchBothOrNeitherRule(t *testing.T) {
 		"PID|1\r"
 	if _, err := ParseBatch([]byte(headerOnly)); err == nil {
 		t.Error("ParseBatch(header-only) = nil error, want a malformed-batch error")
-	} else {
-		var pe *ParseError
-		if !errors.As(err, &pe) {
-			t.Errorf("ParseBatch(header-only) error = %T, want *ParseError", err)
-		}
+	} else if _, ok := errors.AsType[*ParseError](err); !ok {
+		t.Errorf("ParseBatch(header-only) error = %T, want *ParseError", err)
 	}
 
 	trailerOnly := "MSH|^~\\&|A|B|C|D|202605311230||ADT^A04^ADT_A01|M1|P|2.5.1\r" +
@@ -155,11 +152,8 @@ func TestFileBothOrNeitherRule(t *testing.T) {
 		"BTS|1\r"
 	if _, err := ParseFile([]byte(headerOnly)); err == nil {
 		t.Error("ParseFile(header-only) = nil error, want a malformed-file error")
-	} else {
-		var pe *ParseError
-		if !errors.As(err, &pe) {
-			t.Errorf("ParseFile(header-only) error = %T, want *ParseError", err)
-		}
+	} else if _, ok := errors.AsType[*ParseError](err); !ok {
+		t.Errorf("ParseFile(header-only) error = %T, want *ParseError", err)
 	}
 }
 

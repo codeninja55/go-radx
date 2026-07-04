@@ -478,8 +478,7 @@ func TestMoveRejectsNonMoveModel(t *testing.T) {
 	if len(statuses) != 1 || !statuses[0].IsFailure() {
 		t.Fatalf("Move with a FIND model yielded %v, want one terminal failure", statuses)
 	}
-	var ve *ValidationError
-	if !errors.As(assoc.LastError(), &ve) {
+	if _, ok := errors.AsType[*ValidationError](assoc.LastError()); !ok {
 		t.Errorf("LastError() = %T, want *ValidationError", assoc.LastError())
 	}
 	_ = assoc.Abort(ctx)
@@ -508,8 +507,7 @@ func TestMoveRequiresDestination(t *testing.T) {
 	if len(statuses) != 1 || !statuses[0].IsFailure() {
 		t.Fatalf("Move with an empty destination yielded %v, want one terminal failure", statuses)
 	}
-	var ve *ValidationError
-	if !errors.As(assoc.LastError(), &ve) {
+	if _, ok := errors.AsType[*ValidationError](assoc.LastError()); !ok {
 		t.Errorf("LastError() = %T, want *ValidationError", assoc.LastError())
 	}
 	_ = assoc.Abort(ctx)
@@ -545,8 +543,7 @@ func TestMoveOnReleasedAssociation(t *testing.T) {
 	if len(statuses) != 1 || !statuses[0].IsFailure() {
 		t.Fatalf("Move on released association yielded %d statuses, want 1 terminal failure", len(statuses))
 	}
-	var assocErr *AssociationError
-	if !errors.As(assoc.LastError(), &assocErr) {
+	if _, ok := errors.AsType[*AssociationError](assoc.LastError()); !ok {
 		t.Errorf("LastError() = %T, want *AssociationError", assoc.LastError())
 	}
 }

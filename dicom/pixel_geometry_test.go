@@ -93,8 +93,8 @@ func TestResolvePixelGeometryRejectsOutOfRangeAttribute(t *testing.T) {
 	ds.Set(Element{Tag: TagColumns, VR: VRUS, Value: NewInts(VRUS, 4)})
 	ds.Set(Element{Tag: TagBitsAllocated, VR: VRUS, Value: NewInts(VRUS, 8)})
 
-	var verr *ValueError
-	if _, err := ResolvePixelGeometry(ds, ExplicitVRLittleEndian); !errors.As(err, &verr) {
+	_, err := ResolvePixelGeometry(ds, ExplicitVRLittleEndian)
+	if _, ok := errors.AsType[*ValueError](err); !ok {
 		t.Fatalf("ResolvePixelGeometry with Rows = 65537: err = %v, want *ValueError", err)
 	}
 }

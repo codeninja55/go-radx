@@ -260,8 +260,8 @@ func TestAuthenticateRejectsAssociation(t *testing.T) {
 	}
 	reqErr, _ := rejectingHandshake(t, req, params)
 
-	var rej *RejectedError
-	if !errors.As(reqErr, &rej) {
+	rej, ok := errors.AsType[*RejectedError](reqErr)
+	if !ok {
 		t.Fatalf("requestor error = %v, want *RejectedError", reqErr)
 	}
 	if rej.Source != pdu.AssociateRJSourceServiceUser {
@@ -319,8 +319,8 @@ func TestAcceptRejectsUnsupportedProtocolVersion(t *testing.T) {
 	}
 	accErr := <-done
 
-	var rej *RejectedError
-	if !errors.As(accErr, &rej) {
+	rej, ok := errors.AsType[*RejectedError](accErr)
+	if !ok {
 		t.Fatalf("acceptor error = %v, want *RejectedError", accErr)
 	}
 	if rej.Source != pdu.AssociateRJSourceServiceProviderACSE {
@@ -359,8 +359,8 @@ func TestAcceptRejectsOverContextLimit(t *testing.T) {
 	}
 	accErr := <-done
 
-	var rej *RejectedError
-	if !errors.As(accErr, &rej) {
+	rej, ok := errors.AsType[*RejectedError](accErr)
+	if !ok {
 		t.Fatalf("acceptor error = %v, want *RejectedError", accErr)
 	}
 	if rej.Source != pdu.AssociateRJSourceServiceProviderACSE {
@@ -412,8 +412,8 @@ func TestAcceptRejectsMalformedAETitle(t *testing.T) {
 			}
 			accErr := <-done
 
-			var rej *RejectedError
-			if !errors.As(accErr, &rej) {
+			rej, ok := errors.AsType[*RejectedError](accErr)
+			if !ok {
 				t.Fatalf("acceptor error = %v, want *RejectedError", accErr)
 			}
 			if rej.Source != pdu.AssociateRJSourceServiceUser {

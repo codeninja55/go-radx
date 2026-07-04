@@ -42,8 +42,7 @@ func TestValidateFindContext(t *testing.T) {
 	if err := validateFindContext(onMove, 3, abstractFor, Sta6); err == nil {
 		t.Error("C-FIND on a non-FIND (MOVE) context = nil error, want a protocol fault")
 	} else {
-		var pe *ProtocolError
-		if !errors.As(err, &pe) {
+		if _, ok := errors.AsType[*ProtocolError](err); !ok {
 			t.Errorf("error = %T, want *ProtocolError", err)
 		}
 	}

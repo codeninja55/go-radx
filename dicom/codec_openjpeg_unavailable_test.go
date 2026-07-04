@@ -87,8 +87,8 @@ func TestJPEG2000ReturnsCodecUnavailable(t *testing.T) {
 	if !errors.Is(gotErr, ErrCodecUnavailable) {
 		t.Errorf("error = %v, want it to match ErrCodecUnavailable", gotErr)
 	}
-	var cue *CodecUnavailableError
-	if !errors.As(gotErr, &cue) {
+	cue, ok := errors.AsType[*CodecUnavailableError](gotErr)
+	if !ok {
 		t.Fatalf("error %v is not a *CodecUnavailableError", gotErr)
 	}
 	if cue.TransferSyntax != JPEG2000Lossless {
@@ -110,8 +110,8 @@ func TestTranscodeToJPEG2000Unsupported(t *testing.T) {
 	if !errors.Is(err, ErrEncodeUnsupported) {
 		t.Errorf("error = %v, want ErrEncodeUnsupported", err)
 	}
-	var eu *EncodeUnsupportedError
-	if !errors.As(err, &eu) {
+	eu, ok := errors.AsType[*EncodeUnsupportedError](err)
+	if !ok {
 		t.Fatalf("error %v is not an *EncodeUnsupportedError", err)
 	}
 	if eu.TransferSyntax != JPEG2000Lossless {

@@ -86,8 +86,8 @@ func runJPEGHostileWorker() {
 		os.Stderr.WriteString("worker: hostile input decoded without error\n")
 		os.Exit(1)
 	}
-	var je *jpegError
-	if !errors.As(decErr, &je) || !errors.Is(decErr, ErrJPEG) {
+	_, ok := errors.AsType[*jpegError](decErr)
+	if !ok || !errors.Is(decErr, ErrJPEG) {
 		os.Stderr.WriteString("worker: error is not a typed jpegError: " + decErr.Error() + "\n")
 		os.Exit(1)
 	}

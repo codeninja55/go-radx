@@ -42,8 +42,7 @@ func TestValidateModelLevel(t *testing.T) {
 				if err == nil {
 					t.Fatalf("validateModelLevel(%s, %s) = nil, want a *ValidationError", tt.model, tt.level)
 				}
-				var ve *ValidationError
-				if !errors.As(err, &ve) {
+				if _, ok := errors.AsType[*ValidationError](err); !ok {
 					t.Errorf("error = %T, want *ValidationError", err)
 				}
 				return
@@ -78,8 +77,7 @@ func TestMovePreflightRejectsInvalidModelLevel(t *testing.T) {
 	if err == nil {
 		t.Fatal("movePreflight on Composite Instance Root at STUDY level = nil, want a *ValidationError")
 	}
-	var ve *ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*ValidationError](err); !ok {
 		t.Errorf("error = %T, want *ValidationError", err)
 	}
 }

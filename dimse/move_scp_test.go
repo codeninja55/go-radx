@@ -39,8 +39,7 @@ func TestValidateMoveContext(t *testing.T) {
 	if err := validateMoveContext(onFind, 3, abstractFor, Sta6); err == nil {
 		t.Error("C-MOVE on a non-MOVE (FIND) context = nil error, want a protocol fault")
 	} else {
-		var pe *ProtocolError
-		if !errors.As(err, &pe) {
+		if _, ok := errors.AsType[*ProtocolError](err); !ok {
 			t.Errorf("error = %T, want *ProtocolError", err)
 		}
 	}
@@ -707,8 +706,7 @@ func TestServeMoveTerminalCancelOnInboundCancel(t *testing.T) {
 	// so the association is reusable rather than poisoned or wedged awaiting a terminal that never
 	// comes (pre-fix the SCP only noticed the cancel after the move completed).
 	if err := assoc.LastError(); err != nil {
-		var pe *ProtocolError
-		if errors.As(err, &pe) {
+		if _, ok := errors.AsType[*ProtocolError](err); ok {
 			t.Fatalf("inbound C-CANCEL was treated as a protocol fault, poisoning the association: %v", err)
 		}
 		t.Fatalf("Move LastError = %v, want nil after a clean cancellation", err)

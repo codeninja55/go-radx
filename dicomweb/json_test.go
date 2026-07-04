@@ -188,8 +188,7 @@ func TestUnmarshalRejectsBackslashInDelimitedTextValue(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a backslash in an LO value")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 
@@ -206,8 +205,7 @@ func TestUnmarshalRejectsBackslashInPNComponentGroup(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for '\\' inside a PN component group")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -411,8 +409,7 @@ func TestMaxJSONDepthExceeded(t *testing.T) {
 	if !errors.Is(err, ErrLimitExceeded) {
 		t.Errorf("error = %v, want ErrLimitExceeded", err)
 	}
-	var lerr *LimitExceededError
-	if !errors.As(err, &lerr) {
+	if _, ok := errors.AsType[*LimitExceededError](err); !ok {
 		t.Errorf("error = %v, want a *LimitExceededError", err)
 	}
 }
@@ -450,8 +447,7 @@ func TestMarshalNonFiniteFloatErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error marshalling a non-finite float")
 	}
-	var encErr *EncodeError
-	if !errors.As(err, &encErr) {
+	if _, ok := errors.AsType[*EncodeError](err); !ok {
 		t.Errorf("error = %v, want *EncodeError", err)
 	}
 }
@@ -462,8 +458,7 @@ func TestUnmarshalRejectsFractionalInteger(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a fractional US value")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -478,8 +473,7 @@ func TestMarshalRejectsMalformedFixedWidthBinary(t *testing.T) {
 	if _, err := MarshalJSON(ds); err == nil {
 		t.Fatal("expected an error encoding a 3-byte OW value")
 	} else {
-		var encErr *EncodeError
-		if !errors.As(err, &encErr) {
+		if _, ok := errors.AsType[*EncodeError](err); !ok {
 			t.Errorf("error = %v, want *EncodeError", err)
 		}
 	}
@@ -492,8 +486,7 @@ func TestUnmarshalRejectsMalformedFixedWidthBinary(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a 3-byte OW payload")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -505,8 +498,7 @@ func TestUnmarshalRejectsMultiplePayloadForms(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for conflicting payload forms")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -516,8 +508,7 @@ func TestUnmarshalRejectsNullFloat(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a null float value")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -563,8 +554,7 @@ func TestInlineBinaryOnNonBinaryVRRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for InlineBinary on a PN element")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -574,8 +564,7 @@ func TestValueArrayOnBinaryVRRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a Value array on an OB element")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -665,8 +654,7 @@ func TestUnmarshalRejectsOutOfRangeUnsigned(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a negative US value")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 
@@ -682,8 +670,7 @@ func TestUnmarshalRejectsFractionalIS(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a fractional IS value")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 
@@ -700,8 +687,7 @@ func TestUnmarshalRejectsEmptyInlineBinaryOnNonBinaryVR(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for empty InlineBinary on a PN element")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -716,8 +702,7 @@ func TestTruncatedJSONIsUnexpectedEOF(t *testing.T) {
 	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("error = %v, want errors.Is io.ErrUnexpectedEOF", err)
 	}
-	var truncErr *TruncatedError
-	if !errors.As(err, &truncErr) {
+	if _, ok := errors.AsType[*TruncatedError](err); !ok {
 		t.Errorf("error = %v, want *TruncatedError", err)
 	}
 }
@@ -745,8 +730,7 @@ func TestMarshalRejectsAmbiguousVR(t *testing.T) {
 	if _, err := MarshalJSON(ds); err == nil {
 		t.Fatal("expected an error encoding an ambiguous VR")
 	} else {
-		var encErr *EncodeError
-		if !errors.As(err, &encErr) {
+		if _, ok := errors.AsType[*EncodeError](err); !ok {
 			t.Errorf("error = %v, want *EncodeError", err)
 		}
 	}
@@ -762,8 +746,7 @@ func TestMarshalRejectsOutOfRangeUnsigned(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error encoding a negative US value")
 	}
-	var encErr *EncodeError
-	if !errors.As(err, &encErr) {
+	if _, ok := errors.AsType[*EncodeError](err); !ok {
 		t.Errorf("error = %v, want *EncodeError", err)
 	}
 }
@@ -778,8 +761,7 @@ func TestMarshalRejectsEmptyDecimal(t *testing.T) {
 	if _, err := MarshalJSON(ds); err == nil {
 		t.Fatal("expected an error encoding a zero-value DS decimal")
 	} else {
-		var encErr *EncodeError
-		if !errors.As(err, &encErr) {
+		if _, ok := errors.AsType[*EncodeError](err); !ok {
 			t.Errorf("error = %v, want *EncodeError", err)
 		}
 	}
@@ -799,8 +781,7 @@ func TestMarshalRejectsFractionalIS(t *testing.T) {
 	if _, err := MarshalJSON(ds); err == nil {
 		t.Fatal("expected an error encoding a fractional IS value")
 	} else {
-		var encErr *EncodeError
-		if !errors.As(err, &encErr) {
+		if _, ok := errors.AsType[*EncodeError](err); !ok {
 			t.Errorf("error = %v, want *EncodeError", err)
 		}
 	}
@@ -825,8 +806,7 @@ func TestUnmarshalRejectsEqualsInPNComponentGroup(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for '=' inside a PN component group")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -845,8 +825,7 @@ func TestUnmarshalRejectsExplicitNullValue(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an explicit null Value")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -973,8 +952,7 @@ func TestUnmarshalRejectsNullDocument(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a null document")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -984,8 +962,7 @@ func TestUnmarshalRejectsNullSequenceItem(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a null sequence item")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }

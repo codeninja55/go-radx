@@ -80,8 +80,8 @@ func TestReadDeflateBombReturnsLimitExceeded(t *testing.T) {
 
 	select {
 	case err := <-done:
-		var lim *LimitExceededError
-		if !errors.As(err, &lim) {
+		lim, ok := errors.AsType[*LimitExceededError](err)
+		if !ok {
 			t.Fatalf("Read deflate bomb: got %v, want *LimitExceededError", err)
 		}
 		if lim.Kind != "inflated-bytes" {
@@ -107,8 +107,8 @@ func TestDecodeDataSetDeflateBombReturnsLimitExceeded(t *testing.T) {
 
 	select {
 	case err := <-done:
-		var lim *LimitExceededError
-		if !errors.As(err, &lim) {
+		lim, ok := errors.AsType[*LimitExceededError](err)
+		if !ok {
 			t.Fatalf("DecodeDataSet deflate bomb: got %v, want *LimitExceededError", err)
 		}
 		if lim.Kind != "inflated-bytes" {
@@ -133,8 +133,7 @@ func TestInflateLimitReaderStopsAtBudget(t *testing.T) {
 		n, err := lr.Read(buf)
 		total += n
 		if err != nil {
-			var lim *LimitExceededError
-			if !errors.As(err, &lim) {
+			if _, ok := errors.AsType[*LimitExceededError](err); !ok {
 				t.Fatalf("inflateLimitReader: got %v, want *LimitExceededError", err)
 			}
 			break
@@ -166,8 +165,7 @@ func TestInflateLimitReaderAcceptsExactBudget(t *testing.T) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			var lim *LimitExceededError
-			if errors.As(err, &lim) {
+			if _, ok := errors.AsType[*LimitExceededError](err); ok {
 				t.Fatalf("exact-budget stream wrongly rejected as over-limit: %v", err)
 			}
 			t.Fatalf("inflateLimitReader: got %v, want io.EOF", err)

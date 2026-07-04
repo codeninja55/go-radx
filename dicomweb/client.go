@@ -473,8 +473,7 @@ func (c *Client) readError(method, path string, err error) error {
 // UID-bearing request URL net/http embeds in url.Error.Error() never reaches a log
 // (PRD §9.1). A non-url.Error is returned unchanged.
 func sanitizeTransportError(err error) error {
-	var ue *url.Error
-	if errors.As(err, &ue) && ue.Err != nil {
+	if ue, ok := errors.AsType[*url.Error](err); ok && ue.Err != nil {
 		return ue.Err
 	}
 	return err

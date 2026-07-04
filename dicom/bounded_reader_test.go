@@ -38,8 +38,8 @@ func TestBoundedReaderHostileLengthRejectedBeforeAlloc(t *testing.T) {
 	const cap = 1 << 20 // 1 MiB cap
 	br := newBoundedReader(strings.NewReader("abc"), cap)
 	_, err := br.readN(0xFFFFFFFE)
-	var le *LimitExceededError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LimitExceededError](err)
+	if !ok {
 		t.Fatalf("readN(huge) = %v, want *LimitExceededError", err)
 	}
 	if le.Kind != "element-length" {

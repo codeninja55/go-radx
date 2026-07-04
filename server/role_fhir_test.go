@@ -581,8 +581,8 @@ func TestFHIRRoleClientConditionalCreateSurfacesTypedError(t *testing.T) {
 			if cerr == nil {
 				t.Fatal("conditional Create returned nil error, want the 400 typed error")
 			}
-			var ooErr *rest.OperationOutcomeError
-			if !errors.As(cerr, &ooErr) {
+			ooErr, ok := errors.AsType[*rest.OperationOutcomeError](cerr)
+			if !ok {
 				t.Fatalf("conditional Create error = %T (%v), want *rest.OperationOutcomeError", cerr, cerr)
 			}
 			if ooErr.StatusCode != http.StatusBadRequest {
@@ -910,19 +910,15 @@ func TestMemoryRepositoryTransactionPreservesConcurrentCreates(t *testing.T) {
 			// One goroutine runs a transaction that ultimately fails (its second entry GETs a missing
 			// resource); the rest run independent Creates of an Encounter. The failing transaction must
 			// not roll back any of the concurrent Encounters.
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				failing := failingTransactionBundle(t, release)
 				if _, terr := repo.Transaction(ctx, failing); terr == nil {
 					t.Error("failing transaction returned nil error, want a transaction failure")
 				}
-			}()
+			})
 
 			for i := 0; i < concurrentCreates; i++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					enc := newEncounterResource(release)
 					stored, cerr := repo.Create(ctx, enc)
 					if cerr != nil {
@@ -930,7 +926,7 @@ func TestMemoryRepositoryTransactionPreservesConcurrentCreates(t *testing.T) {
 						return
 					}
 					createdIDs <- resourceLogicalIDForTest(t, stored)
-				}()
+				})
 			}
 
 			wg.Wait()

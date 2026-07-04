@@ -112,11 +112,7 @@ func Classify(err error) int {
 
 	// Usage errors: a Kong parse failure (unknown flag, missing required argument, bad enum)
 	// or a command-raised usage fault (a format unsupported for that command). Both exit 2.
-	var (
-		parseErr *kong.ParseError
-		usageErr *UsageErr
-	)
-	if errors.As(err, &parseErr) || errors.As(err, &usageErr) {
+	if isA[*kong.ParseError](err) || isA[*UsageErr](err) {
 		return UsageError
 	}
 
@@ -148,8 +144,7 @@ func Classify(err error) int {
 // matches *os.PathError directly and the fs sentinels it (and other I/O paths) wrap, so a
 // permission denial or a missing file is exit 5 regardless of which library raised it.
 func isFileIOError(err error) bool {
-	var pathErr *os.PathError
-	if errors.As(err, &pathErr) {
+	if isA[*os.PathError](err) {
 		return true
 	}
 	return errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission)
@@ -165,43 +160,24 @@ func isFileIOError(err error) bool {
 // net.Error interface, which would otherwise fall through to the general floor (exit 1) rather than
 // the network class (exit 4) the taxonomy assigns to a broken conversation.
 func isNetworkError(err error) bool {
-	var (
-		statusErr     *StatusError
-		protocolErr   *ProtocolErr
-		assocErr      *dimse.AssociationError
-		abortErr      *dimse.AbortError
-		protoErr      *dimse.ProtocolError
-		commitErr     *dimse.CommitmentFailureError
-		acseRejected  *acse.RejectedError
-		acseAborted   *acse.AbortedError
-		acseProtocol  *acse.ProtocolError
-		dulStateErr   *dul.StateError
-		pduErr        *pdu.PDUError
-		httpErr       *dicomweb.HTTPError
-		storeErr      *dicomweb.StoreError
-		failReasonErr *dicomweb.FailureReasonError
-		crossOrigin   *dicomweb.CrossOriginBulkDataError
-		opErr         *net.OpError
-		netErr        net.Error
-	)
 	switch {
-	case errors.As(err, &statusErr),
-		errors.As(err, &protocolErr),
-		errors.As(err, &assocErr),
-		errors.As(err, &abortErr),
-		errors.As(err, &protoErr),
-		errors.As(err, &commitErr),
-		errors.As(err, &acseRejected),
-		errors.As(err, &acseAborted),
-		errors.As(err, &acseProtocol),
-		errors.As(err, &dulStateErr),
-		errors.As(err, &pduErr),
-		errors.As(err, &httpErr),
-		errors.As(err, &storeErr),
-		errors.As(err, &failReasonErr),
-		errors.As(err, &crossOrigin),
-		errors.As(err, &opErr),
-		errors.As(err, &netErr):
+	case isA[*StatusError](err),
+		isA[*ProtocolErr](err),
+		isA[*dimse.AssociationError](err),
+		isA[*dimse.AbortError](err),
+		isA[*dimse.ProtocolError](err),
+		isA[*dimse.CommitmentFailureError](err),
+		isA[*acse.RejectedError](err),
+		isA[*acse.AbortedError](err),
+		isA[*acse.ProtocolError](err),
+		isA[*dul.StateError](err),
+		isA[*pdu.PDUError](err),
+		isA[*dicomweb.HTTPError](err),
+		isA[*dicomweb.StoreError](err),
+		isA[*dicomweb.FailureReasonError](err),
+		isA[*dicomweb.CrossOriginBulkDataError](err),
+		isA[*net.OpError](err),
+		isA[net.Error](err):
 		return true
 	}
 	return errors.Is(err, dicomweb.ErrCrossOriginBulkData)
@@ -214,42 +190,22 @@ func isNetworkError(err error) bool {
 // well-formed but cannot be processed faithfully, which is the same "cannot honour this data"
 // class as malformed input (docs/reference/cli.md resolved mapping).
 func isParseError(err error) bool {
-	var (
-		// dicom
-		dcmLimit   *dicom.LimitExceededError
-		dcmValue   *dicom.ValueError
-		dcmCodec   *dicom.CodecUnavailableError
-		dcmEncode  *dicom.EncodeUnsupportedError
-		dcmCharset *dicom.UnsupportedCharacterSetError
-		// dicomweb
-		webTrunc    *dicomweb.TruncatedError
-		webMalform  *dicomweb.MalformedPartError
-		webDecode   *dicomweb.DecodeError
-		webEncode   *dicomweb.EncodeError
-		webQuery    *dicomweb.QueryError
-		webLimit    *dicomweb.LimitExceededError
-		webValidErr *dimse.ValidationError
-		// hl7v2
-		hl7Parse   *hl7v2.ParseError
-		hl7Segment *hl7v2.SegmentError
-		hl7Frame   *hl7v2.FrameError
-	)
 	switch {
-	case errors.As(err, &dcmLimit),
-		errors.As(err, &dcmValue),
-		errors.As(err, &dcmCodec),
-		errors.As(err, &dcmEncode),
-		errors.As(err, &dcmCharset),
-		errors.As(err, &webTrunc),
-		errors.As(err, &webMalform),
-		errors.As(err, &webDecode),
-		errors.As(err, &webEncode),
-		errors.As(err, &webQuery),
-		errors.As(err, &webLimit),
-		errors.As(err, &webValidErr),
-		errors.As(err, &hl7Parse),
-		errors.As(err, &hl7Segment),
-		errors.As(err, &hl7Frame):
+	case isA[*dicom.LimitExceededError](err),
+		isA[*dicom.ValueError](err),
+		isA[*dicom.CodecUnavailableError](err),
+		isA[*dicom.EncodeUnsupportedError](err),
+		isA[*dicom.UnsupportedCharacterSetError](err),
+		isA[*dicomweb.TruncatedError](err),
+		isA[*dicomweb.MalformedPartError](err),
+		isA[*dicomweb.DecodeError](err),
+		isA[*dicomweb.EncodeError](err),
+		isA[*dicomweb.QueryError](err),
+		isA[*dicomweb.LimitExceededError](err),
+		isA[*dimse.ValidationError](err),
+		isA[*hl7v2.ParseError](err),
+		isA[*hl7v2.SegmentError](err),
+		isA[*hl7v2.FrameError](err):
 		return true
 	}
 	// Truncation is a parse failure: a short read mid-value propagates io.ErrUnexpectedEOF
@@ -277,6 +233,13 @@ func isParseError(err error) bool {
 		return true
 	}
 	return false
+}
+
+// isA reports whether err's chain contains an error of type T. The classifier branches on
+// the error class alone, so the matched value is discarded.
+func isA[T error](err error) bool {
+	_, ok := errors.AsType[T](err)
+	return ok
 }
 
 // FromOperationOutcome maps a FHIR structural validation result onto the taxonomy. A FHIR

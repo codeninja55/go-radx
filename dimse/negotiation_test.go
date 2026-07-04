@@ -130,8 +130,8 @@ func TestAuthenticatorRejectsUserIdentity(t *testing.T) {
 	if err == nil {
 		t.Fatal("Associate succeeded; want a rejection for failed authentication")
 	}
-	var ae *AssociationError
-	if !errors.As(err, &ae) {
+	ae, ok := errors.AsType[*AssociationError](err)
+	if !ok {
 		t.Fatalf("error = %v, want *AssociationError", err)
 	}
 	if ae.Kind != AssociationRejected {

@@ -22,8 +22,7 @@ func TestParseSRRejectsNonSR(t *testing.T) {
 	if _, err := ParseSR(ds); err == nil {
 		t.Fatal("ParseSR of a non-SR SOP class should return an error")
 	} else {
-		var ve *ValueError
-		if !errors.As(err, &ve) {
+		if _, ok := errors.AsType[*ValueError](err); !ok {
 			t.Errorf("want *ValueError for non-SR IOD, got %T: %v", err, err)
 		}
 	}
@@ -192,8 +191,8 @@ func TestParseSRDepthCap(t *testing.T) {
 	if err == nil {
 		t.Fatal("ParseSR of a 200-deep SR should fail the depth cap")
 	}
-	var le *LimitExceededError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LimitExceededError](err)
+	if !ok {
 		t.Fatalf("ParseSR deep error = %T %v, want *LimitExceededError", err, err)
 	}
 	if le.Kind != "sequence-depth" {

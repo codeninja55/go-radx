@@ -445,8 +445,7 @@ func TestFindOnReleasedAssociation(t *testing.T) {
 	if !statuses[0].IsFailure() {
 		t.Errorf("terminal status = %s, want a Failure category", statuses[0])
 	}
-	var assocErr *AssociationError
-	if !errors.As(assoc.LastError(), &assocErr) {
+	if _, ok := errors.AsType[*AssociationError](assoc.LastError()); !ok {
 		t.Errorf("LastError() = %T, want *AssociationError", assoc.LastError())
 	}
 }
@@ -592,8 +591,7 @@ func TestFindRejectsNonFindModel(t *testing.T) {
 	if len(statuses) != 1 || !statuses[0].IsFailure() {
 		t.Fatalf("Find with a MOVE model yielded %v, want one terminal failure", statuses)
 	}
-	var ve *ValidationError
-	if !errors.As(assoc.LastError(), &ve) {
+	if _, ok := errors.AsType[*ValidationError](assoc.LastError()); !ok {
 		t.Errorf("LastError() = %T, want *ValidationError", assoc.LastError())
 	}
 	_ = assoc.Abort(ctx)
@@ -623,8 +621,7 @@ func TestFindRejectsUnknownLevel(t *testing.T) {
 	if len(statuses) != 1 || !statuses[0].IsFailure() {
 		t.Fatalf("Find with an unknown level yielded %v, want one terminal failure", statuses)
 	}
-	var ve *ValidationError
-	if !errors.As(assoc.LastError(), &ve) {
+	if _, ok := errors.AsType[*ValidationError](assoc.LastError()); !ok {
 		t.Errorf("LastError() = %T, want *ValidationError", assoc.LastError())
 	}
 	_ = assoc.Abort(ctx)

@@ -526,20 +526,17 @@ func translateAssociateError(err error) error {
 		return &AssociationError{Kind: AssociationTimeout, Detail: err.Error()}
 	}
 
-	var rej *acse.RejectedError
-	if errors.As(err, &rej) {
+	if rej, ok := errors.AsType[*acse.RejectedError](err); ok {
 		return &AssociationError{Kind: AssociationRejected, Source: rej.Source, Reason: rej.Reason}
 	}
-	var ab *acse.AbortedError
-	if errors.As(err, &ab) {
+	if ab, ok := errors.AsType[*acse.AbortedError](err); ok {
 		kind := AssociationAborted
 		if ab.Provider {
 			kind = AssociationProviderAborted
 		}
 		return &AssociationError{Kind: kind, Source: ab.Source, Reason: ab.Reason}
 	}
-	var pe *acse.ProtocolError
-	if errors.As(err, &pe) {
+	if pe, ok := errors.AsType[*acse.ProtocolError](err); ok {
 		return &ProtocolError{State: pe.State, Detail: pe.Detail}
 	}
 	return err

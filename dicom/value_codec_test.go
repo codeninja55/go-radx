@@ -297,8 +297,7 @@ func TestEncodeIntsRejectsOutOfRangeValue(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := encodeValue(io.Discard, NewInts(tc.vr, tc.val), encodingFor(ExplicitVRLittleEndian))
-			var verr *ValueError
-			if !errors.As(err, &verr) {
+			if _, ok := errors.AsType[*ValueError](err); !ok {
 				t.Fatalf("encodeValue(%s, %d): err = %v, want *ValueError", tc.vr, tc.val, err)
 			}
 		})

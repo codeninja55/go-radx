@@ -224,8 +224,7 @@ func TestFindWorklistNoMatchingContext(t *testing.T) {
 	if len(statuses) != 1 || !statuses[0].IsFailure() {
 		t.Fatalf("FindWorklist with no worklist context yielded %v, want one terminal failure", statuses)
 	}
-	var assocErr *AssociationError
-	if !errors.As(assoc.LastError(), &assocErr) {
+	if _, ok := errors.AsType[*AssociationError](assoc.LastError()); !ok {
 		t.Errorf("LastError() = %T, want *AssociationError", assoc.LastError())
 	}
 }

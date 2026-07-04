@@ -283,7 +283,7 @@ func TestSigV4CredentialErrorSurfaces(t *testing.T) {
 func parseSigV4Header(t *testing.T, auth string) (credential, signedHeaders, signature string) {
 	t.Helper()
 	rest := strings.TrimPrefix(auth, "AWS4-HMAC-SHA256 ")
-	for _, part := range strings.Split(rest, ", ") {
+	for part := range strings.SplitSeq(rest, ", ") {
 		switch {
 		case strings.HasPrefix(part, "Credential="):
 			credential = strings.TrimPrefix(part, "Credential=")

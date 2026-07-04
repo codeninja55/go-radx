@@ -111,8 +111,7 @@ func TestStoreFailClosed(t *testing.T) {
 	if err == nil {
 		t.Fatal("Store of a failing instance returned nil error, want a fail-closed error")
 	}
-	var serr *StoreError
-	if !errors.As(err, &serr) {
+	if _, ok := errors.AsType[*StoreError](err); !ok {
 		t.Fatalf("Store error = %v, want *StoreError", err)
 	}
 	if resp == nil {

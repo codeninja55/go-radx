@@ -358,16 +358,14 @@ func TestDeferredLoadConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	results := make([]Value, 16)
 	for i := range results {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
+		wg.Go(func() {
 			v, err := dv.Load()
 			if err != nil {
 				t.Errorf("concurrent Load: %v", err)
 				return
 			}
 			results[i] = v
-		}(i)
+		})
 	}
 	wg.Wait()
 	for i := 1; i < len(results); i++ {

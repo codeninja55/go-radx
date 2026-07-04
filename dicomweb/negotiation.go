@@ -101,7 +101,7 @@ func transferSyntaxAcceptable(params map[string]string, emitTS dicom.TransferSyn
 	if !ok || ts == "" {
 		return true
 	}
-	for _, want := range strings.Split(ts, ",") {
+	for want := range strings.SplitSeq(ts, ",") {
 		want = strings.TrimSpace(want)
 		if want == "*" || want == string(emitTS) {
 			return true
@@ -211,7 +211,7 @@ func acceptTransferSyntaxes(accept string, rangeMatches func(mt string, params m
 	}
 	var out []string
 	seen := make(map[string]struct{})
-	for _, part := range strings.Split(accept, ",") {
+	for part := range strings.SplitSeq(accept, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
@@ -227,7 +227,7 @@ func acceptTransferSyntaxes(accept string, rangeMatches func(mt string, params m
 		if !ok || ts == "" {
 			continue
 		}
-		for _, want := range strings.Split(ts, ",") {
+		for want := range strings.SplitSeq(ts, ",") {
 			want = strings.TrimSpace(want)
 			if want == "" {
 				continue
@@ -355,7 +355,7 @@ func negotiate(accept string, match func(mt string, params map[string]string) bo
 		return true
 	}
 	bestAccept, bestRefuse := -1, -1
-	for _, part := range strings.Split(accept, ",") {
+	for part := range strings.SplitSeq(accept, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue

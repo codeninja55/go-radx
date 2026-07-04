@@ -137,8 +137,7 @@ func TestBuildSRRejectsNonContainerRoot(t *testing.T) {
 	if err == nil {
 		t.Fatal("BuildSR with a non-CONTAINER root should error")
 	}
-	var ve *ValueError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*ValueError](err); !ok {
 		t.Errorf("want *ValueError, got %T", err)
 	}
 }
@@ -164,8 +163,8 @@ func TestBuildSRDepthCap(t *testing.T) {
 	if err == nil {
 		t.Fatal("BuildSR of a 200-deep tree should fail the depth cap")
 	}
-	var le *LimitExceededError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LimitExceededError](err)
+	if !ok {
 		t.Fatalf("BuildSR deep error = %T %v, want *LimitExceededError", err, err)
 	}
 	if le.Kind != "sequence-depth" {

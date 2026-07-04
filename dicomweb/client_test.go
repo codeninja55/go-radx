@@ -129,8 +129,8 @@ func TestStoreFailClosedOnStatusWithSparseBody(t *testing.T) {
 	if err == nil {
 		t.Fatal("Store against a 409 with a sparse body returned nil error")
 	}
-	var serr *StoreError
-	if !errors.As(err, &serr) {
+	serr, ok := errors.AsType[*StoreError](err)
+	if !ok {
 		t.Fatalf("Store error = %v, want *StoreError", err)
 	}
 	if serr.Status != http.StatusConflict {

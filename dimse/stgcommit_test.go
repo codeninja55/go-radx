@@ -702,8 +702,8 @@ func TestFailedSOPInstanceErrorIsTyped(t *testing.T) {
 	if err == nil {
 		t.Fatal("Err must be non-nil for a result with failed instances")
 	}
-	var cfe *CommitmentFailureError
-	if !errors.As(err, &cfe) {
+	cfe, ok := errors.AsType[*CommitmentFailureError](err)
+	if !ok {
 		t.Fatalf("Err = %T, want *CommitmentFailureError", err)
 	}
 	if cfe.FailedCount != 1 {

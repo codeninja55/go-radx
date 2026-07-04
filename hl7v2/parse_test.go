@@ -70,8 +70,7 @@ func TestParseRoundTripLineEndings(t *testing.T) {
 func TestParseNotMSHFirst(t *testing.T) {
 	body := "PID|||555-44-4444\rMSH|^~\\&|\r"
 	_, err := Parse([]byte(body))
-	var pe *ParseError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ParseError](err); !ok {
 		t.Fatalf("Parse(non-MSH-first) error = %v, want *ParseError", err)
 	}
 }
@@ -81,8 +80,7 @@ func TestParseTruncatedMidSegment(t *testing.T) {
 	// truncation and must surface io.ErrUnexpectedEOF wrapped in a *ParseError.
 	for _, body := range []string{"MSH", "MSH|", "MSH|^~\\"} {
 		_, err := Parse([]byte(body))
-		var pe *ParseError
-		if !errors.As(err, &pe) {
+		if _, ok := errors.AsType[*ParseError](err); !ok {
 			t.Fatalf("Parse(%q) error = %v, want *ParseError", body, err)
 		}
 		if !errors.Is(err, io.ErrUnexpectedEOF) {

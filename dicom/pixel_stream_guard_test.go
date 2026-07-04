@@ -52,8 +52,8 @@ func TestReadEncapsulatedAggregateStreamCap(t *testing.T) {
 	src := &countingReader{data: data}
 	_, err := Read(src, WithMaxElementLen(cap))
 
-	var lim *LimitExceededError
-	if !errors.As(err, &lim) {
+	lim, ok := errors.AsType[*LimitExceededError](err)
+	if !ok {
 		t.Fatalf("Read = %v, want *LimitExceededError", err)
 	}
 	if lim.Kind != "element-length" {
@@ -110,8 +110,8 @@ func TestReadEncapsulatedNonZeroDelimiterLength(t *testing.T) {
 		out.Write([]byte{0xDE, 0xAD, 0xBE, 0xEF})
 	})
 	_, err := Read(bytes.NewReader(data))
-	var ve *ValueError
-	if !errors.As(err, &ve) {
+	ve, ok := errors.AsType[*ValueError](err)
+	if !ok {
 		t.Fatalf("Read = %v, want *ValueError for a non-zero Sequence Delimitation Item length", err)
 	}
 	if ve.Tag != tagSequenceDelimit {
@@ -129,8 +129,7 @@ func TestReadEncapsulatedOddFragmentLength(t *testing.T) {
 		out.Write(seedSequenceDelimiter())
 	})
 	_, err := Read(bytes.NewReader(data))
-	var ve *ValueError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*ValueError](err); !ok {
 		t.Fatalf("Read = %v, want *ValueError for an odd fragment item length", err)
 	}
 }

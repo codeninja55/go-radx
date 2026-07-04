@@ -130,8 +130,8 @@ func TestNewSpecificCharacterSetUnknownTermErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("NewSpecificCharacterSet(ISO_IR 9999) = nil error, want typed error")
 	}
-	var ue *UnsupportedCharacterSetError
-	if !errors.As(err, &ue) {
+	ue, ok := errors.AsType[*UnsupportedCharacterSetError](err)
+	if !ok {
 		t.Fatalf("error is %T, want *UnsupportedCharacterSetError", err)
 	}
 	if ue.DefinedTerm != "ISO_IR 9999" {

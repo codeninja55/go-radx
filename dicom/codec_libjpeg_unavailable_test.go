@@ -42,8 +42,8 @@ func TestBaselineJPEGReturnsCodecUnavailable(t *testing.T) {
 	if !errors.Is(gotErr, ErrCodecUnavailable) {
 		t.Errorf("error = %v, want ErrCodecUnavailable", gotErr)
 	}
-	var cue *CodecUnavailableError
-	if !errors.As(gotErr, &cue) {
+	cue, ok := errors.AsType[*CodecUnavailableError](gotErr)
+	if !ok {
 		t.Fatalf("error %v is not a *CodecUnavailableError", gotErr)
 	}
 	if cue.TransferSyntax != JPEGBaseline8Bit {

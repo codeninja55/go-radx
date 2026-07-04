@@ -141,8 +141,7 @@ func TestReaderUnknownCharsetIsTypedError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Read with unknown charset = nil error, want typed error")
 	}
-	var ue *UnsupportedCharacterSetError
-	if !errors.As(err, &ue) {
+	if _, ok := errors.AsType[*UnsupportedCharacterSetError](err); !ok {
 		t.Fatalf("error is %T, want *UnsupportedCharacterSetError", err)
 	}
 }

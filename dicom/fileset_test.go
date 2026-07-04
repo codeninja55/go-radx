@@ -344,8 +344,8 @@ func TestFileSetBuilderRequiredKeyMissing(t *testing.T) {
 	// basic-text-sr.dcm has a zero-length PatientID: the PATIENT record key is
 	// required, so Add must fail fast with a typed error naming the tag.
 	err := NewFileSetBuilder().Add(fixturePath("basic-text-sr.dcm"))
-	var verr *ValueError
-	if !errors.As(err, &verr) {
+	verr, ok := errors.AsType[*ValueError](err)
+	if !ok {
 		t.Fatalf("Add = %v, want *ValueError", err)
 	}
 	if verr.Tag != TagPatientID {
@@ -355,7 +355,7 @@ func TestFileSetBuilderRequiredKeyMissing(t *testing.T) {
 	f := fileSetSample("P1", "1.2.3.1", "1.2.3.1.1", "1.2.3.1.1.1", "1")
 	f.DataSet.Delete(TagStudyID)
 	err = NewFileSetBuilder().AddFile(f)
-	if !errors.As(err, &verr) || verr.Tag != TagStudyID {
+	if verr, ok := errors.AsType[*ValueError](err); !ok || verr.Tag != TagStudyID {
 		t.Errorf("AddFile without StudyID = %v, want *ValueError at StudyID", err)
 	}
 }
@@ -366,8 +366,7 @@ func TestFileSetBuilderDuplicateInstance(t *testing.T) {
 		t.Fatal(err)
 	}
 	err := b.Add(fixturePath("liver.dcm"))
-	var verr *ValueError
-	if !errors.As(err, &verr) || verr.Tag != TagSOPInstanceUID {
+	if verr, ok := errors.AsType[*ValueError](err); !ok || verr.Tag != TagSOPInstanceUID {
 		t.Errorf("duplicate Add = %v, want *ValueError at SOPInstanceUID", err)
 	}
 }
@@ -385,8 +384,7 @@ func TestFileSetBuilderIDValidation(t *testing.T) {
 
 func TestOpenFileSetRejectsNonDICOMDIR(t *testing.T) {
 	_, err := OpenFileSet(fixturePath("liver.dcm"))
-	var verr *ValueError
-	if !errors.As(err, &verr) {
+	if _, ok := errors.AsType[*ValueError](err); !ok {
 		t.Fatalf("OpenFileSet(liver.dcm) = %v, want *ValueError", err)
 	}
 }

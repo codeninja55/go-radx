@@ -20,6 +20,12 @@ legacy codebase (`legacy-main`) and are not continued here.
   xml2dcm evidence, both Summary top-gap entries) and dimse.md (N-EVENT-REPORT receive is a general SCP via
   `NEventReportHandler`), and a fhir.md evidence miscount fixed (workflow resource set is 6 types, not 8).
   Aggregate is now 270 MET / 45 PARTIAL / 84 NOT-MET / 15 N-A across 414 rows. (#150)
+- Modern Go idiom sweep across the non-generated packages: all 204 `errors.As` call sites now use Go 1.26's
+  `errors.AsType[T]` (cmd/radx's exit-code type switch gains an unexported `isA[T]` helper); the ten
+  adjacent `Add(1)`+`go`+`Done` goroutine spawns use Go 1.25's `WaitGroup.Go` (the five trackConn-pattern
+  sites keep explicit `Add` because they deliberately count connections under the server mutex before the
+  goroutine exists); seven single-pass `strings.Split` loops use Go 1.24's `strings.SplitSeq`. No
+  behavioural change; generated FHIR trees untouched. (#151)
 
 ## [0.11.0] - 2026-06-21
 

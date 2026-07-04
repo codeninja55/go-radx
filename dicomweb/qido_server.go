@@ -133,8 +133,7 @@ const warningResultsTruncated = `299 dicomweb "There are more results than the m
 // queryErrorStatus maps a parse error to its HTTP status and the classifying sentinel for
 // the problem document. A *QueryError names both; any other error is a 400 bad request.
 func queryErrorStatus(err error) (int, error) {
-	var qe *QueryError
-	if errors.As(err, &qe) {
+	if qe, ok := errors.AsType[*QueryError](err); ok {
 		return qe.Status, qe.cause
 	}
 	return http.StatusBadRequest, err

@@ -383,8 +383,7 @@ func (c *Container) postWithRetry(ctx context.Context, path, contentType string,
 		if err == nil {
 			return nil
 		}
-		var statusErr *httpStatusError
-		if !errors.As(err, &statusErr) || !statusErr.transient() {
+		if statusErr, ok := errors.AsType[*httpStatusError](err); !ok || !statusErr.transient() {
 			return err
 		}
 		lastErr = err

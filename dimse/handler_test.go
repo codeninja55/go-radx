@@ -123,8 +123,7 @@ func TestValidateStoreContext(t *testing.T) {
 	if err == nil {
 		t.Fatal("mismatched SOP class = nil error, want a protocol fault")
 	}
-	var pe *ProtocolError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ProtocolError](err); !ok {
 		t.Errorf("error = %T, want *ProtocolError", err)
 	}
 
@@ -163,8 +162,7 @@ func TestServeEchoRejectsNonVerificationContext(t *testing.T) {
 	if err == nil {
 		t.Fatal("C-ECHO on a Storage context = nil error, want a protocol fault")
 	}
-	var pe *ProtocolError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ProtocolError](err); !ok {
 		t.Errorf("error = %T, want *ProtocolError", err)
 	}
 
@@ -242,8 +240,7 @@ func TestValidateStoreInstance(t *testing.T) {
 	if err == nil {
 		t.Fatal("mismatched instance UID = nil error, want a protocol fault")
 	}
-	var pe *ProtocolError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ProtocolError](err); !ok {
 		t.Errorf("error = %T, want *ProtocolError", err)
 	}
 
