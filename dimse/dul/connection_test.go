@@ -127,8 +127,8 @@ func TestDriveInboundAbortOnInvalidPDU(t *testing.T) {
 	}
 	// The error must be a *StateError reporting the state that RECEIVED the bad PDU (Sta6),
 	// not the post-abort Sta13, and it must wrap the underlying codec error for detail.
-	var se *StateError
-	if !errors.As(err, &se) {
+	se, ok := errors.AsType[*StateError](err)
+	if !ok {
 		t.Fatalf("DriveInbound error = %T, want *StateError", err)
 	}
 	if se.State != Sta6 {
@@ -191,8 +191,7 @@ func TestDriveInboundUnexpectedRecognizedPDUAbortReason(t *testing.T) {
 	if err == nil {
 		t.Fatal("DriveInbound on an unexpected recognised PDU = nil error, want a protocol error")
 	}
-	var se *StateError
-	if !errors.As(err, &se) {
+	if _, ok := errors.AsType[*StateError](err); !ok {
 		t.Fatalf("DriveInbound error = %T, want *StateError", err)
 	}
 	if action != AA8 {

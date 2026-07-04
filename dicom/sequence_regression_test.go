@@ -121,8 +121,8 @@ func TestRegressionSequenceDepthCap(t *testing.T) {
 
 	br := newBoundedReader(bytes.NewReader(buf.Bytes()), defaultMaxElementLen)
 	_, err := readDataSet(br, ExplicitVRLittleEndian, newReadConfig(WithMaxSequenceDepth(cap)))
-	var le *LimitExceededError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LimitExceededError](err)
+	if !ok {
 		t.Fatalf("deep sequence error = %v, want *LimitExceededError", err)
 	}
 	if le.Kind != "sequence-depth" {

@@ -280,8 +280,8 @@ func TestRetrieveStudyNotFoundIs404(t *testing.T) {
 		got = err
 		break
 	}
-	var he *HTTPError
-	if !errors.As(got, &he) || he.StatusCode != http.StatusNotFound {
+	he, ok := errors.AsType[*HTTPError](got)
+	if !ok || he.StatusCode != http.StatusNotFound {
 		t.Fatalf("empty-study retrieve error = %v, want HTTPError 404", got)
 	}
 }
@@ -733,8 +733,8 @@ func TestResolveBulkDataURICrossOriginRefusedByDefault(t *testing.T) {
 		if !errors.Is(err, ErrCrossOriginBulkData) {
 			t.Fatalf("cross-origin ResolveBulkDataURI: err = %v, want ErrCrossOriginBulkData", err)
 		}
-		var coe *CrossOriginBulkDataError
-		if !errors.As(err, &coe) {
+		coe, ok := errors.AsType[*CrossOriginBulkDataError](err)
+		if !ok {
 			t.Fatalf("err = %v, want a *CrossOriginBulkDataError", err)
 		}
 		otherURL, _ := url.Parse(other.URL)
@@ -947,8 +947,8 @@ func TestBulkDataURIReturnsExactlyTheReferencedAttribute(t *testing.T) {
 	base := strings.TrimSuffix(string(uris[0]), "/7FE00010")
 	for _, bogus := range []string{base + "/00100010", base + "/ZZZZ"} {
 		_, rerr := c.ResolveBulkDataURI(context.Background(), BulkDataURI(bogus))
-		var he *HTTPError
-		if !errors.As(rerr, &he) || he.StatusCode != http.StatusNotFound {
+		he, ok := errors.AsType[*HTTPError](rerr)
+		if !ok || he.StatusCode != http.StatusNotFound {
 			t.Errorf("bogus locator %q error = %v, want HTTPError 404", bogus, rerr)
 		}
 	}

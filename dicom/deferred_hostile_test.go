@@ -23,8 +23,8 @@ func TestDeferredLoadSourceShrank(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = dv.Load()
-	var dle *DeferredLoadError
-	if !errors.As(err, &dle) {
+	dle, ok := errors.AsType[*DeferredLoadError](err)
+	if !ok {
 		t.Fatalf("Load on a shrunk source = %v, want *DeferredLoadError", err)
 	}
 	if dle.Tag != TagPixelData {
@@ -33,7 +33,8 @@ func TestDeferredLoadSourceShrank(t *testing.T) {
 
 	// The write path must propagate the typed failure, never emit a wrong length.
 	var out bytes.Buffer
-	if err := Write(&out, f); !errors.As(err, &dle) {
+	err = Write(&out, f)
+	if _, ok := errors.AsType[*DeferredLoadError](err); !ok {
 		t.Errorf("Write over an unloadable deferred value = %v, want *DeferredLoadError", err)
 	}
 }
@@ -50,8 +51,7 @@ func TestDeferredLoadSourceRemoved(t *testing.T) {
 	}
 	e, _ := f.DataSet.Get(TagPixelData)
 	_, err = e.Value.(*DeferredValue).Load()
-	var dle *DeferredLoadError
-	if !errors.As(err, &dle) {
+	if _, ok := errors.AsType[*DeferredLoadError](err); !ok {
 		t.Fatalf("Load on a removed source = %v, want *DeferredLoadError", err)
 	}
 	// The accessor path reads an unloadable value as absent rather than panicking.
@@ -89,8 +89,7 @@ func TestDeferredEncapsulatedLoadRevalidates(t *testing.T) {
 	}
 
 	_, err = dv.Load()
-	var dle *DeferredLoadError
-	if !errors.As(err, &dle) {
+	if _, ok := errors.AsType[*DeferredLoadError](err); !ok {
 		t.Fatalf("Load over a corrupted fragment stream = %v, want *DeferredLoadError", err)
 	}
 }

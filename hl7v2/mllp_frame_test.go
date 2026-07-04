@@ -98,8 +98,7 @@ func TestReadFrameRejectsMissingStartBlock(t *testing.T) {
 	// silently tolerated, because a peer that drops the start block has lost sync.
 	src := bufio.NewReader(bytes.NewReader([]byte{0x42, EndBlock, CarriageReturn}))
 	_, err := ReadFrame(context.Background(), src, DefaultMaxFrameSize)
-	var fe *FrameError
-	if !errors.As(err, &fe) {
+	if _, ok := errors.AsType[*FrameError](err); !ok {
 		t.Fatalf("err = %v, want *FrameError", err)
 	}
 }
@@ -115,8 +114,7 @@ func TestReadFrameBoundsBeforeAllocation(t *testing.T) {
 		hostile = append(hostile, 'A') // never an EndBlock
 	}
 	_, err := ReadFrame(context.Background(), bufio.NewReader(bytes.NewReader(hostile)), max)
-	var fe *FrameError
-	if !errors.As(err, &fe) {
+	if _, ok := errors.AsType[*FrameError](err); !ok {
 		t.Fatalf("err = %v, want *FrameError for oversize frame", err)
 	}
 }
@@ -127,8 +125,7 @@ func TestReadFrameTruncatedIsFrameErrorAndUnexpectedEOF(t *testing.T) {
 	// truncation is a frame fault that also unwraps to the unexpected-EOF sentinel.
 	src := bufio.NewReader(bytes.NewReader(append([]byte{StartBlock}, []byte("MSH|^~\\&")...)))
 	_, err := ReadFrame(context.Background(), src, DefaultMaxFrameSize)
-	var fe *FrameError
-	if !errors.As(err, &fe) {
+	if _, ok := errors.AsType[*FrameError](err); !ok {
 		t.Fatalf("err = %v, want *FrameError on truncation", err)
 	}
 	if !errors.Is(err, io.ErrUnexpectedEOF) {

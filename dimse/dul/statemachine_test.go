@@ -178,8 +178,7 @@ func TestApplyUnexpectedEventDrivesAA8(t *testing.T) {
 		if err == nil {
 			t.Errorf("Apply(%v, %v) = nil error, want a protocol-error", c.state, c.event)
 		}
-		var se *StateError
-		if !errors.As(err, &se) {
+		if _, ok := errors.AsType[*StateError](err); !ok {
 			t.Errorf("Apply(%v, %v) error = %T, want *StateError", c.state, c.event, err)
 		}
 		if action != AA8 {

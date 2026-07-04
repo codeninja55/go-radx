@@ -87,8 +87,8 @@ func runHTJ2KHostileWorker() {
 		os.Stderr.WriteString("worker: hostile input decoded without error\n")
 		os.Exit(1)
 	}
-	var je *jpeg2000Error
-	if !errors.As(decErr, &je) || !errors.Is(decErr, ErrJPEG2000) {
+	_, ok := errors.AsType[*jpeg2000Error](decErr)
+	if !ok || !errors.Is(decErr, ErrJPEG2000) {
 		os.Stderr.WriteString("worker: error is not a typed jpeg2000Error: " + decErr.Error() + "\n")
 		os.Exit(1)
 	}

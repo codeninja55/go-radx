@@ -188,8 +188,8 @@ func TestOpenFileSetRejectsNonExplicitVRLETransferSyntax(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err = OpenFileSet(path)
-			var verr *ValueError
-			if !errors.As(err, &verr) {
+			verr, ok := errors.AsType[*ValueError](err)
+			if !ok {
 				t.Fatalf("OpenFileSet(%s DICOMDIR) = %v, want *ValueError", ts.Name(), err)
 			}
 			if verr.Tag != tagTransferSyntax {
@@ -224,8 +224,8 @@ func TestOpenFileSetTruncatedDICOMDIR(t *testing.T) {
 func assertFileSetValueError(t *testing.T, path, wantSubstring string) {
 	t.Helper()
 	_, err := OpenFileSet(path)
-	var verr *ValueError
-	if !errors.As(err, &verr) {
+	verr, ok := errors.AsType[*ValueError](err)
+	if !ok {
 		t.Fatalf("OpenFileSet = %v, want *ValueError", err)
 	}
 	if !strings.Contains(verr.Error(), wantSubstring) {

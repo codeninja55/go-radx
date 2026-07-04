@@ -81,8 +81,7 @@ func TestPDVDecodeRejectsUnderflowLength(t *testing.T) {
 		if err == nil {
 			t.Fatalf("decodePDV(item length %d) = nil error, want rejection", badLen)
 		}
-		var pe *PDUError
-		if !errors.As(err, &pe) {
+		if _, ok := errors.AsType[*PDUError](err); !ok {
 			t.Errorf("decodePDV(item length %d) error = %T, want *PDUError", badLen, err)
 		}
 	}
@@ -117,8 +116,7 @@ func TestPDVDecodeRejectsOversizedPayloadBeforeAlloc(t *testing.T) {
 	if err == nil {
 		t.Fatal("decodePDV should reject a payload exceeding MaxPDULength before allocation")
 	}
-	var pe *PDUError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*PDUError](err); !ok {
 		t.Errorf("error = %T, want *PDUError", err)
 	}
 }
@@ -131,8 +129,7 @@ func TestDataTFRejectsEmptyBody(t *testing.T) {
 	if err == nil {
 		t.Fatal("Decode of an empty P-DATA-TF body should be a protocol error")
 	}
-	var pe *PDUError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*PDUError](err); !ok {
 		t.Errorf("error = %T, want *PDUError", err)
 	}
 }

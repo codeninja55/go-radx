@@ -185,8 +185,7 @@ func TestRequestRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("Associate against a rejecting acceptor = nil error, want a rejection")
 	}
-	var re *RejectedError
-	if !errors.As(err, &re) {
+	if _, ok := errors.AsType[*RejectedError](err); !ok {
 		t.Fatalf("Associate error = %T, want *RejectedError", err)
 	}
 }
@@ -268,8 +267,7 @@ func TestServeReleaseSendsAbortOnProtocolViolation(t *testing.T) {
 		if serr == nil {
 			t.Fatal("ServeRelease on a protocol violation = nil error, want a *ProtocolError")
 		}
-		var pe *ProtocolError
-		if !errors.As(serr, &pe) {
+		if _, ok := errors.AsType[*ProtocolError](serr); !ok {
 			t.Fatalf("ServeRelease error = %T, want *ProtocolError", serr)
 		}
 	case <-time.After(3 * time.Second):
@@ -337,8 +335,8 @@ func TestAcceptRejectsWrongCalledAETitle(t *testing.T) {
 	if err == nil {
 		t.Fatal("Associate with a wrong Called AE Title = nil error, want a rejection")
 	}
-	var re *RejectedError
-	if !errors.As(err, &re) {
+	re, ok := errors.AsType[*RejectedError](err)
+	if !ok {
 		t.Fatalf("Associate error = %T, want *RejectedError", err)
 	}
 	if re.Source != pdu.AssociateRJSourceServiceUser {
@@ -351,8 +349,7 @@ func TestAcceptRejectsWrongCalledAETitle(t *testing.T) {
 	if serr := <-acceptErr; serr == nil {
 		t.Fatal("Accept on a wrong Called AE Title = nil error, want a *RejectedError")
 	} else {
-		var sre *RejectedError
-		if !errors.As(serr, &sre) {
+		if _, ok := errors.AsType[*RejectedError](serr); !ok {
 			t.Fatalf("Accept error = %T, want *RejectedError", serr)
 		}
 	}
@@ -377,8 +374,8 @@ func TestAcceptRejectsUnlistedCallingAETitle(t *testing.T) {
 		if err == nil {
 			t.Fatal("Associate from an unlisted Calling AE Title = nil error, want a rejection")
 		}
-		var re *RejectedError
-		if !errors.As(err, &re) {
+		re, ok := errors.AsType[*RejectedError](err)
+		if !ok {
 			t.Fatalf("Associate error = %T, want *RejectedError", err)
 		}
 		if re.Reason != reasonCallingAETitleNotRecognized {

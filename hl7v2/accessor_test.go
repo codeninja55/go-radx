@@ -66,8 +66,7 @@ func TestParseAccessorErrors(t *testing.T) {
 		"PID.F5.C2.R1", // prefixes out of order
 	} {
 		_, err := ParseAccessor(key)
-		var ae *AccessorError
-		if !errors.As(err, &ae) {
+		if _, ok := errors.AsType[*AccessorError](err); !ok {
 			t.Errorf("ParseAccessor(%q) error = %v, want *AccessorError", key, err)
 		}
 	}
@@ -204,8 +203,7 @@ func TestGetPathPastLeaf(t *testing.T) {
 	// past the leaf and is a malformed request, not an absent optional.
 	for _, key := range []string{"PID-8-1-1-2", "ORC-1-1-2"} {
 		_, err := msg.Get(key)
-		var ae *AccessorError
-		if !errors.As(err, &ae) {
+		if _, ok := errors.AsType[*AccessorError](err); !ok {
 			t.Errorf("Get(%q) error = %v, want *AccessorError", key, err)
 		}
 	}
@@ -257,8 +255,7 @@ func TestSetNeverInventsSegment(t *testing.T) {
 	}
 	// NTE is absent; Set must refuse rather than synthesize a segment.
 	err = msg.Set("NTE-3", "a comment")
-	var ae *AccessorError
-	if !errors.As(err, &ae) {
+	if _, ok := errors.AsType[*AccessorError](err); !ok {
 		t.Fatalf("Set(NTE-3) error = %v, want *AccessorError", err)
 	}
 	if _, ok := msg.Segment("NTE"); ok {
@@ -292,8 +289,7 @@ func TestSetMSHDelimitersRejected(t *testing.T) {
 	// desynchronize the message from its delimiters.
 	for _, key := range []string{"MSH-1", "MSH-2"} {
 		err := msg.Set(key, "x")
-		var ae *AccessorError
-		if !errors.As(err, &ae) {
+		if _, ok := errors.AsType[*AccessorError](err); !ok {
 			t.Errorf("Set(%q) error = %v, want *AccessorError", key, err)
 		}
 	}

@@ -211,8 +211,7 @@ func TestDecodedPhotometricInterpretationMapping(t *testing.T) {
 	for _, tc := range cases {
 		got, err := decodedPhotometricInterpretation(tc.src, tc.pi)
 		if tc.wantErr {
-			var ve *ValueError
-			if !errors.As(err, &ve) {
+			if _, ok := errors.AsType[*ValueError](err); !ok {
 				t.Errorf("(%s, %s): err = %v, want *ValueError (fail closed)", tc.src.Name(), tc.pi, err)
 			}
 			continue
@@ -238,8 +237,8 @@ func TestTranscodeFailsClosedOnUndeterminedColourModel(t *testing.T) {
 		encaps: &encapsulated{fragments: []fragment{{data: []byte{0, 0}}}},
 	}
 	_, err := Transcode(src, ExplicitVRLittleEndian)
-	var ve *ValueError
-	if !errors.As(err, &ve) {
+	ve, ok := errors.AsType[*ValueError](err)
+	if !ok {
 		t.Fatalf("Transcode = %v, want *ValueError failing closed on the colour model", err)
 	}
 	if ve.Tag != TagPhotometricInterpretation {

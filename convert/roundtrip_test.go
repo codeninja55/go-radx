@@ -156,8 +156,7 @@ func TestSRReverseStrictLossEscalates(t *testing.T) {
 		t.Fatalf("forward: %v", err)
 	}
 	_, _, err = DiagnosticReportToSR(dr, observations, WithUIDRoot(roundTripUIDRoot), WithStrictLoss())
-	var lossErr *LossError
-	if !errors.As(err, &lossErr) {
+	if _, ok := errors.AsType[*LossError](err); !ok {
 		t.Fatalf("DiagnosticReportToSR with WithStrictLoss returned %v, want a *LossError for the dropped valueTime leaf", err)
 	}
 }

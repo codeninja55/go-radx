@@ -252,8 +252,7 @@ func TestReassemblerRejectsOversizedMessage(t *testing.T) {
 	if err == nil {
 		t.Fatal("over-cap fragment returned nil error, want a typed *ProtocolError before unbounded growth")
 	}
-	var pe *ProtocolError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ProtocolError](err); !ok {
 		t.Fatalf("over-cap error = %T, want *ProtocolError", err)
 	}
 	if got := len(r.commandBytes); got != len(first) {
@@ -362,8 +361,7 @@ func TestReassemblerRejectsMixedContextID(t *testing.T) {
 	if err == nil {
 		t.Fatal("PDV on a mismatched presentation context = nil error, want a protocol fault")
 	}
-	var pe *ProtocolError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ProtocolError](err); !ok {
 		t.Errorf("error = %T, want *ProtocolError", err)
 	}
 }

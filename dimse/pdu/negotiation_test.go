@@ -423,8 +423,7 @@ func assertEncodeError(t *testing.T, err error) {
 	if err == nil {
 		t.Fatal("got nil error, want an *EncodeError for the over-length field")
 	}
-	var ee *EncodeError
-	if !errors.As(err, &ee) {
+	if _, ok := errors.AsType[*EncodeError](err); !ok {
 		t.Fatalf("error = %T (%v), want *EncodeError", err, err)
 	}
 }

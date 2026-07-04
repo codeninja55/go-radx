@@ -328,8 +328,7 @@ func TestMalformedMultipartErrorIsStructural(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a malformed part header")
 	}
-	var mpErr *MalformedPartError
-	if !errors.As(err, &mpErr) {
+	if _, ok := errors.AsType[*MalformedPartError](err); !ok {
 		t.Errorf("error = %v, want *MalformedPartError", err)
 	}
 	if strings.Contains(err.Error(), secret) {

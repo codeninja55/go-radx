@@ -29,8 +29,8 @@ func TestVerifyChecksumsRejectsMismatch(t *testing.T) {
 	if err == nil {
 		t.Fatal("verifyChecksums should reject a drifted file")
 	}
-	var le *LoadError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LoadError](err)
+	if !ok {
 		t.Fatalf("error = %T, want *LoadError", err)
 	}
 	if !strings.Contains(le.Error(), "a.json") {
@@ -57,8 +57,8 @@ func TestVerifyChecksumsRejectsMissingFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("verifyChecksums should reject a missing listed file")
 	}
-	var le *LoadError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LoadError](err)
+	if !ok {
 		t.Fatalf("error = %T, want *LoadError", err)
 	}
 	if !strings.Contains(le.Error(), "absent.json") {
@@ -76,8 +76,8 @@ func TestVerifyChecksumsRejectsMissingManifest(t *testing.T) {
 	if err == nil {
 		t.Fatal("verifyChecksums should reject a directory without SHA256SUMS")
 	}
-	var le *LoadError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LoadError](err)
+	if !ok {
 		t.Fatalf("error = %T, want *LoadError", err)
 	}
 	if !strings.Contains(le.Error(), sumsFile) {
@@ -237,8 +237,8 @@ func TestLoadRejectsMissingValuesets(t *testing.T) {
 	if err == nil {
 		t.Fatal("Load should fail when valuesets.json is missing")
 	}
-	var le *LoadError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LoadError](err)
+	if !ok {
 		t.Fatalf("error = %T, want *LoadError", err)
 	}
 	if !strings.Contains(le.Error(), "valuesets.json") {
@@ -267,8 +267,8 @@ func TestLoadRejectsMalformedBundle(t *testing.T) {
 	if err == nil {
 		t.Fatal("Load should fail on a malformed bundle file")
 	}
-	var le *LoadError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LoadError](err)
+	if !ok {
 		t.Fatalf("error = %T, want *LoadError", err)
 	}
 	if !strings.Contains(le.Error(), "profiles-resources.json") {
@@ -297,8 +297,8 @@ func TestLoadRejectsUnpinnedRequiredFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("Load should reject a required file missing from the manifest")
 	}
-	var le *LoadError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LoadError](err)
+	if !ok {
 		t.Fatalf("error = %T, want *LoadError", err)
 	}
 	if !strings.Contains(le.Error(), "valuesets.json") {
@@ -328,8 +328,8 @@ func TestLoadRejectsTruncatedBundleObject(t *testing.T) {
 	if err == nil {
 		t.Fatal("Load should fail on a truncated bundle object")
 	}
-	var le *LoadError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LoadError](err)
+	if !ok {
 		t.Fatalf("error = %T, want *LoadError", err)
 	}
 	if !strings.Contains(le.Error(), "profiles-types.json") {
@@ -367,8 +367,8 @@ func TestLoadRejectsTrailingContent(t *testing.T) {
 			if err == nil {
 				t.Fatal("Load should fail on trailing content after the bundle object")
 			}
-			var le *LoadError
-			if !errors.As(err, &le) {
+			le, ok := errors.AsType[*LoadError](err)
+			if !ok {
 				t.Fatalf("error = %T, want *LoadError", err)
 			}
 			if !strings.Contains(le.Error(), "profiles-resources.json") {
@@ -400,8 +400,8 @@ func TestLoadRejectsResourcelessEntry(t *testing.T) {
 	if err == nil {
 		t.Fatal("Load should fail on a bundle entry with no resource")
 	}
-	var le *LoadError
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*LoadError](err)
+	if !ok {
 		t.Fatalf("error = %T, want *LoadError", err)
 	}
 	if !strings.Contains(le.Error(), "profiles-resources.json") {

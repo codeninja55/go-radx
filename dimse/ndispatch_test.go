@@ -319,8 +319,7 @@ func TestValidateNContext(t *testing.T) {
 		if err := validateNContext(mismatch, 1, abstractFor, Sta6); err == nil {
 			t.Errorf("%s: mismatched Requested SOP Class on the negotiated context = nil error, want a protocol fault", tc.name)
 		} else {
-			var pe *ProtocolError
-			if !errors.As(err, &pe) {
+			if _, ok := errors.AsType[*ProtocolError](err); !ok {
 				t.Errorf("%s: error = %T, want *ProtocolError", tc.name, err)
 			}
 		}

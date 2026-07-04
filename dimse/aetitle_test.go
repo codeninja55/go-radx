@@ -70,8 +70,7 @@ func TestParseAETitleRejectsBadRepertoire(t *testing.T) {
 
 func TestParseAETitleErrorIsTyped(t *testing.T) {
 	_, err := ParseAETitle("")
-	var ve *ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*ValidationError](err); !ok {
 		t.Errorf("ParseAETitle(\"\") error = %T, want *ValidationError", err)
 	}
 }

@@ -33,8 +33,7 @@ func TestParseDARejectsPartialFormsByDefault(t *testing.T) {
 		if _, err := ParseDA(s); err == nil {
 			t.Errorf("ParseDA(%q) strict: want error, got nil (DCM-010)", s)
 		} else {
-			var ve *ValueError
-			if !errors.As(err, &ve) {
+			if _, ok := errors.AsType[*ValueError](err); !ok {
 				t.Errorf("ParseDA(%q) error = %T, want *ValueError", s, err)
 			}
 		}

@@ -136,8 +136,8 @@ func TestBuildACKSendingOverride(t *testing.T) {
 
 func TestBuildACKMissingMSH(t *testing.T) {
 	_, err := (&Message{}).BuildACK(AckAccept)
-	var se *SegmentError
-	if !errors.As(err, &se) {
+	se, ok := errors.AsType[*SegmentError](err)
+	if !ok {
 		t.Fatalf("BuildACK on MSH-less message error = %v, want *SegmentError", err)
 	}
 	if se.Segment != "MSH" {

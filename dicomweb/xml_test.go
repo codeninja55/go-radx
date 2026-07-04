@@ -217,8 +217,7 @@ func TestUnmarshalXMLRejectsNonRoot(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a non-NativeDicomModel root")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -242,8 +241,7 @@ func TestUnmarshalXMLRejectsUnknownVR(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an unknown VR")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }
@@ -269,8 +267,7 @@ func TestUnmarshalXMLRejectsMultipleForms(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for multiple value forms")
 	}
-	var decErr *DecodeError
-	if !errors.As(err, &decErr) {
+	if _, ok := errors.AsType[*DecodeError](err); !ok {
 		t.Errorf("error = %v, want *DecodeError", err)
 	}
 }

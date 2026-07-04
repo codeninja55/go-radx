@@ -38,8 +38,7 @@ func TestNewAEValidatesTitle(t *testing.T) {
 	if err == nil {
 		t.Fatal("NewAE with a 17+ char title = nil error, want rejection")
 	}
-	var ve *ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*ValidationError](err); !ok {
 		t.Errorf("NewAE error = %T, want *ValidationError", err)
 	}
 }

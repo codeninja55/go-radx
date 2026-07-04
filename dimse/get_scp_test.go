@@ -36,8 +36,7 @@ func TestValidateGetContext(t *testing.T) {
 	if err := validateGetContext(onMove, 3, abstractFor, Sta6); err == nil {
 		t.Error("C-GET on a non-GET (MOVE) context = nil error, want a protocol fault")
 	} else {
-		var pe *ProtocolError
-		if !errors.As(err, &pe) {
+		if _, ok := errors.AsType[*ProtocolError](err); !ok {
 			t.Errorf("error = %T, want *ProtocolError", err)
 		}
 	}
@@ -511,8 +510,8 @@ func TestGetPreflightFailsClosedWithoutStorageSCPRole(t *testing.T) {
 	if len(statuses) != 1 || !statuses[0].IsFailure() {
 		t.Fatalf("preflight without a granted Storage SCP role yielded %v, want one terminal Failure", statuses)
 	}
-	var ve *ValidationError
-	if err := assoc.LastError(); !errors.As(err, &ve) {
+	err = assoc.LastError()
+	if _, ok := errors.AsType[*ValidationError](err); !ok {
 		t.Fatalf("LastError = %v (%T), want a *ValidationError for the missing Storage SCP role", err, err)
 	}
 	// Nothing was stored: the C-GET never reached the wire (no sub-operations were received).
@@ -609,8 +608,7 @@ func TestServeGetTerminalCancelOnInboundCancel(t *testing.T) {
 	// The SCU's cancel-drain leaves the association clean: no transport/protocol fault is recorded, so
 	// the association is reusable rather than poisoned by a spurious ProtocolError on the SCP side.
 	if err := assoc.LastError(); err != nil {
-		var pe *ProtocolError
-		if errors.As(err, &pe) {
+		if _, ok := errors.AsType[*ProtocolError](err); ok {
 			t.Fatalf("inbound C-CANCEL was treated as a protocol fault, poisoning the association: %v", err)
 		}
 		t.Fatalf("Get LastError = %v, want nil after a clean cancellation", err)

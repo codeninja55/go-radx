@@ -750,8 +750,7 @@ func translateDriveError(m *dul.StateMachine, err error) error {
 	if errors.Is(err, io.EOF) {
 		return &ProtocolError{State: m.CurrentState(), Detail: "transport closed before the expected PDU arrived"}
 	}
-	var se *dul.StateError
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[*dul.StateError](err); ok {
 		return &ProtocolError{State: se.State, Detail: se.Error()}
 	}
 	return &ProtocolError{State: m.CurrentState(), Detail: fmt.Sprintf("reading PDU: %v", err)}

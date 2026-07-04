@@ -48,8 +48,7 @@ func TestJPEGLSReturnsCodecUnavailable(t *testing.T) {
 		if !errors.Is(gotErr, ErrCodecUnavailable) {
 			t.Errorf("%s: error = %v, want ErrCodecUnavailable", f.file, gotErr)
 		}
-		var cue *CodecUnavailableError
-		if !errors.As(gotErr, &cue) {
+		if _, ok := errors.AsType[*CodecUnavailableError](gotErr); !ok {
 			t.Fatalf("%s: error %v is not a *CodecUnavailableError", f.file, gotErr)
 		}
 	}

@@ -90,8 +90,7 @@ func TestStoreNoMatchingContextTransmitsNothing(t *testing.T) {
 	if err == nil {
 		t.Fatal("Store with no matching context returned nil error, want a typed error (fail-closed)")
 	}
-	var ae2 *AssociationError
-	if !errors.As(err, &ae2) {
+	if _, ok := errors.AsType[*AssociationError](err); !ok {
 		t.Errorf("Store error = %T, want *AssociationError", err)
 	}
 
@@ -114,8 +113,7 @@ func TestStoreOnUnestablishedAssociationReturnsTypedError(t *testing.T) {
 	ds := dicom.NewDataSet()
 	ds.SetString(dicom.NewTag(0x0008, 0x0016), "1.2.840.10008.5.1.4.1.1.2")
 	_, err := a.Store(context.Background(), ds)
-	var ae *AssociationError
-	if !errors.As(err, &ae) {
+	if _, ok := errors.AsType[*AssociationError](err); !ok {
 		t.Fatalf("Store on nil association error = %T, want *AssociationError", err)
 	}
 }
@@ -164,8 +162,7 @@ func TestStoreNoSOPInstanceUIDTransmitsNothing(t *testing.T) {
 	if err == nil {
 		t.Fatal("Store of a dataset with no SOP Instance UID returned nil error, want a *ValidationError")
 	}
-	var ve *ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*ValidationError](err); !ok {
 		t.Errorf("Store error = %T, want *ValidationError", err)
 	}
 

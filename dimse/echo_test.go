@@ -197,8 +197,7 @@ func TestEchoOnReleasedAssociationReturnsTypedError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Echo on a released association = nil error, want a typed error")
 	}
-	var assocErr *AssociationError
-	if !errors.As(err, &assocErr) {
+	if _, ok := errors.AsType[*AssociationError](err); !ok {
 		t.Errorf("Echo-on-released error = %T, want *AssociationError", err)
 	}
 }
@@ -320,8 +319,7 @@ func TestEchoRejectsResponseWithoutStatus(t *testing.T) {
 	if err == nil {
 		t.Fatal("Echo on a C-ECHO-RSP without Status = nil error, want a protocol error (not success)")
 	}
-	var pe *ProtocolError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ProtocolError](err); !ok {
 		t.Errorf("error = %T, want *ProtocolError", err)
 	}
 }

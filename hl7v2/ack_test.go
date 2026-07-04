@@ -27,8 +27,7 @@ func TestParseAckCode(t *testing.T) {
 
 func TestParseAckCodeUnknown(t *testing.T) {
 	_, err := ParseAckCode("ZZ")
-	var pe *ParseError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ParseError](err); !ok {
 		t.Fatalf("ParseAckCode(ZZ) error = %v, want *ParseError", err)
 	}
 }

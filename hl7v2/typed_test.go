@@ -85,8 +85,8 @@ func TestParseSegmentWrongID(t *testing.T) {
 	pid, _ := msg.Segment("PID")
 
 	_, err := ParseORC(pid)
-	var se *SegmentError
-	if !errors.As(err, &se) {
+	se, ok := errors.AsType[*SegmentError](err)
+	if !ok {
 		t.Fatalf("ParseORC(PID) error = %v, want *SegmentError", err)
 	}
 	if se.Segment != "PID" {
@@ -285,8 +285,7 @@ func TestParseMSA(t *testing.T) {
 func TestParseMSAUnknownAckCode(t *testing.T) {
 	seg := parseTestSegment("MSA|ZZ|MSG0001")
 	_, err := ParseMSA(seg)
-	var se *SegmentError
-	if !errors.As(err, &se) {
+	if _, ok := errors.AsType[*SegmentError](err); !ok {
 		t.Fatalf("ParseMSA(bad code) error = %v, want *SegmentError", err)
 	}
 }
@@ -346,8 +345,8 @@ func TestTypedSegmentWrongID(t *testing.T) {
 		"ParseMSA": func(s Segment) error { _, err := ParseMSA(s); return err },
 		"ParseERR": func(s Segment) error { _, err := ParseERR(s); return err },
 	} {
-		var se *SegmentError
-		if err := fn(pid); !errors.As(err, &se) {
+		err := fn(pid)
+		if se, ok := errors.AsType[*SegmentError](err); !ok {
 			t.Errorf("%s(PID) error = %v, want *SegmentError", name, err)
 		} else if se.Segment != "PID" {
 			t.Errorf("%s(PID) SegmentError.Segment = %q, want PID", name, se.Segment)

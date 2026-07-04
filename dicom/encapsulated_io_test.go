@@ -188,8 +188,7 @@ func TestWriteEncapsulatedValueUnderUncompressedSyntaxFails(t *testing.T) {
 
 	var buf bytes.Buffer
 	err = Write(&buf, f)
-	var ve *ValueError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*ValueError](err); !ok {
 		t.Fatalf("Write = %v, want *ValueError for encapsulated pixel data under an uncompressed syntax", err)
 	}
 	if buf.Len() != 0 {
@@ -305,9 +304,9 @@ func TestReadEncapsulatedHostileInputs(t *testing.T) {
 				}
 				return
 			}
-			var ve *ValueError
-			var le *LimitExceededError
-			if !errors.As(err, &ve) && !errors.As(err, &le) && !errors.Is(err, io.ErrUnexpectedEOF) {
+			_, isValueError := errors.AsType[*ValueError](err)
+			_, isLimitError := errors.AsType[*LimitExceededError](err)
+			if !isValueError && !isLimitError && !errors.Is(err, io.ErrUnexpectedEOF) {
 				t.Errorf("error = %v (%T), want a typed dicom error", err, err)
 			}
 		})

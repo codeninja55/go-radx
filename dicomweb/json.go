@@ -545,8 +545,7 @@ func isJSONEndOfInput(err error) bool {
 	if errors.Is(err, io.ErrUnexpectedEOF) {
 		return true
 	}
-	var se *json.SyntaxError
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[*json.SyntaxError](err); ok {
 		return se.Error() == "unexpected end of JSON input"
 	}
 	return false

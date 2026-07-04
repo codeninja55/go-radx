@@ -767,8 +767,8 @@ func TestOperationOutcomeErrorMapping(t *testing.T) {
 			if !errors.Is(err, rest.ErrUnprocessable) {
 				t.Errorf("422: errors.Is ErrUnprocessable = false; err = %v", err)
 			}
-			var ooErr *rest.OperationOutcomeError
-			if !errors.As(err, &ooErr) {
+			ooErr, ok := errors.AsType[*rest.OperationOutcomeError](err)
+			if !ok {
 				t.Fatalf("422: errors.As *OperationOutcomeError = false; err = %v", err)
 			}
 			if ooErr.StatusCode != http.StatusUnprocessableEntity {

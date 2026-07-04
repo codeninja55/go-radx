@@ -322,8 +322,7 @@ func translateInboundError(m *dul.StateMachine, err error) error {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
-	var se *dul.StateError
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[*dul.StateError](err); ok {
 		return &ProtocolError{State: se.State, Detail: se.Error()}
 	}
 	return &ProtocolError{State: m.CurrentState(), Detail: "reading DIMSE message: " + err.Error()}
@@ -331,8 +330,7 @@ func translateInboundError(m *dul.StateMachine, err error) error {
 
 // wrapStateError wraps a dul state-machine fault as a typed *ProtocolError naming the state.
 func wrapStateError(m *dul.StateMachine, err error) error {
-	var se *dul.StateError
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[*dul.StateError](err); ok {
 		return &ProtocolError{State: se.State, Detail: se.Error()}
 	}
 	return &ProtocolError{State: m.CurrentState(), Detail: err.Error()}

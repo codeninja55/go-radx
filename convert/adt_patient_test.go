@@ -142,8 +142,7 @@ func TestADTToPatientR5StrictLossEscalates(t *testing.T) {
 	if err == nil {
 		t.Fatal("error = nil, want a *LossError under WithStrictLoss for a lossy birth date")
 	}
-	var le *LossError
-	if !errors.As(err, &le) {
+	if _, ok := errors.AsType[*LossError](err); !ok {
 		t.Fatalf("error = %T, want *LossError", err)
 	}
 	// The default (lenient) path must keep returning a nil error.

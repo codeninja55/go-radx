@@ -53,8 +53,7 @@ func TestUIDValidateErrorIsTyped(t *testing.T) {
 	if err == nil {
 		t.Fatal("want error")
 	}
-	var ve *ValueError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*ValueError](err); !ok {
 		t.Errorf("want *ValueError, got %T", err)
 	}
 }

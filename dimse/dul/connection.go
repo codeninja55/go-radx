@@ -246,8 +246,7 @@ func (c *Conn) watchContext(ctx context.Context, setDeadline func(time.Time) err
 // rather than an opaque timeout.
 func (c *Conn) translateDeadline(ctx context.Context, err error) error {
 	if ctxErr := ctx.Err(); ctxErr != nil {
-		var ne net.Error
-		if errors.As(err, &ne) && ne.Timeout() {
+		if ne, ok := errors.AsType[net.Error](err); ok && ne.Timeout() {
 			return ctxErr
 		}
 		if errors.Is(err, os.ErrDeadlineExceeded) {

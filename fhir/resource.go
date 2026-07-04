@@ -259,8 +259,7 @@ func mapDecodeError(err error) error {
 		}
 		return fmt.Errorf("%w: %w", io.ErrUnexpectedEOF, err)
 	}
-	var syntaxErr *json.SyntaxError
-	if errors.As(err, &syntaxErr) && syntaxErr.Error() == errUnexpectedEndOfJSON {
+	if syntaxErr, ok := errors.AsType[*json.SyntaxError](err); ok && syntaxErr.Error() == errUnexpectedEndOfJSON {
 		return fmt.Errorf("%w: %w", io.ErrUnexpectedEOF, err)
 	}
 	return err

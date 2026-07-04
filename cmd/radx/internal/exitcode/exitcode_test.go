@@ -193,8 +193,7 @@ func refusedConnectionFixture(t *testing.T) error {
 		_ = conn.Close()
 		t.Fatalf("dial of a closed port unexpectedly succeeded")
 	}
-	var opErr *net.OpError
-	if !errors.As(dialErr, &opErr) {
+	if _, ok := errors.AsType[*net.OpError](dialErr); !ok {
 		t.Fatalf("refused-connection error = %T, want a *net.OpError", dialErr)
 	}
 	return dialErr

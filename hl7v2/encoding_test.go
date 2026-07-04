@@ -67,8 +67,7 @@ func TestDeriveEncoding(t *testing.T) {
 func TestDeriveEncodingNotMSH(t *testing.T) {
 	for _, header := range []string{"PID|", "MS", "", "BHS|^~\\&"} {
 		_, err := DeriveEncoding([]byte(header))
-		var pe *ParseError
-		if !errors.As(err, &pe) {
+		if _, ok := errors.AsType[*ParseError](err); !ok {
 			t.Fatalf("DeriveEncoding(%q) error = %v, want *ParseError", header, err)
 		}
 	}

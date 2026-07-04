@@ -122,8 +122,7 @@ func TestOperationOnReleasedAssociationReturnsTypedError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Abort on a released association = nil error, want a typed error")
 	}
-	var ae2 *AssociationError
-	if !errors.As(err, &ae2) {
+	if _, ok := errors.AsType[*AssociationError](err); !ok {
 		t.Errorf("Abort-on-released error = %T, want *AssociationError", err)
 	}
 }
@@ -145,8 +144,7 @@ func TestOperationOnUnestablishedAssociationReturnsTypedError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Release on an unestablished association = nil error, want a typed error")
 	}
-	var assocErr *AssociationError
-	if !errors.As(err, &assocErr) {
+	if _, ok := errors.AsType[*AssociationError](err); !ok {
 		t.Errorf("Release-on-unestablished error = %T, want *AssociationError", err)
 	}
 }
@@ -184,8 +182,7 @@ func TestAssociateRejectsInvalidCalledTitle(t *testing.T) {
 	if err == nil {
 		t.Fatal("Associate with an invalid called AE title = nil error, want rejection")
 	}
-	var ve *ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*ValidationError](err); !ok {
 		t.Errorf("error = %T, want *ValidationError (no dial attempted)", err)
 	}
 }

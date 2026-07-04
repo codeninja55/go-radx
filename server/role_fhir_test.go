@@ -581,8 +581,8 @@ func TestFHIRRoleClientConditionalCreateSurfacesTypedError(t *testing.T) {
 			if cerr == nil {
 				t.Fatal("conditional Create returned nil error, want the 400 typed error")
 			}
-			var ooErr *rest.OperationOutcomeError
-			if !errors.As(cerr, &ooErr) {
+			ooErr, ok := errors.AsType[*rest.OperationOutcomeError](cerr)
+			if !ok {
 				t.Fatalf("conditional Create error = %T (%v), want *rest.OperationOutcomeError", cerr, cerr)
 			}
 			if ooErr.StatusCode != http.StatusBadRequest {

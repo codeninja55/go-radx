@@ -615,8 +615,7 @@ func failedItem(ds *dicom.DataSet, reason uint16) *dicom.DataSet {
 // reported as the generic processing-failure reason (0x0110), so the failure is recorded
 // without inventing a more specific cause.
 func storeFailureReason(err error) uint16 {
-	var fr *FailureReasonError
-	if errors.As(err, &fr) {
+	if fr, ok := errors.AsType[*FailureReasonError](err); ok {
 		return fr.Reason
 	}
 	return 0x0110
