@@ -1,6 +1,7 @@
 package dicom
 
 import (
+	"cmp"
 	"encoding/binary"
 	"math"
 )
@@ -196,10 +197,8 @@ func ApplyWindowing(in []float64, ds *DataSet, index int, yMin, yMax float64) ([
 	w := widths[index]
 	fn := parseVOILUTFunction(stringValue(ds, TagVOILUTFunction))
 
-	if (fn == VOILUTFunctionLinear && w < 1) || (fn != VOILUTFunctionLinear && w <= 0) {
-		// PS3.3 §C.11.2.1.2.1 requires Window Width >= 1 for LINEAR; the exact and
-		// sigmoid forms divide by w directly, so a non-positive width has no defined
-		// output. Reject rather than emit NaN/Inf into a displayed image.
+	if !windowWidthUsable(w, fn) {
+		// Reject rather than emit NaN/Inf into a displayed image.
 		return nil, &ValueError{
 			Tag: TagWindowWidth, VR: VRDS, Msg: "window width below the minimum for the selected VOI LUT function",
 		}
@@ -209,6 +208,90 @@ func ApplyWindowing(in []float64, ds *DataSet, index int, yMin, yMax float64) ([
 		out[i] = windowValue(x, c, w, fn, yMin, yMax)
 	}
 	return out, nil
+}
+
+// windowWidthUsable reports whether w is a defined Window Width for fn: PS3.3
+// §C.11.2.1.2.1 requires Window Width >= 1 for LINEAR; the exact and sigmoid forms
+// divide by w directly, so a non-positive width has no defined output.
+func windowWidthUsable(w float64, fn VOILUTFunction) bool {
+	if fn == VOILUTFunctionLinear {
+		return w >= 1
+	}
+	return w > 0
+}
+
+// voiToDisplay maps modality-LUT output onto the [yMin, yMax] display range using the
+// dataset's value-of-interest state, with ApplyVOILUT's precedence: the index-th VOI
+// LUT Sequence table when present, else the index-th Window Center/Width pair when
+// usable. ok is false when the dataset carries neither a table nor a usable window
+// (absent elements, an out-of-range index, or a width below the selected function's
+// minimum), so display callers can fall back to their own mapping rather than fail on
+// a degenerate window.
+//
+// The table path normalises the table output over its observed entry range rather
+// than the descriptor's declared bit depth: DCMTK's dcmimgle derives the display
+// scaling from the table data's min/max the same way, and pydicom returns table
+// output unscaled, so the observed range is the strongest reference behaviour.
+func voiToDisplay(in []float64, ds *DataSet, index int, yMin, yMax float64) ([]float64, bool, error) {
+	if lut, ok, err := voiLUT(ds, index); err != nil {
+		return nil, false, err
+	} else if ok {
+		out := make([]float64, len(in))
+		for i, x := range in {
+			out[i] = lut.Apply(x)
+		}
+		lo, hi := minMax(lut.Data)
+		stretchToDisplay(out, float64(lo), float64(hi), yMin, yMax)
+		return out, true, nil
+	}
+
+	centers, okC := decimalFloats(ds, TagWindowCenter)
+	widths, okW := decimalFloats(ds, TagWindowWidth)
+	if !okC || !okW || index < 0 || index >= len(centers) || index >= len(widths) {
+		return nil, false, nil
+	}
+	if !windowWidthUsable(widths[index], parseVOILUTFunction(stringValue(ds, TagVOILUTFunction))) {
+		return nil, false, nil
+	}
+	out, err := ApplyWindowing(in, ds, index, yMin, yMax)
+	if err != nil {
+		return nil, false, err
+	}
+	return out, true, nil
+}
+
+// stretchToDisplay maps vals in place linearly from [lo, hi] onto [yMin, yMax]. A
+// degenerate range sets every value to yMin rather than dividing by zero. The
+// multiplication runs before the division so exactly representable midpoints stay
+// exact (50*255/100 = 127.5), where a precomputed scale factor would round them a ULP
+// low and shift half-up rounding down a level.
+func stretchToDisplay(vals []float64, lo, hi, yMin, yMax float64) {
+	if hi <= lo {
+		for i := range vals {
+			vals[i] = yMin
+		}
+		return
+	}
+	for i, v := range vals {
+		vals[i] = (v-lo)*(yMax-yMin)/(hi-lo) + yMin
+	}
+}
+
+// minMax returns the smallest and largest of vals, or zero values for an empty slice.
+func minMax[T cmp.Ordered](vals []T) (lo, hi T) {
+	if len(vals) == 0 {
+		return lo, hi
+	}
+	lo, hi = vals[0], vals[0]
+	for _, v := range vals[1:] {
+		if v < lo {
+			lo = v
+		}
+		if v > hi {
+			hi = v
+		}
+	}
+	return lo, hi
 }
 
 // windowValue maps one value through the selected windowing function. The formulae

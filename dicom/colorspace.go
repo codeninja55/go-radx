@@ -73,7 +73,7 @@ func ApplyColorLUT(frame Frame, ds *DataSet, geom PixelGeometry, bo binary.ByteO
 		return []byte{}, nil
 	}
 
-	indices, err := paletteIndices(frame.Pixels, pixels, geom.BitsAllocated, signed, bo)
+	indices, err := decodeStoredValues(frame.Pixels, pixels, geom, signed, bo)
 	if err != nil {
 		return nil, err
 	}
@@ -191,43 +191,6 @@ func decodePaletteEntries(raw []byte, numEntries, bitsPerEntry int, dataTag Tag,
 		}
 	}
 	return out, nil
-}
-
-// paletteIndices reads one index per pixel from a PALETTE COLOR frame: a byte each at
-// 8 BitsAllocated, a word each at 16 decoded with byte order bo. When signed is true the
-// image's Pixel Representation (0028,0103) is two's-complement, so indices are int8/int16
-// (PS3.3 C.7.6.3.1.5); otherwise they are unsigned. It fails closed on an unsupported bit
-// depth or a frame shorter than the pixel count requires.
-func paletteIndices(pixels []byte, count int, bitsAllocated uint16, signed bool, bo binary.ByteOrder) ([]int, error) {
-	idx := make([]int, count)
-	switch bitsAllocated {
-	case 8:
-		if len(pixels) < count {
-			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "PALETTE COLOR frame shorter than pixel count"}
-		}
-		for i := range count {
-			if signed {
-				idx[i] = int(int8(pixels[i])) // #nosec G115 -- two's-complement index per PS3.3 C.7.6.3.1.5
-			} else {
-				idx[i] = int(pixels[i])
-			}
-		}
-	case 16:
-		if len(pixels) < 2*count {
-			return nil, &ValueError{Tag: TagPixelData, VR: VROBorOW, Msg: "PALETTE COLOR frame shorter than pixel count"}
-		}
-		for i := range count {
-			w := bo.Uint16(pixels[i*2 : i*2+2])
-			if signed {
-				idx[i] = int(int16(w)) // #nosec G115 -- two's-complement index per PS3.3 C.7.6.3.1.5
-			} else {
-				idx[i] = int(w)
-			}
-		}
-	default:
-		return nil, &ValueError{Tag: TagBitsAllocated, VR: VRUS, Msg: fmt.Sprintf("PALETTE COLOR supports 8 or 16 BitsAllocated, got %d", bitsAllocated)}
-	}
-	return idx, nil
 }
 
 // ConvertColorSpace converts one decoded colour frame between photometric
