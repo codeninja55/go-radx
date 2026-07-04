@@ -180,8 +180,17 @@ closed (`500`) rather than reporting an empty result a caller would read as "no 
 
 ### Client
 
-The client exposes `SearchStudies`, `SearchSeries`, and `SearchInstances`. The query string is stripped from any URL
-recorded in an error, since a QIDO query string can carry patient identifiers.
+The client exposes `SearchStudies`, `SearchSeries`, and `SearchInstances`, plus the auto-paginating
+`SearchStudiesAll`, `SearchSeriesAll`, and `SearchInstancesAll`, which walk the offset/limit window until the origin
+reports the result set exhausted: the walk continues while the origin signals additional results with a
+`Warning: 299` element (only a 299 whose text carries the additional-results semantic counts; an unrelated 299 such
+as a fuzzymatching downgrade never forces a page) or fills the requested page. With a page size set the walk stops
+on a short page served without the warning; with no page size it walks until an empty page. A page that fails to
+advance (an origin ignoring the offset) aborts the walk with the accumulated results and an error, and the walk is
+bounded by a maximum page count — exceeding it returns the accumulated results with a truncation error, never a
+silent partial set. The single-shot `SearchStudiesPage`, `SearchSeriesPage`, and `SearchInstancesPage` variants
+surface the truncation signal for callers paging manually. The query string is stripped from any URL recorded in an
+error, since a QIDO query string can carry patient identifiers.
 
 ### Roles
 

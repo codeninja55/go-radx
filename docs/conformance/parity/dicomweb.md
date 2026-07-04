@@ -12,7 +12,7 @@ NOT-MET (absent), N-A (not applicable). Size estimates for non-MET rows: S (days
 
 ## Summary
 
-Across 75 rows: 47 MET, 7 PARTIAL, 19 NOT-MET, 2 N-A.
+Across 75 rows: 48 MET, 7 PARTIAL, 18 NOT-MET, 2 N-A.
 
 The shipped core — QIDO-RS search (all six resource paths, full PS3.4 matching semantics), WADO-RS retrieval
 (study/series/instance/metadata/frames/bulkdata), and STOW-RS storage (both body variants server-side) — is at
@@ -48,7 +48,7 @@ Reference: dicomweb-client package API (readthedocs, fetched 2026-06-10). Rows c
 | `search_for_series` | QIDO-RS series query | MET | `qido_client.go:56` `SearchSeries` (with or without study scope) | - | |
 | `search_for_instances` | QIDO-RS instance query | MET | `qido_client.go:67` `SearchInstances` | - | |
 | Search params: `fuzzymatching`, `limit`, `offset`, `fields`, `search_filters` | search method params | MET | `qido_client.go:21` `SearchQuery` (Fuzzy, Limit, Offset, IncludeFields, IncludeAll, Match) | - | Query string stripped from errors (PHI) |
-| Auto-pagination (`get_remaining`) | search method params | NOT-MET | manual Limit/Offset only | S | Caller loops on offset; Warning 299 signals truncation server-side |
+| Auto-pagination (`get_remaining`) | search method params | MET | `qido_client.go` `SearchStudiesAll`/`SearchSeriesAll`/`SearchInstancesAll`: offset/limit walk; continues on the Warning: 299 additional-results signal (PS3.18 §10.6.1.4, parsed quote-aware per warning element and only for the additional-results semantic — an unrelated 299 never forces a page) or a full page; with a Limit stops on a short unwarned page, without one walks to an empty page (get_remaining semantics); aborts with a typed error on a non-advancing page (offset-ignoring origin); bounded by maxPages with a truncation error, context-aware; single-shot `SearchStudiesPage`/`SearchSeriesPage`/`SearchInstancesPage` surface the truncation signal for manual paging; tests `qido_pagination_test.go` | - | Mirrors `fhir/rest.SearchAll`'s bounded-accumulate shape; manual Limit/Offset paging unchanged |
 | `retrieve_study` / `iter_study` | WADO-RS study retrieve | MET | `client_retrieve.go:22` `RetrieveStudy` (iterator); `:64` `RetrieveStudyObjects` (byte-preserving) | - | Iterator-first design covers both Python forms |
 | `retrieve_series` / `iter_series` | WADO-RS series retrieve | MET | `client_retrieve.go:29` `RetrieveSeries`; `:71` `RetrieveSeriesObjects` | - | |
 | `retrieve_instance` | WADO-RS instance retrieve | MET | `dicomweb/client.go:327` `RetrieveInstance`; `:342` `RetrieveInstanceObject` | - | Object form preserves origin transfer syntax byte-for-byte |
