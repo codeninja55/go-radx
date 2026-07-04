@@ -12,7 +12,7 @@ NOT-MET (absent), N-A (not applicable). Size estimates for non-MET rows: S (days
 
 ## Summary
 
-Across 75 rows: 46 MET, 7 PARTIAL, 20 NOT-MET, 2 N-A.
+Across 75 rows: 47 MET, 7 PARTIAL, 19 NOT-MET, 2 N-A.
 
 The shipped core — QIDO-RS search (all six resource paths, full PS3.4 matching semantics), WADO-RS retrieval
 (study/series/instance/metadata/frames/bulkdata), and STOW-RS storage (both body variants server-side) — is at
@@ -56,7 +56,7 @@ Reference: dicomweb-client package API (readthedocs, fetched 2026-06-10). Rows c
 | `retrieve_instance_frames` / `iter_instance_frames` | WADO-RS frames | MET | `client_retrieve.go:186` `RetrieveFrames` (1-based) | - | `application/octet-stream` parts only |
 | Per-call `media_types` (incl. transfer-syntax UID pairs) | retrieve method params | PARTIAL | client-level `WithTransferSyntaxes` (`client.go:78`) drives the Accept header | M | No per-call media type; no consumer-format (image/jpeg) Accept |
 | `retrieve_bulkdata` (by URL) | WADO-RS bulkdata | MET | `client_retrieve.go:196` `RetrieveBulkData`; `:222` `ResolveBulkDataURI`; `bulkdata.go` `BulkDataURIs` | - | Origin-scoped: foreign-host URIs blocked unless allowlisted (`client.go:98,108`) |
-| `byte_range` on bulkdata retrieval | `retrieve_bulkdata(byte_range=...)` | NOT-MET | no Range header in `client_retrieve.go` | S | |
+| `byte_range` on bulkdata retrieval | `retrieve_bulkdata(byte_range=...)` | MET | `client_retrieve.go` `ResolveBulkDataURIRange`/`ByteRange` (inclusive `bytes=start-end` incl. `bytes=0-0`; nil End is the explicit open-ended `bytes=start-`, mirroring the reference's omitted tuple end); accepts multipart or raw octet-stream bodies on a rangeful 206/200 and tolerates a 200 full-body answer per the reference semantics; negative or inverted ranges rejected before the wire; tests `bulkdata_range_test.go` | - | Client-only: the embeddable server ignores Range and answers 200 with the full value (valid per RFC 9110); a rangeless fetch still refuses a stray 206 and requires multipart framing |
 | `retrieve_instance_rendered` | WADO-RS rendered | NOT-MET | no rendered path in `dicomweb/` | L | Deferred in conformance v1 (`../dicomweb.md` out-of-scope) |
 | `retrieve_series_rendered` | WADO-RS rendered | NOT-MET | none | L | |
 | `retrieve_instance_frames_rendered` | WADO-RS rendered frames | NOT-MET | none | L | |
@@ -88,7 +88,7 @@ metadata, bulkdata, pixel data, rendered, thumbnail variants), §11 (Worklist Se
 | Retrieve instance | §10.4 | MET | `client.go:327` | - | |
 | Retrieve metadata (study/series/instance) | §10.4, `.../metadata` | MET | `client_retrieve.go:156` (JSON), `RetrieveMetadataXML` (XML) | - | Both `application/dicom+json` and `application/dicom+xml` Accept |
 | Retrieve frames | §10.4, `.../frames/{list}` | MET | `client_retrieve.go:186` | - | Octet-stream parts; no consumer media types |
-| Retrieve bulkdata | §10.4, `.../bulkdata` | MET | `client_retrieve.go:196,222` | - | No Range requests |
+| Retrieve bulkdata | §10.4, `.../bulkdata` | MET | `client_retrieve.go:196,222`; ranged retrieval via `ResolveBulkDataURIRange` | - | Range requests supported on the URI-based resolver |
 | Retrieve pixel data resources | Table 10.1-1 pixel data | NOT-MET | none (`pixeldata` appears only in path redaction, `client.go:510`) | M | |
 | Retrieve rendered (study/series/instance/frames, incl. volumetric) | §10.4 rendered | NOT-MET | none | L | |
 | Retrieve thumbnail (every level) | §10.4 thumbnail | NOT-MET | none | M | |

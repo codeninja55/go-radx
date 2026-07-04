@@ -104,6 +104,11 @@ absolute reference is fetched as given. The bulkdata server resolves a reference
 referenced value, top-level and nested sequence paths alike; a locator that names no binary attribute of the
 instance answers `404`. The bare `.../bulkdata` sub-resource returns every bulk-data value of the instance.
 
+The client can fetch part of a referenced value with `ResolveBulkDataURIRange`, which sends an HTTP `Range` header
+(`bytes=start-end`, or open-ended `bytes=start-`). An origin that honours the range answers `206 Partial Content`
+with only the requested octets; an origin that ignores it answers `200` with the full value, which is returned
+as-is. The embeddable server does not honour `Range` and always answers `200` with the full value.
+
 ### Errors
 
 A retrieval fault is a typed problem document carrying the mapped HTTP status and a PHI-free structural detail. A
