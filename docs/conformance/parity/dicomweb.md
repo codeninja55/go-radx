@@ -12,7 +12,7 @@ NOT-MET (absent), N-A (not applicable). Size estimates for non-MET rows: S (days
 
 ## Summary
 
-Across 75 rows: 45 MET, 7 PARTIAL, 21 NOT-MET, 2 N-A.
+Across 75 rows: 46 MET, 7 PARTIAL, 20 NOT-MET, 2 N-A.
 
 The shipped core — QIDO-RS search (all six resource paths, full PS3.4 matching semantics), WADO-RS retrieval
 (study/series/instance/metadata/frames/bulkdata), and STOW-RS storage (both body variants server-side) — is at
@@ -43,7 +43,7 @@ Reference: dicomweb-client package API (readthedocs, fetched 2026-06-10). Rows c
 | Client construction (base URL, custom HTTP transport, headers) | `DICOMwebClient.__init__` | MET | `dicomweb/client.go:149` `NewClient`; `WithHTTPClient` (:60), `WithRoundTripper` (`auth.go:32`) | - | Custom headers via a caller RoundTripper |
 | Per-service URL prefixes (`qido/wado/stow/delete_url_prefix`) | `DICOMwebClient.__init__` | NOT-MET | single `baseURL` only (`client.go:149`) | S | Rarely needed; most origins share one base path |
 | Streaming / `chunk_size`, `set_chunk_size` | `DICOMwebClient.set_chunk_size` | PARTIAL | streaming iterators (`client_retrieve.go:22,29`); `WithMaxResponseBytes` (`client.go:72`) | S | Reads stream and are bounded; no chunked-transfer control on store |
-| HTTP retry (`set_http_retry_params`) | `DICOMwebClient.set_http_retry_params` | NOT-MET | no retry logic in `dicomweb/client.go` | S | Achievable today via a retrying `WithRoundTripper` |
+| HTTP retry (`set_http_retry_params`) | `DICOMwebClient.set_http_retry_params` | MET | `dicomweb/retry.go` `WithRetry`/`RetryPolicy`: opt-in bounded exponential backoff for idempotent GET/OPTIONS only, retries transport errors and 5xx/429, honours Retry-After on 429/503 (refusing a delay beyond MaxBackoff), context-aware; layered outside the credential transport so a retry re-authenticates; tests `retry_test.go` | - | Default off (single-attempt behaviour unchanged); STOW POST never replayed |
 | `search_for_studies` | QIDO-RS study query | MET | `dicomweb/qido_client.go:49` `SearchStudies` | - | |
 | `search_for_series` | QIDO-RS series query | MET | `qido_client.go:56` `SearchSeries` (with or without study scope) | - | |
 | `search_for_instances` | QIDO-RS instance query | MET | `qido_client.go:67` `SearchInstances` | - | |
