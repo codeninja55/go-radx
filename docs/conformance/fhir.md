@@ -113,8 +113,8 @@ paging), `transaction`/`batch`, conditional create/update with ETag concurrency,
 negotiation — sending and accepting `application/fhir+json` only. A non-2xx response whose body is an
 `OperationOutcome` is mapped to a typed error the caller classifies by issue severity, consistent with the package's
 `OperationOutcome` error model. The server role serves the conformance subset (`read`, `vread`, `history-instance`,
-`create`, `update`, `patch`, `delete`, `search-type`, `transaction`, and the `$validate` operation over the workflow
-resource set) over a pluggable versioned repository — every create stores version 1 with
+`create`, `update`, `patch`, `delete`, `search-type`, `transaction`, `batch`, and the `$validate` operation over the
+workflow resource set) over a pluggable versioned repository — every create stores version 1 with
 `meta.versionId`/`meta.lastUpdated`; read, vread, and create emit `ETag`/`Last-Modified`; a create's `Location` (and a
 transaction response entry's `response.location`/`response.etag`) names the created version
 (`[type]/[id]/_history/[vid]`); a write's `If-Match` answers `412` on a stale version — validating inbound

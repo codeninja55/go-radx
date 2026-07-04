@@ -92,9 +92,15 @@ is supplied through the bearer/round-tripper seam, but the SMART authorization f
 
 The **server role** (`server.NewFHIRRole`, mounted with `server.WithFHIR`) serves the conformance subset over a
 pluggable `server.Repository`: `read`, `vread`, `history-instance`, `create`, `search-type` (with `Bundle.link`
-paging, `_include`/`_revinclude`, and one-hop chaining), `transaction`, and the
+paging, `_include`/`_revinclude`, and one-hop chaining), `transaction`, `batch`, and the
 `$validate` operation over the workflow resource set (`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`,
-`DiagnosticReport`, `Observation`), as `application/fhir+json`. The repository versions every create
+`DiagnosticReport`, `Observation`), as `application/fhir+json`. A `batch` Bundle at the base executes its entries
+independently and sequentially in request order — each entry is dispatched through the same per-interaction pipeline
+as a standalone request (release validation, conditional headers, the workflow-type whitelist, the version-store
+compare-and-swap) — and answers a `batch-response` Bundle with per-entry `response.status` and, on a failed entry, an
+`OperationOutcome` in `response.outcome`; a failing entry never rolls back or aborts its siblings, the contrast with
+the atomic `transaction`. Per FHIR R5 `http.html` batch rules, no intra-bundle reference resolution is performed for
+a batch (a `urn:uuid` `fullUrl` is never rewritten). The repository versions every create
 (`meta.versionId`/`meta.lastUpdated`); read, vread, and create responses carry `ETag: W/"versionId"` and
 `Last-Modified`, a create's `Location` is the versioned `[base]/[type]/[id]/_history/[vid]` (FHIR R5
 `http.html#create`) and a transaction response entry carries the same versioned `response.location` plus
@@ -127,7 +133,8 @@ update/patch/delete of that resource; multiple matches is `412`. Conditional res
 `Repository`'s search — the in-memory default resolves an `_id` criterion (and otherwise all-of-type), so a
 conditional write against it is well-defined for `_id`; a production `Repository` with full search resolves any
 criteria. A conditional create (FHIR R5 `http.html` conditional create) fails closed: a create carrying
-`If-None-Exist` — on the direct POST or as a transaction entry's `request.ifNoneExist` — is rejected `400` with a
+`If-None-Exist` — on the direct POST, as a transaction entry's `request.ifNoneExist`, or as a batch entry's
+(where it is a per-entry `400`) — is rejected `400` with a
 `not-supported` `OperationOutcome` and persists nothing, never silently ignored into a duplicate; the matching
 semantics are deferred to the search work. The version store is interaction-shaped (one record per version, newest
 first): update, patch, and delete extend it by appending versions rather than reshaping it.

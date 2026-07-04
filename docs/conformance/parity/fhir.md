@@ -9,13 +9,13 @@ effort for non-MET rows. Evidence is `file:symbol` in this repository; tests cou
 
 ## Summary
 
-Across the four sections: **56 MET, 8 PARTIAL, 29 NOT-MET, 5 N-A** (98 rows).
+Across the four sections: **57 MET, 8 PARTIAL, 28 NOT-MET, 5 N-A** (98 rows).
 Section split (MET/PARTIAL/NOT-MET/N-A): models 7/0/2/2, primitives-validation 11/2/6/2, REST client
-21/2/13/1, server role 17/4/8/0. The model and client layers are near parity; the server role's read-
+21/2/13/1, server role 18/4/7/0. The model and client layers are near parity; the server role's read-
 and write-sides are now both whole: versioning, vread, instance history, ETag/Last-Modified/If-Match,
 server-side `$validate`, the `radx serve fhir` daemon (wave 0), update/patch/delete with their
-conditional forms, and search depth — `Bundle.link` paging, `_include`/`_revinclude`, and one-hop
-chaining (see the flipped rows below).
+conditional forms, search depth — `Bundle.link` paging, `_include`/`_revinclude`, and one-hop
+chaining — and batch at the base endpoint (see the flipped rows below).
 
 Top gaps, largest first:
 
@@ -28,16 +28,14 @@ Top gaps, largest first:
 4. **Operations framework** (`$everything`, custom operations; client-side `$validate`) (M) — the server
    now ships `$validate` (`server/fhir_handlers.go:handleValidate`); the client has no operation
    invocation API and `$everything` is absent on both sides. HAPI treats this as core surface.
-5. **Batch at the system endpoint** (M) — the server explicitly rejects a `batch` Bundle; only `transaction`
-   is processed (`server/fhir_handlers.go:handleTransaction`). The client sends both.
-6. **Search shaping on the server** (S) — `_summary`/`_elements` response shaping is still absent
+5. **Search shaping on the server** (S) — `_summary`/`_elements` response shaping is still absent
    server-side (the `fhir.MarshalSummary` machinery exists but is unwired); `_sort` is left to the
    Repository. Paging (`Bundle.link`), `_include`/`_revinclude`, and one-hop chaining now ship (flipped
    below); `:iterate`, `_has`, and multi-hop chains remain out of scope.
-7. **Nested-backbone validation** (M) — `fhir.Validate` covers top-level required/choice/binding only.
-8. **Primitive lexical validation** (M) — date/dateTime/time calendar and offset rules deferred to the HL7
+6. **Nested-backbone validation** (M) — `fhir.Validate` covers top-level required/choice/binding only.
+7. **Primitive lexical validation** (M) — date/dateTime/time calendar and offset rules deferred to the HL7
    validator CI gate; fhir.resources enforces them at parse time via pydantic field patterns.
-9. **Client conditional update/patch/delete** (S each) and client **type/system history** (S) — the server
+8. **Client conditional update/patch/delete** (S each) and client **type/system history** (S) — the server
    role now ships the conditional writes (rows below); the client still lacks them.
 
 Where go-radx *exceeds* the references: required-binding enums are closed and enforced at the JSON boundary
@@ -164,7 +162,7 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
 | `_summary` / `_elements` response shaping | search.html#summary | NOT-MET | no `_summary` handling in `server/` despite `fhir.MarshalSummary` existing | S | Cheap win: the library machinery already exists |
 | Paging (Bundle.link next/prev, `_count`) | http.html#paging | MET | `fhir_search.go:pageMatches`/`searchLinkURL` emit absolute `self`/`next`/`prev` Bundle.link over a `_count` page size and an `_offset` cursor the `next` link round-trips; `_count` defaults to 50 and is clamped to 200 (`clampCount`); `total` is the full match count across pages, not the page size; tests `TestFHIRRoleSearchPaging` (next round-trips, last page has no next) / `TestFHIRRoleSearchCountClampedAndZero` / `TestSearchLinkURLRoundTrips` / `TestFHIRRoleSearchSortPreservesRepoOrder` (R4+R5) | — | Cursor is an explicit `_offset` the server emits and the client only follows (opaque-link contract); the `next` link is emitted only when the cursor advances, so `_count=0` (count-only) returns `total` with no entries and no `next`; when no `_sort` is given matches are id-sorted (`sortResourcesByID`) so paging is stable over a map-backed store, and when `_sort` is present the Repository's order is preserved |
 | transaction (POST [base]) | http.html#transaction | MET | `fhir_handlers.go:handleTransaction`; atomic staging-copy apply under write lock (`fhir_repository.go:Transaction`); per-entry create validation (`validateTransactionWrites`); response entries carry versioned `response.location` + `response.etag` (`createdEntryResponse`) | — | Transaction entries limited to POST/GET verbs in the dev repository |
-| batch (POST [base]) | http.html#transaction (batch) | NOT-MET | explicitly rejected: "processes a transaction Bundle only" (`fhir_handlers.go` bundle-type check) | M | Batch is independent-entry semantics — simpler than the transaction already shipped |
+| batch (POST [base]) | http.html#transaction (batch) | MET | `fhir_handlers.go:handleSystem` dispatches on Bundle.type; `fhir_batch.go:handleBatch` executes each entry independently and sequentially in request order by dispatching a synthesized sub-request through the role's own `ServeHTTP`, so every entry flows through exactly the standalone per-interaction pipeline (release validation, `If-None-Exist` fail-closed, `If-Match` CAS, whitelist/404, media gates); batch-response entries carry per-entry `response.status`/`location`/`etag` and a failed entry's `OperationOutcome` in `response.outcome`; advertised in the CapabilityStatement (R4+R5); tests `fhir_batch_test.go:TestFHIRRoleBatchMixedSuccessAndFailure` (validation-rejected entry gets a per-entry 422 outcome and is NOT persisted while the valid sibling IS) / `TestFHIRRoleBatchEntryConditionalHeaders` / `TestFHIRRoleBatchUnsupportedEntryShapes` / `TestFHIRRoleBatchDeleteAndReadEntries` | — | Entries execute sequentially for determinism (the spec guarantees no order for a batch); per http.html#brules no intra-bundle reference resolution is performed (a `urn:uuid` fullUrl is never rewritten) and nested batch/transaction entries are rejected per-entry; PATCH entries answer the standalone 415 (the role is JSON-Patch-body only); success entries do not echo the resource (no Prefer handling yet, same as the transaction row) |
 | Versioning / ETag / Last-Modified emission | http.html#concurrency | MET | version store in `server/fhir_repository.go` (every create stamps `meta.versionId`/`meta.lastUpdated`); `fhir_handlers.go:setVersionHeaders` (ETag `W/"versionId"` + Last-Modified on read/vread/create) and an atomic If-Match compare-and-swap inside the repository write lock (`ifMatchVersion` → `checkExpectedVersion`, 412 on a stale or unsatisfiable version); tests `TestFHIRRoleReadAndCreateEmitVersionHeaders` / `TestFHIRRoleIfMatchPrecondition` / `TestFHIRRoleIfMatchIsAtomicCompareAndSwap` (`-race`) | — | The precondition is atomic with the write, so concurrent writers with the same valid If-Match cannot both commit |
 | Prefer header handling (return=minimal etc.) | http.html#ops | NOT-MET | not read; create always returns the resource | S | |
 | OperationOutcome on every error path | HAPI server error model | MET | `fhir_handlers.go:writeError`/`writeOutcome`; auth 401 also a release OperationOutcome (`role_fhir.go:155`) | — | PHI-safe messages via `sanitizeRepoMessage` |
@@ -185,7 +183,9 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
   `server/fhir_jsonpatch.go`, `Repository.Update`/`Delete`); server-role search depth — `Bundle.link`
   paging, `_include`/`_revinclude`, and one-hop chaining — flipped 2026-06-17 on
   `feat/fhir-server-search-depth` (`server/fhir_search.go`, `server/fhir_search_params.go`, the
-  reference-aware `MemoryRepository.Search`); the flipped rows cite their shipped evidence and tests
+  reference-aware `MemoryRepository.Search`); server-role batch at the base endpoint flipped
+  2026-07-05 (`server/fhir_batch.go`, the Bundle.type dispatch in `server/fhir_handlers.go`, the
+  batch CapabilityStatement advertisement); the flipped rows cite their shipped evidence and tests
   directly.
 - **Repository state**: main at `fdf7b54` for the original audit; `10c1174` plus the wave-0 FHIR-server
   slice for the updated rows.
