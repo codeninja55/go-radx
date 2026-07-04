@@ -195,11 +195,9 @@ func (c *StoreCmd) transferAll(ctx context.Context, files []string, calling, cal
 		workers = len(files)
 	}
 	for w := 0; w < workers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			c.runWorker(ctx, calling, called, jobs, stopAll, func(int, int) {}, record)
-		}()
+		})
 	}
 
 	for i, path := range files {

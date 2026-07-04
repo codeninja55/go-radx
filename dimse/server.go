@@ -270,15 +270,13 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 // "serves until ctx is cancelled" contract is honoured promptly, not only on the next accept.
 func (s *Server) acceptLoop(ctx context.Context, ln net.Listener) error {
 	watchDone := make(chan struct{})
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
+	s.wg.Go(func() {
 		select {
 		case <-ctx.Done():
 			_ = ln.Close()
 		case <-watchDone:
 		}
-	}()
+	})
 	defer close(watchDone)
 
 	for {

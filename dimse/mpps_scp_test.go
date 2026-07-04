@@ -179,15 +179,13 @@ func TestMPPSConcurrentFinaliseAtomic(t *testing.T) {
 	)
 	states := []ProcedureStepState{ProcedureStepCompleted, ProcedureStepDiscontinued}
 	for i := range racers {
-		wg.Add(1)
-		go func(state ProcedureStepState) {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
-			status := p.NSet(context.Background(), finalReq(state))
+			status := p.NSet(context.Background(), finalReq(states[i]))
 			mu.Lock()
 			results = append(results, status)
 			mu.Unlock()
-		}(states[i])
+		})
 	}
 	close(start)
 	wg.Wait()

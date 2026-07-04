@@ -868,25 +868,23 @@ func TestFHIRRoleIfMatchIsAtomicCompareAndSwap(t *testing.T) {
 	var wg sync.WaitGroup
 	statuses := make([]int, writers)
 	for i := 0; i < writers; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
+		wg.Go(func() {
 			req, err := http.NewRequest(http.MethodPut, base+"/Patient/"+id,
 				strings.NewReader(string(patientJSONWithIDGender(fhir.R5, id, "male"))))
 			if err != nil {
-				statuses[idx] = -1
+				statuses[i] = -1
 				return
 			}
 			req.Header.Set("Content-Type", "application/fhir+json")
 			req.Header.Set("If-Match", `W/"1"`) // every writer claims version 1
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
-				statuses[idx] = -1
+				statuses[i] = -1
 				return
 			}
 			_ = resp.Body.Close()
-			statuses[idx] = resp.StatusCode
-		}(i)
+			statuses[i] = resp.StatusCode
+		})
 	}
 	wg.Wait()
 

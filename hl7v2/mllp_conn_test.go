@@ -251,9 +251,7 @@ func TestServerConcurrentClients(t *testing.T) {
 	var wg sync.WaitGroup
 	errCh := make(chan error, n)
 	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			client, err := NewClient(srv.Addr().String())
 			if err != nil {
 				errCh <- err
@@ -263,7 +261,7 @@ func TestServerConcurrentClients(t *testing.T) {
 			if _, err := client.Send(context.Background(), sampleMessage(t)); err != nil {
 				errCh <- err
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(errCh)
