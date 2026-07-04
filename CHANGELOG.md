@@ -35,7 +35,7 @@ legacy codebase (`legacy-main`) and are not continued here.
 - Comparative benchmark tables published from a full `mise run bench:compare` run (63 measured series,
   median of 7 samples, pinned Python peers), replacing the preliminary smoke-run numbers, and all four Go
   benchmark baselines re-recorded at the same commit so they carry the post-copy-elimination allocation
-  profile.
+  profile. (#153)
 
 ## [0.11.0] - 2026-06-21
 
