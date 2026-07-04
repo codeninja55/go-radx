@@ -146,6 +146,85 @@ func TestReaderUnknownCharsetIsTypedError(t *testing.T) {
 	}
 }
 
+// part10ItemCharsetStream builds a Part 10 stream whose top level uses ISO_IR 100
+// while the first sequence item carries its own (0008,0005) = ISO 2022 IR 87
+// (PS3.5 §7.5.3). Item 1 holds the Annex H.3 Japanese PN; item 2 has no charset
+// element of its own; Latin-1 PN elements sit before and after the sequence.
+func part10ItemCharsetStream(t *testing.T) []byte {
+	t.Helper()
+	latin1Name := []byte{0xc4, 'n', 'e', 0xe4, 's'} // "Äneäs" in Latin-1
+
+	var main bytes.Buffer
+	main.Write(rawElement(TagSpecificCharacterSet, VRCS, []byte("ISO_IR 100")))
+	main.Write(rawElement(NewTag(0x0008, 0x0090), VRPN, latin1Name))
+	main.Write(sqHeaderUndefinedLE(NewTag(0x0008, 0x1120)))
+	main.Write(itemHeaderUndefinedLE())
+	main.Write(rawElement(TagSpecificCharacterSet, VRCS, []byte("\\ISO 2022 IR 87")))
+	main.Write(rawElement(NewTag(0x0010, 0x0010), VRPN, canonicalIR87Name))
+	main.Write(leTag(0xFFFE, 0xE00D))
+	main.Write(le32(0))
+	main.Write(itemHeaderUndefinedLE())
+	main.Write(rawElement(NewTag(0x0010, 0x0010), VRPN, latin1Name))
+	main.Write(leTag(0xFFFE, 0xE00D))
+	main.Write(le32(0))
+	main.Write(seqDelim())
+	main.Write(rawElement(NewTag(0x0010, 0x0010), VRPN, latin1Name))
+	return part10WithRawMain(t, main.Bytes())
+}
+
+func TestReaderSequenceItemCharsetGovernsOnlyItsItem(t *testing.T) {
+	f, err := Read(bytes.NewReader(part10ItemCharsetStream(t)))
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	seq, ok := f.DataSet.GetSequence(NewTag(0x0008, 0x1120))
+	if !ok {
+		t.Fatal("sequence (0008,1120) absent")
+	}
+	if seq.Len() != 2 {
+		t.Fatalf("sequence has %d items, want 2", seq.Len())
+	}
+
+	var items []Item
+	for item := range seq.Items() {
+		items = append(items, item)
+	}
+
+	// Item 1 decodes under its own ISO 2022 IR 87, not the top-level Latin-1.
+	pn, ok := items[0].DataSet.GetPersonName(NewTag(0x0010, 0x0010))
+	if !ok {
+		t.Fatal("item 1 PatientName absent")
+	}
+	if pn.Alphabetic.FamilyName != "Yamada" || pn.Ideographic.FamilyName != "山田" || pn.Phonetic.FamilyName != "やまだ" {
+		t.Errorf("item 1 PN = %+v, want Yamada/山田/やまだ family names via the item's IR 87 charset", pn)
+	}
+
+	// Item 2 carries no (0008,0005), so it inherits the enclosing dataset's Latin-1.
+	got, _ := items[1].DataSet.GetString(NewTag(0x0010, 0x0010))
+	if got != "Äneäs" {
+		t.Errorf("item 2 PatientName = %q, want Äneäs via the inherited top-level charset", got)
+	}
+}
+
+func TestReaderSequenceItemCharsetDoesNotLeakToTopLevel(t *testing.T) {
+	f, err := Read(bytes.NewReader(part10ItemCharsetStream(t)))
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+
+	// Before the sequence: top-level Latin-1.
+	got, _ := f.DataSet.GetString(NewTag(0x0008, 0x0090))
+	if got != "Äneäs" {
+		t.Errorf("ReferringPhysicianName = %q, want Äneäs", got)
+	}
+
+	// After the sequence: still top-level Latin-1, untouched by item 1's IR 87.
+	got, _ = f.DataSet.GetString(NewTag(0x0010, 0x0010))
+	if got != "Äneäs" {
+		t.Errorf("top-level PatientName after the sequence = %q, want Äneäs (item charset leaked)", got)
+	}
+}
+
 func TestWithDefaultCharacterSetFallback(t *testing.T) {
 	// No (0008,0005) element; the caller supplies the fallback charset.
 	pnRaw := []byte{0xc4, 'n', 'e', 0xe4, 's'}

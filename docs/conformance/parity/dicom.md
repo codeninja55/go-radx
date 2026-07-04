@@ -16,8 +16,8 @@ Row counts across all tables:
 
 | Status | Count |
 |--------|-------|
-| MET | 65 |
-| PARTIAL | 10 |
+| MET | 66 |
+| PARTIAL | 9 |
 | NOT-MET | 7 |
 | N-A | 6 |
 | Total | 88 |
@@ -28,10 +28,6 @@ Top NOT-MET/PARTIAL items by impact:
    now MET (`dicom/private_block.go`, `dicom/private_dict.go`); the dictionary seed is minimal and attributed
    (the pydicom illustrative "ACME 3.1" creator). Vendor catalogues (Siemens/GE/Philips) are deferred to a
    `gdcmPrivateDict.xml` generator because no such source is vendored here to attribute against.
-2. **Per-item charset in sequences untested (PARTIAL, S).** The ISO 2022 row's item-scoped (0008,0005)
-   override is implemented (`dicom/sequence_codec.go` decodeItemElements) but no test constructs a sequence
-   item carrying its own charset, so the row fails the "implemented and exercised by tests" MET bar; a single
-   nested-charset test restores MET.
 
 The charset table now covers the Latin/Cyrillic/Arabic/Greek/Hebrew 8859 sets, the Japanese ISO 2022 family,
 UTF-8, GB18030, GBK, plus Korean (ISO 2022 IR 149), Simplified Chinese (ISO 2022 IR 58), Thai (ISO_IR 166 /
@@ -139,7 +135,7 @@ tag, decode returns the typed `dicom.ErrCodecUnavailable` rather than failing th
 |---------|---------------|--------|------------------|------|-------|
 | Default repertoire + ISO 8859 supplements (IR 100/101/109/110/144/127/126/138/148) | `charset` term table | MET | dicom/specific_character_set.go:67-92; charset_integration_test.go | - | Bare and ISO 2022 forms both mapped |
 | UTF-8 (ISO_IR 192), GB18030, GBK | multi-byte stand-alone sets | MET | dicom/specific_character_set.go:104-106; charset_regression_test.go | - | |
-| ISO 2022 code extensions (Latin + Japanese IR 13/14/87/159), multi-valued (0008,0005), delimiter resets, per-item charset in sequences | code-extension decode | PARTIAL | dicom/iso2022.go decodeISO2022, isISO2022Reset; dicom/sequence_codec.go decodeItemElements; iso2022_test.go | S | Per-item charset in sequences is implemented (item-scoped (0008,0005) override) but no test exercises it; the other three sub-claims are tested. One sequence-item charset test restores MET |
+| ISO 2022 code extensions (Latin + Japanese IR 13/14/87/159), multi-valued (0008,0005), delimiter resets, per-item charset in sequences | code-extension decode | MET | dicom/iso2022.go decodeISO2022, isISO2022Reset; dicom/sequence_codec.go decodeItemElements; iso2022_test.go; charset_integration_test.go TestReaderSequenceItemCharsetGovernsOnlyItsItem, TestReaderSequenceItemCharsetDoesNotLeakToTopLevel | - | Item-scoped (0008,0005) override exercised: an item's IR 87 charset decodes that item only; siblings inherit and the top level is untouched (PS3.5 §7.5.3) |
 | Korean (ISO 2022 IR 149) | `euc_kr` mapping | MET | dicom/specific_character_set.go:definedTermTable "ISO 2022 IR 149" (korean.EUCKR, familyDoubleByteG1); dicom/iso2022.go:decodeSingleByteSegment double-byte G1 run; iso2022_test.go:TestISO2022KoreanPersonNameDecode | - | PS3.5 Annex I.2 worked example "Hong^Gildong=洪^吉洞=홍^길동" |
 | Simplified Chinese code extension (ISO 2022 IR 58) | `GB2312` mapping | MET | dicom/specific_character_set.go:definedTermTable "ISO 2022 IR 58" (simplifiedchinese.GBK, familyDoubleByteG1); iso2022_test.go:TestISO2022SimplifiedChinesePersonNameDecode | - | PS3.5 Annex K.2 worked example "Zhang^XiaoDong=张^小东"; GB2312 is the 8-bit subset of GBK |
 | Thai (ISO_IR 166 / ISO 2022 IR 166) | `TIS-620` mapping | MET | dicom/specific_character_set.go:definedTermTable "ISO_IR 166"/"ISO 2022 IR 166" (charmap.Windows874); iso2022_test.go:TestBareThaiDecode, TestISO2022ThaiDesignationDecode | - | Bare and ESC - T forms both mapped; pydicom test_charset.py vector |
