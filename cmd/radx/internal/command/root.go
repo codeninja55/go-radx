@@ -37,6 +37,7 @@ type CLI struct {
 	Move      MoveCmd      `cmd:"" help:"Retrieve to a destination AE (C-MOVE)."`
 	Scp       ScpCmd       `cmd:"" help:"Run a Storage/Verification SCP."`
 	Modify    ModifyCmd    `cmd:"" help:"Edit DICOM tags and regenerate UIDs."`
+	Transcode TranscodeCmd `cmd:"" help:"Rewrite a file's transfer syntax."`
 	Organize  OrganizeCmd  `cmd:"" help:"Reorganise files by Study/Series/SOP UID."`
 	Lookup    LookupCmd    `cmd:"" help:"Resolve DICOM tag dictionary information."`
 	Catalogue CatalogueCmd `cmd:"" help:"Index and query a local DICOM catalogue."`
