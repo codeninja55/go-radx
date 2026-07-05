@@ -18,10 +18,10 @@ legacy codebase (`legacy-main`) and are not continued here.
   fails independently without rolling back its siblings. The batch-response carries per-entry status, the
   read/search resource, `location`, `etag`, `lastModified`, and an OperationOutcome on failure; PATCH
   entries, path canonicalisation, and a 500-entry cap are handled. Both CapabilityStatements advertise
-  batch.
+  batch. (#156)
 - FHIR primitive lexical validation for `date`/`dateTime`/`time`/`instant` (official R4/R5 regexes, offset
   required with a time and forbidden without one, calendar-valid dates) and required-element presence
-  validation inside backbone elements at every depth, generated for both releases.
+  validation inside backbone elements at every depth, generated for both releases. (#156)
 
 - DICOMweb completion increments: Retrieve Capabilities (OPTIONS on the service root, PS3.18 8.9 WADL,
   server and `Client.Capabilities`); opt-in bounded HTTP retry (`WithRetry`, idempotent requests only,
