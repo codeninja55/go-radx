@@ -27,9 +27,9 @@ day), M (1-3 days), L (over 3 days).
 | DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 66 | 8 | 18 | 1 |
 | HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 31 | 0 | 0 | 1 |
 | FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 56 | 8 | 29 | 5 |
-| DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 44 | 6 | 23 | 2 |
+| DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 48 | 7 | 18 | 2 |
 | radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 8 | 13 | 7 | 0 |
-| Total | | | 414 | 271 | 44 | 84 | 15 |
+| Total | | | 414 | 275 | 45 | 79 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in
@@ -113,13 +113,13 @@ residual-candidates. All remaining Wave 3 items are deferred in the parity wind-
 
 ### Wave 4 - DICOMweb completion (partly done)
 
-Done: the `application/dicom+xml` Native DICOM Model media type (client and server) and the WADO-URI legacy
-URI service, now MET in dicomweb.md. A branch adding capabilities discovery and the client byte-range/retry/
-auto-pagination misses (#145) was built but not landed in the wind-down. Remaining: capabilities discovery
-(M), thumbnail resources (M), pixel-data resources of Table 10.1-1 (M), rendered resources (L), server-side
-transcoding (L, builds on wave 1 codecs), and the client small misses - byte ranges, retries, auto-pagination
-(S each). UPS-RS worklist service (L, builds on wave 2 UPS) and notifications/WebSocket (L) are
-residual-candidates. All remaining Wave 4 items are deferred in the parity wind-down.
+Done: the `application/dicom+xml` Native DICOM Model media type (client and server), the WADO-URI legacy
+URI service, capabilities discovery (OPTIONS /, client MET and server PARTIAL with a documented WADL
+subset), and the client misses - byte ranges, bounded retry, auto-pagination - all MET in dicomweb.md
+(2026-07-05 build-out, rebuilt fresh rather than reviving the closed #145 branch). Remaining: thumbnail
+resources (M), pixel-data resources of Table 10.1-1 (M), rendered resources (L, discounted by the dicom
+rendering core), and server-side transcoding (L, builds on wave 1 codecs). UPS-RS worklist service (L,
+builds on wave 2 UPS) and notifications/WebSocket (L) are residual-candidates.
 
 ### Wave 5 - radx CLI parity
 
