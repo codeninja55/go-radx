@@ -39,6 +39,7 @@ type CLI struct {
 	Modify    ModifyCmd    `cmd:"" help:"Edit DICOM tags and regenerate UIDs."`
 	Transcode TranscodeCmd `cmd:"" help:"Rewrite a file's transfer syntax."`
 	Compose   ComposeCmd   `cmd:"" help:"Build a Part 10 file from PS3.18 DICOM JSON."`
+	Render    RenderCmd    `cmd:"" help:"Render pixel frames to PNG or PPM images."`
 	Organize  OrganizeCmd  `cmd:"" help:"Reorganise files by Study/Series/SOP UID."`
 	Lookup    LookupCmd    `cmd:"" help:"Resolve DICOM tag dictionary information."`
 	Catalogue CatalogueCmd `cmd:"" help:"Index and query a local DICOM catalogue."`
