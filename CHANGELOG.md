@@ -12,6 +12,17 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- FHIR batch at the base endpoint: a `POST [base]` transaction Bundle of type `batch` now executes entry by
+  entry, each entry dispatched through the same per-interaction pipeline as a standalone request (release
+  validation, conditional headers, whitelist gating, version-store CAS), so a validation-rejected entry
+  fails independently without rolling back its siblings. The batch-response carries per-entry status, the
+  read/search resource, `location`, `etag`, `lastModified`, and an OperationOutcome on failure; PATCH
+  entries, path canonicalisation, and a 500-entry cap are handled. Both CapabilityStatements advertise
+  batch.
+- FHIR primitive lexical validation for `date`/`dateTime`/`time`/`instant` (official R4/R5 regexes, offset
+  required with a time and forbidden without one, calendar-valid dates) and required-element presence
+  validation inside backbone elements at every depth, generated for both releases.
+
 - DICOMweb completion increments: Retrieve Capabilities (OPTIONS on the service root, PS3.18 8.9 WADL,
   server and `Client.Capabilities`); opt-in bounded HTTP retry (`WithRetry`, idempotent requests only,
   transient statuses 500/502/503/504 plus Retry-After-honouring 429/503 with overflow clamping); byte-range
