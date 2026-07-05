@@ -252,13 +252,59 @@ type Descriptors struct {
 	Descriptors []plan.ValidationDescriptor
 }
 
+// NeedsStrconv reports whether any descriptor renders an indexed path — a repeating
+// backbone walk or a repeating primitive lexical check — so the template imports
+// strconv only when the rendered file uses it (an unused import would fail gofmt's
+// compile of the golden fixtures, which carry no repeating walks).
+func (d Descriptors) NeedsStrconv() bool {
+	for _, vd := range d.Descriptors {
+		if descriptorNeedsStrconv(vd) {
+			return true
+		}
+	}
+	return false
+}
+
+// descriptorNeedsStrconv reports whether one descriptor's closures or helpers render
+// an indexed (strconv.Itoa) path.
+func descriptorNeedsStrconv(vd plan.ValidationDescriptor) bool {
+	if callsNeedStrconv(vd.RequiredCalls) || callsNeedStrconv(vd.LexicalCalls) || checksNeedStrconv(vd.Primitives) {
+		return true
+	}
+	for _, h := range vd.Helpers {
+		if callsNeedStrconv(h.RequiredCalls) || callsNeedStrconv(h.LexicalCalls) || checksNeedStrconv(h.Primitives) {
+			return true
+		}
+	}
+	return false
+}
+
+func callsNeedStrconv(calls []plan.BackboneCall) bool {
+	for _, c := range calls {
+		if c.Repeats {
+			return true
+		}
+	}
+	return false
+}
+
+func checksNeedStrconv(checks []plan.PrimitiveCheck) bool {
+	for _, c := range checks {
+		if c.Repeats {
+			return true
+		}
+	}
+	return false
+}
+
 // EmitDescriptors renders a release's per-resource validation descriptors to formatted
 // Go source. The generated init() registers one fhir.ValidationDescriptor per resource
 // with the root engine, each carrying typed closures over the concrete resource for
-// required-element presence, choice-group mutual exclusion, and required-binding code
-// validity, so fhir.Validate consumes generated metadata rather than reflecting at call
-// time. Like Emit, the output is deterministic for a given Descriptors, keeping
-// regeneration byte-for-byte reproducible.
+// required-element presence (top-level and inside backbone elements, via the emitted
+// walk helpers), choice-group mutual exclusion, required-binding code validity, and
+// date/time-family primitive lexical validity, so fhir.Validate consumes generated
+// metadata rather than reflecting at call time. Like Emit, the output is deterministic
+// for a given Descriptors, keeping regeneration byte-for-byte reproducible.
 func EmitDescriptors(d Descriptors) ([]byte, error) {
 	tmpl, err := template.New("descriptor.go.tmpl").ParseFS(templatesFS, "templates/descriptor.go.tmpl")
 	if err != nil {

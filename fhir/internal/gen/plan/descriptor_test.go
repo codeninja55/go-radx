@@ -102,6 +102,138 @@ func TestPlanValidationDescriptor(t *testing.T) {
 	}
 }
 
+// buildNestedDescriptorType hand-builds a resource with the nested shapes the depth
+// planner reads: a top-level date field, a date-family choice branch, a repeating
+// backbone with a required child and a dateTime, a pointer backbone whose only content
+// is a deeper backbone with a required child (the transitive-reachability case), and a
+// backbone with no required or date-family content (pruned entirely).
+func buildNestedDescriptorType() *model.Type {
+	required := model.Cardinality{Min: 1, Max: "1"}
+	optional := model.Cardinality{Min: 0, Max: "1"}
+	repeating := model.Cardinality{Min: 0, Max: "*"}
+
+	root := &model.Element{
+		Name: "Sample",
+		Path: "Sample",
+		Children: []*model.Element{
+			{Name: "text", Path: "Sample.text", Cardinality: optional, Types: []model.TypeRef{{Code: "Narrative"}}},
+			{Name: "birthDate", Path: "Sample.birthDate", Cardinality: optional, Types: []model.TypeRef{{Code: "date"}}},
+			{
+				Name: "effective[x]", Path: "Sample.effective[x]", Cardinality: optional, IsChoice: true, ChoiceBase: "effective",
+				Types: []model.TypeRef{{Code: "dateTime"}, {Code: "Quantity"}},
+			},
+			{
+				Name: "series", Path: "Sample.series", Cardinality: repeating, Types: []model.TypeRef{{Code: "BackboneElement"}},
+				Children: []*model.Element{
+					{Name: "uid", Path: "Sample.series.uid", Cardinality: required, Types: []model.TypeRef{{Code: "id"}}},
+					{Name: "started", Path: "Sample.series.started", Cardinality: optional, Types: []model.TypeRef{{Code: "dateTime"}}},
+				},
+			},
+			{
+				Name: "outer", Path: "Sample.outer", Cardinality: optional, Types: []model.TypeRef{{Code: "BackboneElement"}},
+				Children: []*model.Element{
+					{
+						Name: "inner", Path: "Sample.outer.inner", Cardinality: optional, Types: []model.TypeRef{{Code: "BackboneElement"}},
+						Children: []*model.Element{
+							{Name: "system", Path: "Sample.outer.inner.system", Cardinality: required, Types: []model.TypeRef{{Code: "uri"}}},
+						},
+					},
+				},
+			},
+			{
+				Name: "plain", Path: "Sample.plain", Cardinality: optional, Types: []model.TypeRef{{Code: "BackboneElement"}},
+				Children: []*model.Element{
+					{Name: "note", Path: "Sample.plain.note", Cardinality: optional, Types: []model.TypeRef{{Code: "string"}}},
+				},
+			},
+		},
+	}
+	return &model.Type{Name: "Sample", Kind: model.KindResource, Root: root}
+}
+
+// TestPlanValidationDescriptorDepth pins the depth surface: the top-level date and the
+// boxed choice branch become PrimitiveChecks, the backbone with a required child and
+// the backbone whose depth holds one both get required walk calls (transitive
+// reachability included), the date-carrying backbone gets a lexical walk call, the
+// content-free backbone is pruned from calls and helpers, and the DomainResource
+// embedder is flagged for the extension-url walk.
+func TestPlanValidationDescriptorDepth(t *testing.T) {
+	typ := buildNestedDescriptorType()
+	resolver := descriptorResolver()
+	pt := PlanType(typ, Options{Bindings: resolver})
+
+	vd, ok := PlanValidationDescriptor(typ, pt, resolver)
+	if !ok {
+		t.Fatal("PlanValidationDescriptor returned ok=false for a resource")
+	}
+
+	if !vd.CheckExtensions {
+		t.Error("a DomainResource embedder should be flagged for the extension-url walk")
+	}
+
+	if len(vd.Primitives) != 2 {
+		t.Fatalf("top-level primitive checks = %+v, want birthDate + effectiveDateTime", vd.Primitives)
+	}
+	byPath := map[string]PrimitiveCheck{}
+	for _, pc := range vd.Primitives {
+		byPath[pc.Path] = pc
+	}
+	if pc := byPath["Sample.birthDate"]; pc.Validator != "validDateLexical" || pc.Boxed {
+		t.Errorf("birthDate check = %+v, want plain validDateLexical", pc)
+	}
+	if pc := byPath["Sample.effectiveDateTime"]; pc.Validator != "validDateTimeLexical" || !pc.Boxed {
+		t.Errorf("effectiveDateTime check = %+v, want boxed validDateTimeLexical", pc)
+	}
+
+	requiredTargets := map[string]bool{}
+	for _, c := range vd.RequiredCalls {
+		requiredTargets[c.TypeGoName] = true
+	}
+	if !requiredTargets["SampleSeries"] || !requiredTargets["SampleOuter"] {
+		t.Errorf("required walk calls = %+v, want SampleSeries and SampleOuter (transitive)", vd.RequiredCalls)
+	}
+	if requiredTargets["SamplePlain"] {
+		t.Errorf("the content-free backbone should be pruned from required calls: %+v", vd.RequiredCalls)
+	}
+
+	lexicalTargets := map[string]bool{}
+	for _, c := range vd.LexicalCalls {
+		lexicalTargets[c.TypeGoName] = true
+	}
+	if !lexicalTargets["SampleSeries"] || lexicalTargets["SampleOuter"] || lexicalTargets["SamplePlain"] {
+		t.Errorf("lexical walk calls = %+v, want SampleSeries only", vd.LexicalCalls)
+	}
+
+	helpers := map[string]BackboneHelper{}
+	for _, h := range vd.Helpers {
+		helpers[h.GoName] = h
+	}
+	if _, pruned := helpers["SamplePlain"]; pruned {
+		t.Error("the content-free backbone should emit no helper")
+	}
+	series, ok := helpers["SampleSeries"]
+	if !ok || !series.EmitRequired || !series.EmitLexical {
+		t.Fatalf("SampleSeries helper = %+v, want required+lexical", series)
+	}
+	if len(series.Required) != 1 || series.Required[0].Path != ".uid" {
+		t.Errorf("SampleSeries required = %+v, want .uid", series.Required)
+	}
+	if len(series.Primitives) != 1 || series.Primitives[0].Path != ".started" {
+		t.Errorf("SampleSeries primitives = %+v, want .started", series.Primitives)
+	}
+	outer, ok := helpers["SampleOuter"]
+	if !ok || !outer.EmitRequired || outer.EmitLexical {
+		t.Fatalf("SampleOuter helper = %+v, want required-only (transitively)", outer)
+	}
+	if len(outer.Required) != 0 || len(outer.RequiredCalls) != 1 || outer.RequiredCalls[0].TypeGoName != "SampleOuterInner" {
+		t.Errorf("SampleOuter should only forward into SampleOuterInner: %+v", outer)
+	}
+	inner, ok := helpers["SampleOuterInner"]
+	if !ok || len(inner.Required) != 1 || inner.Required[0].Path != ".system" {
+		t.Errorf("SampleOuterInner required = %+v, want .system", inner.Required)
+	}
+}
+
 // TestPlanValidationDescriptorSkipsNonResource confirms a complex datatype yields ok=false
 // (no resourceType to register under), so only concrete resources get a descriptor.
 func TestPlanValidationDescriptorSkipsNonResource(t *testing.T) {

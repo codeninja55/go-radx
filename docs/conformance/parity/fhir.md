@@ -9,8 +9,8 @@ effort for non-MET rows. Evidence is `file:symbol` in this repository; tests cou
 
 ## Summary
 
-Across the four sections: **57 MET, 8 PARTIAL, 28 NOT-MET, 5 N-A** (98 rows).
-Section split (MET/PARTIAL/NOT-MET/N-A): models 7/0/2/2, primitives-validation 11/2/6/2, REST client
+Across the four sections: **58 MET, 8 PARTIAL, 27 NOT-MET, 5 N-A** (98 rows).
+Section split (MET/PARTIAL/NOT-MET/N-A): models 7/0/2/2, primitives-validation 12/2/5/2, REST client
 21/2/13/1, server role 18/4/7/0. The model and client layers are near parity; the server role's read-
 and write-sides are now both whole: versioning, vread, instance history, ETag/Last-Modified/If-Match,
 server-side `$validate`, the `radx serve fhir` daemon (wave 0), update/patch/delete with their
@@ -32,10 +32,12 @@ Top gaps, largest first:
    server-side (the `fhir.MarshalSummary` machinery exists but is unwired); `_sort` is left to the
    Repository. Paging (`Bundle.link`), `_include`/`_revinclude`, and one-hop chaining now ship (flipped
    below); `:iterate`, `_has`, and multi-hop chains remain out of scope.
-6. **Nested-backbone validation** (M) — `fhir.Validate` covers top-level required/choice/binding only.
-7. **Primitive lexical validation** (M) — date/dateTime/time calendar and offset rules deferred to the HL7
-   validator CI gate; fhir.resources enforces them at parse time via pydantic field patterns.
-8. **Client conditional update/patch/delete** (S each) and client **type/system history** (S) — the server
+6. **Nested-backbone choice/binding and datatype-interior validation** (S) — required presence now walks
+   every backbone depth and primitive lexical checks now ship (flipped below); the residual is choice
+   mutual exclusion and required-binding codes *inside* backbones, plus everything inside complex
+   datatypes (`Narrative.status`, `Signature.when`, `Period.start` lexicals), which stays with the HL7
+   validator gate. fhir.resources validates at every nesting level on construction.
+7. **Client conditional update/patch/delete** (S each) and client **type/system history** (S) — the server
    role now ships the conditional writes (rows below); the client still lacks them.
 
 Where go-radx *exceeds* the references: required-binding enums are closed and enforced at the JSON boundary
@@ -74,8 +76,8 @@ experimental, `fhir_comments`, `add_root_validator`).
 | Value-side `null` for extension-only repeating positions | FHIR JSON spec; fhir.resources handles via Optional values | PARTIAL | documented limitation in `docs/conformance/fhir.md` "Limitation (repeating extension-only positions)" | S | `_field` data survives; the value-side `null` placeholder re-marshals as the Go zero value |
 | Lexical-preserving decimal | fhir.resources uses Python `Decimal` | MET | `fhir/decimal.go:Decimal` (`String`, `Float64`, `Exact`, `BigFloat`, `MarshalJSON`) | — | Shared with DICOM DS/IS; never `float64` |
 | integer64 as JSON string (R5) | FHIR R5 wire form | MET | `FHIRInteger64` quoted-string codec, `fhir/r5/primitives.go` | — | |
-| Cardinality / required-presence validation | pydantic field cardinality | PARTIAL | `fhir.Validate` + generated descriptors (`fhir/r5/validation_descriptors.go`); presence via non-nil pointer | M | Top-level elements only; nested-backbone required/choice/binding checks deferred. fhir.resources validates at every nesting level on construction |
-| Primitive lexical validation (date/dateTime/time) | pydantic field regex/patterns | NOT-MET | deferred per `docs/conformance/fhir.md` "Scope boundary (v1)"; decimal and binding checks done | M | Authoritative cover is the HL7 validator CI gate; in-process gate does not check calendar/offset rules |
+| Cardinality / required-presence validation | pydantic field cardinality | PARTIAL | `fhir.Validate` + generated descriptors; required presence (of non-choice elements) now walked at every backbone depth via generated per-backbone helpers with indexed occurrence paths (`fhir/r5/validation_descriptors.go:missingRequiredBundleEntryRequest` and kin), plus the recursive `Extension.url` (1..1) walk over `extension`/`modifierExtension` (`fhir/r5/primitive_lexical.go:missingExtensionURLs`, the fhir.resources 8.3.0 alignment); presence stays by non-nil pointer/non-empty slice at depth (FHIR-007); tests `fhir/r5/primitive_lexical_test.go:TestValidateNestedBackboneRequiredR5` / `TestValidateExtensionURLRequiredR5` + R4 twins | S | Residual: required **choice** (`[x]`) presence is not checked at any level (only top-level choice mutual exclusion is), required elements inside complex datatypes (`Narrative.status`, `Signature.when`), and nested choice/binding checks; fhir.resources validates at every nesting level on construction |
+| Primitive lexical validation (date/dateTime/time) | pydantic field regex/patterns | MET | generated `Primitives` closures call per-release hand-written validators built from the official release regexes (`fhir/r5/primitive_lexical.go`, `fhir/r4/primitive_lexical.go`): date/dateTime/time/instant at resource level, inside backbones, and on boxed choice branches; offset-with-time SHALL and valid-calendar-date prose rules enforced (R5's published dateTime regex alone carries neither); R4/R5 fraction rules kept distinct (R4 unbounded, R5 nine-digit cap); issues name path+type, never the value (a date can be PHI); tests `TestValidateDateLexicalR5` / `TestValidateDateTimeLexicalR5` / `TestValidateTimeLexicalR5` / `TestValidateInstantLexicalR5` + R4 twins; HL7-validator conformance fixtures re-run clean | — | Date-family values inside complex datatypes (`Period.start`, `Timing.event`) remain with the HL7 validator gate; string-family primitives (uri, oid, uuid, id) have no in-process grammar check in v1 |
 | `resourceType` integrity on decode and dispatch | fhir.resources `get_resource_type()` / construction | MET | `fhir.Unmarshal[T]` mismatch rejection, `fhir/registry.go`, `UnmarshalResourceSlice` fail-whole | — | Fuzz-guarded: 5 fuzz targets (`fhir/r5/fuzz_test.go`: 3; `fhir/r5/validate_test.go`: 2) |
 | Bundle `bdl-*` invariant validation | (no fhir.resources equivalent; HAPI validates) | MET | release builders (`bundle_builders.go`) + wire-side checks in `fhir/r5/validate.go` | — | bdl-9/bdl-10 (document identifier/timestamp) and bdl-18 (searchset self link) documented as deferred |
 | Intra-Bundle / contained reference integrity | HAPI validation chain | MET | `Bundle.Resolve`, `DomainResource.ResolveContained`, `Bundle.CheckReferenceIntegrity` per release | — | Aggregated `OperationOutcome`, malformed contained slots named by index |
@@ -185,8 +187,11 @@ set over a pluggable `Repository` (`server/fhir_repository.go:Repository`).
   `feat/fhir-server-search-depth` (`server/fhir_search.go`, `server/fhir_search_params.go`, the
   reference-aware `MemoryRepository.Search`); server-role batch at the base endpoint flipped
   2026-07-05 (`server/fhir_batch.go`, the Bundle.type dispatch in `server/fhir_handlers.go`, the
-  batch CapabilityStatement advertisement); the flipped rows cite their shipped evidence and tests
-  directly.
+  batch CapabilityStatement advertisement); validation depth flipped 2026-07-05 — primitive lexical
+  validation (per-release official regexes in `fhir/r4|r5/primitive_lexical.go`, generated
+  `Primitives` closures) and nested-backbone required presence plus recursive `Extension.url` (the
+  `fhir/internal/gen` walk helpers, both trees regenerated, `gen:verify` green); the flipped rows
+  cite their shipped evidence and tests directly.
 - **Repository state**: main at `fdf7b54` for the original audit; `10c1174` plus the wave-0 FHIR-server
   slice for the updated rows.
 - **References consulted**:

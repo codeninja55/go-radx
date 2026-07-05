@@ -101,6 +101,15 @@ type ValidationDescriptor struct {
 	// surfaced (Codex FHIR-013). The engine emits one value-issue per returned issue.
 	Bindings func(r Resource) []BindingIssue
 
+	// Primitives reports the date/time-family primitive fields (date, dateTime, time,
+	// instant) whose present value violates the release's lexical rules — the official
+	// FHIR primitive regexes plus the offset-with-time prose rule (Codex FHIR-008). The
+	// closure checks only values that are present; absence is a cardinality concern,
+	// not a lexical one. Each issue names the element path and the primitive type,
+	// never the offending value, because a date can itself be PHI (a birth date). The
+	// engine emits one value-issue per returned issue.
+	Primitives func(r Resource) []PrimitiveIssue
+
 	// Extra runs any resource-specific structural checks that are not expressible as
 	// required/choice/binding metadata, appending their issues directly. The Bundle
 	// descriptor uses it to compose the bdl-* invariants and the reference-integrity
@@ -121,11 +130,24 @@ type BindingIssue struct {
 	Diagnostics string
 }
 
+// PrimitiveIssue is one primitive lexical violation reported by a descriptor's
+// Primitives closure: the element path and the diagnostic naming the primitive type
+// whose lexical rules the value breaks. The offending value is deliberately absent —
+// a date/dateTime value can itself be PHI (a birth date, a death time), so the issue
+// carries only the path and the type name (PRD §9.1).
+type PrimitiveIssue struct {
+	// Expression is the element path of the offending primitive field.
+	Expression string
+
+	// Diagnostics names the primitive type and that its lexical form is invalid.
+	Diagnostics string
+}
+
 // validate runs the descriptor's checks against r and records every issue. It runs the
-// required, choice, and binding checks in a fixed order so the issue order is
-// deterministic for a given resource, then the resource-specific Extra checks. A nil
-// closure (a resource with no required elements, no choices, or no required bindings)
-// is skipped.
+// required, choice, binding, and primitive-lexical checks in a fixed order so the issue
+// order is deterministic for a given resource, then the resource-specific Extra checks.
+// A nil closure (a resource with no required elements, no choices, no required
+// bindings, or no date/time-family primitives) is skipped.
 func (d ValidationDescriptor) validate(r Resource, resourceType string, outcome *OperationOutcome) {
 	if d.Required != nil {
 		for _, path := range d.Required(r) {
@@ -149,6 +171,16 @@ func (d ValidationDescriptor) validate(r Resource, resourceType string, outcome 
 	}
 	if d.Bindings != nil {
 		for _, issue := range d.Bindings(r) {
+			outcome.add(OutcomeIssue{
+				Severity:    SeverityError,
+				Code:        IssueTypeValue,
+				Diagnostics: issue.Diagnostics,
+				Expression:  issue.Expression,
+			})
+		}
+	}
+	if d.Primitives != nil {
+		for _, issue := range d.Primitives(r) {
 			outcome.add(OutcomeIssue{
 				Severity:    SeverityError,
 				Code:        IssueTypeValue,

@@ -695,11 +695,13 @@ can be checked from the base `StructureDefinition` for a release; it does not as
 1. **`resourceType` integrity.** On unmarshal and on polymorphic dispatch (`contained`, `Bundle.entry.resource`), the
    discriminator is verified against the target type; mismatch and unknown types are errors, not silent successes
    (Codex FHIR-003, FHIR-004, FHIR-011).
-2. **Cardinality and required presence.** Required (`min >= 1`) elements must be *present*, where presence is tracked
-   separately from value. A required boolean that is validly `false`, or a required number that is validly `0`, is
-   present and passes; this fixes the prototype's `reflect.IsZero` bug that read `false`/`0` as missing
-   (Codex FHIR-007). Max cardinality is enforced by the generated type (a `0..1` element is a pointer/optional; a `*`
-   element is a slice).
+2. **Cardinality and required presence.** Required (`min >= 1`) **non-choice** elements must be *present* — at the top
+   level and inside backbone elements at every depth (`Bundle.entry[i].request.method`, `ImagingStudy.series[i].uid`),
+   including the recursive `Extension.url` requirement — where presence is tracked separately from value. A required
+   boolean that is validly `false`, or a required number that is validly `0`, is present and passes; this fixes the
+   prototype's `reflect.IsZero` bug that read `false`/`0` as missing (Codex FHIR-007). A required choice (`[x]`)
+   element's presence is not yet checked at any level (see the scope boundary). Max cardinality is enforced by the
+   generated type (a `0..1` element is a pointer/optional; a `*` element is a slice).
 3. **Choice-type mutual exclusion.** At most one branch of a `[x]` group may be set; the typed setters enforce this at
    the boundary and the validator confirms it (Codex FHIR-001).
 4. **Required value-set bindings.** Codes bound with `required` strength are validated against the closed enum; an
@@ -707,7 +709,9 @@ can be checked from the base `StructureDefinition` for a release; it does not as
    rejected.
 5. **Primitive datatype validity.** Primitives are validated per the FHIR rules, not by loose regex: `date` rejects
    invalid calendar dates; `dateTime` requires a timezone offset when hours and minutes are present; `time` allows leap
-   seconds; `decimal` preserves lexical precision (Codex FHIR-008, FHIR-009).
+   seconds and rejects `24:00:00`; `instant` requires second precision and an offset; `decimal` preserves lexical
+   precision (Codex FHIR-008, FHIR-009). The lexical validators are per release, built from each release's official
+   primitive regexes (R4's unbounded fractional seconds stay valid R4; R5's nine-digit cap is enforced for R5).
 6. **Bundle invariants.** Per-type `bdl-*` constraints are checked before marshal/send: `total` only on
    searchset/history, `entry.search` only on searchset, document/message first-resource rules, transaction/batch
    request and response presence, and `fullUrl` uniqueness (Codex FHIR-010).
@@ -729,9 +733,17 @@ the first, so a caller sees the full set, and it folds issues from all phases in
 The engine is **data-driven by a generated per-resource validation descriptor**, not by call-time reflection over the
 resource. The generator emits one descriptor per resource into `fhir/r5/validation_descriptors.go`; each release package
 registers its descriptors with the root engine at package-init time, keyed by `resourceType`, exactly as the
-`resourceType`→factory registry is populated. A descriptor carries the resource's required elements, its choice (`[x]`)
-groups, and its required-binding code fields as **typed closures over the concrete resource** — for example a Patient
-descriptor's required check is `func(r) []string` that asserts `*r5.Patient` once and tests `v.Active != nil`. There is
+`resourceType`→factory registry is populated. A descriptor carries the resource's required elements (top-level and
+inside backbone elements, walked through generated per-backbone helper functions that name the exact occurrence, for
+example `Bundle.entry[2].request.method`), its choice (`[x]`) groups, its required-binding code fields, and its
+`date`/`dateTime`/`time`/`instant` lexical checks as **typed closures over the concrete resource** — for example a
+Patient descriptor's required check is `func(r) []string` that asserts `*r5.Patient` once and tests `v.Active != nil`.
+The lexical checks call hand-written per-release validators (`fhir/r5/primitive_lexical.go`,
+`fhir/r4/primitive_lexical.go`) built from the official FHIR primitive regexes of each release, plus the two prose
+rules the regexes alone do not carry: a `dateTime` with hours and minutes SHALL carry a timezone offset, and dates
+SHALL be valid calendar dates. A lexical issue names the element path and the primitive type, never the offending
+value — a date can itself be PHI. The required walk also enforces `Extension.url` (1..1) recursively over a
+resource's `extension` and `modifierExtension` arrays, the same requirement fhir.resources enforces upstream. There is
 no metadata reflection on the validation path: which elements are required, which form a choice group, and which carry a
 required binding are all resolved at generate time. The descriptor file regenerates byte-for-byte like the rest of the
 tree (`TestRegenerationByteForByte`, `gen:verify`). A resource whose type has no registered descriptor is reported as a
@@ -754,15 +766,21 @@ document/message first-entry type (bdl-3), transaction/batch request and respons
 and `fullUrl`
 uniqueness (bdl-7), then walking references through `CheckReferenceIntegrity`.
 
-**Scope boundary (v1).** The structural descriptor covers a resource's **top-level** elements: top-level required
-presence, top-level choice groups, and top-level required-binding codes. Nested-backbone cardinality, choice, and
-binding checks are deferred (a backbone's own required elements are not yet walked); full primitive lexical validation
-(`date`/`dateTime`/`time` calendar and offset rules, Codex FHIR-008) is also deferred — `decimal` already preserves
-lexical precision through `fhir.Decimal` (FHIR-009), and required-binding codes are validated against their closed enum.
-The HL7 FHIR validator (the conformance gate) covers the deferred depth; `Validate` is the fast in-process structural
-gate for the common, top-level errors. The workflow resources (`ServiceRequest`, `DiagnosticReport`, `ImagingStudy`)
-carry generated descriptors like every other generated resource, so their required elements and required-binding codes
-(`status`, `intent`) are validated rather than silently skipped.
+**Scope boundary.** The structural descriptor covers a resource's top-level elements and reaches inside its backbone
+elements for two check families: required presence (a backbone's own `min >= 1` **non-choice** elements are walked at
+every depth, with the recursive `Extension.url` requirement over `extension`/`modifierExtension`) and primitive lexical
+validity (`date`/`dateTime`/`time`/`instant` per the official release regexes, calendar-day and offset-with-time prose
+rules included, Codex FHIR-008) — `decimal` already preserves lexical precision through `fhir.Decimal` (FHIR-009), and
+required-binding codes are validated against their closed enum. Still deferred: **required choice (`[x]`) presence at
+any level** (a `1..1` choice element with no branch set is not reported missing — top-level or nested; only choice
+*mutual exclusion* is checked, and only at the top level), choice mutual exclusion and required-binding checks
+**inside** backbones, and everything **inside complex datatypes** — a required `Narrative.status` or `Signature.when`,
+a `Period.start` or `Timing.event` date value, and extensions attached below the resource's own arrays are not walked.
+The HL7 FHIR validator (the conformance gate) covers that remaining depth; `Validate` is the fast in-process structural
+gate. The workflow resources (`ServiceRequest`, `DiagnosticReport`,
+`ImagingStudy`) carry generated descriptors like every other generated resource, so their required elements — down to
+`ImagingStudy.series[i].uid` — and required-binding codes (`status`, `intent`) are validated rather than silently
+skipped.
 
 The authoritative external check is the **HL7 FHIR validator**, merge-blocking in CI (PRD §11.1). go-radx's own
 validation is the fast in-process gate; the official validator is the conformance gate.
