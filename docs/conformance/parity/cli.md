@@ -14,7 +14,7 @@ library already provides.
 
 ## Summary
 
-28 in-scope dcmtk tools/tool-pairs: **9 MET, 12 PARTIAL, 7 NOT-MET.**
+28 in-scope dcmtk tools/tool-pairs: **10 MET, 11 PARTIAL, 7 NOT-MET.**
 
 Top gaps, largest first:
 
@@ -30,12 +30,17 @@ Top gaps, largest first:
    export or consumer-image import path (no `image/png` use anywhere). The windowing/VOI/modality LUT and
    palette/photometric pipeline now ships in the library (`dicom/lut.go`, `dicom/colorspace.go`, PRs
    #127/#128); the remaining gap is display-value-to-image composition and the format writers.
-3. **Q/R SCP archive (L).** `dcmqrscp` maps to `server.NewDIMSERole` (C-ECHO/C-STORE/C-FIND over
-   `ObjectStore`+`Catalogue`, optional MWL), but C-GET/C-MOVE SCP are explicitly unmounted
-   (`server/role_dimse.go:182`) and there is no `radx serve dimse` subcommand.
-4. **DICOMDIR (M).** `dcmgpdir`/`dcmmkdir` have no CLI equivalent, but `dicom.NewFileSetBuilder` builds and
+3. **DICOMDIR (M).** `dcmgpdir`/`dcmmkdir` have no CLI equivalent, but `dicom.NewFileSetBuilder` builds and
    writes a file-set and `dicom.OpenFileSet` reads and queries one (PR #119); a `radx` DICOMDIR subcommand
    over the shipped FileSet closes it, with no further library work for create/read.
+
+The Q/R SCP archive, formerly a top gap here, shipped: the DIMSE role mounts `GetHandler` and
+`MoveHandler` over `ObjectStore`+`Catalogue` (`dimseRetrieveHandler`, `server/role_dimse.go`) behind an
+explicit `WithDIMSERetrieve()` opt-in (so an existing role embedder does not gain archive-wide retrieve
+on upgrade), the retrieve enforces a valued unique key per level (an under-specified retrieve fails
+0xA900 rather than streaming the archive) and honours UID-list and unindexed match keys, and `radx serve
+dimse` (`command/serve_dimse.go`) enables retrieve and exposes a dcmqrscp-style static
+`--move-destination AET=host:port` table (see the dcmqrscp row).
 
 CLI TLS, formerly a cross-cutting gap here, shipped: every SCU command (`echo`, `store`, `find`, `get`,
 `move`) exposes `--tls` with `--tls-ca`, mutual-TLS `--tls-cert`/`--tls-key`, and the loudly-named
@@ -78,8 +83,8 @@ matching dcmtk's `+tls` family).
 | getscu | C-GET SCU (same-association retrieve) | MET | `radx get` (`command/get.go`): levels, match keys, `--output-dir`, Storage SCP role negotiation for sub-operation C-STOREs, sub-op counts in the result | - | - |
 | movescu | C-MOVE SCU to a destination AE | MET | `radx move` (`command/move.go`): `--move-destination`, levels, match keys, faithful Warning/Failure terminal reporting (exit 4) | - | No embedded receive port (`movescu --port` spawns its own SCP); run `radx scp` alongside instead |
 | termscu | Association termination test SCU | NOT-MET | None | S | Niche diagnostic tool; the dimse layer has full ACSE association/release/abort, so a command is small if ever wanted |
-| dcmqrscp | Image archive: storage + Q/R SCP + DB | PARTIAL | Library: `server.NewDIMSERole` serves C-ECHO/C-STORE/C-FIND over `ObjectStore` + `Catalogue` (`server/role_dimse.go`); CLI: `radx scp` (storage only) + `radx catalogue` (index/query) | L | C-GET/C-MOVE SCP are explicitly unmounted in the role ("a later increment", `server/role_dimse.go:182`) and no `radx serve dimse` subcommand exposes the role |
-| wlmscpfs | Modality Worklist SCP from data files | PARTIAL | Library: `server.WithWorklistSource` mounts an MWL SCP in the DIMSE role (`server/role_dimse.go:46`); no CLI command | M | Needs a `radx serve dimse` (or worklist) subcommand plus a file-backed `WorklistSource`; the SCU side ships as `radx find -W` (see findscu row) |
+| dcmqrscp | Image archive: storage + Q/R SCP + DB | MET | `radx serve dimse` (`command/serve_dimse.go`, `ServeDIMSECmd`) runs `server.NewDIMSERole` serving C-ECHO/C-STORE/C-FIND/C-GET/C-MOVE over `ObjectStore` + `Catalogue`; retrieve is the explicit `WithDIMSERetrieve()` opt-in enforcing a valued per-level unique key (under-specified retrieve fails 0xA900), UID-list and unindexed match keys (`dimseRetrieveHandler`, `server/role_dimse.go`); C-MOVE destinations via repeatable `--move-destination AET=host:port` (`WithDIMSEMoveDestinations`), unknown destination answered 0xA801; loopback proofs `server/role_dimse_retrieve_test.go` + end-to-end `TestServeDIMSERoundTrip` (`command/serve_dimse_test.go`) | - | Destination table is flag-static (dcmqrscp reads a config file with per-AE access controls); MWL serving remains the wlmscpfs row's gap |
+| wlmscpfs | Modality Worklist SCP from data files | PARTIAL | Library: `server.WithWorklistSource` mounts an MWL SCP in the DIMSE role (`server/role_dimse.go`); `radx serve dimse` now runs the role but exposes no worklist flag | M | Remaining gap is a file-backed `WorklistSource` plus a `serve dimse` flag to mount it; the SCU side ships as `radx find -W` (see findscu row) |
 
 Note: the audit brief listed `dcmanonymize`; no dcmtk tool of that name exists in the current docs index.
 dcmtk de-identification is done through dcmodify recipes; the radx counterparts are `modify --delete` +

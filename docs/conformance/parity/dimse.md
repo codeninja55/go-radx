@@ -7,8 +7,8 @@ transport/TLS/timeouts. Evidence is file:symbol against main as of 2026-06-10. T
 
 ## Summary
 
-**Counts: 93 features — 66 MET, 8 PARTIAL, 18 NOT-MET, 1 N-A.** (The NOT-MET count includes the
-`qrscp` CLI-layer row cross-referenced to A6.)
+**Counts: 93 features — 67 MET, 8 PARTIAL, 17 NOT-MET, 1 N-A.** (The `qrscp` CLI-layer row,
+formerly the one NOT-MET bundled app, is closed by `radx serve dimse`.)
 
 The association plane is at full parity: requestor and acceptor, the complete PS3.8 FSM (Sta1-13
 including release collision), ARTIM, all eight user-information negotiation items, A-ABORT/A-P-ABORT
@@ -188,7 +188,7 @@ Protocol capability only is judged here; CLI flag/behavior parity is A6's scope.
 | `movescu` | `radx move` (`command/move.go`) | MET | |
 | `storescu` | `radx store` (`command/store.go`) | MET | |
 | `storescp` | `radx scp` (`command/scp.go:47` — `EchoHandler` + `StoreHandler`) | MET | |
-| `qrscp` | none — `radx scp` does not wire `FindHandler`/`MoveHandler`/`GetHandler` | NOT-MET (CLI); library SCP capability exists | Size M at the CLI layer; defer to A6 |
+| `qrscp` | `radx serve dimse` (`cmd/radx/internal/command/serve_dimse.go`) over `server.NewDIMSERole`, whose handler wires `FindHandler` plus the opt-in `GetHandler`/`MoveHandler` (`dimseRetrieveHandler`, `server/role_dimse.go`) | MET | Retrieve is an explicit `WithDIMSERetrieve()` opt-in (not mounted by default) enforcing a valued per-level unique key (under-specified retrieve → 0xA900) and UID-list/unindexed match keys; C-MOVE destinations from the `--move-destination AET=host:port` table (`WithDIMSEMoveDestinations`); loopback C-GET/C-MOVE, unique-key, and unknown-destination proofs in `server/role_dimse_retrieve_test.go` |
 
 ## Methodology
 

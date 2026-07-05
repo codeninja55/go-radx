@@ -125,8 +125,8 @@ func (c *CatalogueCmd) runIndex(rc *RunContext) error {
 	}
 	defer closeCatalogue(cat)
 	// Harden the catalogue file to owner-only: it holds PHI, so it is never world-readable
-	// (RADX-008). The chmod happens after the driver created the file.
-	if err := os.Chmod(c.Database, 0o600); err != nil {
+	// (RADX-008). The chmod happens after the driver created the file; an in-memory DSN is a no-op.
+	if err := hardenCataloguePath(c.Database); err != nil {
 		return err
 	}
 
@@ -178,6 +178,26 @@ func closeCatalogue(cat server.Catalogue) {
 	if closer, ok := cat.(io.Closer); ok {
 		_ = closer.Close()
 	}
+}
+
+// hardenCataloguePath restricts a freshly created SQLite catalogue to owner-only (0600) because it
+// holds PHI (RADX-008). It is a no-op for the in-memory forms (":memory:", "memory") and for a
+// "file:" DSN with a ":memory:"/shared-cache in-memory target, which have no file to harden;
+// otherwise it chmods the filesystem path (stripping any "file:" scheme and query string) so a
+// URI-form DSN does not make startup fail on an os.Chmod of a non-path. A chmod failure on a real
+// file is surfaced, never swallowed.
+func hardenCataloguePath(dsn string) error {
+	path := dsn
+	if after, ok := strings.CutPrefix(path, "file:"); ok {
+		path = after
+		if i := strings.IndexAny(path, "?#"); i >= 0 {
+			path = path[:i]
+		}
+	}
+	if path == "" || path == ":memory:" || path == "memory" || strings.Contains(dsn, ":memory:") || strings.Contains(dsn, "mode=memory") {
+		return nil
+	}
+	return os.Chmod(path, 0o600)
 }
 
 // indexFile reads one DICOM file and indexes it. A read/parse failure or an index failure is
