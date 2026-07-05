@@ -13,16 +13,19 @@ legacy codebase (`legacy-main`) and are not continued here.
 ### Added
 
 - Frame rendering to 8-bit consumer images: `dicom.RenderFrame` runs the PS3.3 C.11 grayscale pipeline
-  (modality LUT, then VOI LUT table / window / min-max auto-stretch, MONOCHROME1 inverted) and the colour
-  paths (palette expansion, RGB and YBR conversion) over a decoded frame, with `EncodePNG` and `EncodePPM`
-  writers. VOI precedence matches `ApplyVOILUT`: an explicit VOI LUT table wins over Window Center/Width.
+  (modality LUT, then VOI LUT table / window / padding-aware min-max auto-stretch, MONOCHROME1 inverted) and
+  the colour paths (palette expansion, RGB and YBR conversion) over a decoded frame, with an `EncodePPM`
+  writer (PNG needs only the stdlib). VOI precedence matches `ApplyVOILUT` (table wins over Window
+  Center/Width); the auto-stretch excludes Pixel Padding Value per PS3.3 C.7.5.1.1.2; 16-bit stored values
+  are masked and sign-extended from BitsStored/HighBit; an unusable Window Width degrades to the
+  auto-stretch; non-8-bit colour frames fail closed. (#154)
 
 ### Changed
 
 - The dicom parity matrix's ISO 2022 row is restored to MET: the per-item charset-in-sequences behaviour
   flagged as untested by the 2026-07-04 re-verification is now covered by reader tests (item-scoped
   (0008,0005) override applied inside the item, not leaked to siblings or top level). Aggregate is
-  271 MET / 44 PARTIAL / 84 NOT-MET / 15 N-A.
+  271 MET / 44 PARTIAL / 84 NOT-MET / 15 N-A. (#154)
 
 - Parity matrices re-verified against main @ c1b839d (stratified sample of 47 MET rows plus a full
   pressure-test of all 128 PARTIAL/NOT-MET rows, every change adversarially confirmed): one dicom row
