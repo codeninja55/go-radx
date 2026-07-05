@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"os/signal"
 	"syscall"
 
@@ -19,10 +18,12 @@ import (
 )
 
 // ServeCmd groups the reference daemons. serve dicomweb wires the server package's DICOMweb role
-// over the default filesystem object store and SQLite catalogue; serve fhir wires the FHIR REST
-// role over the in-memory development repository (docs/reference/cli.md serve).
+// over the default filesystem object store and SQLite catalogue; serve dimse wires the DIMSE Q/R
+// archive role over the same backends; serve fhir wires the FHIR REST role over the in-memory
+// development repository (docs/reference/cli.md serve).
 type ServeCmd struct {
 	DICOMweb ServeDICOMwebCmd `cmd:"" name:"dicomweb" help:"Serve WADO-RS / STOW-RS / QIDO-RS."`
+	DIMSE    ServeDIMSECmd    `cmd:"" name:"dimse" help:"Serve a DIMSE Q/R archive (C-ECHO/C-STORE/C-FIND/C-GET/C-MOVE)."`
 	FHIR     ServeFHIRCmd     `cmd:"" name:"fhir" help:"Serve the FHIR REST API (in-memory development repository)."`
 }
 
@@ -168,7 +169,8 @@ func (c *ServeDICOMwebCmd) Run(rc *RunContext) error {
 	}
 	defer closeCatalogue(cat)
 	// The catalogue holds PHI: harden the file to owner-only after the driver creates it (RADX-008).
-	if err := os.Chmod(c.Catalogue, 0o600); err != nil {
+	// An in-memory or URI-form DSN with no filesystem file is a no-op rather than a startup failure.
+	if err := hardenCataloguePath(c.Catalogue); err != nil {
 		return err
 	}
 

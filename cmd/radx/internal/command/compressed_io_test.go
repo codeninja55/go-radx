@@ -191,3 +191,18 @@ func TestModifyCompressedFile(t *testing.T) {
 		t.Errorf("decoded %d frames, want 1", frames)
 	}
 }
+
+// TestStoreTranscodeToAcceptsKeyword confirms store --transcode-to accepts the dicom keyword form
+// (ExplicitVRLittleEndian) in addition to the raw UID, matching radx transcode and compose.
+func TestStoreTranscodeToAcceptsKeyword(t *testing.T) {
+	host, port := startStorageServer(t, "")
+	f := writeCompressedStorableDICOM(t, t.TempDir(), "1.2.3.4.5.46")
+
+	stdout, stderr, code := runRadx(t, "store", "--format", "json",
+		"--host", host, "--port", strconv.Itoa(port), "--called-ae", "RADX-SCP",
+		"--transcode-to", "ExplicitVRLittleEndian", f)
+	if code != exitcode.Success {
+		t.Fatalf("store --transcode-to keyword exit = %d, want %d\nstdout=%q\nstderr=%q",
+			code, exitcode.Success, stdout, stderr)
+	}
+}

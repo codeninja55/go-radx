@@ -26,6 +26,8 @@ type EchoCmd struct {
 	CallingAE string        `name:"calling-ae" default:"${default_calling_ae}" env:"RADX_CALLING_AE" help:"Calling AE Title (this client)."`
 	Timeout   time.Duration `name:"timeout" default:"30s" env:"RADX_TIMEOUT" help:"Connection and operation timeout."`
 	MaxPDU    uint32        `name:"max-pdu" default:"${default_max_pdu}" env:"RADX_MAX_PDU" help:"Maximum PDU length in bytes."`
+
+	TLSFlags tlsFlags `embed:""`
 }
 
 // echoResult is the canonical machine shape for echo: a single JSON object with a stable
@@ -70,12 +72,13 @@ func (c *EchoCmd) Run(rc *RunContext) error {
 		zap.String("calling_ae", string(calling)),
 	)
 
-	ae, err := dimse.NewAE(calling,
-		dimse.WithMaxPDULength(dimse.MaxPDULength(c.MaxPDU)),
-		dimse.WithACSETimeout(c.Timeout),
-		dimse.WithDIMSETimeout(c.Timeout),
-		dimse.WithConnectionTimeout(c.Timeout),
-	)
+	// The TLS material is loaded fail-closed before any dial; a nil config keeps plaintext, and a
+	// disabled-verification run is warned loudly.
+	tlsCfg, err := c.TLSFlags.resolveClientTLS(log)
+	if err != nil {
+		return err
+	}
+	ae, err := dimse.NewAE(calling, scuAEOptions(c.Timeout, c.MaxPDU, tlsCfg)...)
 	if err != nil {
 		return err
 	}

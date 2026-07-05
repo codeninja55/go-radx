@@ -29,6 +29,8 @@ type GetCmd struct {
 	OutputDir string        `name:"output-dir" default:"./dicom-received" help:"Where to write retrieved objects."`
 	Timeout   time.Duration `name:"timeout" default:"5m" env:"RADX_TIMEOUT" help:"Operation timeout."`
 	MaxPDU    uint32        `name:"max-pdu" default:"${default_max_pdu}" env:"RADX_MAX_PDU" help:"Maximum PDU length in bytes."`
+
+	TLSFlags tlsFlags `embed:""`
 }
 
 // retrieveResult is the canonical machine shape for get/move: the terminal status, the
@@ -76,12 +78,13 @@ func (c *GetCmd) Run(rc *RunContext) error {
 		zap.String("level", level.String()),
 	)
 
-	ae, err := dimse.NewAE(calling,
-		dimse.WithMaxPDULength(dimse.MaxPDULength(c.MaxPDU)),
-		dimse.WithACSETimeout(c.Timeout),
-		dimse.WithDIMSETimeout(c.Timeout),
-		dimse.WithConnectionTimeout(c.Timeout),
-	)
+	// The TLS material is loaded fail-closed before any dial; a nil config keeps plaintext, and a
+	// disabled-verification run is warned loudly.
+	tlsCfg, err := c.TLSFlags.resolveClientTLS(log)
+	if err != nil {
+		return err
+	}
+	ae, err := dimse.NewAE(calling, scuAEOptions(c.Timeout, c.MaxPDU, tlsCfg)...)
 	if err != nil {
 		return err
 	}

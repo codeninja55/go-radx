@@ -28,6 +28,9 @@ type ScpCmd struct {
 	AcceptEcho bool   `name:"accept-echo" default:"true" negatable:"" help:"Accept C-ECHO."`
 	MaxPDU     uint32 `name:"max-pdu" default:"${default_max_pdu}" env:"RADX_MAX_PDU" help:"Maximum PDU length in bytes."`
 	MaxConns   int    `name:"max-conns" default:"10" help:"Maximum concurrent associations."`
+
+	TLSCert string `name:"tls-cert" help:"PEM server certificate; with --tls-key, the listener terminates TLS (1.2+)."`
+	TLSKey  string `name:"tls-key" help:"PEM private key for --tls-cert."`
 }
 
 // scpStartedResult is the canonical machine shape emitted once the SCP has bound: the bound address
@@ -103,7 +106,21 @@ func (c *ScpCmd) Run(rc *RunContext) error {
 			zap.String("bind", c.Bind))
 	}
 
-	ae, err := dimse.NewAE(aet, dimse.WithMaxPDULength(dimse.MaxPDULength(c.MaxPDU)))
+	aeOpts := []dimse.AEOption{dimse.WithMaxPDULength(dimse.MaxPDULength(c.MaxPDU))}
+	// Both halves of the certificate pair are required together; the material is loaded
+	// fail-closed at startup, before any bind, and its paths are never logged at info level.
+	if (c.TLSCert == "") != (c.TLSKey == "") {
+		return &exitcode.UsageErr{Message: "--tls-cert and --tls-key must be provided together"}
+	}
+	if c.TLSCert != "" {
+		tlsCfg, err := serverTLSConfig(c.TLSCert, c.TLSKey)
+		if err != nil {
+			return err
+		}
+		aeOpts = append(aeOpts, dimse.WithTLS(tlsCfg))
+		log.Info("scp: TLS listener enabled (TLS 1.2+)")
+	}
+	ae, err := dimse.NewAE(aet, aeOpts...)
 	if err != nil {
 		return err
 	}

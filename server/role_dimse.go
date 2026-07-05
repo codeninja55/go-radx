@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"iter"
 	"net"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
 
 	"github.com/codeninja55/go-radx/dicom"
+	"github.com/codeninja55/go-radx/dicomweb"
 	"github.com/codeninja55/go-radx/dimse"
 )
 
@@ -23,6 +25,14 @@ type dimseRoleConfig struct {
 	contexts []dimse.PresentationContext
 	worklist WorklistSource
 	maxAssoc int
+	// moveDests is the known-AE table the C-MOVE SCP resolves a Move Destination AE Title against
+	// (the dcmqrscp model: a static AE-title -> host:port map). Nil refuses every move as 0xA801.
+	moveDests map[dimse.AETitle]string
+	// retrieve mounts the C-GET/C-MOVE SCP capability. It is off by default so an existing
+	// NewDIMSERole embedder does not silently gain archive-wide retrieve on upgrade; the retrieve
+	// services are an explicit opt-in (WithDIMSERetrieve), and a role without it refuses C-GET/C-MOVE
+	// with StatusSOPClassNotSupported exactly as before.
+	retrieve bool
 }
 
 // DIMSERoleOption configures a DIMSERole at construction.
@@ -53,6 +63,26 @@ func WithWorklistSource(w WorklistSource) DIMSERoleOption {
 // before a handler goroutine is spawned (DIMSE-013).
 func WithMaxAssociations(n int) DIMSERoleOption {
 	return func(c *dimseRoleConfig) { c.maxAssoc = n }
+}
+
+// WithDIMSEMoveDestinations configures the known-AE table the role's C-MOVE SCP resolves a Move
+// Destination AE Title against (dcmqrscp's static AE table): each entry maps a destination AE
+// Title to its network address ("host:port"). A destination absent from the table is answered
+// with the terminal 0xA801 "Move Destination Unknown" status (PS3.4 C.4.2.1.5); with no table,
+// every C-MOVE is refused that way. The underlying dimse.WithMoveDestinations copies the map, so
+// a later caller mutation cannot change the running server's resolution.
+func WithDIMSEMoveDestinations(dests map[dimse.AETitle]string) DIMSERoleOption {
+	return func(c *dimseRoleConfig) { c.moveDests = dests }
+}
+
+// WithDIMSERetrieve mounts the C-GET and C-MOVE SCP capability over the ObjectStore and Catalogue.
+// It is off by default: the retrieve services stream stored composite instances to a requestor (or
+// a Move Destination AE), so enabling them is an explicit, reviewable decision an embedder makes
+// rather than a behaviour that appears on upgrade. Without it the role serves only
+// C-ECHO/C-STORE/C-FIND and refuses C-GET/C-MOVE with StatusSOPClassNotSupported. C-MOVE also needs
+// a destination table (WithDIMSEMoveDestinations) to resolve where matched instances are sent.
+func WithDIMSERetrieve() DIMSERoleOption {
+	return func(c *dimseRoleConfig) { c.retrieve = true }
 }
 
 // DIMSERole configures the DIMSE SCP. The title is a validated dimse.AETitle (produce it with
@@ -128,10 +158,27 @@ func (r *DIMSERole) start(ctx context.Context, host string, env roleEnv) error {
 		logger:   env.logger,
 		audit:    env.audit,
 	}
+	// The retrieve capability is a distinct handler type carrying Get/Move, mounted only when the
+	// role opts in (WithDIMSERetrieve). Passing the bare *dimseHandler leaves C-GET/C-MOVE unmounted,
+	// so the dispatcher refuses them with StatusSOPClassNotSupported (interface segregation, PRD §8.2).
+	var srvHandler any = r.handler
+	if r.cfg.retrieve {
+		srvHandler = &dimseRetrieveHandler{dimseHandler: r.handler}
+	}
 
 	var srvOpts []dimse.ServerOption
 	if r.cfg.maxAssoc > 0 {
 		srvOpts = append(srvOpts, dimse.WithMaxAssociations(r.cfg.maxAssoc))
+	}
+	if r.cfg.retrieve {
+		if len(r.cfg.moveDests) > 0 {
+			srvOpts = append(srvOpts, dimse.WithMoveDestinations(r.cfg.moveDests))
+		}
+		// Grant the requestor the Storage SCP role for the role's CONFIGURED Storage classes so a
+		// C-GET's same-association sub-operation C-STOREs can be received (PS3.7 D.3.3.4). Deriving
+		// the grant from the configured contexts (not the fixed preset) means a custom Storage class
+		// added via WithDIMSEContexts is deliverable over C-GET, not silently undeliverable.
+		srvOpts = append(srvOpts, dimse.WithGetStorageRoles(r.storageContextClasses()...))
 	}
 	// Enforce the daemon's Authenticator at the association-accept layer: an unauthorized Calling AE
 	// Title is rejected with an A-ASSOCIATE-RJ before any C-ECHO/C-STORE/C-FIND runs, so a
@@ -145,7 +192,7 @@ func (r *DIMSERole) start(ctx context.Context, host string, env roleEnv) error {
 			return err
 		}))
 	}
-	r.srv = dimse.NewServer(ae, r.cfg.contexts, r.handler, srvOpts...)
+	r.srv = dimse.NewServer(ae, r.cfg.contexts, srvHandler, srvOpts...)
 
 	addr := joinHostPort(host, r.cfg.port)
 	served := make(chan error, 1)
@@ -180,10 +227,11 @@ func (r *DIMSERole) shutdown(ctx context.Context) error {
 }
 
 // dimseHandler adapts the shared backends to the dimse.Handler capabilities. It implements
-// EchoHandler, StoreHandler, and (when a WorklistSource is configured) FindHandler. C-GET/C-MOVE
-// retrieve from the ObjectStore is a later increment; until then those services are unmounted and the
-// dispatcher refuses them with StatusSOPClassNotSupported (interface segregation, PRD §8.2). The
-// handler logs structural identifiers only (AE titles, SOP class/instance UIDs), never PHI (PRD §9.1).
+// EchoHandler, StoreHandler, and FindHandler (Patient/Study Root from the Catalogue, plus the
+// Modality Worklist model when a WorklistSource is configured). The retrieve capabilities
+// (GetHandler/MoveHandler) live on dimseRetrieveHandler, mounted only when the role opts in, so an
+// embedder does not gain archive-wide retrieve implicitly. The handler logs structural identifiers
+// only (AE titles, SOP class/instance UIDs), never PHI (PRD §9.1).
 type dimseHandler struct {
 	store    ObjectStore
 	cat      Catalogue
@@ -282,6 +330,150 @@ func (h *dimseHandler) findCatalogue(ctx context.Context, query *dicom.DataSet, 
 	}
 }
 
+// dimseRetrieveHandler is the opt-in retrieve capability: it embeds the base *dimseHandler (so it
+// carries Echo/Store/Find) and adds GetHandler and MoveHandler over the ObjectStore. It is passed
+// to the dimse.Server only when the role opts in (WithDIMSERetrieve), so a role without it does not
+// implement the retrieve interfaces and the dispatcher refuses C-GET/C-MOVE.
+type dimseRetrieveHandler struct {
+	*dimseHandler
+}
+
+// Get answers a C-GET: it streams each stored instance the identifier matches as a Pending yield,
+// and the dimse runtime C-STOREs each one back to the requestor on the same association.
+func (h *dimseRetrieveHandler) Get(ctx context.Context, query *dicom.DataSet, level dimse.QueryLevel, info dimse.OpInfo) iter.Seq2[dimse.Status, *dicom.DataSet] {
+	h.logger.Info("c-get received",
+		zap.Stringer("calling_ae", info.CallingAETitle),
+		zap.Stringer("level", level),
+		zap.Uint16("message_id", info.MessageID))
+	return h.retrieveInstances(ctx, query, level, dimse.ServiceClassGet)
+}
+
+// Move answers a C-MOVE: it streams each stored instance the identifier matches as a Pending
+// yield, and the dimse runtime C-STOREs each one to the resolved Move Destination AE over its own
+// outbound association. Destination resolution (and the 0xA801 refusal for an unknown AE Title)
+// happens in the runtime against the configured known-AE table before this handler runs.
+func (h *dimseRetrieveHandler) Move(ctx context.Context, query *dicom.DataSet, level dimse.QueryLevel, dest dimse.AETitle, info dimse.OpInfo) iter.Seq2[dimse.Status, *dicom.DataSet] {
+	h.logger.Info("c-move received",
+		zap.Stringer("calling_ae", info.CallingAETitle),
+		zap.Stringer("destination", dest),
+		zap.Stringer("level", level),
+		zap.Uint16("message_id", info.MessageID))
+	return h.retrieveInstances(ctx, query, level, dimse.ServiceClassMove)
+}
+
+// retrieveInstances resolves a retrieve identifier to full stored instances. Before querying, it
+// enforces the retrieve unique-key requirement (PS3.4 C.2.2.2/C.4.3): the level's identifying UID
+// must be present and valued, so an absent or universal key fails closed with 0xA900 rather than
+// streaming the entire archive (the PHI-safety guard). It then queries the Catalogue at instance
+// granularity with the identifier's match keys, honouring UID-list values, and — mirroring the
+// C-FIND seam — re-applies any identifier key the catalogue cannot index against the fetched
+// composite dataset (dicomweb.MatchDataSet) so an unindexed key still constrains the retrieve
+// rather than over-disclosing. Each surviving instance is yielded under the service's Pending
+// status. A backend fault terminates with the service's 0xC000 failure status, never a laundered
+// clean end (PRD §9.2); the diagnostic names the fault class only, no PHI.
+func (h *dimseHandler) retrieveInstances(ctx context.Context, query *dicom.DataSet, level dimse.QueryLevel, svc dimse.ServiceClass) iter.Seq2[dimse.Status, *dicom.DataSet] {
+	pending := dimse.NewStatus(0xFF00, svc)
+	failure := dimse.NewStatus(0xC000, svc)
+	identifierMismatch := dimse.NewStatus(0xA900, svc)
+	return func(yield func(dimse.Status, *dicom.DataSet) bool) {
+		match := matchKeysFromIdentifier(query)
+		if !hasValuedUniqueKey(match, level) {
+			h.logger.Warn("retrieve refused: missing valued unique key for level",
+				zap.Stringer("level", level))
+			yield(identifierMismatch, nil)
+			return
+		}
+		unindexed := unindexedKeys(match)
+		for candidate, err := range h.cat.Query(ctx, CatalogueQuery{Level: dimse.QueryLevelImage, Match: match}) {
+			if err != nil {
+				h.logger.Warn("retrieve catalogue query failed")
+				yield(failure, nil)
+				return
+			}
+			instance, ok := candidate.GetString(dicom.TagSOPInstanceUID)
+			if !ok || instance == "" {
+				continue
+			}
+			full, err := h.store.Get(ctx, dicom.SOPInstanceUID(instance))
+			if err != nil {
+				h.logger.Warn("retrieve object store fetch failed")
+				yield(failure, nil)
+				return
+			}
+			// A key the catalogue could not index was not applied by the SQL query; decide it against
+			// the real stored values so an unindexed constraint is honoured, never dropped.
+			if !dicomweb.MatchDataSet(full, unindexed, false) {
+				continue
+			}
+			if !yield(pending, full) {
+				return
+			}
+		}
+	}
+}
+
+// retrieveUniqueKeys lists the identifying UID tags a retrieve at level must carry with a value
+// (PS3.4 C.2.2.2/C.4.3): a study is identified by its Study UID, a series additionally by its
+// Series UID, an instance by its SOP Instance UID, and a patient by Patient ID. A retrieve missing
+// its level's unique key is under-specified and must not run an archive-wide query.
+func retrieveUniqueKeys(level dimse.QueryLevel) []dicom.Tag {
+	switch level {
+	case dimse.QueryLevelPatient:
+		return []dicom.Tag{dicom.TagPatientID}
+	case dimse.QueryLevelStudy:
+		return []dicom.Tag{dicom.TagStudyInstanceUID}
+	case dimse.QueryLevelSeries:
+		return []dicom.Tag{dicom.TagStudyInstanceUID, dicom.TagSeriesInstanceUID}
+	default: // IMAGE / FRAME
+		return []dicom.Tag{dicom.TagStudyInstanceUID, dicom.TagSeriesInstanceUID, dicom.TagSOPInstanceUID}
+	}
+}
+
+// hasValuedUniqueKey reports whether match carries every unique key the level requires with a
+// non-empty, non-universal value. A universal ("" or "*") value or an absent key means the
+// retrieve is under-specified and must be refused with 0xA900.
+func hasValuedUniqueKey(match map[dicom.Tag]string, level dimse.QueryLevel) bool {
+	for _, tag := range retrieveUniqueKeys(level) {
+		v, ok := match[tag]
+		if !ok || v == "" || v == "*" {
+			return false
+		}
+	}
+	return true
+}
+
+// storageContextClasses returns the Storage SOP Classes among the role's configured presentation
+// contexts, the classes the C-GET SCP grants the requestor the Storage SCP role for. It excludes
+// the Verification and Query/Retrieve information-model abstract syntaxes (which are contexts but
+// not Storage classes), so the grant tracks whatever Storage set WithDIMSEContexts configured
+// rather than a fixed preset.
+func (r *DIMSERole) storageContextClasses() []dicom.SOPClassUID {
+	nonStorage := make(map[dicom.SOPClassUID]struct{})
+	for _, preset := range [][]dimse.PresentationContext{
+		dimse.VerificationContexts(),
+		dimse.QueryRetrieveContexts(),
+		dimse.ExtendedQueryRetrieveContexts(),
+		dimse.BasicWorklistContexts(),
+	} {
+		for _, pc := range preset {
+			nonStorage[pc.AbstractSyntax] = struct{}{}
+		}
+	}
+	seen := make(map[dicom.SOPClassUID]struct{}, len(r.cfg.contexts))
+	out := make([]dicom.SOPClassUID, 0, len(r.cfg.contexts))
+	for _, pc := range r.cfg.contexts {
+		if _, skip := nonStorage[pc.AbstractSyntax]; skip {
+			continue
+		}
+		if _, dup := seen[pc.AbstractSyntax]; dup {
+			continue
+		}
+		seen[pc.AbstractSyntax] = struct{}{}
+		out = append(out, pc.AbstractSyntax)
+	}
+	return out
+}
+
 // isWorklistQuery reports whether the C-FIND identifier carries a Scheduled Procedure Step Sequence
 // (0040,0100), the hallmark of a Modality Worklist query. A query without it is a Patient/Study Root
 // query the catalogue answers.
@@ -293,10 +485,13 @@ func isWorklistQuery(query *dicom.DataSet) bool {
 	return ok
 }
 
-// matchKeysFromIdentifier extracts the single-value string match keys from a C-FIND identifier into
-// the catalogue's tag->value map. A key present with an empty value is a return key (universal match),
-// recorded with an empty string so the catalogue returns it without constraining on it. Sequence
-// values are left to the catalogue's own matching and not flattened here.
+// matchKeysFromIdentifier extracts the string match keys from a C-FIND/retrieve identifier into
+// the catalogue's tag->value map. Multi-valued keys are reconstituted to their backslash-delimited
+// wire form (GetStrings + join), so a UID-list match (StudyInstanceUID=A\B, legal per PS3.4
+// C.2.2.2.4) constrains on every listed value rather than only the first — the downstream matcher
+// already decodes the list form. A key present with an empty value is a return key (universal
+// match), recorded with an empty string so the catalogue returns it without constraining on it.
+// Sequence values are left to the catalogue's own matching and not flattened here.
 func matchKeysFromIdentifier(query *dicom.DataSet) map[dicom.Tag]string {
 	if query == nil {
 		return nil
@@ -306,9 +501,11 @@ func matchKeysFromIdentifier(query *dicom.DataSet) map[dicom.Tag]string {
 		if elem.Tag == dicom.TagQueryRetrieveLevel {
 			continue
 		}
-		if v, ok := query.GetString(elem.Tag); ok {
-			match[elem.Tag] = v
+		vals, ok := query.GetStrings(elem.Tag)
+		if !ok {
+			continue
 		}
+		match[elem.Tag] = strings.Join(vals, `\`)
 	}
 	return match
 }
