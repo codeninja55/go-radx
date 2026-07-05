@@ -28,8 +28,8 @@ day), M (1-3 days), L (over 3 days).
 | HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 31 | 0 | 0 | 1 |
 | FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 58 | 8 | 27 | 5 |
 | DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 48 | 7 | 18 | 2 |
-| radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 11 | 11 | 6 | 0 |
-| Total | | | 414 | 281 | 43 | 75 | 15 |
+| radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 11 | 12 | 5 | 0 |
+| Total | | | 414 | 281 | 44 | 74 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in
@@ -127,9 +127,10 @@ Done (2026-07-05): `radx transcode` (closes dcmcrle/dcmdrle outright, moves dcmc
 their remaining named gaps), TLS flags across the SCU commands plus a `radx scp` TLS listener, `radx serve
 dimse` with C-GET/C-MOVE SCP mounts and a static dcmqrscp-style move-destination table (behind the
 `WithDIMSERetrieve()` opt-in, enforcing a valued unique key per level), and `radx compose` (json2dcm parity).
-Remaining: JPEG baseline encode for dcmcjpeg parity (L, needs library encode codecs), worklist SCP CLI (S),
-DICOMDIR commands over the wave 0 FileSet (M), and image rendering/import (dcm2pnm/img2dcm family, L; the
-rendering pipeline now ships in the library, the gap is the CLI command and format writers).
+`radx render` (PNG/PPM export via `dicom.RenderFrame`, PARTIAL - TIFF/BMP/JPEG formats and img2dcm import
+remain). Remaining: JPEG baseline encode for dcmcjpeg parity (L, needs library encode codecs), worklist SCP
+CLI (S), DICOMDIR commands over the wave 0 FileSet (M), the remaining dcm2pnm output formats and img2dcm
+consumer-image import (M).
 
 ### Wave 6 - HL7 breadth (HAPI stretch)
 

@@ -14,7 +14,7 @@ library already provides.
 
 ## Summary
 
-28 in-scope dcmtk tools/tool-pairs: **11 MET, 11 PARTIAL, 6 NOT-MET.**
+28 in-scope dcmtk tools/tool-pairs: **11 MET, 12 PARTIAL, 5 NOT-MET.**
 
 Top gaps, largest first:
 
@@ -26,10 +26,10 @@ Top gaps, largest first:
    dcmdjpeg, and dcmcjpls/dcmdjpls to their remaining named gaps (charset conversion; CGo-gated JPEG
    decode; encode policy). dcmcjpeg (lossy/lossless JPEG *encode*) still needs encode-side codec work
    in the library before the CLI can honour it.
-2. **Image rendering and import (L).** No `dcm2pnm`/`dcm2img`/`img2dcm` equivalent: the repo has no PNG/PPM
-   export or consumer-image import path (no `image/png` use anywhere). The windowing/VOI/modality LUT and
-   palette/photometric pipeline now ships in the library (`dicom/lut.go`, `dicom/colorspace.go`, PRs
-   #127/#128); the remaining gap is display-value-to-image composition and the format writers.
+2. **Image rendering formats and import (M).** `radx render` (`command/render.go`) exports MONOCHROME1/2,
+   PALETTE COLOR, RGB, and YBR frames to PNG and PPM through `dicom.RenderFrame`. The remaining gaps are the
+   other dcm2pnm output formats (TIFF/BMP/JPEG), dcmj2pnm-style overlay burn-in, and `img2dcm`
+   consumer-image import (still NOT-MET, needs an image decoder plus pixel-module synthesis).
 3. **DICOMDIR (M).** `dcmgpdir`/`dcmmkdir` have no CLI equivalent, but `dicom.NewFileSetBuilder` builds and
    writes a file-set and `dicom.OpenFileSet` reads and queries one (PR #119); a `radx` DICOMDIR subcommand
    over the shipped FileSet closes it, with no further library work for create/read.
@@ -67,7 +67,7 @@ matching dcmtk's `+tls` family).
 | dcmftest | Test for Part 10 format | PARTIAL | No dedicated command; `radx dump` exits 3 on a malformed/non-DICOM file and 0 on a valid one | S | Scriptable today via dump's exit code; a quiet `--check` mode would be a direct equivalent |
 | dcmgpdir / dcmmkdir | Create DICOMDIR | PARTIAL | Library: `dicom.NewFileSetBuilder` builds and writes a DICOMDIR file-set (`Add`/`AddFile`/`Write`, `dicom/fileset_write.go`), `dicom.OpenFileSet` reads and queries one (`Find`/`FindValues`/`Records`/`Instances`, `dicom/fileset.go`); no CLI command | M | FileSet build/read shipped in PR #119; closed by a `radx` DICOMDIR subcommand over it (no further library work for create/read; update-in-place remains out of scope) |
 | img2dcm | Consumer image (JPEG/BMP) to DICOM | NOT-MET | None | M | Needs SC Image IOD construction plus image import; no current plan in conformance docs |
-| dcm2pnm / dcmj2pnm / dcml2pnm / dcm2img | Render DICOM to PGM/PNG/TIFF/BMP/JPEG | NOT-MET | No image export path in the repo; windowing/VOI/modality LUT and palette/photometric conversion ship in the library (`dicom/lut.go`, `dicom/colorspace.go`, PRs #127/#128) | L | Remaining gap is display-value-to-image composition and the format writers, not the rendering pipeline |
+| dcm2pnm / dcmj2pnm / dcml2pnm / dcm2img | Render DICOM to PGM/PNG/TIFF/BMP/JPEG | PARTIAL | `radx render` (`command/render.go`, `RenderCmd`): `dicom.RenderFrame` + PNG/PPM writers over `--output-dir`, `--image-format png\|ppm`, `--frame`/`--all-frames`, `-R`; `command/render_test.go` (PNG decode, multi-frame PPM, fail-closed) | M | Renders MONOCHROME1/2, PALETTE COLOR, RGB, YBR to PNG and PPM (P6) with VOI LUT/window/padding-aware auto-stretch; TIFF/BMP/JPEG output formats and dcmj2pnm overlay burn-in are the remaining named gaps. img2dcm (consumer-image import) stays NOT-MET |
 | dcmqridx | Register files in a query database index | MET | `radx catalogue` (`command/catalogue.go`): indexes a directory into SQLite, `--rebuild`, `--query`, read-only `--sql` | - | Exceeds dcmqridx: queryable SQL, PHI gate (`--confirm-phi`), `--redact` identifier hashing, 0600 db file |
 
 ## DICOM networking tools (dcmnet, dcmqrdb, dcmwlm)

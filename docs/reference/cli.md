@@ -65,6 +65,9 @@ radx <command> [flags]
   scp             Run a Storage/Verification SCP                ~ storescp     [loopback by default]
   dump            Inspect DICOM file contents                   ~ dcmdump
   modify          Edit DICOM tags and regenerate UIDs           ~ dcmodify
+  transcode       Rewrite a file's transfer syntax              ~ dcmconv / dcmcrle / dcmdrle / dcmdjpeg
+  compose         Build a Part 10 file from PS3.18 JSON          ~ json2dcm
+  render          Render pixel frames to PNG or PPM             ~ dcm2pnm / dcm2img
   organize        Reorganise files by Study/Series/SOP UID      ~ dcmsort / a dcm2xml pipeline
   lookup          Resolve DICOM tag dictionary information       ~ dcmdump +dictionary lookups
   catalogue       Index and query a local DICOM catalogue       ~ (no direct dcmtk equivalent)
@@ -85,6 +88,7 @@ radx <command> [flags]
   serve           Run a reference daemon (server package)
     dicomweb      Serve WADO-RS / STOW-RS / QIDO-RS              ~ (no direct dcmtk equivalent)
     fhir          Serve the FHIR REST API                        ~ (no direct dcmtk equivalent)
+    dimse         Serve a Query/Retrieve SCP archive            ~ dcmqrscp
 ```
 
 The `[loopback]` note is a stable part of the contract, not transient build state: `scp` binds loopback unless
@@ -375,6 +379,85 @@ its syntax, and remaps consistently so cross-references stay intact. If any requ
 returns an error, exits `1`, and writes no output for that file (fail-closed). Inserted tag values are PHI and are never
 logged at default verbosity (RADX-007).
 
+### transcode — rewrite a file's transfer syntax
+
+Rewrites a Part 10 file into a different transfer syntax through the library's dataset-level seam (read, decode the
+pixel data, re-encode, write). It covers the dcmtk `dcmconv`/`dcmcrle`/`dcmdrle`/`dcmdjpeg` family in one command.
+
+```text
+radx transcode <path>... [flags]
+      --to=""                Target transfer syntax: a UID or a dicom keyword (required)
+      --output-dir=""        Write transcoded files here (required unless --in-place)
+  -i, --in-place             Overwrite the originals in place
+  -R, --recursive            Descend into directories for *.dcm files
+```
+
+`--to` accepts either a transfer-syntax UID or the dicom package's keyword form (`ExplicitVRLittleEndian`,
+`RLELossless`, …). Input: file or directory paths. Output: a per-file result (JSON Lines under `--format json`). An
+object already in the target syntax is copied byte-for-byte, not re-encoded, so a same-syntax pass never rebuilds the
+File Meta or breaks a checksum or signature over the original bytes. A pixel-less object passes through with a meta
+rewrite only. The pure-Go build encodes the uncompressed and RLE targets; the JPEG-family syntaxes decode only under
+the optional CGo codec tags (`conformance/dicom.md`), and a target this build cannot encode is a per-file failure
+(exit `3`) that writes no output — `transcode` never reports success on an unwritten object. Batch destinations are
+validated before any write, so one input's output can never clobber a file a later input still needs.
+
+### compose — build a Part 10 file from PS3.18 JSON
+
+Builds a Part 10 file from a PS3.18 (Annex F) DICOM JSON document, the inverse of `radx dump --format json` against a
+conformant JSON encoding. The dcmtk equivalent is `json2dcm`.
+
+```text
+radx compose <in.json> <out.dcm> [flags]
+      --transfer-syntax=ExplicitVRLittleEndian   Output transfer syntax: a UID or keyword
+      --overwrite            Replace an existing output file
+```
+
+Input: a JSON path (or `-` for stdin) and an output path. The command decodes the JSON to a dataset, derives the File
+Meta from it, and mints SOP/Study/Series Instance UIDs only where the input omits them (a present UID is honoured, a
+present-but-nonconformant one is warned about on stderr). The output syntax must be uncompressed — PS3.18 JSON carries
+native binary values, so compress the result with `radx transcode` if needed; an encapsulated target is a usage error.
+A missing SOP Class UID, an unknown VR, or malformed inline binary fails closed (exit `3`) and writes no file. An
+existing output is not overwritten without `--overwrite`.
+
+### render — render pixel frames to images
+
+Renders a DICOM image's pixel frames to 8-bit PNG or PPM through the library's presentation pipeline (modality and VOI
+LUTs, windowing or a padding-aware auto-stretch, MONOCHROME1 inversion, palette and YBR/RGB colour). It covers the
+dcmtk `dcm2pnm`/`dcm2img` rendering surface for the PNG and PPM output formats.
+
+```text
+radx render <path>... [flags]
+      --output-dir=""        Write rendered images here (required)
+      --image-format=png     Output image format: png | ppm
+      --frame=0              Render this 0-based frame (ignored with --all-frames)
+      --all-frames           Render every frame, suffixing the name with the frame index
+  -R, --recursive            Descend into directories for *.dcm files
+```
+
+Input: file or directory paths. Output: one image per rendered frame under `--output-dir`, plus a per-file result
+(JSON Lines under `--format json`). The value-of-interest mapping follows the library's precedence: a VOI LUT Sequence
+table when present, else an explicit Window Center/Width, else a min/max stretch that excludes pixel-padding values
+(the dcm2pnm default). An object with no pixel data, an unsupported photometric interpretation, or an encapsulated
+frame whose codec is absent from this build fails closed (exit `3`) and writes no image for that frame. The remaining
+dcm2pnm output formats (TIFF, BMP, JPEG) and `img2dcm` consumer-image import are not yet covered.
+
+### TLS on the network commands
+
+The five SCU commands (`echo`, `store`, `find`, `get`, `move`) share one TLS flag group, and `scp` terminates TLS with
+`--tls-cert`/`--tls-key`. Verification is on by default and the library enforces a TLS 1.2 floor.
+
+```text
+      --tls                  Negotiate DIMSE-TLS (verifies the peer certificate)
+      --tls-ca=<file>        Trust this CA bundle instead of the system pool
+      --tls-cert=<file>      Client certificate for mutual TLS (with --tls-key)
+      --tls-key=<file>       Client private key for mutual TLS (with --tls-cert)
+      --tls-skip-verify      Disable peer verification (INSECURE; mutually exclusive with --tls-ca)
+```
+
+`--tls-skip-verify` disables certificate verification and is logged loudly whenever it takes effect, because an
+unverified association is open to interception; combining it with `--tls-ca` is a usage error, since a pinned CA
+expresses intent to verify. Certificate and key material is validated fail-closed at startup and is never logged.
+
 ### organize — reorganise by UID structure
 
 Lays out a flat or mixed directory of DICOM files into a `Study/Series/SOP` hierarchy by reading each file's UIDs. The
@@ -515,14 +598,16 @@ returns the `convert` package's conversion report; a conversion that cannot fait
 an error and exits `3` rather than emitting a lossy resource (fail-closed, PRD §9.2). DICOM UIDs map to FHIR
 `Identifier` values (`urn:dicom:uid` / `urn:oid`), never to a `Reference.reference` (glossary).
 
-## serve — reference daemons (DICOMweb, FHIR REST)
+## serve — reference daemons (DICOMweb, FHIR REST, DIMSE Q/R)
 
 The `serve` group runs the thin reference daemons that wrap the `server` package's embeddable roles, giving the
-DICOMweb and FHIR REST servers a CLI entry point alongside the DIMSE SCP (`scp`) and the HL7 v2 MLLP listener
-(`hl7 listen`). `serve dicomweb` wires the shared backends — a filesystem object store and a SQLite catalogue;
-`serve fhir` wires the in-memory development repository (one FHIR release per process). Each binds to loopback by
-default and uses no-authentication (`AllowAll`) on that loopback bind, exactly as `docs/reference/servers.md`
-describes. There is no dcmtk equivalent; these are go-radx reference servers.
+DICOMweb, FHIR REST, and DIMSE Query/Retrieve servers a CLI entry point alongside the Storage SCP (`scp`) and the
+HL7 v2 MLLP listener (`hl7 listen`). `serve dicomweb` wires the shared backends — a filesystem object store and a
+SQLite catalogue; `serve fhir` wires the in-memory development repository (one FHIR release per process); `serve
+dimse` wires a Query/Retrieve SCP archive (dcmtk's `dcmqrscp`) over the same object store and catalogue. Each binds to
+loopback by default and uses no-authentication (`AllowAll`) on that loopback bind, exactly as
+`docs/reference/servers.md` describes. There is no dcmtk equivalent for the web daemons; `serve dimse` maps to
+`dcmqrscp`.
 
 ```text
 radx serve dicomweb [flags]
@@ -539,7 +624,23 @@ radx serve fhir [flags]
       --base-path=/fhir      FHIR REST base path
       --release=r5           FHIR release to serve (r4 or r5; one release per process)
       --max-request-bytes=... Request body cap (hostile-input limit)
+
+radx serve dimse [flags]
+      --bind=127.0.0.1       Listen address (loopback by default)  [env: RADX_BIND]
+      --port=11112           Listen port
+      --aet=RADX-QR          This archive's AE Title
+      --object-store=...     Filesystem object-store root (required)
+      --catalogue=...        SQLite catalogue path (required; PHI store, never a default path)
+      --max-conns=10         Maximum concurrent associations
+      --move-destination=AE=host:port   Register a C-MOVE destination (repeatable)
 ```
+
+`serve dimse` mounts C-ECHO, C-STORE, C-FIND, C-GET, and C-MOVE. Retrieve (C-GET/C-MOVE) is enabled by this daemon
+through the role's explicit `WithDIMSERetrieve()` opt-in, so an under-specified retrieve identifier (one without a
+valued unique key for its level) is refused with status `0xA900` rather than streaming the archive, and C-MOVE
+resolves its destination from the static `--move-destination` table (an unknown destination fails with the DIMSE
+"Move Destination Unknown" status). A destination is `AETITLE=host:port`; the flag repeats for several destinations
+and is validated before the daemon binds.
 
 Both daemons follow the same safe defaults as the other servers. They **bind to loopback** (`127.0.0.1`); a
 non-loopback bind (`--bind 0.0.0.0`) is an explicit, logged opt-in that requires authentication to be configured
