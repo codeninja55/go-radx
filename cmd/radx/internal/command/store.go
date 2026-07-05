@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"sync"
 	"time"
@@ -38,6 +39,12 @@ type StoreCmd struct {
 
 	TranscodeTo     string `name:"transcode-to" help:"Transcode to this transfer syntax before sending (default: send as stored)."`
 	ContinueOnError bool   `name:"continue-on-error" help:"Keep processing after a failed object (final exit still non-zero)."`
+
+	TLSFlags tlsFlags `embed:""`
+
+	// tlsConfig is the TLS configuration resolved once in Run from TLSFlags (nil = plaintext),
+	// shared read-only by every worker's associate; Kong ignores unexported fields.
+	tlsConfig *tls.Config
 }
 
 // storeResult is the canonical per-object machine shape (one JSON Line per file). It names the
@@ -87,22 +94,24 @@ func (c *StoreCmd) Run(rc *RunContext) error {
 	// encapsulated or malformed target fails closed here as a usage error rather than
 	// surprising the operator per file at encode time.
 	if c.TranscodeTo != "" {
-		target := dicom.TransferSyntax(c.TranscodeTo)
-		if err := dicom.UID(target).Validate(); err != nil {
-			return &exitcode.UsageErr{Message: fmt.Sprintf("--transcode-to %q is not a valid transfer syntax UID", c.TranscodeTo)}
+		target, ok := resolveTransferSyntax(c.TranscodeTo)
+		if !ok {
+			return &exitcode.UsageErr{Message: fmt.Sprintf("--transcode-to %q is neither a valid transfer syntax UID nor a known keyword", c.TranscodeTo)}
 		}
 		if target.IsEncapsulated() {
 			return &exitcode.UsageErr{Message: fmt.Sprintf(
 				"--transcode-to %s (%s) cannot be honoured: store sends datasets in the negotiated uncompressed transfer syntax, so only uncompressed targets are supported",
 				target.Name(), c.TranscodeTo)}
 		}
+		// Normalise a keyword form to its canonical UID so prepareForStore's transfer-syntax
+		// comparison sees the resolved syntax, matching transcode and compose.
+		c.TranscodeTo = string(target)
 	}
 
 	calling, called, err := parseAETitles(c.CallingAE, c.CalledAE)
 	if err != nil {
 		return err
 	}
-
 	files, err := resolveDICOMPaths(c.Paths, c.Recursive)
 	if err != nil {
 		return err
@@ -112,6 +121,15 @@ func (c *StoreCmd) Run(rc *RunContext) error {
 	}
 
 	log := logging.FromContext(rc.Ctx)
+	// The TLS material is loaded fail-closed once, before any file is read or worker dialled; every
+	// worker association shares the resolved config (nil keeps plaintext), and a disabled-verification
+	// run is warned loudly.
+	tlsCfg, err := c.TLSFlags.resolveClientTLS(log)
+	if err != nil {
+		return err
+	}
+	c.tlsConfig = tlsCfg
+
 	log.Debug("store: starting batch",
 		zap.String("host", c.Host),
 		zap.Int("port", c.Port),
@@ -346,12 +364,7 @@ func prepareForStore(f *dicom.File, target dicom.TransferSyntax) error {
 // associate opens one Storage association for a worker. The AE is built per association so each
 // worker's client is independent and a reconnect replaces only that worker's association.
 func (c *StoreCmd) associate(ctx context.Context, calling, called dimse.AETitle) (*dimse.Association, error) {
-	ae, err := dimse.NewAE(calling,
-		dimse.WithMaxPDULength(dimse.MaxPDULength(c.MaxPDU)),
-		dimse.WithACSETimeout(c.Timeout),
-		dimse.WithDIMSETimeout(c.Timeout),
-		dimse.WithConnectionTimeout(c.Timeout),
-	)
+	ae, err := dimse.NewAE(calling, scuAEOptions(c.Timeout, c.MaxPDU, c.tlsConfig)...)
 	if err != nil {
 		return nil, err
 	}

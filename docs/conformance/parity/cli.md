@@ -33,12 +33,15 @@ Top gaps, largest first:
 3. **Q/R SCP archive (L).** `dcmqrscp` maps to `server.NewDIMSERole` (C-ECHO/C-STORE/C-FIND over
    `ObjectStore`+`Catalogue`, optional MWL), but C-GET/C-MOVE SCP are explicitly unmounted
    (`server/role_dimse.go:182`) and there is no `radx serve dimse` subcommand.
-4. **CLI TLS (M, cross-cutting).** `dimse.WithTLS` ships in the library (`dimse/ae.go:79`), but no `radx`
-   network command (`echo`, `store`, `find`, `get`, `move`, `scp`) exposes a TLS flag; dcmtk's `+tls` family
-   has no CLI counterpart. This caveat applies to every dcmnet row below and is not repeated per row.
-5. **DICOMDIR (M).** `dcmgpdir`/`dcmmkdir` have no CLI equivalent, but `dicom.NewFileSetBuilder` builds and
+4. **DICOMDIR (M).** `dcmgpdir`/`dcmmkdir` have no CLI equivalent, but `dicom.NewFileSetBuilder` builds and
    writes a file-set and `dicom.OpenFileSet` reads and queries one (PR #119); a `radx` DICOMDIR subcommand
    over the shipped FileSet closes it, with no further library work for create/read.
+
+CLI TLS, formerly a cross-cutting gap here, shipped: every SCU command (`echo`, `store`, `find`, `get`,
+`move`) exposes `--tls` with `--tls-ca`, mutual-TLS `--tls-cert`/`--tls-key`, and the loudly-named
+`--tls-skip-verify` escape hatch (verification is on by default; `tlsFlags`, `command/tls.go`), and
+`radx scp` terminates TLS with `--tls-cert`/`--tls-key` (loopback TLS proofs in `command/tls_test.go`,
+matching dcmtk's `+tls` family).
 
 ## DICOM data tools (dcmdata, dcmqrdb index)
 
@@ -66,10 +69,10 @@ Top gaps, largest first:
 
 | dcmtk app | Function | Status | radx evidence | Size | Notes |
 |---|---|---|---|---|---|
-| echoscu | C-ECHO verification SCU | MET | `radx echo HOST PORT` (`command/echo.go`): AE titles, timeout, max-PDU, named DIMSE status, exit 4 on peer "no" | - | TLS flag absent (cross-cutting gap above) |
+| echoscu | C-ECHO verification SCU | MET | `radx echo HOST PORT` (`command/echo.go`): AE titles, timeout, max-PDU, named DIMSE status, exit 4 on peer "no"; TLS via the shared `tlsFlags` (`TestEchoTLSRoundTripWithCustomCA`, `TestEchoTLSMutualAuth`, `command/tls_test.go`) | - | dcmtk `+tls` parity: verification on by default, custom CA pool, mTLS pair, explicit `--tls-skip-verify` opt-out |
 | storescu | C-STORE SCU with TS proposal sets | PARTIAL | `radx store` (`command/store.go`): `-R` recursive, `--workers` pooled associations (1-128), `--continue-on-error`, `--max-pdu` (capped 131072, same ceiling as dcmtk), per-file JSON Lines + summary | M | No `--propose-*` compression proposal sets (proposes the default TS set per context); `--transcode-to` transcodes to uncompressed targets via `dicom.Transcode` (`prepareForStore`), passes pixel-less objects unchanged, and fails closed for encapsulated targets; no `--repeat`/UID-invention options. Worker-pooled multi-association batching exceeds storescu |
 | dcmsend | Simplified storage SCU | MET | Same `radx store` surface | - | No `--report-file`; the JSON Lines stream plus summary line serves the same automation need |
-| storescp | Storage SCP writing received files | PARTIAL | `radx scp` (`command/scp.go`): loopback-default `--bind`, `--aet`, `--output-dir`, `--no-accept-echo`, `--max-conns`, UID-validated paths, graceful drain | S | No study-folder sorting (`--sort-conc-studies`), no `--exec-on-reception` hooks, no filename templates; loopback-by-default and traversal-safe UID paths exceed storescp's defaults |
+| storescp | Storage SCP writing received files | PARTIAL | `radx scp` (`command/scp.go`): loopback-default `--bind`, `--aet`, `--output-dir`, `--no-accept-echo`, `--max-conns`, UID-validated paths, graceful drain; TLS listener via `--tls-cert`/`--tls-key` (`TestScpTLSListenerServesTLSSCU`, `command/tls_test.go`) | S | No study-folder sorting (`--sort-conc-studies`), no `--exec-on-reception` hooks, no filename templates; loopback-by-default and traversal-safe UID paths exceed storescp's defaults |
 | dcmrecv | Simplified storage SCP | MET | Same `radx scp` surface | - | - |
 | findscu | C-FIND SCU (Q/R models + worklist) | MET | `radx find` (`command/find.go`): `--level PATIENT/STUDY/SERIES/IMAGE`, repeatable `--match key=value` (keyword or tag forms), streamed matches as JSON Lines/CSV; proposes all six Patient Root + Study Root FIND/MOVE/GET contexts (`dimse/presets.go:115`); `-W`/`--worklist` queries the Modality Worklist model via `dimse.FindWorklist` + `BasicWorklistContexts` on the SPS-sequence skeleton, routing Table K.6-1 SPS `--match` keys into the sequence item via `dimse.SetWorklistMatch` (`TestFindWorklistFlagStreamsScheduledSteps`, `TestFindWorklistRoutesSPSMatchKeysIntoSequence`, `command/find_test.go`) | - | No `--extract` of responses to DICOM/XML files; matches stream as JSON Lines/CSV instead |
 | getscu | C-GET SCU (same-association retrieve) | MET | `radx get` (`command/get.go`): levels, match keys, `--output-dir`, Storage SCP role negotiation for sub-operation C-STOREs, sub-op counts in the result | - | - |
