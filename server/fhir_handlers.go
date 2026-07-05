@@ -95,14 +95,62 @@ func (h *fhirHandler) handleMetadata(w http.ResponseWriter, r *http.Request) {
 	h.writeResource(w, r, http.StatusOK, cs, "")
 }
 
-// handleSystem serves the system-level interactions at the base root: a transaction/batch POST. A
-// non-POST at the root is unsupported.
+// handleSystem serves the system-level interactions at the base root: a transaction or batch POST.
+// A non-POST at the root is unsupported. The request Bundle is decoded once and dispatched by its
+// Bundle.type: a transaction is applied atomically, a batch entry-by-entry independently, and any
+// other type (collection, searchset, document, ...) is rejected before the repository is touched, so
+// an empty collection or searchset Bundle is never silently run as a submission.
 func (h *fhirHandler) handleSystem(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		h.writeUnsupported(w, r, "the base endpoint supports a transaction POST only")
+		h.writeUnsupported(w, r, "the base endpoint supports a transaction or batch POST only")
 		return
 	}
-	h.handleTransaction(w, r)
+	bundle, bt, ok := h.decodeSystemBundle(w, r)
+	if !ok {
+		return
+	}
+	switch bt {
+	case bundleTypeTransaction:
+		h.handleTransaction(w, r, bundle)
+	case bundleTypeBatch:
+		h.handleBatch(w, r, bundle)
+	default:
+		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeInvalid,
+			"the base endpoint processes a transaction or batch Bundle only, got Bundle.type "+bt)
+	}
+}
+
+// decodeSystemBundle reads and decodes the base endpoint's request Bundle, enforcing the write media
+// type and the Bundle resourceType before either system interaction runs, and peeks the Bundle.type
+// from the same already-read bytes (a lightweight envelope unmarshal) rather than re-marshalling the
+// decoded resource. It reports the decoded Bundle, its type, and true to proceed, or false when it has
+// already written the error response.
+func (h *fhirHandler) decodeSystemBundle(w http.ResponseWriter, r *http.Request) (fhir.Resource, string, bool) {
+	if !h.requireFHIRWriteMedia(w, r) {
+		return nil, "", false
+	}
+	body, err := h.readBody(r)
+	if err != nil {
+		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body could not be read or exceeds the size limit")
+		return nil, "", false
+	}
+	bundle, decErr := h.adapter.unmarshalResource(body)
+	if decErr != nil {
+		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body is not a valid FHIR resource")
+		return nil, "", false
+	}
+	if bundle.ResourceType() != "Bundle" {
+		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeInvalid,
+			"the base endpoint requires a Bundle, got "+bundle.ResourceType())
+		return nil, "", false
+	}
+	var env struct {
+		Type string `json:"type"`
+	}
+	// The bytes already decoded into a Bundle, so this envelope peek cannot fail; a Bundle with no type
+	// yields "" and falls through to the unsupported-type rejection in handleSystem.
+	_ = json.Unmarshal(body, &env)
+	return bundle, env.Type, true
 }
 
 // handleType serves the type-level interactions: a create POST or a search-type GET on a resource
@@ -486,36 +534,15 @@ func (h *fhirHandler) handleValidate(w http.ResponseWriter, r *http.Request, res
 	h.writeOutcome(w, r, http.StatusOK, h.adapter.operationOutcome(issues))
 }
 
-// handleTransaction serves a transaction: it reads and decodes the request Bundle, then applies it
-// through the repository and writes the transaction-response Bundle. A body that does not decode or
-// is not a Bundle is a 400 OperationOutcome; a repository failure (an unsupported entry verb, a
-// missing referenced resource) is mapped to an OperationOutcome rather than a silent partial success.
-func (h *fhirHandler) handleTransaction(w http.ResponseWriter, r *http.Request) {
-	if !h.requireFHIRWriteMedia(w, r) {
-		return
-	}
-	body, err := h.readBody(r)
-	if err != nil {
-		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body could not be read or exceeds the size limit")
-		return
-	}
-	bundle, decErr := h.adapter.unmarshalResource(body)
-	if decErr != nil {
-		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeStructure, "request body is not a valid FHIR resource")
-		return
-	}
-	if bundle.ResourceType() != "Bundle" {
-		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeInvalid,
-			"the base endpoint requires a Bundle, got "+bundle.ResourceType())
-		return
-	}
-	// Only a transaction Bundle is processed at the system endpoint: the repository applies it
-	// atomically and the role advertises only the transaction interaction. A Bundle of any other type
-	// (collection, searchset, document, batch, ...) is rejected before the repository is touched, so an
-	// empty collection or searchset Bundle is never silently run as a transaction.
-	if bt := bundleType(bundle); bt != bundleTypeTransaction {
-		h.writeError(w, r, http.StatusBadRequest, fhir.IssueTypeInvalid,
-			"the base endpoint processes a transaction Bundle only, got Bundle.type "+bt)
+// handleTransaction serves a transaction Bundle already decoded and type-checked by handleSystem:
+// it applies the Bundle atomically through the repository and writes the transaction-response
+// Bundle. A repository failure (an unsupported entry verb, a missing referenced resource) is mapped
+// to an OperationOutcome rather than a silent partial success.
+func (h *fhirHandler) handleTransaction(w http.ResponseWriter, r *http.Request, bundle fhir.Resource) {
+	// Cap the entry count before any work, the same bound the batch path enforces: an unbounded bundle
+	// would force the repository's atomic apply over an arbitrary number of entries under its write lock.
+	if n, err := h.adapter.bundleEntryCount(bundle); err == nil && n > maxBundleEntries {
+		h.writeError(w, r, http.StatusRequestEntityTooLarge, issueTypeProcessing, tooManyBundleEntriesDiagnostics)
 		return
 	}
 	// Validate every create the transaction would perform through the same gate handleCreate uses,
@@ -706,28 +733,25 @@ func toOutcomeIssues(oo *fhir.OperationOutcome) []outcomeIssue {
 	return out
 }
 
-// bundleTypeTransaction is the one Bundle.type the system endpoint processes. A request Bundle of any
-// other type is rejected before the repository is touched, matching the advertised transaction-only
-// system interaction. The value is the stable FHIR Bundle-type code, identical across R4 and R5.
-const bundleTypeTransaction = "transaction"
+// bundleTypeTransaction and bundleTypeBatch are the two Bundle.types the system endpoint processes.
+// A request Bundle of any other type is rejected before the repository is touched, matching the
+// advertised transaction and batch system interactions. The values are the stable FHIR Bundle-type
+// codes, identical across R4 and R5.
+const (
+	bundleTypeTransaction = "transaction"
+	bundleTypeBatch       = "batch"
+)
 
-// bundleType reads a Bundle's "type" by marshalling it and peeking the top-level "type" key, the same
-// release-neutral JSON approach the adapters use for a resource id. A Bundle always serialises its
-// type under "type", so this reads an R4 or R5 Bundle's type without a per-release switch. A Bundle
-// with no type yields "".
-func bundleType(bundle fhir.Resource) string {
-	data, err := json.Marshal(bundle)
-	if err != nil {
-		return ""
-	}
-	var env struct {
-		Type string `json:"type"`
-	}
-	if err := json.Unmarshal(data, &env); err != nil {
-		return ""
-	}
-	return env.Type
-}
+// maxBundleEntries caps the number of entries the base endpoint processes in one transaction or batch
+// submission. A submission beyond the cap is rejected with a 413 OperationOutcome before any entry
+// runs, so a hostile bundle cannot force unbounded sequential writes (and, for a transaction, an
+// unbounded apply under the repository write lock). The cap is generous for legitimate clinical
+// bundles; a workload that genuinely needs more splits into multiple submissions.
+const maxBundleEntries = 500
+
+// tooManyBundleEntriesDiagnostics is the PHI-free diagnostic the entry-cap rejection carries; it names
+// the limit, never any entry content.
+const tooManyBundleEntriesDiagnostics = "the bundle exceeds the maximum number of entries this endpoint processes in one submission"
 
 // isWorkflowResourceType reports whether resourceType is in the served workflow set, so a request
 // for an out-of-scope type is rejected rather than routed to the repository.

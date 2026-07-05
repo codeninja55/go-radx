@@ -9,8 +9,11 @@ import (
 )
 
 // descriptorFixture is a representative pair of validation descriptors: one resource with
-// a required scalar, a choice group, and a required-binding code, and one (Bundle) flagged
-// for the hand-written extra checks. It exercises every branch of the descriptor template.
+// a required scalar, a choice group, a required-binding code, date-family lexical checks
+// (plain, boxed, repeating), the extension-url walk, and backbone walk helpers (required
+// and lexical, scalar and repeating, including a self-recursive lexical walk), and one
+// (Bundle) flagged for the hand-written extra checks. It exercises every branch of the
+// descriptor template.
 func descriptorFixture() []plan.ValidationDescriptor {
 	return []plan.ValidationDescriptor{
 		{
@@ -26,6 +29,47 @@ func descriptorFixture() []plan.ValidationDescriptor {
 			Bindings: []plan.BindingCheck{
 				{GoName: "Gender", Validator: "validAdministrativeGender", EnumName: "AdministrativeGender", Path: "Sample.gender"},
 				{GoName: "Categories", Validator: "validSampleCategory", EnumName: "SampleCategory", Path: "Sample.category", Repeats: true},
+			},
+			Primitives: []plan.PrimitiveCheck{
+				{GoName: "BirthDate", Path: "Sample.birthDate", Validator: "validDateLexical", TypeName: "date"},
+				{GoName: "Taken", Path: "Sample.taken", Validator: "validDateTimeLexical", TypeName: "dateTime", Repeats: true},
+				{GoName: "EffectiveDateTime", Path: "Sample.effectiveDateTime", Validator: "validDateTimeLexical", TypeName: "dateTime", Boxed: true},
+			},
+			CheckExtensions: true,
+			RequiredCalls: []plan.BackboneCall{
+				{FieldGoName: "Contact", JSONName: "contact", TypeGoName: "SampleContact", Repeats: true},
+				{FieldGoName: "Source", JSONName: "source", TypeGoName: "SampleSource"},
+			},
+			LexicalCalls: []plan.BackboneCall{
+				{FieldGoName: "Source", JSONName: "source", TypeGoName: "SampleSource"},
+			},
+			Helpers: []plan.BackboneHelper{
+				{
+					GoName:       "SampleContact",
+					EmitRequired: true,
+					Required: []plan.RequiredField{
+						{GoName: "Name", Path: ".name"},
+						{GoName: "Codes", Path: ".codes", Repeats: true},
+					},
+					RequiredCalls: []plan.BackboneCall{
+						{FieldGoName: "Detail", JSONName: "detail", TypeGoName: "SampleSource"},
+					},
+				},
+				{
+					GoName:       "SampleSource",
+					EmitRequired: true,
+					EmitLexical:  true,
+					Required: []plan.RequiredField{
+						{GoName: "System", Path: ".system"},
+					},
+					Primitives: []plan.PrimitiveCheck{
+						{GoName: "Started", Path: ".started", Validator: "validInstantLexical", TypeName: "instant"},
+						{GoName: "Times", Path: ".times", Validator: "validTimeLexical", TypeName: "time", Repeats: true},
+					},
+					LexicalCalls: []plan.BackboneCall{
+						{FieldGoName: "Parts", JSONName: "parts", TypeGoName: "SampleSource", Repeats: true},
+					},
+				},
 			},
 			Summary: []plan.SummaryFlag{
 				{JSONName: "text", IsText: true},

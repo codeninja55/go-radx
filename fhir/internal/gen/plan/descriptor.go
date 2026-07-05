@@ -1,20 +1,31 @@
 package plan
 
-import "github.com/codeninja55/go-radx/fhir/internal/gen/model"
+import (
+	"strings"
+
+	"github.com/codeninja55/go-radx/fhir/internal/gen/model"
+)
 
 // ValidationDescriptor is the emitter-ready plan for one resource's structural
-// validation: the required top-level elements (checked for presence, not truthiness),
-// the choice ([x]) groups (checked for at-most-one branch set), and the required-binding
-// code fields (checked against their generated closed enum). The emitter renders it as a
-// generated fhir.ValidationDescriptor registered at init time, so the validation engine
-// consumes generated metadata rather than reflecting over the resource at call time
-// (Codex FHIR-007 presence, FHIR-001 mutual exclusion, FHIR-013 binding codes).
+// validation: the required elements (checked for presence, not truthiness), the
+// top-level choice ([x]) groups (checked for at-most-one branch set), the top-level
+// required-binding code fields (checked against their generated closed enum), and the
+// date/time-family primitive fields (checked against the release's lexical rules). The
+// emitter renders it as a generated fhir.ValidationDescriptor registered at init time,
+// so the validation engine consumes generated metadata rather than reflecting over the
+// resource at call time (Codex FHIR-007 presence, FHIR-001 mutual exclusion, FHIR-013
+// binding codes, FHIR-008 primitive lexical forms).
 //
-// Scope: the descriptor covers a resource's top-level elements. Nested-backbone
-// cardinality, choice, and binding checks are deferred; the documented validation
-// contract (docs/conformance/fhir.md) records this boundary. The bdl-* Bundle invariants
-// and reference integrity are not expressible from the StructureDefinition and are
-// composed by the hand-written Bundle descriptor extra checks, not emitted here.
+// Required-presence and primitive-lexical checks reach inside backbone elements: each
+// backbone type with (transitively) required children or date/time-family fields gets a
+// generated walk helper (Helpers), and the top-level closures call into them for each
+// present backbone instance (RequiredCalls/LexicalCalls), so Bundle.entry.request.method
+// is checked whenever entry.request is present. Nested choice and binding checks, and
+// the interiors of complex datatypes (Period.start, Timing.event), remain deferred; the
+// documented validation contract (docs/conformance/fhir.md) records this boundary. The
+// bdl-* Bundle invariants and reference integrity are not expressible from the
+// StructureDefinition and are composed by the hand-written Bundle descriptor extra
+// checks, not emitted here.
 type ValidationDescriptor struct {
 	// GoName is the resource's Go type identifier, used to type-assert the
 	// fhir.Resource the generated closures receive.
@@ -35,6 +46,29 @@ type ValidationDescriptor struct {
 	// Bindings are the resource's top-level required-binding code fields, each a
 	// generated set-membership check against the field's closed enum.
 	Bindings []BindingCheck
+
+	// Primitives are the resource's top-level date/dateTime/time/instant fields —
+	// including the boxed date-family branches of top-level choice groups — each a
+	// generated lexical check against the release's hand-written validators.
+	Primitives []PrimitiveCheck
+
+	// RequiredCalls and LexicalCalls are the top-level backbone fields the Required
+	// and Primitives closures walk into, one call per field whose backbone type has
+	// (transitively) required children or date-family fields respectively.
+	RequiredCalls []BackboneCall
+	LexicalCalls  []BackboneCall
+
+	// CheckExtensions reports whether the resource embeds DomainResource and so
+	// carries the promoted extension/modifierExtension arrays whose every Extension
+	// (recursively) must carry its required url; the Required closure walks them
+	// through the hand-written missingExtensionURLs.
+	CheckExtensions bool
+
+	// Helpers are the resource's backbone walk helpers, one per distinct backbone
+	// type with (transitively) required children or date-family fields, in Go-name
+	// order. The emitter renders each as a missingRequired<GoName> and/or
+	// lexicalIssues<GoName> function the closures and sibling helpers call.
+	Helpers []BackboneHelper
 
 	// HasExtra reports whether the resource carries hand-written extra checks the
 	// descriptor composes (the Bundle bdl-* invariants and reference integrity). The
@@ -135,12 +169,109 @@ type BindingCheck struct {
 	Repeats bool
 }
 
+// PrimitiveCheck is one date/time-family primitive field's lexical check: the Go field,
+// the release-local validator the check calls, the FHIR primitive type name for the
+// diagnostic, and the element path. A boxed check reads a choice branch's primitive
+// wrapper (FHIRDate, ...) through a string conversion; a plain check reads *string or
+// []string directly. The diagnostic names the type, never the value — a date can itself
+// be PHI.
+type PrimitiveCheck struct {
+	// GoName is the Go field holding the primitive value.
+	GoName string
+
+	// Path is the element path of the field: absolute on a top-level check
+	// ("Patient.birthDate"), a "."-prefixed suffix inside a backbone helper
+	// (".started"), appended to the helper's runtime path.
+	Path string
+
+	// Validator is the release-local lexical validator the check calls
+	// ("validDateLexical", "validDateTimeLexical", "validTimeLexical",
+	// "validInstantLexical").
+	Validator string
+
+	// TypeName is the FHIR primitive type name the diagnostic carries ("dateTime").
+	TypeName string
+
+	// Repeats reports whether the field is a repeating []string, so the check
+	// iterates and indexes the path.
+	Repeats bool
+
+	// Boxed reports whether the field is a choice branch's primitive wrapper, read
+	// through a string conversion rather than a plain dereference.
+	Boxed bool
+}
+
+// BackboneCall is one walk step into a backbone-typed field: the parent's Go field, the
+// path segment the walk appends, the backbone type whose helper is called, and whether
+// the field repeats (walked per element with an indexed path) or is a single pointer
+// (walked when non-nil).
+type BackboneCall struct {
+	FieldGoName string
+	JSONName    string
+	TypeGoName  string
+	Repeats     bool
+}
+
+// BackboneHelper is one backbone type's generated walk helper: its own required fields
+// and date-family primitive checks (paths "."-prefixed, relative to the runtime path
+// parameter) plus the calls into child backbones. EmitRequired/EmitLexical report which
+// helper functions the emitter renders — a backbone with no transitive requireds gets no
+// missingRequired helper even if it needs a lexicalIssues one, and vice versa.
+type BackboneHelper struct {
+	GoName        string
+	Required      []RequiredField
+	Primitives    []PrimitiveCheck
+	RequiredCalls []BackboneCall
+	LexicalCalls  []BackboneCall
+	EmitRequired  bool
+	EmitLexical   bool
+}
+
+// EmitsRequired reports whether the descriptor renders a Required closure: it has
+// top-level required fields, backbone walks with transitive requireds, or the
+// extension-url walk.
+func (vd ValidationDescriptor) EmitsRequired() bool {
+	return len(vd.Required) > 0 || len(vd.RequiredCalls) > 0 || vd.CheckExtensions
+}
+
+// EmitsPrimitives reports whether the descriptor renders a Primitives closure: it has
+// top-level date-family fields or backbone walks with transitive date-family fields.
+func (vd ValidationDescriptor) EmitsPrimitives() bool {
+	return len(vd.Primitives) > 0 || len(vd.LexicalCalls) > 0
+}
+
+// primitiveLexicalKinds maps the date/time-family primitive type codes to the
+// release-local lexical validator the generated check calls. The four codes are the
+// primitives whose lexical rules go beyond what the Go type carries (decimal preserves
+// its lexical form in fhir.Decimal and integer64 is parsed at decode time; the string
+// family has no lexical grammar to enforce in v1).
+var primitiveLexicalKinds = map[string]string{
+	"date":     "validDateLexical",
+	"dateTime": "validDateTimeLexical",
+	"time":     "validTimeLexical",
+	"instant":  "validInstantLexical",
+}
+
+// primitiveWrapperLexicalCodes maps a choice branch's primitive wrapper type back to
+// its date/time-family type code, so a boxed branch (FHIRDateTime) gets the same
+// lexical check as a plain field.
+var primitiveWrapperLexicalCodes = map[string]string{
+	"FHIRDate":     "date",
+	"FHIRDateTime": "dateTime",
+	"FHIRTime":     "time",
+	"FHIRInstant":  "instant",
+}
+
 // PlanValidationDescriptor builds the validation descriptor for one planned resource by
 // reading the model's top-level elements: a required element (min >= 1) becomes a
 // RequiredField, a choice ([x]) element becomes a ChoiceCheck over its planned suffixed
-// storage fields, and a required-binding code element becomes a BindingCheck against its
-// generated enum. It is a pure function of the model and the plan; it reads no I/O and is
-// deterministic, so the emitted descriptor file is byte-stable.
+// storage fields, a required-binding code element becomes a BindingCheck against its
+// generated enum, and a date/time-family primitive element (or boxed choice branch)
+// becomes a PrimitiveCheck against the release's lexical validators. The resource's
+// backbone types are analysed transitively so the Required and Primitives closures walk
+// into every present backbone instance that can carry a violation. It is a pure function
+// of the model and the plan; it reads no I/O and is deterministic, so the emitted
+// descriptor file is byte-stable.
 //
 // PlanValidationDescriptor returns ok=false for a type that is not a resource (a complex
 // datatype has no resourceType to register under) and for the abstract base types. The
@@ -151,9 +282,10 @@ func PlanValidationDescriptor(t *model.Type, pt PlannedType, bindings BindingRes
 	}
 
 	vd := ValidationDescriptor{
-		GoName:   pt.GoName,
-		FHIRName: t.Name,
-		HasExtra: t.Name == "Bundle",
+		GoName:          pt.GoName,
+		FHIRName:        t.Name,
+		HasExtra:        t.Name == "Bundle",
+		CheckExtensions: pt.EmbeddedBase == "DomainResource",
 	}
 
 	choiceByBase := indexChoicesByBase(pt.Choices)
@@ -177,7 +309,159 @@ func PlanValidationDescriptor(t *model.Type, pt PlannedType, bindings BindingRes
 			vd.Bindings = append(vd.Bindings, check)
 		}
 	}
+
+	helpers := planBackboneHelpers(pt)
+	vd.Primitives = primitiveChecks(t.Name+".", pt.Fields, pt.Choices)
+	vd.RequiredCalls = backboneCalls(pt.Fields, helpers, func(h *BackboneHelper) bool { return h.EmitRequired })
+	vd.LexicalCalls = backboneCalls(pt.Fields, helpers, func(h *BackboneHelper) bool { return h.EmitLexical })
+	for _, bb := range pt.Backbones {
+		h := helpers[bb.GoName]
+		if h.EmitRequired || h.EmitLexical {
+			vd.Helpers = append(vd.Helpers, *h)
+		}
+	}
 	return vd, true
+}
+
+// planBackboneHelpers builds the walk helper for every backbone type of a planned
+// resource and decides transitively which helpers the emitter renders: a backbone emits
+// a required helper when it (or any backbone reachable from it) has a required child,
+// and a lexical helper when it (or any reachable backbone) has a date-family field. The
+// reachability pass iterates to a fixpoint because contentReference recursion makes the
+// backbone graph cyclic (a step that contains its own process); the runtime walk stays
+// finite because the data is.
+func planBackboneHelpers(pt PlannedType) map[string]*BackboneHelper {
+	helpers := make(map[string]*BackboneHelper, len(pt.Backbones))
+	for _, bb := range pt.Backbones {
+		h := &BackboneHelper{
+			GoName:     bb.GoName,
+			Required:   backboneRequired(bb),
+			Primitives: primitiveChecks(".", bb.Fields, bb.Choices),
+		}
+		h.EmitRequired = len(h.Required) > 0
+		h.EmitLexical = len(h.Primitives) > 0
+		helpers[bb.GoName] = h
+	}
+
+	// Propagate reachability to a fixpoint before pruning the calls, so a helper that
+	// only forwards to a deeper violating backbone is still emitted and called.
+	for changed := true; changed; {
+		changed = false
+		for _, bb := range pt.Backbones {
+			h := helpers[bb.GoName]
+			for _, call := range allBackboneCalls(bb.Fields, helpers) {
+				child := helpers[call.TypeGoName]
+				if child.EmitRequired && !h.EmitRequired {
+					h.EmitRequired = true
+					changed = true
+				}
+				if child.EmitLexical && !h.EmitLexical {
+					h.EmitLexical = true
+					changed = true
+				}
+			}
+		}
+	}
+
+	for _, bb := range pt.Backbones {
+		h := helpers[bb.GoName]
+		h.RequiredCalls = backboneCalls(bb.Fields, helpers, func(c *BackboneHelper) bool { return c.EmitRequired })
+		h.LexicalCalls = backboneCalls(bb.Fields, helpers, func(c *BackboneHelper) bool { return c.EmitLexical })
+	}
+	return helpers
+}
+
+// backboneRequired collects a backbone's own required fields (min >= 1, non-choice),
+// with "."-prefixed relative paths the helper appends to its runtime path parameter.
+// Presence follows the same pointer/slice rule as the top level (Codex FHIR-007).
+func backboneRequired(bb PlannedBackbone) []RequiredField {
+	var required []RequiredField
+	for _, f := range bb.Fields {
+		if f.IsPrimitiveSibling() || f.Element == nil || f.Element.IsChoice {
+			continue
+		}
+		if f.Element.Cardinality.Required() {
+			required = append(required, RequiredField{
+				GoName:  f.GoName,
+				Path:    "." + f.JSONName,
+				Repeats: f.Repeats,
+			})
+		}
+	}
+	return required
+}
+
+// primitiveChecks collects the date/time-family lexical checks of one field scope: the
+// plain date-family fields plus the boxed date-family branches of its choice groups.
+// pathPrefix is the absolute "Type." prefix at the top level or "." inside a helper.
+func primitiveChecks(pathPrefix string, fields []Field, choices []PlannedChoice) []PrimitiveCheck {
+	var checks []PrimitiveCheck
+	for _, f := range fields {
+		if f.IsPrimitiveSibling() || f.Element == nil || f.Element.IsChoice {
+			continue
+		}
+		if len(f.Element.Types) != 1 {
+			continue
+		}
+		code := f.Element.Types[0].Code
+		validator, ok := primitiveLexicalKinds[code]
+		if !ok {
+			continue
+		}
+		checks = append(checks, PrimitiveCheck{
+			GoName:    f.GoName,
+			Path:      pathPrefix + f.JSONName,
+			Validator: validator,
+			TypeName:  code,
+			Repeats:   f.Repeats,
+		})
+	}
+	for _, pc := range choices {
+		for _, b := range pc.Branches {
+			code, ok := primitiveWrapperLexicalCodes[b.GoType]
+			if !ok {
+				continue
+			}
+			checks = append(checks, PrimitiveCheck{
+				GoName:    b.Field,
+				Path:      pathPrefix + b.JSONName,
+				Validator: primitiveLexicalKinds[code],
+				TypeName:  code,
+				Boxed:     true,
+			})
+		}
+	}
+	return checks
+}
+
+// backboneCalls collects the walk calls of one field scope into the backbone types
+// whose helper satisfies emit (has the relevant transitive content), in field order so
+// the emitted walk is byte-stable.
+func backboneCalls(fields []Field, helpers map[string]*BackboneHelper, emit func(*BackboneHelper) bool) []BackboneCall {
+	var calls []BackboneCall
+	for _, f := range fields {
+		if f.IsPrimitiveSibling() {
+			continue
+		}
+		typeName := strings.TrimPrefix(strings.TrimPrefix(f.GoType, "[]"), "*")
+		h, ok := helpers[typeName]
+		if !ok || !emit(h) {
+			continue
+		}
+		calls = append(calls, BackboneCall{
+			FieldGoName: f.GoName,
+			JSONName:    f.JSONName,
+			TypeGoName:  typeName,
+			Repeats:     f.Repeats,
+		})
+	}
+	return calls
+}
+
+// allBackboneCalls collects every backbone-typed field of a scope regardless of emit
+// flags, for the reachability fixpoint.
+func allBackboneCalls(fields []Field, helpers map[string]*BackboneHelper) []BackboneCall {
+	return backboneCalls(fields, helpers, func(*BackboneHelper) bool { return true })
 }
 
 // summaryFlags builds the summary metadata for one top-level element. A non-choice

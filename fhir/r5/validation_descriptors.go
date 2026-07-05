@@ -2,14 +2,20 @@
 
 package r5
 
-import "github.com/codeninja55/go-radx/fhir"
+import (
+	"strconv"
+
+	"github.com/codeninja55/go-radx/fhir"
+)
 
 // init registers a structural validation descriptor for every r5 resource with
 // the release-local Registry, so r5.Validate can check a resource's
-// required-element presence, choice-group mutual exclusion, and required-binding codes from
-// generated metadata without reflecting over the resource at call time. Each descriptor's
-// closures type-assert the fhir.Resource to the concrete type once and read exactly the
-// fields the generator resolved as required, polymorphic, or bound.
+// required-element presence (top-level and inside backbone elements, via the walk helpers
+// at the bottom of this file), choice-group mutual exclusion, required-binding codes, and
+// date/dateTime/time/instant lexical validity from generated metadata without reflecting
+// over the resource at call time. Each descriptor's closures type-assert the fhir.Resource
+// to the concrete type once and read exactly the fields the generator resolved as
+// required, polymorphic, bound, or lexically constrained.
 func init() {
 	Registry.RegisterValidationDescriptor(AccountResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -20,6 +26,26 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "Account.status")
+			}
+			missing = append(missing, missingExtensionURLs("Account.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Account.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Coverage {
+				missing = append(missing, missingRequiredAccountCoverage("Account.coverage["+strconv.Itoa(i)+"]", &v.Coverage[i])...)
+			}
+			for i := range v.Guarantor {
+				missing = append(missing, missingRequiredAccountGuarantor("Account.guarantor["+strconv.Itoa(i)+"]", &v.Guarantor[i])...)
+			}
+			for i := range v.Diagnosis {
+				missing = append(missing, missingRequiredAccountDiagnosis("Account.diagnosis["+strconv.Itoa(i)+"]", &v.Diagnosis[i])...)
+			}
+			for i := range v.Procedure {
+				missing = append(missing, missingRequiredAccountProcedure("Account.procedure["+strconv.Itoa(i)+"]", &v.Procedure[i])...)
+			}
+			for i := range v.RelatedAccount {
+				missing = append(missing, missingRequiredAccountRelatedAccount("Account.relatedAccount["+strconv.Itoa(i)+"]", &v.RelatedAccount[i])...)
+			}
+			for i := range v.Balance {
+				missing = append(missing, missingRequiredAccountBalance("Account.balance["+strconv.Itoa(i)+"]", &v.Balance[i])...)
 			}
 			return missing
 		},
@@ -37,6 +63,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Account)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.CalculatedAt != nil && !validInstantLexical(*v.CalculatedAt) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Account.calculatedAt",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			for i := range v.Diagnosis {
+				issues = append(issues, lexicalIssuesAccountDiagnosis("Account.diagnosis["+strconv.Itoa(i)+"]", &v.Diagnosis[i])...)
+			}
+			for i := range v.Procedure {
+				issues = append(issues, lexicalIssuesAccountProcedure("Account.procedure["+strconv.Itoa(i)+"]", &v.Procedure[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ActivityDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -47,6 +93,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "ActivityDefinition.status")
+			}
+			missing = append(missing, missingExtensionURLs("ActivityDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ActivityDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.DynamicValue {
+				missing = append(missing, missingRequiredActivityDefinitionDynamicValue("ActivityDefinition.dynamicValue["+strconv.Itoa(i)+"]", &v.DynamicValue[i])...)
 			}
 			return missing
 		},
@@ -105,6 +156,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ActivityDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ActivityDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ActivityDefinition.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ActivityDefinition.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ActorDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -119,6 +196,8 @@ func init() {
 			if v.Type == nil {
 				missing = append(missing, "ActorDefinition.type")
 			}
+			missing = append(missing, missingExtensionURLs("ActorDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ActorDefinition.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -152,6 +231,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ActorDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ActorDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(AdministrableProductDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -166,6 +259,14 @@ func init() {
 			if len(v.RouteOfAdministration) == 0 {
 				missing = append(missing, "AdministrableProductDefinition.routeOfAdministration")
 			}
+			missing = append(missing, missingExtensionURLs("AdministrableProductDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("AdministrableProductDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Property {
+				missing = append(missing, missingRequiredAdministrableProductDefinitionProperty("AdministrableProductDefinition.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			for i := range v.RouteOfAdministration {
+				missing = append(missing, missingRequiredAdministrableProductDefinitionRouteOfAdministration("AdministrableProductDefinition.routeOfAdministration["+strconv.Itoa(i)+"]", &v.RouteOfAdministration[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -179,6 +280,17 @@ func init() {
 					Expression:  "AdministrableProductDefinition.status",
 					Diagnostics: "code is not in the required PublicationStatus value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*AdministrableProductDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.Property {
+				issues = append(issues, lexicalIssuesAdministrableProductDefinitionProperty("AdministrableProductDefinition.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
 			}
 			return issues
 		},
@@ -198,6 +310,11 @@ func init() {
 			}
 			if v.Subject == nil {
 				missing = append(missing, "AdverseEvent.subject")
+			}
+			missing = append(missing, missingExtensionURLs("AdverseEvent.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("AdverseEvent.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Participant {
+				missing = append(missing, missingRequiredAdverseEventParticipant("AdverseEvent.participant["+strconv.Itoa(i)+"]", &v.Participant[i])...)
 			}
 			return missing
 		},
@@ -232,6 +349,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*AdverseEvent)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Detected != nil && !validDateTimeLexical(*v.Detected) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AdverseEvent.detected",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.RecordedDate != nil && !validDateTimeLexical(*v.RecordedDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AdverseEvent.recordedDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AdverseEvent.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(AllergyIntoleranceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -242,6 +385,14 @@ func init() {
 			var missing []string
 			if v.Patient == nil {
 				missing = append(missing, "AllergyIntolerance.patient")
+			}
+			missing = append(missing, missingExtensionURLs("AllergyIntolerance.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("AllergyIntolerance.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Participant {
+				missing = append(missing, missingRequiredAllergyIntoleranceParticipant("AllergyIntolerance.participant["+strconv.Itoa(i)+"]", &v.Participant[i])...)
+			}
+			for i := range v.Reaction {
+				missing = append(missing, missingRequiredAllergyIntoleranceReaction("AllergyIntolerance.reaction["+strconv.Itoa(i)+"]", &v.Reaction[i])...)
 			}
 			return missing
 		},
@@ -278,6 +429,35 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*AllergyIntolerance)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.RecordedDate != nil && !validDateTimeLexical(*v.RecordedDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AllergyIntolerance.recordedDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.LastOccurrence != nil && !validDateTimeLexical(*v.LastOccurrence) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AllergyIntolerance.lastOccurrence",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OnsetDateTime != nil && !validDateTimeLexical(string(*v.OnsetDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AllergyIntolerance.onsetDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Reaction {
+				issues = append(issues, lexicalIssuesAllergyIntoleranceReaction("AllergyIntolerance.reaction["+strconv.Itoa(i)+"]", &v.Reaction[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(AppointmentResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -291,6 +471,14 @@ func init() {
 			}
 			if len(v.Participant) == 0 {
 				missing = append(missing, "Appointment.participant")
+			}
+			missing = append(missing, missingExtensionURLs("Appointment.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Appointment.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Participant {
+				missing = append(missing, missingRequiredAppointmentParticipant("Appointment.participant["+strconv.Itoa(i)+"]", &v.Participant[i])...)
+			}
+			for i := range v.RecurrenceTemplate {
+				missing = append(missing, missingRequiredAppointmentRecurrenceTemplate("Appointment.recurrenceTemplate["+strconv.Itoa(i)+"]", &v.RecurrenceTemplate[i])...)
 			}
 			return missing
 		},
@@ -308,6 +496,41 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Appointment)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Start != nil && !validInstantLexical(*v.Start) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Appointment.start",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.End != nil && !validInstantLexical(*v.End) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Appointment.end",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Appointment.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.CancellationDate != nil && !validDateTimeLexical(*v.CancellationDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Appointment.cancellationDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.RecurrenceTemplate {
+				issues = append(issues, lexicalIssuesAppointmentRecurrenceTemplate("Appointment.recurrenceTemplate["+strconv.Itoa(i)+"]", &v.RecurrenceTemplate[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(AppointmentResponseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -322,6 +545,8 @@ func init() {
 			if v.ParticipantStatus == nil {
 				missing = append(missing, "AppointmentResponse.participantStatus")
 			}
+			missing = append(missing, missingExtensionURLs("AppointmentResponse.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("AppointmentResponse.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -338,8 +563,44 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*AppointmentResponse)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Start != nil && !validInstantLexical(*v.Start) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AppointmentResponse.start",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.End != nil && !validInstantLexical(*v.End) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AppointmentResponse.end",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.OccurrenceDate != nil && !validDateLexical(*v.OccurrenceDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AppointmentResponse.occurrenceDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ArtifactAssessmentResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*ArtifactAssessment)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("ArtifactAssessment.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ArtifactAssessment.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*ArtifactAssessment)
 			if !ok {
@@ -374,6 +635,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ArtifactAssessment)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ArtifactAssessment.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ArtifactAssessment.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ArtifactAssessment.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(AuditEventResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -393,6 +680,20 @@ func init() {
 			}
 			if v.Source == nil {
 				missing = append(missing, "AuditEvent.source")
+			}
+			missing = append(missing, missingExtensionURLs("AuditEvent.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("AuditEvent.modifierExtension", v.ModifierExtension)...)
+			if v.Outcome != nil {
+				missing = append(missing, missingRequiredAuditEventOutcome("AuditEvent.outcome", v.Outcome)...)
+			}
+			for i := range v.Agent {
+				missing = append(missing, missingRequiredAuditEventAgent("AuditEvent.agent["+strconv.Itoa(i)+"]", &v.Agent[i])...)
+			}
+			if v.Source != nil {
+				missing = append(missing, missingRequiredAuditEventSource("AuditEvent.source", v.Source)...)
+			}
+			for i := range v.Entity {
+				missing = append(missing, missingRequiredAuditEventEntity("AuditEvent.entity["+strconv.Itoa(i)+"]", &v.Entity[i])...)
 			}
 			return missing
 		},
@@ -427,6 +728,29 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*AuditEvent)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Recorded != nil && !validInstantLexical(*v.Recorded) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AuditEvent.recorded",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.OccurredDateTime != nil && !validDateTimeLexical(string(*v.OccurredDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "AuditEvent.occurredDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Entity {
+				issues = append(issues, lexicalIssuesAuditEventEntity("AuditEvent.entity["+strconv.Itoa(i)+"]", &v.Entity[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(BasicResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -438,7 +762,23 @@ func init() {
 			if v.Code == nil {
 				missing = append(missing, "Basic.code")
 			}
+			missing = append(missing, missingExtensionURLs("Basic.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Basic.modifierExtension", v.ModifierExtension)...)
 			return missing
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Basic)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Basic.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
 		},
 	})
 	Registry.RegisterValidationDescriptor(BinaryResourceType, fhir.ValidationDescriptor{
@@ -454,7 +794,38 @@ func init() {
 			return missing
 		},
 	})
-	Registry.RegisterValidationDescriptor(BiologicallyDerivedProductResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(BiologicallyDerivedProductResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*BiologicallyDerivedProduct)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("BiologicallyDerivedProduct.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("BiologicallyDerivedProduct.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Property {
+				missing = append(missing, missingRequiredBiologicallyDerivedProductProperty("BiologicallyDerivedProduct.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			return missing
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*BiologicallyDerivedProduct)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.ExpirationDate != nil && !validDateTimeLexical(*v.ExpirationDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "BiologicallyDerivedProduct.expirationDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Collection != nil {
+				issues = append(issues, lexicalIssuesBiologicallyDerivedProductCollection("BiologicallyDerivedProduct.collection", v.Collection)...)
+			}
+			return issues
+		},
+	})
 	Registry.RegisterValidationDescriptor(BiologicallyDerivedProductDispenseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*BiologicallyDerivedProductDispense)
@@ -471,6 +842,11 @@ func init() {
 			if v.Patient == nil {
 				missing = append(missing, "BiologicallyDerivedProductDispense.patient")
 			}
+			missing = append(missing, missingExtensionURLs("BiologicallyDerivedProductDispense.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("BiologicallyDerivedProductDispense.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Performer {
+				missing = append(missing, missingRequiredBiologicallyDerivedProductDispensePerformer("BiologicallyDerivedProductDispense.performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -483,6 +859,26 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "BiologicallyDerivedProductDispense.status",
 					Diagnostics: "code is not in the required BiologicallyDerivedProductDispenseCodes value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*BiologicallyDerivedProductDispense)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.PreparedDate != nil && !validDateTimeLexical(*v.PreparedDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "BiologicallyDerivedProductDispense.preparedDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.WhenHandedOver != nil && !validDateTimeLexical(*v.WhenHandedOver) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "BiologicallyDerivedProductDispense.whenHandedOver",
+					Diagnostics: "value is not a valid FHIR dateTime",
 				})
 			}
 			return issues
@@ -501,6 +897,14 @@ func init() {
 			if v.Patient == nil {
 				missing = append(missing, "BodyStructure.patient")
 			}
+			missing = append(missing, missingExtensionURLs("BodyStructure.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("BodyStructure.modifierExtension", v.ModifierExtension)...)
+			for i := range v.IncludedStructure {
+				missing = append(missing, missingRequiredBodyStructureIncludedStructure("BodyStructure.includedStructure["+strconv.Itoa(i)+"]", &v.IncludedStructure[i])...)
+			}
+			for i := range v.ExcludedStructure {
+				missing = append(missing, missingRequiredBodyStructureIncludedStructure("BodyStructure.excludedStructure["+strconv.Itoa(i)+"]", &v.ExcludedStructure[i])...)
+			}
 			return missing
 		},
 	})
@@ -513,6 +917,12 @@ func init() {
 			var missing []string
 			if v.Type == nil {
 				missing = append(missing, "Bundle.type")
+			}
+			for i := range v.Link {
+				missing = append(missing, missingRequiredBundleLink("Bundle.link["+strconv.Itoa(i)+"]", &v.Link[i])...)
+			}
+			for i := range v.Entry {
+				missing = append(missing, missingRequiredBundleEntry("Bundle.entry["+strconv.Itoa(i)+"]", &v.Entry[i])...)
 			}
 			return missing
 		},
@@ -527,6 +937,23 @@ func init() {
 					Expression:  "Bundle.type",
 					Diagnostics: "code is not in the required BundleType value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Bundle)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Timestamp != nil && !validInstantLexical(*v.Timestamp) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Bundle.timestamp",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			for i := range v.Entry {
+				issues = append(issues, lexicalIssuesBundleEntry("Bundle.entry["+strconv.Itoa(i)+"]", &v.Entry[i])...)
 			}
 			return issues
 		},
@@ -553,6 +980,23 @@ func init() {
 			}
 			if len(v.Format) == 0 {
 				missing = append(missing, "CapabilityStatement.format")
+			}
+			missing = append(missing, missingExtensionURLs("CapabilityStatement.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("CapabilityStatement.modifierExtension", v.ModifierExtension)...)
+			if v.Software != nil {
+				missing = append(missing, missingRequiredCapabilityStatementSoftware("CapabilityStatement.software", v.Software)...)
+			}
+			if v.Implementation != nil {
+				missing = append(missing, missingRequiredCapabilityStatementImplementation("CapabilityStatement.implementation", v.Implementation)...)
+			}
+			for i := range v.Rest {
+				missing = append(missing, missingRequiredCapabilityStatementRest("CapabilityStatement.rest["+strconv.Itoa(i)+"]", &v.Rest[i])...)
+			}
+			for i := range v.Messaging {
+				missing = append(missing, missingRequiredCapabilityStatementMessaging("CapabilityStatement.messaging["+strconv.Itoa(i)+"]", &v.Messaging[i])...)
+			}
+			for i := range v.Document {
+				missing = append(missing, missingRequiredCapabilityStatementDocument("CapabilityStatement.document["+strconv.Itoa(i)+"]", &v.Document[i])...)
 			}
 			return missing
 		},
@@ -593,6 +1037,23 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*CapabilityStatement)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CapabilityStatement.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Software != nil {
+				issues = append(issues, lexicalIssuesCapabilityStatementSoftware("CapabilityStatement.software", v.Software)...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(CarePlanResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -610,6 +1071,8 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "CarePlan.subject")
 			}
+			missing = append(missing, missingExtensionURLs("CarePlan.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("CarePlan.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -632,8 +1095,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*CarePlan)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CarePlan.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(CareTeamResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*CareTeam)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("CareTeam.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("CareTeam.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*CareTeam)
 			if !ok {
@@ -665,6 +1152,11 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "ChargeItem.subject")
 			}
+			missing = append(missing, missingExtensionURLs("ChargeItem.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ChargeItem.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Performer {
+				missing = append(missing, missingRequiredChargeItemPerformer("ChargeItem.performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
+			}
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -692,6 +1184,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ChargeItem)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.EnteredDate != nil && !validDateTimeLexical(*v.EnteredDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ChargeItem.enteredDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ChargeItem.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ChargeItemDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -703,6 +1215,8 @@ func init() {
 			if v.Status == nil {
 				missing = append(missing, "ChargeItemDefinition.status")
 			}
+			missing = append(missing, missingExtensionURLs("ChargeItemDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ChargeItemDefinition.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -730,6 +1244,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ChargeItemDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ChargeItemDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ChargeItemDefinition.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ChargeItemDefinition.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(CitationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -740,6 +1280,17 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "Citation.status")
+			}
+			missing = append(missing, missingExtensionURLs("Citation.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Citation.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Summary {
+				missing = append(missing, missingRequiredCitationSummary("Citation.summary["+strconv.Itoa(i)+"]", &v.Summary[i])...)
+			}
+			for i := range v.StatusDate {
+				missing = append(missing, missingRequiredCitationStatusDate("Citation.statusDate["+strconv.Itoa(i)+"]", &v.StatusDate[i])...)
+			}
+			if v.CitedArtifact != nil {
+				missing = append(missing, missingRequiredCitationCitedArtifact("Citation.citedArtifact", v.CitedArtifact)...)
 			}
 			return missing
 		},
@@ -768,6 +1319,35 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Citation)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Citation.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Citation.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Citation.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.CitedArtifact != nil {
+				issues = append(issues, lexicalIssuesCitationCitedArtifact("Citation.citedArtifact", v.CitedArtifact)...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ClaimResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -791,6 +1371,35 @@ func init() {
 			if v.Created == nil {
 				missing = append(missing, "Claim.created")
 			}
+			missing = append(missing, missingExtensionURLs("Claim.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Claim.modifierExtension", v.ModifierExtension)...)
+			if v.Payee != nil {
+				missing = append(missing, missingRequiredClaimPayee("Claim.payee", v.Payee)...)
+			}
+			for i := range v.Event {
+				missing = append(missing, missingRequiredClaimEvent("Claim.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			for i := range v.CareTeam {
+				missing = append(missing, missingRequiredClaimCareTeam("Claim.careTeam["+strconv.Itoa(i)+"]", &v.CareTeam[i])...)
+			}
+			for i := range v.SupportingInfo {
+				missing = append(missing, missingRequiredClaimSupportingInfo("Claim.supportingInfo["+strconv.Itoa(i)+"]", &v.SupportingInfo[i])...)
+			}
+			for i := range v.Diagnosis {
+				missing = append(missing, missingRequiredClaimDiagnosis("Claim.diagnosis["+strconv.Itoa(i)+"]", &v.Diagnosis[i])...)
+			}
+			for i := range v.Procedure {
+				missing = append(missing, missingRequiredClaimProcedure("Claim.procedure["+strconv.Itoa(i)+"]", &v.Procedure[i])...)
+			}
+			for i := range v.Insurance {
+				missing = append(missing, missingRequiredClaimInsurance("Claim.insurance["+strconv.Itoa(i)+"]", &v.Insurance[i])...)
+			}
+			if v.Accident != nil {
+				missing = append(missing, missingRequiredClaimAccident("Claim.accident", v.Accident)...)
+			}
+			for i := range v.Item {
+				missing = append(missing, missingRequiredClaimItem("Claim.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -810,6 +1419,35 @@ func init() {
 					Expression:  "Claim.use",
 					Diagnostics: "code is not in the required Use value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Claim)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Claim.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Event {
+				issues = append(issues, lexicalIssuesClaimEvent("Claim.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			for i := range v.SupportingInfo {
+				issues = append(issues, lexicalIssuesClaimSupportingInfo("Claim.supportingInfo["+strconv.Itoa(i)+"]", &v.SupportingInfo[i])...)
+			}
+			for i := range v.Procedure {
+				issues = append(issues, lexicalIssuesClaimProcedure("Claim.procedure["+strconv.Itoa(i)+"]", &v.Procedure[i])...)
+			}
+			if v.Accident != nil {
+				issues = append(issues, lexicalIssuesClaimAccident("Claim.accident", v.Accident)...)
+			}
+			for i := range v.Item {
+				issues = append(issues, lexicalIssuesClaimItem("Claim.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
 			}
 			return issues
 		},
@@ -839,6 +1477,35 @@ func init() {
 			if v.Outcome == nil {
 				missing = append(missing, "ClaimResponse.outcome")
 			}
+			missing = append(missing, missingExtensionURLs("ClaimResponse.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ClaimResponse.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Event {
+				missing = append(missing, missingRequiredClaimResponseEvent("ClaimResponse.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			for i := range v.Item {
+				missing = append(missing, missingRequiredClaimResponseItem("ClaimResponse.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+			}
+			for i := range v.AddItem {
+				missing = append(missing, missingRequiredClaimResponseAddItem("ClaimResponse.addItem["+strconv.Itoa(i)+"]", &v.AddItem[i])...)
+			}
+			for i := range v.Adjudication {
+				missing = append(missing, missingRequiredClaimResponseItemAdjudication("ClaimResponse.adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+			}
+			for i := range v.Total {
+				missing = append(missing, missingRequiredClaimResponseTotal("ClaimResponse.total["+strconv.Itoa(i)+"]", &v.Total[i])...)
+			}
+			if v.Payment != nil {
+				missing = append(missing, missingRequiredClaimResponsePayment("ClaimResponse.payment", v.Payment)...)
+			}
+			for i := range v.ProcessNote {
+				missing = append(missing, missingRequiredClaimResponseProcessNote("ClaimResponse.processNote["+strconv.Itoa(i)+"]", &v.ProcessNote[i])...)
+			}
+			for i := range v.Insurance {
+				missing = append(missing, missingRequiredClaimResponseInsurance("ClaimResponse.insurance["+strconv.Itoa(i)+"]", &v.Insurance[i])...)
+			}
+			for i := range v.Error {
+				missing = append(missing, missingRequiredClaimResponseError("ClaimResponse.error["+strconv.Itoa(i)+"]", &v.Error[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -867,6 +1534,29 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ClaimResponse)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ClaimResponse.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Event {
+				issues = append(issues, lexicalIssuesClaimResponseEvent("ClaimResponse.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			for i := range v.AddItem {
+				issues = append(issues, lexicalIssuesClaimResponseAddItem("ClaimResponse.addItem["+strconv.Itoa(i)+"]", &v.AddItem[i])...)
+			}
+			if v.Payment != nil {
+				issues = append(issues, lexicalIssuesClaimResponsePayment("ClaimResponse.payment", v.Payment)...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ClinicalImpressionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -881,6 +1571,8 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "ClinicalImpression.subject")
 			}
+			missing = append(missing, missingExtensionURLs("ClinicalImpression.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ClinicalImpression.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -908,6 +1600,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ClinicalImpression)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ClinicalImpression.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.EffectiveDateTime != nil && !validDateTimeLexical(string(*v.EffectiveDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ClinicalImpression.effectiveDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ClinicalUseDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -918,6 +1630,14 @@ func init() {
 			var missing []string
 			if v.Type == nil {
 				missing = append(missing, "ClinicalUseDefinition.type")
+			}
+			missing = append(missing, missingExtensionURLs("ClinicalUseDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ClinicalUseDefinition.modifierExtension", v.ModifierExtension)...)
+			if v.Contraindication != nil {
+				missing = append(missing, missingRequiredClinicalUseDefinitionContraindication("ClinicalUseDefinition.contraindication", v.Contraindication)...)
+			}
+			if v.Indication != nil {
+				missing = append(missing, missingRequiredClinicalUseDefinitionIndication("ClinicalUseDefinition.indication", v.Indication)...)
 			}
 			return missing
 		},
@@ -948,6 +1668,17 @@ func init() {
 			}
 			if v.Content == nil {
 				missing = append(missing, "CodeSystem.content")
+			}
+			missing = append(missing, missingExtensionURLs("CodeSystem.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("CodeSystem.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Filter {
+				missing = append(missing, missingRequiredCodeSystemFilter("CodeSystem.filter["+strconv.Itoa(i)+"]", &v.Filter[i])...)
+			}
+			for i := range v.Property {
+				missing = append(missing, missingRequiredCodeSystemProperty("CodeSystem.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			for i := range v.Concept {
+				missing = append(missing, missingRequiredCodeSystemConcept("CodeSystem.concept["+strconv.Itoa(i)+"]", &v.Concept[i])...)
 			}
 			return missing
 		},
@@ -988,6 +1719,35 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*CodeSystem)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CodeSystem.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CodeSystem.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CodeSystem.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Concept {
+				issues = append(issues, lexicalIssuesCodeSystemConcept("CodeSystem.concept["+strconv.Itoa(i)+"]", &v.Concept[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(CommunicationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -999,6 +1759,8 @@ func init() {
 			if v.Status == nil {
 				missing = append(missing, "Communication.status")
 			}
+			missing = append(missing, missingExtensionURLs("Communication.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Communication.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -1021,6 +1783,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Communication)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Sent != nil && !validDateTimeLexical(*v.Sent) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Communication.sent",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Received != nil && !validDateTimeLexical(*v.Received) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Communication.received",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(CommunicationRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1035,6 +1817,8 @@ func init() {
 			if v.Intent == nil {
 				missing = append(missing, "CommunicationRequest.intent")
 			}
+			missing = append(missing, missingExtensionURLs("CommunicationRequest.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("CommunicationRequest.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -1074,6 +1858,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*CommunicationRequest)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.AuthoredOn != nil && !validDateTimeLexical(*v.AuthoredOn) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CommunicationRequest.authoredOn",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CommunicationRequest.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(CompartmentDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1096,6 +1900,11 @@ func init() {
 			}
 			if v.Search == nil {
 				missing = append(missing, "CompartmentDefinition.search")
+			}
+			missing = append(missing, missingExtensionURLs("CompartmentDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("CompartmentDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Resource {
+				missing = append(missing, missingRequiredCompartmentDefinitionResource("CompartmentDefinition.resource["+strconv.Itoa(i)+"]", &v.Resource[i])...)
 			}
 			return missing
 		},
@@ -1130,6 +1939,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*CompartmentDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CompartmentDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(CompositionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1153,6 +1976,11 @@ func init() {
 			if v.Title == nil {
 				missing = append(missing, "Composition.title")
 			}
+			missing = append(missing, missingExtensionURLs("Composition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Composition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Attester {
+				missing = append(missing, missingRequiredCompositionAttester("Composition.attester["+strconv.Itoa(i)+"]", &v.Attester[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -1169,6 +1997,23 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Composition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Composition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Attester {
+				issues = append(issues, lexicalIssuesCompositionAttester("Composition.attester["+strconv.Itoa(i)+"]", &v.Attester[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ConceptMapResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1179,6 +2024,17 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "ConceptMap.status")
+			}
+			missing = append(missing, missingExtensionURLs("ConceptMap.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ConceptMap.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Property {
+				missing = append(missing, missingRequiredConceptMapProperty("ConceptMap.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			for i := range v.AdditionalAttribute {
+				missing = append(missing, missingRequiredConceptMapAdditionalAttribute("ConceptMap.additionalAttribute["+strconv.Itoa(i)+"]", &v.AdditionalAttribute[i])...)
+			}
+			for i := range v.Group {
+				missing = append(missing, missingRequiredConceptMapGroup("ConceptMap.group["+strconv.Itoa(i)+"]", &v.Group[i])...)
 			}
 			return missing
 		},
@@ -1213,6 +2069,35 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ConceptMap)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ConceptMap.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ConceptMap.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ConceptMap.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Group {
+				issues = append(issues, lexicalIssuesConceptMapGroup("ConceptMap.group["+strconv.Itoa(i)+"]", &v.Group[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ConditionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1226,6 +2111,11 @@ func init() {
 			}
 			if v.Subject == nil {
 				missing = append(missing, "Condition.subject")
+			}
+			missing = append(missing, missingExtensionURLs("Condition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Condition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Participant {
+				missing = append(missing, missingRequiredConditionParticipant("Condition.participant["+strconv.Itoa(i)+"]", &v.Participant[i])...)
 			}
 			return missing
 		},
@@ -1243,6 +2133,32 @@ func init() {
 			}
 			return violations
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Condition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.RecordedDate != nil && !validDateTimeLexical(*v.RecordedDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Condition.recordedDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OnsetDateTime != nil && !validDateTimeLexical(string(*v.OnsetDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Condition.onsetDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.AbatementDateTime != nil && !validDateTimeLexical(string(*v.AbatementDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Condition.abatementDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ConditionDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1256,6 +2172,17 @@ func init() {
 			}
 			if v.Code == nil {
 				missing = append(missing, "ConditionDefinition.code")
+			}
+			missing = append(missing, missingExtensionURLs("ConditionDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ConditionDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Precondition {
+				missing = append(missing, missingRequiredConditionDefinitionPrecondition("ConditionDefinition.precondition["+strconv.Itoa(i)+"]", &v.Precondition[i])...)
+			}
+			for i := range v.Questionnaire {
+				missing = append(missing, missingRequiredConditionDefinitionQuestionnaire("ConditionDefinition.questionnaire["+strconv.Itoa(i)+"]", &v.Questionnaire[i])...)
+			}
+			for i := range v.Plan {
+				missing = append(missing, missingRequiredConditionDefinitionPlan("ConditionDefinition.plan["+strconv.Itoa(i)+"]", &v.Plan[i])...)
 			}
 			return missing
 		},
@@ -1284,6 +2211,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ConditionDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ConditionDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ConsentResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1294,6 +2235,14 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "Consent.status")
+			}
+			missing = append(missing, missingExtensionURLs("Consent.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Consent.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Verification {
+				missing = append(missing, missingRequiredConsentVerification("Consent.verification["+strconv.Itoa(i)+"]", &v.Verification[i])...)
+			}
+			for i := range v.Provision {
+				missing = append(missing, missingRequiredConsentProvision("Consent.provision["+strconv.Itoa(i)+"]", &v.Provision[i])...)
 			}
 			return missing
 		},
@@ -1317,8 +2266,44 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Consent)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Consent.date",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Verification {
+				issues = append(issues, lexicalIssuesConsentVerification("Consent.verification["+strconv.Itoa(i)+"]", &v.Verification[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ContractResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Contract)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("Contract.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Contract.modifierExtension", v.ModifierExtension)...)
+			if v.ContentDefinition != nil {
+				missing = append(missing, missingRequiredContractContentDefinition("Contract.contentDefinition", v.ContentDefinition)...)
+			}
+			for i := range v.Term {
+				missing = append(missing, missingRequiredContractTerm("Contract.term["+strconv.Itoa(i)+"]", &v.Term[i])...)
+			}
+			for i := range v.Signer {
+				missing = append(missing, missingRequiredContractSigner("Contract.signer["+strconv.Itoa(i)+"]", &v.Signer[i])...)
+			}
+			return missing
+		},
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*Contract)
 			if !ok {
@@ -1347,6 +2332,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Contract)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Issued != nil && !validDateTimeLexical(*v.Issued) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Contract.issued",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ContentDefinition != nil {
+				issues = append(issues, lexicalIssuesContractContentDefinition("Contract.contentDefinition", v.ContentDefinition)...)
+			}
+			for i := range v.Term {
+				issues = append(issues, lexicalIssuesContractTerm("Contract.term["+strconv.Itoa(i)+"]", &v.Term[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(CoverageResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1363,6 +2368,17 @@ func init() {
 			}
 			if v.Beneficiary == nil {
 				missing = append(missing, "Coverage.beneficiary")
+			}
+			missing = append(missing, missingExtensionURLs("Coverage.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Coverage.modifierExtension", v.ModifierExtension)...)
+			for i := range v.PaymentBy {
+				missing = append(missing, missingRequiredCoveragePaymentBy("Coverage.paymentBy["+strconv.Itoa(i)+"]", &v.PaymentBy[i])...)
+			}
+			for i := range v.Class {
+				missing = append(missing, missingRequiredCoverageClass("Coverage.class["+strconv.Itoa(i)+"]", &v.Class[i])...)
+			}
+			for i := range v.CostToBeneficiary {
+				missing = append(missing, missingRequiredCoverageCostToBeneficiary("Coverage.costToBeneficiary["+strconv.Itoa(i)+"]", &v.CostToBeneficiary[i])...)
 			}
 			return missing
 		},
@@ -1409,6 +2425,17 @@ func init() {
 			if v.Insurer == nil {
 				missing = append(missing, "CoverageEligibilityRequest.insurer")
 			}
+			missing = append(missing, missingExtensionURLs("CoverageEligibilityRequest.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("CoverageEligibilityRequest.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Event {
+				missing = append(missing, missingRequiredCoverageEligibilityRequestEvent("CoverageEligibilityRequest.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			for i := range v.SupportingInfo {
+				missing = append(missing, missingRequiredCoverageEligibilityRequestSupportingInfo("CoverageEligibilityRequest.supportingInfo["+strconv.Itoa(i)+"]", &v.SupportingInfo[i])...)
+			}
+			for i := range v.Insurance {
+				missing = append(missing, missingRequiredCoverageEligibilityRequestInsurance("CoverageEligibilityRequest.insurance["+strconv.Itoa(i)+"]", &v.Insurance[i])...)
+			}
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -1444,6 +2471,29 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*CoverageEligibilityRequest)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CoverageEligibilityRequest.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ServicedDate != nil && !validDateLexical(string(*v.ServicedDate)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CoverageEligibilityRequest.servicedDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Event {
+				issues = append(issues, lexicalIssuesCoverageEligibilityRequestEvent("CoverageEligibilityRequest.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(CoverageEligibilityResponseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1472,6 +2522,17 @@ func init() {
 			}
 			if v.Insurer == nil {
 				missing = append(missing, "CoverageEligibilityResponse.insurer")
+			}
+			missing = append(missing, missingExtensionURLs("CoverageEligibilityResponse.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("CoverageEligibilityResponse.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Event {
+				missing = append(missing, missingRequiredCoverageEligibilityResponseEvent("CoverageEligibilityResponse.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			for i := range v.Insurance {
+				missing = append(missing, missingRequiredCoverageEligibilityResponseInsurance("CoverageEligibilityResponse.insurance["+strconv.Itoa(i)+"]", &v.Insurance[i])...)
+			}
+			for i := range v.Error {
+				missing = append(missing, missingRequiredCoverageEligibilityResponseError("CoverageEligibilityResponse.error["+strconv.Itoa(i)+"]", &v.Error[i])...)
 			}
 			return missing
 		},
@@ -1514,6 +2575,29 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*CoverageEligibilityResponse)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CoverageEligibilityResponse.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ServicedDate != nil && !validDateLexical(string(*v.ServicedDate)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "CoverageEligibilityResponse.servicedDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Event {
+				issues = append(issues, lexicalIssuesCoverageEligibilityResponseEvent("CoverageEligibilityResponse.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(DetectedIssueResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1524,6 +2608,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "DetectedIssue.status")
+			}
+			missing = append(missing, missingExtensionURLs("DetectedIssue.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("DetectedIssue.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Mitigation {
+				missing = append(missing, missingRequiredDetectedIssueMitigation("DetectedIssue.mitigation["+strconv.Itoa(i)+"]", &v.Mitigation[i])...)
 			}
 			return missing
 		},
@@ -1558,8 +2647,50 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*DetectedIssue)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.IdentifiedDateTime != nil && !validDateTimeLexical(string(*v.IdentifiedDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DetectedIssue.identifiedDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Mitigation {
+				issues = append(issues, lexicalIssuesDetectedIssueMitigation("DetectedIssue.mitigation["+strconv.Itoa(i)+"]", &v.Mitigation[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(DeviceResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Device)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("Device.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Device.modifierExtension", v.ModifierExtension)...)
+			for i := range v.UdiCarrier {
+				missing = append(missing, missingRequiredDeviceUdiCarrier("Device.udiCarrier["+strconv.Itoa(i)+"]", &v.UdiCarrier[i])...)
+			}
+			for i := range v.Name {
+				missing = append(missing, missingRequiredDeviceName("Device.name["+strconv.Itoa(i)+"]", &v.Name[i])...)
+			}
+			for i := range v.Version {
+				missing = append(missing, missingRequiredDeviceVersion("Device.version["+strconv.Itoa(i)+"]", &v.Version[i])...)
+			}
+			for i := range v.ConformsTo {
+				missing = append(missing, missingRequiredDeviceConformsTo("Device.conformsTo["+strconv.Itoa(i)+"]", &v.ConformsTo[i])...)
+			}
+			for i := range v.Property {
+				missing = append(missing, missingRequiredDeviceProperty("Device.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*Device)
 			if !ok {
@@ -1571,6 +2702,29 @@ func init() {
 					Expression:  "Device.status",
 					Diagnostics: "code is not in the required FHIRDeviceStatus value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Device)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.ManufactureDate != nil && !validDateTimeLexical(*v.ManufactureDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Device.manufactureDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ExpirationDate != nil && !validDateTimeLexical(*v.ExpirationDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Device.expirationDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Version {
+				issues = append(issues, lexicalIssuesDeviceVersion("Device.version["+strconv.Itoa(i)+"]", &v.Version[i])...)
 			}
 			return issues
 		},
@@ -1588,10 +2742,64 @@ func init() {
 			if v.Status == nil {
 				missing = append(missing, "DeviceAssociation.status")
 			}
+			missing = append(missing, missingExtensionURLs("DeviceAssociation.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("DeviceAssociation.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Operation {
+				missing = append(missing, missingRequiredDeviceAssociationOperation("DeviceAssociation.operation["+strconv.Itoa(i)+"]", &v.Operation[i])...)
+			}
 			return missing
 		},
 	})
 	Registry.RegisterValidationDescriptor(DeviceDefinitionResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*DeviceDefinition)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("DeviceDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("DeviceDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.UdiDeviceIdentifier {
+				missing = append(missing, missingRequiredDeviceDefinitionUdiDeviceIdentifier("DeviceDefinition.udiDeviceIdentifier["+strconv.Itoa(i)+"]", &v.UdiDeviceIdentifier[i])...)
+			}
+			for i := range v.RegulatoryIdentifier {
+				missing = append(missing, missingRequiredDeviceDefinitionRegulatoryIdentifier("DeviceDefinition.regulatoryIdentifier["+strconv.Itoa(i)+"]", &v.RegulatoryIdentifier[i])...)
+			}
+			for i := range v.DeviceName {
+				missing = append(missing, missingRequiredDeviceDefinitionDeviceName("DeviceDefinition.deviceName["+strconv.Itoa(i)+"]", &v.DeviceName[i])...)
+			}
+			for i := range v.Classification {
+				missing = append(missing, missingRequiredDeviceDefinitionClassification("DeviceDefinition.classification["+strconv.Itoa(i)+"]", &v.Classification[i])...)
+			}
+			for i := range v.ConformsTo {
+				missing = append(missing, missingRequiredDeviceDefinitionConformsTo("DeviceDefinition.conformsTo["+strconv.Itoa(i)+"]", &v.ConformsTo[i])...)
+			}
+			for i := range v.HasPart {
+				missing = append(missing, missingRequiredDeviceDefinitionHasPart("DeviceDefinition.hasPart["+strconv.Itoa(i)+"]", &v.HasPart[i])...)
+			}
+			for i := range v.Packaging {
+				missing = append(missing, missingRequiredDeviceDefinitionPackaging("DeviceDefinition.packaging["+strconv.Itoa(i)+"]", &v.Packaging[i])...)
+			}
+			for i := range v.Version {
+				missing = append(missing, missingRequiredDeviceDefinitionVersion("DeviceDefinition.version["+strconv.Itoa(i)+"]", &v.Version[i])...)
+			}
+			for i := range v.Property {
+				missing = append(missing, missingRequiredDeviceDefinitionProperty("DeviceDefinition.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			for i := range v.Link {
+				missing = append(missing, missingRequiredDeviceDefinitionLink("DeviceDefinition.link["+strconv.Itoa(i)+"]", &v.Link[i])...)
+			}
+			for i := range v.Material {
+				missing = append(missing, missingRequiredDeviceDefinitionMaterial("DeviceDefinition.material["+strconv.Itoa(i)+"]", &v.Material[i])...)
+			}
+			if v.CorrectiveAction != nil {
+				missing = append(missing, missingRequiredDeviceDefinitionCorrectiveAction("DeviceDefinition.correctiveAction", v.CorrectiveAction)...)
+			}
+			for i := range v.ChargeItem {
+				missing = append(missing, missingRequiredDeviceDefinitionChargeItem("DeviceDefinition.chargeItem["+strconv.Itoa(i)+"]", &v.ChargeItem[i])...)
+			}
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*DeviceDefinition)
 			if !ok {
@@ -1625,6 +2833,11 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "DeviceDispense.subject")
 			}
+			missing = append(missing, missingExtensionURLs("DeviceDispense.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("DeviceDispense.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Performer {
+				missing = append(missing, missingRequiredDeviceDispensePerformer("DeviceDispense.performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -1637,6 +2850,26 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "DeviceDispense.status",
 					Diagnostics: "code is not in the required DeviceDispenseStatusCodes value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*DeviceDispense)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.PreparedDate != nil && !validDateTimeLexical(*v.PreparedDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DeviceDispense.preparedDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.WhenHandedOver != nil && !validDateTimeLexical(*v.WhenHandedOver) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DeviceDispense.whenHandedOver",
+					Diagnostics: "value is not a valid FHIR dateTime",
 				})
 			}
 			return issues
@@ -1658,6 +2891,8 @@ func init() {
 			if v.Category == nil {
 				missing = append(missing, "DeviceMetric.category")
 			}
+			missing = append(missing, missingExtensionURLs("DeviceMetric.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("DeviceMetric.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -1680,6 +2915,17 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*DeviceMetric)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.Calibration {
+				issues = append(issues, lexicalIssuesDeviceMetricCalibration("DeviceMetric.calibration["+strconv.Itoa(i)+"]", &v.Calibration[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(DeviceRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1697,6 +2943,8 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "DeviceRequest.subject")
 			}
+			missing = append(missing, missingExtensionURLs("DeviceRequest.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("DeviceRequest.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -1736,6 +2984,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*DeviceRequest)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.AuthoredOn != nil && !validDateTimeLexical(*v.AuthoredOn) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DeviceRequest.authoredOn",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DeviceRequest.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(DeviceUsageResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1752,6 +3020,11 @@ func init() {
 			}
 			if v.Device == nil {
 				missing = append(missing, "DeviceUsage.device")
+			}
+			missing = append(missing, missingExtensionURLs("DeviceUsage.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("DeviceUsage.modifierExtension", v.ModifierExtension)...)
+			if v.Adherence != nil {
+				missing = append(missing, missingRequiredDeviceUsageAdherence("DeviceUsage.adherence", v.Adherence)...)
 			}
 			return missing
 		},
@@ -1780,6 +3053,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*DeviceUsage)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.DateAsserted != nil && !validDateTimeLexical(*v.DateAsserted) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DeviceUsage.dateAsserted",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.TimingDateTime != nil && !validDateTimeLexical(string(*v.TimingDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DeviceUsage.timingDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(DiagnosticReportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1793,6 +3086,14 @@ func init() {
 			}
 			if v.Code == nil {
 				missing = append(missing, "DiagnosticReport.code")
+			}
+			missing = append(missing, missingExtensionURLs("DiagnosticReport.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("DiagnosticReport.modifierExtension", v.ModifierExtension)...)
+			for i := range v.SupportingInfo {
+				missing = append(missing, missingRequiredDiagnosticReportSupportingInfo("DiagnosticReport.supportingInfo["+strconv.Itoa(i)+"]", &v.SupportingInfo[i])...)
+			}
+			for i := range v.Media {
+				missing = append(missing, missingRequiredDiagnosticReportMedia("DiagnosticReport.media["+strconv.Itoa(i)+"]", &v.Media[i])...)
 			}
 			return missing
 		},
@@ -1821,6 +3122,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*DiagnosticReport)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Issued != nil && !validInstantLexical(*v.Issued) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DiagnosticReport.issued",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.EffectiveDateTime != nil && !validDateTimeLexical(string(*v.EffectiveDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DiagnosticReport.effectiveDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(DocumentReferenceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1834,6 +3155,17 @@ func init() {
 			}
 			if len(v.Content) == 0 {
 				missing = append(missing, "DocumentReference.content")
+			}
+			missing = append(missing, missingExtensionURLs("DocumentReference.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("DocumentReference.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Attester {
+				missing = append(missing, missingRequiredDocumentReferenceAttester("DocumentReference.attester["+strconv.Itoa(i)+"]", &v.Attester[i])...)
+			}
+			for i := range v.RelatesTo {
+				missing = append(missing, missingRequiredDocumentReferenceRelatesTo("DocumentReference.relatesTo["+strconv.Itoa(i)+"]", &v.RelatesTo[i])...)
+			}
+			for i := range v.Content {
+				missing = append(missing, missingRequiredDocumentReferenceContent("DocumentReference.content["+strconv.Itoa(i)+"]", &v.Content[i])...)
 			}
 			return missing
 		},
@@ -1857,6 +3189,23 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*DocumentReference)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validInstantLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "DocumentReference.date",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			for i := range v.Attester {
+				issues = append(issues, lexicalIssuesDocumentReferenceAttester("DocumentReference.attester["+strconv.Itoa(i)+"]", &v.Attester[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(EncounterResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1867,6 +3216,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "Encounter.status")
+			}
+			missing = append(missing, missingExtensionURLs("Encounter.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Encounter.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Location {
+				missing = append(missing, missingRequiredEncounterLocation("Encounter.location["+strconv.Itoa(i)+"]", &v.Location[i])...)
 			}
 			return missing
 		},
@@ -1880,6 +3234,26 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "Encounter.status",
 					Diagnostics: "code is not in the required EncounterStatus value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Encounter)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.PlannedStartDate != nil && !validDateTimeLexical(*v.PlannedStartDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Encounter.plannedStartDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.PlannedEndDate != nil && !validDateTimeLexical(*v.PlannedEndDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Encounter.plannedEndDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
 				})
 			}
 			return issues
@@ -1898,6 +3272,11 @@ func init() {
 			if v.Class == nil {
 				missing = append(missing, "EncounterHistory.class")
 			}
+			missing = append(missing, missingExtensionURLs("EncounterHistory.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("EncounterHistory.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Location {
+				missing = append(missing, missingRequiredEncounterHistoryLocation("EncounterHistory.location["+strconv.Itoa(i)+"]", &v.Location[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -1910,6 +3289,26 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "EncounterHistory.status",
 					Diagnostics: "code is not in the required EncounterStatus value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*EncounterHistory)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.PlannedStartDate != nil && !validDateTimeLexical(*v.PlannedStartDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EncounterHistory.plannedStartDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.PlannedEndDate != nil && !validDateTimeLexical(*v.PlannedEndDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EncounterHistory.plannedEndDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
 				})
 			}
 			return issues
@@ -1931,6 +3330,8 @@ func init() {
 			if v.Address == nil {
 				missing = append(missing, "Endpoint.address")
 			}
+			missing = append(missing, missingExtensionURLs("Endpoint.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Endpoint.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -1949,6 +3350,16 @@ func init() {
 		},
 	})
 	Registry.RegisterValidationDescriptor(EnrollmentRequestResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*EnrollmentRequest)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("EnrollmentRequest.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("EnrollmentRequest.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*EnrollmentRequest)
 			if !ok {
@@ -1963,8 +3374,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*EnrollmentRequest)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EnrollmentRequest.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(EnrollmentResponseResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*EnrollmentResponse)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("EnrollmentResponse.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("EnrollmentResponse.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*EnrollmentResponse)
 			if !ok {
@@ -1985,6 +3420,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*EnrollmentResponse)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EnrollmentResponse.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(EpisodeOfCareResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -1998,6 +3447,11 @@ func init() {
 			}
 			if v.Patient == nil {
 				missing = append(missing, "EpisodeOfCare.patient")
+			}
+			missing = append(missing, missingExtensionURLs("EpisodeOfCare.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("EpisodeOfCare.modifierExtension", v.ModifierExtension)...)
+			for i := range v.StatusHistory {
+				missing = append(missing, missingRequiredEpisodeOfCareStatusHistory("EpisodeOfCare.statusHistory["+strconv.Itoa(i)+"]", &v.StatusHistory[i])...)
 			}
 			return missing
 		},
@@ -2029,6 +3483,8 @@ func init() {
 			if len(v.Trigger) == 0 {
 				missing = append(missing, "EventDefinition.trigger")
 			}
+			missing = append(missing, missingExtensionURLs("EventDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("EventDefinition.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -2059,6 +3515,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*EventDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EventDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EventDefinition.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EventDefinition.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(EvidenceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2072,6 +3554,14 @@ func init() {
 			}
 			if len(v.VariableDefinition) == 0 {
 				missing = append(missing, "Evidence.variableDefinition")
+			}
+			missing = append(missing, missingExtensionURLs("Evidence.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Evidence.modifierExtension", v.ModifierExtension)...)
+			for i := range v.VariableDefinition {
+				missing = append(missing, missingRequiredEvidenceVariableDefinition("Evidence.variableDefinition["+strconv.Itoa(i)+"]", &v.VariableDefinition[i])...)
+			}
+			for i := range v.Statistic {
+				missing = append(missing, missingRequiredEvidenceStatistic("Evidence.statistic["+strconv.Itoa(i)+"]", &v.Statistic[i])...)
 			}
 			return missing
 		},
@@ -2103,6 +3593,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Evidence)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Evidence.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Evidence.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Evidence.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(EvidenceReportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2116,6 +3632,14 @@ func init() {
 			}
 			if v.Subject == nil {
 				missing = append(missing, "EvidenceReport.subject")
+			}
+			missing = append(missing, missingExtensionURLs("EvidenceReport.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("EvidenceReport.modifierExtension", v.ModifierExtension)...)
+			if v.Subject != nil {
+				missing = append(missing, missingRequiredEvidenceReportSubject("EvidenceReport.subject", v.Subject)...)
+			}
+			for i := range v.RelatesTo {
+				missing = append(missing, missingRequiredEvidenceReportRelatesTo("EvidenceReport.relatesTo["+strconv.Itoa(i)+"]", &v.RelatesTo[i])...)
 			}
 			return missing
 		},
@@ -2155,6 +3679,11 @@ func init() {
 			if v.Status == nil {
 				missing = append(missing, "EvidenceVariable.status")
 			}
+			missing = append(missing, missingExtensionURLs("EvidenceVariable.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("EvidenceVariable.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Characteristic {
+				missing = append(missing, missingRequiredEvidenceVariableCharacteristic("EvidenceVariable.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+			}
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -2188,6 +3717,35 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*EvidenceVariable)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EvidenceVariable.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EvidenceVariable.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "EvidenceVariable.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Characteristic {
+				issues = append(issues, lexicalIssuesEvidenceVariableCharacteristic("EvidenceVariable.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ExampleScenarioResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2198,6 +3756,17 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "ExampleScenario.status")
+			}
+			missing = append(missing, missingExtensionURLs("ExampleScenario.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ExampleScenario.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Actor {
+				missing = append(missing, missingRequiredExampleScenarioActor("ExampleScenario.actor["+strconv.Itoa(i)+"]", &v.Actor[i])...)
+			}
+			for i := range v.Instance {
+				missing = append(missing, missingRequiredExampleScenarioInstance("ExampleScenario.instance["+strconv.Itoa(i)+"]", &v.Instance[i])...)
+			}
+			for i := range v.Process {
+				missing = append(missing, missingRequiredExampleScenarioProcess("ExampleScenario.process["+strconv.Itoa(i)+"]", &v.Process[i])...)
 			}
 			return missing
 		},
@@ -2222,6 +3791,20 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "ExampleScenario.status",
 					Diagnostics: "code is not in the required PublicationStatus value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ExampleScenario)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ExampleScenario.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
 				})
 			}
 			return issues
@@ -2252,6 +3835,41 @@ func init() {
 			if v.Outcome == nil {
 				missing = append(missing, "ExplanationOfBenefit.outcome")
 			}
+			missing = append(missing, missingExtensionURLs("ExplanationOfBenefit.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ExplanationOfBenefit.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Event {
+				missing = append(missing, missingRequiredExplanationOfBenefitEvent("ExplanationOfBenefit.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			for i := range v.CareTeam {
+				missing = append(missing, missingRequiredExplanationOfBenefitCareTeam("ExplanationOfBenefit.careTeam["+strconv.Itoa(i)+"]", &v.CareTeam[i])...)
+			}
+			for i := range v.SupportingInfo {
+				missing = append(missing, missingRequiredExplanationOfBenefitSupportingInfo("ExplanationOfBenefit.supportingInfo["+strconv.Itoa(i)+"]", &v.SupportingInfo[i])...)
+			}
+			for i := range v.Diagnosis {
+				missing = append(missing, missingRequiredExplanationOfBenefitDiagnosis("ExplanationOfBenefit.diagnosis["+strconv.Itoa(i)+"]", &v.Diagnosis[i])...)
+			}
+			for i := range v.Procedure {
+				missing = append(missing, missingRequiredExplanationOfBenefitProcedure("ExplanationOfBenefit.procedure["+strconv.Itoa(i)+"]", &v.Procedure[i])...)
+			}
+			for i := range v.Insurance {
+				missing = append(missing, missingRequiredExplanationOfBenefitInsurance("ExplanationOfBenefit.insurance["+strconv.Itoa(i)+"]", &v.Insurance[i])...)
+			}
+			for i := range v.Item {
+				missing = append(missing, missingRequiredExplanationOfBenefitItem("ExplanationOfBenefit.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+			}
+			for i := range v.AddItem {
+				missing = append(missing, missingRequiredExplanationOfBenefitAddItem("ExplanationOfBenefit.addItem["+strconv.Itoa(i)+"]", &v.AddItem[i])...)
+			}
+			for i := range v.Adjudication {
+				missing = append(missing, missingRequiredExplanationOfBenefitItemAdjudication("ExplanationOfBenefit.adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+			}
+			for i := range v.Total {
+				missing = append(missing, missingRequiredExplanationOfBenefitTotal("ExplanationOfBenefit.total["+strconv.Itoa(i)+"]", &v.Total[i])...)
+			}
+			for i := range v.BenefitBalance {
+				missing = append(missing, missingRequiredExplanationOfBenefitBenefitBalance("ExplanationOfBenefit.benefitBalance["+strconv.Itoa(i)+"]", &v.BenefitBalance[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -2280,6 +3898,41 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ExplanationOfBenefit)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ExplanationOfBenefit.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Event {
+				issues = append(issues, lexicalIssuesExplanationOfBenefitEvent("ExplanationOfBenefit.event["+strconv.Itoa(i)+"]", &v.Event[i])...)
+			}
+			for i := range v.SupportingInfo {
+				issues = append(issues, lexicalIssuesExplanationOfBenefitSupportingInfo("ExplanationOfBenefit.supportingInfo["+strconv.Itoa(i)+"]", &v.SupportingInfo[i])...)
+			}
+			for i := range v.Procedure {
+				issues = append(issues, lexicalIssuesExplanationOfBenefitProcedure("ExplanationOfBenefit.procedure["+strconv.Itoa(i)+"]", &v.Procedure[i])...)
+			}
+			if v.Accident != nil {
+				issues = append(issues, lexicalIssuesExplanationOfBenefitAccident("ExplanationOfBenefit.accident", v.Accident)...)
+			}
+			for i := range v.Item {
+				issues = append(issues, lexicalIssuesExplanationOfBenefitItem("ExplanationOfBenefit.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+			}
+			for i := range v.AddItem {
+				issues = append(issues, lexicalIssuesExplanationOfBenefitAddItem("ExplanationOfBenefit.addItem["+strconv.Itoa(i)+"]", &v.AddItem[i])...)
+			}
+			if v.Payment != nil {
+				issues = append(issues, lexicalIssuesExplanationOfBenefitPayment("ExplanationOfBenefit.payment", v.Payment)...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(FamilyMemberHistoryResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2296,6 +3949,17 @@ func init() {
 			}
 			if v.Relationship == nil {
 				missing = append(missing, "FamilyMemberHistory.relationship")
+			}
+			missing = append(missing, missingExtensionURLs("FamilyMemberHistory.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("FamilyMemberHistory.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Participant {
+				missing = append(missing, missingRequiredFamilyMemberHistoryParticipant("FamilyMemberHistory.participant["+strconv.Itoa(i)+"]", &v.Participant[i])...)
+			}
+			for i := range v.Condition {
+				missing = append(missing, missingRequiredFamilyMemberHistoryCondition("FamilyMemberHistory.condition["+strconv.Itoa(i)+"]", &v.Condition[i])...)
+			}
+			for i := range v.Procedure {
+				missing = append(missing, missingRequiredFamilyMemberHistoryProcedure("FamilyMemberHistory.procedure["+strconv.Itoa(i)+"]", &v.Procedure[i])...)
 			}
 			return missing
 		},
@@ -2330,6 +3994,35 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*FamilyMemberHistory)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "FamilyMemberHistory.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.BornDate != nil && !validDateLexical(string(*v.BornDate)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "FamilyMemberHistory.bornDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.DeceasedDate != nil && !validDateLexical(string(*v.DeceasedDate)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "FamilyMemberHistory.deceasedDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Procedure {
+				issues = append(issues, lexicalIssuesFamilyMemberHistoryProcedure("FamilyMemberHistory.procedure["+strconv.Itoa(i)+"]", &v.Procedure[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(FlagResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2347,6 +4040,8 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "Flag.subject")
 			}
+			missing = append(missing, missingExtensionURLs("Flag.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Flag.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -2365,6 +4060,16 @@ func init() {
 		},
 	})
 	Registry.RegisterValidationDescriptor(FormularyItemResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*FormularyItem)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("FormularyItem.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("FormularyItem.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*FormularyItem)
 			if !ok {
@@ -2393,6 +4098,8 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "GenomicStudy.subject")
 			}
+			missing = append(missing, missingExtensionURLs("GenomicStudy.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("GenomicStudy.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -2406,6 +4113,23 @@ func init() {
 					Expression:  "GenomicStudy.status",
 					Diagnostics: "code is not in the required GenomicStudyStatus value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*GenomicStudy)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.StartDate != nil && !validDateTimeLexical(*v.StartDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "GenomicStudy.startDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Analysis {
+				issues = append(issues, lexicalIssuesGenomicStudyAnalysis("GenomicStudy.analysis["+strconv.Itoa(i)+"]", &v.Analysis[i])...)
 			}
 			return issues
 		},
@@ -2426,6 +4150,8 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "Goal.subject")
 			}
+			missing = append(missing, missingExtensionURLs("Goal.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Goal.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -2453,6 +4179,29 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Goal)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.StatusDate != nil && !validDateLexical(*v.StatusDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Goal.statusDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.StartDate != nil && !validDateLexical(string(*v.StartDate)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Goal.startDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Target {
+				issues = append(issues, lexicalIssuesGoalTarget("Goal.target["+strconv.Itoa(i)+"]", &v.Target[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(GraphDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2466,6 +4215,14 @@ func init() {
 			}
 			if v.Status == nil {
 				missing = append(missing, "GraphDefinition.status")
+			}
+			missing = append(missing, missingExtensionURLs("GraphDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("GraphDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Node {
+				missing = append(missing, missingRequiredGraphDefinitionNode("GraphDefinition.node["+strconv.Itoa(i)+"]", &v.Node[i])...)
+			}
+			for i := range v.Link {
+				missing = append(missing, missingRequiredGraphDefinitionLink("GraphDefinition.link["+strconv.Itoa(i)+"]", &v.Link[i])...)
 			}
 			return missing
 		},
@@ -2494,6 +4251,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*GraphDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "GraphDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(GroupResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2507,6 +4278,14 @@ func init() {
 			}
 			if v.Membership == nil {
 				missing = append(missing, "Group.membership")
+			}
+			missing = append(missing, missingExtensionURLs("Group.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Group.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Characteristic {
+				missing = append(missing, missingRequiredGroupCharacteristic("Group.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+			}
+			for i := range v.Member {
+				missing = append(missing, missingRequiredGroupMember("Group.member["+strconv.Itoa(i)+"]", &v.Member[i])...)
 			}
 			return missing
 		},
@@ -2541,6 +4320,8 @@ func init() {
 			if v.Status == nil {
 				missing = append(missing, "GuidanceResponse.status")
 			}
+			missing = append(missing, missingExtensionURLs("GuidanceResponse.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("GuidanceResponse.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -2568,8 +4349,33 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*GuidanceResponse)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(*v.OccurrenceDateTime) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "GuidanceResponse.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
-	Registry.RegisterValidationDescriptor(HealthcareServiceResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(HealthcareServiceResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*HealthcareService)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("HealthcareService.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("HealthcareService.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
+	})
 	Registry.RegisterValidationDescriptor(ImagingSelectionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*ImagingSelection)
@@ -2583,6 +4389,11 @@ func init() {
 			if v.Code == nil {
 				missing = append(missing, "ImagingSelection.code")
 			}
+			missing = append(missing, missingExtensionURLs("ImagingSelection.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ImagingSelection.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Instance {
+				missing = append(missing, missingRequiredImagingSelectionInstance("ImagingSelection.instance["+strconv.Itoa(i)+"]", &v.Instance[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -2595,6 +4406,20 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "ImagingSelection.status",
 					Diagnostics: "code is not in the required ImagingSelectionStatus value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ImagingSelection)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Issued != nil && !validInstantLexical(*v.Issued) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ImagingSelection.issued",
+					Diagnostics: "value is not a valid FHIR instant",
 				})
 			}
 			return issues
@@ -2613,6 +4438,11 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "ImagingStudy.subject")
 			}
+			missing = append(missing, missingExtensionURLs("ImagingStudy.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ImagingStudy.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Series {
+				missing = append(missing, missingRequiredImagingStudySeries("ImagingStudy.series["+strconv.Itoa(i)+"]", &v.Series[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -2626,6 +4456,23 @@ func init() {
 					Expression:  "ImagingStudy.status",
 					Diagnostics: "code is not in the required ImagingStudyStatus value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ImagingStudy)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Started != nil && !validDateTimeLexical(*v.Started) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ImagingStudy.started",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Series {
+				issues = append(issues, lexicalIssuesImagingStudySeries("ImagingStudy.series["+strconv.Itoa(i)+"]", &v.Series[i])...)
 			}
 			return issues
 		},
@@ -2645,6 +4492,17 @@ func init() {
 			}
 			if v.Patient == nil {
 				missing = append(missing, "Immunization.patient")
+			}
+			missing = append(missing, missingExtensionURLs("Immunization.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Immunization.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Performer {
+				missing = append(missing, missingRequiredImmunizationPerformer("Immunization.performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
+			}
+			for i := range v.ProgramEligibility {
+				missing = append(missing, missingRequiredImmunizationProgramEligibility("Immunization.programEligibility["+strconv.Itoa(i)+"]", &v.ProgramEligibility[i])...)
+			}
+			for i := range v.ProtocolApplied {
+				missing = append(missing, missingRequiredImmunizationProtocolApplied("Immunization.protocolApplied["+strconv.Itoa(i)+"]", &v.ProtocolApplied[i])...)
 			}
 			return missing
 		},
@@ -2673,6 +4531,29 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Immunization)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.ExpirationDate != nil && !validDateLexical(*v.ExpirationDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Immunization.expirationDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Immunization.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Reaction {
+				issues = append(issues, lexicalIssuesImmunizationReaction("Immunization.reaction["+strconv.Itoa(i)+"]", &v.Reaction[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ImmunizationEvaluationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2696,6 +4577,8 @@ func init() {
 			if v.DoseStatus == nil {
 				missing = append(missing, "ImmunizationEvaluation.doseStatus")
 			}
+			missing = append(missing, missingExtensionURLs("ImmunizationEvaluation.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ImmunizationEvaluation.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -2708,6 +4591,20 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "ImmunizationEvaluation.status",
 					Diagnostics: "code is not in the required ImmunizationEvaluationStatusCodes value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ImmunizationEvaluation)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ImmunizationEvaluation.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
 				})
 			}
 			return issues
@@ -2729,7 +4626,29 @@ func init() {
 			if len(v.Recommendation) == 0 {
 				missing = append(missing, "ImmunizationRecommendation.recommendation")
 			}
+			missing = append(missing, missingExtensionURLs("ImmunizationRecommendation.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ImmunizationRecommendation.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Recommendation {
+				missing = append(missing, missingRequiredImmunizationRecommendationRecommendation("ImmunizationRecommendation.recommendation["+strconv.Itoa(i)+"]", &v.Recommendation[i])...)
+			}
 			return missing
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ImmunizationRecommendation)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ImmunizationRecommendation.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Recommendation {
+				issues = append(issues, lexicalIssuesImmunizationRecommendationRecommendation("ImmunizationRecommendation.recommendation["+strconv.Itoa(i)+"]", &v.Recommendation[i])...)
+			}
+			return issues
 		},
 	})
 	Registry.RegisterValidationDescriptor(ImplementationGuideResourceType, fhir.ValidationDescriptor{
@@ -2753,6 +4672,20 @@ func init() {
 			}
 			if len(v.FhirVersion) == 0 {
 				missing = append(missing, "ImplementationGuide.fhirVersion")
+			}
+			missing = append(missing, missingExtensionURLs("ImplementationGuide.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ImplementationGuide.modifierExtension", v.ModifierExtension)...)
+			for i := range v.DependsOn {
+				missing = append(missing, missingRequiredImplementationGuideDependsOn("ImplementationGuide.dependsOn["+strconv.Itoa(i)+"]", &v.DependsOn[i])...)
+			}
+			for i := range v.Global {
+				missing = append(missing, missingRequiredImplementationGuideGlobal("ImplementationGuide.global["+strconv.Itoa(i)+"]", &v.Global[i])...)
+			}
+			if v.Definition != nil {
+				missing = append(missing, missingRequiredImplementationGuideDefinition("ImplementationGuide.definition", v.Definition)...)
+			}
+			if v.Manifest != nil {
+				missing = append(missing, missingRequiredImplementationGuideManifest("ImplementationGuide.manifest", v.Manifest)...)
 			}
 			return missing
 		},
@@ -2795,6 +4728,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ImplementationGuide)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ImplementationGuide.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(IngredientResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2811,6 +4758,14 @@ func init() {
 			}
 			if v.Substance == nil {
 				missing = append(missing, "Ingredient.substance")
+			}
+			missing = append(missing, missingExtensionURLs("Ingredient.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Ingredient.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Manufacturer {
+				missing = append(missing, missingRequiredIngredientManufacturer("Ingredient.manufacturer["+strconv.Itoa(i)+"]", &v.Manufacturer[i])...)
+			}
+			if v.Substance != nil {
+				missing = append(missing, missingRequiredIngredientSubstance("Ingredient.substance", v.Substance)...)
 			}
 			return missing
 		},
@@ -2830,6 +4785,22 @@ func init() {
 		},
 	})
 	Registry.RegisterValidationDescriptor(InsurancePlanResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*InsurancePlan)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("InsurancePlan.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("InsurancePlan.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Coverage {
+				missing = append(missing, missingRequiredInsurancePlanCoverage("InsurancePlan.coverage["+strconv.Itoa(i)+"]", &v.Coverage[i])...)
+			}
+			for i := range v.Plan {
+				missing = append(missing, missingRequiredInsurancePlanPlan("InsurancePlan.plan["+strconv.Itoa(i)+"]", &v.Plan[i])...)
+			}
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*InsurancePlan)
 			if !ok {
@@ -2855,6 +4826,20 @@ func init() {
 			if v.Status == nil {
 				missing = append(missing, "InventoryItem.status")
 			}
+			missing = append(missing, missingExtensionURLs("InventoryItem.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("InventoryItem.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Name {
+				missing = append(missing, missingRequiredInventoryItemName("InventoryItem.name["+strconv.Itoa(i)+"]", &v.Name[i])...)
+			}
+			for i := range v.ResponsibleOrganization {
+				missing = append(missing, missingRequiredInventoryItemResponsibleOrganization("InventoryItem.responsibleOrganization["+strconv.Itoa(i)+"]", &v.ResponsibleOrganization[i])...)
+			}
+			for i := range v.Association {
+				missing = append(missing, missingRequiredInventoryItemAssociation("InventoryItem.association["+strconv.Itoa(i)+"]", &v.Association[i])...)
+			}
+			for i := range v.Characteristic {
+				missing = append(missing, missingRequiredInventoryItemCharacteristic("InventoryItem.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -2868,6 +4853,20 @@ func init() {
 					Expression:  "InventoryItem.status",
 					Diagnostics: "code is not in the required InventoryItemStatusCodes value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*InventoryItem)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.Characteristic {
+				issues = append(issues, lexicalIssuesInventoryItemCharacteristic("InventoryItem.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+			}
+			if v.Instance != nil {
+				issues = append(issues, lexicalIssuesInventoryItemInstance("InventoryItem.instance", v.Instance)...)
 			}
 			return issues
 		},
@@ -2887,6 +4886,11 @@ func init() {
 			}
 			if v.ReportedDateTime == nil {
 				missing = append(missing, "InventoryReport.reportedDateTime")
+			}
+			missing = append(missing, missingExtensionURLs("InventoryReport.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("InventoryReport.modifierExtension", v.ModifierExtension)...)
+			for i := range v.InventoryListing {
+				missing = append(missing, missingRequiredInventoryReportInventoryListing("InventoryReport.inventoryListing["+strconv.Itoa(i)+"]", &v.InventoryListing[i])...)
 			}
 			return missing
 		},
@@ -2910,6 +4914,23 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*InventoryReport)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.ReportedDateTime != nil && !validDateTimeLexical(*v.ReportedDateTime) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "InventoryReport.reportedDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.InventoryListing {
+				issues = append(issues, lexicalIssuesInventoryReportInventoryListing("InventoryReport.inventoryListing["+strconv.Itoa(i)+"]", &v.InventoryListing[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(InvoiceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2920,6 +4941,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "Invoice.status")
+			}
+			missing = append(missing, missingExtensionURLs("Invoice.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Invoice.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Participant {
+				missing = append(missing, missingRequiredInvoiceParticipant("Invoice.participant["+strconv.Itoa(i)+"]", &v.Participant[i])...)
 			}
 			return missing
 		},
@@ -2948,6 +4974,35 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Invoice)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Invoice.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Creation != nil && !validDateTimeLexical(*v.Creation) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Invoice.creation",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.PeriodDate != nil && !validDateLexical(string(*v.PeriodDate)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Invoice.periodDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.LineItem {
+				issues = append(issues, lexicalIssuesInvoiceLineItem("Invoice.lineItem["+strconv.Itoa(i)+"]", &v.LineItem[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(LibraryResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -2962,6 +5017,8 @@ func init() {
 			if v.Type == nil {
 				missing = append(missing, "Library.type")
 			}
+			missing = append(missing, missingExtensionURLs("Library.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Library.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -2992,6 +5049,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Library)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Library.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Library.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Library.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(LinkageResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3002,6 +5085,11 @@ func init() {
 			var missing []string
 			if len(v.Item) == 0 {
 				missing = append(missing, "Linkage.item")
+			}
+			missing = append(missing, missingExtensionURLs("Linkage.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Linkage.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Item {
+				missing = append(missing, missingRequiredLinkageItem("Linkage.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
 			}
 			return missing
 		},
@@ -3018,6 +5106,11 @@ func init() {
 			}
 			if v.Mode == nil {
 				missing = append(missing, "List.mode")
+			}
+			missing = append(missing, missingExtensionURLs("List.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("List.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Entry {
+				missing = append(missing, missingRequiredListEntry("List.entry["+strconv.Itoa(i)+"]", &v.Entry[i])...)
 			}
 			return missing
 		},
@@ -3041,8 +5134,38 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*List)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "List.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Entry {
+				issues = append(issues, lexicalIssuesListEntry("List.entry["+strconv.Itoa(i)+"]", &v.Entry[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(LocationResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Location)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("Location.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Location.modifierExtension", v.ModifierExtension)...)
+			if v.Position != nil {
+				missing = append(missing, missingRequiredLocationPosition("Location.position", v.Position)...)
+			}
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*Location)
 			if !ok {
@@ -3077,6 +5200,14 @@ func init() {
 			if v.ManufacturedDoseForm == nil {
 				missing = append(missing, "ManufacturedItemDefinition.manufacturedDoseForm")
 			}
+			missing = append(missing, missingExtensionURLs("ManufacturedItemDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ManufacturedItemDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Property {
+				missing = append(missing, missingRequiredManufacturedItemDefinitionProperty("ManufacturedItemDefinition.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			for i := range v.Component {
+				missing = append(missing, missingRequiredManufacturedItemDefinitionComponent("ManufacturedItemDefinition.component["+strconv.Itoa(i)+"]", &v.Component[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -3093,6 +5224,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ManufacturedItemDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.Property {
+				issues = append(issues, lexicalIssuesManufacturedItemDefinitionProperty("ManufacturedItemDefinition.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			for i := range v.Component {
+				issues = append(issues, lexicalIssuesManufacturedItemDefinitionComponent("ManufacturedItemDefinition.component["+strconv.Itoa(i)+"]", &v.Component[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(MeasureResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3103,6 +5248,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "Measure.status")
+			}
+			missing = append(missing, missingExtensionURLs("Measure.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Measure.modifierExtension", v.ModifierExtension)...)
+			for i := range v.SupplementalData {
+				missing = append(missing, missingRequiredMeasureSupplementalData("Measure.supplementalData["+strconv.Itoa(i)+"]", &v.SupplementalData[i])...)
 			}
 			return missing
 		},
@@ -3140,6 +5290,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Measure)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Measure.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Measure.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Measure.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(MeasureReportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3156,6 +5332,11 @@ func init() {
 			}
 			if v.Period == nil {
 				missing = append(missing, "MeasureReport.period")
+			}
+			missing = append(missing, missingExtensionURLs("MeasureReport.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MeasureReport.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Group {
+				missing = append(missing, missingRequiredMeasureReportGroup("MeasureReport.group["+strconv.Itoa(i)+"]", &v.Group[i])...)
 			}
 			return missing
 		},
@@ -3185,8 +5366,38 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*MeasureReport)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MeasureReport.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Group {
+				issues = append(issues, lexicalIssuesMeasureReportGroup("MeasureReport.group["+strconv.Itoa(i)+"]", &v.Group[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(MedicationResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Medication)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("Medication.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Medication.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Ingredient {
+				missing = append(missing, missingRequiredMedicationIngredient("Medication.ingredient["+strconv.Itoa(i)+"]", &v.Ingredient[i])...)
+			}
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*Medication)
 			if !ok {
@@ -3198,6 +5409,17 @@ func init() {
 					Expression:  "Medication.status",
 					Diagnostics: "code is not in the required MedicationStatusCodes value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Medication)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Batch != nil {
+				issues = append(issues, lexicalIssuesMedicationBatch("Medication.batch", v.Batch)...)
 			}
 			return issues
 		},
@@ -3217,6 +5439,11 @@ func init() {
 			}
 			if v.Subject == nil {
 				missing = append(missing, "MedicationAdministration.subject")
+			}
+			missing = append(missing, missingExtensionURLs("MedicationAdministration.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MedicationAdministration.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Performer {
+				missing = append(missing, missingRequiredMedicationAdministrationPerformer("MedicationAdministration.performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
 			}
 			return missing
 		},
@@ -3245,6 +5472,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*MedicationAdministration)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Recorded != nil && !validDateTimeLexical(*v.Recorded) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationAdministration.recorded",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OccurenceDateTime != nil && !validDateTimeLexical(string(*v.OccurenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationAdministration.occurenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(MedicationDispenseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3262,6 +5509,14 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "MedicationDispense.subject")
 			}
+			missing = append(missing, missingExtensionURLs("MedicationDispense.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MedicationDispense.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Performer {
+				missing = append(missing, missingRequiredMedicationDispensePerformer("MedicationDispense.performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
+			}
+			if v.Substitution != nil {
+				missing = append(missing, missingRequiredMedicationDispenseSubstitution("MedicationDispense.substitution", v.Substitution)...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -3278,8 +5533,74 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*MedicationDispense)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.StatusChanged != nil && !validDateTimeLexical(*v.StatusChanged) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationDispense.statusChanged",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Recorded != nil && !validDateTimeLexical(*v.Recorded) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationDispense.recorded",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.WhenPrepared != nil && !validDateTimeLexical(*v.WhenPrepared) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationDispense.whenPrepared",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.WhenHandedOver != nil && !validDateTimeLexical(*v.WhenHandedOver) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationDispense.whenHandedOver",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(MedicationKnowledgeResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*MedicationKnowledge)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("MedicationKnowledge.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MedicationKnowledge.modifierExtension", v.ModifierExtension)...)
+			for i := range v.RelatedMedicationKnowledge {
+				missing = append(missing, missingRequiredMedicationKnowledgeRelatedMedicationKnowledge("MedicationKnowledge.relatedMedicationKnowledge["+strconv.Itoa(i)+"]", &v.RelatedMedicationKnowledge[i])...)
+			}
+			for i := range v.Cost {
+				missing = append(missing, missingRequiredMedicationKnowledgeCost("MedicationKnowledge.cost["+strconv.Itoa(i)+"]", &v.Cost[i])...)
+			}
+			for i := range v.IndicationGuideline {
+				missing = append(missing, missingRequiredMedicationKnowledgeIndicationGuideline("MedicationKnowledge.indicationGuideline["+strconv.Itoa(i)+"]", &v.IndicationGuideline[i])...)
+			}
+			for i := range v.MedicineClassification {
+				missing = append(missing, missingRequiredMedicationKnowledgeMedicineClassification("MedicationKnowledge.medicineClassification["+strconv.Itoa(i)+"]", &v.MedicineClassification[i])...)
+			}
+			for i := range v.Packaging {
+				missing = append(missing, missingRequiredMedicationKnowledgePackaging("MedicationKnowledge.packaging["+strconv.Itoa(i)+"]", &v.Packaging[i])...)
+			}
+			for i := range v.StorageGuideline {
+				missing = append(missing, missingRequiredMedicationKnowledgeStorageGuideline("MedicationKnowledge.storageGuideline["+strconv.Itoa(i)+"]", &v.StorageGuideline[i])...)
+			}
+			for i := range v.Regulatory {
+				missing = append(missing, missingRequiredMedicationKnowledgeRegulatory("MedicationKnowledge.regulatory["+strconv.Itoa(i)+"]", &v.Regulatory[i])...)
+			}
+			if v.Definitional != nil {
+				missing = append(missing, missingRequiredMedicationKnowledgeDefinitional("MedicationKnowledge.definitional", v.Definitional)...)
+			}
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*MedicationKnowledge)
 			if !ok {
@@ -3314,6 +5635,8 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "MedicationRequest.subject")
 			}
+			missing = append(missing, missingExtensionURLs("MedicationRequest.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MedicationRequest.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -3342,6 +5665,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*MedicationRequest)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.StatusChanged != nil && !validDateTimeLexical(*v.StatusChanged) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationRequest.statusChanged",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.AuthoredOn != nil && !validDateTimeLexical(*v.AuthoredOn) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationRequest.authoredOn",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(MedicationStatementResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3358,6 +5701,11 @@ func init() {
 			}
 			if v.Subject == nil {
 				missing = append(missing, "MedicationStatement.subject")
+			}
+			missing = append(missing, missingExtensionURLs("MedicationStatement.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MedicationStatement.modifierExtension", v.ModifierExtension)...)
+			if v.Adherence != nil {
+				missing = append(missing, missingRequiredMedicationStatementAdherence("MedicationStatement.adherence", v.Adherence)...)
 			}
 			return missing
 		},
@@ -3386,6 +5734,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*MedicationStatement)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.DateAsserted != nil && !validDateTimeLexical(*v.DateAsserted) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationStatement.dateAsserted",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.EffectiveDateTime != nil && !validDateTimeLexical(string(*v.EffectiveDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicationStatement.effectiveDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(MedicinalProductDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3397,7 +5765,38 @@ func init() {
 			if len(v.Name) == 0 {
 				missing = append(missing, "MedicinalProductDefinition.name")
 			}
+			missing = append(missing, missingExtensionURLs("MedicinalProductDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MedicinalProductDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Contact {
+				missing = append(missing, missingRequiredMedicinalProductDefinitionContact("MedicinalProductDefinition.contact["+strconv.Itoa(i)+"]", &v.Contact[i])...)
+			}
+			for i := range v.Name {
+				missing = append(missing, missingRequiredMedicinalProductDefinitionName("MedicinalProductDefinition.name["+strconv.Itoa(i)+"]", &v.Name[i])...)
+			}
+			for i := range v.CrossReference {
+				missing = append(missing, missingRequiredMedicinalProductDefinitionCrossReference("MedicinalProductDefinition.crossReference["+strconv.Itoa(i)+"]", &v.CrossReference[i])...)
+			}
+			for i := range v.Characteristic {
+				missing = append(missing, missingRequiredMedicinalProductDefinitionCharacteristic("MedicinalProductDefinition.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+			}
 			return missing
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*MedicinalProductDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.StatusDate != nil && !validDateTimeLexical(*v.StatusDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MedicinalProductDefinition.statusDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Characteristic {
+				issues = append(issues, lexicalIssuesMedicinalProductDefinitionCharacteristic("MedicinalProductDefinition.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+			}
+			return issues
 		},
 	})
 	Registry.RegisterValidationDescriptor(MessageDefinitionResourceType, fhir.ValidationDescriptor{
@@ -3412,6 +5811,14 @@ func init() {
 			}
 			if v.Date == nil {
 				missing = append(missing, "MessageDefinition.date")
+			}
+			missing = append(missing, missingExtensionURLs("MessageDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MessageDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Focus {
+				missing = append(missing, missingRequiredMessageDefinitionFocus("MessageDefinition.focus["+strconv.Itoa(i)+"]", &v.Focus[i])...)
+			}
+			for i := range v.AllowedResponse {
+				missing = append(missing, missingRequiredMessageDefinitionAllowedResponse("MessageDefinition.allowedResponse["+strconv.Itoa(i)+"]", &v.AllowedResponse[i])...)
 			}
 			return missing
 		},
@@ -3455,6 +5862,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*MessageDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "MessageDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(MessageHeaderResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3465,6 +5886,11 @@ func init() {
 			var missing []string
 			if v.Source == nil {
 				missing = append(missing, "MessageHeader.source")
+			}
+			missing = append(missing, missingExtensionURLs("MessageHeader.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MessageHeader.modifierExtension", v.ModifierExtension)...)
+			if v.Response != nil {
+				missing = append(missing, missingRequiredMessageHeaderResponse("MessageHeader.response", v.Response)...)
 			}
 			return missing
 		},
@@ -3481,6 +5907,19 @@ func init() {
 		},
 	})
 	Registry.RegisterValidationDescriptor(MolecularSequenceResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*MolecularSequence)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("MolecularSequence.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("MolecularSequence.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Relative {
+				missing = append(missing, missingRequiredMolecularSequenceRelative("MolecularSequence.relative["+strconv.Itoa(i)+"]", &v.Relative[i])...)
+			}
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*MolecularSequence)
 			if !ok {
@@ -3518,6 +5957,11 @@ func init() {
 			if len(v.UniqueId) == 0 {
 				missing = append(missing, "NamingSystem.uniqueId")
 			}
+			missing = append(missing, missingExtensionURLs("NamingSystem.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("NamingSystem.modifierExtension", v.ModifierExtension)...)
+			for i := range v.UniqueId {
+				missing = append(missing, missingRequiredNamingSystemUniqueId("NamingSystem.uniqueId["+strconv.Itoa(i)+"]", &v.UniqueId[i])...)
+			}
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -3551,6 +5995,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*NamingSystem)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "NamingSystem.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "NamingSystem.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "NamingSystem.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(NutritionIntakeResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3567,6 +6037,17 @@ func init() {
 			}
 			if len(v.ConsumedItem) == 0 {
 				missing = append(missing, "NutritionIntake.consumedItem")
+			}
+			missing = append(missing, missingExtensionURLs("NutritionIntake.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("NutritionIntake.modifierExtension", v.ModifierExtension)...)
+			for i := range v.ConsumedItem {
+				missing = append(missing, missingRequiredNutritionIntakeConsumedItem("NutritionIntake.consumedItem["+strconv.Itoa(i)+"]", &v.ConsumedItem[i])...)
+			}
+			for i := range v.IngredientLabel {
+				missing = append(missing, missingRequiredNutritionIntakeIngredientLabel("NutritionIntake.ingredientLabel["+strconv.Itoa(i)+"]", &v.IngredientLabel[i])...)
+			}
+			for i := range v.Performer {
+				missing = append(missing, missingRequiredNutritionIntakePerformer("NutritionIntake.performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
 			}
 			return missing
 		},
@@ -3598,6 +6079,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*NutritionIntake)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Recorded != nil && !validDateTimeLexical(*v.Recorded) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "NutritionIntake.recorded",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "NutritionIntake.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(NutritionOrderResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3618,6 +6119,8 @@ func init() {
 			if v.DateTime == nil {
 				missing = append(missing, "NutritionOrder.dateTime")
 			}
+			missing = append(missing, missingExtensionURLs("NutritionOrder.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("NutritionOrder.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -3646,6 +6149,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*NutritionOrder)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.DateTime != nil && !validDateTimeLexical(*v.DateTime) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "NutritionOrder.dateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(NutritionProductResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3656,6 +6173,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "NutritionProduct.status")
+			}
+			missing = append(missing, missingExtensionURLs("NutritionProduct.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("NutritionProduct.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Characteristic {
+				missing = append(missing, missingRequiredNutritionProductCharacteristic("NutritionProduct.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
 			}
 			return missing
 		},
@@ -3673,6 +6195,17 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*NutritionProduct)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.Instance {
+				issues = append(issues, lexicalIssuesNutritionProductInstance("NutritionProduct.instance["+strconv.Itoa(i)+"]", &v.Instance[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ObservationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3686,6 +6219,14 @@ func init() {
 			}
 			if v.Code == nil {
 				missing = append(missing, "Observation.code")
+			}
+			missing = append(missing, missingExtensionURLs("Observation.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Observation.modifierExtension", v.ModifierExtension)...)
+			for i := range v.TriggeredBy {
+				missing = append(missing, missingRequiredObservationTriggeredBy("Observation.triggeredBy["+strconv.Itoa(i)+"]", &v.TriggeredBy[i])...)
+			}
+			for i := range v.Component {
+				missing = append(missing, missingRequiredObservationComponent("Observation.component["+strconv.Itoa(i)+"]", &v.Component[i])...)
 			}
 			return missing
 		},
@@ -3720,6 +6261,47 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Observation)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Issued != nil && !validInstantLexical(*v.Issued) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Observation.issued",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.EffectiveDateTime != nil && !validDateTimeLexical(string(*v.EffectiveDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Observation.effectiveDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.EffectiveInstant != nil && !validInstantLexical(string(*v.EffectiveInstant)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Observation.effectiveInstant",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Observation.valueTime",
+					Diagnostics: "value is not a valid FHIR time",
+				})
+			}
+			if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Observation.valueDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Component {
+				issues = append(issues, lexicalIssuesObservationComponent("Observation.component["+strconv.Itoa(i)+"]", &v.Component[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ObservationDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3733,6 +6315,11 @@ func init() {
 			}
 			if v.Code == nil {
 				missing = append(missing, "ObservationDefinition.code")
+			}
+			missing = append(missing, missingExtensionURLs("ObservationDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ObservationDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Component {
+				missing = append(missing, missingRequiredObservationDefinitionComponent("ObservationDefinition.component["+strconv.Itoa(i)+"]", &v.Component[i])...)
 			}
 			return missing
 		},
@@ -3769,6 +6356,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ObservationDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ObservationDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ObservationDefinition.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ObservationDefinition.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(OperationDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3797,6 +6410,11 @@ func init() {
 			}
 			if v.Instance == nil {
 				missing = append(missing, "OperationDefinition.instance")
+			}
+			missing = append(missing, missingExtensionURLs("OperationDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("OperationDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Parameter {
+				missing = append(missing, missingRequiredOperationDefinitionParameter("OperationDefinition.parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
 			}
 			return missing
 		},
@@ -3831,6 +6449,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*OperationDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "OperationDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(OperationOutcomeResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3842,14 +6474,120 @@ func init() {
 			if len(v.Issue) == 0 {
 				missing = append(missing, "OperationOutcome.issue")
 			}
+			missing = append(missing, missingExtensionURLs("OperationOutcome.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("OperationOutcome.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Issue {
+				missing = append(missing, missingRequiredOperationOutcomeIssue("OperationOutcome.issue["+strconv.Itoa(i)+"]", &v.Issue[i])...)
+			}
 			return missing
 		},
 	})
-	Registry.RegisterValidationDescriptor(OrganizationResourceType, fhir.ValidationDescriptor{})
-	Registry.RegisterValidationDescriptor(OrganizationAffiliationResourceType, fhir.ValidationDescriptor{})
-	Registry.RegisterValidationDescriptor(PackagedProductDefinitionResourceType, fhir.ValidationDescriptor{})
-	Registry.RegisterValidationDescriptor(ParametersResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(OrganizationResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Organization)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("Organization.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Organization.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Qualification {
+				missing = append(missing, missingRequiredOrganizationQualification("Organization.qualification["+strconv.Itoa(i)+"]", &v.Qualification[i])...)
+			}
+			return missing
+		},
+	})
+	Registry.RegisterValidationDescriptor(OrganizationAffiliationResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*OrganizationAffiliation)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("OrganizationAffiliation.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("OrganizationAffiliation.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
+	})
+	Registry.RegisterValidationDescriptor(PackagedProductDefinitionResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*PackagedProductDefinition)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("PackagedProductDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("PackagedProductDefinition.modifierExtension", v.ModifierExtension)...)
+			if v.Packaging != nil {
+				missing = append(missing, missingRequiredPackagedProductDefinitionPackaging("PackagedProductDefinition.packaging", v.Packaging)...)
+			}
+			for i := range v.Characteristic {
+				missing = append(missing, missingRequiredPackagedProductDefinitionPackagingProperty("PackagedProductDefinition.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+			}
+			return missing
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*PackagedProductDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.StatusDate != nil && !validDateTimeLexical(*v.StatusDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "PackagedProductDefinition.statusDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Packaging != nil {
+				issues = append(issues, lexicalIssuesPackagedProductDefinitionPackaging("PackagedProductDefinition.packaging", v.Packaging)...)
+			}
+			for i := range v.Characteristic {
+				issues = append(issues, lexicalIssuesPackagedProductDefinitionPackagingProperty("PackagedProductDefinition.characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+			}
+			return issues
+		},
+	})
+	Registry.RegisterValidationDescriptor(ParametersResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Parameters)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			for i := range v.Parameter {
+				missing = append(missing, missingRequiredParametersParameter("Parameters.parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
+			}
+			return missing
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Parameters)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.Parameter {
+				issues = append(issues, lexicalIssuesParametersParameter("Parameters.parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
+			}
+			return issues
+		},
+	})
 	Registry.RegisterValidationDescriptor(PatientResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Patient)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("Patient.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Patient.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Communication {
+				missing = append(missing, missingRequiredPatientCommunication("Patient.communication["+strconv.Itoa(i)+"]", &v.Communication[i])...)
+			}
+			for i := range v.Link {
+				missing = append(missing, missingRequiredPatientLink("Patient.link["+strconv.Itoa(i)+"]", &v.Link[i])...)
+			}
+			return missing
+		},
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*Patient)
 			if !ok {
@@ -3878,6 +6616,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Patient)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.BirthDate != nil && !validDateLexical(*v.BirthDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Patient.birthDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.DeceasedDateTime != nil && !validDateTimeLexical(string(*v.DeceasedDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Patient.deceasedDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(PaymentNoticeResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3898,6 +6656,8 @@ func init() {
 			if v.Amount == nil {
 				missing = append(missing, "PaymentNotice.amount")
 			}
+			missing = append(missing, missingExtensionURLs("PaymentNotice.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("PaymentNotice.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -3910,6 +6670,26 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "PaymentNotice.status",
 					Diagnostics: "code is not in the required FinancialResourceStatusCodes value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*PaymentNotice)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "PaymentNotice.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.PaymentDate != nil && !validDateLexical(*v.PaymentDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "PaymentNotice.paymentDate",
+					Diagnostics: "value is not a valid FHIR date",
 				})
 			}
 			return issues
@@ -3937,6 +6717,8 @@ func init() {
 			if v.Amount == nil {
 				missing = append(missing, "PaymentReconciliation.amount")
 			}
+			missing = append(missing, missingExtensionURLs("PaymentReconciliation.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("PaymentReconciliation.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -3959,6 +6741,35 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*PaymentReconciliation)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "PaymentReconciliation.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Date != nil && !validDateLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "PaymentReconciliation.date",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.ExpirationDate != nil && !validDateLexical(*v.ExpirationDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "PaymentReconciliation.expirationDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Allocation {
+				issues = append(issues, lexicalIssuesPaymentReconciliationAllocation("PaymentReconciliation.allocation["+strconv.Itoa(i)+"]", &v.Allocation[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(PermissionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -3972,6 +6783,11 @@ func init() {
 			}
 			if v.Combining == nil {
 				missing = append(missing, "Permission.combining")
+			}
+			missing = append(missing, missingExtensionURLs("Permission.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Permission.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Rule {
+				missing = append(missing, missingRequiredPermissionRule("Permission.rule["+strconv.Itoa(i)+"]", &v.Rule[i])...)
 			}
 			return missing
 		},
@@ -3995,8 +6811,40 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Permission)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.Date {
+				if !validDateTimeLexical(v.Date[i]) {
+					issues = append(issues, fhir.PrimitiveIssue{
+						Expression:  "Permission.date[" + strconv.Itoa(i) + "]",
+						Diagnostics: "value is not a valid FHIR dateTime",
+					})
+				}
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(PersonResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Person)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("Person.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Person.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Communication {
+				missing = append(missing, missingRequiredPersonCommunication("Person.communication["+strconv.Itoa(i)+"]", &v.Communication[i])...)
+			}
+			for i := range v.Link {
+				missing = append(missing, missingRequiredPersonLink("Person.link["+strconv.Itoa(i)+"]", &v.Link[i])...)
+			}
+			return missing
+		},
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*Person)
 			if !ok {
@@ -4022,6 +6870,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Person)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.BirthDate != nil && !validDateLexical(*v.BirthDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Person.birthDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.DeceasedDateTime != nil && !validDateTimeLexical(string(*v.DeceasedDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Person.deceasedDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(PlanDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4032,6 +6900,17 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "PlanDefinition.status")
+			}
+			missing = append(missing, missingExtensionURLs("PlanDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("PlanDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Goal {
+				missing = append(missing, missingRequiredPlanDefinitionGoal("PlanDefinition.goal["+strconv.Itoa(i)+"]", &v.Goal[i])...)
+			}
+			for i := range v.Actor {
+				missing = append(missing, missingRequiredPlanDefinitionActor("PlanDefinition.actor["+strconv.Itoa(i)+"]", &v.Actor[i])...)
+			}
+			for i := range v.Action {
+				missing = append(missing, missingRequiredPlanDefinitionAction("PlanDefinition.action["+strconv.Itoa(i)+"]", &v.Action[i])...)
 			}
 			return missing
 		},
@@ -4066,8 +6945,50 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*PlanDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "PlanDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "PlanDefinition.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "PlanDefinition.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(PractitionerResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Practitioner)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("Practitioner.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Practitioner.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Qualification {
+				missing = append(missing, missingRequiredPractitionerQualification("Practitioner.qualification["+strconv.Itoa(i)+"]", &v.Qualification[i])...)
+			}
+			for i := range v.Communication {
+				missing = append(missing, missingRequiredPractitionerCommunication("Practitioner.communication["+strconv.Itoa(i)+"]", &v.Communication[i])...)
+			}
+			return missing
+		},
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*Practitioner)
 			if !ok {
@@ -4093,8 +7014,39 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Practitioner)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.BirthDate != nil && !validDateLexical(*v.BirthDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Practitioner.birthDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.DeceasedDateTime != nil && !validDateTimeLexical(string(*v.DeceasedDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Practitioner.deceasedDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
-	Registry.RegisterValidationDescriptor(PractitionerRoleResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(PractitionerRoleResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*PractitionerRole)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("PractitionerRole.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("PractitionerRole.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
+	})
 	Registry.RegisterValidationDescriptor(ProcedureResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*Procedure)
@@ -4107,6 +7059,14 @@ func init() {
 			}
 			if v.Subject == nil {
 				missing = append(missing, "Procedure.subject")
+			}
+			missing = append(missing, missingExtensionURLs("Procedure.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Procedure.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Performer {
+				missing = append(missing, missingRequiredProcedurePerformer("Procedure.performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
+			}
+			for i := range v.FocalDevice {
+				missing = append(missing, missingRequiredProcedureFocalDevice("Procedure.focalDevice["+strconv.Itoa(i)+"]", &v.FocalDevice[i])...)
 			}
 			return missing
 		},
@@ -4138,6 +7098,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Procedure)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Recorded != nil && !validDateTimeLexical(*v.Recorded) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Procedure.recorded",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Procedure.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ProvenanceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4152,6 +7132,14 @@ func init() {
 			if len(v.Agent) == 0 {
 				missing = append(missing, "Provenance.agent")
 			}
+			missing = append(missing, missingExtensionURLs("Provenance.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Provenance.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Agent {
+				missing = append(missing, missingRequiredProvenanceAgent("Provenance.agent["+strconv.Itoa(i)+"]", &v.Agent[i])...)
+			}
+			for i := range v.Entity {
+				missing = append(missing, missingRequiredProvenanceEntity("Provenance.entity["+strconv.Itoa(i)+"]", &v.Entity[i])...)
+			}
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -4165,6 +7153,26 @@ func init() {
 			}
 			return violations
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Provenance)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Recorded != nil && !validInstantLexical(*v.Recorded) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Provenance.recorded",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.OccurredDateTime != nil && !validDateTimeLexical(string(*v.OccurredDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Provenance.occurredDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(QuestionnaireResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4175,6 +7183,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "Questionnaire.status")
+			}
+			missing = append(missing, missingExtensionURLs("Questionnaire.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Questionnaire.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Item {
+				missing = append(missing, missingRequiredQuestionnaireItem("Questionnaire.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
 			}
 			return missing
 		},
@@ -4211,6 +7224,35 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Questionnaire)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Questionnaire.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Questionnaire.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Questionnaire.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Item {
+				issues = append(issues, lexicalIssuesQuestionnaireItem("Questionnaire.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(QuestionnaireResponseResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4224,6 +7266,11 @@ func init() {
 			}
 			if v.Status == nil {
 				missing = append(missing, "QuestionnaireResponse.status")
+			}
+			missing = append(missing, missingExtensionURLs("QuestionnaireResponse.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("QuestionnaireResponse.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Item {
+				missing = append(missing, missingRequiredQuestionnaireResponseItem("QuestionnaireResponse.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
 			}
 			return missing
 		},
@@ -4241,8 +7288,53 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*QuestionnaireResponse)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Authored != nil && !validDateTimeLexical(*v.Authored) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "QuestionnaireResponse.authored",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Item {
+				issues = append(issues, lexicalIssuesQuestionnaireResponseItem("QuestionnaireResponse.item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+			}
+			return issues
+		},
 	})
-	Registry.RegisterValidationDescriptor(RegulatedAuthorizationResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(RegulatedAuthorizationResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*RegulatedAuthorization)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("RegulatedAuthorization.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("RegulatedAuthorization.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*RegulatedAuthorization)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.StatusDate != nil && !validDateTimeLexical(*v.StatusDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "RegulatedAuthorization.statusDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Case != nil {
+				issues = append(issues, lexicalIssuesRegulatedAuthorizationCase("RegulatedAuthorization.case", v.Case)...)
+			}
+			return issues
+		},
+	})
 	Registry.RegisterValidationDescriptor(RelatedPersonResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*RelatedPerson)
@@ -4252,6 +7344,11 @@ func init() {
 			var missing []string
 			if v.Patient == nil {
 				missing = append(missing, "RelatedPerson.patient")
+			}
+			missing = append(missing, missingExtensionURLs("RelatedPerson.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("RelatedPerson.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Communication {
+				missing = append(missing, missingRequiredRelatedPersonCommunication("RelatedPerson.communication["+strconv.Itoa(i)+"]", &v.Communication[i])...)
 			}
 			return missing
 		},
@@ -4269,6 +7366,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*RelatedPerson)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.BirthDate != nil && !validDateLexical(*v.BirthDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "RelatedPerson.birthDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(RequestOrchestrationResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4282,6 +7393,11 @@ func init() {
 			}
 			if v.Intent == nil {
 				missing = append(missing, "RequestOrchestration.intent")
+			}
+			missing = append(missing, missingExtensionURLs("RequestOrchestration.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("RequestOrchestration.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Action {
+				missing = append(missing, missingRequiredRequestOrchestrationAction("RequestOrchestration.action["+strconv.Itoa(i)+"]", &v.Action[i])...)
 			}
 			return missing
 		},
@@ -4311,6 +7427,23 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*RequestOrchestration)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.AuthoredOn != nil && !validDateTimeLexical(*v.AuthoredOn) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "RequestOrchestration.authoredOn",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Action {
+				issues = append(issues, lexicalIssuesRequestOrchestrationAction("RequestOrchestration.action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(RequirementsResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4321,6 +7454,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "Requirements.status")
+			}
+			missing = append(missing, missingExtensionURLs("Requirements.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Requirements.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Statement {
+				missing = append(missing, missingRequiredRequirementsStatement("Requirements.statement["+strconv.Itoa(i)+"]", &v.Statement[i])...)
 			}
 			return missing
 		},
@@ -4349,6 +7487,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Requirements)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Requirements.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ResearchStudyResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4359,6 +7511,17 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "ResearchStudy.status")
+			}
+			missing = append(missing, missingExtensionURLs("ResearchStudy.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ResearchStudy.modifierExtension", v.ModifierExtension)...)
+			for i := range v.AssociatedParty {
+				missing = append(missing, missingRequiredResearchStudyAssociatedParty("ResearchStudy.associatedParty["+strconv.Itoa(i)+"]", &v.AssociatedParty[i])...)
+			}
+			for i := range v.ProgressStatus {
+				missing = append(missing, missingRequiredResearchStudyProgressStatus("ResearchStudy.progressStatus["+strconv.Itoa(i)+"]", &v.ProgressStatus[i])...)
+			}
+			for i := range v.ComparisonGroup {
+				missing = append(missing, missingRequiredResearchStudyComparisonGroup("ResearchStudy.comparisonGroup["+strconv.Itoa(i)+"]", &v.ComparisonGroup[i])...)
 			}
 			return missing
 		},
@@ -4372,6 +7535,20 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "ResearchStudy.status",
 					Diagnostics: "code is not in the required PublicationStatus value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ResearchStudy)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ResearchStudy.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
 				})
 			}
 			return issues
@@ -4393,6 +7570,8 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "ResearchSubject.subject")
 			}
+			missing = append(missing, missingExtensionURLs("ResearchSubject.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ResearchSubject.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -4406,6 +7585,17 @@ func init() {
 					Expression:  "ResearchSubject.status",
 					Diagnostics: "code is not in the required PublicationStatus value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ResearchSubject)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.Progress {
+				issues = append(issues, lexicalIssuesResearchSubjectProgress("ResearchSubject.progress["+strconv.Itoa(i)+"]", &v.Progress[i])...)
 			}
 			return issues
 		},
@@ -4423,6 +7613,8 @@ func init() {
 			if v.Subject == nil {
 				missing = append(missing, "RiskAssessment.subject")
 			}
+			missing = append(missing, missingExtensionURLs("RiskAssessment.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("RiskAssessment.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -4450,6 +7642,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*RiskAssessment)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "RiskAssessment.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ScheduleResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4461,6 +7667,8 @@ func init() {
 			if len(v.Actor) == 0 {
 				missing = append(missing, "Schedule.actor")
 			}
+			missing = append(missing, missingExtensionURLs("Schedule.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Schedule.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 	})
@@ -4491,6 +7699,11 @@ func init() {
 			}
 			if v.Type == nil {
 				missing = append(missing, "SearchParameter.type")
+			}
+			missing = append(missing, missingExtensionURLs("SearchParameter.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SearchParameter.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Component {
+				missing = append(missing, missingRequiredSearchParameterComponent("SearchParameter.component["+strconv.Itoa(i)+"]", &v.Component[i])...)
 			}
 			return missing
 		},
@@ -4547,6 +7760,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*SearchParameter)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SearchParameter.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ServiceRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4563,6 +7790,11 @@ func init() {
 			}
 			if v.Subject == nil {
 				missing = append(missing, "ServiceRequest.subject")
+			}
+			missing = append(missing, missingExtensionURLs("ServiceRequest.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ServiceRequest.modifierExtension", v.ModifierExtension)...)
+			for i := range v.OrderDetail {
+				missing = append(missing, missingRequiredServiceRequestOrderDetail("ServiceRequest.orderDetail["+strconv.Itoa(i)+"]", &v.OrderDetail[i])...)
 			}
 			return missing
 		},
@@ -4609,6 +7841,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ServiceRequest)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.AuthoredOn != nil && !validDateTimeLexical(*v.AuthoredOn) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ServiceRequest.authoredOn",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ServiceRequest.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(SlotResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4629,6 +7881,8 @@ func init() {
 			if v.End == nil {
 				missing = append(missing, "Slot.end")
 			}
+			missing = append(missing, missingExtensionURLs("Slot.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Slot.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -4645,8 +7899,44 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Slot)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Start != nil && !validInstantLexical(*v.Start) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Slot.start",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			if v.End != nil && !validInstantLexical(*v.End) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Slot.end",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(SpecimenResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*Specimen)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("Specimen.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Specimen.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Feature {
+				missing = append(missing, missingRequiredSpecimenFeature("Specimen.feature["+strconv.Itoa(i)+"]", &v.Feature[i])...)
+			}
+			for i := range v.Container {
+				missing = append(missing, missingRequiredSpecimenContainer("Specimen.container["+strconv.Itoa(i)+"]", &v.Container[i])...)
+			}
+			return missing
+		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
 			v, ok := r.(*Specimen)
 			if !ok {
@@ -4667,6 +7957,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Specimen)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.ReceivedTime != nil && !validDateTimeLexical(*v.ReceivedTime) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Specimen.receivedTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Collection != nil {
+				issues = append(issues, lexicalIssuesSpecimenCollection("Specimen.collection", v.Collection)...)
+			}
+			for i := range v.Processing {
+				issues = append(issues, lexicalIssuesSpecimenProcessing("Specimen.processing["+strconv.Itoa(i)+"]", &v.Processing[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(SpecimenDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4677,6 +7987,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "SpecimenDefinition.status")
+			}
+			missing = append(missing, missingExtensionURLs("SpecimenDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SpecimenDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.TypeTested {
+				missing = append(missing, missingRequiredSpecimenDefinitionTypeTested("SpecimenDefinition.typeTested["+strconv.Itoa(i)+"]", &v.TypeTested[i])...)
 			}
 			return missing
 		},
@@ -4708,6 +8023,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*SpecimenDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SpecimenDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SpecimenDefinition.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SpecimenDefinition.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(StructureDefinitionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4733,6 +8074,20 @@ func init() {
 			}
 			if v.Type == nil {
 				missing = append(missing, "StructureDefinition.type")
+			}
+			missing = append(missing, missingExtensionURLs("StructureDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("StructureDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Mapping {
+				missing = append(missing, missingRequiredStructureDefinitionMapping("StructureDefinition.mapping["+strconv.Itoa(i)+"]", &v.Mapping[i])...)
+			}
+			for i := range v.Context {
+				missing = append(missing, missingRequiredStructureDefinitionContext("StructureDefinition.context["+strconv.Itoa(i)+"]", &v.Context[i])...)
+			}
+			if v.Snapshot != nil {
+				missing = append(missing, missingRequiredStructureDefinitionSnapshot("StructureDefinition.snapshot", v.Snapshot)...)
+			}
+			if v.Differential != nil {
+				missing = append(missing, missingRequiredStructureDefinitionSnapshot("StructureDefinition.differential", v.Differential)...)
 			}
 			return missing
 		},
@@ -4779,6 +8134,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*StructureDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "StructureDefinition.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(StructureMapResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4798,6 +8167,14 @@ func init() {
 			}
 			if len(v.Group) == 0 {
 				missing = append(missing, "StructureMap.group")
+			}
+			missing = append(missing, missingExtensionURLs("StructureMap.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("StructureMap.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Structure {
+				missing = append(missing, missingRequiredStructureMapStructure("StructureMap.structure["+strconv.Itoa(i)+"]", &v.Structure[i])...)
+			}
+			for i := range v.Group {
+				missing = append(missing, missingRequiredStructureMapGroup("StructureMap.group["+strconv.Itoa(i)+"]", &v.Group[i])...)
 			}
 			return missing
 		},
@@ -4826,6 +8203,23 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*StructureMap)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "StructureMap.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Group {
+				issues = append(issues, lexicalIssuesStructureMapGroup("StructureMap.group["+strconv.Itoa(i)+"]", &v.Group[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(SubscriptionResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4842,6 +8236,14 @@ func init() {
 			}
 			if v.ChannelType == nil {
 				missing = append(missing, "Subscription.channelType")
+			}
+			missing = append(missing, missingExtensionURLs("Subscription.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Subscription.modifierExtension", v.ModifierExtension)...)
+			for i := range v.FilterBy {
+				missing = append(missing, missingRequiredSubscriptionFilterBy("Subscription.filterBy["+strconv.Itoa(i)+"]", &v.FilterBy[i])...)
+			}
+			for i := range v.Parameter {
+				missing = append(missing, missingRequiredSubscriptionParameter("Subscription.parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
 			}
 			return missing
 		},
@@ -4865,6 +8267,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Subscription)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.End != nil && !validInstantLexical(*v.End) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Subscription.end",
+					Diagnostics: "value is not a valid FHIR instant",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(SubscriptionStatusResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4878,6 +8294,11 @@ func init() {
 			}
 			if v.Subscription == nil {
 				missing = append(missing, "SubscriptionStatus.subscription")
+			}
+			missing = append(missing, missingExtensionURLs("SubscriptionStatus.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SubscriptionStatus.modifierExtension", v.ModifierExtension)...)
+			for i := range v.NotificationEvent {
+				missing = append(missing, missingRequiredSubscriptionStatusNotificationEvent("SubscriptionStatus.notificationEvent["+strconv.Itoa(i)+"]", &v.NotificationEvent[i])...)
 			}
 			return missing
 		},
@@ -4901,6 +8322,17 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*SubscriptionStatus)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.NotificationEvent {
+				issues = append(issues, lexicalIssuesSubscriptionStatusNotificationEvent("SubscriptionStatus.notificationEvent["+strconv.Itoa(i)+"]", &v.NotificationEvent[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(SubscriptionTopicResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4914,6 +8346,20 @@ func init() {
 			}
 			if v.Status == nil {
 				missing = append(missing, "SubscriptionTopic.status")
+			}
+			missing = append(missing, missingExtensionURLs("SubscriptionTopic.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SubscriptionTopic.modifierExtension", v.ModifierExtension)...)
+			for i := range v.ResourceTrigger {
+				missing = append(missing, missingRequiredSubscriptionTopicResourceTrigger("SubscriptionTopic.resourceTrigger["+strconv.Itoa(i)+"]", &v.ResourceTrigger[i])...)
+			}
+			for i := range v.EventTrigger {
+				missing = append(missing, missingRequiredSubscriptionTopicEventTrigger("SubscriptionTopic.eventTrigger["+strconv.Itoa(i)+"]", &v.EventTrigger[i])...)
+			}
+			for i := range v.CanFilterBy {
+				missing = append(missing, missingRequiredSubscriptionTopicCanFilterBy("SubscriptionTopic.canFilterBy["+strconv.Itoa(i)+"]", &v.CanFilterBy[i])...)
+			}
+			for i := range v.NotificationShape {
+				missing = append(missing, missingRequiredSubscriptionTopicNotificationShape("SubscriptionTopic.notificationShape["+strconv.Itoa(i)+"]", &v.NotificationShape[i])...)
 			}
 			return missing
 		},
@@ -4942,6 +8388,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*SubscriptionTopic)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SubscriptionTopic.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SubscriptionTopic.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SubscriptionTopic.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(SubstanceResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -4956,6 +8428,8 @@ func init() {
 			if v.Code == nil {
 				missing = append(missing, "Substance.code")
 			}
+			missing = append(missing, missingExtensionURLs("Substance.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Substance.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -4972,14 +8446,136 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Substance)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Expiry != nil && !validDateTimeLexical(*v.Expiry) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Substance.expiry",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
-	Registry.RegisterValidationDescriptor(SubstanceDefinitionResourceType, fhir.ValidationDescriptor{})
-	Registry.RegisterValidationDescriptor(SubstanceNucleicAcidResourceType, fhir.ValidationDescriptor{})
-	Registry.RegisterValidationDescriptor(SubstancePolymerResourceType, fhir.ValidationDescriptor{})
-	Registry.RegisterValidationDescriptor(SubstanceProteinResourceType, fhir.ValidationDescriptor{})
-	Registry.RegisterValidationDescriptor(SubstanceReferenceInformationResourceType, fhir.ValidationDescriptor{})
-	Registry.RegisterValidationDescriptor(SubstanceSourceMaterialResourceType, fhir.ValidationDescriptor{})
+	Registry.RegisterValidationDescriptor(SubstanceDefinitionResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*SubstanceDefinition)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("SubstanceDefinition.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SubstanceDefinition.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Property {
+				missing = append(missing, missingRequiredSubstanceDefinitionProperty("SubstanceDefinition.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			for i := range v.MolecularWeight {
+				missing = append(missing, missingRequiredSubstanceDefinitionMolecularWeight("SubstanceDefinition.molecularWeight["+strconv.Itoa(i)+"]", &v.MolecularWeight[i])...)
+			}
+			if v.Structure != nil {
+				missing = append(missing, missingRequiredSubstanceDefinitionStructure("SubstanceDefinition.structure", v.Structure)...)
+			}
+			for i := range v.Name {
+				missing = append(missing, missingRequiredSubstanceDefinitionName("SubstanceDefinition.name["+strconv.Itoa(i)+"]", &v.Name[i])...)
+			}
+			for i := range v.Relationship {
+				missing = append(missing, missingRequiredSubstanceDefinitionRelationship("SubstanceDefinition.relationship["+strconv.Itoa(i)+"]", &v.Relationship[i])...)
+			}
+			return missing
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*SubstanceDefinition)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			for i := range v.Property {
+				issues = append(issues, lexicalIssuesSubstanceDefinitionProperty("SubstanceDefinition.property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+			}
+			for i := range v.Code {
+				issues = append(issues, lexicalIssuesSubstanceDefinitionCode("SubstanceDefinition.code["+strconv.Itoa(i)+"]", &v.Code[i])...)
+			}
+			for i := range v.Name {
+				issues = append(issues, lexicalIssuesSubstanceDefinitionName("SubstanceDefinition.name["+strconv.Itoa(i)+"]", &v.Name[i])...)
+			}
+			return issues
+		},
+	})
+	Registry.RegisterValidationDescriptor(SubstanceNucleicAcidResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*SubstanceNucleicAcid)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("SubstanceNucleicAcid.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SubstanceNucleicAcid.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
+	})
+	Registry.RegisterValidationDescriptor(SubstancePolymerResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*SubstancePolymer)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("SubstancePolymer.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SubstancePolymer.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
+	})
+	Registry.RegisterValidationDescriptor(SubstanceProteinResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*SubstanceProtein)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("SubstanceProtein.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SubstanceProtein.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
+	})
+	Registry.RegisterValidationDescriptor(SubstanceReferenceInformationResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*SubstanceReferenceInformation)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("SubstanceReferenceInformation.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SubstanceReferenceInformation.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
+	})
+	Registry.RegisterValidationDescriptor(SubstanceSourceMaterialResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*SubstanceSourceMaterial)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("SubstanceSourceMaterial.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SubstanceSourceMaterial.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
+	})
 	Registry.RegisterValidationDescriptor(SupplyDeliveryResourceType, fhir.ValidationDescriptor{
+		Required: func(r fhir.Resource) []string {
+			v, ok := r.(*SupplyDelivery)
+			if !ok {
+				return nil
+			}
+			var missing []string
+			missing = append(missing, missingExtensionURLs("SupplyDelivery.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SupplyDelivery.modifierExtension", v.ModifierExtension)...)
+			return missing
+		},
 		Choices: func(r fhir.Resource) []string {
 			v, ok := r.(*SupplyDelivery)
 			if !ok {
@@ -5005,6 +8601,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*SupplyDelivery)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SupplyDelivery.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(SupplyRequestResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -5019,6 +8629,8 @@ func init() {
 			if v.Quantity == nil {
 				missing = append(missing, "SupplyRequest.quantity")
 			}
+			missing = append(missing, missingExtensionURLs("SupplyRequest.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("SupplyRequest.modifierExtension", v.ModifierExtension)...)
 			return missing
 		},
 		Choices: func(r fhir.Resource) []string {
@@ -5052,6 +8664,26 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*SupplyRequest)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.AuthoredOn != nil && !validDateTimeLexical(*v.AuthoredOn) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SupplyRequest.authoredOn",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "SupplyRequest.occurrenceDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(TaskResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -5065,6 +8697,17 @@ func init() {
 			}
 			if v.Intent == nil {
 				missing = append(missing, "Task.intent")
+			}
+			missing = append(missing, missingExtensionURLs("Task.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Task.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Performer {
+				missing = append(missing, missingRequiredTaskPerformer("Task.performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
+			}
+			for i := range v.Input {
+				missing = append(missing, missingRequiredTaskInput("Task.input["+strconv.Itoa(i)+"]", &v.Input[i])...)
+			}
+			for i := range v.Output {
+				missing = append(missing, missingRequiredTaskInput("Task.output["+strconv.Itoa(i)+"]", &v.Output[i])...)
 			}
 			return missing
 		},
@@ -5094,6 +8737,32 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Task)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.AuthoredOn != nil && !validDateTimeLexical(*v.AuthoredOn) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Task.authoredOn",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.LastModified != nil && !validDateTimeLexical(*v.LastModified) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Task.lastModified",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Input {
+				issues = append(issues, lexicalIssuesTaskInput("Task.input["+strconv.Itoa(i)+"]", &v.Input[i])...)
+			}
+			for i := range v.Output {
+				issues = append(issues, lexicalIssuesTaskInput("Task.output["+strconv.Itoa(i)+"]", &v.Output[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(TerminologyCapabilitiesResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -5110,6 +8779,26 @@ func init() {
 			}
 			if v.Kind == nil {
 				missing = append(missing, "TerminologyCapabilities.kind")
+			}
+			missing = append(missing, missingExtensionURLs("TerminologyCapabilities.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("TerminologyCapabilities.modifierExtension", v.ModifierExtension)...)
+			if v.Software != nil {
+				missing = append(missing, missingRequiredTerminologyCapabilitiesSoftware("TerminologyCapabilities.software", v.Software)...)
+			}
+			if v.Implementation != nil {
+				missing = append(missing, missingRequiredTerminologyCapabilitiesImplementation("TerminologyCapabilities.implementation", v.Implementation)...)
+			}
+			for i := range v.CodeSystem {
+				missing = append(missing, missingRequiredTerminologyCapabilitiesCodeSystem("TerminologyCapabilities.codeSystem["+strconv.Itoa(i)+"]", &v.CodeSystem[i])...)
+			}
+			if v.Expansion != nil {
+				missing = append(missing, missingRequiredTerminologyCapabilitiesExpansion("TerminologyCapabilities.expansion", v.Expansion)...)
+			}
+			if v.ValidateCode != nil {
+				missing = append(missing, missingRequiredTerminologyCapabilitiesValidateCode("TerminologyCapabilities.validateCode", v.ValidateCode)...)
+			}
+			if v.Translation != nil {
+				missing = append(missing, missingRequiredTerminologyCapabilitiesTranslation("TerminologyCapabilities.translation", v.Translation)...)
 			}
 			return missing
 		},
@@ -5150,6 +8839,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*TerminologyCapabilities)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "TerminologyCapabilities.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(TestPlanResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -5160,6 +8863,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "TestPlan.status")
+			}
+			missing = append(missing, missingExtensionURLs("TestPlan.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("TestPlan.modifierExtension", v.ModifierExtension)...)
+			for i := range v.TestCase {
+				missing = append(missing, missingRequiredTestPlanTestCase("TestPlan.testCase["+strconv.Itoa(i)+"]", &v.TestCase[i])...)
 			}
 			return missing
 		},
@@ -5188,6 +8896,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*TestPlan)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "TestPlan.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(TestReportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -5204,6 +8926,20 @@ func init() {
 			}
 			if v.Result == nil {
 				missing = append(missing, "TestReport.result")
+			}
+			missing = append(missing, missingExtensionURLs("TestReport.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("TestReport.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Participant {
+				missing = append(missing, missingRequiredTestReportParticipant("TestReport.participant["+strconv.Itoa(i)+"]", &v.Participant[i])...)
+			}
+			if v.Setup != nil {
+				missing = append(missing, missingRequiredTestReportSetup("TestReport.setup", v.Setup)...)
+			}
+			for i := range v.Test {
+				missing = append(missing, missingRequiredTestReportTest("TestReport.test["+strconv.Itoa(i)+"]", &v.Test[i])...)
+			}
+			if v.Teardown != nil {
+				missing = append(missing, missingRequiredTestReportTeardown("TestReport.teardown", v.Teardown)...)
 			}
 			return missing
 		},
@@ -5227,6 +8963,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*TestReport)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Issued != nil && !validDateTimeLexical(*v.Issued) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "TestReport.issued",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(TestScriptResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -5240,6 +8990,35 @@ func init() {
 			}
 			if v.Status == nil {
 				missing = append(missing, "TestScript.status")
+			}
+			missing = append(missing, missingExtensionURLs("TestScript.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("TestScript.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Origin {
+				missing = append(missing, missingRequiredTestScriptOrigin("TestScript.origin["+strconv.Itoa(i)+"]", &v.Origin[i])...)
+			}
+			for i := range v.Destination {
+				missing = append(missing, missingRequiredTestScriptOrigin("TestScript.destination["+strconv.Itoa(i)+"]", &v.Destination[i])...)
+			}
+			if v.Metadata != nil {
+				missing = append(missing, missingRequiredTestScriptMetadata("TestScript.metadata", v.Metadata)...)
+			}
+			for i := range v.Scope {
+				missing = append(missing, missingRequiredTestScriptScope("TestScript.scope["+strconv.Itoa(i)+"]", &v.Scope[i])...)
+			}
+			for i := range v.Fixture {
+				missing = append(missing, missingRequiredTestScriptFixture("TestScript.fixture["+strconv.Itoa(i)+"]", &v.Fixture[i])...)
+			}
+			for i := range v.Variable {
+				missing = append(missing, missingRequiredTestScriptVariable("TestScript.variable["+strconv.Itoa(i)+"]", &v.Variable[i])...)
+			}
+			if v.Setup != nil {
+				missing = append(missing, missingRequiredTestScriptSetup("TestScript.setup", v.Setup)...)
+			}
+			for i := range v.Test {
+				missing = append(missing, missingRequiredTestScriptTest("TestScript.test["+strconv.Itoa(i)+"]", &v.Test[i])...)
+			}
+			if v.Teardown != nil {
+				missing = append(missing, missingRequiredTestScriptTeardown("TestScript.teardown", v.Teardown)...)
 			}
 			return missing
 		},
@@ -5268,6 +9047,20 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*TestScript)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "TestScript.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(TransportResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -5284,6 +9077,14 @@ func init() {
 			}
 			if v.CurrentLocation == nil {
 				missing = append(missing, "Transport.currentLocation")
+			}
+			missing = append(missing, missingExtensionURLs("Transport.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Transport.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Input {
+				missing = append(missing, missingRequiredTransportInput("Transport.input["+strconv.Itoa(i)+"]", &v.Input[i])...)
+			}
+			for i := range v.Output {
+				missing = append(missing, missingRequiredTransportInput("Transport.output["+strconv.Itoa(i)+"]", &v.Output[i])...)
 			}
 			return missing
 		},
@@ -5313,6 +9114,38 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Transport)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.CompletionTime != nil && !validDateTimeLexical(*v.CompletionTime) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Transport.completionTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.AuthoredOn != nil && !validDateTimeLexical(*v.AuthoredOn) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Transport.authoredOn",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.LastModified != nil && !validDateTimeLexical(*v.LastModified) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Transport.lastModified",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			for i := range v.Input {
+				issues = append(issues, lexicalIssuesTransportInput("Transport.input["+strconv.Itoa(i)+"]", &v.Input[i])...)
+			}
+			for i := range v.Output {
+				issues = append(issues, lexicalIssuesTransportInput("Transport.output["+strconv.Itoa(i)+"]", &v.Output[i])...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(ValueSetResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -5323,6 +9156,14 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "ValueSet.status")
+			}
+			missing = append(missing, missingExtensionURLs("ValueSet.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("ValueSet.modifierExtension", v.ModifierExtension)...)
+			if v.Compose != nil {
+				missing = append(missing, missingRequiredValueSetCompose("ValueSet.compose", v.Compose)...)
+			}
+			if v.Expansion != nil {
+				missing = append(missing, missingRequiredValueSetExpansion("ValueSet.expansion", v.Expansion)...)
 			}
 			return missing
 		},
@@ -5351,6 +9192,38 @@ func init() {
 			}
 			return issues
 		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*ValueSet)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Date != nil && !validDateTimeLexical(*v.Date) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ValueSet.date",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.ApprovalDate != nil && !validDateLexical(*v.ApprovalDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ValueSet.approvalDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.LastReviewDate != nil && !validDateLexical(*v.LastReviewDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "ValueSet.lastReviewDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			if v.Compose != nil {
+				issues = append(issues, lexicalIssuesValueSetCompose("ValueSet.compose", v.Compose)...)
+			}
+			if v.Expansion != nil {
+				issues = append(issues, lexicalIssuesValueSetExpansion("ValueSet.expansion", v.Expansion)...)
+			}
+			return issues
+		},
 	})
 	Registry.RegisterValidationDescriptor(VerificationResultResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -5361,6 +9234,11 @@ func init() {
 			var missing []string
 			if v.Status == nil {
 				missing = append(missing, "VerificationResult.status")
+			}
+			missing = append(missing, missingExtensionURLs("VerificationResult.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("VerificationResult.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Validator {
+				missing = append(missing, missingRequiredVerificationResultValidator("VerificationResult.validator["+strconv.Itoa(i)+"]", &v.Validator[i])...)
 			}
 			return missing
 		},
@@ -5375,6 +9253,38 @@ func init() {
 					Expression:  "VerificationResult.status",
 					Diagnostics: "code is not in the required VerificationResultStatus value set",
 				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*VerificationResult)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.StatusDate != nil && !validDateTimeLexical(*v.StatusDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "VerificationResult.statusDate",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.LastPerformed != nil && !validDateTimeLexical(*v.LastPerformed) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "VerificationResult.lastPerformed",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.NextScheduled != nil && !validDateLexical(*v.NextScheduled) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "VerificationResult.nextScheduled",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.PrimarySource {
+				issues = append(issues, lexicalIssuesVerificationResultPrimarySource("VerificationResult.primarySource["+strconv.Itoa(i)+"]", &v.PrimarySource[i])...)
+			}
+			if v.Attestation != nil {
+				issues = append(issues, lexicalIssuesVerificationResultAttestation("VerificationResult.attestation", v.Attestation)...)
 			}
 			return issues
 		},
@@ -5404,6 +9314,11 @@ func init() {
 			if len(v.LensSpecification) == 0 {
 				missing = append(missing, "VisionPrescription.lensSpecification")
 			}
+			missing = append(missing, missingExtensionURLs("VisionPrescription.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("VisionPrescription.modifierExtension", v.ModifierExtension)...)
+			for i := range v.LensSpecification {
+				missing = append(missing, missingRequiredVisionPrescriptionLensSpecification("VisionPrescription.lensSpecification["+strconv.Itoa(i)+"]", &v.LensSpecification[i])...)
+			}
 			return missing
 		},
 		Bindings: func(r fhir.Resource) []fhir.BindingIssue {
@@ -5416,6 +9331,26 @@ func init() {
 				issues = append(issues, fhir.BindingIssue{
 					Expression:  "VisionPrescription.status",
 					Diagnostics: "code is not in the required FinancialResourceStatusCodes value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*VisionPrescription)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.Created != nil && !validDateTimeLexical(*v.Created) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "VisionPrescription.created",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.DateWritten != nil && !validDateTimeLexical(*v.DateWritten) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "VisionPrescription.dateWritten",
+					Diagnostics: "value is not a valid FHIR dateTime",
 				})
 			}
 			return issues
@@ -10428,4 +14363,5478 @@ func init() {
 			{JSONName: "lensSpecification", IsSummary: true, IsMandatory: true},
 		},
 	})
+}
+
+// The walk helpers below carry the required-presence and primitive-lexical checks into
+// backbone elements: one missingRequired/lexicalIssues function per backbone type that
+// (transitively) holds a required child or a date/time-family field. Each takes the
+// runtime element path of the backbone instance it is checking, so an issue names the
+// exact occurrence ("Bundle.entry[2].request.method") without any reflection. Presence
+// follows the same non-nil/non-empty rule as the top level (a present required false or
+// 0 is never reported missing), and a lexical issue names the path and the primitive
+// type, never the value.
+
+func missingRequiredAccountBalance(path string, v *AccountBalance) []string {
+	var missing []string
+	if v.Amount == nil {
+		missing = append(missing, path+".amount")
+	}
+	return missing
+}
+
+func missingRequiredAccountCoverage(path string, v *AccountCoverage) []string {
+	var missing []string
+	if v.Coverage == nil {
+		missing = append(missing, path+".coverage")
+	}
+	return missing
+}
+
+func missingRequiredAccountDiagnosis(path string, v *AccountDiagnosis) []string {
+	var missing []string
+	if v.Condition == nil {
+		missing = append(missing, path+".condition")
+	}
+	return missing
+}
+
+func lexicalIssuesAccountDiagnosis(path string, v *AccountDiagnosis) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.DateOfDiagnosis != nil && !validDateTimeLexical(*v.DateOfDiagnosis) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".dateOfDiagnosis",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredAccountGuarantor(path string, v *AccountGuarantor) []string {
+	var missing []string
+	if v.Party == nil {
+		missing = append(missing, path+".party")
+	}
+	return missing
+}
+
+func missingRequiredAccountProcedure(path string, v *AccountProcedure) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func lexicalIssuesAccountProcedure(path string, v *AccountProcedure) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.DateOfService != nil && !validDateTimeLexical(*v.DateOfService) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".dateOfService",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredAccountRelatedAccount(path string, v *AccountRelatedAccount) []string {
+	var missing []string
+	if v.Account == nil {
+		missing = append(missing, path+".account")
+	}
+	return missing
+}
+
+func missingRequiredActivityDefinitionDynamicValue(path string, v *ActivityDefinitionDynamicValue) []string {
+	var missing []string
+	if v.Path == nil {
+		missing = append(missing, path+".path")
+	}
+	if v.Expression == nil {
+		missing = append(missing, path+".expression")
+	}
+	return missing
+}
+
+func missingRequiredAdministrableProductDefinitionProperty(path string, v *AdministrableProductDefinitionProperty) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesAdministrableProductDefinitionProperty(path string, v *AdministrableProductDefinitionProperty) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredAdministrableProductDefinitionRouteOfAdministration(path string, v *AdministrableProductDefinitionRouteOfAdministration) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	for i := range v.TargetSpecies {
+		missing = append(missing, missingRequiredAdministrableProductDefinitionRouteOfAdministrationTargetSpecies(path+".targetSpecies["+strconv.Itoa(i)+"]", &v.TargetSpecies[i])...)
+	}
+	return missing
+}
+
+func missingRequiredAdministrableProductDefinitionRouteOfAdministrationTargetSpecies(path string, v *AdministrableProductDefinitionRouteOfAdministrationTargetSpecies) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	for i := range v.WithdrawalPeriod {
+		missing = append(missing, missingRequiredAdministrableProductDefinitionRouteOfAdministrationTargetSpeciesWithdrawalPeriod(path+".withdrawalPeriod["+strconv.Itoa(i)+"]", &v.WithdrawalPeriod[i])...)
+	}
+	return missing
+}
+
+func missingRequiredAdministrableProductDefinitionRouteOfAdministrationTargetSpeciesWithdrawalPeriod(path string, v *AdministrableProductDefinitionRouteOfAdministrationTargetSpeciesWithdrawalPeriod) []string {
+	var missing []string
+	if v.Tissue == nil {
+		missing = append(missing, path+".tissue")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredAdverseEventParticipant(path string, v *AdverseEventParticipant) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredAllergyIntoleranceParticipant(path string, v *AllergyIntoleranceParticipant) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredAllergyIntoleranceReaction(path string, v *AllergyIntoleranceReaction) []string {
+	var missing []string
+	if len(v.Manifestation) == 0 {
+		missing = append(missing, path+".manifestation")
+	}
+	return missing
+}
+
+func lexicalIssuesAllergyIntoleranceReaction(path string, v *AllergyIntoleranceReaction) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Onset != nil && !validDateTimeLexical(*v.Onset) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".onset",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredAppointmentParticipant(path string, v *AppointmentParticipant) []string {
+	var missing []string
+	if v.Status == nil {
+		missing = append(missing, path+".status")
+	}
+	return missing
+}
+
+func missingRequiredAppointmentRecurrenceTemplate(path string, v *AppointmentRecurrenceTemplate) []string {
+	var missing []string
+	if v.RecurrenceType == nil {
+		missing = append(missing, path+".recurrenceType")
+	}
+	if v.MonthlyTemplate != nil {
+		missing = append(missing, missingRequiredAppointmentRecurrenceTemplateMonthlyTemplate(path+".monthlyTemplate", v.MonthlyTemplate)...)
+	}
+	if v.YearlyTemplate != nil {
+		missing = append(missing, missingRequiredAppointmentRecurrenceTemplateYearlyTemplate(path+".yearlyTemplate", v.YearlyTemplate)...)
+	}
+	return missing
+}
+
+func lexicalIssuesAppointmentRecurrenceTemplate(path string, v *AppointmentRecurrenceTemplate) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.LastOccurrenceDate != nil && !validDateLexical(*v.LastOccurrenceDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".lastOccurrenceDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	for i := range v.OccurrenceDate {
+		if !validDateLexical(v.OccurrenceDate[i]) {
+			issues = append(issues, fhir.PrimitiveIssue{
+				Expression:  path + ".occurrenceDate[" + strconv.Itoa(i) + "]",
+				Diagnostics: "value is not a valid FHIR date",
+			})
+		}
+	}
+	for i := range v.ExcludingDate {
+		if !validDateLexical(v.ExcludingDate[i]) {
+			issues = append(issues, fhir.PrimitiveIssue{
+				Expression:  path + ".excludingDate[" + strconv.Itoa(i) + "]",
+				Diagnostics: "value is not a valid FHIR date",
+			})
+		}
+	}
+	return issues
+}
+
+func missingRequiredAppointmentRecurrenceTemplateMonthlyTemplate(path string, v *AppointmentRecurrenceTemplateMonthlyTemplate) []string {
+	var missing []string
+	if v.MonthInterval == nil {
+		missing = append(missing, path+".monthInterval")
+	}
+	return missing
+}
+
+func missingRequiredAppointmentRecurrenceTemplateYearlyTemplate(path string, v *AppointmentRecurrenceTemplateYearlyTemplate) []string {
+	var missing []string
+	if v.YearInterval == nil {
+		missing = append(missing, path+".yearInterval")
+	}
+	return missing
+}
+
+func missingRequiredAuditEventAgent(path string, v *AuditEventAgent) []string {
+	var missing []string
+	if v.Who == nil {
+		missing = append(missing, path+".who")
+	}
+	return missing
+}
+
+func missingRequiredAuditEventEntity(path string, v *AuditEventEntity) []string {
+	var missing []string
+	for i := range v.Detail {
+		missing = append(missing, missingRequiredAuditEventEntityDetail(path+".detail["+strconv.Itoa(i)+"]", &v.Detail[i])...)
+	}
+	for i := range v.Agent {
+		missing = append(missing, missingRequiredAuditEventAgent(path+".agent["+strconv.Itoa(i)+"]", &v.Agent[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesAuditEventEntity(path string, v *AuditEventEntity) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Detail {
+		issues = append(issues, lexicalIssuesAuditEventEntityDetail(path+".detail["+strconv.Itoa(i)+"]", &v.Detail[i])...)
+	}
+	return issues
+}
+
+func missingRequiredAuditEventEntityDetail(path string, v *AuditEventEntityDetail) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesAuditEventEntityDetail(path string, v *AuditEventEntityDetail) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredAuditEventOutcome(path string, v *AuditEventOutcome) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredAuditEventSource(path string, v *AuditEventSource) []string {
+	var missing []string
+	if v.Observer == nil {
+		missing = append(missing, path+".observer")
+	}
+	return missing
+}
+
+func lexicalIssuesBiologicallyDerivedProductCollection(path string, v *BiologicallyDerivedProductCollection) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.CollectedDateTime != nil && !validDateTimeLexical(string(*v.CollectedDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".collectedDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredBiologicallyDerivedProductProperty(path string, v *BiologicallyDerivedProductProperty) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredBiologicallyDerivedProductDispensePerformer(path string, v *BiologicallyDerivedProductDispensePerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredBodyStructureIncludedStructure(path string, v *BodyStructureIncludedStructure) []string {
+	var missing []string
+	if v.Structure == nil {
+		missing = append(missing, path+".structure")
+	}
+	return missing
+}
+
+func missingRequiredBundleEntry(path string, v *BundleEntry) []string {
+	var missing []string
+	for i := range v.Link {
+		missing = append(missing, missingRequiredBundleLink(path+".link["+strconv.Itoa(i)+"]", &v.Link[i])...)
+	}
+	if v.Request != nil {
+		missing = append(missing, missingRequiredBundleEntryRequest(path+".request", v.Request)...)
+	}
+	if v.Response != nil {
+		missing = append(missing, missingRequiredBundleEntryResponse(path+".response", v.Response)...)
+	}
+	return missing
+}
+
+func lexicalIssuesBundleEntry(path string, v *BundleEntry) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Request != nil {
+		issues = append(issues, lexicalIssuesBundleEntryRequest(path+".request", v.Request)...)
+	}
+	if v.Response != nil {
+		issues = append(issues, lexicalIssuesBundleEntryResponse(path+".response", v.Response)...)
+	}
+	return issues
+}
+
+func missingRequiredBundleEntryRequest(path string, v *BundleEntryRequest) []string {
+	var missing []string
+	if v.Method == nil {
+		missing = append(missing, path+".method")
+	}
+	if v.URL == nil {
+		missing = append(missing, path+".url")
+	}
+	return missing
+}
+
+func lexicalIssuesBundleEntryRequest(path string, v *BundleEntryRequest) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.IfModifiedSince != nil && !validInstantLexical(*v.IfModifiedSince) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".ifModifiedSince",
+			Diagnostics: "value is not a valid FHIR instant",
+		})
+	}
+	return issues
+}
+
+func missingRequiredBundleEntryResponse(path string, v *BundleEntryResponse) []string {
+	var missing []string
+	if v.Status == nil {
+		missing = append(missing, path+".status")
+	}
+	return missing
+}
+
+func lexicalIssuesBundleEntryResponse(path string, v *BundleEntryResponse) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.LastModified != nil && !validInstantLexical(*v.LastModified) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".lastModified",
+			Diagnostics: "value is not a valid FHIR instant",
+		})
+	}
+	return issues
+}
+
+func missingRequiredBundleLink(path string, v *BundleLink) []string {
+	var missing []string
+	if v.Relation == nil {
+		missing = append(missing, path+".relation")
+	}
+	if v.URL == nil {
+		missing = append(missing, path+".url")
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementDocument(path string, v *CapabilityStatementDocument) []string {
+	var missing []string
+	if v.Mode == nil {
+		missing = append(missing, path+".mode")
+	}
+	if v.Profile == nil {
+		missing = append(missing, path+".profile")
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementImplementation(path string, v *CapabilityStatementImplementation) []string {
+	var missing []string
+	if v.Description == nil {
+		missing = append(missing, path+".description")
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementMessaging(path string, v *CapabilityStatementMessaging) []string {
+	var missing []string
+	for i := range v.Endpoint {
+		missing = append(missing, missingRequiredCapabilityStatementMessagingEndpoint(path+".endpoint["+strconv.Itoa(i)+"]", &v.Endpoint[i])...)
+	}
+	for i := range v.SupportedMessage {
+		missing = append(missing, missingRequiredCapabilityStatementMessagingSupportedMessage(path+".supportedMessage["+strconv.Itoa(i)+"]", &v.SupportedMessage[i])...)
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementMessagingEndpoint(path string, v *CapabilityStatementMessagingEndpoint) []string {
+	var missing []string
+	if v.Protocol == nil {
+		missing = append(missing, path+".protocol")
+	}
+	if v.Address == nil {
+		missing = append(missing, path+".address")
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementMessagingSupportedMessage(path string, v *CapabilityStatementMessagingSupportedMessage) []string {
+	var missing []string
+	if v.Mode == nil {
+		missing = append(missing, path+".mode")
+	}
+	if v.Definition == nil {
+		missing = append(missing, path+".definition")
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementRest(path string, v *CapabilityStatementRest) []string {
+	var missing []string
+	if v.Mode == nil {
+		missing = append(missing, path+".mode")
+	}
+	for i := range v.Resource {
+		missing = append(missing, missingRequiredCapabilityStatementRestResource(path+".resource["+strconv.Itoa(i)+"]", &v.Resource[i])...)
+	}
+	for i := range v.Interaction {
+		missing = append(missing, missingRequiredCapabilityStatementRestInteraction(path+".interaction["+strconv.Itoa(i)+"]", &v.Interaction[i])...)
+	}
+	for i := range v.SearchParam {
+		missing = append(missing, missingRequiredCapabilityStatementRestResourceSearchParam(path+".searchParam["+strconv.Itoa(i)+"]", &v.SearchParam[i])...)
+	}
+	for i := range v.Operation {
+		missing = append(missing, missingRequiredCapabilityStatementRestResourceOperation(path+".operation["+strconv.Itoa(i)+"]", &v.Operation[i])...)
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementRestInteraction(path string, v *CapabilityStatementRestInteraction) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementRestResource(path string, v *CapabilityStatementRestResource) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	for i := range v.Interaction {
+		missing = append(missing, missingRequiredCapabilityStatementRestResourceInteraction(path+".interaction["+strconv.Itoa(i)+"]", &v.Interaction[i])...)
+	}
+	for i := range v.SearchParam {
+		missing = append(missing, missingRequiredCapabilityStatementRestResourceSearchParam(path+".searchParam["+strconv.Itoa(i)+"]", &v.SearchParam[i])...)
+	}
+	for i := range v.Operation {
+		missing = append(missing, missingRequiredCapabilityStatementRestResourceOperation(path+".operation["+strconv.Itoa(i)+"]", &v.Operation[i])...)
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementRestResourceInteraction(path string, v *CapabilityStatementRestResourceInteraction) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementRestResourceOperation(path string, v *CapabilityStatementRestResourceOperation) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if v.Definition == nil {
+		missing = append(missing, path+".definition")
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementRestResourceSearchParam(path string, v *CapabilityStatementRestResourceSearchParam) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredCapabilityStatementSoftware(path string, v *CapabilityStatementSoftware) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	return missing
+}
+
+func lexicalIssuesCapabilityStatementSoftware(path string, v *CapabilityStatementSoftware) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ReleaseDate != nil && !validDateTimeLexical(*v.ReleaseDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".releaseDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredChargeItemPerformer(path string, v *ChargeItemPerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredCitationCitedArtifact(path string, v *CitationCitedArtifact) []string {
+	var missing []string
+	if v.Version != nil {
+		missing = append(missing, missingRequiredCitationCitedArtifactVersion(path+".version", v.Version)...)
+	}
+	for i := range v.StatusDate {
+		missing = append(missing, missingRequiredCitationStatusDate(path+".statusDate["+strconv.Itoa(i)+"]", &v.StatusDate[i])...)
+	}
+	for i := range v.Title {
+		missing = append(missing, missingRequiredCitationCitedArtifactTitle(path+".title["+strconv.Itoa(i)+"]", &v.Title[i])...)
+	}
+	for i := range v.Abstract {
+		missing = append(missing, missingRequiredCitationCitedArtifactAbstract(path+".abstract["+strconv.Itoa(i)+"]", &v.Abstract[i])...)
+	}
+	for i := range v.RelatesTo {
+		missing = append(missing, missingRequiredCitationCitedArtifactRelatesTo(path+".relatesTo["+strconv.Itoa(i)+"]", &v.RelatesTo[i])...)
+	}
+	if v.Contributorship != nil {
+		missing = append(missing, missingRequiredCitationCitedArtifactContributorship(path+".contributorship", v.Contributorship)...)
+	}
+	return missing
+}
+
+func lexicalIssuesCitationCitedArtifact(path string, v *CitationCitedArtifact) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.DateAccessed != nil && !validDateTimeLexical(*v.DateAccessed) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".dateAccessed",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	for i := range v.PublicationForm {
+		issues = append(issues, lexicalIssuesCitationCitedArtifactPublicationForm(path+".publicationForm["+strconv.Itoa(i)+"]", &v.PublicationForm[i])...)
+	}
+	if v.Contributorship != nil {
+		issues = append(issues, lexicalIssuesCitationCitedArtifactContributorship(path+".contributorship", v.Contributorship)...)
+	}
+	return issues
+}
+
+func missingRequiredCitationCitedArtifactAbstract(path string, v *CitationCitedArtifactAbstract) []string {
+	var missing []string
+	if v.Text == nil {
+		missing = append(missing, path+".text")
+	}
+	return missing
+}
+
+func missingRequiredCitationCitedArtifactContributorship(path string, v *CitationCitedArtifactContributorship) []string {
+	var missing []string
+	for i := range v.Entry {
+		missing = append(missing, missingRequiredCitationCitedArtifactContributorshipEntry(path+".entry["+strconv.Itoa(i)+"]", &v.Entry[i])...)
+	}
+	for i := range v.Summary {
+		missing = append(missing, missingRequiredCitationCitedArtifactContributorshipSummary(path+".summary["+strconv.Itoa(i)+"]", &v.Summary[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesCitationCitedArtifactContributorship(path string, v *CitationCitedArtifactContributorship) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Entry {
+		issues = append(issues, lexicalIssuesCitationCitedArtifactContributorshipEntry(path+".entry["+strconv.Itoa(i)+"]", &v.Entry[i])...)
+	}
+	return issues
+}
+
+func missingRequiredCitationCitedArtifactContributorshipEntry(path string, v *CitationCitedArtifactContributorshipEntry) []string {
+	var missing []string
+	if v.Contributor == nil {
+		missing = append(missing, path+".contributor")
+	}
+	for i := range v.ContributionInstance {
+		missing = append(missing, missingRequiredCitationCitedArtifactContributorshipEntryContributionInstance(path+".contributionInstance["+strconv.Itoa(i)+"]", &v.ContributionInstance[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesCitationCitedArtifactContributorshipEntry(path string, v *CitationCitedArtifactContributorshipEntry) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.ContributionInstance {
+		issues = append(issues, lexicalIssuesCitationCitedArtifactContributorshipEntryContributionInstance(path+".contributionInstance["+strconv.Itoa(i)+"]", &v.ContributionInstance[i])...)
+	}
+	return issues
+}
+
+func missingRequiredCitationCitedArtifactContributorshipEntryContributionInstance(path string, v *CitationCitedArtifactContributorshipEntryContributionInstance) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesCitationCitedArtifactContributorshipEntryContributionInstance(path string, v *CitationCitedArtifactContributorshipEntryContributionInstance) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Time != nil && !validDateTimeLexical(*v.Time) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".time",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredCitationCitedArtifactContributorshipSummary(path string, v *CitationCitedArtifactContributorshipSummary) []string {
+	var missing []string
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func lexicalIssuesCitationCitedArtifactPublicationForm(path string, v *CitationCitedArtifactPublicationForm) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ArticleDate != nil && !validDateTimeLexical(*v.ArticleDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".articleDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.LastRevisionDate != nil && !validDateTimeLexical(*v.LastRevisionDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".lastRevisionDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredCitationCitedArtifactRelatesTo(path string, v *CitationCitedArtifactRelatesTo) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredCitationCitedArtifactTitle(path string, v *CitationCitedArtifactTitle) []string {
+	var missing []string
+	if v.Text == nil {
+		missing = append(missing, path+".text")
+	}
+	return missing
+}
+
+func missingRequiredCitationCitedArtifactVersion(path string, v *CitationCitedArtifactVersion) []string {
+	var missing []string
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredCitationStatusDate(path string, v *CitationStatusDate) []string {
+	var missing []string
+	if v.Activity == nil {
+		missing = append(missing, path+".activity")
+	}
+	if v.Period == nil {
+		missing = append(missing, path+".period")
+	}
+	return missing
+}
+
+func missingRequiredCitationSummary(path string, v *CitationSummary) []string {
+	var missing []string
+	if v.Text == nil {
+		missing = append(missing, path+".text")
+	}
+	return missing
+}
+
+func missingRequiredClaimAccident(path string, v *ClaimAccident) []string {
+	var missing []string
+	if v.Date == nil {
+		missing = append(missing, path+".date")
+	}
+	return missing
+}
+
+func lexicalIssuesClaimAccident(path string, v *ClaimAccident) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredClaimCareTeam(path string, v *ClaimCareTeam) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	if v.Provider == nil {
+		missing = append(missing, path+".provider")
+	}
+	return missing
+}
+
+func missingRequiredClaimDiagnosis(path string, v *ClaimDiagnosis) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	return missing
+}
+
+func missingRequiredClaimEvent(path string, v *ClaimEvent) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesClaimEvent(path string, v *ClaimEvent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.WhenDateTime != nil && !validDateTimeLexical(string(*v.WhenDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".whenDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredClaimInsurance(path string, v *ClaimInsurance) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	if v.Focal == nil {
+		missing = append(missing, path+".focal")
+	}
+	if v.Coverage == nil {
+		missing = append(missing, path+".coverage")
+	}
+	return missing
+}
+
+func missingRequiredClaimItem(path string, v *ClaimItem) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	for i := range v.BodySite {
+		missing = append(missing, missingRequiredClaimItemBodySite(path+".bodySite["+strconv.Itoa(i)+"]", &v.BodySite[i])...)
+	}
+	for i := range v.Detail {
+		missing = append(missing, missingRequiredClaimItemDetail(path+".detail["+strconv.Itoa(i)+"]", &v.Detail[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesClaimItem(path string, v *ClaimItem) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ServicedDate != nil && !validDateLexical(string(*v.ServicedDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".servicedDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredClaimItemBodySite(path string, v *ClaimItemBodySite) []string {
+	var missing []string
+	if len(v.Site) == 0 {
+		missing = append(missing, path+".site")
+	}
+	return missing
+}
+
+func missingRequiredClaimItemDetail(path string, v *ClaimItemDetail) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	for i := range v.SubDetail {
+		missing = append(missing, missingRequiredClaimItemDetailSubDetail(path+".subDetail["+strconv.Itoa(i)+"]", &v.SubDetail[i])...)
+	}
+	return missing
+}
+
+func missingRequiredClaimItemDetailSubDetail(path string, v *ClaimItemDetailSubDetail) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	return missing
+}
+
+func missingRequiredClaimPayee(path string, v *ClaimPayee) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredClaimProcedure(path string, v *ClaimProcedure) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	return missing
+}
+
+func lexicalIssuesClaimProcedure(path string, v *ClaimProcedure) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateTimeLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredClaimSupportingInfo(path string, v *ClaimSupportingInfo) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	if v.Category == nil {
+		missing = append(missing, path+".category")
+	}
+	return missing
+}
+
+func lexicalIssuesClaimSupportingInfo(path string, v *ClaimSupportingInfo) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.TimingDate != nil && !validDateLexical(string(*v.TimingDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".timingDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredClaimResponseAddItem(path string, v *ClaimResponseAddItem) []string {
+	var missing []string
+	for i := range v.BodySite {
+		missing = append(missing, missingRequiredClaimResponseAddItemBodySite(path+".bodySite["+strconv.Itoa(i)+"]", &v.BodySite[i])...)
+	}
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredClaimResponseItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	for i := range v.Detail {
+		missing = append(missing, missingRequiredClaimResponseAddItemDetail(path+".detail["+strconv.Itoa(i)+"]", &v.Detail[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesClaimResponseAddItem(path string, v *ClaimResponseAddItem) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ServicedDate != nil && !validDateLexical(string(*v.ServicedDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".servicedDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredClaimResponseAddItemBodySite(path string, v *ClaimResponseAddItemBodySite) []string {
+	var missing []string
+	if len(v.Site) == 0 {
+		missing = append(missing, path+".site")
+	}
+	return missing
+}
+
+func missingRequiredClaimResponseAddItemDetail(path string, v *ClaimResponseAddItemDetail) []string {
+	var missing []string
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredClaimResponseItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	for i := range v.SubDetail {
+		missing = append(missing, missingRequiredClaimResponseAddItemDetailSubDetail(path+".subDetail["+strconv.Itoa(i)+"]", &v.SubDetail[i])...)
+	}
+	return missing
+}
+
+func missingRequiredClaimResponseAddItemDetailSubDetail(path string, v *ClaimResponseAddItemDetailSubDetail) []string {
+	var missing []string
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredClaimResponseItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	return missing
+}
+
+func missingRequiredClaimResponseError(path string, v *ClaimResponseError) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredClaimResponseEvent(path string, v *ClaimResponseEvent) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesClaimResponseEvent(path string, v *ClaimResponseEvent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.WhenDateTime != nil && !validDateTimeLexical(string(*v.WhenDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".whenDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredClaimResponseInsurance(path string, v *ClaimResponseInsurance) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	if v.Focal == nil {
+		missing = append(missing, path+".focal")
+	}
+	if v.Coverage == nil {
+		missing = append(missing, path+".coverage")
+	}
+	return missing
+}
+
+func missingRequiredClaimResponseItem(path string, v *ClaimResponseItem) []string {
+	var missing []string
+	if v.ItemSequence == nil {
+		missing = append(missing, path+".itemSequence")
+	}
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredClaimResponseItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	for i := range v.Detail {
+		missing = append(missing, missingRequiredClaimResponseItemDetail(path+".detail["+strconv.Itoa(i)+"]", &v.Detail[i])...)
+	}
+	return missing
+}
+
+func missingRequiredClaimResponseItemAdjudication(path string, v *ClaimResponseItemAdjudication) []string {
+	var missing []string
+	if v.Category == nil {
+		missing = append(missing, path+".category")
+	}
+	return missing
+}
+
+func missingRequiredClaimResponseItemDetail(path string, v *ClaimResponseItemDetail) []string {
+	var missing []string
+	if v.DetailSequence == nil {
+		missing = append(missing, path+".detailSequence")
+	}
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredClaimResponseItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	for i := range v.SubDetail {
+		missing = append(missing, missingRequiredClaimResponseItemDetailSubDetail(path+".subDetail["+strconv.Itoa(i)+"]", &v.SubDetail[i])...)
+	}
+	return missing
+}
+
+func missingRequiredClaimResponseItemDetailSubDetail(path string, v *ClaimResponseItemDetailSubDetail) []string {
+	var missing []string
+	if v.SubDetailSequence == nil {
+		missing = append(missing, path+".subDetailSequence")
+	}
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredClaimResponseItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	return missing
+}
+
+func missingRequiredClaimResponsePayment(path string, v *ClaimResponsePayment) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Amount == nil {
+		missing = append(missing, path+".amount")
+	}
+	return missing
+}
+
+func lexicalIssuesClaimResponsePayment(path string, v *ClaimResponsePayment) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredClaimResponseProcessNote(path string, v *ClaimResponseProcessNote) []string {
+	var missing []string
+	if v.Text == nil {
+		missing = append(missing, path+".text")
+	}
+	return missing
+}
+
+func missingRequiredClaimResponseTotal(path string, v *ClaimResponseTotal) []string {
+	var missing []string
+	if v.Category == nil {
+		missing = append(missing, path+".category")
+	}
+	if v.Amount == nil {
+		missing = append(missing, path+".amount")
+	}
+	return missing
+}
+
+func missingRequiredClinicalUseDefinitionContraindication(path string, v *ClinicalUseDefinitionContraindication) []string {
+	var missing []string
+	for i := range v.OtherTherapy {
+		missing = append(missing, missingRequiredClinicalUseDefinitionContraindicationOtherTherapy(path+".otherTherapy["+strconv.Itoa(i)+"]", &v.OtherTherapy[i])...)
+	}
+	return missing
+}
+
+func missingRequiredClinicalUseDefinitionContraindicationOtherTherapy(path string, v *ClinicalUseDefinitionContraindicationOtherTherapy) []string {
+	var missing []string
+	if v.RelationshipType == nil {
+		missing = append(missing, path+".relationshipType")
+	}
+	if v.Treatment == nil {
+		missing = append(missing, path+".treatment")
+	}
+	return missing
+}
+
+func missingRequiredClinicalUseDefinitionIndication(path string, v *ClinicalUseDefinitionIndication) []string {
+	var missing []string
+	for i := range v.OtherTherapy {
+		missing = append(missing, missingRequiredClinicalUseDefinitionContraindicationOtherTherapy(path+".otherTherapy["+strconv.Itoa(i)+"]", &v.OtherTherapy[i])...)
+	}
+	return missing
+}
+
+func missingRequiredCodeSystemConcept(path string, v *CodeSystemConcept) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	for i := range v.Designation {
+		missing = append(missing, missingRequiredCodeSystemConceptDesignation(path+".designation["+strconv.Itoa(i)+"]", &v.Designation[i])...)
+	}
+	for i := range v.Property {
+		missing = append(missing, missingRequiredCodeSystemConceptProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.Concept {
+		missing = append(missing, missingRequiredCodeSystemConcept(path+".concept["+strconv.Itoa(i)+"]", &v.Concept[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesCodeSystemConcept(path string, v *CodeSystemConcept) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Property {
+		issues = append(issues, lexicalIssuesCodeSystemConceptProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.Concept {
+		issues = append(issues, lexicalIssuesCodeSystemConcept(path+".concept["+strconv.Itoa(i)+"]", &v.Concept[i])...)
+	}
+	return issues
+}
+
+func missingRequiredCodeSystemConceptDesignation(path string, v *CodeSystemConceptDesignation) []string {
+	var missing []string
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredCodeSystemConceptProperty(path string, v *CodeSystemConceptProperty) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func lexicalIssuesCodeSystemConceptProperty(path string, v *CodeSystemConceptProperty) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredCodeSystemFilter(path string, v *CodeSystemFilter) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if len(v.Operator) == 0 {
+		missing = append(missing, path+".operator")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredCodeSystemProperty(path string, v *CodeSystemProperty) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredCompartmentDefinitionResource(path string, v *CompartmentDefinitionResource) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredCompositionAttester(path string, v *CompositionAttester) []string {
+	var missing []string
+	if v.Mode == nil {
+		missing = append(missing, path+".mode")
+	}
+	return missing
+}
+
+func lexicalIssuesCompositionAttester(path string, v *CompositionAttester) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Time != nil && !validDateTimeLexical(*v.Time) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".time",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredConceptMapAdditionalAttribute(path string, v *ConceptMapAdditionalAttribute) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredConceptMapGroup(path string, v *ConceptMapGroup) []string {
+	var missing []string
+	if len(v.Element) == 0 {
+		missing = append(missing, path+".element")
+	}
+	for i := range v.Element {
+		missing = append(missing, missingRequiredConceptMapGroupElement(path+".element["+strconv.Itoa(i)+"]", &v.Element[i])...)
+	}
+	if v.Unmapped != nil {
+		missing = append(missing, missingRequiredConceptMapGroupUnmapped(path+".unmapped", v.Unmapped)...)
+	}
+	return missing
+}
+
+func lexicalIssuesConceptMapGroup(path string, v *ConceptMapGroup) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Element {
+		issues = append(issues, lexicalIssuesConceptMapGroupElement(path+".element["+strconv.Itoa(i)+"]", &v.Element[i])...)
+	}
+	return issues
+}
+
+func missingRequiredConceptMapGroupElement(path string, v *ConceptMapGroupElement) []string {
+	var missing []string
+	for i := range v.Target {
+		missing = append(missing, missingRequiredConceptMapGroupElementTarget(path+".target["+strconv.Itoa(i)+"]", &v.Target[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesConceptMapGroupElement(path string, v *ConceptMapGroupElement) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Target {
+		issues = append(issues, lexicalIssuesConceptMapGroupElementTarget(path+".target["+strconv.Itoa(i)+"]", &v.Target[i])...)
+	}
+	return issues
+}
+
+func missingRequiredConceptMapGroupElementTarget(path string, v *ConceptMapGroupElementTarget) []string {
+	var missing []string
+	if v.Relationship == nil {
+		missing = append(missing, path+".relationship")
+	}
+	for i := range v.Property {
+		missing = append(missing, missingRequiredConceptMapGroupElementTargetProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.DependsOn {
+		missing = append(missing, missingRequiredConceptMapGroupElementTargetDependsOn(path+".dependsOn["+strconv.Itoa(i)+"]", &v.DependsOn[i])...)
+	}
+	for i := range v.Product {
+		missing = append(missing, missingRequiredConceptMapGroupElementTargetDependsOn(path+".product["+strconv.Itoa(i)+"]", &v.Product[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesConceptMapGroupElementTarget(path string, v *ConceptMapGroupElementTarget) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Property {
+		issues = append(issues, lexicalIssuesConceptMapGroupElementTargetProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	return issues
+}
+
+func missingRequiredConceptMapGroupElementTargetDependsOn(path string, v *ConceptMapGroupElementTargetDependsOn) []string {
+	var missing []string
+	if v.Attribute == nil {
+		missing = append(missing, path+".attribute")
+	}
+	return missing
+}
+
+func missingRequiredConceptMapGroupElementTargetProperty(path string, v *ConceptMapGroupElementTargetProperty) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func lexicalIssuesConceptMapGroupElementTargetProperty(path string, v *ConceptMapGroupElementTargetProperty) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredConceptMapGroupUnmapped(path string, v *ConceptMapGroupUnmapped) []string {
+	var missing []string
+	if v.Mode == nil {
+		missing = append(missing, path+".mode")
+	}
+	return missing
+}
+
+func missingRequiredConceptMapProperty(path string, v *ConceptMapProperty) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredConditionParticipant(path string, v *ConditionParticipant) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredConditionDefinitionPlan(path string, v *ConditionDefinitionPlan) []string {
+	var missing []string
+	if v.Reference == nil {
+		missing = append(missing, path+".reference")
+	}
+	return missing
+}
+
+func missingRequiredConditionDefinitionPrecondition(path string, v *ConditionDefinitionPrecondition) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredConditionDefinitionQuestionnaire(path string, v *ConditionDefinitionQuestionnaire) []string {
+	var missing []string
+	if v.Purpose == nil {
+		missing = append(missing, path+".purpose")
+	}
+	if v.Reference == nil {
+		missing = append(missing, path+".reference")
+	}
+	return missing
+}
+
+func missingRequiredConsentProvision(path string, v *ConsentProvision) []string {
+	var missing []string
+	for i := range v.Data {
+		missing = append(missing, missingRequiredConsentProvisionData(path+".data["+strconv.Itoa(i)+"]", &v.Data[i])...)
+	}
+	for i := range v.Provision {
+		missing = append(missing, missingRequiredConsentProvision(path+".provision["+strconv.Itoa(i)+"]", &v.Provision[i])...)
+	}
+	return missing
+}
+
+func missingRequiredConsentProvisionData(path string, v *ConsentProvisionData) []string {
+	var missing []string
+	if v.Meaning == nil {
+		missing = append(missing, path+".meaning")
+	}
+	if v.Reference == nil {
+		missing = append(missing, path+".reference")
+	}
+	return missing
+}
+
+func missingRequiredConsentVerification(path string, v *ConsentVerification) []string {
+	var missing []string
+	if v.Verified == nil {
+		missing = append(missing, path+".verified")
+	}
+	return missing
+}
+
+func lexicalIssuesConsentVerification(path string, v *ConsentVerification) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.VerificationDate {
+		if !validDateTimeLexical(v.VerificationDate[i]) {
+			issues = append(issues, fhir.PrimitiveIssue{
+				Expression:  path + ".verificationDate[" + strconv.Itoa(i) + "]",
+				Diagnostics: "value is not a valid FHIR dateTime",
+			})
+		}
+	}
+	return issues
+}
+
+func missingRequiredContractContentDefinition(path string, v *ContractContentDefinition) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.PublicationStatus == nil {
+		missing = append(missing, path+".publicationStatus")
+	}
+	return missing
+}
+
+func lexicalIssuesContractContentDefinition(path string, v *ContractContentDefinition) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.PublicationDate != nil && !validDateTimeLexical(*v.PublicationDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".publicationDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredContractSigner(path string, v *ContractSigner) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Party == nil {
+		missing = append(missing, path+".party")
+	}
+	if len(v.Signature) == 0 {
+		missing = append(missing, path+".signature")
+	}
+	return missing
+}
+
+func missingRequiredContractTerm(path string, v *ContractTerm) []string {
+	var missing []string
+	if v.Offer == nil {
+		missing = append(missing, path+".offer")
+	}
+	for i := range v.SecurityLabel {
+		missing = append(missing, missingRequiredContractTermSecurityLabel(path+".securityLabel["+strconv.Itoa(i)+"]", &v.SecurityLabel[i])...)
+	}
+	if v.Offer != nil {
+		missing = append(missing, missingRequiredContractTermOffer(path+".offer", v.Offer)...)
+	}
+	for i := range v.Action {
+		missing = append(missing, missingRequiredContractTermAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	for i := range v.Group {
+		missing = append(missing, missingRequiredContractTerm(path+".group["+strconv.Itoa(i)+"]", &v.Group[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesContractTerm(path string, v *ContractTerm) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Issued != nil && !validDateTimeLexical(*v.Issued) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".issued",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.Offer != nil {
+		issues = append(issues, lexicalIssuesContractTermOffer(path+".offer", v.Offer)...)
+	}
+	for i := range v.Asset {
+		issues = append(issues, lexicalIssuesContractTermAsset(path+".asset["+strconv.Itoa(i)+"]", &v.Asset[i])...)
+	}
+	for i := range v.Action {
+		issues = append(issues, lexicalIssuesContractTermAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	for i := range v.Group {
+		issues = append(issues, lexicalIssuesContractTerm(path+".group["+strconv.Itoa(i)+"]", &v.Group[i])...)
+	}
+	return issues
+}
+
+func missingRequiredContractTermAction(path string, v *ContractTermAction) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Intent == nil {
+		missing = append(missing, path+".intent")
+	}
+	if v.Status == nil {
+		missing = append(missing, path+".status")
+	}
+	for i := range v.Subject {
+		missing = append(missing, missingRequiredContractTermOfferParty(path+".subject["+strconv.Itoa(i)+"]", &v.Subject[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesContractTermAction(path string, v *ContractTermAction) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.OccurrenceDateTime != nil && !validDateTimeLexical(string(*v.OccurrenceDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".occurrenceDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func lexicalIssuesContractTermAsset(path string, v *ContractTermAsset) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Answer {
+		issues = append(issues, lexicalIssuesContractTermOfferAnswer(path+".answer["+strconv.Itoa(i)+"]", &v.Answer[i])...)
+	}
+	for i := range v.ValuedItem {
+		issues = append(issues, lexicalIssuesContractTermAssetValuedItem(path+".valuedItem["+strconv.Itoa(i)+"]", &v.ValuedItem[i])...)
+	}
+	return issues
+}
+
+func lexicalIssuesContractTermAssetValuedItem(path string, v *ContractTermAssetValuedItem) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.EffectiveTime != nil && !validDateTimeLexical(*v.EffectiveTime) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".effectiveTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.PaymentDate != nil && !validDateTimeLexical(*v.PaymentDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".paymentDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredContractTermOffer(path string, v *ContractTermOffer) []string {
+	var missing []string
+	for i := range v.Party {
+		missing = append(missing, missingRequiredContractTermOfferParty(path+".party["+strconv.Itoa(i)+"]", &v.Party[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesContractTermOffer(path string, v *ContractTermOffer) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Answer {
+		issues = append(issues, lexicalIssuesContractTermOfferAnswer(path+".answer["+strconv.Itoa(i)+"]", &v.Answer[i])...)
+	}
+	return issues
+}
+
+func lexicalIssuesContractTermOfferAnswer(path string, v *ContractTermOfferAnswer) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	return issues
+}
+
+func missingRequiredContractTermOfferParty(path string, v *ContractTermOfferParty) []string {
+	var missing []string
+	if len(v.Reference) == 0 {
+		missing = append(missing, path+".reference")
+	}
+	if v.Role == nil {
+		missing = append(missing, path+".role")
+	}
+	return missing
+}
+
+func missingRequiredContractTermSecurityLabel(path string, v *ContractTermSecurityLabel) []string {
+	var missing []string
+	if v.Classification == nil {
+		missing = append(missing, path+".classification")
+	}
+	return missing
+}
+
+func missingRequiredCoverageClass(path string, v *CoverageClass) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredCoverageCostToBeneficiary(path string, v *CoverageCostToBeneficiary) []string {
+	var missing []string
+	for i := range v.Exception {
+		missing = append(missing, missingRequiredCoverageCostToBeneficiaryException(path+".exception["+strconv.Itoa(i)+"]", &v.Exception[i])...)
+	}
+	return missing
+}
+
+func missingRequiredCoverageCostToBeneficiaryException(path string, v *CoverageCostToBeneficiaryException) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredCoveragePaymentBy(path string, v *CoveragePaymentBy) []string {
+	var missing []string
+	if v.Party == nil {
+		missing = append(missing, path+".party")
+	}
+	return missing
+}
+
+func missingRequiredCoverageEligibilityRequestEvent(path string, v *CoverageEligibilityRequestEvent) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesCoverageEligibilityRequestEvent(path string, v *CoverageEligibilityRequestEvent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.WhenDateTime != nil && !validDateTimeLexical(string(*v.WhenDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".whenDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredCoverageEligibilityRequestInsurance(path string, v *CoverageEligibilityRequestInsurance) []string {
+	var missing []string
+	if v.Coverage == nil {
+		missing = append(missing, path+".coverage")
+	}
+	return missing
+}
+
+func missingRequiredCoverageEligibilityRequestSupportingInfo(path string, v *CoverageEligibilityRequestSupportingInfo) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	if v.Information == nil {
+		missing = append(missing, path+".information")
+	}
+	return missing
+}
+
+func missingRequiredCoverageEligibilityResponseError(path string, v *CoverageEligibilityResponseError) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredCoverageEligibilityResponseEvent(path string, v *CoverageEligibilityResponseEvent) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesCoverageEligibilityResponseEvent(path string, v *CoverageEligibilityResponseEvent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.WhenDateTime != nil && !validDateTimeLexical(string(*v.WhenDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".whenDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredCoverageEligibilityResponseInsurance(path string, v *CoverageEligibilityResponseInsurance) []string {
+	var missing []string
+	if v.Coverage == nil {
+		missing = append(missing, path+".coverage")
+	}
+	for i := range v.Item {
+		missing = append(missing, missingRequiredCoverageEligibilityResponseInsuranceItem(path+".item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+	}
+	return missing
+}
+
+func missingRequiredCoverageEligibilityResponseInsuranceItem(path string, v *CoverageEligibilityResponseInsuranceItem) []string {
+	var missing []string
+	for i := range v.Benefit {
+		missing = append(missing, missingRequiredCoverageEligibilityResponseInsuranceItemBenefit(path+".benefit["+strconv.Itoa(i)+"]", &v.Benefit[i])...)
+	}
+	return missing
+}
+
+func missingRequiredCoverageEligibilityResponseInsuranceItemBenefit(path string, v *CoverageEligibilityResponseInsuranceItemBenefit) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredDetectedIssueMitigation(path string, v *DetectedIssueMitigation) []string {
+	var missing []string
+	if v.Action == nil {
+		missing = append(missing, path+".action")
+	}
+	return missing
+}
+
+func lexicalIssuesDetectedIssueMitigation(path string, v *DetectedIssueMitigation) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateTimeLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredDeviceConformsTo(path string, v *DeviceConformsTo) []string {
+	var missing []string
+	if v.Specification == nil {
+		missing = append(missing, path+".specification")
+	}
+	return missing
+}
+
+func missingRequiredDeviceName(path string, v *DeviceName) []string {
+	var missing []string
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredDeviceProperty(path string, v *DeviceProperty) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredDeviceUdiCarrier(path string, v *DeviceUdiCarrier) []string {
+	var missing []string
+	if v.DeviceIdentifier == nil {
+		missing = append(missing, path+".deviceIdentifier")
+	}
+	if v.Issuer == nil {
+		missing = append(missing, path+".issuer")
+	}
+	return missing
+}
+
+func missingRequiredDeviceVersion(path string, v *DeviceVersion) []string {
+	var missing []string
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func lexicalIssuesDeviceVersion(path string, v *DeviceVersion) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.InstallDate != nil && !validDateTimeLexical(*v.InstallDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".installDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredDeviceAssociationOperation(path string, v *DeviceAssociationOperation) []string {
+	var missing []string
+	if v.Status == nil {
+		missing = append(missing, path+".status")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionChargeItem(path string, v *DeviceDefinitionChargeItem) []string {
+	var missing []string
+	if v.ChargeItemCode == nil {
+		missing = append(missing, path+".chargeItemCode")
+	}
+	if v.Count == nil {
+		missing = append(missing, path+".count")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionClassification(path string, v *DeviceDefinitionClassification) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionConformsTo(path string, v *DeviceDefinitionConformsTo) []string {
+	var missing []string
+	if v.Specification == nil {
+		missing = append(missing, path+".specification")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionCorrectiveAction(path string, v *DeviceDefinitionCorrectiveAction) []string {
+	var missing []string
+	if v.Recall == nil {
+		missing = append(missing, path+".recall")
+	}
+	if v.Period == nil {
+		missing = append(missing, path+".period")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionDeviceName(path string, v *DeviceDefinitionDeviceName) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionHasPart(path string, v *DeviceDefinitionHasPart) []string {
+	var missing []string
+	if v.Reference == nil {
+		missing = append(missing, path+".reference")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionLink(path string, v *DeviceDefinitionLink) []string {
+	var missing []string
+	if v.Relation == nil {
+		missing = append(missing, path+".relation")
+	}
+	if v.RelatedDevice == nil {
+		missing = append(missing, path+".relatedDevice")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionMaterial(path string, v *DeviceDefinitionMaterial) []string {
+	var missing []string
+	if v.Substance == nil {
+		missing = append(missing, path+".substance")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionPackaging(path string, v *DeviceDefinitionPackaging) []string {
+	var missing []string
+	for i := range v.UdiDeviceIdentifier {
+		missing = append(missing, missingRequiredDeviceDefinitionUdiDeviceIdentifier(path+".udiDeviceIdentifier["+strconv.Itoa(i)+"]", &v.UdiDeviceIdentifier[i])...)
+	}
+	for i := range v.Packaging {
+		missing = append(missing, missingRequiredDeviceDefinitionPackaging(path+".packaging["+strconv.Itoa(i)+"]", &v.Packaging[i])...)
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionProperty(path string, v *DeviceDefinitionProperty) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionRegulatoryIdentifier(path string, v *DeviceDefinitionRegulatoryIdentifier) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.DeviceIdentifier == nil {
+		missing = append(missing, path+".deviceIdentifier")
+	}
+	if v.Issuer == nil {
+		missing = append(missing, path+".issuer")
+	}
+	if v.Jurisdiction == nil {
+		missing = append(missing, path+".jurisdiction")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionUdiDeviceIdentifier(path string, v *DeviceDefinitionUdiDeviceIdentifier) []string {
+	var missing []string
+	if v.DeviceIdentifier == nil {
+		missing = append(missing, path+".deviceIdentifier")
+	}
+	if v.Issuer == nil {
+		missing = append(missing, path+".issuer")
+	}
+	if v.Jurisdiction == nil {
+		missing = append(missing, path+".jurisdiction")
+	}
+	for i := range v.MarketDistribution {
+		missing = append(missing, missingRequiredDeviceDefinitionUdiDeviceIdentifierMarketDistribution(path+".marketDistribution["+strconv.Itoa(i)+"]", &v.MarketDistribution[i])...)
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionUdiDeviceIdentifierMarketDistribution(path string, v *DeviceDefinitionUdiDeviceIdentifierMarketDistribution) []string {
+	var missing []string
+	if v.MarketPeriod == nil {
+		missing = append(missing, path+".marketPeriod")
+	}
+	if v.SubJurisdiction == nil {
+		missing = append(missing, path+".subJurisdiction")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDefinitionVersion(path string, v *DeviceDefinitionVersion) []string {
+	var missing []string
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredDeviceDispensePerformer(path string, v *DeviceDispensePerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func lexicalIssuesDeviceMetricCalibration(path string, v *DeviceMetricCalibration) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Time != nil && !validInstantLexical(*v.Time) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".time",
+			Diagnostics: "value is not a valid FHIR instant",
+		})
+	}
+	return issues
+}
+
+func missingRequiredDeviceUsageAdherence(path string, v *DeviceUsageAdherence) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if len(v.Reason) == 0 {
+		missing = append(missing, path+".reason")
+	}
+	return missing
+}
+
+func missingRequiredDiagnosticReportMedia(path string, v *DiagnosticReportMedia) []string {
+	var missing []string
+	if v.Link == nil {
+		missing = append(missing, path+".link")
+	}
+	return missing
+}
+
+func missingRequiredDiagnosticReportSupportingInfo(path string, v *DiagnosticReportSupportingInfo) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Reference == nil {
+		missing = append(missing, path+".reference")
+	}
+	return missing
+}
+
+func missingRequiredDocumentReferenceAttester(path string, v *DocumentReferenceAttester) []string {
+	var missing []string
+	if v.Mode == nil {
+		missing = append(missing, path+".mode")
+	}
+	return missing
+}
+
+func lexicalIssuesDocumentReferenceAttester(path string, v *DocumentReferenceAttester) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Time != nil && !validDateTimeLexical(*v.Time) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".time",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredDocumentReferenceContent(path string, v *DocumentReferenceContent) []string {
+	var missing []string
+	if v.Attachment == nil {
+		missing = append(missing, path+".attachment")
+	}
+	return missing
+}
+
+func missingRequiredDocumentReferenceRelatesTo(path string, v *DocumentReferenceRelatesTo) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Target == nil {
+		missing = append(missing, path+".target")
+	}
+	return missing
+}
+
+func missingRequiredEncounterLocation(path string, v *EncounterLocation) []string {
+	var missing []string
+	if v.Location == nil {
+		missing = append(missing, path+".location")
+	}
+	return missing
+}
+
+func missingRequiredEncounterHistoryLocation(path string, v *EncounterHistoryLocation) []string {
+	var missing []string
+	if v.Location == nil {
+		missing = append(missing, path+".location")
+	}
+	return missing
+}
+
+func missingRequiredEpisodeOfCareStatusHistory(path string, v *EpisodeOfCareStatusHistory) []string {
+	var missing []string
+	if v.Status == nil {
+		missing = append(missing, path+".status")
+	}
+	if v.Period == nil {
+		missing = append(missing, path+".period")
+	}
+	return missing
+}
+
+func missingRequiredEvidenceStatistic(path string, v *EvidenceStatistic) []string {
+	var missing []string
+	for i := range v.ModelCharacteristic {
+		missing = append(missing, missingRequiredEvidenceStatisticModelCharacteristic(path+".modelCharacteristic["+strconv.Itoa(i)+"]", &v.ModelCharacteristic[i])...)
+	}
+	return missing
+}
+
+func missingRequiredEvidenceStatisticModelCharacteristic(path string, v *EvidenceStatisticModelCharacteristic) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	for i := range v.Variable {
+		missing = append(missing, missingRequiredEvidenceStatisticModelCharacteristicVariable(path+".variable["+strconv.Itoa(i)+"]", &v.Variable[i])...)
+	}
+	return missing
+}
+
+func missingRequiredEvidenceStatisticModelCharacteristicVariable(path string, v *EvidenceStatisticModelCharacteristicVariable) []string {
+	var missing []string
+	if v.VariableDefinition == nil {
+		missing = append(missing, path+".variableDefinition")
+	}
+	return missing
+}
+
+func missingRequiredEvidenceVariableDefinition(path string, v *EvidenceVariableDefinition) []string {
+	var missing []string
+	if v.VariableRole == nil {
+		missing = append(missing, path+".variableRole")
+	}
+	return missing
+}
+
+func missingRequiredEvidenceReportRelatesTo(path string, v *EvidenceReportRelatesTo) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Target == nil {
+		missing = append(missing, path+".target")
+	}
+	return missing
+}
+
+func missingRequiredEvidenceReportSubject(path string, v *EvidenceReportSubject) []string {
+	var missing []string
+	for i := range v.Characteristic {
+		missing = append(missing, missingRequiredEvidenceReportSubjectCharacteristic(path+".characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+	}
+	return missing
+}
+
+func missingRequiredEvidenceReportSubjectCharacteristic(path string, v *EvidenceReportSubjectCharacteristic) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredEvidenceVariableCharacteristic(path string, v *EvidenceVariableCharacteristic) []string {
+	var missing []string
+	if v.DefinitionByTypeAndValue != nil {
+		missing = append(missing, missingRequiredEvidenceVariableCharacteristicDefinitionByTypeAndValue(path+".definitionByTypeAndValue", v.DefinitionByTypeAndValue)...)
+	}
+	if v.DefinitionByCombination != nil {
+		missing = append(missing, missingRequiredEvidenceVariableCharacteristicDefinitionByCombination(path+".definitionByCombination", v.DefinitionByCombination)...)
+	}
+	return missing
+}
+
+func lexicalIssuesEvidenceVariableCharacteristic(path string, v *EvidenceVariableCharacteristic) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.DefinitionByCombination != nil {
+		issues = append(issues, lexicalIssuesEvidenceVariableCharacteristicDefinitionByCombination(path+".definitionByCombination", v.DefinitionByCombination)...)
+	}
+	for i := range v.TimeFromEvent {
+		issues = append(issues, lexicalIssuesEvidenceVariableCharacteristicTimeFromEvent(path+".timeFromEvent["+strconv.Itoa(i)+"]", &v.TimeFromEvent[i])...)
+	}
+	return issues
+}
+
+func missingRequiredEvidenceVariableCharacteristicDefinitionByCombination(path string, v *EvidenceVariableCharacteristicDefinitionByCombination) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if len(v.Characteristic) == 0 {
+		missing = append(missing, path+".characteristic")
+	}
+	for i := range v.Characteristic {
+		missing = append(missing, missingRequiredEvidenceVariableCharacteristic(path+".characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesEvidenceVariableCharacteristicDefinitionByCombination(path string, v *EvidenceVariableCharacteristicDefinitionByCombination) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Characteristic {
+		issues = append(issues, lexicalIssuesEvidenceVariableCharacteristic(path+".characteristic["+strconv.Itoa(i)+"]", &v.Characteristic[i])...)
+	}
+	return issues
+}
+
+func missingRequiredEvidenceVariableCharacteristicDefinitionByTypeAndValue(path string, v *EvidenceVariableCharacteristicDefinitionByTypeAndValue) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesEvidenceVariableCharacteristicTimeFromEvent(path string, v *EvidenceVariableCharacteristicTimeFromEvent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.EventDateTime != nil && !validDateTimeLexical(string(*v.EventDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".eventDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredExampleScenarioActor(path string, v *ExampleScenarioActor) []string {
+	var missing []string
+	if v.Key == nil {
+		missing = append(missing, path+".key")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Title == nil {
+		missing = append(missing, path+".title")
+	}
+	return missing
+}
+
+func missingRequiredExampleScenarioInstance(path string, v *ExampleScenarioInstance) []string {
+	var missing []string
+	if v.Key == nil {
+		missing = append(missing, path+".key")
+	}
+	if v.StructureType == nil {
+		missing = append(missing, path+".structureType")
+	}
+	if v.Title == nil {
+		missing = append(missing, path+".title")
+	}
+	for i := range v.Version {
+		missing = append(missing, missingRequiredExampleScenarioInstanceVersion(path+".version["+strconv.Itoa(i)+"]", &v.Version[i])...)
+	}
+	for i := range v.ContainedInstance {
+		missing = append(missing, missingRequiredExampleScenarioInstanceContainedInstance(path+".containedInstance["+strconv.Itoa(i)+"]", &v.ContainedInstance[i])...)
+	}
+	return missing
+}
+
+func missingRequiredExampleScenarioInstanceContainedInstance(path string, v *ExampleScenarioInstanceContainedInstance) []string {
+	var missing []string
+	if v.InstanceReference == nil {
+		missing = append(missing, path+".instanceReference")
+	}
+	return missing
+}
+
+func missingRequiredExampleScenarioInstanceVersion(path string, v *ExampleScenarioInstanceVersion) []string {
+	var missing []string
+	if v.Key == nil {
+		missing = append(missing, path+".key")
+	}
+	if v.Title == nil {
+		missing = append(missing, path+".title")
+	}
+	return missing
+}
+
+func missingRequiredExampleScenarioProcess(path string, v *ExampleScenarioProcess) []string {
+	var missing []string
+	if v.Title == nil {
+		missing = append(missing, path+".title")
+	}
+	for i := range v.Step {
+		missing = append(missing, missingRequiredExampleScenarioProcessStep(path+".step["+strconv.Itoa(i)+"]", &v.Step[i])...)
+	}
+	return missing
+}
+
+func missingRequiredExampleScenarioProcessStep(path string, v *ExampleScenarioProcessStep) []string {
+	var missing []string
+	if v.Process != nil {
+		missing = append(missing, missingRequiredExampleScenarioProcess(path+".process", v.Process)...)
+	}
+	if v.Operation != nil {
+		missing = append(missing, missingRequiredExampleScenarioProcessStepOperation(path+".operation", v.Operation)...)
+	}
+	for i := range v.Alternative {
+		missing = append(missing, missingRequiredExampleScenarioProcessStepAlternative(path+".alternative["+strconv.Itoa(i)+"]", &v.Alternative[i])...)
+	}
+	return missing
+}
+
+func missingRequiredExampleScenarioProcessStepAlternative(path string, v *ExampleScenarioProcessStepAlternative) []string {
+	var missing []string
+	if v.Title == nil {
+		missing = append(missing, path+".title")
+	}
+	for i := range v.Step {
+		missing = append(missing, missingRequiredExampleScenarioProcessStep(path+".step["+strconv.Itoa(i)+"]", &v.Step[i])...)
+	}
+	return missing
+}
+
+func missingRequiredExampleScenarioProcessStepOperation(path string, v *ExampleScenarioProcessStepOperation) []string {
+	var missing []string
+	if v.Title == nil {
+		missing = append(missing, path+".title")
+	}
+	if v.Request != nil {
+		missing = append(missing, missingRequiredExampleScenarioInstanceContainedInstance(path+".request", v.Request)...)
+	}
+	if v.Response != nil {
+		missing = append(missing, missingRequiredExampleScenarioInstanceContainedInstance(path+".response", v.Response)...)
+	}
+	return missing
+}
+
+func lexicalIssuesExplanationOfBenefitAccident(path string, v *ExplanationOfBenefitAccident) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredExplanationOfBenefitAddItem(path string, v *ExplanationOfBenefitAddItem) []string {
+	var missing []string
+	for i := range v.BodySite {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemBodySite(path+".bodySite["+strconv.Itoa(i)+"]", &v.BodySite[i])...)
+	}
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	for i := range v.Detail {
+		missing = append(missing, missingRequiredExplanationOfBenefitAddItemDetail(path+".detail["+strconv.Itoa(i)+"]", &v.Detail[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesExplanationOfBenefitAddItem(path string, v *ExplanationOfBenefitAddItem) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ServicedDate != nil && !validDateLexical(string(*v.ServicedDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".servicedDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredExplanationOfBenefitAddItemDetail(path string, v *ExplanationOfBenefitAddItemDetail) []string {
+	var missing []string
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	for i := range v.SubDetail {
+		missing = append(missing, missingRequiredExplanationOfBenefitAddItemDetailSubDetail(path+".subDetail["+strconv.Itoa(i)+"]", &v.SubDetail[i])...)
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitAddItemDetailSubDetail(path string, v *ExplanationOfBenefitAddItemDetailSubDetail) []string {
+	var missing []string
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitBenefitBalance(path string, v *ExplanationOfBenefitBenefitBalance) []string {
+	var missing []string
+	if v.Category == nil {
+		missing = append(missing, path+".category")
+	}
+	for i := range v.Financial {
+		missing = append(missing, missingRequiredExplanationOfBenefitBenefitBalanceFinancial(path+".financial["+strconv.Itoa(i)+"]", &v.Financial[i])...)
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitBenefitBalanceFinancial(path string, v *ExplanationOfBenefitBenefitBalanceFinancial) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitCareTeam(path string, v *ExplanationOfBenefitCareTeam) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	if v.Provider == nil {
+		missing = append(missing, path+".provider")
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitDiagnosis(path string, v *ExplanationOfBenefitDiagnosis) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitEvent(path string, v *ExplanationOfBenefitEvent) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesExplanationOfBenefitEvent(path string, v *ExplanationOfBenefitEvent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.WhenDateTime != nil && !validDateTimeLexical(string(*v.WhenDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".whenDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredExplanationOfBenefitInsurance(path string, v *ExplanationOfBenefitInsurance) []string {
+	var missing []string
+	if v.Focal == nil {
+		missing = append(missing, path+".focal")
+	}
+	if v.Coverage == nil {
+		missing = append(missing, path+".coverage")
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitItem(path string, v *ExplanationOfBenefitItem) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	for i := range v.BodySite {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemBodySite(path+".bodySite["+strconv.Itoa(i)+"]", &v.BodySite[i])...)
+	}
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	for i := range v.Detail {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemDetail(path+".detail["+strconv.Itoa(i)+"]", &v.Detail[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesExplanationOfBenefitItem(path string, v *ExplanationOfBenefitItem) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ServicedDate != nil && !validDateLexical(string(*v.ServicedDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".servicedDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredExplanationOfBenefitItemAdjudication(path string, v *ExplanationOfBenefitItemAdjudication) []string {
+	var missing []string
+	if v.Category == nil {
+		missing = append(missing, path+".category")
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitItemBodySite(path string, v *ExplanationOfBenefitItemBodySite) []string {
+	var missing []string
+	if len(v.Site) == 0 {
+		missing = append(missing, path+".site")
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitItemDetail(path string, v *ExplanationOfBenefitItemDetail) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	for i := range v.SubDetail {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemDetailSubDetail(path+".subDetail["+strconv.Itoa(i)+"]", &v.SubDetail[i])...)
+	}
+	return missing
+}
+
+func missingRequiredExplanationOfBenefitItemDetailSubDetail(path string, v *ExplanationOfBenefitItemDetailSubDetail) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	for i := range v.Adjudication {
+		missing = append(missing, missingRequiredExplanationOfBenefitItemAdjudication(path+".adjudication["+strconv.Itoa(i)+"]", &v.Adjudication[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesExplanationOfBenefitPayment(path string, v *ExplanationOfBenefitPayment) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredExplanationOfBenefitProcedure(path string, v *ExplanationOfBenefitProcedure) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	return missing
+}
+
+func lexicalIssuesExplanationOfBenefitProcedure(path string, v *ExplanationOfBenefitProcedure) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateTimeLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredExplanationOfBenefitSupportingInfo(path string, v *ExplanationOfBenefitSupportingInfo) []string {
+	var missing []string
+	if v.Sequence == nil {
+		missing = append(missing, path+".sequence")
+	}
+	if v.Category == nil {
+		missing = append(missing, path+".category")
+	}
+	return missing
+}
+
+func lexicalIssuesExplanationOfBenefitSupportingInfo(path string, v *ExplanationOfBenefitSupportingInfo) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.TimingDate != nil && !validDateLexical(string(*v.TimingDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".timingDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredExplanationOfBenefitTotal(path string, v *ExplanationOfBenefitTotal) []string {
+	var missing []string
+	if v.Category == nil {
+		missing = append(missing, path+".category")
+	}
+	if v.Amount == nil {
+		missing = append(missing, path+".amount")
+	}
+	return missing
+}
+
+func missingRequiredFamilyMemberHistoryCondition(path string, v *FamilyMemberHistoryCondition) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredFamilyMemberHistoryParticipant(path string, v *FamilyMemberHistoryParticipant) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredFamilyMemberHistoryProcedure(path string, v *FamilyMemberHistoryProcedure) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func lexicalIssuesFamilyMemberHistoryProcedure(path string, v *FamilyMemberHistoryProcedure) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.PerformedDateTime != nil && !validDateTimeLexical(string(*v.PerformedDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".performedDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func lexicalIssuesGenomicStudyAnalysis(path string, v *GenomicStudyAnalysis) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateTimeLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func lexicalIssuesGoalTarget(path string, v *GoalTarget) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.DueDate != nil && !validDateLexical(string(*v.DueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".dueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredGraphDefinitionLink(path string, v *GraphDefinitionLink) []string {
+	var missing []string
+	if v.SourceId == nil {
+		missing = append(missing, path+".sourceId")
+	}
+	if v.TargetId == nil {
+		missing = append(missing, path+".targetId")
+	}
+	for i := range v.Compartment {
+		missing = append(missing, missingRequiredGraphDefinitionLinkCompartment(path+".compartment["+strconv.Itoa(i)+"]", &v.Compartment[i])...)
+	}
+	return missing
+}
+
+func missingRequiredGraphDefinitionLinkCompartment(path string, v *GraphDefinitionLinkCompartment) []string {
+	var missing []string
+	if v.Use == nil {
+		missing = append(missing, path+".use")
+	}
+	if v.Rule == nil {
+		missing = append(missing, path+".rule")
+	}
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredGraphDefinitionNode(path string, v *GraphDefinitionNode) []string {
+	var missing []string
+	if v.NodeId == nil {
+		missing = append(missing, path+".nodeId")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredGroupCharacteristic(path string, v *GroupCharacteristic) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Exclude == nil {
+		missing = append(missing, path+".exclude")
+	}
+	return missing
+}
+
+func missingRequiredGroupMember(path string, v *GroupMember) []string {
+	var missing []string
+	if v.Entity == nil {
+		missing = append(missing, path+".entity")
+	}
+	return missing
+}
+
+func missingRequiredImagingSelectionInstance(path string, v *ImagingSelectionInstance) []string {
+	var missing []string
+	if v.UID == nil {
+		missing = append(missing, path+".uid")
+	}
+	for i := range v.ImageRegion2D {
+		missing = append(missing, missingRequiredImagingSelectionInstanceImageRegion2D(path+".imageRegion2D["+strconv.Itoa(i)+"]", &v.ImageRegion2D[i])...)
+	}
+	for i := range v.ImageRegion3D {
+		missing = append(missing, missingRequiredImagingSelectionInstanceImageRegion3D(path+".imageRegion3D["+strconv.Itoa(i)+"]", &v.ImageRegion3D[i])...)
+	}
+	return missing
+}
+
+func missingRequiredImagingSelectionInstanceImageRegion2D(path string, v *ImagingSelectionInstanceImageRegion2D) []string {
+	var missing []string
+	if v.RegionType == nil {
+		missing = append(missing, path+".regionType")
+	}
+	if len(v.Coordinate) == 0 {
+		missing = append(missing, path+".coordinate")
+	}
+	return missing
+}
+
+func missingRequiredImagingSelectionInstanceImageRegion3D(path string, v *ImagingSelectionInstanceImageRegion3D) []string {
+	var missing []string
+	if v.RegionType == nil {
+		missing = append(missing, path+".regionType")
+	}
+	if len(v.Coordinate) == 0 {
+		missing = append(missing, path+".coordinate")
+	}
+	return missing
+}
+
+func missingRequiredImagingStudySeries(path string, v *ImagingStudySeries) []string {
+	var missing []string
+	if v.UID == nil {
+		missing = append(missing, path+".uid")
+	}
+	if v.Modality == nil {
+		missing = append(missing, path+".modality")
+	}
+	for i := range v.Performer {
+		missing = append(missing, missingRequiredImagingStudySeriesPerformer(path+".performer["+strconv.Itoa(i)+"]", &v.Performer[i])...)
+	}
+	for i := range v.Instance {
+		missing = append(missing, missingRequiredImagingStudySeriesInstance(path+".instance["+strconv.Itoa(i)+"]", &v.Instance[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesImagingStudySeries(path string, v *ImagingStudySeries) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Started != nil && !validDateTimeLexical(*v.Started) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".started",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredImagingStudySeriesInstance(path string, v *ImagingStudySeriesInstance) []string {
+	var missing []string
+	if v.UID == nil {
+		missing = append(missing, path+".uid")
+	}
+	if v.SopClass == nil {
+		missing = append(missing, path+".sopClass")
+	}
+	return missing
+}
+
+func missingRequiredImagingStudySeriesPerformer(path string, v *ImagingStudySeriesPerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredImmunizationPerformer(path string, v *ImmunizationPerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredImmunizationProgramEligibility(path string, v *ImmunizationProgramEligibility) []string {
+	var missing []string
+	if v.Program == nil {
+		missing = append(missing, path+".program")
+	}
+	if v.ProgramStatus == nil {
+		missing = append(missing, path+".programStatus")
+	}
+	return missing
+}
+
+func missingRequiredImmunizationProtocolApplied(path string, v *ImmunizationProtocolApplied) []string {
+	var missing []string
+	if v.DoseNumber == nil {
+		missing = append(missing, path+".doseNumber")
+	}
+	return missing
+}
+
+func lexicalIssuesImmunizationReaction(path string, v *ImmunizationReaction) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateTimeLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredImmunizationRecommendationRecommendation(path string, v *ImmunizationRecommendationRecommendation) []string {
+	var missing []string
+	if v.ForecastStatus == nil {
+		missing = append(missing, path+".forecastStatus")
+	}
+	for i := range v.DateCriterion {
+		missing = append(missing, missingRequiredImmunizationRecommendationRecommendationDateCriterion(path+".dateCriterion["+strconv.Itoa(i)+"]", &v.DateCriterion[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesImmunizationRecommendationRecommendation(path string, v *ImmunizationRecommendationRecommendation) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.DateCriterion {
+		issues = append(issues, lexicalIssuesImmunizationRecommendationRecommendationDateCriterion(path+".dateCriterion["+strconv.Itoa(i)+"]", &v.DateCriterion[i])...)
+	}
+	return issues
+}
+
+func missingRequiredImmunizationRecommendationRecommendationDateCriterion(path string, v *ImmunizationRecommendationRecommendationDateCriterion) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func lexicalIssuesImmunizationRecommendationRecommendationDateCriterion(path string, v *ImmunizationRecommendationRecommendationDateCriterion) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Value != nil && !validDateTimeLexical(*v.Value) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".value",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredImplementationGuideDefinition(path string, v *ImplementationGuideDefinition) []string {
+	var missing []string
+	for i := range v.Grouping {
+		missing = append(missing, missingRequiredImplementationGuideDefinitionGrouping(path+".grouping["+strconv.Itoa(i)+"]", &v.Grouping[i])...)
+	}
+	for i := range v.Resource {
+		missing = append(missing, missingRequiredImplementationGuideDefinitionResource(path+".resource["+strconv.Itoa(i)+"]", &v.Resource[i])...)
+	}
+	if v.Page != nil {
+		missing = append(missing, missingRequiredImplementationGuideDefinitionPage(path+".page", v.Page)...)
+	}
+	for i := range v.Parameter {
+		missing = append(missing, missingRequiredImplementationGuideDefinitionParameter(path+".parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
+	}
+	for i := range v.Template {
+		missing = append(missing, missingRequiredImplementationGuideDefinitionTemplate(path+".template["+strconv.Itoa(i)+"]", &v.Template[i])...)
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideDefinitionGrouping(path string, v *ImplementationGuideDefinitionGrouping) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideDefinitionPage(path string, v *ImplementationGuideDefinitionPage) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if v.Title == nil {
+		missing = append(missing, path+".title")
+	}
+	if v.Generation == nil {
+		missing = append(missing, path+".generation")
+	}
+	for i := range v.Page {
+		missing = append(missing, missingRequiredImplementationGuideDefinitionPage(path+".page["+strconv.Itoa(i)+"]", &v.Page[i])...)
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideDefinitionParameter(path string, v *ImplementationGuideDefinitionParameter) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideDefinitionResource(path string, v *ImplementationGuideDefinitionResource) []string {
+	var missing []string
+	if v.Reference == nil {
+		missing = append(missing, path+".reference")
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideDefinitionTemplate(path string, v *ImplementationGuideDefinitionTemplate) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Source == nil {
+		missing = append(missing, path+".source")
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideDependsOn(path string, v *ImplementationGuideDependsOn) []string {
+	var missing []string
+	if v.URI == nil {
+		missing = append(missing, path+".uri")
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideGlobal(path string, v *ImplementationGuideGlobal) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Profile == nil {
+		missing = append(missing, path+".profile")
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideManifest(path string, v *ImplementationGuideManifest) []string {
+	var missing []string
+	if len(v.Resource) == 0 {
+		missing = append(missing, path+".resource")
+	}
+	for i := range v.Resource {
+		missing = append(missing, missingRequiredImplementationGuideManifestResource(path+".resource["+strconv.Itoa(i)+"]", &v.Resource[i])...)
+	}
+	for i := range v.Page {
+		missing = append(missing, missingRequiredImplementationGuideManifestPage(path+".page["+strconv.Itoa(i)+"]", &v.Page[i])...)
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideManifestPage(path string, v *ImplementationGuideManifestPage) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	return missing
+}
+
+func missingRequiredImplementationGuideManifestResource(path string, v *ImplementationGuideManifestResource) []string {
+	var missing []string
+	if v.Reference == nil {
+		missing = append(missing, path+".reference")
+	}
+	return missing
+}
+
+func missingRequiredIngredientManufacturer(path string, v *IngredientManufacturer) []string {
+	var missing []string
+	if v.Manufacturer == nil {
+		missing = append(missing, path+".manufacturer")
+	}
+	return missing
+}
+
+func missingRequiredIngredientSubstance(path string, v *IngredientSubstance) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	for i := range v.Strength {
+		missing = append(missing, missingRequiredIngredientSubstanceStrength(path+".strength["+strconv.Itoa(i)+"]", &v.Strength[i])...)
+	}
+	return missing
+}
+
+func missingRequiredIngredientSubstanceStrength(path string, v *IngredientSubstanceStrength) []string {
+	var missing []string
+	for i := range v.ReferenceStrength {
+		missing = append(missing, missingRequiredIngredientSubstanceStrengthReferenceStrength(path+".referenceStrength["+strconv.Itoa(i)+"]", &v.ReferenceStrength[i])...)
+	}
+	return missing
+}
+
+func missingRequiredIngredientSubstanceStrengthReferenceStrength(path string, v *IngredientSubstanceStrengthReferenceStrength) []string {
+	var missing []string
+	if v.Substance == nil {
+		missing = append(missing, path+".substance")
+	}
+	return missing
+}
+
+func missingRequiredInsurancePlanCoverage(path string, v *InsurancePlanCoverage) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if len(v.Benefit) == 0 {
+		missing = append(missing, path+".benefit")
+	}
+	for i := range v.Benefit {
+		missing = append(missing, missingRequiredInsurancePlanCoverageBenefit(path+".benefit["+strconv.Itoa(i)+"]", &v.Benefit[i])...)
+	}
+	return missing
+}
+
+func missingRequiredInsurancePlanCoverageBenefit(path string, v *InsurancePlanCoverageBenefit) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredInsurancePlanPlan(path string, v *InsurancePlanPlan) []string {
+	var missing []string
+	for i := range v.SpecificCost {
+		missing = append(missing, missingRequiredInsurancePlanPlanSpecificCost(path+".specificCost["+strconv.Itoa(i)+"]", &v.SpecificCost[i])...)
+	}
+	return missing
+}
+
+func missingRequiredInsurancePlanPlanSpecificCost(path string, v *InsurancePlanPlanSpecificCost) []string {
+	var missing []string
+	if v.Category == nil {
+		missing = append(missing, path+".category")
+	}
+	for i := range v.Benefit {
+		missing = append(missing, missingRequiredInsurancePlanPlanSpecificCostBenefit(path+".benefit["+strconv.Itoa(i)+"]", &v.Benefit[i])...)
+	}
+	return missing
+}
+
+func missingRequiredInsurancePlanPlanSpecificCostBenefit(path string, v *InsurancePlanPlanSpecificCostBenefit) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	for i := range v.Cost {
+		missing = append(missing, missingRequiredInsurancePlanPlanSpecificCostBenefitCost(path+".cost["+strconv.Itoa(i)+"]", &v.Cost[i])...)
+	}
+	return missing
+}
+
+func missingRequiredInsurancePlanPlanSpecificCostBenefitCost(path string, v *InsurancePlanPlanSpecificCostBenefitCost) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredInventoryItemAssociation(path string, v *InventoryItemAssociation) []string {
+	var missing []string
+	if v.AssociationType == nil {
+		missing = append(missing, path+".associationType")
+	}
+	if v.RelatedItem == nil {
+		missing = append(missing, path+".relatedItem")
+	}
+	if v.Quantity == nil {
+		missing = append(missing, path+".quantity")
+	}
+	return missing
+}
+
+func missingRequiredInventoryItemCharacteristic(path string, v *InventoryItemCharacteristic) []string {
+	var missing []string
+	if v.CharacteristicType == nil {
+		missing = append(missing, path+".characteristicType")
+	}
+	return missing
+}
+
+func lexicalIssuesInventoryItemCharacteristic(path string, v *InventoryItemCharacteristic) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func lexicalIssuesInventoryItemInstance(path string, v *InventoryItemInstance) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Expiry != nil && !validDateTimeLexical(*v.Expiry) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".expiry",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredInventoryItemName(path string, v *InventoryItemName) []string {
+	var missing []string
+	if v.NameType == nil {
+		missing = append(missing, path+".nameType")
+	}
+	if v.Language == nil {
+		missing = append(missing, path+".language")
+	}
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	return missing
+}
+
+func missingRequiredInventoryItemResponsibleOrganization(path string, v *InventoryItemResponsibleOrganization) []string {
+	var missing []string
+	if v.Role == nil {
+		missing = append(missing, path+".role")
+	}
+	if v.Organization == nil {
+		missing = append(missing, path+".organization")
+	}
+	return missing
+}
+
+func missingRequiredInventoryReportInventoryListing(path string, v *InventoryReportInventoryListing) []string {
+	var missing []string
+	for i := range v.Item {
+		missing = append(missing, missingRequiredInventoryReportInventoryListingItem(path+".item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesInventoryReportInventoryListing(path string, v *InventoryReportInventoryListing) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.CountingDateTime != nil && !validDateTimeLexical(*v.CountingDateTime) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".countingDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredInventoryReportInventoryListingItem(path string, v *InventoryReportInventoryListingItem) []string {
+	var missing []string
+	if v.Quantity == nil {
+		missing = append(missing, path+".quantity")
+	}
+	if v.Item == nil {
+		missing = append(missing, path+".item")
+	}
+	return missing
+}
+
+func lexicalIssuesInvoiceLineItem(path string, v *InvoiceLineItem) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ServicedDate != nil && !validDateLexical(string(*v.ServicedDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".servicedDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredInvoiceParticipant(path string, v *InvoiceParticipant) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredLinkageItem(path string, v *LinkageItem) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Resource == nil {
+		missing = append(missing, path+".resource")
+	}
+	return missing
+}
+
+func missingRequiredListEntry(path string, v *ListEntry) []string {
+	var missing []string
+	if v.Item == nil {
+		missing = append(missing, path+".item")
+	}
+	return missing
+}
+
+func lexicalIssuesListEntry(path string, v *ListEntry) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateTimeLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredLocationPosition(path string, v *LocationPosition) []string {
+	var missing []string
+	if v.Longitude == nil {
+		missing = append(missing, path+".longitude")
+	}
+	if v.Latitude == nil {
+		missing = append(missing, path+".latitude")
+	}
+	return missing
+}
+
+func missingRequiredManufacturedItemDefinitionComponent(path string, v *ManufacturedItemDefinitionComponent) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	for i := range v.Property {
+		missing = append(missing, missingRequiredManufacturedItemDefinitionProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.Component {
+		missing = append(missing, missingRequiredManufacturedItemDefinitionComponent(path+".component["+strconv.Itoa(i)+"]", &v.Component[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesManufacturedItemDefinitionComponent(path string, v *ManufacturedItemDefinitionComponent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Property {
+		issues = append(issues, lexicalIssuesManufacturedItemDefinitionProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.Component {
+		issues = append(issues, lexicalIssuesManufacturedItemDefinitionComponent(path+".component["+strconv.Itoa(i)+"]", &v.Component[i])...)
+	}
+	return issues
+}
+
+func missingRequiredManufacturedItemDefinitionProperty(path string, v *ManufacturedItemDefinitionProperty) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesManufacturedItemDefinitionProperty(path string, v *ManufacturedItemDefinitionProperty) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredMeasureSupplementalData(path string, v *MeasureSupplementalData) []string {
+	var missing []string
+	if v.Criteria == nil {
+		missing = append(missing, path+".criteria")
+	}
+	return missing
+}
+
+func missingRequiredMeasureReportGroup(path string, v *MeasureReportGroup) []string {
+	var missing []string
+	for i := range v.Stratifier {
+		missing = append(missing, missingRequiredMeasureReportGroupStratifier(path+".stratifier["+strconv.Itoa(i)+"]", &v.Stratifier[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesMeasureReportGroup(path string, v *MeasureReportGroup) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.MeasureScoreDateTime != nil && !validDateTimeLexical(string(*v.MeasureScoreDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".measureScoreDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	for i := range v.Stratifier {
+		issues = append(issues, lexicalIssuesMeasureReportGroupStratifier(path+".stratifier["+strconv.Itoa(i)+"]", &v.Stratifier[i])...)
+	}
+	return issues
+}
+
+func missingRequiredMeasureReportGroupStratifier(path string, v *MeasureReportGroupStratifier) []string {
+	var missing []string
+	for i := range v.Stratum {
+		missing = append(missing, missingRequiredMeasureReportGroupStratifierStratum(path+".stratum["+strconv.Itoa(i)+"]", &v.Stratum[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesMeasureReportGroupStratifier(path string, v *MeasureReportGroupStratifier) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Stratum {
+		issues = append(issues, lexicalIssuesMeasureReportGroupStratifierStratum(path+".stratum["+strconv.Itoa(i)+"]", &v.Stratum[i])...)
+	}
+	return issues
+}
+
+func missingRequiredMeasureReportGroupStratifierStratum(path string, v *MeasureReportGroupStratifierStratum) []string {
+	var missing []string
+	for i := range v.Component {
+		missing = append(missing, missingRequiredMeasureReportGroupStratifierStratumComponent(path+".component["+strconv.Itoa(i)+"]", &v.Component[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesMeasureReportGroupStratifierStratum(path string, v *MeasureReportGroupStratifierStratum) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.MeasureScoreDateTime != nil && !validDateTimeLexical(string(*v.MeasureScoreDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".measureScoreDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredMeasureReportGroupStratifierStratumComponent(path string, v *MeasureReportGroupStratifierStratumComponent) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func lexicalIssuesMedicationBatch(path string, v *MedicationBatch) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ExpirationDate != nil && !validDateTimeLexical(*v.ExpirationDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".expirationDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredMedicationIngredient(path string, v *MedicationIngredient) []string {
+	var missing []string
+	if v.Item == nil {
+		missing = append(missing, path+".item")
+	}
+	return missing
+}
+
+func missingRequiredMedicationAdministrationPerformer(path string, v *MedicationAdministrationPerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredMedicationDispensePerformer(path string, v *MedicationDispensePerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredMedicationDispenseSubstitution(path string, v *MedicationDispenseSubstitution) []string {
+	var missing []string
+	if v.WasSubstituted == nil {
+		missing = append(missing, path+".wasSubstituted")
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeCost(path string, v *MedicationKnowledgeCost) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeDefinitional(path string, v *MedicationKnowledgeDefinitional) []string {
+	var missing []string
+	for i := range v.Ingredient {
+		missing = append(missing, missingRequiredMedicationKnowledgeDefinitionalIngredient(path+".ingredient["+strconv.Itoa(i)+"]", &v.Ingredient[i])...)
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeDefinitionalIngredient(path string, v *MedicationKnowledgeDefinitionalIngredient) []string {
+	var missing []string
+	if v.Item == nil {
+		missing = append(missing, path+".item")
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeIndicationGuideline(path string, v *MedicationKnowledgeIndicationGuideline) []string {
+	var missing []string
+	for i := range v.DosingGuideline {
+		missing = append(missing, missingRequiredMedicationKnowledgeIndicationGuidelineDosingGuideline(path+".dosingGuideline["+strconv.Itoa(i)+"]", &v.DosingGuideline[i])...)
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeIndicationGuidelineDosingGuideline(path string, v *MedicationKnowledgeIndicationGuidelineDosingGuideline) []string {
+	var missing []string
+	for i := range v.Dosage {
+		missing = append(missing, missingRequiredMedicationKnowledgeIndicationGuidelineDosingGuidelineDosage(path+".dosage["+strconv.Itoa(i)+"]", &v.Dosage[i])...)
+	}
+	for i := range v.PatientCharacteristic {
+		missing = append(missing, missingRequiredMedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic(path+".patientCharacteristic["+strconv.Itoa(i)+"]", &v.PatientCharacteristic[i])...)
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeIndicationGuidelineDosingGuidelineDosage(path string, v *MedicationKnowledgeIndicationGuidelineDosingGuidelineDosage) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if len(v.Dosage) == 0 {
+		missing = append(missing, path+".dosage")
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic(path string, v *MedicationKnowledgeIndicationGuidelineDosingGuidelinePatientCharacteristic) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeMedicineClassification(path string, v *MedicationKnowledgeMedicineClassification) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgePackaging(path string, v *MedicationKnowledgePackaging) []string {
+	var missing []string
+	for i := range v.Cost {
+		missing = append(missing, missingRequiredMedicationKnowledgeCost(path+".cost["+strconv.Itoa(i)+"]", &v.Cost[i])...)
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeRegulatory(path string, v *MedicationKnowledgeRegulatory) []string {
+	var missing []string
+	if v.RegulatoryAuthority == nil {
+		missing = append(missing, path+".regulatoryAuthority")
+	}
+	for i := range v.Substitution {
+		missing = append(missing, missingRequiredMedicationKnowledgeRegulatorySubstitution(path+".substitution["+strconv.Itoa(i)+"]", &v.Substitution[i])...)
+	}
+	if v.MaxDispense != nil {
+		missing = append(missing, missingRequiredMedicationKnowledgeRegulatoryMaxDispense(path+".maxDispense", v.MaxDispense)...)
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeRegulatoryMaxDispense(path string, v *MedicationKnowledgeRegulatoryMaxDispense) []string {
+	var missing []string
+	if v.Quantity == nil {
+		missing = append(missing, path+".quantity")
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeRegulatorySubstitution(path string, v *MedicationKnowledgeRegulatorySubstitution) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Allowed == nil {
+		missing = append(missing, path+".allowed")
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeRelatedMedicationKnowledge(path string, v *MedicationKnowledgeRelatedMedicationKnowledge) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if len(v.Reference) == 0 {
+		missing = append(missing, path+".reference")
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeStorageGuideline(path string, v *MedicationKnowledgeStorageGuideline) []string {
+	var missing []string
+	for i := range v.EnvironmentalSetting {
+		missing = append(missing, missingRequiredMedicationKnowledgeStorageGuidelineEnvironmentalSetting(path+".environmentalSetting["+strconv.Itoa(i)+"]", &v.EnvironmentalSetting[i])...)
+	}
+	return missing
+}
+
+func missingRequiredMedicationKnowledgeStorageGuidelineEnvironmentalSetting(path string, v *MedicationKnowledgeStorageGuidelineEnvironmentalSetting) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredMedicationStatementAdherence(path string, v *MedicationStatementAdherence) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredMedicinalProductDefinitionCharacteristic(path string, v *MedicinalProductDefinitionCharacteristic) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesMedicinalProductDefinitionCharacteristic(path string, v *MedicinalProductDefinitionCharacteristic) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredMedicinalProductDefinitionContact(path string, v *MedicinalProductDefinitionContact) []string {
+	var missing []string
+	if v.Contact == nil {
+		missing = append(missing, path+".contact")
+	}
+	return missing
+}
+
+func missingRequiredMedicinalProductDefinitionCrossReference(path string, v *MedicinalProductDefinitionCrossReference) []string {
+	var missing []string
+	if v.Product == nil {
+		missing = append(missing, path+".product")
+	}
+	return missing
+}
+
+func missingRequiredMedicinalProductDefinitionName(path string, v *MedicinalProductDefinitionName) []string {
+	var missing []string
+	if v.ProductName == nil {
+		missing = append(missing, path+".productName")
+	}
+	for i := range v.Part {
+		missing = append(missing, missingRequiredMedicinalProductDefinitionNamePart(path+".part["+strconv.Itoa(i)+"]", &v.Part[i])...)
+	}
+	for i := range v.Usage {
+		missing = append(missing, missingRequiredMedicinalProductDefinitionNameUsage(path+".usage["+strconv.Itoa(i)+"]", &v.Usage[i])...)
+	}
+	return missing
+}
+
+func missingRequiredMedicinalProductDefinitionNamePart(path string, v *MedicinalProductDefinitionNamePart) []string {
+	var missing []string
+	if v.Part == nil {
+		missing = append(missing, path+".part")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredMedicinalProductDefinitionNameUsage(path string, v *MedicinalProductDefinitionNameUsage) []string {
+	var missing []string
+	if v.Country == nil {
+		missing = append(missing, path+".country")
+	}
+	if v.Language == nil {
+		missing = append(missing, path+".language")
+	}
+	return missing
+}
+
+func missingRequiredMessageDefinitionAllowedResponse(path string, v *MessageDefinitionAllowedResponse) []string {
+	var missing []string
+	if v.Message == nil {
+		missing = append(missing, path+".message")
+	}
+	return missing
+}
+
+func missingRequiredMessageDefinitionFocus(path string, v *MessageDefinitionFocus) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if v.Min == nil {
+		missing = append(missing, path+".min")
+	}
+	return missing
+}
+
+func missingRequiredMessageHeaderResponse(path string, v *MessageHeaderResponse) []string {
+	var missing []string
+	if v.Identifier == nil {
+		missing = append(missing, path+".identifier")
+	}
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredMolecularSequenceRelative(path string, v *MolecularSequenceRelative) []string {
+	var missing []string
+	if v.CoordinateSystem == nil {
+		missing = append(missing, path+".coordinateSystem")
+	}
+	return missing
+}
+
+func missingRequiredNamingSystemUniqueId(path string, v *NamingSystemUniqueId) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredNutritionIntakeConsumedItem(path string, v *NutritionIntakeConsumedItem) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.NutritionProduct == nil {
+		missing = append(missing, path+".nutritionProduct")
+	}
+	return missing
+}
+
+func missingRequiredNutritionIntakeIngredientLabel(path string, v *NutritionIntakeIngredientLabel) []string {
+	var missing []string
+	if v.Nutrient == nil {
+		missing = append(missing, path+".nutrient")
+	}
+	if v.Amount == nil {
+		missing = append(missing, path+".amount")
+	}
+	return missing
+}
+
+func missingRequiredNutritionIntakePerformer(path string, v *NutritionIntakePerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredNutritionProductCharacteristic(path string, v *NutritionProductCharacteristic) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesNutritionProductInstance(path string, v *NutritionProductInstance) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Expiry != nil && !validDateTimeLexical(*v.Expiry) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".expiry",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.UseBy != nil && !validDateTimeLexical(*v.UseBy) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".useBy",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredObservationComponent(path string, v *ObservationComponent) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func lexicalIssuesObservationComponent(path string, v *ObservationComponent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredObservationTriggeredBy(path string, v *ObservationTriggeredBy) []string {
+	var missing []string
+	if v.Observation == nil {
+		missing = append(missing, path+".observation")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredObservationDefinitionComponent(path string, v *ObservationDefinitionComponent) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredOperationDefinitionParameter(path string, v *OperationDefinitionParameter) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if v.Use == nil {
+		missing = append(missing, path+".use")
+	}
+	if v.Min == nil {
+		missing = append(missing, path+".min")
+	}
+	if v.Max == nil {
+		missing = append(missing, path+".max")
+	}
+	if v.Binding != nil {
+		missing = append(missing, missingRequiredOperationDefinitionParameterBinding(path+".binding", v.Binding)...)
+	}
+	for i := range v.ReferencedFrom {
+		missing = append(missing, missingRequiredOperationDefinitionParameterReferencedFrom(path+".referencedFrom["+strconv.Itoa(i)+"]", &v.ReferencedFrom[i])...)
+	}
+	for i := range v.Part {
+		missing = append(missing, missingRequiredOperationDefinitionParameter(path+".part["+strconv.Itoa(i)+"]", &v.Part[i])...)
+	}
+	return missing
+}
+
+func missingRequiredOperationDefinitionParameterBinding(path string, v *OperationDefinitionParameterBinding) []string {
+	var missing []string
+	if v.Strength == nil {
+		missing = append(missing, path+".strength")
+	}
+	if v.ValueSet == nil {
+		missing = append(missing, path+".valueSet")
+	}
+	return missing
+}
+
+func missingRequiredOperationDefinitionParameterReferencedFrom(path string, v *OperationDefinitionParameterReferencedFrom) []string {
+	var missing []string
+	if v.Source == nil {
+		missing = append(missing, path+".source")
+	}
+	return missing
+}
+
+func missingRequiredOperationOutcomeIssue(path string, v *OperationOutcomeIssue) []string {
+	var missing []string
+	if v.Severity == nil {
+		missing = append(missing, path+".severity")
+	}
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredOrganizationQualification(path string, v *OrganizationQualification) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredPackagedProductDefinitionPackaging(path string, v *PackagedProductDefinitionPackaging) []string {
+	var missing []string
+	for i := range v.Property {
+		missing = append(missing, missingRequiredPackagedProductDefinitionPackagingProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.ContainedItem {
+		missing = append(missing, missingRequiredPackagedProductDefinitionPackagingContainedItem(path+".containedItem["+strconv.Itoa(i)+"]", &v.ContainedItem[i])...)
+	}
+	for i := range v.Packaging {
+		missing = append(missing, missingRequiredPackagedProductDefinitionPackaging(path+".packaging["+strconv.Itoa(i)+"]", &v.Packaging[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesPackagedProductDefinitionPackaging(path string, v *PackagedProductDefinitionPackaging) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Property {
+		issues = append(issues, lexicalIssuesPackagedProductDefinitionPackagingProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.Packaging {
+		issues = append(issues, lexicalIssuesPackagedProductDefinitionPackaging(path+".packaging["+strconv.Itoa(i)+"]", &v.Packaging[i])...)
+	}
+	return issues
+}
+
+func missingRequiredPackagedProductDefinitionPackagingContainedItem(path string, v *PackagedProductDefinitionPackagingContainedItem) []string {
+	var missing []string
+	if v.Item == nil {
+		missing = append(missing, path+".item")
+	}
+	return missing
+}
+
+func missingRequiredPackagedProductDefinitionPackagingProperty(path string, v *PackagedProductDefinitionPackagingProperty) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesPackagedProductDefinitionPackagingProperty(path string, v *PackagedProductDefinitionPackagingProperty) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredParametersParameter(path string, v *ParametersParameter) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	for i := range v.Part {
+		missing = append(missing, missingRequiredParametersParameter(path+".part["+strconv.Itoa(i)+"]", &v.Part[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesParametersParameter(path string, v *ParametersParameter) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.ValueInstant != nil && !validInstantLexical(string(*v.ValueInstant)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueInstant",
+			Diagnostics: "value is not a valid FHIR instant",
+		})
+	}
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	for i := range v.Part {
+		issues = append(issues, lexicalIssuesParametersParameter(path+".part["+strconv.Itoa(i)+"]", &v.Part[i])...)
+	}
+	return issues
+}
+
+func missingRequiredPatientCommunication(path string, v *PatientCommunication) []string {
+	var missing []string
+	if v.Language == nil {
+		missing = append(missing, path+".language")
+	}
+	return missing
+}
+
+func missingRequiredPatientLink(path string, v *PatientLink) []string {
+	var missing []string
+	if v.Other == nil {
+		missing = append(missing, path+".other")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesPaymentReconciliationAllocation(path string, v *PaymentReconciliationAllocation) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredPermissionRule(path string, v *PermissionRule) []string {
+	var missing []string
+	for i := range v.Data {
+		missing = append(missing, missingRequiredPermissionRuleData(path+".data["+strconv.Itoa(i)+"]", &v.Data[i])...)
+	}
+	return missing
+}
+
+func missingRequiredPermissionRuleData(path string, v *PermissionRuleData) []string {
+	var missing []string
+	for i := range v.Resource {
+		missing = append(missing, missingRequiredPermissionRuleDataResource(path+".resource["+strconv.Itoa(i)+"]", &v.Resource[i])...)
+	}
+	return missing
+}
+
+func missingRequiredPermissionRuleDataResource(path string, v *PermissionRuleDataResource) []string {
+	var missing []string
+	if v.Meaning == nil {
+		missing = append(missing, path+".meaning")
+	}
+	if v.Reference == nil {
+		missing = append(missing, path+".reference")
+	}
+	return missing
+}
+
+func missingRequiredPersonCommunication(path string, v *PersonCommunication) []string {
+	var missing []string
+	if v.Language == nil {
+		missing = append(missing, path+".language")
+	}
+	return missing
+}
+
+func missingRequiredPersonLink(path string, v *PersonLink) []string {
+	var missing []string
+	if v.Target == nil {
+		missing = append(missing, path+".target")
+	}
+	return missing
+}
+
+func missingRequiredPlanDefinitionAction(path string, v *PlanDefinitionAction) []string {
+	var missing []string
+	for i := range v.Condition {
+		missing = append(missing, missingRequiredPlanDefinitionActionCondition(path+".condition["+strconv.Itoa(i)+"]", &v.Condition[i])...)
+	}
+	for i := range v.RelatedAction {
+		missing = append(missing, missingRequiredPlanDefinitionActionRelatedAction(path+".relatedAction["+strconv.Itoa(i)+"]", &v.RelatedAction[i])...)
+	}
+	for i := range v.Action {
+		missing = append(missing, missingRequiredPlanDefinitionAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	return missing
+}
+
+func missingRequiredPlanDefinitionActionCondition(path string, v *PlanDefinitionActionCondition) []string {
+	var missing []string
+	if v.Kind == nil {
+		missing = append(missing, path+".kind")
+	}
+	return missing
+}
+
+func missingRequiredPlanDefinitionActionRelatedAction(path string, v *PlanDefinitionActionRelatedAction) []string {
+	var missing []string
+	if v.TargetId == nil {
+		missing = append(missing, path+".targetId")
+	}
+	if v.Relationship == nil {
+		missing = append(missing, path+".relationship")
+	}
+	return missing
+}
+
+func missingRequiredPlanDefinitionActor(path string, v *PlanDefinitionActor) []string {
+	var missing []string
+	if len(v.Option) == 0 {
+		missing = append(missing, path+".option")
+	}
+	return missing
+}
+
+func missingRequiredPlanDefinitionGoal(path string, v *PlanDefinitionGoal) []string {
+	var missing []string
+	if v.Description == nil {
+		missing = append(missing, path+".description")
+	}
+	return missing
+}
+
+func missingRequiredPractitionerCommunication(path string, v *PractitionerCommunication) []string {
+	var missing []string
+	if v.Language == nil {
+		missing = append(missing, path+".language")
+	}
+	return missing
+}
+
+func missingRequiredPractitionerQualification(path string, v *PractitionerQualification) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func missingRequiredProcedureFocalDevice(path string, v *ProcedureFocalDevice) []string {
+	var missing []string
+	if v.Manipulated == nil {
+		missing = append(missing, path+".manipulated")
+	}
+	return missing
+}
+
+func missingRequiredProcedurePerformer(path string, v *ProcedurePerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredProvenanceAgent(path string, v *ProvenanceAgent) []string {
+	var missing []string
+	if v.Who == nil {
+		missing = append(missing, path+".who")
+	}
+	return missing
+}
+
+func missingRequiredProvenanceEntity(path string, v *ProvenanceEntity) []string {
+	var missing []string
+	if v.Role == nil {
+		missing = append(missing, path+".role")
+	}
+	if v.What == nil {
+		missing = append(missing, path+".what")
+	}
+	for i := range v.Agent {
+		missing = append(missing, missingRequiredProvenanceAgent(path+".agent["+strconv.Itoa(i)+"]", &v.Agent[i])...)
+	}
+	return missing
+}
+
+func missingRequiredQuestionnaireItem(path string, v *QuestionnaireItem) []string {
+	var missing []string
+	if v.LinkId == nil {
+		missing = append(missing, path+".linkId")
+	}
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	for i := range v.EnableWhen {
+		missing = append(missing, missingRequiredQuestionnaireItemEnableWhen(path+".enableWhen["+strconv.Itoa(i)+"]", &v.EnableWhen[i])...)
+	}
+	for i := range v.Item {
+		missing = append(missing, missingRequiredQuestionnaireItem(path+".item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesQuestionnaireItem(path string, v *QuestionnaireItem) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.EnableWhen {
+		issues = append(issues, lexicalIssuesQuestionnaireItemEnableWhen(path+".enableWhen["+strconv.Itoa(i)+"]", &v.EnableWhen[i])...)
+	}
+	for i := range v.AnswerOption {
+		issues = append(issues, lexicalIssuesQuestionnaireItemAnswerOption(path+".answerOption["+strconv.Itoa(i)+"]", &v.AnswerOption[i])...)
+	}
+	for i := range v.Initial {
+		issues = append(issues, lexicalIssuesQuestionnaireItemInitial(path+".initial["+strconv.Itoa(i)+"]", &v.Initial[i])...)
+	}
+	for i := range v.Item {
+		issues = append(issues, lexicalIssuesQuestionnaireItem(path+".item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+	}
+	return issues
+}
+
+func lexicalIssuesQuestionnaireItemAnswerOption(path string, v *QuestionnaireItemAnswerOption) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	return issues
+}
+
+func missingRequiredQuestionnaireItemEnableWhen(path string, v *QuestionnaireItemEnableWhen) []string {
+	var missing []string
+	if v.Question == nil {
+		missing = append(missing, path+".question")
+	}
+	if v.Operator == nil {
+		missing = append(missing, path+".operator")
+	}
+	return missing
+}
+
+func lexicalIssuesQuestionnaireItemEnableWhen(path string, v *QuestionnaireItemEnableWhen) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.AnswerDate != nil && !validDateLexical(string(*v.AnswerDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".answerDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	if v.AnswerDateTime != nil && !validDateTimeLexical(string(*v.AnswerDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".answerDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.AnswerTime != nil && !validTimeLexical(string(*v.AnswerTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".answerTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	return issues
+}
+
+func lexicalIssuesQuestionnaireItemInitial(path string, v *QuestionnaireItemInitial) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	return issues
+}
+
+func missingRequiredQuestionnaireResponseItem(path string, v *QuestionnaireResponseItem) []string {
+	var missing []string
+	if v.LinkId == nil {
+		missing = append(missing, path+".linkId")
+	}
+	for i := range v.Answer {
+		missing = append(missing, missingRequiredQuestionnaireResponseItemAnswer(path+".answer["+strconv.Itoa(i)+"]", &v.Answer[i])...)
+	}
+	for i := range v.Item {
+		missing = append(missing, missingRequiredQuestionnaireResponseItem(path+".item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesQuestionnaireResponseItem(path string, v *QuestionnaireResponseItem) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Answer {
+		issues = append(issues, lexicalIssuesQuestionnaireResponseItemAnswer(path+".answer["+strconv.Itoa(i)+"]", &v.Answer[i])...)
+	}
+	for i := range v.Item {
+		issues = append(issues, lexicalIssuesQuestionnaireResponseItem(path+".item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+	}
+	return issues
+}
+
+func missingRequiredQuestionnaireResponseItemAnswer(path string, v *QuestionnaireResponseItemAnswer) []string {
+	var missing []string
+	for i := range v.Item {
+		missing = append(missing, missingRequiredQuestionnaireResponseItem(path+".item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesQuestionnaireResponseItemAnswer(path string, v *QuestionnaireResponseItemAnswer) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	for i := range v.Item {
+		issues = append(issues, lexicalIssuesQuestionnaireResponseItem(path+".item["+strconv.Itoa(i)+"]", &v.Item[i])...)
+	}
+	return issues
+}
+
+func lexicalIssuesRegulatedAuthorizationCase(path string, v *RegulatedAuthorizationCase) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.DateDateTime != nil && !validDateTimeLexical(string(*v.DateDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".dateDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	for i := range v.Application {
+		issues = append(issues, lexicalIssuesRegulatedAuthorizationCase(path+".application["+strconv.Itoa(i)+"]", &v.Application[i])...)
+	}
+	return issues
+}
+
+func missingRequiredRelatedPersonCommunication(path string, v *RelatedPersonCommunication) []string {
+	var missing []string
+	if v.Language == nil {
+		missing = append(missing, path+".language")
+	}
+	return missing
+}
+
+func missingRequiredRequestOrchestrationAction(path string, v *RequestOrchestrationAction) []string {
+	var missing []string
+	for i := range v.Condition {
+		missing = append(missing, missingRequiredRequestOrchestrationActionCondition(path+".condition["+strconv.Itoa(i)+"]", &v.Condition[i])...)
+	}
+	for i := range v.RelatedAction {
+		missing = append(missing, missingRequiredRequestOrchestrationActionRelatedAction(path+".relatedAction["+strconv.Itoa(i)+"]", &v.RelatedAction[i])...)
+	}
+	for i := range v.Action {
+		missing = append(missing, missingRequiredRequestOrchestrationAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesRequestOrchestrationAction(path string, v *RequestOrchestrationAction) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.TimingDateTime != nil && !validDateTimeLexical(string(*v.TimingDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".timingDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	for i := range v.Action {
+		issues = append(issues, lexicalIssuesRequestOrchestrationAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	return issues
+}
+
+func missingRequiredRequestOrchestrationActionCondition(path string, v *RequestOrchestrationActionCondition) []string {
+	var missing []string
+	if v.Kind == nil {
+		missing = append(missing, path+".kind")
+	}
+	return missing
+}
+
+func missingRequiredRequestOrchestrationActionRelatedAction(path string, v *RequestOrchestrationActionRelatedAction) []string {
+	var missing []string
+	if v.TargetId == nil {
+		missing = append(missing, path+".targetId")
+	}
+	if v.Relationship == nil {
+		missing = append(missing, path+".relationship")
+	}
+	return missing
+}
+
+func missingRequiredRequirementsStatement(path string, v *RequirementsStatement) []string {
+	var missing []string
+	if v.Key == nil {
+		missing = append(missing, path+".key")
+	}
+	if v.Requirement == nil {
+		missing = append(missing, path+".requirement")
+	}
+	return missing
+}
+
+func missingRequiredResearchStudyAssociatedParty(path string, v *ResearchStudyAssociatedParty) []string {
+	var missing []string
+	if v.Role == nil {
+		missing = append(missing, path+".role")
+	}
+	return missing
+}
+
+func missingRequiredResearchStudyComparisonGroup(path string, v *ResearchStudyComparisonGroup) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	return missing
+}
+
+func missingRequiredResearchStudyProgressStatus(path string, v *ResearchStudyProgressStatus) []string {
+	var missing []string
+	if v.State == nil {
+		missing = append(missing, path+".state")
+	}
+	return missing
+}
+
+func lexicalIssuesResearchSubjectProgress(path string, v *ResearchSubjectProgress) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.StartDate != nil && !validDateTimeLexical(*v.StartDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".startDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.EndDate != nil && !validDateTimeLexical(*v.EndDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".endDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredSearchParameterComponent(path string, v *SearchParameterComponent) []string {
+	var missing []string
+	if v.Definition == nil {
+		missing = append(missing, path+".definition")
+	}
+	if v.Expression == nil {
+		missing = append(missing, path+".expression")
+	}
+	return missing
+}
+
+func missingRequiredServiceRequestOrderDetail(path string, v *ServiceRequestOrderDetail) []string {
+	var missing []string
+	if len(v.Parameter) == 0 {
+		missing = append(missing, path+".parameter")
+	}
+	for i := range v.Parameter {
+		missing = append(missing, missingRequiredServiceRequestOrderDetailParameter(path+".parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
+	}
+	return missing
+}
+
+func missingRequiredServiceRequestOrderDetailParameter(path string, v *ServiceRequestOrderDetailParameter) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func lexicalIssuesSpecimenCollection(path string, v *SpecimenCollection) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.CollectedDateTime != nil && !validDateTimeLexical(string(*v.CollectedDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".collectedDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredSpecimenContainer(path string, v *SpecimenContainer) []string {
+	var missing []string
+	if v.Device == nil {
+		missing = append(missing, path+".device")
+	}
+	return missing
+}
+
+func missingRequiredSpecimenFeature(path string, v *SpecimenFeature) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Description == nil {
+		missing = append(missing, path+".description")
+	}
+	return missing
+}
+
+func lexicalIssuesSpecimenProcessing(path string, v *SpecimenProcessing) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.TimeDateTime != nil && !validDateTimeLexical(string(*v.TimeDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".timeDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredSpecimenDefinitionTypeTested(path string, v *SpecimenDefinitionTypeTested) []string {
+	var missing []string
+	if v.Preference == nil {
+		missing = append(missing, path+".preference")
+	}
+	return missing
+}
+
+func missingRequiredStructureDefinitionContext(path string, v *StructureDefinitionContext) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.Expression == nil {
+		missing = append(missing, path+".expression")
+	}
+	return missing
+}
+
+func missingRequiredStructureDefinitionMapping(path string, v *StructureDefinitionMapping) []string {
+	var missing []string
+	if v.Identity == nil {
+		missing = append(missing, path+".identity")
+	}
+	return missing
+}
+
+func missingRequiredStructureDefinitionSnapshot(path string, v *StructureDefinitionSnapshot) []string {
+	var missing []string
+	if len(v.Element) == 0 {
+		missing = append(missing, path+".element")
+	}
+	return missing
+}
+
+func missingRequiredStructureMapGroup(path string, v *StructureMapGroup) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if len(v.Input) == 0 {
+		missing = append(missing, path+".input")
+	}
+	for i := range v.Input {
+		missing = append(missing, missingRequiredStructureMapGroupInput(path+".input["+strconv.Itoa(i)+"]", &v.Input[i])...)
+	}
+	for i := range v.Rule {
+		missing = append(missing, missingRequiredStructureMapGroupRule(path+".rule["+strconv.Itoa(i)+"]", &v.Rule[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesStructureMapGroup(path string, v *StructureMapGroup) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Rule {
+		issues = append(issues, lexicalIssuesStructureMapGroupRule(path+".rule["+strconv.Itoa(i)+"]", &v.Rule[i])...)
+	}
+	return issues
+}
+
+func missingRequiredStructureMapGroupInput(path string, v *StructureMapGroupInput) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if v.Mode == nil {
+		missing = append(missing, path+".mode")
+	}
+	return missing
+}
+
+func missingRequiredStructureMapGroupRule(path string, v *StructureMapGroupRule) []string {
+	var missing []string
+	if len(v.Source) == 0 {
+		missing = append(missing, path+".source")
+	}
+	for i := range v.Source {
+		missing = append(missing, missingRequiredStructureMapGroupRuleSource(path+".source["+strconv.Itoa(i)+"]", &v.Source[i])...)
+	}
+	for i := range v.Rule {
+		missing = append(missing, missingRequiredStructureMapGroupRule(path+".rule["+strconv.Itoa(i)+"]", &v.Rule[i])...)
+	}
+	for i := range v.Dependent {
+		missing = append(missing, missingRequiredStructureMapGroupRuleDependent(path+".dependent["+strconv.Itoa(i)+"]", &v.Dependent[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesStructureMapGroupRule(path string, v *StructureMapGroupRule) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Target {
+		issues = append(issues, lexicalIssuesStructureMapGroupRuleTarget(path+".target["+strconv.Itoa(i)+"]", &v.Target[i])...)
+	}
+	for i := range v.Rule {
+		issues = append(issues, lexicalIssuesStructureMapGroupRule(path+".rule["+strconv.Itoa(i)+"]", &v.Rule[i])...)
+	}
+	for i := range v.Dependent {
+		issues = append(issues, lexicalIssuesStructureMapGroupRuleDependent(path+".dependent["+strconv.Itoa(i)+"]", &v.Dependent[i])...)
+	}
+	return issues
+}
+
+func missingRequiredStructureMapGroupRuleDependent(path string, v *StructureMapGroupRuleDependent) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if len(v.Parameter) == 0 {
+		missing = append(missing, path+".parameter")
+	}
+	return missing
+}
+
+func lexicalIssuesStructureMapGroupRuleDependent(path string, v *StructureMapGroupRuleDependent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Parameter {
+		issues = append(issues, lexicalIssuesStructureMapGroupRuleTargetParameter(path+".parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
+	}
+	return issues
+}
+
+func missingRequiredStructureMapGroupRuleSource(path string, v *StructureMapGroupRuleSource) []string {
+	var missing []string
+	if v.Context == nil {
+		missing = append(missing, path+".context")
+	}
+	return missing
+}
+
+func lexicalIssuesStructureMapGroupRuleTarget(path string, v *StructureMapGroupRuleTarget) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Parameter {
+		issues = append(issues, lexicalIssuesStructureMapGroupRuleTargetParameter(path+".parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
+	}
+	return issues
+}
+
+func lexicalIssuesStructureMapGroupRuleTargetParameter(path string, v *StructureMapGroupRuleTargetParameter) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredStructureMapStructure(path string, v *StructureMapStructure) []string {
+	var missing []string
+	if v.URL == nil {
+		missing = append(missing, path+".url")
+	}
+	if v.Mode == nil {
+		missing = append(missing, path+".mode")
+	}
+	return missing
+}
+
+func missingRequiredSubscriptionFilterBy(path string, v *SubscriptionFilterBy) []string {
+	var missing []string
+	if v.FilterParameter == nil {
+		missing = append(missing, path+".filterParameter")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredSubscriptionParameter(path string, v *SubscriptionParameter) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredSubscriptionStatusNotificationEvent(path string, v *SubscriptionStatusNotificationEvent) []string {
+	var missing []string
+	if v.EventNumber == nil {
+		missing = append(missing, path+".eventNumber")
+	}
+	return missing
+}
+
+func lexicalIssuesSubscriptionStatusNotificationEvent(path string, v *SubscriptionStatusNotificationEvent) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Timestamp != nil && !validInstantLexical(*v.Timestamp) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".timestamp",
+			Diagnostics: "value is not a valid FHIR instant",
+		})
+	}
+	return issues
+}
+
+func missingRequiredSubscriptionTopicCanFilterBy(path string, v *SubscriptionTopicCanFilterBy) []string {
+	var missing []string
+	if v.FilterParameter == nil {
+		missing = append(missing, path+".filterParameter")
+	}
+	return missing
+}
+
+func missingRequiredSubscriptionTopicEventTrigger(path string, v *SubscriptionTopicEventTrigger) []string {
+	var missing []string
+	if v.Event == nil {
+		missing = append(missing, path+".event")
+	}
+	if v.Resource == nil {
+		missing = append(missing, path+".resource")
+	}
+	return missing
+}
+
+func missingRequiredSubscriptionTopicNotificationShape(path string, v *SubscriptionTopicNotificationShape) []string {
+	var missing []string
+	if v.Resource == nil {
+		missing = append(missing, path+".resource")
+	}
+	return missing
+}
+
+func missingRequiredSubscriptionTopicResourceTrigger(path string, v *SubscriptionTopicResourceTrigger) []string {
+	var missing []string
+	if v.Resource == nil {
+		missing = append(missing, path+".resource")
+	}
+	return missing
+}
+
+func lexicalIssuesSubstanceDefinitionCode(path string, v *SubstanceDefinitionCode) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.StatusDate != nil && !validDateTimeLexical(*v.StatusDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".statusDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredSubstanceDefinitionMolecularWeight(path string, v *SubstanceDefinitionMolecularWeight) []string {
+	var missing []string
+	if v.Amount == nil {
+		missing = append(missing, path+".amount")
+	}
+	return missing
+}
+
+func missingRequiredSubstanceDefinitionName(path string, v *SubstanceDefinitionName) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	for i := range v.Synonym {
+		missing = append(missing, missingRequiredSubstanceDefinitionName(path+".synonym["+strconv.Itoa(i)+"]", &v.Synonym[i])...)
+	}
+	for i := range v.Translation {
+		missing = append(missing, missingRequiredSubstanceDefinitionName(path+".translation["+strconv.Itoa(i)+"]", &v.Translation[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesSubstanceDefinitionName(path string, v *SubstanceDefinitionName) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Synonym {
+		issues = append(issues, lexicalIssuesSubstanceDefinitionName(path+".synonym["+strconv.Itoa(i)+"]", &v.Synonym[i])...)
+	}
+	for i := range v.Translation {
+		issues = append(issues, lexicalIssuesSubstanceDefinitionName(path+".translation["+strconv.Itoa(i)+"]", &v.Translation[i])...)
+	}
+	for i := range v.Official {
+		issues = append(issues, lexicalIssuesSubstanceDefinitionNameOfficial(path+".official["+strconv.Itoa(i)+"]", &v.Official[i])...)
+	}
+	return issues
+}
+
+func lexicalIssuesSubstanceDefinitionNameOfficial(path string, v *SubstanceDefinitionNameOfficial) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateTimeLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredSubstanceDefinitionProperty(path string, v *SubstanceDefinitionProperty) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesSubstanceDefinitionProperty(path string, v *SubstanceDefinitionProperty) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredSubstanceDefinitionRelationship(path string, v *SubstanceDefinitionRelationship) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredSubstanceDefinitionStructure(path string, v *SubstanceDefinitionStructure) []string {
+	var missing []string
+	if v.MolecularWeight != nil {
+		missing = append(missing, missingRequiredSubstanceDefinitionMolecularWeight(path+".molecularWeight", v.MolecularWeight)...)
+	}
+	return missing
+}
+
+func missingRequiredTaskInput(path string, v *TaskInput) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesTaskInput(path string, v *TaskInput) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.ValueInstant != nil && !validInstantLexical(string(*v.ValueInstant)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueInstant",
+			Diagnostics: "value is not a valid FHIR instant",
+		})
+	}
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	return issues
+}
+
+func missingRequiredTaskPerformer(path string, v *TaskPerformer) []string {
+	var missing []string
+	if v.Actor == nil {
+		missing = append(missing, path+".actor")
+	}
+	return missing
+}
+
+func missingRequiredTerminologyCapabilitiesCodeSystem(path string, v *TerminologyCapabilitiesCodeSystem) []string {
+	var missing []string
+	if v.Content == nil {
+		missing = append(missing, path+".content")
+	}
+	for i := range v.Version {
+		missing = append(missing, missingRequiredTerminologyCapabilitiesCodeSystemVersion(path+".version["+strconv.Itoa(i)+"]", &v.Version[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTerminologyCapabilitiesCodeSystemVersion(path string, v *TerminologyCapabilitiesCodeSystemVersion) []string {
+	var missing []string
+	for i := range v.Filter {
+		missing = append(missing, missingRequiredTerminologyCapabilitiesCodeSystemVersionFilter(path+".filter["+strconv.Itoa(i)+"]", &v.Filter[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTerminologyCapabilitiesCodeSystemVersionFilter(path string, v *TerminologyCapabilitiesCodeSystemVersionFilter) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	if len(v.Op) == 0 {
+		missing = append(missing, path+".op")
+	}
+	return missing
+}
+
+func missingRequiredTerminologyCapabilitiesExpansion(path string, v *TerminologyCapabilitiesExpansion) []string {
+	var missing []string
+	for i := range v.Parameter {
+		missing = append(missing, missingRequiredTerminologyCapabilitiesExpansionParameter(path+".parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTerminologyCapabilitiesExpansionParameter(path string, v *TerminologyCapabilitiesExpansionParameter) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	return missing
+}
+
+func missingRequiredTerminologyCapabilitiesImplementation(path string, v *TerminologyCapabilitiesImplementation) []string {
+	var missing []string
+	if v.Description == nil {
+		missing = append(missing, path+".description")
+	}
+	return missing
+}
+
+func missingRequiredTerminologyCapabilitiesSoftware(path string, v *TerminologyCapabilitiesSoftware) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	return missing
+}
+
+func missingRequiredTerminologyCapabilitiesTranslation(path string, v *TerminologyCapabilitiesTranslation) []string {
+	var missing []string
+	if v.NeedsMap == nil {
+		missing = append(missing, path+".needsMap")
+	}
+	return missing
+}
+
+func missingRequiredTerminologyCapabilitiesValidateCode(path string, v *TerminologyCapabilitiesValidateCode) []string {
+	var missing []string
+	if v.Translations == nil {
+		missing = append(missing, path+".translations")
+	}
+	return missing
+}
+
+func missingRequiredTestPlanTestCase(path string, v *TestPlanTestCase) []string {
+	var missing []string
+	for i := range v.TestData {
+		missing = append(missing, missingRequiredTestPlanTestCaseTestData(path+".testData["+strconv.Itoa(i)+"]", &v.TestData[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTestPlanTestCaseTestData(path string, v *TestPlanTestCaseTestData) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func missingRequiredTestReportParticipant(path string, v *TestReportParticipant) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	if v.URI == nil {
+		missing = append(missing, path+".uri")
+	}
+	return missing
+}
+
+func missingRequiredTestReportSetup(path string, v *TestReportSetup) []string {
+	var missing []string
+	if len(v.Action) == 0 {
+		missing = append(missing, path+".action")
+	}
+	for i := range v.Action {
+		missing = append(missing, missingRequiredTestReportSetupAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTestReportSetupAction(path string, v *TestReportSetupAction) []string {
+	var missing []string
+	if v.Operation != nil {
+		missing = append(missing, missingRequiredTestReportSetupActionOperation(path+".operation", v.Operation)...)
+	}
+	if v.Assert != nil {
+		missing = append(missing, missingRequiredTestReportSetupActionAssert(path+".assert", v.Assert)...)
+	}
+	return missing
+}
+
+func missingRequiredTestReportSetupActionAssert(path string, v *TestReportSetupActionAssert) []string {
+	var missing []string
+	if v.Result == nil {
+		missing = append(missing, path+".result")
+	}
+	return missing
+}
+
+func missingRequiredTestReportSetupActionOperation(path string, v *TestReportSetupActionOperation) []string {
+	var missing []string
+	if v.Result == nil {
+		missing = append(missing, path+".result")
+	}
+	return missing
+}
+
+func missingRequiredTestReportTeardown(path string, v *TestReportTeardown) []string {
+	var missing []string
+	if len(v.Action) == 0 {
+		missing = append(missing, path+".action")
+	}
+	for i := range v.Action {
+		missing = append(missing, missingRequiredTestReportTeardownAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTestReportTeardownAction(path string, v *TestReportTeardownAction) []string {
+	var missing []string
+	if v.Operation == nil {
+		missing = append(missing, path+".operation")
+	}
+	if v.Operation != nil {
+		missing = append(missing, missingRequiredTestReportSetupActionOperation(path+".operation", v.Operation)...)
+	}
+	return missing
+}
+
+func missingRequiredTestReportTest(path string, v *TestReportTest) []string {
+	var missing []string
+	if len(v.Action) == 0 {
+		missing = append(missing, path+".action")
+	}
+	for i := range v.Action {
+		missing = append(missing, missingRequiredTestReportSetupAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTestScriptFixture(path string, v *TestScriptFixture) []string {
+	var missing []string
+	if v.Autocreate == nil {
+		missing = append(missing, path+".autocreate")
+	}
+	if v.Autodelete == nil {
+		missing = append(missing, path+".autodelete")
+	}
+	return missing
+}
+
+func missingRequiredTestScriptMetadata(path string, v *TestScriptMetadata) []string {
+	var missing []string
+	if len(v.Capability) == 0 {
+		missing = append(missing, path+".capability")
+	}
+	for i := range v.Link {
+		missing = append(missing, missingRequiredTestScriptMetadataLink(path+".link["+strconv.Itoa(i)+"]", &v.Link[i])...)
+	}
+	for i := range v.Capability {
+		missing = append(missing, missingRequiredTestScriptMetadataCapability(path+".capability["+strconv.Itoa(i)+"]", &v.Capability[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTestScriptMetadataCapability(path string, v *TestScriptMetadataCapability) []string {
+	var missing []string
+	if v.Required == nil {
+		missing = append(missing, path+".required")
+	}
+	if v.Validated == nil {
+		missing = append(missing, path+".validated")
+	}
+	if v.Capabilities == nil {
+		missing = append(missing, path+".capabilities")
+	}
+	return missing
+}
+
+func missingRequiredTestScriptMetadataLink(path string, v *TestScriptMetadataLink) []string {
+	var missing []string
+	if v.URL == nil {
+		missing = append(missing, path+".url")
+	}
+	return missing
+}
+
+func missingRequiredTestScriptOrigin(path string, v *TestScriptOrigin) []string {
+	var missing []string
+	if v.Index == nil {
+		missing = append(missing, path+".index")
+	}
+	if v.Profile == nil {
+		missing = append(missing, path+".profile")
+	}
+	return missing
+}
+
+func missingRequiredTestScriptScope(path string, v *TestScriptScope) []string {
+	var missing []string
+	if v.Artifact == nil {
+		missing = append(missing, path+".artifact")
+	}
+	return missing
+}
+
+func missingRequiredTestScriptSetup(path string, v *TestScriptSetup) []string {
+	var missing []string
+	if len(v.Action) == 0 {
+		missing = append(missing, path+".action")
+	}
+	for i := range v.Action {
+		missing = append(missing, missingRequiredTestScriptSetupAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTestScriptSetupAction(path string, v *TestScriptSetupAction) []string {
+	var missing []string
+	if v.Operation != nil {
+		missing = append(missing, missingRequiredTestScriptSetupActionOperation(path+".operation", v.Operation)...)
+	}
+	if v.Assert != nil {
+		missing = append(missing, missingRequiredTestScriptSetupActionAssert(path+".assert", v.Assert)...)
+	}
+	return missing
+}
+
+func missingRequiredTestScriptSetupActionAssert(path string, v *TestScriptSetupActionAssert) []string {
+	var missing []string
+	if v.StopTestOnFail == nil {
+		missing = append(missing, path+".stopTestOnFail")
+	}
+	if v.WarningOnly == nil {
+		missing = append(missing, path+".warningOnly")
+	}
+	return missing
+}
+
+func missingRequiredTestScriptSetupActionOperation(path string, v *TestScriptSetupActionOperation) []string {
+	var missing []string
+	if v.EncodeRequestUrl == nil {
+		missing = append(missing, path+".encodeRequestUrl")
+	}
+	for i := range v.RequestHeader {
+		missing = append(missing, missingRequiredTestScriptSetupActionOperationRequestHeader(path+".requestHeader["+strconv.Itoa(i)+"]", &v.RequestHeader[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTestScriptSetupActionOperationRequestHeader(path string, v *TestScriptSetupActionOperationRequestHeader) []string {
+	var missing []string
+	if v.Field == nil {
+		missing = append(missing, path+".field")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredTestScriptTeardown(path string, v *TestScriptTeardown) []string {
+	var missing []string
+	if len(v.Action) == 0 {
+		missing = append(missing, path+".action")
+	}
+	for i := range v.Action {
+		missing = append(missing, missingRequiredTestScriptTeardownAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTestScriptTeardownAction(path string, v *TestScriptTeardownAction) []string {
+	var missing []string
+	if v.Operation == nil {
+		missing = append(missing, path+".operation")
+	}
+	if v.Operation != nil {
+		missing = append(missing, missingRequiredTestScriptSetupActionOperation(path+".operation", v.Operation)...)
+	}
+	return missing
+}
+
+func missingRequiredTestScriptTest(path string, v *TestScriptTest) []string {
+	var missing []string
+	if len(v.Action) == 0 {
+		missing = append(missing, path+".action")
+	}
+	for i := range v.Action {
+		missing = append(missing, missingRequiredTestScriptSetupAction(path+".action["+strconv.Itoa(i)+"]", &v.Action[i])...)
+	}
+	return missing
+}
+
+func missingRequiredTestScriptVariable(path string, v *TestScriptVariable) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	return missing
+}
+
+func missingRequiredTransportInput(path string, v *TransportInput) []string {
+	var missing []string
+	if v.Type == nil {
+		missing = append(missing, path+".type")
+	}
+	return missing
+}
+
+func lexicalIssuesTransportInput(path string, v *TransportInput) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDate != nil && !validDateLexical(string(*v.ValueDate)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	if v.ValueInstant != nil && !validInstantLexical(string(*v.ValueInstant)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueInstant",
+			Diagnostics: "value is not a valid FHIR instant",
+		})
+	}
+	if v.ValueTime != nil && !validTimeLexical(string(*v.ValueTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueTime",
+			Diagnostics: "value is not a valid FHIR time",
+		})
+	}
+	return issues
+}
+
+func missingRequiredValueSetCompose(path string, v *ValueSetCompose) []string {
+	var missing []string
+	if len(v.Include) == 0 {
+		missing = append(missing, path+".include")
+	}
+	for i := range v.Include {
+		missing = append(missing, missingRequiredValueSetComposeInclude(path+".include["+strconv.Itoa(i)+"]", &v.Include[i])...)
+	}
+	for i := range v.Exclude {
+		missing = append(missing, missingRequiredValueSetComposeInclude(path+".exclude["+strconv.Itoa(i)+"]", &v.Exclude[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesValueSetCompose(path string, v *ValueSetCompose) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.LockedDate != nil && !validDateLexical(*v.LockedDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".lockedDate",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func missingRequiredValueSetComposeInclude(path string, v *ValueSetComposeInclude) []string {
+	var missing []string
+	for i := range v.Concept {
+		missing = append(missing, missingRequiredValueSetComposeIncludeConcept(path+".concept["+strconv.Itoa(i)+"]", &v.Concept[i])...)
+	}
+	for i := range v.Filter {
+		missing = append(missing, missingRequiredValueSetComposeIncludeFilter(path+".filter["+strconv.Itoa(i)+"]", &v.Filter[i])...)
+	}
+	return missing
+}
+
+func missingRequiredValueSetComposeIncludeConcept(path string, v *ValueSetComposeIncludeConcept) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	for i := range v.Designation {
+		missing = append(missing, missingRequiredValueSetComposeIncludeConceptDesignation(path+".designation["+strconv.Itoa(i)+"]", &v.Designation[i])...)
+	}
+	return missing
+}
+
+func missingRequiredValueSetComposeIncludeConceptDesignation(path string, v *ValueSetComposeIncludeConceptDesignation) []string {
+	var missing []string
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredValueSetComposeIncludeFilter(path string, v *ValueSetComposeIncludeFilter) []string {
+	var missing []string
+	if v.Property == nil {
+		missing = append(missing, path+".property")
+	}
+	if v.Op == nil {
+		missing = append(missing, path+".op")
+	}
+	if v.Value == nil {
+		missing = append(missing, path+".value")
+	}
+	return missing
+}
+
+func missingRequiredValueSetExpansion(path string, v *ValueSetExpansion) []string {
+	var missing []string
+	if v.Timestamp == nil {
+		missing = append(missing, path+".timestamp")
+	}
+	for i := range v.Parameter {
+		missing = append(missing, missingRequiredValueSetExpansionParameter(path+".parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
+	}
+	for i := range v.Property {
+		missing = append(missing, missingRequiredValueSetExpansionProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.Contains {
+		missing = append(missing, missingRequiredValueSetExpansionContains(path+".contains["+strconv.Itoa(i)+"]", &v.Contains[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesValueSetExpansion(path string, v *ValueSetExpansion) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Timestamp != nil && !validDateTimeLexical(*v.Timestamp) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".timestamp",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	for i := range v.Parameter {
+		issues = append(issues, lexicalIssuesValueSetExpansionParameter(path+".parameter["+strconv.Itoa(i)+"]", &v.Parameter[i])...)
+	}
+	for i := range v.Contains {
+		issues = append(issues, lexicalIssuesValueSetExpansionContains(path+".contains["+strconv.Itoa(i)+"]", &v.Contains[i])...)
+	}
+	return issues
+}
+
+func missingRequiredValueSetExpansionContains(path string, v *ValueSetExpansionContains) []string {
+	var missing []string
+	for i := range v.Designation {
+		missing = append(missing, missingRequiredValueSetComposeIncludeConceptDesignation(path+".designation["+strconv.Itoa(i)+"]", &v.Designation[i])...)
+	}
+	for i := range v.Property {
+		missing = append(missing, missingRequiredValueSetExpansionContainsProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.Contains {
+		missing = append(missing, missingRequiredValueSetExpansionContains(path+".contains["+strconv.Itoa(i)+"]", &v.Contains[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesValueSetExpansionContains(path string, v *ValueSetExpansionContains) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	for i := range v.Property {
+		issues = append(issues, lexicalIssuesValueSetExpansionContainsProperty(path+".property["+strconv.Itoa(i)+"]", &v.Property[i])...)
+	}
+	for i := range v.Contains {
+		issues = append(issues, lexicalIssuesValueSetExpansionContains(path+".contains["+strconv.Itoa(i)+"]", &v.Contains[i])...)
+	}
+	return issues
+}
+
+func missingRequiredValueSetExpansionContainsProperty(path string, v *ValueSetExpansionContainsProperty) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	for i := range v.SubProperty {
+		missing = append(missing, missingRequiredValueSetExpansionContainsPropertySubProperty(path+".subProperty["+strconv.Itoa(i)+"]", &v.SubProperty[i])...)
+	}
+	return missing
+}
+
+func lexicalIssuesValueSetExpansionContainsProperty(path string, v *ValueSetExpansionContainsProperty) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	for i := range v.SubProperty {
+		issues = append(issues, lexicalIssuesValueSetExpansionContainsPropertySubProperty(path+".subProperty["+strconv.Itoa(i)+"]", &v.SubProperty[i])...)
+	}
+	return issues
+}
+
+func missingRequiredValueSetExpansionContainsPropertySubProperty(path string, v *ValueSetExpansionContainsPropertySubProperty) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func lexicalIssuesValueSetExpansionContainsPropertySubProperty(path string, v *ValueSetExpansionContainsPropertySubProperty) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredValueSetExpansionParameter(path string, v *ValueSetExpansionParameter) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	return missing
+}
+
+func lexicalIssuesValueSetExpansionParameter(path string, v *ValueSetExpansionParameter) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValueDateTime != nil && !validDateTimeLexical(string(*v.ValueDateTime)) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".valueDateTime",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredValueSetExpansionProperty(path string, v *ValueSetExpansionProperty) []string {
+	var missing []string
+	if v.Code == nil {
+		missing = append(missing, path+".code")
+	}
+	return missing
+}
+
+func lexicalIssuesVerificationResultAttestation(path string, v *VerificationResultAttestation) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Date != nil && !validDateLexical(*v.Date) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".date",
+			Diagnostics: "value is not a valid FHIR date",
+		})
+	}
+	return issues
+}
+
+func lexicalIssuesVerificationResultPrimarySource(path string, v *VerificationResultPrimarySource) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.ValidationDate != nil && !validDateTimeLexical(*v.ValidationDate) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".validationDate",
+			Diagnostics: "value is not a valid FHIR dateTime",
+		})
+	}
+	return issues
+}
+
+func missingRequiredVerificationResultValidator(path string, v *VerificationResultValidator) []string {
+	var missing []string
+	if v.Organization == nil {
+		missing = append(missing, path+".organization")
+	}
+	return missing
+}
+
+func missingRequiredVisionPrescriptionLensSpecification(path string, v *VisionPrescriptionLensSpecification) []string {
+	var missing []string
+	if v.Product == nil {
+		missing = append(missing, path+".product")
+	}
+	if v.Eye == nil {
+		missing = append(missing, path+".eye")
+	}
+	for i := range v.Prism {
+		missing = append(missing, missingRequiredVisionPrescriptionLensSpecificationPrism(path+".prism["+strconv.Itoa(i)+"]", &v.Prism[i])...)
+	}
+	return missing
+}
+
+func missingRequiredVisionPrescriptionLensSpecificationPrism(path string, v *VisionPrescriptionLensSpecificationPrism) []string {
+	var missing []string
+	if v.Amount == nil {
+		missing = append(missing, path+".amount")
+	}
+	if v.Base == nil {
+		missing = append(missing, path+".base")
+	}
+	return missing
 }

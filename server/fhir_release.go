@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -72,6 +73,29 @@ type releaseAdapter interface {
 	// create). A POST entry missing its resource is an error so a malformed transaction is rejected
 	// before commit rather than at apply time.
 	transactionPostEntries(bundle fhir.Resource) ([]transactionPostEntry, error)
+
+	// batchEntries returns one release-neutral batchEntry per entry of a batch Bundle: the request
+	// line, the entry's resource, and the entry.request conditional fields. Reading the entries is
+	// release-specific, so it lives on the adapter; an entry with no request extracts with an empty
+	// method and url, which the role rejects per-entry (bdl-3a) rather than failing the whole batch —
+	// batch entries are independent, so a malformed entry never aborts its siblings.
+	batchEntries(bundle fhir.Resource) ([]batchEntry, error)
+
+	// newBatchResponse builds the release's batch-response Bundle from the per-entry results, one
+	// response entry per request entry, in request order. A failed entry's OperationOutcome rides in
+	// response.outcome and a successful read/search entry's resource in entry.resource (FHIR R5
+	// bundle.html: the response.outcome and entry.resource elements of a batch-response entry).
+	newBatchResponse(entries []batchEntryResponse) (fhir.Resource, error)
+
+	// patchPayload extracts the JSON Patch document a PATCH batch entry conveys as a Binary resource
+	// (contentType application/json-patch+json, base64 data). It returns the decoded patch bytes and
+	// true when the resource is such a Binary, or (nil, false) otherwise so the caller falls back to the
+	// fhir+json body. Reading a Binary is release-specific, so it lives on the adapter.
+	patchPayload(r fhir.Resource) ([]byte, bool)
+
+	// bundleEntryCount returns the number of entries in a request Bundle, so the base endpoint can cap a
+	// transaction or batch submission before processing it. Reading the entry slice is release-specific.
+	bundleEntryCount(bundle fhir.Resource) (int, error)
 
 	// operationOutcome builds a release OperationOutcome resource from a set of issues, for the error
 	// response body. The issues are PHI-free structural locators.
@@ -422,6 +446,80 @@ func (a r5Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPo
 	return writes, nil
 }
 
+func (a r5Adapter) batchEntries(bundle fhir.Resource) ([]batchEntry, error) {
+	b, ok := bundle.(*r5.Bundle)
+	if !ok {
+		return nil, fmt.Errorf("server: batch bundle is a %s, not an R5 Bundle", bundle.ResourceType())
+	}
+	entries := make([]batchEntry, 0, len(b.Entry))
+	for i := range b.Entry {
+		entry := &b.Entry[i]
+		var e batchEntry
+		if entry.Resource != nil {
+			e.resource = *entry.Resource
+		}
+		if req := entry.Request; req != nil {
+			if req.Method != nil {
+				e.method = string(*req.Method)
+			}
+			e.url = deref(req.URL)
+			e.ifNoneExist = deref(req.IfNoneExist)
+			e.ifMatch = deref(req.IfMatch)
+			e.ifNoneMatch = deref(req.IfNoneMatch)
+			e.ifModifiedSince = deref(req.IfModifiedSince)
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+func (a r5Adapter) newBatchResponse(entries []batchEntryResponse) (fhir.Resource, error) {
+	bt := r5.BundleTypeBatchResponse
+	bundle := &r5.Bundle{Type: &bt, Entry: make([]r5.BundleEntry, 0, len(entries))}
+	for _, e := range entries {
+		response := &r5.BundleEntryResponse{
+			Status:       strptr(e.status),
+			Location:     optptr(e.location),
+			Etag:         optptr(e.etag),
+			LastModified: optptr(e.lastModified),
+		}
+		if e.outcome != nil {
+			outcome := e.outcome
+			response.Outcome = &outcome
+		}
+		bundleEntry := r5.BundleEntry{Response: response}
+		if e.resource != nil {
+			res := e.resource
+			bundleEntry.Resource = &res
+		}
+		bundle.Entry = append(bundle.Entry, bundleEntry)
+	}
+	return bundle, nil
+}
+
+func (a r5Adapter) patchPayload(r fhir.Resource) ([]byte, bool) {
+	bin, ok := r.(*r5.Binary)
+	if !ok || bin.ContentType == nil || bin.Data == nil {
+		return nil, false
+	}
+	if !mediaTypeEquals(*bin.ContentType, mediaTypeJSONPatch) {
+		return nil, false
+	}
+	decoded, err := base64.StdEncoding.DecodeString(*bin.Data)
+	if err != nil {
+		return nil, false
+	}
+	return decoded, true
+}
+
+func (a r5Adapter) bundleEntryCount(bundle fhir.Resource) (int, error) {
+	b, ok := bundle.(*r5.Bundle)
+	if !ok {
+		return 0, fmt.Errorf("server: bundle is a %s, not an R5 Bundle", bundle.ResourceType())
+	}
+	return len(b.Entry), nil
+}
+
 func (r5Adapter) operationOutcome(issues []outcomeIssue) fhir.Resource {
 	oo := &r5.OperationOutcome{}
 	for _, iss := range issues {
@@ -457,12 +555,13 @@ func (a r5Adapter) capabilityStatement(basePath string) fhir.Resource {
 	cs.Software = &r5.CapabilityStatementSoftware{Name: strptr(capabilitySoftwareName)}
 
 	rest := r5.CapabilityStatementRest{Mode: &mode}
-	// The role advertises only the system interaction it actually implements: the base POST does
-	// transaction processing. It does not return a batch-response (a batch Bundle is processed as a
-	// transaction), and GET at the base is a 405, so neither batch nor search-system is advertised —
-	// the served metadata matches the handler exactly rather than over-advertising.
+	// The role advertises only the system interactions it actually implements: the base POST does
+	// transaction processing (atomic) and batch processing (independent entries, a batch-response
+	// Bundle). GET at the base is a 405, so search-system is not advertised — the served metadata
+	// matches the handler exactly rather than over-advertising.
 	txn := r5.SystemRestfulInteractionTransaction
-	rest.Interaction = []r5.CapabilityStatementRestInteraction{{Code: &txn}}
+	batch := r5.SystemRestfulInteractionBatch
+	rest.Interaction = []r5.CapabilityStatementRestInteraction{{Code: &txn}, {Code: &batch}}
 	for _, rt := range workflowResourceTypes {
 		typ, err := r5.ParseResourceType(rt)
 		if err != nil {
@@ -665,6 +764,85 @@ func (a r4Adapter) transactionPostEntries(bundle fhir.Resource) ([]transactionPo
 	return writes, nil
 }
 
+// batchEntries is the R4 twin of the R5 adapter's (see that method for the per-entry stance).
+func (a r4Adapter) batchEntries(bundle fhir.Resource) ([]batchEntry, error) {
+	b, ok := bundle.(*r4.Bundle)
+	if !ok {
+		return nil, fmt.Errorf("server: batch bundle is a %s, not an R4 Bundle", bundle.ResourceType())
+	}
+	entries := make([]batchEntry, 0, len(b.Entry))
+	for i := range b.Entry {
+		entry := &b.Entry[i]
+		var e batchEntry
+		if entry.Resource != nil {
+			e.resource = *entry.Resource
+		}
+		if req := entry.Request; req != nil {
+			if req.Method != nil {
+				e.method = string(*req.Method)
+			}
+			e.url = deref(req.URL)
+			e.ifNoneExist = deref(req.IfNoneExist)
+			e.ifMatch = deref(req.IfMatch)
+			e.ifNoneMatch = deref(req.IfNoneMatch)
+			e.ifModifiedSince = deref(req.IfModifiedSince)
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// newBatchResponse is the R4 twin of the R5 adapter's (see that method for the outcome/resource
+// placement).
+func (a r4Adapter) newBatchResponse(entries []batchEntryResponse) (fhir.Resource, error) {
+	bt := r4.BundleTypeBatchResponse
+	bundle := &r4.Bundle{Type: &bt, Entry: make([]r4.BundleEntry, 0, len(entries))}
+	for _, e := range entries {
+		response := &r4.BundleEntryResponse{
+			Status:       strptr(e.status),
+			Location:     optptr(e.location),
+			Etag:         optptr(e.etag),
+			LastModified: optptr(e.lastModified),
+		}
+		if e.outcome != nil {
+			outcome := e.outcome
+			response.Outcome = &outcome
+		}
+		bundleEntry := r4.BundleEntry{Response: response}
+		if e.resource != nil {
+			res := e.resource
+			bundleEntry.Resource = &res
+		}
+		bundle.Entry = append(bundle.Entry, bundleEntry)
+	}
+	return bundle, nil
+}
+
+// patchPayload is the R4 twin of the R5 adapter's.
+func (a r4Adapter) patchPayload(r fhir.Resource) ([]byte, bool) {
+	bin, ok := r.(*r4.Binary)
+	if !ok || bin.ContentType == nil || bin.Data == nil {
+		return nil, false
+	}
+	if !mediaTypeEquals(*bin.ContentType, mediaTypeJSONPatch) {
+		return nil, false
+	}
+	decoded, err := base64.StdEncoding.DecodeString(*bin.Data)
+	if err != nil {
+		return nil, false
+	}
+	return decoded, true
+}
+
+// bundleEntryCount is the R4 twin of the R5 adapter's.
+func (a r4Adapter) bundleEntryCount(bundle fhir.Resource) (int, error) {
+	b, ok := bundle.(*r4.Bundle)
+	if !ok {
+		return 0, fmt.Errorf("server: bundle is a %s, not an R4 Bundle", bundle.ResourceType())
+	}
+	return len(b.Entry), nil
+}
+
 func (r4Adapter) operationOutcome(issues []outcomeIssue) fhir.Resource {
 	oo := &r4.OperationOutcome{}
 	for _, iss := range issues {
@@ -699,12 +877,13 @@ func (a r4Adapter) capabilityStatement(basePath string) fhir.Resource {
 	cs.Software = &r4.CapabilityStatementSoftware{Name: strptr(capabilitySoftwareName)}
 
 	rest := r4.CapabilityStatementRest{Mode: &mode}
-	// The role advertises only the system interaction it actually implements: the base POST does
-	// transaction processing. It does not return a batch-response (a batch Bundle is processed as a
-	// transaction), and GET at the base is a 405, so neither batch nor search-system is advertised —
-	// the served metadata matches the handler exactly rather than over-advertising.
+	// The role advertises only the system interactions it actually implements: the base POST does
+	// transaction processing (atomic) and batch processing (independent entries, a batch-response
+	// Bundle). GET at the base is a 405, so search-system is not advertised — the served metadata
+	// matches the handler exactly rather than over-advertising.
 	txn := r4.SystemRestfulInteractionTransaction
-	rest.Interaction = []r4.CapabilityStatementRestInteraction{{Code: &txn}}
+	batch := r4.SystemRestfulInteractionBatch
+	rest.Interaction = []r4.CapabilityStatementRestInteraction{{Code: &txn}, {Code: &batch}}
 	for _, rt := range workflowResourceTypes {
 		typ, err := r4.ParseResourceType(rt)
 		if err != nil {

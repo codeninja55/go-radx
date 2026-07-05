@@ -16,6 +16,7 @@ type validatable struct {
 	branchA      *string // choice branch A
 	branchB      *string // choice branch B
 	code         *string // a required-binding code
+	when         *string // a date/time-family primitive with lexical rules
 }
 
 func (v *validatable) ResourceType() string { return v.resourceType }
@@ -60,6 +61,22 @@ func registerValidatable(t *testing.T, resourceType string) {
 				issues = append(issues, BindingIssue{
 					Expression:  resourceType + ".code",
 					Diagnostics: "code is not in the required Example value set",
+				})
+			}
+			return issues
+		},
+		Primitives: func(r Resource) []PrimitiveIssue {
+			v, ok := r.(*validatable)
+			if !ok {
+				return nil
+			}
+			var issues []PrimitiveIssue
+			// The stand-in lexical rule: any present value other than "2026-01-01" is
+			// invalid, so the engine path is exercised without the release regexes.
+			if v.when != nil && *v.when != "2026-01-01" {
+				issues = append(issues, PrimitiveIssue{
+					Expression:  resourceType + ".when",
+					Diagnostics: "value is not a valid FHIR date",
 				})
 			}
 			return issues
@@ -228,6 +245,39 @@ func TestRegisterValidationDescriptorRejectsEmpty(t *testing.T) {
 		}
 	}()
 	RegisterValidationDescriptor("", ValidationDescriptor{})
+}
+
+// TestValidatePrimitiveLexical drives the engine's Primitives path: a present
+// date-family value that violates the descriptor's lexical rule is one value-coded
+// error naming the path and the primitive type — never the offending value, which can
+// itself be PHI — and a valid or absent value reports nothing.
+func TestValidatePrimitiveLexical(t *testing.T) {
+	const rt = "ValidatablePrimitive"
+	registerValidatable(t, rt)
+	valid := &validatable{resourceType: rt, status: strPtr("active"), flag: boolPtr(true)}
+	if oo := Validate(valid); oo.HasErrors() {
+		t.Fatalf("an absent primitive should report nothing, got %+v", oo.Issue)
+	}
+	valid.when = strPtr("2026-01-01")
+	if oo := Validate(valid); oo.HasErrors() {
+		t.Fatalf("a valid primitive should report nothing, got %+v", oo.Issue)
+	}
+
+	invalid := &validatable{resourceType: rt, status: strPtr("active"), flag: boolPtr(true), when: strPtr("2026-13-01")}
+	oo := Validate(invalid)
+	if len(oo.Issue) != 1 {
+		t.Fatalf("expected one primitive lexical issue, got %+v", oo.Issue)
+	}
+	issue := oo.Issue[0]
+	if issue.Code != IssueTypeValue {
+		t.Errorf("a lexical violation should be a value issue, got %q", issue.Code)
+	}
+	if issue.Expression != rt+".when" {
+		t.Errorf("issue should name the element path, got %q", issue.Expression)
+	}
+	if strings.Contains(issue.Diagnostics, "2026-13-01") {
+		t.Errorf("the diagnostic must never echo the value (it can be PHI): %q", issue.Diagnostics)
+	}
 }
 
 // TestOperationOutcomeErrorIsNilWhenClean confirms a clean outcome maps to a nil Go error

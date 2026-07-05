@@ -26,10 +26,10 @@ day), M (1-3 days), L (over 3 days).
 | DICOM data layer | pydicom + pylibjpeg | [dicom.md](dicom.md) | 88 | 66 | 9 | 7 | 6 |
 | DIMSE networking | pynetdicom 3.0.4 | [dimse.md](dimse.md) | 93 | 66 | 8 | 18 | 1 |
 | HL7 v2 (floor) | python-hl7 | [hl7v2.md](hl7v2.md) | 32 | 31 | 0 | 0 | 1 |
-| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 56 | 8 | 29 | 5 |
+| FHIR | fhir.resources + HAPI REST | [fhir.md](fhir.md) | 98 | 58 | 8 | 27 | 5 |
 | DICOMweb | dicomweb-client + PS3.18 | [dicomweb.md](dicomweb.md) | 75 | 48 | 7 | 18 | 2 |
 | radx CLI | dcmtk application suite | [cli.md](cli.md) | 28 | 8 | 13 | 7 | 0 |
-| Total | | | 414 | 275 | 45 | 79 | 15 |
+| Total | | | 414 | 277 | 45 | 77 | 15 |
 
 The HL7 matrix additionally carries a clearly-labelled stretch section against the HAPI v2 message catalogue
 (~195 typed structures per version vs go-radx's 5 radiology-scoped families); those rows are sized in

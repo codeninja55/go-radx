@@ -813,10 +813,10 @@ func TestFHIRRoleClientTransactionAtBase(t *testing.T) {
 }
 
 // TestFHIRRoleRejectsNonTransactionBundleAtBase proves the system endpoint processes only a
-// transaction Bundle: a collection Bundle POSTed to the base is rejected with a 400 OperationOutcome
-// before the repository is touched, never run as a transaction and answered with a 200
-// transaction-response. The role advertises only the transaction system interaction, so accepting a
-// collection or searchset Bundle would silently process a request it does not implement.
+// transaction or batch Bundle: a collection Bundle POSTed to the base is rejected with a 400
+// OperationOutcome before the repository is touched, never run as a submission. The role advertises
+// only the transaction and batch system interactions, so accepting a collection or searchset Bundle
+// would silently process a request it does not implement.
 func TestFHIRRoleRejectsNonTransactionBundleAtBase(t *testing.T) {
 	for _, release := range fhirReleases() {
 		t.Run(string(release), func(t *testing.T) {
@@ -1306,9 +1306,9 @@ func TestFHIRRoleCapabilityStatement(t *testing.T) {
 				t.Error("metadata: expected the Patient $validate operation to be advertised with its canonical definition")
 			}
 			// The served metadata must list only the system interactions the handler implements:
-			// transaction (the base POST) and nothing else. The handler does not return a batch-response
-			// and answers GET at the base with a 405, so advertising batch or search-system would
-			// over-advertise. A client preflighting via /metadata must see an accurate picture.
+			// transaction and batch (the base POST dispatches on Bundle.type) and nothing else. GET at
+			// the base is a 405, so advertising search-system would over-advertise. A client
+			// preflighting via /metadata must see an accurate picture.
 			system := map[string]bool{}
 			for _, i := range cs.Rest[0].Interaction {
 				system[i.Code] = true
@@ -1316,14 +1316,14 @@ func TestFHIRRoleCapabilityStatement(t *testing.T) {
 			if !system["transaction"] {
 				t.Error("metadata: expected the transaction system interaction to be advertised")
 			}
-			if system["batch"] {
-				t.Error("metadata: batch is advertised but the handler does not return a batch-response")
+			if !system["batch"] {
+				t.Error("metadata: expected the batch system interaction to be advertised")
 			}
 			if system["search-system"] {
 				t.Error("metadata: search-system is advertised but the handler does not implement it")
 			}
-			if len(cs.Rest[0].Interaction) != 1 {
-				t.Errorf("metadata: system interactions = %+v, want only transaction", cs.Rest[0].Interaction)
+			if len(cs.Rest[0].Interaction) != 2 {
+				t.Errorf("metadata: system interactions = %+v, want only transaction and batch", cs.Rest[0].Interaction)
 			}
 		})
 	}

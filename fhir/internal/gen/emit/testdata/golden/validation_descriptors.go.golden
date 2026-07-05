@@ -2,14 +2,20 @@
 
 package r5
 
-import "github.com/codeninja55/go-radx/fhir"
+import (
+	"strconv"
+
+	"github.com/codeninja55/go-radx/fhir"
+)
 
 // init registers a structural validation descriptor for every r5 resource with
 // the release-local Registry, so r5.Validate can check a resource's
-// required-element presence, choice-group mutual exclusion, and required-binding codes from
-// generated metadata without reflecting over the resource at call time. Each descriptor's
-// closures type-assert the fhir.Resource to the concrete type once and read exactly the
-// fields the generator resolved as required, polymorphic, or bound.
+// required-element presence (top-level and inside backbone elements, via the walk helpers
+// at the bottom of this file), choice-group mutual exclusion, required-binding codes, and
+// date/dateTime/time/instant lexical validity from generated metadata without reflecting
+// over the resource at call time. Each descriptor's closures type-assert the fhir.Resource
+// to the concrete type once and read exactly the fields the generator resolved as
+// required, polymorphic, bound, or lexically constrained.
 func init() {
 	Registry.RegisterValidationDescriptor(SampleResourceType, fhir.ValidationDescriptor{
 		Required: func(r fhir.Resource) []string {
@@ -23,6 +29,14 @@ func init() {
 			}
 			if len(v.Members) == 0 {
 				missing = append(missing, "Sample.members")
+			}
+			missing = append(missing, missingExtensionURLs("Sample.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("Sample.modifierExtension", v.ModifierExtension)...)
+			for i := range v.Contact {
+				missing = append(missing, missingRequiredSampleContact("Sample.contact["+strconv.Itoa(i)+"]", &v.Contact[i])...)
+			}
+			if v.Source != nil {
+				missing = append(missing, missingRequiredSampleSource("Sample.source", v.Source)...)
 			}
 			return missing
 		},
@@ -56,6 +70,37 @@ func init() {
 						Diagnostics: "code is not in the required SampleCategory value set",
 					})
 				}
+			}
+			return issues
+		},
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*Sample)
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+			if v.BirthDate != nil && !validDateLexical(*v.BirthDate) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Sample.birthDate",
+					Diagnostics: "value is not a valid FHIR date",
+				})
+			}
+			for i := range v.Taken {
+				if !validDateTimeLexical(v.Taken[i]) {
+					issues = append(issues, fhir.PrimitiveIssue{
+						Expression:  "Sample.taken[" + strconv.Itoa(i) + "]",
+						Diagnostics: "value is not a valid FHIR dateTime",
+					})
+				}
+			}
+			if v.EffectiveDateTime != nil && !validDateTimeLexical(string(*v.EffectiveDateTime)) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "Sample.effectiveDateTime",
+					Diagnostics: "value is not a valid FHIR dateTime",
+				})
+			}
+			if v.Source != nil {
+				issues = append(issues, lexicalIssuesSampleSource("Sample.source", v.Source)...)
 			}
 			return issues
 		},
@@ -99,4 +144,57 @@ func init() {
 			{JSONName: "entry", IsSummary: true},
 		},
 	})
+}
+
+// The walk helpers below carry the required-presence and primitive-lexical checks into
+// backbone elements: one missingRequired/lexicalIssues function per backbone type that
+// (transitively) holds a required child or a date/time-family field. Each takes the
+// runtime element path of the backbone instance it is checking, so an issue names the
+// exact occurrence ("Bundle.entry[2].request.method") without any reflection. Presence
+// follows the same non-nil/non-empty rule as the top level (a present required false or
+// 0 is never reported missing), and a lexical issue names the path and the primitive
+// type, never the value.
+
+func missingRequiredSampleContact(path string, v *SampleContact) []string {
+	var missing []string
+	if v.Name == nil {
+		missing = append(missing, path+".name")
+	}
+	if len(v.Codes) == 0 {
+		missing = append(missing, path+".codes")
+	}
+	if v.Detail != nil {
+		missing = append(missing, missingRequiredSampleSource(path+".detail", v.Detail)...)
+	}
+	return missing
+}
+
+func missingRequiredSampleSource(path string, v *SampleSource) []string {
+	var missing []string
+	if v.System == nil {
+		missing = append(missing, path+".system")
+	}
+	return missing
+}
+
+func lexicalIssuesSampleSource(path string, v *SampleSource) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+	if v.Started != nil && !validInstantLexical(*v.Started) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + ".started",
+			Diagnostics: "value is not a valid FHIR instant",
+		})
+	}
+	for i := range v.Times {
+		if !validTimeLexical(v.Times[i]) {
+			issues = append(issues, fhir.PrimitiveIssue{
+				Expression:  path + ".times[" + strconv.Itoa(i) + "]",
+				Diagnostics: "value is not a valid FHIR time",
+			})
+		}
+	}
+	for i := range v.Parts {
+		issues = append(issues, lexicalIssuesSampleSource(path+".parts["+strconv.Itoa(i)+"]", &v.Parts[i])...)
+	}
+	return issues
 }

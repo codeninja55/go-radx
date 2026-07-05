@@ -2,18 +2,26 @@
 
 package {{ .Package }}
 
-import "github.com/codeninja55/go-radx/fhir"
+{{ if .NeedsStrconv }}import (
+	"strconv"
 
+	"github.com/codeninja55/go-radx/fhir"
+)
+{{ else }}import "github.com/codeninja55/go-radx/fhir"
+{{ end }}
 // init registers a structural validation descriptor for every {{ .Package }} resource with
 // the release-local Registry, so {{ .Package }}.Validate can check a resource's
-// required-element presence, choice-group mutual exclusion, and required-binding codes from
-// generated metadata without reflecting over the resource at call time. Each descriptor's
-// closures type-assert the fhir.Resource to the concrete type once and read exactly the
-// fields the generator resolved as required, polymorphic, or bound.
+// required-element presence (top-level and inside backbone elements, via the walk helpers
+// at the bottom of this file), choice-group mutual exclusion, required-binding codes, and
+// date/dateTime/time/instant lexical validity from generated metadata without reflecting
+// over the resource at call time. Each descriptor's closures type-assert the fhir.Resource
+// to the concrete type once and read exactly the fields the generator resolved as
+// required, polymorphic, bound, or lexically constrained.
 func init() {
 {{- range .Descriptors }}
+{{- $d := . }}
 	Registry.RegisterValidationDescriptor({{ .GoName }}ResourceType, fhir.ValidationDescriptor{
-{{- if .Required }}
+{{- if .EmitsRequired }}
 		Required: func(r fhir.Resource) []string {
 			v, ok := r.(*{{ .GoName }})
 			if !ok {
@@ -28,6 +36,21 @@ func init() {
 {{- else }}
 			if v.{{ .GoName }} == nil {
 				missing = append(missing, "{{ .Path }}")
+			}
+{{- end }}
+{{- end }}
+{{- if .CheckExtensions }}
+			missing = append(missing, missingExtensionURLs("{{ $d.FHIRName }}.extension", v.Extension)...)
+			missing = append(missing, missingExtensionURLs("{{ $d.FHIRName }}.modifierExtension", v.ModifierExtension)...)
+{{- end }}
+{{- range .RequiredCalls }}
+{{- if .Repeats }}
+			for i := range v.{{ .FieldGoName }} {
+				missing = append(missing, missingRequired{{ .TypeGoName }}("{{ $d.FHIRName }}.{{ .JSONName }}["+strconv.Itoa(i)+"]", &v.{{ .FieldGoName }}[i])...)
+			}
+{{- else }}
+			if v.{{ .FieldGoName }} != nil {
+				missing = append(missing, missingRequired{{ .TypeGoName }}("{{ $d.FHIRName }}.{{ .JSONName }}", v.{{ .FieldGoName }})...)
 			}
 {{- end }}
 {{- end }}
@@ -78,6 +101,53 @@ func init() {
 			return issues
 		},
 {{- end }}
+{{- if .EmitsPrimitives }}
+		Primitives: func(r fhir.Resource) []fhir.PrimitiveIssue {
+			v, ok := r.(*{{ .GoName }})
+			if !ok {
+				return nil
+			}
+			var issues []fhir.PrimitiveIssue
+{{- range .Primitives }}
+{{- if .Repeats }}
+			for i := range v.{{ .GoName }} {
+				if !{{ .Validator }}(v.{{ .GoName }}[i]) {
+					issues = append(issues, fhir.PrimitiveIssue{
+						Expression:  "{{ .Path }}[" + strconv.Itoa(i) + "]",
+						Diagnostics: "value is not a valid FHIR {{ .TypeName }}",
+					})
+				}
+			}
+{{- else if .Boxed }}
+			if v.{{ .GoName }} != nil && !{{ .Validator }}(string(*v.{{ .GoName }})) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "{{ .Path }}",
+					Diagnostics: "value is not a valid FHIR {{ .TypeName }}",
+				})
+			}
+{{- else }}
+			if v.{{ .GoName }} != nil && !{{ .Validator }}(*v.{{ .GoName }}) {
+				issues = append(issues, fhir.PrimitiveIssue{
+					Expression:  "{{ .Path }}",
+					Diagnostics: "value is not a valid FHIR {{ .TypeName }}",
+				})
+			}
+{{- end }}
+{{- end }}
+{{- range .LexicalCalls }}
+{{- if .Repeats }}
+			for i := range v.{{ .FieldGoName }} {
+				issues = append(issues, lexicalIssues{{ .TypeGoName }}("{{ $d.FHIRName }}.{{ .JSONName }}["+strconv.Itoa(i)+"]", &v.{{ .FieldGoName }}[i])...)
+			}
+{{- else }}
+			if v.{{ .FieldGoName }} != nil {
+				issues = append(issues, lexicalIssues{{ .TypeGoName }}("{{ $d.FHIRName }}.{{ .JSONName }}", v.{{ .FieldGoName }})...)
+			}
+{{- end }}
+{{- end }}
+			return issues
+		},
+{{- end }}
 {{- if .HasExtra }}
 		Extra: {{ .GoName }}ValidateExtra,
 {{- end }}
@@ -102,3 +172,87 @@ func init() {
 	})
 {{- end }}
 }
+
+// The walk helpers below carry the required-presence and primitive-lexical checks into
+// backbone elements: one missingRequired/lexicalIssues function per backbone type that
+// (transitively) holds a required child or a date/time-family field. Each takes the
+// runtime element path of the backbone instance it is checking, so an issue names the
+// exact occurrence ("Bundle.entry[2].request.method") without any reflection. Presence
+// follows the same non-nil/non-empty rule as the top level (a present required false or
+// 0 is never reported missing), and a lexical issue names the path and the primitive
+// type, never the value.
+{{- range .Descriptors }}
+{{- range .Helpers }}
+{{ if .EmitRequired }}
+func missingRequired{{ .GoName }}(path string, v *{{ .GoName }}) []string {
+	var missing []string
+{{- range .Required }}
+{{- if .Repeats }}
+	if len(v.{{ .GoName }}) == 0 {
+		missing = append(missing, path+"{{ .Path }}")
+	}
+{{- else }}
+	if v.{{ .GoName }} == nil {
+		missing = append(missing, path+"{{ .Path }}")
+	}
+{{- end }}
+{{- end }}
+{{- range .RequiredCalls }}
+{{- if .Repeats }}
+	for i := range v.{{ .FieldGoName }} {
+		missing = append(missing, missingRequired{{ .TypeGoName }}(path+".{{ .JSONName }}["+strconv.Itoa(i)+"]", &v.{{ .FieldGoName }}[i])...)
+	}
+{{- else }}
+	if v.{{ .FieldGoName }} != nil {
+		missing = append(missing, missingRequired{{ .TypeGoName }}(path+".{{ .JSONName }}", v.{{ .FieldGoName }})...)
+	}
+{{- end }}
+{{- end }}
+	return missing
+}
+{{- end }}
+{{ if .EmitLexical }}
+func lexicalIssues{{ .GoName }}(path string, v *{{ .GoName }}) []fhir.PrimitiveIssue {
+	var issues []fhir.PrimitiveIssue
+{{- range .Primitives }}
+{{- if .Repeats }}
+	for i := range v.{{ .GoName }} {
+		if !{{ .Validator }}(v.{{ .GoName }}[i]) {
+			issues = append(issues, fhir.PrimitiveIssue{
+				Expression:  path + "{{ .Path }}[" + strconv.Itoa(i) + "]",
+				Diagnostics: "value is not a valid FHIR {{ .TypeName }}",
+			})
+		}
+	}
+{{- else if .Boxed }}
+	if v.{{ .GoName }} != nil && !{{ .Validator }}(string(*v.{{ .GoName }})) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + "{{ .Path }}",
+			Diagnostics: "value is not a valid FHIR {{ .TypeName }}",
+		})
+	}
+{{- else }}
+	if v.{{ .GoName }} != nil && !{{ .Validator }}(*v.{{ .GoName }}) {
+		issues = append(issues, fhir.PrimitiveIssue{
+			Expression:  path + "{{ .Path }}",
+			Diagnostics: "value is not a valid FHIR {{ .TypeName }}",
+		})
+	}
+{{- end }}
+{{- end }}
+{{- range .LexicalCalls }}
+{{- if .Repeats }}
+	for i := range v.{{ .FieldGoName }} {
+		issues = append(issues, lexicalIssues{{ .TypeGoName }}(path+".{{ .JSONName }}["+strconv.Itoa(i)+"]", &v.{{ .FieldGoName }}[i])...)
+	}
+{{- else }}
+	if v.{{ .FieldGoName }} != nil {
+		issues = append(issues, lexicalIssues{{ .TypeGoName }}(path+".{{ .JSONName }}", v.{{ .FieldGoName }})...)
+	}
+{{- end }}
+{{- end }}
+	return issues
+}
+{{- end }}
+{{- end }}
+{{- end }}
