@@ -38,6 +38,7 @@ type CLI struct {
 	Scp       ScpCmd       `cmd:"" help:"Run a Storage/Verification SCP."`
 	Modify    ModifyCmd    `cmd:"" help:"Edit DICOM tags and regenerate UIDs."`
 	Transcode TranscodeCmd `cmd:"" help:"Rewrite a file's transfer syntax."`
+	Compose   ComposeCmd   `cmd:"" help:"Build a Part 10 file from PS3.18 DICOM JSON."`
 	Organize  OrganizeCmd  `cmd:"" help:"Reorganise files by Study/Series/SOP UID."`
 	Lookup    LookupCmd    `cmd:"" help:"Resolve DICOM tag dictionary information."`
 	Catalogue CatalogueCmd `cmd:"" help:"Index and query a local DICOM catalogue."`

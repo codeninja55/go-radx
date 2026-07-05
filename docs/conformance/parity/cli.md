@@ -14,7 +14,7 @@ library already provides.
 
 ## Summary
 
-28 in-scope dcmtk tools/tool-pairs: **10 MET, 11 PARTIAL, 7 NOT-MET.**
+28 in-scope dcmtk tools/tool-pairs: **11 MET, 11 PARTIAL, 6 NOT-MET.**
 
 Top gaps, largest first:
 
@@ -55,8 +55,8 @@ matching dcmtk's `+tls` family).
 | dcmdump | Dump file/dataset elements | MET | `radx dump` (`command/dump.go`): `-R` recursive, `--tag`/`--group` filters, `--process-pixel-data`, human/json/csv | - | Values shown by default with `--redact` opt-in masking PS3.15 confidentiality attributes - an intentional design decision matching dcmdump's posture, not a gap |
 | dcm2json | DICOM to PS3.18 JSON | PARTIAL | `radx dump --format json` emits radx's own tag-keyed shape (`dumpFile`/`dumpElement`), not the PS3.18 Annex F model | S | PS3.18 DICOM-JSON marshal/unmarshal already ships in the `dicomweb` package (QIDO/WADO metadata); wiring it into dump or a dedicated flag is small |
 | dcm2xml | DICOM to XML (Native Model) | PARTIAL | `dicomweb/xml.go:MarshalXML` (PS3.19 Native DICOM Model, PR #136); tests `dicomweb/xml_test.go`, `metadata_xml_test.go` | S | Library-only: `MarshalXML` encodes any `*dicom.DataSet`, but no CLI command emits XML; wiring it into `dump` or a flag closes this |
-| xml2dcm | XML to DICOM | NOT-MET | `dicomweb/xml.go:UnmarshalXML` (PS3.19, PR #136) parses Native Model XML into a `*dicom.DataSet` | M | `dicomweb` has the XML unmarshal and `dicom` has the Part 10 writer; a CLI builder command is glue plus VR/meta handling (same shape as json2dcm) |
-| json2dcm | PS3.18 JSON to DICOM | NOT-MET | None | M | `dicomweb` has the JSON unmarshal and `dicom` has the Part 10 writer; a CLI builder command is glue plus VR/meta handling |
+| xml2dcm | XML to DICOM | NOT-MET | `dicomweb/xml.go:UnmarshalXML` (PS3.19, PR #136) parses Native Model XML into a `*dicom.DataSet`; no command consumes it | S | The meta/VR glue now exists in `radx compose` (UID minting + atomic Part 10 write, representation-agnostic); the XML variant is an input-format flag away |
+| json2dcm | PS3.18 JSON to DICOM | MET | `radx compose IN.json OUT.dcm` (`command/compose.go`, `ComposeCmd`): PS3.18 Annex F decode via `dicomweb.UnmarshalJSON`, File Meta derived from the dataset with SOP/Study/Series UIDs minted only where absent, `--transfer-syntax` UID/keyword, stdin via `-`; byte-checked round trip `TestComposeRoundTripsPS318JSONToPart10`, hostile inputs (unknown VR, bad InlineBinary) fail closed (`command/compose_test.go`) | - | Uncompressed output syntaxes only (PS3.18 JSON carries native binary values; compress with `radx transcode`); UIDs are minted only where absent, with no force-regenerate flags (use `radx modify --regenerate-*`) |
 | dump2dcm | ASCII dump to DICOM | NOT-MET | None | M | No dump-text parser; lower value given json2dcm would cover the round-trip need |
 | dcmodify | Insert/modify/erase tags, generate UIDs | PARTIAL | `radx modify` (`command/modify.go`): `--insert`, `--delete`, `--regenerate-{study,series,instance,all}-uids` with batch-consistent UID remapping, atomic temp-and-rename writes | M | No sequence-path syntax (`seq[n].element`), no `--modify-all`/`--erase-all` wildcards, no file-based value insert; UID regeneration preserves the study/series reference graph across a batch, which dcmodify does not do per-run |
 | dcmconv | Convert file encoding (implicit/explicit, deflated, charset) | PARTIAL | `radx transcode` (`command/transcode.go`, `TranscodeCmd`): `--to` UID/keyword targets across the uncompressed and Deflated syntaxes, `--output-dir`/`--in-place`, `-R`; atomic temp-and-rename writes; pixel-less meta rewrite (`TestTranscodePixelLessObjectRewritesMetaOnly`, `TestTranscodeDecompressesRLEToExplicitVRLE`, `command/transcode_test.go`) | S | Charset conversion (dcmconv's `+U8` character-set repertoire rewrite) not covered; that is the remaining named gap |
