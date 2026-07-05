@@ -49,6 +49,10 @@ type Client struct {
 	transport  http.RoundTripper
 	authLayer  func(base http.RoundTripper, origin *url.URL) http.RoundTripper
 	clientCert *tls.Certificate
+
+	// retryPolicy, when set by WithRetry, wraps the composed transport in the bounded
+	// idempotent-retry layer. Nil means retries are off, the default.
+	retryPolicy *RetryPolicy
 }
 
 // ClientOption configures a Client. There is no global configuration; every knob is an
@@ -185,8 +189,8 @@ func (c *Client) applyAuth() {
 		// here so it composes identically to the other schemes (PRD §9.8).
 		layer = bearerAuthLayer(c.bearerToken)
 	}
-	if layer == nil && c.transport == nil && c.clientCert == nil {
-		// No auth option touches the transport; leave the supplied client's transport as-is.
+	if layer == nil && c.transport == nil && c.clientCert == nil && c.retryPolicy == nil {
+		// No option touches the transport; leave the supplied client's transport as-is.
 		return
 	}
 
@@ -205,6 +209,11 @@ func (c *Client) applyAuth() {
 		// parse yields a nil origin, which fails closed (no request is same-origin).
 		origin, _ := url.Parse(c.baseURL)
 		base = layer(base, origin)
+	}
+	if c.retryPolicy != nil {
+		// The retry layer is outermost so a retried attempt re-enters the credential layer
+		// and carries a fresh token when the source refreshed between attempts.
+		base = &retryTransport{next: base, policy: *c.retryPolicy}
 	}
 	clientCopy := *c.httpClient
 	clientCopy.Transport = base

@@ -12,6 +12,16 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- DICOMweb completion increments: Retrieve Capabilities (OPTIONS on the service root, PS3.18 8.9 WADL,
+  server and `Client.Capabilities`); opt-in bounded HTTP retry (`WithRetry`, idempotent requests only,
+  transient statuses 500/502/503/504 plus Retry-After-honouring 429/503 with overflow clamping); byte-range
+  retrieval on bulk-data references (`ResolveBulkDataURIRange` with an explicit open-ended form so
+  `bytes=0-0` is expressible); and auto-paginating QIDO-RS search (`SearchStudiesAll`/`SearchSeriesAll`/
+  `SearchInstancesAll` with quote-aware Warning-299 semantics, empty-page termination matching the
+  reference's `get_remaining`, non-advancing-origin fail-fast, and single-page `...Page` variants surfacing
+  the truncation signal). The DICOMweb matrix moves to 48 MET / 7 PARTIAL / 18 NOT-MET / 2 N-A; aggregate
+  275 MET / 45 PARTIAL / 79 NOT-MET / 15 N-A. (#155)
+
 - Frame rendering to 8-bit consumer images: `dicom.RenderFrame` runs the PS3.3 C.11 grayscale pipeline
   (modality LUT, then VOI LUT table / window / padding-aware min-max auto-stretch, MONOCHROME1 inverted) and
   the colour paths (palette expansion, RGB and YBR conversion) over a decoded frame, with an `EncodePPM`

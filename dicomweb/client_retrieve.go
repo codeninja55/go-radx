@@ -283,6 +283,60 @@ func (c *Client) RetrieveBulkData(ctx context.Context, p ResourcePath) ([][]byte
 // header to another host would let a malicious or compromised origin harvest the PACS
 // credential, so a cross-origin reference is fetched without credentials (PRD §9.8).
 func (c *Client) ResolveBulkDataURI(ctx context.Context, uri BulkDataURI) ([]byte, error) {
+	return c.resolveBulkData(ctx, uri, "")
+}
+
+// ByteRange is an inclusive HTTP byte range on a bulk-data value (RFC 9110 §14.1.2,
+// rendered as "bytes=Start-End"). Start is the zero-based first octet. End is the
+// inclusive last octet; a nil End is explicitly open-ended ("bytes=Start-", the value's
+// tail), mirroring the omitted end of dicomweb-client's byte_range tuple, so every closed
+// range — including the single first byte, bytes=0-0 — is representable.
+type ByteRange struct {
+	Start int64
+	End   *int64
+}
+
+// header renders the Range header value, rejecting a negative start, a negative end, or
+// an end before the start so a malformed range never reaches the wire.
+func (r ByteRange) header() (string, error) {
+	if r.Start < 0 {
+		return "", fmt.Errorf("%w: byte range start is negative", ErrInvalidResource)
+	}
+	if r.End == nil {
+		return fmt.Sprintf("bytes=%d-", r.Start), nil
+	}
+	if *r.End < 0 {
+		return "", fmt.Errorf("%w: byte range end is negative", ErrInvalidResource)
+	}
+	if *r.End < r.Start {
+		return "", fmt.Errorf("%w: byte range end precedes its start", ErrInvalidResource)
+	}
+	return fmt.Sprintf("bytes=%d-%d", r.Start, *r.End), nil
+}
+
+// ResolveBulkDataURIRange fetches part of the octets a BulkDataURI references by sending
+// a Range header (dicomweb-client's byte_range). The origin decides whether to honour it:
+// a 206 Partial Content answer carries only the requested octets, while an origin that
+// ignores the range answers 200 with the full value, which is returned as-is, matching
+// the reference client's semantics. Either answer may arrive in the usual
+// multipart/related framing or as a raw application/octet-stream body; both are handled.
+// The origin checks and credential scoping of ResolveBulkDataURI apply unchanged.
+func (c *Client) ResolveBulkDataURIRange(ctx context.Context, uri BulkDataURI, br ByteRange) ([]byte, error) {
+	rangeHeader, err := br.header()
+	if err != nil {
+		return nil, err
+	}
+	return c.resolveBulkData(ctx, uri, rangeHeader)
+}
+
+// resolveBulkData is the shared bulk-data fetch behind ResolveBulkDataURI and
+// ResolveBulkDataURIRange. A 206 is accepted only when a range was requested, so an
+// origin can never silently hand back less than the whole value on a rangeless fetch. A
+// multipart/related body yields its first part's octets; on a rangeful request a raw
+// application/octet-stream body (the unframed form some origins serve, whether they
+// honoured the range with a 206 or ignored it with a 200) yields the body itself. A
+// rangeless fetch still requires the multipart framing.
+func (c *Client) resolveBulkData(ctx context.Context, uri BulkDataURI, rangeHeader string) ([]byte, error) {
 	target := c.absoluteBulkDataURL(string(uri))
 	if err := c.checkBulkDataOrigin(target); err != nil {
 		return nil, err
@@ -292,16 +346,23 @@ func (c *Client) ResolveBulkDataURI(ctx context.Context, uri BulkDataURI) ([]byt
 		return nil, fmt.Errorf("dicomweb: build bulkdata request: %w", err)
 	}
 	req.Header.Set("Accept", acceptOctetStream())
+	if rangeHeader != "" {
+		req.Header.Set("Range", rangeHeader)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("dicomweb: GET bulkdata: %w", sanitizeTransportError(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
+	partial := resp.StatusCode == http.StatusPartialContent && rangeHeader != ""
+	if resp.StatusCode != http.StatusOK && !partial {
 		return nil, &HTTPError{StatusCode: resp.StatusCode, Method: http.MethodGet, URL: "/bulkdata"}
 	}
 	if !isMultipartRelated(resp.Header.Get("Content-Type")) {
+		if rangeHeader != "" && rawBulkDataBody(resp.Header.Get("Content-Type")) {
+			return io.ReadAll(c.boundedBody(resp))
+		}
 		return nil, fmt.Errorf("%w: bulkdata response is not multipart/related", ErrNotAcceptable)
 	}
 
@@ -317,6 +378,14 @@ func (c *Client) ResolveBulkDataURI(ctx context.Context, uri BulkDataURI) ([]byt
 		return nil, err
 	}
 	return io.ReadAll(part)
+}
+
+// rawBulkDataBody reports whether a non-multipart Content-Type may carry the raw octets
+// of a rangeful bulk-data answer: application/octet-stream or an absent type. Anything
+// else (an HTML error page, say) is refused rather than read as bulk data.
+func rawBulkDataBody(contentType string) bool {
+	mt := mediaTypeOf(contentType)
+	return mt == "" || mt == mediaTypeOctet
 }
 
 // absoluteBulkDataURL resolves a possibly relative BulkDataURI against the client's

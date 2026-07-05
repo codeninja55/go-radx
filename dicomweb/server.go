@@ -96,10 +96,11 @@ func WithMaxMultipartParts(n int) ServerOption {
 }
 
 // WithStoreRetrieveURLBase sets the absolute base URL the STOW-RS store response's Retrieve
-// URLs are rooted at, for example https://pacs.example.org/dicom-web. When unset, the base is
-// derived per request from its scheme and host, which is correct for a directly-addressed
-// server but wrong behind a reverse proxy that rewrites the public origin; set this to the
-// public DICOMweb root in that deployment so a returned Retrieve URL resolves from the client.
+// URLs and the capabilities description's resources base are rooted at, for example
+// https://pacs.example.org/dicom-web. When unset, the base is derived per request from its
+// scheme and host, which is correct for a directly-addressed server but wrong behind a
+// reverse proxy that rewrites the public origin; set this to the public DICOMweb root in
+// that deployment so a returned URL resolves from the client.
 func WithStoreRetrieveURLBase(base string) ServerOption {
 	return func(s *Server) { s.retrieveURLBase = strings.TrimRight(base, "/") }
 }
@@ -131,13 +132,15 @@ func (s *Server) Handler() http.Handler {
 }
 
 // route dispatches a request to the matching DICOMweb service. The router is deliberately
-// small: it recognises the STOW-RS POST to /studies, the WADO-RS instance GET, and the
-// QIDO-RS search GETs, and answers every other path with a typed 501 rather than a silent
-// 200 (PRD §9.2).
+// small: it recognises the capabilities OPTIONS on the service root, the STOW-RS POST to
+// /studies, the WADO-RS instance GET, and the QIDO-RS search GETs, and answers every other
+// path with a typed 501 rather than a silent 200 (PRD §9.2).
 func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	segs := splitPath(r.URL.Path)
 
 	switch {
+	case r.Method == http.MethodOptions && len(segs) == 0:
+		s.handleCapabilities(w, r)
 	case r.Method == http.MethodGet && isWADOURI(r):
 		s.handleWADOURI(w, r)
 	case r.Method == http.MethodPost && isStudiesStore(segs):

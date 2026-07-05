@@ -12,7 +12,7 @@ NOT-MET (absent), N-A (not applicable). Size estimates for non-MET rows: S (days
 
 ## Summary
 
-Across 75 rows: 44 MET, 6 PARTIAL, 23 NOT-MET, 2 N-A.
+Across 75 rows: 48 MET, 7 PARTIAL, 18 NOT-MET, 2 N-A.
 
 The shipped core — QIDO-RS search (all six resource paths, full PS3.4 matching semantics), WADO-RS retrieval
 (study/series/instance/metadata/frames/bulkdata), and STOW-RS storage (both body variants server-side) — is at
@@ -31,8 +31,7 @@ PS3.18 services and the rendered/consumer-format surface:
 6. Thumbnail resources (`/thumbnail` at every level) — M
 7. Pixel data resources of Table 10.1-1 — M
 8. `application/dicom+xml` STOW-RS store bodies (metadata retrieval ships; STOW XML body still unparsed) — M
-9. Capabilities discovery (`OPTIONS /`, PS3.18 §8.9) — M
-10. STOW-RS metadata + bulkdata variant on the client (server accepts it; client posts whole objects) — M
+9. STOW-RS metadata + bulkdata variant on the client (server accepts it; client posts whole objects) — M
 
 ## dicomweb-client parity (client-side)
 
@@ -44,12 +43,12 @@ Reference: dicomweb-client package API (readthedocs, fetched 2026-06-10). Rows c
 | Client construction (base URL, custom HTTP transport, headers) | `DICOMwebClient.__init__` | MET | `dicomweb/client.go:149` `NewClient`; `WithHTTPClient` (:60), `WithRoundTripper` (`auth.go:32`) | - | Custom headers via a caller RoundTripper |
 | Per-service URL prefixes (`qido/wado/stow/delete_url_prefix`) | `DICOMwebClient.__init__` | NOT-MET | single `baseURL` only (`client.go:149`) | S | Rarely needed; most origins share one base path |
 | Streaming / `chunk_size`, `set_chunk_size` | `DICOMwebClient.set_chunk_size` | PARTIAL | streaming iterators (`client_retrieve.go:22,29`); `WithMaxResponseBytes` (`client.go:72`) | S | Reads stream and are bounded; no chunked-transfer control on store |
-| HTTP retry (`set_http_retry_params`) | `DICOMwebClient.set_http_retry_params` | NOT-MET | no retry logic in `dicomweb/client.go` | S | Achievable today via a retrying `WithRoundTripper` |
+| HTTP retry (`set_http_retry_params`) | `DICOMwebClient.set_http_retry_params` | MET | `dicomweb/retry.go` `WithRetry`/`RetryPolicy`: opt-in bounded exponential backoff for idempotent GET/OPTIONS only, retries transport errors and 5xx/429, honours Retry-After on 429/503 (refusing a delay beyond MaxBackoff), context-aware; layered outside the credential transport so a retry re-authenticates; tests `retry_test.go` | - | Default off (single-attempt behaviour unchanged); STOW POST never replayed |
 | `search_for_studies` | QIDO-RS study query | MET | `dicomweb/qido_client.go:49` `SearchStudies` | - | |
 | `search_for_series` | QIDO-RS series query | MET | `qido_client.go:56` `SearchSeries` (with or without study scope) | - | |
 | `search_for_instances` | QIDO-RS instance query | MET | `qido_client.go:67` `SearchInstances` | - | |
 | Search params: `fuzzymatching`, `limit`, `offset`, `fields`, `search_filters` | search method params | MET | `qido_client.go:21` `SearchQuery` (Fuzzy, Limit, Offset, IncludeFields, IncludeAll, Match) | - | Query string stripped from errors (PHI) |
-| Auto-pagination (`get_remaining`) | search method params | NOT-MET | manual Limit/Offset only | S | Caller loops on offset; Warning 299 signals truncation server-side |
+| Auto-pagination (`get_remaining`) | search method params | MET | `qido_client.go` `SearchStudiesAll`/`SearchSeriesAll`/`SearchInstancesAll`: offset/limit walk; continues on the Warning: 299 additional-results signal (PS3.18 §10.6.1.4, parsed quote-aware per warning element and only for the additional-results semantic — an unrelated 299 never forces a page) or a full page; with a Limit stops on a short unwarned page, without one walks to an empty page (get_remaining semantics); aborts with a typed error on a non-advancing page (offset-ignoring origin); bounded by maxPages with a truncation error, context-aware; single-shot `SearchStudiesPage`/`SearchSeriesPage`/`SearchInstancesPage` surface the truncation signal for manual paging; tests `qido_pagination_test.go` | - | Mirrors `fhir/rest.SearchAll`'s bounded-accumulate shape; manual Limit/Offset paging unchanged |
 | `retrieve_study` / `iter_study` | WADO-RS study retrieve | MET | `client_retrieve.go:22` `RetrieveStudy` (iterator); `:64` `RetrieveStudyObjects` (byte-preserving) | - | Iterator-first design covers both Python forms |
 | `retrieve_series` / `iter_series` | WADO-RS series retrieve | MET | `client_retrieve.go:29` `RetrieveSeries`; `:71` `RetrieveSeriesObjects` | - | |
 | `retrieve_instance` | WADO-RS instance retrieve | MET | `dicomweb/client.go:327` `RetrieveInstance`; `:342` `RetrieveInstanceObject` | - | Object form preserves origin transfer syntax byte-for-byte |
@@ -57,7 +56,7 @@ Reference: dicomweb-client package API (readthedocs, fetched 2026-06-10). Rows c
 | `retrieve_instance_frames` / `iter_instance_frames` | WADO-RS frames | MET | `client_retrieve.go:186` `RetrieveFrames` (1-based) | - | `application/octet-stream` parts only |
 | Per-call `media_types` (incl. transfer-syntax UID pairs) | retrieve method params | PARTIAL | client-level `WithTransferSyntaxes` (`client.go:78`) drives the Accept header | M | No per-call media type; no consumer-format (image/jpeg) Accept |
 | `retrieve_bulkdata` (by URL) | WADO-RS bulkdata | MET | `client_retrieve.go:196` `RetrieveBulkData`; `:222` `ResolveBulkDataURI`; `bulkdata.go` `BulkDataURIs` | - | Origin-scoped: foreign-host URIs blocked unless allowlisted (`client.go:98,108`) |
-| `byte_range` on bulkdata retrieval | `retrieve_bulkdata(byte_range=...)` | NOT-MET | no Range header in `client_retrieve.go` | S | |
+| `byte_range` on bulkdata retrieval | `retrieve_bulkdata(byte_range=...)` | MET | `client_retrieve.go` `ResolveBulkDataURIRange`/`ByteRange` (inclusive `bytes=start-end` incl. `bytes=0-0`; nil End is the explicit open-ended `bytes=start-`, mirroring the reference's omitted tuple end); accepts multipart or raw octet-stream bodies on a rangeful 206/200 and tolerates a 200 full-body answer per the reference semantics; negative or inverted ranges rejected before the wire; tests `bulkdata_range_test.go` | - | Client-only: the embeddable server ignores Range and answers 200 with the full value (valid per RFC 9110); a rangeless fetch still refuses a stray 206 and requires multipart framing |
 | `retrieve_instance_rendered` | WADO-RS rendered | NOT-MET | no rendered path in `dicomweb/` | L | Deferred in conformance v1 (`../dicomweb.md` out-of-scope) |
 | `retrieve_series_rendered` | WADO-RS rendered | NOT-MET | none | L | |
 | `retrieve_instance_frames_rendered` | WADO-RS rendered frames | NOT-MET | none | L | |
@@ -80,7 +79,7 @@ metadata, bulkdata, pixel data, rendered, thumbnail variants), §11 (Worklist Se
 
 | Transaction / capability | Reference anchor | Status | go-radx evidence | Size | Notes |
 |---|---|---|---|---|---|
-| Retrieve Capabilities (`OPTIONS /`) | §8.9 | NOT-MET | none | M | Standard says all RESTful services shall implement it |
+| Retrieve Capabilities (`OPTIONS /`) | §8.9 | MET | `capabilities_client.go` `Client.Capabilities` (OPTIONS on the service root, Accept `application/vnd.sun.wadl+xml`); parses the WADL description minimally (resources, methods, media types, nested resources flattened, depth-capped); tests `capabilities_test.go` (`TestClientCapabilitiesRoundTrip`, `TestClientCapabilitiesParsesNestedResources`, `TestClientCapabilitiesFailsClosed`) | - | Minimal WADL view, not a full WADL model; non-200 and non-XML answers are typed errors |
 | Search studies | §10.6, `/studies` | MET | `qido_client.go:49` | - | |
 | Search series (incl. `/studies/{s}/series`) | §10.6 | MET | `qido_client.go:56` | - | |
 | Search instances (all three paths) | §10.6 | MET | `qido_client.go:67` | - | |
@@ -89,7 +88,7 @@ metadata, bulkdata, pixel data, rendered, thumbnail variants), §11 (Worklist Se
 | Retrieve instance | §10.4 | MET | `client.go:327` | - | |
 | Retrieve metadata (study/series/instance) | §10.4, `.../metadata` | MET | `client_retrieve.go:156` (JSON), `RetrieveMetadataXML` (XML) | - | Both `application/dicom+json` and `application/dicom+xml` Accept |
 | Retrieve frames | §10.4, `.../frames/{list}` | MET | `client_retrieve.go:186` | - | Octet-stream parts; no consumer media types |
-| Retrieve bulkdata | §10.4, `.../bulkdata` | MET | `client_retrieve.go:196,222` | - | No Range requests |
+| Retrieve bulkdata | §10.4, `.../bulkdata` | MET | `client_retrieve.go:196,222`; ranged retrieval via `ResolveBulkDataURIRange` | - | Range requests supported on the URI-based resolver |
 | Retrieve pixel data resources | Table 10.1-1 pixel data | NOT-MET | none (`pixeldata` appears only in path redaction, `client.go:510`) | M | |
 | Retrieve rendered (study/series/instance/frames, incl. volumetric) | §10.4 rendered | NOT-MET | none | L | |
 | Retrieve thumbnail (every level) | §10.4 thumbnail | NOT-MET | none | M | |
@@ -110,7 +109,7 @@ they differ, status reflects the library and the daemon gap is noted.
 
 | Transaction / capability | Reference anchor | Status | go-radx evidence | Size | Notes |
 |---|---|---|---|---|---|
-| Retrieve Capabilities (`OPTIONS /`) | §8.9 | NOT-MET | router handles GET/POST only (`server.go:134`) | M | Unrouted paths answer 501, never a silent empty body |
+| Retrieve Capabilities (`OPTIONS /`) | §8.9 | PARTIAL | `server.go` routes `OPTIONS` on the service root to `capabilities.go` `handleCapabilities`: a WADL document (`application/vnd.sun.wadl+xml`, the PS3.18 §8.9 normative format) derived from the mounted backends, so an unrouted transaction is never advertised; negotiated fail-closed (406); tests `capabilities_test.go` (`TestServerCapabilitiesDescribesMountedServices`, `TestServerCapabilitiesOmitsUnmountedServices`, `TestServerCapabilitiesNegotiatesWADL`) | S | Pragmatic WADL subset: resources, methods, representation media types only — no query-parameter enumeration, WADO-URI not described; OPTIONS off the root stays 501 |
 | Search studies/series/instances (all six resource paths) | §10.6 | MET | `server.go:266,270` routing; `qido_server.go:69`; daemon: `role_dicomweb.go:103` `QueryBackend` | - | |
 | Matching semantics (single, wildcard, UID list, range, universal, fuzzy PN) | PS3.4 C.2.2.2 | MET | `dicomweb/qido_match.go`; tests `qido_test.go` | - | Fuzzy is substring, not phonetic (documented) |
 | `includefield` + default return attributes | §10.6, Tables 10.6.1-5/-5a/-5b | MET | `qido.go:114,196` | - | Unresolvable attribute rejected, not dropped |

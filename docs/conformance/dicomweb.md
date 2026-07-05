@@ -28,6 +28,8 @@ The package ships the three core DICOMweb services on both the client and the em
 
 - **WADO-URI** (the legacy URI-parameter single-object retrieval, PS3.18 §9) — `application/dicom` retrieval of one
   instance by its study/series/object UID triple. See [WADO-URI](#wado-uri).
+- **Retrieve Capabilities** (PS3.18 §8.9) — an `OPTIONS` on the service root returns a WADL description of the
+  mounted transactions. See [Capabilities](#capabilities).
 
 The supported query parameters, `Accept`/`Content-Type` negotiation, transfer-syntax selection, bulk-data referencing,
 pagination semantics, and authentication modes are declared in the sections below with their client and server roles.
@@ -102,6 +104,11 @@ absolute reference is fetched as given. The bulkdata server resolves a reference
 referenced value, top-level and nested sequence paths alike; a locator that names no binary attribute of the
 instance answers `404`. The bare `.../bulkdata` sub-resource returns every bulk-data value of the instance.
 
+The client can fetch part of a referenced value with `ResolveBulkDataURIRange`, which sends an HTTP `Range` header
+(`bytes=start-end`, or open-ended `bytes=start-`). An origin that honours the range answers `206 Partial Content`
+with only the requested octets; an origin that ignores it answers `200` with the full value, which is returned
+as-is. The embeddable server does not honour `Range` and always answers `200` with the full value.
+
 ### Errors
 
 A retrieval fault is a typed problem document carrying the mapped HTTP status and a PHI-free structural detail. A
@@ -173,8 +180,17 @@ closed (`500`) rather than reporting an empty result a caller would read as "no 
 
 ### Client
 
-The client exposes `SearchStudies`, `SearchSeries`, and `SearchInstances`. The query string is stripped from any URL
-recorded in an error, since a QIDO query string can carry patient identifiers.
+The client exposes `SearchStudies`, `SearchSeries`, and `SearchInstances`, plus the auto-paginating
+`SearchStudiesAll`, `SearchSeriesAll`, and `SearchInstancesAll`, which walk the offset/limit window until the origin
+reports the result set exhausted: the walk continues while the origin signals additional results with a
+`Warning: 299` element (only a 299 whose text carries the additional-results semantic counts; an unrelated 299 such
+as a fuzzymatching downgrade never forces a page) or fills the requested page. With a page size set the walk stops
+on a short page served without the warning; with no page size it walks until an empty page. A page that fails to
+advance (an origin ignoring the offset) aborts the walk with the accumulated results and an error, and the walk is
+bounded by a maximum page count — exceeding it returns the accumulated results with a truncation error, never a
+silent partial set. The single-shot `SearchStudiesPage`, `SearchSeriesPage`, and `SearchInstancesPage` variants
+surface the truncation signal for callers paging manually. The query string is stripped from any URL recorded in an
+error, since a QIDO query string can carry patient identifiers.
 
 ### Roles
 
@@ -298,6 +314,29 @@ line.
 | WADO-URI retrieve (`contentType=application/dicom`) | Implemented (reuses `RetrieveBackend`/`StoredInstanceRetriever`) | Implemented (`WADORetrieveInstance`, `WADORetrieveInstanceObject`) |
 | WADO-URI rendered retrieve (`contentType=image/jpeg`, ...) | Out of scope — answered `406` | Out of scope |
 
+## Capabilities
+
+The `dicomweb` package implements the Retrieve Capabilities transaction (PS3.18 §8.9) on both the embeddable server
+and the client. An `OPTIONS` request on the service root returns a Capabilities Description in the normative WADL
+format (`application/vnd.sun.wadl+xml`).
+
+The served description is a pragmatic WADL subset: it enumerates resources, methods, and representation media types,
+and it is derived from the backends the server instance actually mounts (including the optional retriever
+interfaces), so a transaction that would answer `501` is never advertised. Query-parameter enumeration and the
+WADO-URI query-string service are not described. An `Accept` that does not admit the WADL media type is answered
+`406 Not Acceptable`; an `OPTIONS` off the service root stays `501`.
+
+The client exposes `Capabilities`, which issues the `OPTIONS` and parses the WADL document minimally into the
+advertised resources, methods, and media types (nested WADL resources are flattened; the nesting depth is capped
+against a hostile document). A non-200 answer or a non-XML body is a typed error, never an empty description a
+caller would read as "no services".
+
+### Roles
+
+| Service | Server | Client |
+|---------|--------|--------|
+| Retrieve Capabilities (`OPTIONS /`) | Implemented (WADL subset derived from mounted backends) | Implemented (`Capabilities`) |
+
 ## Client authentication
 
 Client authentication is a pluggable transport concern: each scheme is an `http.RoundTripper` layered over the
@@ -356,9 +395,11 @@ answers an unservable request with an honest status (`406`, `501`) rather than a
   `contentType`s, PS3.18 §9.5) — server-side rendering to consumer image formats (JPEG/PNG). Out of scope: the package
   retrieves DICOM objects, frames, and bulk data, not rendered pixels. A WADO-URI request for a rendered `contentType`
   is answered `406 Not Acceptable`.
-- **UPS-RS** (Unified Procedure Step / worklist over the web, PS3.18 §11) and **capabilities discovery** (the
-  `OPTIONS /` / `/capabilities` document, PS3.18 §8.9) — no endpoint is served. The DIMSE Modality Worklist
-  ([`./dicom.md`](./dicom.md)) is the worklist surface today.
+- **UPS-RS** (Unified Procedure Step / worklist over the web, PS3.18 §11) — no endpoint is served. The DIMSE
+  Modality Worklist ([`./dicom.md`](./dicom.md)) is the worklist surface today.
+- **Full WADL detail in the Capabilities Description** — the served description enumerates resources, methods, and
+  representation media types only; query parameters and the WADO-URI query-string service are not described (see
+  [Capabilities](#capabilities)).
 - **Pixel-data transcoding** — the WADO-RS transfer-syntax policy answers `406 Not Acceptable` for a syntax the origin
   cannot serve; the shipped server registers no transcoders (see [Transfer-syntax policy](#transfer-syntax-policy)).
 - **STOW-RS metadata + bulk-data client** — the server accepts both store variants, but the client posts whole objects
