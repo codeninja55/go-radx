@@ -12,6 +12,22 @@ legacy codebase (`legacy-main`) and are not continued here.
 
 ### Added
 
+- `radx transcode` rewrites a Part 10 file's transfer syntax through the `dicom.Transcode` + `File.SetPixelData`
+  seam (`--to` accepts a UID or keyword, `--output-dir`/`--in-place`, `-R`; atomic temp-and-rename; pixel-less
+  meta rewrite; same-syntax passthrough is a byte-exact copy; unsupported encode targets fail closed). Closes
+  the dcmcrle/dcmdrle rows and moves dcmconv/dcmdjpeg/dcmcjpls to their remaining named gaps.
+- TLS on the DIMSE network commands: `--tls` with `--tls-ca`, mutual-TLS `--tls-cert`/`--tls-key`, and a
+  loudly-warned `--tls-skip-verify` (mutually exclusive with `--tls-ca`) across echo/store/find/get/move, plus
+  a `radx scp` TLS listener. Verification is on by default; the 1.2 floor is enforced by the library.
+- `radx serve dimse`: a Query/Retrieve SCP archive mounting C-GET and C-MOVE over the object store and
+  catalogue behind an explicit `WithDIMSERetrieve()` opt-in (existing role embedders do not gain retrieve on
+  upgrade). Retrieve enforces a valued unique key per level (an under-specified retrieve fails 0xA900 rather
+  than streaming the archive), honours UID-list and unindexed match keys, and exposes a static
+  `--move-destination AET=host:port` table.
+- `radx compose` builds a Part 10 file from PS3.18 Annex F JSON (`dicomweb.UnmarshalJSON`), deriving File Meta
+  from the dataset with SOP/Study/Series UIDs minted only where absent; `--transfer-syntax` UID/keyword,
+  `--overwrite` guard, stdin via `-`, hostile inputs fail closed. Closes the json2dcm row.
+
 - FHIR batch at the base endpoint: a `POST [base]` transaction Bundle of type `batch` now executes entry by
   entry, each entry dispatched through the same per-interaction pipeline as a standalone request (release
   validation, conditional headers, whitelist gating, version-store CAS), so a validation-rejected entry
