@@ -15,7 +15,10 @@ legacy codebase (`legacy-main`) and are not continued here.
 - `radx render` exports pixel frames to PNG or PPM through `dicom.RenderFrame` (dcm2pnm family):
   `--output-dir`, `--image-format png|ppm`, `--frame`/`--all-frames`, `-R`; atomic per-frame writes,
   fail-closed on a pixel-less object, an unsupported photometric interpretation, or a codec this build
-  cannot decode. Moves the dcm2pnm row to PARTIAL (TIFF/BMP/JPEG output and img2dcm import remain).
+  cannot decode. Moves the dcm2pnm row to PARTIAL (TIFF/BMP/JPEG output and img2dcm import remain). (#158)
+- The user-facing CLI reference (`docs/reference/cli.md`, `servers.md`) now documents `radx transcode`,
+  `compose`, `render`, the DIMSE TLS flag group, and `serve dimse`, and the corrected served-FHIR-interaction
+  lists (update/patch/delete, search depth, batch). (#158)
 
 - `radx transcode` rewrites a Part 10 file's transfer syntax through the `dicom.Transcode` + `File.SetPixelData`
   seam (`--to` accepts a UID or keyword, `--output-dir`/`--in-place`, `-R`; atomic temp-and-rename; pixel-less
