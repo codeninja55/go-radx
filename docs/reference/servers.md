@@ -49,8 +49,9 @@ In scope for v1:
   by `radx hl7 listen` (see [radx CLI](cli.md)); the DICOMweb and FHIR REST daemons run under `radx serve`
   (`serve dicomweb`, `serve fhir` — the `dicomweb`/`convert` CLI groups are clients, not servers — cli.md Scope).
 - A minimal **FHIR REST** server surface (the conformance subset of `read`, `vread`, `history-instance`, `create`,
-  `search-type`, `transaction`, and the `$validate` operation for the workflow resource set) over a pluggable,
-  versioned `server.Repository`, serving a single FHIR release fixed at role construction (see "FHIR REST server").
+  `update`, `patch`, `delete` with their conditional forms, `search-type`, `transaction`, `batch`, and the
+  `$validate` operation for the workflow resource set) over a pluggable, versioned `server.Repository`, serving a
+  single FHIR release fixed at role construction (see "FHIR REST server").
 
 Out of scope for v1 (architected-for, deferred — PRD §3.2, §5.1):
 
@@ -467,9 +468,12 @@ type Repository interface {
 `fhir.Resource`, `fhir.Validate`, and `fhir.OperationOutcome` are the release-agnostic machinery the root `fhir` package
 publishes; `r5.Bundle` / `r4.Bundle` and the resource types (`r5.Patient`, `r4.Patient`, and so on) live in the
 `fhir/r4` and `fhir/r5` packages, all documented in [FHIR R4/R5](fhir.md). The server introduces no parallel resource
-model. The served interactions are `read`, `vread`, `history-instance`, `create`, `search-type`, `transaction`, and
-the `$validate` operation for the workflow resource set (`Patient`, `Encounter`, `ServiceRequest`, `ImagingStudy`,
-`DiagnosticReport`, `Observation`, in the role's release). Every create writes version 1 into the repository's
+model. The served interactions are `read`, `vread`, `history-instance`, `create`, `update`, `patch`, `delete` (with
+their conditional forms), `search-type` (with `_include`/`_revinclude`, one-hop chaining, and `Bundle.link` paging),
+`transaction`, `batch`, and the `$validate` operation for the workflow resource set (`Patient`, `Encounter`,
+`ServiceRequest`, `ImagingStudy`, `DiagnosticReport`, `Observation`, in the role's release). A `batch` Bundle runs
+each entry through the same per-interaction pipeline as a standalone request, so one entry's failure does not roll
+back its siblings (unlike `transaction`). Every create writes version 1 into the repository's
 version store (`meta.versionId`/`meta.lastUpdated`); `update`, `delete`, and `patch` are deferred and return a
 `405`/`501` with an `OperationOutcome`, never a silent no-op (PRD §9.2) — the version store is interaction-shaped so
 those writes (and conditional writes) land by appending versions, not by reshaping the store.
